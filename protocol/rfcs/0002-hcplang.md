@@ -829,19 +829,17 @@ These are genuinely-undecided design choices. The RFC makes a working decision
 where one is needed to stay internally consistent, but flags it here for review.
 Several are inherited from [`0001-hcp.md`](./0001-hcp.md)'s open questions.
 
-1. **Baseline transport.** §6 assumes a byte stream but does not fix one. The
-   umbrella RFC lists stdio vs unix socket vs vsock; vsock matters for the
-   [MirageOS unikernel surface](../../docs/language/0010-mirageos-unikernel-surface.md)
-   (a sealed unikernel exposing a membrane over vsock). *Working assumption:*
-   length-framed stream, transport-agnostic; **defer the baseline choice to the
-   Litany Wire RFC.** Does `.hcplang` need any transport-aware annotation at all,
-   or stay fully transport-agnostic?
-2. **MCP-inside-frames vs HCP-peer.** Is `mcp-brokerd` an HCP peer that *speaks*
-   MCP outward (MCP terminates at the broker), or is MCP tunnelled inside Votive
-   Frames (MCP messages as `bytes`/`union` payloads)? This RFC models a tool call
-   with an opaque `args: bytes` body, which supports *either* reading, but a
-   first-class `union McpMessage { … }` would be needed for tunnelling. **Needs
-   adjudication** — it determines whether `.hcplang` grows MCP-shaped types.
+1. **Baseline transport — RESOLVED (2026-06-09, [RFC 0003](./0003-litany-wire.md)).**
+   Decided **transport-agnostic**: `.hcplang` adds no transport-aware annotation and
+   stays fully transport-agnostic. Litany Wire defines an abstract byte-stream
+   contract with non-normative stdio / unix-socket / vsock binding profiles (vsock
+   for the [MirageOS unikernel surface](../../docs/language/0010-mirageos-unikernel-surface.md));
+   no single baseline is mandated.
+2. **MCP-inside-frames vs HCP-peer — RESOLVED (2026-06-09, [RFC 0003](./0003-litany-wire.md)).**
+   Decided **MCP at the edge**: `mcp-brokerd` is an ordinary HCP peer that *speaks*
+   MCP outward (MCP terminates at the broker). `.hcplang` and Litany Wire stay
+   MCP-agnostic and grow **no** MCP-shaped types — the opaque `args: bytes` body
+   stands; no `union McpMessage` is added.
 3. **Tag `@0` / extension space.** This RFC reserves `@0` for the header and an
    extension space but does not define the extension mechanism. Should unknown
    top-level extensions be a reserved union at `@0`, or handled purely by the
