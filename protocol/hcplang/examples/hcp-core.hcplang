@@ -1,0 +1,117 @@
+# hcp-core.hcplang — the core Votive Frames + one brokered tool-call exchange.
+#
+# Normative grammar: protocol/hcplang/grammar.ebnf
+# Spec:              protocol/rfcs/0002-hcplang.md
+#
+# This schema defines all five Votive Frame classes (request / response / event /
+# control / error) and a concrete ToolBroker exchange. Header fields
+# (kind/corr/stream/seq/end) are implicit and reserved — never declared here
+# (RFC 0002 §4.2); author tags therefore begin at @1.
+
+schema hcp.core {
+  version = "0.1.0"
+
+  # ---- Shared enums ------------------------------------------------------
+
+  /// Severity of an event or error. Case 0 is the default (RFC 0002 §5.4).
+  enum Severity {
+    info  = 0,
+    warn  = 1,
+    err = 2,
+  }
+
+  /// Stable error categories that preceptord and surfaces can switch on.
+  enum ErrorKind {
+    unspecified = 0,
+    denied      = 1,   # preceptord refused the request
+    not_found   = 2,   # oraclefd could not resolve a name/capability
+    budget      = 3,   # mcp-brokerd budget exhausted
+    timeout     = 4,
+    malformed   = 5,   # non-canonical / invalid hcpbin
+  }
+
+  # ---- Shared records / unions ------------------------------------------
+
+  /// A single key/value attribute carried alongside an event.
+  record Attr {
+    key:   string  @1
+    value: string  @2
+  }
+
+  /// The body of a tool result: exactly one arm is present (RFC 0002 §5.5).
+  union ToolResult {
+    /// Inline UTF-8 text result.
+    text:   string  @1
+    /// Inline opaque binary result.
+    binary: bytes   @2
+    /// A reference to a durable artifact held by reliquaryd.
+    relic:  hash    @3 @relic
+  }
+
+  # ---- Votive Frames: request / response --------------------------------
+
+  /// A brokered tool invocation. mcp-brokerd dispatches these under
+  /// preceptord authority and budgets.
+  frame ToolCallRequest request {
+    tool:    string              @1   # e.g. "fs.read"
+    args:    bytes               @2   # opaque, tool-specific request body
+    labels:  map<string, string> @3   # optional call labels; absent = empty map (§6.3)
+    budget:  u32?                @4   # optional per-call budget hint
+  }
+
+  /// The terminal reply to a ToolCallRequest, on the same correlation id.
+  frame ToolCallResponse response {
+    result:   ToolResult  @1          # non-optional union: no default, ALWAYS emitted (§6.3)
+    severity: Severity    @2 = info   # scalar default; omitted on the wire (§6.3)
+    notes:    list<Attr>  @3          # absent = empty list (§6.3)
+  }
+
+  # ---- Votive Frames: event ---------------------------------------------
+
+  /// An unsolicited / subscription-driven event on a stream. The event stream
+  /// operator surfaces subscribe to (RFC 0002 §4). Terminal chunk sets the
+  /// implicit header field `end = true`.
+  frame ToolEvent event {
+    severity: Severity        @1 = info
+    message:  string          @2
+    at:       timestamp       @3          # no implicit default; always emitted (§6.3)
+    attrs:    list<Attr>      @4          # absent = empty list (§6.3)
+    /// Redacted in litanydump / eventd projections (RFC 0002 §4.4).
+    secret:   bytes?          @5 @redact
+  }
+
+  # ---- Votive Frames: control -------------------------------------------
+
+  /// Subscription request: open a stream of ToolEvent frames. Carried as a
+  /// control frame; chapterd / candled own the lifecycle (RFC 0002 §4).
+  frame WatchControl control {
+    session:    uuid               @1   # no implicit default; always emitted (§6.3)
+    /// Only deliver events at or above this severity.
+    min_level:  Severity           @2 = info
+    /// Optional tool-name filters; absent = empty list = all tools (§6.3).
+    tools:      list<string>       @3
+  }
+
+  # ---- Votive Frames: error ---------------------------------------------
+
+  /// A typed failure terminating a request or stream (RFC 0002 §4).
+  frame ToolFault error {
+    kind:    ErrorKind  @1
+    message: string     @2
+    detail:  bytes?     @3
+  }
+
+  # ---- Service ----------------------------------------------------------
+
+  /// The brokered-tool surface advertised by mcp-brokerd / petitiond and
+  /// scoped by preceptord (RFC 0002 §4.3, §8).
+  service ToolBroker {
+    /// Invoke a brokered tool and await its result (an error frame may
+    /// terminate the call implicitly).
+    call      invoke (ToolCallRequest) -> ToolCallResponse
+
+    /// Subscribe to the live event stream for a session; terminated by an
+    /// event with end = true or by an error.
+    subscribe watch  (WatchControl) yields ToolEvent
+  }
+}

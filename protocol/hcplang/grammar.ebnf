@@ -1,0 +1,179 @@
+# .hcplang grammar — HCP schema / IDL language
+#
+# Notation follows vaked/grammar/vaked-v0-plus.ebnf:
+#   "literal"      terminal
+#   { x }          zero or more
+#   [ x ]          optional (zero or one)
+#   x | y          alternation
+#   ( x )          grouping
+#   rule = ... ;   one production, ;-terminated
+#
+# Normative reference: protocol/rfcs/0002-hcplang.md
+# A conforming parser MUST accept exactly this grammar. litanyfmt is the
+# canonical formatter; the byte-for-byte source form it emits is normative for
+# source-mapping (see RFC 0002 §3, §9).
+
+schema        = { item } ;
+item          = import
+              | decl ;
+# Leading doc annotations (`///`) now attach to the decl they precede via the
+# `{ annotation }` slot on `decl` (and on nested decls/fields/cases/arms/
+# methods), so a free-standing top-level annotation is no longer needed.
+
+import        = "use" string ;
+
+# ---- Declarations --------------------------------------------------------
+#
+# A declaration may be preceded by leading doc annotations (`///`) and
+# attributes (`@name(...)`), in that order (RFC 0002 §3, §4.4). The same
+# leading-annotation slot appears on nested decls, fields, enum cases, union
+# arms, and methods, so doc annotations attach to exactly the item they
+# precede. The schema name is a `qualified_ident` (dotted, e.g. `hcp.core`);
+# all other decl names are plain `ident`.
+
+decl          = { annotation } { attribute } kind decl_name decl_body ;
+decl_name     = qualified_ident ;
+
+kind          = "schema"
+              | "enum"
+              | "record"
+              | "union"
+              | "frame"
+              | "service" ;
+
+decl_body     = enum_body
+              | record_body
+              | union_body
+              | frame_body
+              | service_body
+              | schema_body ;
+
+# `schema NAME { ... }` is the top-level module/namespace form. Its body is a
+# sequence of nested declarations plus a mandatory `version` setting.
+schema_body   = "{" { setting | decl } "}" ;
+setting       = ident "=" literal ;
+
+# ---- Enums ---------------------------------------------------------------
+
+enum_body     = "{" enum_case { "," enum_case } [ "," ] "}" ;
+enum_case     = { annotation } { attribute } ident "=" int_literal ;
+
+# ---- Records (structs) ---------------------------------------------------
+#
+# Attributes may appear BOTH as a leading prefix and as a trailing run after
+# the tag (e.g. `relic: hash @3 @relic`); RFC 0002 §4.4 pins attribute
+# position. Leading doc annotations (`///`) attach to the field.
+
+record_body   = "{" { field } "}" ;
+field         = { annotation } { attribute }
+                ident ":" type "@" int_literal [ "=" literal ] { attribute } ;
+
+# ---- Unions (tagged / sum types) -----------------------------------------
+#
+# Union arms mirror fields: optional leading doc annotations, leading and/or
+# trailing attributes around the `ident ":" type "@" tag`.
+
+union_body    = "{" union_arm { union_arm } "}" ;
+union_arm     = { annotation } { attribute }
+                ident ":" type "@" int_literal { attribute } ;
+
+# ---- Frames (Votive Frames) ----------------------------------------------
+#
+# A frame declares one of the five Votive Frame classes. The class keyword
+# fixes the frame's role in the Votive Frame model (RFC 0002 §4); the body is
+# a record body whose fields carry the frame-specific payload. Header fields
+# (`kind`, `corr`, `stream`, `seq`, `end`) are implicit and reserved — they are
+# supplied by the wire layer, never declared (RFC 0002 §4.2).
+
+frame_body    = frame_class frame_record ;
+frame_class   = "request"
+              | "response"
+              | "event"
+              | "control"
+              | "error" ;
+frame_record  = "{" { field } "}" ;
+
+# ---- Services ------------------------------------------------------------
+#
+# A service groups related exchanges. Each method binds a request frame to a
+# response frame (call), or declares a one-way event stream (subscribe).
+
+service_body  = "{" { method } "}" ;
+method        = { annotation } { attribute } method_kind ident method_sig ;
+method_kind   = "call"
+              | "subscribe" ;
+# call:      "(" request_frame ")" "->" response_frame
+# subscribe: "(" control_frame ")" "yields" event_frame  (event stream)
+method_sig    = "(" type ")" "->" type
+              | "(" type ")" "yields" type ;
+
+# ---- Types ---------------------------------------------------------------
+
+type          = optional_type
+              | list_type
+              | map_type
+              | named_type ;
+
+optional_type = base_type "?" ;
+list_type     = "list" "<" type ">" ;
+map_type      = "map" "<" key_type "," type ">" ;
+base_type     = list_type | map_type | named_type ;
+
+# Map keys MUST be a scalar with a total canonical order (RFC 0002 §5.3).
+key_type      = "string" | "bytes"
+              | "u8" | "u16" | "u32" | "u64"
+              | "i8" | "i16" | "i32" | "i64" ;
+
+named_type    = scalar_type | ref ;
+scalar_type   = "bool"
+              | "u8"  | "u16" | "u32" | "u64"
+              | "i8"  | "i16" | "i32" | "i64"
+              | "f32" | "f64"
+              | "string"
+              | "bytes"
+              | "timestamp"
+              | "hash"
+              | "uuid" ;
+
+# A `qualified_ident` is one or more dot-separated identifiers. It names a
+# schema (`schema hcp.core`) and is also how a type or enum case is referenced,
+# including across schemas (`hcp.core.Frame`, `Severity.error`). `ref` is the
+# type/enum-case-reference spelling of the same production (RFC 0002 §5.6).
+qualified_ident = ident { "." ident } ;
+ref           = qualified_ident ;
+
+# ---- Attributes & annotations --------------------------------------------
+#
+# Attributes decorate the following declaration/field; doc annotations attach
+# leading documentation. Both are preserved through codegen for source-mapping.
+
+attribute     = "@" ident [ "(" attr_arg { "," attr_arg } ")" ] ;
+attr_arg      = ident "=" literal | literal ;
+annotation    = "///" { not_newline } newline ;
+
+# ---- Literals ------------------------------------------------------------
+
+literal       = int_literal | float_literal | bool | string | enum_ref ;
+# a qualified reference to an enum case, e.g. Severity.error
+enum_ref      = ref ;
+int_literal   = [ "-" ] digit { digit }
+              | "0x" hexdigit { hexdigit } ;
+float_literal = [ "-" ] digit { digit } "." digit { digit } ;
+bool          = "true" | "false" ;
+
+# ---- Lexical terminals ---------------------------------------------------
+#
+# Comments: line comments begin with "#" and run to end of line (doc
+# annotations "///" are NOT comments — they are retained, see §3). Whitespace
+# (space, tab, newline) separates tokens and is otherwise insignificant.
+# Source files are UTF-8; identifiers and keywords are ASCII. A string is a
+# JSON-style double-quoted literal (escapes \" \\ \n \t \uXXXX), UTF-8.
+
+ident         = letter { letter | digit | "_" } ;
+string        = '"' { string_char } '"' ;
+letter        = "a" | "..." | "z" | "A" | "..." | "Z" ;
+digit         = "0" | "..." | "9" ;
+hexdigit      = digit | "a" | "..." | "f" | "A" | "..." | "F" ;
+newline       = ? U+000A line feed ? ;
+not_newline   = ? any Unicode scalar value except newline ? ;
+string_char   = ? any Unicode scalar value except '"' and '\', or a JSON escape ? ;
