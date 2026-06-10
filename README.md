@@ -22,7 +22,7 @@ Vaked source → typed semantic graph → generated artifacts
 | Path | Status | What lives here |
 |------|--------|-----------------|
 | `vaked/` | **language** | The Vaked language itself — `grammar/` (EBNF), `schema/`, `examples/` |
-| `vakedc/` | **language** | `vakedc` — the prototype front-end: lexer + parser → Labeled Property Graph + type checker (0011 stages 1–4). `python3 -m vakedc parse <file>`; `python3 -m vakedc check <file> [--json]` |
+| `vakedc/` | **language** | `vakedc` — the prototype front-end: lexer + parser → Labeled Property Graph + type checker (0011 stages 1–4) + lowering (0012). Pipeline **parse → check → lower**: `python3 -m vakedc parse <file>`; `python3 -m vakedc check <file> [--json]`; `python3 -m vakedc lower <file> [--out DIR]` (checks first; refuses to emit on any diagnostic; writes `flake.nix`, `gen/…`, `provenance.json`) |
 | `docs/language/` | **language** | Design series (`0001`-manifesto … `0008`-parallelism … `0010`-mirageos) + `references/` |
 | `docs/context/` | **context** | `PROJECT_CONTEXT.md` — the canonical overview |
 | `prompts/` | **context** | `dedicated-language-session.md` — kickoff prompt for the language-only session |
