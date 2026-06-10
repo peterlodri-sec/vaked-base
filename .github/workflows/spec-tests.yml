@@ -1,0 +1,40 @@
+name: spec-tests
+
+# Runs the executable spec-test harness (tests/spec/) that builds recognizers from
+# the on-disk EBNF grammars and checks every example derives, plus the lowering
+# fixtures and doc links. Primary trigger: every version/tag bump (push of a v* tag).
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  spec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Pin Python for determinism (the harness is stdlib-only; system python3 would
+      # also work, but a pinned version keeps CI reproducible).
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run spec-test harness
+        run: python3 tests/spec/run_all.py
+
+      # Parse-only Nix check of the flake fixtures. nix-instantiate --parse never
+      # builds or fetches, so the fixtures' placeholder revs are never resolved.
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Parse-check flake.nix fixtures (parse only — no build, no fetch)
+        run: |
+          nix-instantiate --parse flake.nix
+          nix-instantiate --parse vaked/examples/lowering/flake.nix
