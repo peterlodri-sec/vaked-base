@@ -31,6 +31,12 @@ eBPF evidence
 operator surfaces
 ```
 
+The `typed semantic graph → generated artifacts` step is **lowering** (Goal 3),
+specified in [`docs/language/0012-lowering.md`](../language/0012-lowering.md): a
+pure, total, hermetic graph→artifacts pass (Vaked owns the `gen/` artifacts; a
+Nix spine wires/builds/deploys them). The graph it consumes is produced by the
+type checker (Goal 2, [`docs/language/0011-type-system.md`](../language/0011-type-system.md)).
+
 ## Mantra
 
 ```text
