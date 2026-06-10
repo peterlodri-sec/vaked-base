@@ -27,7 +27,17 @@ jobs:
           python-version: '3.12'
 
       - name: Run spec-test harness
-        run: python3 tests/spec/run_all.py
+        run: |
+          python3 tests/spec/run_all.py | tee spec-out.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Publish spec results to step summary
+        if: always()
+        run: |
+          echo "## spec-tests" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat spec-out.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
       # Parse-only Nix check of the flake fixtures. nix-instantiate --parse never
       # builds or fetches, so the fixtures' placeholder revs are never resolved.

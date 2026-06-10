@@ -44,6 +44,10 @@ prompts/dedicated-language-session.md
 
 ## Status
 
+[![spec-tests](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml/badge.svg)](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml)
+
+Verification dashboard: `python3 tools/specdash/build.py --serve`
+
 This is a **scaffold**. The language track (`vaked/`, `docs/language/`) carries real design content. The runtime (`daemons/`) and protocol (`protocol/`) subtrees are **indexed stubs** — each subsystem gets its own design → plan → implementation cycle. Nothing here is implemented yet beyond the dev shell and the language design docs.
 
 See [`docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md`](docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md) for the scaffold's design record, and [`CLAUDE.md`](CLAUDE.md) for working conventions (including the environment **patch-doctor** runbook).
