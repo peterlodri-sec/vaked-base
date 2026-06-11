@@ -35,3 +35,29 @@ def load_repos(config_path: str) -> list[Repo]:
         )
         for r in data["repos"]
     ]
+
+
+# ---------------------------------------------------------------------------
+# Task 2 — Cost math
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Price:
+    """Per-million-token pricing for a model."""
+
+    prompt_per_m: float
+    completion_per_m: float
+
+
+def cost_usd(usage: dict, price: Price) -> float:
+    """Return USD cost for a single API call given token usage and pricing."""
+    pin = usage.get("prompt_tokens", 0) or 0
+    pout = usage.get("completion_tokens", 0) or 0
+    return pin / 1e6 * price.prompt_per_m + pout / 1e6 * price.completion_per_m
+
+
+FALLBACK_PRICES: dict[str, Price] = {
+    "qwen/qwen3-235b-a22b-thinking-2507": Price(0.10, 0.10),
+    "deepseek/deepseek-v4-flash": Price(0.098, 0.197),
+}
