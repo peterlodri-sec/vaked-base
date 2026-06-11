@@ -151,6 +151,17 @@ tools/ralph/ralph.py watch  [--refresh 3]
 `--dry-run` (on `decide`): build + print both prompts and a cost estimate; no API
 call, no log write.
 
+## Privacy / endpoint (data governance)
+
+A live iteration sends **private-repo content** (issue bodies, README/CLAUDE.md,
+git log) to whatever endpoint is configured. By default that is **OpenRouter**, a
+third party outside the trust boundary — accept this consciously, or override the
+endpoint. Precedence: `--base-url` > `RALPH_BASE_URL` env > OpenRouter default;
+key: `RALPH_API_KEY` > `OPENROUTER_API_KEY`. Point `--base-url` /`RALPH_BASE_URL`
+at a **self-hosted, trust-boundary OpenAI-compatible endpoint** (e.g.
+`agentfield-inference-host`) to keep private content local. (A future
+`--titles-only` context mode could further reduce what leaves the box.)
+
 ## Safety
 
 - Read-only on every target repo; the only writes are appends to logs +
