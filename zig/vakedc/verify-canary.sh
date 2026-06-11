@@ -5,8 +5,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-bin=$(mktemp -t vakedc-canary.XXXXXX)
-trap 'rm -f "$bin"' EXIT
+dir=$(mktemp -d)
+trap 'rm -rf "$dir"' EXIT
+bin="$dir/vakedc-canary"   # fresh path so the build output keeps its +x bit
 zig build-exe src/main.zig -femit-bin="$bin"
 
 ok=1
