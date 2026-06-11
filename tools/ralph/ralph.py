@@ -317,12 +317,105 @@ def cmd_decide(args) -> int:
     return 0
 
 
+def read_status() -> "dict | None":
+    if not os.path.exists(STATUS_PATH):
+        return None
+    try:
+        return json.load(open(STATUS_PATH, encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
+def write_status(status: dict) -> None:
+    os.makedirs(os.path.dirname(STATUS_PATH), exist_ok=True)
+    tmp = STATUS_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(status, fh, indent=2)
+    os.replace(tmp, STATUS_PATH)
+
+
+def _supervised_decide(args, repo: C.Repo, status: dict) -> None:
+    """One decide iteration; fold cost + result into status. Contained --
+    a failure here never crashes the supervisor."""
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        print("OPENROUTER_API_KEY not set — cannot decide", file=sys.stderr)
+        return
+    try:
+        compact = gather_context(repo, args.git_log_window, compact=True)
+        s1_msgs = C.build_stage1_messages(repo.name, compact, _prior_titles(repo.name))
+        before = len(_prior_titles(repo.name))
+        cost = _decide_live(args, repo, s1_msgs, api_key)
+        status["total_cost"] = status.get("total_cost", 0.0) + cost
+        after = _prior_titles(repo.name)
+        rep = status["repos"].setdefault(repo.name,
+                                         {"entries": 0, "last_title": "-", "cost": 0.0})
+        rep["cost"] = rep.get("cost", 0.0) + cost
+        if len(after) > before:
+            rep["entries"] = len(after)
+            rep["last_title"] = after[-1]
+            status["recent"].insert(0, {"repo": repo.name, "date": _today(),
+                                        "title": after[-1]})
+            status["recent"] = status["recent"][:10]
+    except Exception as e:
+        print("iteration failed for %s: %s" % (repo.name, e), file=sys.stderr)
+
+
 def cmd_run(args) -> int:
-    raise NotImplementedError
+    repos = C.load_repos(args.repos)
+    names = [r.name for r in repos]
+    by_name = {r.name: r for r in repos}
+    status = read_status() or {
+        "running": True, "current": None, "iteration": 0,
+        "total_cost": 0.0, "budget_total": args.budget_total,
+        "repos": {n: {"entries": 0, "last_title": "-", "cost": 0.0} for n in names},
+        "recent": [], "last_step_epoch": 0,
+    }
+    status["running"] = True
+    status["budget_total"] = args.budget_total
+    iters = 0
+    try:
+        while True:
+            if status["total_cost"] >= args.budget_total:
+                print("budget cap reached ($%.2f) — stopping" % args.budget_total)
+                break
+            if args.max_iters and iters >= args.max_iters:
+                print("max-iters reached — stopping")
+                break
+            unavailable = {r.name for r in repos if not os.path.isdir(r.path)}
+            nxt = C.next_repo(names, status["current"], unavailable)
+            if nxt is None:
+                print("no available repos — stopping", file=sys.stderr)
+                break
+            status["current"] = nxt
+            status["iteration"] += 1
+            iters += 1
+            _supervised_decide(args, by_name[nxt], status)
+            status["last_step_epoch"] = int(time.time())
+            write_status(status)
+            if args.max_iters and iters >= args.max_iters:
+                continue
+            time.sleep(args.interval)
+    except KeyboardInterrupt:
+        print("\nSIGINT — shutting down")
+    finally:
+        status["running"] = False
+        write_status(status)
+    return 0
 
 
 def cmd_watch(args) -> int:
-    raise NotImplementedError
+    try:
+        while True:
+            status = read_status()
+            last = status.get("last_step_epoch", 0) if status else 0
+            out = C.render_dashboard(status, int(time.time()), last)
+            sys.stdout.write("\033[2J\033[H")
+            sys.stdout.write(out)
+            sys.stdout.flush()
+            time.sleep(args.refresh)
+    except KeyboardInterrupt:
+        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +443,7 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--interval", type=int, default=900)
     p_run.add_argument("--budget-total", type=float, default=2.00)
     p_run.add_argument("--max-iters", type=int, default=0)
+    p_run.add_argument("--seed", type=int, default=42)
     p_run.set_defaults(func=cmd_run)
 
     p_watch = sub.add_parser("watch")
