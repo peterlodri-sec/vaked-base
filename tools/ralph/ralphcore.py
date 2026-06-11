@@ -178,3 +178,63 @@ def format_entry(
         f"- **Context snapshot:** HEAD {head}, {open_issues} open issues\n\n"
         f"{body.rstrip()}\n\n"
     )
+
+
+# ---------------------------------------------------------------------------
+# Task 6 — Dashboard rendering
+# ---------------------------------------------------------------------------
+
+
+def _bar(frac: float, width: int = 20) -> str:
+    """Render an ASCII progress bar."""
+    frac = max(0.0, min(1.0, frac))
+    fill = round(frac * width)
+    return "[" + "#" * fill + "-" * (width - fill) + "]"
+
+
+def render_dashboard(
+    status: dict | None,
+    now_epoch: int,
+    last_step_epoch: int,
+) -> str:
+    """Render a text dashboard for the ralph supervisor status."""
+    if not status:
+        return "ralph — no supervisor running (status.json missing or empty)\n"
+
+    current = status.get("current", "?")
+    iteration = status.get("iteration", 0)
+    total = float(status.get("total_cost", 0))
+    budget = float(status.get("budget_total", 0)) or 1e-9
+    running = status.get("running", False)
+    dot = "●" if running else "○"
+    since = max(0, now_epoch - last_step_epoch)
+
+    lines: list[str] = [
+        f"ralph eye  {dot}  current={current}  iter={iteration}  ({since}s since last step)",
+        f"spend  ${total:.4f} / ${budget:.2f}  {_bar(total / budget)}",
+        "",
+    ]
+
+    # Repo table
+    repos: dict = status.get("repos", {})
+    lines.append("%-18s %6s  %-40s %8s" % ("repo", "n", "last decision", "cost$"))
+    for repo_name in sorted(repos):
+        info = repos[repo_name]
+        lines.append(
+            "%-18s %6d  %-40.40s %8.4f"
+            % (
+                repo_name,
+                int(info.get("entries", 0)),
+                info.get("last_title", ""),
+                float(info.get("cost", 0)),
+            )
+        )
+
+    recent: list[dict] = status.get("recent", [])
+    if recent:
+        lines.append("")
+        lines.append("recent decisions:")
+        for entry in recent[:5]:
+            lines.append(f"  [{entry.get('repo', '?')}] {entry.get('date', '?')} — {entry.get('title', '?')}")
+
+    return "\n".join(lines) + "\n"
