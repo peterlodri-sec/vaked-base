@@ -61,3 +61,26 @@ FALLBACK_PRICES: dict[str, Price] = {
     "qwen/qwen3-235b-a22b-thinking-2507": Price(0.10, 0.10),
     "deepseek/deepseek-v4-flash": Price(0.098, 0.197),
 }
+
+
+# ---------------------------------------------------------------------------
+# Task 3 — Candidate selection
+# ---------------------------------------------------------------------------
+
+
+def select_candidate(candidates: list[dict]) -> dict | None:
+    """Return the best candidate to decide next.
+
+    Prefers unaddressed candidates; falls back to all candidates if all are
+    addressed. Picks the highest urgency (ties broken by first occurrence).
+    Returns None for an empty list.
+    """
+    if not candidates:
+        return None
+    unaddressed = [c for c in candidates if not c.get("addressed", False)]
+    pool = unaddressed if unaddressed else candidates
+    best = pool[0]
+    for c in pool[1:]:
+        if int(c.get("urgency", 0)) > int(best.get("urgency", 0)):
+            best = c
+    return best
