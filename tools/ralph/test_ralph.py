@@ -361,6 +361,39 @@ def test_decide_live_skip_on_degenerate_responses() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Task 9 — status.json round-trip
+# ---------------------------------------------------------------------------
+
+def test_status_round_trip() -> None:
+    import importlib, tempfile, os
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as d:
+        orig = ralph.STATUS_PATH
+        ralph.STATUS_PATH = os.path.join(d, "status.json")
+        try:
+            ralph.write_status({"running": True, "current": "crabcc", "iteration": 2,
+                                "total_cost": 0.1, "budget_total": 2.0, "repos": {}, "recent": []})
+            back = ralph.read_status()
+        finally:
+            ralph.STATUS_PATH = orig
+        assert back["current"] == "crabcc" and back["iteration"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Task 10 — run supervisor: budget 0 → zero iterations
+# ---------------------------------------------------------------------------
+
+def test_run_budget_zero_no_iterations() -> None:
+    import subprocess, sys, os
+    here = os.path.dirname(os.path.abspath(__file__))
+    r = subprocess.run([sys.executable, os.path.join(here, "ralph.py"), "run",
+                        "--budget-total", "0", "--max-iters", "1"],
+                       capture_output=True, text=True, cwd=here, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert "budget" in (r.stdout + r.stderr).lower()
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
