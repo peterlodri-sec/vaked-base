@@ -113,3 +113,68 @@ def next_repo(
         if cand in available:
             return cand
     return available[0]
+
+
+# ---------------------------------------------------------------------------
+# Task 5 — Prompt + entry formatting
+# ---------------------------------------------------------------------------
+
+_STAGE1_SYS = (
+    "You are the strategy advisor for the {repo} repository. From the project state and the titles of prior decisions, identify the open STRATEGIC decisions that matter most right now. Return JSON ONLY matching the schema: "
+    '{{"candidates":[{{"title":str,"why_now":str,"urgency":1-5,"addressed":bool}}]}}. '
+    "Mark addressed=true if a prior-decision title already covers it. Rank by urgency. Do not invent work; ground every candidate in the provided state."
+)
+
+_STAGE2_SYS = (
+    "You are the strategy advisor for the {repo} repository. Given ONE chosen decision and the full project context, write a single decision entry in GitHub-flavored markdown with these bold-labelled lines: Decision / question, Options, Recommendation, Risks, Next actions, Confidence (low|med|high). Be concrete and grounded; no preamble, output only the entry body."
+)
+
+
+def build_stage1_messages(
+    repo: str,
+    compact_state: str,
+    prior_titles: list[str],
+) -> list[dict]:
+    """Build the message list for the stage-1 (candidate enumeration) LLM call."""
+    titles = "\n".join("- " + t for t in prior_titles) or "(none yet)"
+    return [
+        {"role": "system", "content": _STAGE1_SYS.format(repo=repo)},
+        {"role": "user", "content": f"# Prior decision titles\n{titles}\n\n# Project state\n{compact_state}"},
+    ]
+
+
+def build_stage2_messages(
+    repo: str,
+    full_context: str,
+    candidate: dict,
+) -> list[dict]:
+    """Build the message list for the stage-2 (decision body) LLM call."""
+    c = json.dumps(candidate, ensure_ascii=False)
+    return [
+        {"role": "system", "content": _STAGE2_SYS.format(repo=repo)},
+        {"role": "user", "content": f"# Chosen decision\n{c}\n\n# Full project context\n{full_context}"},
+    ]
+
+
+def format_entry(
+    n: int,
+    date: str,
+    repo: str,
+    head: str,
+    open_issues: int,
+    body: str,
+    s1: str,
+    s2: str,
+) -> str:
+    """Format a completed decision entry for the decision log."""
+    first = next(
+        (ln.strip(" #*-") for ln in body.splitlines() if ln.strip()),
+        "untitled",
+    )
+    title = first[:80]
+    return (
+        f"## {date} — Decision #{n}: {title}\n"
+        f"- **Repo:** {repo} · **Models:** stage1 {s1} · stage2 {s2}\n"
+        f"- **Context snapshot:** HEAD {head}, {open_issues} open issues\n\n"
+        f"{body.rstrip()}\n\n"
+    )
