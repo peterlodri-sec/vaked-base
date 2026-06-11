@@ -1,0 +1,128 @@
+// vaked-run — BuildKit-style front-end for the vakedc pipeline.
+//
+//   vaked-run <parse|check|lower|all> <file.vaked> [out_dir] [--no-color]
+//
+// Colourful, docker-buildkit-style step output by default. Disable colour with
+// --no-color, NO_COLOR=1, or a non-tty stdout. Compile: amber build tools/vaked-run.ab tools/vaked-run.sh
+//
+// This is dev tooling (NOT the language) — see the vaked-compiler-dev skill.
+
+let ESC = trust $printf '\033'$
+
+fun color_on(args: [Text]): Bool {
+    let env_off = trust $[ -n "\$NO_COLOR" ] && echo "1" || echo "0"$
+    if env_off == "1" {
+        return false
+    }
+    for a in args {
+        if a == "--no-color" {
+            return false
+        }
+    }
+    let is_tty = trust $[ -t 1 ] && echo "1" || echo "0"$
+    return is_tty == "1"
+}
+
+fun paint(on: Bool, code: Text, s: Text): Text {
+    if on {
+        return "{ESC}[{code}m{s}{ESC}[0m"
+    }
+    return s
+}
+
+fun stamp(): Text {
+    return trust $python3 -c "import time;print(time.time())"$
+}
+
+// run one pipeline stage; returns exit code (0 ok).
+fun run_step(on: Bool, idx: Num, total: Num, sub: Text, file: Text, out: Text): Num {
+    let arrow = paint(on, "36;1", "=>")
+    let pos = paint(on, "1", "[{idx}/{total}]")
+    let label = paint(on, "2", "vakedc {sub} {file}")
+    echo("{arrow} {pos} {label}")
+
+    let t0 = stamp()
+    let rc = 0
+    if sub == "lower" {
+        $python3 -m vakedc lower "{file}" --out "{out}"$ failed {
+            rc = 1
+        }
+    } else {
+        $python3 -m vakedc {sub} "{file}"$ failed {
+            rc = 1
+        }
+    }
+    let t1 = stamp()
+    let dur = trust $python3 -c "print(round({t1} - {t0}, 1))"$
+
+    if rc == 0 {
+        let mark = paint(on, "32;1", "   ✓")
+        let tail = paint(on, "2", "{dur}s")
+        echo("{mark} {sub} {tail}")
+    } else {
+        let mark = paint(on, "31;1", "   ✗")
+        let tail = paint(on, "2", "{dur}s")
+        echo("{mark} {sub} FAILED {tail}")
+    }
+    return rc
+}
+
+main(args) {
+    let on = color_on(args)
+
+    // positional args, ignoring flags
+    let cmd = ""
+    let file = ""
+    let out = "gen"
+    let pos = 0
+    // amber's `args` is argv-style: index 0 is the program name, so positionals
+    // start at 1.
+    for a in args {
+        if a != "--no-color" {
+            if pos == 1 {
+                cmd = a
+            }
+            if pos == 2 {
+                file = a
+            }
+            if pos == 3 {
+                out = a
+            }
+            pos = pos + 1
+        }
+    }
+
+    let bad = false
+    if cmd == "" {
+        bad = true
+    }
+    if file == "" {
+        bad = true
+    }
+    if bad {
+        echo(paint(on, "31", "usage:") + " vaked-run <parse|check|lower|all> <file.vaked> [out] [--no-color]")
+        exit 2
+    }
+
+    let banner = paint(on, "1", "[+] vaked")
+    let sub = paint(on, "2", "pipeline → {file}")
+    echo("{banner} {sub}")
+
+    // stop-on-first-failure (early exit); the failing step prints its own ✗ line.
+    // NOTE: amber 0.6 rejects `if <comparison> { <reassignment> }`, so we exit
+    // instead of tracking a mutable fail flag (see the amber-quirk note in the skill).
+    if cmd == "all" {
+        let r1 = run_step(on, 1, 3, "parse", file, out)
+        if r1 != 0 { exit 1 }
+        let r2 = run_step(on, 2, 3, "check", file, out)
+        if r2 != 0 { exit 1 }
+        let r3 = run_step(on, 3, 3, "lower", file, out)
+        if r3 != 0 { exit 1 }
+    } else {
+        let r = run_step(on, 1, 1, cmd, file, out)
+        if r != 0 { exit 1 }
+    }
+
+    let done = paint(on, "32;1", "[+] DONE")
+    echo("{done}")
+}

@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); case \"$f\" in *.vaked) cd \"${CLAUDE_PROJECT_DIR:-.}\"; echo \"[vaked check] $f\"; python3 -m vakedc check \"$f\" 2>&1 | grep -viE 'Unicode data version' | tail -8 ;; esac; exit 0"
+          }
+        ]
+      }
+    ]
+  }
+}

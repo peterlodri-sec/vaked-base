@@ -1,0 +1,51 @@
+# Taskfile for vaked-base — https://taskfile.dev  (state-of-the-art task runner:
+# YAML, cross-platform, dependency graph, built-in parallelism via `deps`).
+#
+# Every task runs inside the flake devshell (`nix develop`), so the toolchains
+# (python3 for vakedc, zig, beam) are PRELOADED and binary-CACHED (attic
+# substituter) — first `task warm` builds/fetches the shell once, then every
+# subsequent task enters it from cache (fast). Set HOST=<name> to select a
+# per-host devshell if the flake exposes one; default is the flake's devShell.
+version: '3'
+
+vars:
+  DEVSHELL: '{{if .HOST}}.#{{.HOST}}{{end}}'
+  RUN: nix develop {{.DEVSHELL}} --command
+
+tasks:
+  default:
+    cmds: [task --list]
+    silent: true
+
+  warm:
+    desc: Build + cache the devshell once (preload; later tasks enter it instantly).
+    cmds:
+      - nix develop {{.DEVSHELL}} --command true
+
+  parse:
+    desc: 'Parse a .vaked file → LPG.  Usage: task parse -- path/to/file.vaked'
+    cmds: ['{{.RUN}} bash tools/vaked-run.sh parse {{.CLI_ARGS}}']
+
+  check:
+    desc: 'Type-check a .vaked file (0011).  Usage: task check -- file.vaked'
+    cmds: ['{{.RUN}} bash tools/vaked-run.sh check {{.CLI_ARGS}}']
+
+  lower:
+    desc: 'Lower a .vaked file → artifacts (0012).  Usage: task lower -- file.vaked [out]'
+    cmds: ['{{.RUN}} bash tools/vaked-run.sh lower {{.CLI_ARGS}}']
+
+  all:
+    desc: 'parse → check → lower, BuildKit-style.  Usage: task all -- file.vaked [out]'
+    cmds: ['{{.RUN}} bash tools/vaked-run.sh all {{.CLI_ARGS}}']
+
+  build-runner:
+    desc: Recompile the Amber runner (host `amber`, not the devshell).
+    cmds: ['amber build tools/vaked-run.ab tools/vaked-run.sh']
+
+  test:
+    desc: Run the spec tests.
+    cmds: ['{{.RUN}} python3 -m pytest tests -q']
+
+  specdash:
+    desc: Build + serve the verification dashboard.
+    cmds: ['{{.RUN}} python3 tools/specdash/build.py --serve']
