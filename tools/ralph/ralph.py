@@ -225,16 +225,33 @@ _STAGE1_SCHEMA = {
 # ---------------------------------------------------------------------------
 
 
+def _message_content(resp: dict) -> "str | None":
+    """The assistant message text of an OpenRouter response, or None if the
+    response has no usable content. Guards the realistic non-standard 200s:
+    empty ``choices`` (content filtering) and ``content: null`` (a thinking
+    model that emitted only reasoning) — so callers skip rather than crash."""
+    try:
+        choices = resp.get("choices") or []
+        if not choices:
+            return None
+        return choices[0].get("message", {}).get("content")
+    except (AttributeError, IndexError, KeyError, TypeError):
+        return None
+
+
 def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float:
     s1 = openrouter_call(args.stage1_model, s1_msgs, api_key=api_key,
                          temperature=0.4, max_tokens=2000,
                          reasoning={"enabled": True, "effort": "medium"},
                          response_format=_STAGE1_SCHEMA, seed=args.seed)
-    s1_text = s1["choices"][0]["message"]["content"]
+    s1_text = _message_content(s1)
     try:
-        cands = json.loads(s1_text).get("candidates", [])
+        cands = json.loads(s1_text).get("candidates", []) if s1_text else []
     except json.JSONDecodeError:
-        print("stage-1 returned non-JSON; skipping iteration", file=sys.stderr)
+        cands = []
+    if not cands:
+        print("stage-1 returned no usable candidates; skipping iteration",
+              file=sys.stderr)
         return 0.0
     chosen = C.select_candidate(cands)
     if chosen is None:
@@ -245,7 +262,11 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
     s2_msgs = C.build_stage2_messages(repo.name, full, chosen)
     s2 = openrouter_call(args.stage2_model, s2_msgs, api_key=api_key,
                          temperature=0.3, max_tokens=1800)
-    body = s2["choices"][0]["message"]["content"]
+    body = _message_content(s2)
+    if not body:
+        print("stage-2 returned no usable content; skipping iteration",
+              file=sys.stderr)
+        return 0.0
     p1 = C.FALLBACK_PRICES.get(args.stage1_model, C.Price(0.10, 0.10))
     p2 = C.FALLBACK_PRICES.get(args.stage2_model, C.Price(0.10, 0.20))
     cost = C.cost_usd(s1.get("usage", {}), p1) + C.cost_usd(s2.get("usage", {}), p2)
