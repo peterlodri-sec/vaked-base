@@ -84,3 +84,32 @@ def select_candidate(candidates: list[dict]) -> dict | None:
         if int(c.get("urgency", 0)) > int(best.get("urgency", 0)):
             best = c
     return best
+
+
+# ---------------------------------------------------------------------------
+# Task 4 — Round-robin repo selection
+# ---------------------------------------------------------------------------
+
+
+def next_repo(
+    names: list[str],
+    current: str | None,
+    unavailable: set,
+) -> str | None:
+    """Return the next repo name in round-robin order, skipping unavailable.
+
+    Returns None if every name is unavailable.
+    If current is None or not in names, returns the first available name.
+    """
+    available = [n for n in names if n not in unavailable]
+    if not available:
+        return None
+    if current is None or current not in names:
+        return available[0]
+    start = names.index(current)
+    n = len(names)
+    for i in range(1, n + 1):
+        cand = names[(start + i) % n]
+        if cand in available:
+            return cand
+    return available[0]
