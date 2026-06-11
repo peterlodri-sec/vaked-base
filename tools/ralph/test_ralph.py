@@ -393,6 +393,45 @@ def test_run_budget_zero_no_iterations() -> None:
     assert "budget" in (r.stdout + r.stderr).lower()
 
 
+def test_resolve_base_url_precedence() -> None:
+    """explicit arg > RALPH_BASE_URL env > OpenRouter default."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    orig = os.environ.get("RALPH_BASE_URL")
+    try:
+        os.environ.pop("RALPH_BASE_URL", None)
+        assert ralph._resolve_base_url(None) == ralph.OPENROUTER_URL
+        os.environ["RALPH_BASE_URL"] = "http://host:8080/v1/chat/completions"
+        assert ralph._resolve_base_url(None) == "http://host:8080/v1/chat/completions"
+        assert ralph._resolve_base_url("http://explicit/x") == "http://explicit/x"
+    finally:
+        if orig is None:
+            os.environ.pop("RALPH_BASE_URL", None)
+        else:
+            os.environ["RALPH_BASE_URL"] = orig
+
+
+def test_resolve_api_key_precedence() -> None:
+    """RALPH_API_KEY > OPENROUTER_API_KEY > '' (self-hosted key wins)."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    o1, o2 = os.environ.get("RALPH_API_KEY"), os.environ.get("OPENROUTER_API_KEY")
+    try:
+        os.environ.pop("RALPH_API_KEY", None)
+        os.environ.pop("OPENROUTER_API_KEY", None)
+        assert ralph._resolve_api_key() == ""
+        os.environ["OPENROUTER_API_KEY"] = "or-key"
+        assert ralph._resolve_api_key() == "or-key"
+        os.environ["RALPH_API_KEY"] = "self-key"
+        assert ralph._resolve_api_key() == "self-key"
+    finally:
+        for k, v in (("RALPH_API_KEY", o1), ("OPENROUTER_API_KEY", o2)):
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------

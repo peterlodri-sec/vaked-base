@@ -24,6 +24,17 @@ DEFAULT_S1 = "qwen/qwen3-235b-a22b-thinking-2507"
 DEFAULT_S2 = "deepseek/deepseek-v4-flash"
 
 
+# Endpoint + key resolution (OpenRouter by default; override to a self-hosted,
+# trust-boundary endpoint — e.g. agentfield-inference-host — to avoid sending
+# private-repo content to a third party).  Precedence: explicit arg > env > default.
+def _resolve_base_url(explicit: "str | None" = None) -> str:
+    return explicit or os.environ.get("RALPH_BASE_URL") or OPENROUTER_URL
+
+
+def _resolve_api_key() -> str:
+    return os.environ.get("RALPH_API_KEY") or os.environ.get("OPENROUTER_API_KEY") or ""
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -99,6 +110,7 @@ def openrouter_call(
     response_format: dict | None = None,
     seed: int | None = None,
     retries: int = 3,
+    base_url: str | None = None,
 ) -> dict:
     body: dict = {
         "model": model,
@@ -123,7 +135,7 @@ def openrouter_call(
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
-            req = urllib.request.Request(OPENROUTER_URL, data=data, headers=headers)
+            req = urllib.request.Request(_resolve_base_url(base_url), data=data, headers=headers)
             with urllib.request.urlopen(req, timeout=120) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except Exception as exc:
@@ -240,10 +252,12 @@ def _message_content(resp: dict) -> "str | None":
 
 
 def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float:
+    base_url = getattr(args, "base_url", None)
     s1 = openrouter_call(args.stage1_model, s1_msgs, api_key=api_key,
                          temperature=0.4, max_tokens=2000,
                          reasoning={"enabled": True, "effort": "medium"},
-                         response_format=_STAGE1_SCHEMA, seed=args.seed)
+                         response_format=_STAGE1_SCHEMA, seed=args.seed,
+                         base_url=base_url)
     s1_text = _message_content(s1)
     try:
         cands = json.loads(s1_text).get("candidates", []) if s1_text else []
@@ -261,7 +275,7 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
     full += "\n\n## Full prior decisions\n" + _read_log(repo.name)
     s2_msgs = C.build_stage2_messages(repo.name, full, chosen)
     s2 = openrouter_call(args.stage2_model, s2_msgs, api_key=api_key,
-                         temperature=0.3, max_tokens=1800)
+                         temperature=0.3, max_tokens=1800, base_url=base_url)
     body = _message_content(s2)
     if not body:
         print("stage-2 returned no usable content; skipping iteration",
@@ -308,9 +322,9 @@ def cmd_decide(args) -> int:
         print(f"approximate token estimate: ~{approx_tokens} prompt tokens")
         return 0
 
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    api_key = _resolve_api_key()
     if not api_key:
-        print("OPENROUTER_API_KEY not set", file=sys.stderr)
+        print("no API key — set RALPH_API_KEY or OPENROUTER_API_KEY", file=sys.stderr)
         return 1
 
     _decide_live(args, repo, s1_msgs, api_key)
@@ -337,9 +351,10 @@ def write_status(status: dict) -> None:
 def _supervised_decide(args, repo: C.Repo, status: dict) -> None:
     """One decide iteration; fold cost + result into status. Contained --
     a failure here never crashes the supervisor."""
-    api_key = os.environ.get("OPENROUTER_API_KEY")
+    api_key = _resolve_api_key()
     if not api_key:
-        print("OPENROUTER_API_KEY not set — cannot decide", file=sys.stderr)
+        print("no API key — set RALPH_API_KEY or OPENROUTER_API_KEY — cannot decide",
+              file=sys.stderr)
         return
     try:
         compact = gather_context(repo, args.git_log_window, compact=True)
@@ -429,6 +444,10 @@ def main(argv: list[str] | None = None) -> int:
     common.add_argument("--stage1-model", default=DEFAULT_S1)
     common.add_argument("--stage2-model", default=DEFAULT_S2)
     common.add_argument("--git-log-window", type=int, default=30)
+    common.add_argument("--base-url", default=None,
+                        help="OpenAI-compatible endpoint (default OpenRouter; or "
+                             "set RALPH_BASE_URL — point at a self-hosted, "
+                             "trust-boundary endpoint to keep private content local)")
 
     parser = argparse.ArgumentParser(prog="ralph")
     sub = parser.add_subparsers(dest="cmd", required=True)
