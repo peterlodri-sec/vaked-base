@@ -318,6 +318,48 @@ def test_decide_live_skip_on_bad_json() -> None:
     assert cost == 0.0, f"expected 0.0 on bad JSON, got {cost}"
 
 
+def test_decide_live_skip_on_degenerate_responses() -> None:
+    """_decide_live returns 0.0 (no crash) on the realistic non-standard 200s:
+    empty `choices` (content filtering) and `content: null` (thinking model that
+    emitted only reasoning) — not an IndexError/TypeError traceback."""
+    import importlib
+    import tempfile
+    import unittest.mock as mock
+
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Repo
+
+    repo = Repo(name="vaked-base", path="/tmp/fake", gh="peterlodri-sec/vaked-base")
+    args = types.SimpleNamespace(
+        repos=os.path.join(os.path.dirname(os.path.abspath(__file__)), "repos.json"),
+        stage1_model="qwen/qwen3-235b-a22b-thinking-2507",
+        stage2_model="deepseek/deepseek-v4-flash",
+        git_log_window=5, seed=42,
+    )
+
+    degenerate = [
+        {"choices": [], "usage": {}},                                  # empty choices
+        {"choices": [{"message": {"content": None}}], "usage": {}},    # null content
+        {"usage": {}},                                                 # no choices key
+    ]
+
+    for resp in degenerate:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            orig_decisions = ralph.DECISIONS_DIR
+            orig_gather = ralph.gather_context
+            ralph.DECISIONS_DIR = tmpdir
+            ralph.gather_context = lambda repo, window, compact: "FAKE"
+            try:
+                with mock.patch.object(ralph, "openrouter_call", return_value=resp):
+                    cost = ralph._decide_live(args, repo,
+                                              [{"role": "user", "content": "x"}],
+                                              "fake-key")
+            finally:
+                ralph.DECISIONS_DIR = orig_decisions
+                ralph.gather_context = orig_gather
+            assert cost == 0.0, f"expected 0.0 on degenerate {resp}, got {cost}"
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
