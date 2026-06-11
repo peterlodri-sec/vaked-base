@@ -365,23 +365,10 @@ def test_decide_live_skip_on_degenerate_responses() -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    tests = [
-        test_load_repos_expands_paths,
-        test_cost_usd,
-        test_select_candidate_highest_urgency_unaddressed,
-        test_select_candidate_all_addressed,
-        test_select_candidate_empty,
-        test_next_repo_basic,
-        test_next_repo_skip_unavailable,
-        test_build_stage1_messages,
-        test_build_stage2_messages,
-        test_format_entry,
-        test_render_dashboard_running_and_stale,
-        test_render_dashboard_no_supervisor,
-        test_decide_dry_run_writes_nothing,
-        test_decide_live_returns_cost,
-        test_decide_live_skip_on_bad_json,
-    ]
+    # Auto-discover every test_* function in this module (sorted for stable
+    # order), so newly-added tests are never silently skipped.
+    tests = [v for k, v in sorted(globals().items())
+             if k.startswith("test_") and callable(v)]
 
     passed = 0
     failed = 0
