@@ -1,4 +1,4 @@
-"""Standalone test runner for ralphcore.py — Task 1 only."""
+"""Standalone test runner for ralphcore + ralph."""
 from __future__ import annotations
 
 import json
@@ -196,6 +196,129 @@ def test_render_dashboard_no_supervisor() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Task 7 — dry-run smoke test (no network, no API key)
+# ---------------------------------------------------------------------------
+
+def test_decide_dry_run_writes_nothing() -> None:
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    env = dict(os.environ)
+    env.pop("OPENROUTER_API_KEY", None)
+    r = subprocess.run(
+        [sys.executable, os.path.join(here, "ralph.py"), "decide",
+         "--repo", "vaked-base", "--dry-run"],
+        capture_output=True, text=True, env=env, cwd=here,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "stage 1" in r.stdout.lower() and "estimate" in r.stdout.lower()
+
+
+# ---------------------------------------------------------------------------
+# Task 8 — _decide_live unit tests (mocked, no network)
+# ---------------------------------------------------------------------------
+
+def test_decide_live_returns_cost() -> None:
+    """_decide_live returns float USD cost and writes an entry to a temp log."""
+    import importlib
+    import tempfile
+    import unittest.mock as mock
+
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Repo, Price
+
+    repo = Repo(name="vaked-base",
+                path="/tmp/fake-vaked-base",
+                gh="peterlodri-sec/vaked-base")
+
+    s1_content = json.dumps({"candidates": [
+        {"title": "Ship it", "why_now": "now", "urgency": 5, "addressed": False}
+    ]})
+    s1_response = {
+        "choices": [{"message": {"content": s1_content}}],
+        "usage": {"prompt_tokens": 1000, "completion_tokens": 200},
+    }
+    s2_response = {
+        "choices": [{"message": {"content": "**Decision / question:** Ship it now\n**Options:** A\n**Recommendation:** A"}}],
+        "usage": {"prompt_tokens": 800, "completion_tokens": 300},
+    }
+    calls = iter([s1_response, s2_response])
+
+    args = types.SimpleNamespace(
+        repos=os.path.join(os.path.dirname(os.path.abspath(__file__)), "repos.json"),
+        stage1_model="qwen/qwen3-235b-a22b-thinking-2507",
+        stage2_model="deepseek/deepseek-v4-flash",
+        git_log_window=5,
+        seed=42,
+    )
+
+    from ralphcore import cost_usd, FALLBACK_PRICES
+    p1 = FALLBACK_PRICES["qwen/qwen3-235b-a22b-thinking-2507"]
+    p2 = FALLBACK_PRICES["deepseek/deepseek-v4-flash"]
+    expected = cost_usd(s1_response["usage"], p1) + cost_usd(s2_response["usage"], p2)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_decisions = ralph.DECISIONS_DIR
+        orig_gather = ralph.gather_context
+        ralph.DECISIONS_DIR = tmpdir
+        ralph.gather_context = lambda repo, window, compact: "FAKE CONTEXT"
+
+        try:
+            with mock.patch.object(ralph, "openrouter_call", side_effect=lambda *a, **kw: next(calls)):
+                s1_msgs = [{"role": "user", "content": "stub"}]
+                cost = ralph._decide_live(args, repo, s1_msgs, "fake-key")
+        finally:
+            ralph.DECISIONS_DIR = orig_decisions
+            ralph.gather_context = orig_gather
+
+        assert abs(cost - expected) < 1e-9, f"cost mismatch: {cost} vs {expected}"
+        log_path = os.path.join(tmpdir, "vaked-base.ralph-log.md")
+        assert os.path.exists(log_path), "log file not created"
+        content = open(log_path).read()
+        assert "Decision #1" in content, "no decision entry in log"
+
+
+def test_decide_live_skip_on_bad_json() -> None:
+    """_decide_live returns 0.0 when stage-1 returns non-JSON content."""
+    import importlib
+    import tempfile
+    import unittest.mock as mock
+
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Repo
+
+    repo = Repo(name="vaked-base", path="/tmp/fake", gh="peterlodri-sec/vaked-base")
+
+    s1_bad = {
+        "choices": [{"message": {"content": "not json at all"}}],
+        "usage": {},
+    }
+
+    args = types.SimpleNamespace(
+        repos=os.path.join(os.path.dirname(os.path.abspath(__file__)), "repos.json"),
+        stage1_model="qwen/qwen3-235b-a22b-thinking-2507",
+        stage2_model="deepseek/deepseek-v4-flash",
+        git_log_window=5,
+        seed=42,
+    )
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_decisions = ralph.DECISIONS_DIR
+        orig_gather = ralph.gather_context
+        ralph.DECISIONS_DIR = tmpdir
+        ralph.gather_context = lambda repo, window, compact: "FAKE"
+
+        try:
+            with mock.patch.object(ralph, "openrouter_call", return_value=s1_bad):
+                s1_msgs = [{"role": "user", "content": "stub"}]
+                cost = ralph._decide_live(args, repo, s1_msgs, "fake-key")
+        finally:
+            ralph.DECISIONS_DIR = orig_decisions
+            ralph.gather_context = orig_gather
+
+    assert cost == 0.0, f"expected 0.0 on bad JSON, got {cost}"
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -213,6 +336,9 @@ if __name__ == "__main__":
         test_format_entry,
         test_render_dashboard_running_and_stale,
         test_render_dashboard_no_supervisor,
+        test_decide_dry_run_writes_nothing,
+        test_decide_live_returns_cost,
+        test_decide_live_skip_on_bad_json,
     ]
 
     passed = 0
