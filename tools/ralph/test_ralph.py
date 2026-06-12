@@ -862,6 +862,55 @@ def test_track_skip_advances_rotation() -> None:
         assert not os.path.exists(os.path.join(tmpdir, "flaky.ralph-log.md"))
 
 
+def test_supervised_decide_track_folds_cost() -> None:
+    """_supervised_decide_track folds the iteration cost + model into status."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Track, TrackContext
+
+    track = Track(name="t", topic="T", model="vendor/m", label="track:t",
+                  context=TrackContext(docs=[], paths=[]))
+    status = {"total_cost": 0.0, "subjects": {}, "recent": []}
+    args = types.SimpleNamespace()
+
+    with mock.patch.object(ralph, "_resolve_api_key", return_value="k"), \
+         mock.patch.object(ralph, "_decide_track", return_value=0.25), \
+         mock.patch.object(ralph, "_prior_titles", return_value=[]):
+        ralph._supervised_decide_track(args, track, status)
+
+    assert abs(status["total_cost"] - 0.25) < 1e-9
+    assert status["subjects"]["t"]["model"] == "vendor/m"
+    assert abs(status["subjects"]["t"]["cost"] - 0.25) < 1e-9
+
+
+def test_render_dashboard_tracks_model_column() -> None:
+    """Track status renders a model column and uses the 'track' label."""
+    from ralphcore import render_dashboard
+    status = {
+        "running": True, "current": "graph-concept", "iteration": 2,
+        "total_cost": 0.01, "budget_total": 2.0,
+        "subjects": {"graph-concept": {"entries": 1, "last_title": "LPG split",
+                                       "cost": 0.01,
+                                       "model": "deepseek/deepseek-v4-flash"}},
+        "recent": [{"subject": "graph-concept", "date": "2026-06-12", "title": "LPG split"}],
+    }
+    out = render_dashboard(status, 100, 100)
+    assert "track" in out and "graph-concept" in out
+    assert "deepseek/deepseek-v4-flash" in out and "LPG split" in out
+
+
+def test_run_tracks_budget_zero_no_iterations() -> None:
+    """`run` (default = tracks) with budget 0 makes no API call and exits clean."""
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    r = subprocess.run([sys.executable, os.path.join(here, "ralph.py"), "run",
+                        "--budget-total", "0", "--max-iters", "1"],
+                       capture_output=True, text=True, cwd=here, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert "budget" in (r.stdout + r.stderr).lower()
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

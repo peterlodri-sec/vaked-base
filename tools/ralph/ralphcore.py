@@ -286,15 +286,19 @@ def render_dashboard(
         "",
     ]
 
-    # Repo table
-    repos: dict = status.get("repos", {})
-    lines.append("%-18s %6s  %-40s %8s" % ("repo", "n", "last decision", "cost$"))
-    for repo_name in sorted(repos):
-        info = repos[repo_name]
+    # Subject table — tracks (primary) or repos (deprecated). Track status
+    # carries a per-subject model; repo status doesn't (shows "-").
+    is_tracks = bool(status.get("subjects") or status.get("tracks"))
+    subjects: dict = status.get("subjects") or status.get("tracks") or status.get("repos", {})
+    label = "track" if is_tracks else "repo"
+    lines.append("%-18s %-30s %5s  %-30s %8s" % (label, "model", "n", "last decision", "cost$"))
+    for name in sorted(subjects):
+        info = subjects[name]
         lines.append(
-            "%-18s %6d  %-40.40s %8.4f"
+            "%-18s %-30.30s %5d  %-30.30s %8.4f"
             % (
-                repo_name,
+                name,
+                info.get("model", "-"),
                 int(info.get("entries", 0)),
                 info.get("last_title", ""),
                 float(info.get("cost", 0)),
@@ -306,7 +310,8 @@ def render_dashboard(
         lines.append("")
         lines.append("recent decisions:")
         for entry in recent[:5]:
-            lines.append(f"  [{entry.get('repo', '?')}] {entry.get('date', '?')} — {entry.get('title', '?')}")
+            subj = entry.get("subject") or entry.get("repo", "?")
+            lines.append(f"  [{subj}] {entry.get('date', '?')} — {entry.get('title', '?')}")
 
     return "\n".join(lines) + "\n"
 
