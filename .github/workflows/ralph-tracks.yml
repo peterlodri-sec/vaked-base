@@ -64,11 +64,19 @@ jobs:
         run: |
           git config user.name  "ralph-loop"
           git config user.email "ralph@vaked.local"
-          git add docs/decisions/ tools/ralph/state/events.jsonl
+          # Stage the directories (both always exist via .gitkeep) rather than a
+          # specific file, so a missing events.jsonl / skipped decision can't make
+          # `git add` exit 128; the diff-quiet check below is the real
+          # nothing-to-commit guard. status.json stays gitignored.
+          git add docs/decisions/ tools/ralph/state/
           if git diff --cached --quiet; then
             echo "no changes to commit"
           else
             # [skip ci] — a decision tick shouldn't re-trigger spec-tests.
             git commit -m "ralph(tracks): decision tick [skip ci]"
+            # Cron is serialized by `concurrency`, but a human push could land
+            # between checkout and push — rebase onto it to avoid a rejected
+            # non-fast-forward.
+            git pull --rebase --autostash
             git push
           fi
