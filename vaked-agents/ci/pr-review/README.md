@@ -21,12 +21,28 @@ fleet. `ci/` is the CI-bot subtree.
   wired in as an adk-rust `McpToolset` (`crabcc --mcp`), so the model resolves
   definitions/references beyond the diff. The on-disk `.crabcc/` index is reused
   (refreshed, not rebuilt) and cached across CI runs.
-- **RTK token-killer** — when [rtk-ai/rtk] is present, the diff is fetched as a
-  condensed `rtk git diff base...head` (60–90% fewer tokens → cheaper, larger
-  effective budget); falls back to `gh pr diff` otherwise.
-- **Langfuse tracing** — every run exports OTLP/HTTP spans to your self-hosted
-  Langfuse.
-- Low temperature + fixed seed, opt-out label, and empty-diff skip.
+- **RTK token-killer** — when [rtk-ai/rtk] is present, the single-pass diff is
+  fetched condensed (`rtk git diff base...head`, 60–90% fewer tokens); falls back
+  to plain unified diff / `gh pr diff`.
+- **High reasoning** — GLM-4.6 runs at `effort: high` (best lens for catching
+  logic/edge/security bugs), wired through the OpenRouter extension on
+  `GenerateContentConfig`. Overridable via `PR_REVIEW_REASONING_EFFORT`.
+- **Map-reduce for large PRs** — above `PR_REVIEW_MAPREDUCE_LINES` (default 600)
+  changed lines, each file is reviewed independently then a synthesis pass dedupes
+  and groups into the final review.
+- **Noise filtering** — lockfiles, generated, and binary paths are excluded from
+  the diff (git pathspec + post-filter) before the model ever sees them.
+- **Language-conditional checklists** — Nix/Zig/Rust/Python/EBNF/OTP checklists
+  injected only for the file types actually in the diff.
+- **Replace, don't stack** — each run deletes its prior `<!-- vaked-pr-review -->`
+  comment and posts one fresh review; an **advisory commit status** carries the
+  finding count (never fails the check).
+- **Langfuse tracing** — OTLP/HTTP spans per run, with `changed_lines`, `mode`,
+  `total_tokens`, `thinking_tokens`, and `findings` recorded as span attributes.
+- **Eval harness** — `--eval <dir>` scores the reviewer against `*.diff`/`*.expect`
+  fixtures (see `evals/`).
+- Bounded tool loop (`PR_REVIEW_MAX_ITERS`, 60s tool timeout) + 25-min CI cap,
+  low temperature + fixed seed, opt-out label, and empty-diff skip.
 
 ## Cold start (baking)
 
@@ -59,7 +75,20 @@ diff-only review.
 | `CRABCC_BIN` | `crabcc` | crabcc binary path |
 | `RTK_BIN` | `rtk` | rtk binary path |
 | `PR_REVIEW_NO_RTK` | — | set to disable rtk diff compression |
-| `BASE_SHA` / `HEAD_SHA` | — | PR base/head for the rtk diff range (CI sets these) |
+| `BASE_SHA` / `HEAD_SHA` | — | PR base/head for the diff range (CI sets these) |
+| `PR_REVIEW_REASONING_EFFORT` | `high` | OpenRouter reasoning effort (`low`/`medium`/`high`) |
+| `PR_REVIEW_MAPREDUCE_LINES` | `600` | changed-line threshold to switch to map-reduce |
+| `PR_REVIEW_MAX_FINDINGS` | `20` | cap on findings in the final review |
+| `PR_REVIEW_CRABCC_BUDGET` | `8` | max crabcc tool calls the model may make |
+| `PR_REVIEW_MAX_ITERS` | `12` | max agent tool-loop iterations |
+
+## Eval
+
+```bash
+OPENROUTER_API_KEY=sk-or-... \
+  cargo run --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
+  --eval vaked-agents/ci/pr-review/evals
+```
 
 ## Local dry-run (prints the review, posts nothing)
 

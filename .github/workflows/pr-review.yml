@@ -21,6 +21,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  statuses: write # advisory commit status with the finding count
 
 concurrency:
   group: pr-review-${{ github.event.pull_request.number || github.event.inputs.pr }}
@@ -29,6 +30,7 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    timeout-minutes: 25 # hard cap so a runaway tool loop can't hang CI
     env:
       # `secrets` can't be used in step `if:`; surface what we gate on as env.
       CRABCC_INSTALL_TOKEN: ${{ secrets.CRABCC_INSTALL_TOKEN }}
