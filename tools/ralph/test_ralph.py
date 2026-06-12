@@ -998,6 +998,26 @@ def test_clear_step_resets_flag() -> None:
         assert d["paused"] is True and d["interval"] == 5
 
 
+def test_langfuse_disabled_without_config() -> None:
+    """The loop's Langfuse layer is a no-op unless LANGFUSE_PUBLIC_KEY is set —
+    the zero-dep / zero-config invariant. _flush_langfuse must never raise."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    orig = os.environ.pop("LANGFUSE_PUBLIC_KEY", None)
+    ralph._LF_INIT = False
+    ralph._LF_CLIENT = None
+    try:
+        assert ralph._langfuse() is None
+        ralph._flush_langfuse()              # must be a safe no-op
+        # _trace_generation with no span is also a no-op
+        ralph._trace_generation(None, "x/y", {"usage": {}}, {"track": "t"}, 0.1)
+    finally:
+        ralph._LF_INIT = False
+        ralph._LF_CLIENT = None
+        if orig is not None:
+            os.environ["LANGFUSE_PUBLIC_KEY"] = orig
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

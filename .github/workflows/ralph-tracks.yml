@@ -57,7 +57,14 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           RALPH_API_KEY: ${{ secrets.RALPH_API_KEY }}         # optional: self-hosted endpoint key
           RALPH_BASE_URL: ${{ secrets.RALPH_BASE_URL }}       # optional: trust-boundary endpoint
-        run: uv run --project tools/ralph tools/ralph/ralph.py decide --next-track
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}   # optional: enables tracing
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+        run: |
+          # Only pull the (heavy) langfuse extra when tracing is actually configured.
+          EXTRA=""
+          if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="--extra tracing"; fi
+          uv run --project tools/ralph $EXTRA tools/ralph/ralph.py decide --next-track
 
       - name: Commit the decision + event ledger
         if: steps.guard.outputs.run == 'true'
