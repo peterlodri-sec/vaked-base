@@ -505,6 +505,63 @@ def cmd_run(args) -> int:
     return 0
 
 
+def load_events() -> list[dict]:
+    """Read EVENTS_PATH and return a list of JSON entries (empty if file missing)."""
+    try:
+        with open(EVENTS_PATH, encoding="utf-8") as f:
+            entries = []
+            for line in f:
+                line = line.strip()
+                if line:
+                    entries.append(json.loads(line))
+            return entries
+    except (FileNotFoundError, OSError):
+        return []
+
+
+def replay_events(entries: list[dict]) -> dict:
+    """Pure fold over entries → reconstructed view. entries must already be verified."""
+    state: dict = {
+        "decisions": 0,
+        "ticks": len(entries),
+        "total_cost": 0.0,
+        "repos": {},
+        "paused": 0,
+    }
+    for e in entries:
+        p = e.get("payload", {})
+        event = p.get("event")
+        if event == "decide":
+            state["decisions"] += 1
+            cost = p.get("total_cost", 0.0)
+            if cost > state["total_cost"]:
+                state["total_cost"] = cost
+            repo = p.get("repo")
+            if repo is not None:
+                rec = state["repos"].setdefault(repo, {"decisions": 0, "last_iteration": None})
+                rec["decisions"] += 1
+                rec["last_iteration"] = p.get("iteration")
+        elif event == "paused":
+            state["paused"] += 1
+    return state
+
+
+def cmd_events(args) -> int:
+    if getattr(args, "state_dir", None):
+        _apply_state_dir(args.state_dir)
+    entries = load_events()
+    ok = C.verify_chain(entries)
+    if not ok:
+        print(f"events: chain INVALID at {len(entries)} entries")
+        return 1
+    if getattr(args, "replay", False):
+        state = replay_events(entries)
+        print(json.dumps(state, indent=2))
+    else:
+        print(f"events: {len(entries)} entries, chain OK")
+    return 0
+
+
 def cmd_watch(args) -> int:
     try:
         while True:
@@ -558,6 +615,13 @@ def main(argv: list[str] | None = None) -> int:
     p_watch = sub.add_parser("watch")
     p_watch.add_argument("--refresh", type=int, default=3)
     p_watch.set_defaults(func=cmd_watch)
+
+    p_events = sub.add_parser("events")
+    p_events.add_argument("--replay", action="store_true",
+                          help="verify then print reconstructed state as JSON")
+    p_events.add_argument("--state-dir", default=None,
+                          help="override state directory (default: tools/ralph/state/)")
+    p_events.set_defaults(func=cmd_events)
 
     args = parser.parse_args(argv)
     return args.func(args)

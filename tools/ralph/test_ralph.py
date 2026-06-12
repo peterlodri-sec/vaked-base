@@ -543,6 +543,121 @@ def test_read_purpose_present() -> None:
 
 
 # ---------------------------------------------------------------------------
+# events subcommand — load_events, replay_events, cmd_events
+# ---------------------------------------------------------------------------
+
+def test_replay_events_fold() -> None:
+    """replay_events folds a known chain into correct aggregate state."""
+    import importlib
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+
+    payloads = [
+        {"tick": 0, "event": "decide", "repo": "a", "iteration": 1, "total_cost": 0.01},
+        {"tick": 1, "event": "decide", "repo": "b", "iteration": 2, "total_cost": 0.03},
+        {"tick": 2, "event": "paused"},
+        {"tick": 3, "event": "decide", "repo": "a", "iteration": 3, "total_cost": 0.05},
+    ]
+    entries = []
+    prev = GENESIS_HASH
+    for i, p in enumerate(payloads):
+        e = make_entry(prev, i, p)
+        entries.append(e)
+        prev = e["hash"]
+
+    state = ralph.replay_events(entries)
+    assert state["decisions"] == 3, f"decisions: {state['decisions']}"
+    assert state["ticks"] == 4, f"ticks: {state['ticks']}"
+    assert state["paused"] == 1, f"paused: {state['paused']}"
+    assert abs(state["total_cost"] - 0.05) < 1e-9, f"total_cost: {state['total_cost']}"
+    assert state["repos"]["a"]["decisions"] == 2, f"repos[a].decisions: {state['repos']['a']['decisions']}"
+    assert state["repos"]["a"]["last_iteration"] == 3, f"repos[a].last_iteration: {state['repos']['a']['last_iteration']}"
+    assert state["repos"]["b"]["decisions"] == 1, f"repos[b].decisions: {state['repos']['b']['decisions']}"
+
+
+def test_events_verify_cli_ok_and_tamper() -> None:
+    """ralph.py events --state-dir: rc=0 + 'chain OK' for valid chain; rc=1 + 'INVALID' for tampered."""
+    import subprocess
+    import tempfile
+    from ralphcore import make_entry, GENESIS_HASH
+
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Build a valid chain of 3 entries and write events.jsonl
+        events_path = os.path.join(tmpdir, "events.jsonl")
+        payloads = [
+            {"tick": 0, "event": "paused"},
+            {"tick": 1, "event": "decide", "repo": "x", "iteration": 1, "total_cost": 0.01},
+            {"tick": 2, "event": "paused"},
+        ]
+        entries = []
+        prev = GENESIS_HASH
+        for i, p in enumerate(payloads):
+            e = make_entry(prev, i, p)
+            entries.append(e)
+            prev = e["hash"]
+        with open(events_path, "w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(json.dumps(e) + "\n")
+
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "events", "--state-dir", tmpdir],
+            capture_output=True, text=True, cwd=here, timeout=30,
+        )
+        assert r.returncode == 0, f"expected rc=0, got {r.returncode}; stderr={r.stderr}"
+        assert "chain OK" in r.stdout, f"'chain OK' not in stdout: {r.stdout!r}"
+
+        # Tamper: overwrite one line's payload with wrong data
+        tampered_entry = dict(entries[1])
+        tampered_entry = {**tampered_entry, "payload": {"tick": 1, "event": "decide", "repo": "EVIL", "iteration": 1, "total_cost": 999.0}}
+        lines = []
+        lines.append(json.dumps(entries[0]))
+        lines.append(json.dumps(tampered_entry))
+        lines.append(json.dumps(entries[2]))
+        with open(events_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+        r2 = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "events", "--state-dir", tmpdir],
+            capture_output=True, text=True, cwd=here, timeout=30,
+        )
+        assert r2.returncode == 1, f"expected rc=1 for tampered chain, got {r2.returncode}"
+        assert "INVALID" in r2.stdout, f"'INVALID' not in stdout: {r2.stdout!r}"
+
+
+def test_events_replay_cli() -> None:
+    """ralph.py events --replay --state-dir: rc=0, stdout is valid JSON with expected decisions count."""
+    import subprocess
+    import tempfile
+    from ralphcore import make_entry, GENESIS_HASH
+
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        events_path = os.path.join(tmpdir, "events.jsonl")
+        payloads = [
+            {"tick": 0, "event": "decide", "repo": "r", "iteration": 1, "total_cost": 0.01},
+            {"tick": 1, "event": "paused"},
+            {"tick": 2, "event": "decide", "repo": "r", "iteration": 2, "total_cost": 0.02},
+        ]
+        prev = GENESIS_HASH
+        with open(events_path, "w", encoding="utf-8") as f:
+            for i, p in enumerate(payloads):
+                e = make_entry(prev, i, p)
+                f.write(json.dumps(e) + "\n")
+                prev = e["hash"]
+
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "events", "--replay", "--state-dir", tmpdir],
+            capture_output=True, text=True, cwd=here, timeout=30,
+        )
+        assert r.returncode == 0, f"expected rc=0, got {r.returncode}; stderr={r.stderr}"
+        parsed = json.loads(r.stdout)
+        assert parsed["decisions"] == 2, f"decisions: {parsed['decisions']}"
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
