@@ -58,6 +58,9 @@ python3 tools/ralph/ralph.py watch
 
 # Verify the event chain / replay reconstructed state
 python3 tools/ralph/ralph.py events --replay
+
+# Human ratify status: per-track decisions, verdicts, ratify-rate, backlog
+python3 tools/ralph/ralph.py ratify
 ```
 
 `run` is track-mode by default; `--repo-mode` selects the deprecated whole-repo
@@ -72,6 +75,7 @@ a one-shot tick).
 | `state/events.jsonl` | **state-of-record** — append-only, hash-chained event ledger (rotation pointer + cumulative spend + audit trail) | **yes** |
 | `state/status.json` | derived live cache the dashboard reads | no (gitignored) |
 | `docs/decisions/<track>.ralph-log.md` | per-track advisory decision log (appended, never rewritten) | yes |
+| `docs/decisions/<track>.ratify-log.md` | per-track **human** verdicts (one append per decision) | yes |
 
 The ledger is authoritative: a fresh/stateless run reconciles its rotation
 pointer and cumulative spend from `events.jsonl`, so it resumes correctly even
@@ -127,7 +131,20 @@ failures are swallowed: observability never breaks the loop.
   two-stage `decide`, `--track`/`--next-track` rotation, supervisor + dashboard.
 - ✅ Phase 3: CI cron host + these docs.
 - ✅ Phase 4: optional Langfuse tracing (above).
-- ⏳ Phase 5: the ratify workflow (`docs/decisions/RATIFY.md` + ratify scores).
+- ✅ Phase 5: the ratify workflow — [`docs/decisions/RATIFY.md`](../../docs/decisions/RATIFY.md),
+  `ralph ratify` (per-track ratify-rate + backlog), and override-reason feedback
+  into stage 1.
+
+## Ratify workflow
+
+The model proposes; a human disposes. A few times a day the loop appends a
+decision to `docs/decisions/<track>.ralph-log.md`; a human records a one-line
+**ratify / override / defer** verdict in `<track>.ratify-log.md` (never editing
+the decision — ratification is a separate append). Recent **override** reasons
+are fed back into the next stage-1 prompt, so the stream drifts toward what the
+human ratifies; `ralph ratify` tracks the **ratify-rate** (the core metric from
+[`PURPOSE.md`](PURPOSE.md)). Full contributor guide:
+[`docs/decisions/RATIFY.md`](../../docs/decisions/RATIFY.md).
 
 Tests: `python3 tools/ralph/test_ralph.py` (stdlib runner; the network stages are
 not unit-tested live, the pure pieces are).
