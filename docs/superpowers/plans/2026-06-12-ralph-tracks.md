@@ -147,9 +147,13 @@ def test_every_track_model_has_price():
   - **Issues:** `gh issue list --repo peterlodri-sec/vaked-base --state open
     --label <track.label> --json number,title,body`; if the label yields zero
     and isn't a known repo label, fall back to all-open with a noted header.
-  - **Docs:** expand `track.context.docs` globs against `REPO_HOME`
-    (stdlib `glob`), concatenate (compact = `[:1500]` head per file; full =
-    whole text).
+  - **Docs:** expand each `track.context.docs` glob against `REPO_HOME` with
+    `glob.glob(os.path.join(REPO_HOME, pat), recursive=True)` — **`recursive=True`
+    is required** or `**` only matches the top level and the nested
+    `protocol/**` RFCs + `vaked/examples/**` files silently drop out. Filter to
+    `os.path.isfile` (skip the directory entries `**` also yields), de-dupe, and
+    sort for deterministic order; concatenate (compact = `[:1500]` head per
+    file; full = whole text).
   - **Git log:** `git log --oneline -n<window> -- <track.context.paths>`
     (empty `paths` → repo-wide).
 - [ ] **Test (pure-ish, temp tree)** — point `REPO_HOME` at a temp dir with a
