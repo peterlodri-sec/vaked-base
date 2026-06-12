@@ -1,24 +1,29 @@
 //! Vaked CI PR-review agent.
 //!
 //! Advisory PR reviewer on adk-rust. Reads a PR's diff (RTK-condensed, noise
-//! filtered, secret-redacted), reviews it with a non-frontier OpenRouter model
-//! (GLM-4.6) — with the repo's `crabcc` symbol index + a `read_lines` tool as MCP
-//! / native tools — and posts ONE structured review comment (replacing its prior
-//! one). Large PRs are map-reduced per file in parallel. Tiered reasoning: high
-//! for the final pass, medium for per-file passes. Output is structured JSON
-//! (verdict / findings / caveman prose / exceptions), rendered to markdown. Never
-//! blocks a merge: any failure logs and exits 0. Traces to self-hosted Langfuse.
+//! filtered), reviews it with a non-frontier OpenRouter model (GLM-4.6) — with the
+//! repo's `crabcc` symbol index + a `read_lines` tool as MCP / native tools — and
+//! posts ONE structured review comment (replacing its prior one). The untrusted
+//! diff is secret-redacted, injection-defanged, and findings-capped by adk
+//! guardrails; context compaction guards the tool loop. Large PRs are map-reduced
+//! per file in parallel (opt-in: an adk `ParallelAgent`/`SequentialAgent` pipeline
+//! via `PR_REVIEW_PARALLEL_AGENT`). Tiered reasoning: high for the final pass,
+//! medium for per-file passes. Output is structured JSON (verdict / findings /
+//! caveman prose / exceptions), rendered to markdown. Never blocks a merge: any
+//! failure logs and exits 0. Traces to self-hosted Langfuse.
 //!
 //! Env (see README for the full table):
 //!   OPENROUTER_API_KEY | PR_REVIEW_API_KEY · PR_REVIEW_MODEL · OPENROUTER_BASE_URL
 //!   PR_REVIEW_MAX_DIFF_CHARS · PR_REVIEW_REASONING_EFFORT · PR_REVIEW_MAPREDUCE_LINES
 //!   PR_REVIEW_MAX_FINDINGS · PR_REVIEW_CRABCC_BUDGET · PR_REVIEW_MAX_ITERS
 //!   PR_REVIEW_CONCURRENCY · PR_REVIEW_NO_STRUCTURED · PR_REVIEW_NO_RTK
+//!   PR_REVIEW_PARALLEL_AGENT · PR_REVIEW_EVAL_TOLERANCE · PR_REVIEW_TRACE_PAYLOADS
 //!   GH_TOKEN | GITHUB_TOKEN · GITHUB_REPOSITORY · GITHUB_EVENT_PATH
 //!   LANGFUSE_URL · LANGFUSE_API_KEY · CRABCC_BIN · RTK_BIN · BASE_SHA · HEAD_SHA
 //!
 //! Args: --repo <owner/name> --pr <N> --model <id> --dry-run
 //!       --eval <dir>   score the reviewer against local *.diff/*.expect fixtures
+//!                      (adk-eval ResponseScorer + BaselineStore regression gating)
 
 use std::collections::HashMap;
 use std::process::Command as StdCommand;
@@ -32,6 +37,8 @@ use adk_rust::session::{CreateRequest, SessionService};
 use adk_rust::tool::McpToolset;
 use adk_rust::{RetryBudget, ToolConcurrencyConfig, ToolExecutionStrategy};
 use adk_runner::compaction::{CompactionConfig, TruncationCompaction};
+use adk_rust::eval::criteria::{ResponseMatchConfig, SimilarityAlgorithm};
+use adk_rust::eval::{BaselineStore, ResponseScorer};
 use anyhow::{Context, Result, anyhow};
 use futures::StreamExt;
 use futures::stream;
@@ -730,9 +737,12 @@ async fn parallel_agent_review(
     let mut reviewers: Vec<Arc<dyn Agent>> = Vec::new();
     for (i, (path, section)) in files.into_iter().take(MAX_FILES_MAPREDUCE).enumerate() {
         let (section, _) = truncate(&section, budget);
+        // The diff body AND the file path are untrusted and get baked into the
+        // instruction (which guardrails don't see) — sanitize both.
         let safe = guardrails::sanitize_untrusted(&section);
+        let safe_path = guardrails::sanitize_untrusted(&path);
         let instruction = format!(
-            "{}\n\n## Your assignment\nReview ONLY this file's diff per your rules. Output findings bullets only — no verdict line, no JSON. If clean, output nothing.\nFile: {path}\n```diff\n{safe}\n```{addenda}",
+            "{}\n\n## Your assignment\nReview ONLY this file's diff per your rules. Output findings bullets only — no verdict line, no JSON. If clean, output nothing.\nFile: {safe_path}\n```diff\n{safe}\n```{addenda}",
             system_prompt(cfg.max_findings, cfg.crabcc_budget, false)
         );
         let agent = build_pipeline_agent(
@@ -759,11 +769,14 @@ async fn parallel_agent_review(
     };
 
     let parallel = ParallelAgent::new("file-reviewers", reviewers);
+    // The PR title is untrusted and baked into the instruction — sanitize it (the
+    // default path defangs it for free via build_prompt → guarded user content).
+    let safe_title = guardrails::sanitize_untrusted(&meta.title);
     let synth_instruction = format!(
         "{}\n\n## Your assignment\nThe conversation above holds per-file findings from a large PR ({total} files){note}. Produce the FINAL review per your output contract: dedupe, drop noise, keep the most important, group by severity, lead with the verdict line.\n\nPR #{}: {}",
         system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured),
         meta.number,
-        meta.title
+        safe_title
     );
     let synth = build_pipeline_agent(
         cfg,
@@ -1388,6 +1401,15 @@ async fn run_eval(dir: &str) -> Result<()> {
         return Err(anyhow!("no *.diff fixtures in {dir}"));
     }
 
+    // adk-eval ResponseScorer (Contains) replaces the hand-rolled `contains`.
+    let scorer = ResponseScorer::with_config(ResponseMatchConfig {
+        algorithm: SimilarityAlgorithm::Contains,
+        ignore_case: true,
+        ..Default::default()
+    });
+
+    // metric_name -> case_id -> score, for adk-eval's BaselineStore.
+    let mut scores: HashMap<String, f64> = HashMap::new();
     let (mut pass, mut total) = (0usize, 0usize);
     for diff_path in entries {
         let name = diff_path
@@ -1399,7 +1421,7 @@ async fn run_eval(dir: &str) -> Result<()> {
         let expects: Vec<String> = std::fs::read_to_string(diff_path.with_extension("expect"))
             .unwrap_or_default()
             .lines()
-            .map(|l| l.trim().to_lowercase())
+            .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty())
             .collect();
 
@@ -1414,25 +1436,68 @@ async fn run_eval(dir: &str) -> Result<()> {
         let prompt = build_prompt(&meta, &body, truncated, &language_addenda(&meta.files));
         let (raw, _) = ask(&runner, prompt).await?;
         let (review, _, _) = render_review(&raw, cfg.max_findings as usize);
-        let lc = review.to_lowercase();
-        let hits = expects.iter().filter(|e| lc.contains(*e)).count();
+        let (score, hits) = substring_score(&scorer, &review, &expects);
         let ok = hits == expects.len();
         total += 1;
         if ok {
             pass += 1;
         }
+        scores.insert(name.clone(), score);
         println!(
-            "[{}] {name}: {hits}/{} expected substrings",
+            "[{}] {name}: {hits}/{} expected substrings (score {score:.2})",
             if ok { "PASS" } else { "FAIL" },
             expects.len()
         );
     }
-    println!("\neval: {pass}/{total} fixtures passed");
+
+    // Regression gating (adk-eval BaselineStore). A regression is
+    // baseline - current > tolerance on any case; the baseline ratchets up only on
+    // a fully-passing, non-regressing run so it is never lowered silently.
+    let metrics: HashMap<String, HashMap<String, f64>> =
+        HashMap::from([("response_match".to_string(), scores)]);
+    let tolerance = std::env::var("PR_REVIEW_EVAL_TOLERANCE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.0);
+    let store = BaselineStore::new(format!("{dir}/.baseline.json"));
+    let regressions = store
+        .check_regressions(&metrics, tolerance)
+        .map_err(|e| anyhow!("baseline check: {e}"))?;
+    for r in &regressions {
+        println!(
+            "REGRESSION {} [{}]: {:.2} -> {:.2} (Δ{:.2})",
+            r.metric_name, r.case_id, r.baseline_value, r.current_value, r.delta
+        );
+    }
+    println!(
+        "\neval: {pass}/{total} fixtures passed; {} regression(s)",
+        regressions.len()
+    );
+
+    if !regressions.is_empty() {
+        return Err(anyhow!("{} regression(s) vs baseline", regressions.len()));
+    }
     if pass == total {
+        store
+            .save("vaked-pr-review", &metrics)
+            .map_err(|e| anyhow!("baseline save: {e}"))?;
         Ok(())
     } else {
         Err(anyhow!("{}/{total} fixtures failed", total - pass))
     }
+}
+
+/// Fraction of `expects` substrings present in `review`, scored via adk-eval's
+/// `ResponseScorer` (Contains ⇒ 1.0 when present, else 0.0). Returns
+/// (mean_score, hits). Empty expectations score a clean 1.0.
+fn substring_score(scorer: &ResponseScorer, review: &str, expects: &[String]) -> (f64, usize) {
+    if expects.is_empty() {
+        return (1.0, 0);
+    }
+    let per: Vec<f64> = expects.iter().map(|e| scorer.score(e, review)).collect();
+    let hits = per.iter().filter(|s| **s >= 1.0).count();
+    let mean = per.iter().sum::<f64>() / per.len() as f64;
+    (mean, hits)
 }
 
 // ---------------------------------------------------------------------------
@@ -1589,4 +1654,25 @@ fn truncate(s: &str, max: usize) -> (String, bool) {
     }
     let cut = s[..max].rfind('\n').unwrap_or(max);
     (s[..cut].to_string(), true)
+}
+
+#[cfg(test)]
+mod eval_tests {
+    use super::*;
+
+    #[test]
+    fn substring_score_counts_present_expectations() {
+        let scorer = ResponseScorer::with_config(ResponseMatchConfig {
+            algorithm: SimilarityAlgorithm::Contains,
+            ignore_case: true,
+            ..Default::default()
+        });
+        let review = "**Verdict:** issues\n### Major\n- `a.rs:1` — unwrap on a None path; use `?`";
+        let expects = vec!["unwrap".to_string(), "deadlock".to_string()];
+        let (mean, hits) = substring_score(&scorer, review, &expects);
+        assert_eq!(hits, 1); // "unwrap" present, "deadlock" absent
+        assert!((mean - 0.5).abs() < 1e-9);
+        // Case-insensitive containment holds.
+        assert_eq!(substring_score(&scorer, review, &["VERDICT".to_string()]).1, 1);
+    }
 }

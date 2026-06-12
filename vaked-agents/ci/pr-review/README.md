@@ -103,6 +103,22 @@ diff-only review.
 | `PR_REVIEW_CONCURRENCY` | `6` | parallel per-file passes (map-reduce) + tool concurrency |
 | `PR_REVIEW_NO_STRUCTURED` | — | set to disable structured JSON output |
 | `PR_REVIEW_TRACE_PAYLOADS` | — | set to record prompt/response payloads into Langfuse spans |
+| `PR_REVIEW_PARALLEL_AGENT` | — | set to use the adk `ParallelAgent`/`SequentialAgent` pipeline for large PRs instead of the default map-reduce (falls back to map-reduce on error) |
+| `PR_REVIEW_EVAL_TOLERANCE` | `0.0` | `--eval` regression tolerance: fail if `baseline − current > tolerance` on any case |
+
+## Security guardrails
+
+The diff is **untrusted input**, so the reviewer agent runs adk guardrails
+([`src/guardrails.rs`](src/guardrails.rs)):
+
+- **Input** — secret redaction + prompt-injection defang on every agent turn
+  (the system prompt also hardens against in-diff instructions).
+- **Output** — a findings cap to `PR_REVIEW_MAX_FINDINGS`.
+
+All guardrails `Transform`/`Pass` (never `Fail`), so they can't suppress the
+advisory review. The opt-in parallel path bakes per-file diffs into agent
+*instructions* (which guardrails don't see), so it pre-sanitizes that text and the
+PR metadata with the same redaction/defang functions.
 
 ## Eval
 
@@ -111,6 +127,12 @@ OPENROUTER_API_KEY=sk-or-... \
   cargo run --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
   --eval vaked-agents/ci/pr-review/evals
 ```
+
+Scoring uses adk-eval's `ResponseScorer` (Contains) and writes a
+`.baseline.json` in the eval dir via adk-eval's `BaselineStore`; subsequent runs
+**gate on regressions** (any case dropping more than `PR_REVIEW_EVAL_TOLERANCE`
+below baseline fails). The baseline ratchets up only on a fully-passing,
+non-regressing run.
 
 ## Local dry-run (prints the review, posts nothing)
 
