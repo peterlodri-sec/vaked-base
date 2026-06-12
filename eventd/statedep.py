@@ -130,12 +130,26 @@ class DependencyIndex:
 
     def gc_floor(self, producer: str) -> int | None:
         """producer_gc_floor = min over non-evicted downstream consumers'
-        acknowledged ``min_required_step`` for this producer. ``None`` means
-        no live consumer constrains this producer (§4.1 condition 1 only —
-        proof retention (2) and epoch audit (3) are the compactor's burden)."""
-        floors = [cp["min_required_step"]
-                  for (consumer, prod), cp in self.checkpoints.items()
-                  if prod == producer and consumer not in self.evicted]
+        constraints for this producer (§4.1 condition 1 — proof retention (2)
+        and epoch audit (3) are the compactor's burden). ``None`` means no
+        live consumer constrains this producer.
+
+        Per consumer: a ``ConsumerCheckpoint`` logged AFTER the latest
+        registration is the acknowledgement and contributes its
+        ``min_required_step``; a registration NOT yet acknowledged pins the
+        floor at its own ``producer_step`` — §4 forbids truncating an anchor
+        whose consumer has not checkpointed past it."""
+        floors = []
+        for consumer, prod in set(self.registrations) | set(self.checkpoints):
+            if prod != producer or consumer in self.evicted:
+                continue
+            reg = self.registrations.get((consumer, prod))
+            cp = self.checkpoints.get((consumer, prod))
+            if cp is not None and (reg is None
+                                   or cp["_at_seq"] > reg["_at_seq"]):
+                floors.append(cp["min_required_step"])
+            elif reg is not None:
+                floors.append(reg["producer_step"])
         return min(floors) if floors else None
 
     # -- cold-start verifier (§6) ---------------------------------------------

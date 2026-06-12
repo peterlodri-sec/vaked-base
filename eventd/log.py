@@ -30,10 +30,24 @@ class WriterLockError(Exception):
 
 
 def load_entries(path: str) -> list[dict]:
-    """Read a JSONL log into entries (empty if the file is missing)."""
+    """Read a JSONL log into entries (empty if the file is missing).
+
+    A syntactically malformed line (crash torn-write, byte-level tamper) is
+    the same broken audit spine as a hash mismatch and raises ``TamperError``
+    through the same refusal path — never a raw ``JSONDecodeError``."""
     try:
         with open(path, encoding="utf-8") as f:
-            return [json.loads(line) for line in f if line.strip()]
+            entries = []
+            for n, line in enumerate(f, 1):
+                if not line.strip():
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError as e:
+                    raise TamperError(
+                        f"{path}:{n}: malformed log line — broken audit "
+                        f"spine") from e
+            return entries
     except FileNotFoundError:
         return []
 

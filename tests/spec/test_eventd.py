@@ -109,9 +109,19 @@ def _test_log_discipline(lines):
             lines.append("  FAIL log: tampered log did NOT raise TamperError")
         except TamperError:
             pass
+        # malformed line (torn write / byte tamper) ⇒ SAME hard-error path,
+        # never a raw JSONDecodeError (Codex P2, PR #31)
+        open(path, "w", encoding="utf-8").write(raw + "{not json\n")
+        try:
+            EventLog(path)
+            ok = False
+            lines.append("  FAIL log: malformed line did NOT raise TamperError")
+        except TamperError:
+            pass
         if ok:
             lines.append("  log-discipline: append+fsync, reopen verifies, "
-                         "tamper ⇒ hard error, second writer refused")
+                         "tamper/malformed line ⇒ hard error, second writer "
+                         "refused")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return ok
@@ -184,6 +194,23 @@ def _test_statedep(lines):
             ok = False
             lines.append(f"  FAIL statedep: post-eviction floor should be 1, "
                          f"got {idx.gc_floor('alpha')}")
+
+        # an UNACKNOWLEDGED registration pins the floor at its own anchor —
+        # §4 condition 1: no checkpoint yet ⇒ no truncation through it
+        # (Codex P1, PR #31)
+        path = os.path.join(tmp, "unacked.jsonl")
+        with EventLog(path, writer=True) as log:
+            log.append({"agent": "alpha", "event": "step", "n": 0})
+            anchored = log.append({"agent": "alpha", "event": "step", "n": 1})
+            log.append(dependency_registration(
+                "beta", "alpha", consumer_step=0, producer_step=1,
+                producer_step_hash=anchored["hash"], topology_epoch=1))
+            unacked = log.entries
+        idx = DependencyIndex.from_entries(unacked)
+        if idx.gc_floor("alpha") != 1:
+            ok = False
+            lines.append(f"  FAIL statedep: unacknowledged registration should "
+                         f"pin floor at 1, got {idx.gc_floor('alpha')}")
 
         # a rewind below the anchor voids it ⇒ StaleDependency (§3.3/§6)
         entries = _mk_statedep_log(os.path.join(tmp, "rewound.jsonl"),
