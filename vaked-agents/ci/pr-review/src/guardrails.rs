@@ -35,6 +35,14 @@ pub fn output_guardrails(max_findings: usize) -> adk_agent::guardrails::Guardrai
     adk_agent::guardrails::GuardrailSet::new().with(FindingsCap { max: max_findings })
 }
 
+/// Apply the same untrusted-input scrubbing the input guardrails do (secret
+/// redaction, then injection defang). For code paths that bake diff text into an
+/// agent *instruction* — which input guardrails never see, since they only run on
+/// user content — call this first so those paths keep the same protection.
+pub fn sanitize_untrusted(text: &str) -> String {
+    defang_injection(&redact_secrets(text))
+}
+
 /// Map every `Text` part through `f`, leaving non-text parts untouched. Returns
 /// `Some(new_content)` only if some text actually changed, else `None`.
 fn map_text_parts(content: &Content, f: impl Fn(&str) -> String) -> Option<Content> {
@@ -91,14 +99,23 @@ pub fn redact_secrets(text: &str) -> String {
                     redacted = redacted.replace(bare, PLACEHOLDER);
                 }
             }
-            let lower = line.to_ascii_lowercase();
-            if KEYWORDS.iter().any(|k| lower.contains(k))
-                && let Some(idx) = line.find(['=', ':'])
-            {
-                let (head, tail) = line.split_at(idx + 1);
-                let tail_trim = tail.trim();
-                if tail_trim.len() >= 8 && !tail_trim.starts_with("//") {
-                    redacted = format!("{head} {PLACEHOLDER}");
+            // Redact only when the identifier *immediately before* the first
+            // delimiter is itself secret-looking (a real `key = value`). Matching
+            // a keyword anywhere on the line wrongly fired on finding bullets like
+            // `- ` + "`src/auth.rs:42` — password is logged`" (keyword in the prose,
+            // the `:` from `auth.rs:42` as delimiter) once redaction began running
+            // on every prompt, erasing exactly the security findings we synthesize.
+            if let Some(idx) = line.find(['=', ':']) {
+                let key = line[..idx]
+                    .trim_end()
+                    .rsplit(|c: char| !(c.is_alphanumeric() || c == '_'))
+                    .next()
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                let key_is_secret = KEYWORDS.iter().any(|k| key == *k || key.ends_with(k));
+                let tail_trim = line[idx + 1..].trim();
+                if key_is_secret && tail_trim.len() >= 8 && !tail_trim.starts_with("//") {
+                    redacted = format!("{} {PLACEHOLDER}", &line[..=idx]);
                 }
             }
             redacted
@@ -306,6 +323,16 @@ mod tests {
     fn redaction_is_idempotent() {
         let once = redact_secrets("token = sk-or-abcdefghijklmnop");
         assert_eq!(once, redact_secrets(&once));
+    }
+
+    #[test]
+    fn redaction_spares_finding_bullets() {
+        // The keyword ("password") is in the prose, not a key=value — the `:` here
+        // is from `auth.rs:42`. Must survive untouched (Codex P2 regression).
+        let bullet = "- `src/auth.rs:42` — password is logged; remove the log line";
+        assert_eq!(redact_secrets(bullet), bullet);
+        // But a genuine `key: value` secret is still redacted.
+        assert!(redact_secrets("  api_key: abcdef123456").contains("«redacted-secret»"));
     }
 
     #[test]

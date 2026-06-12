@@ -25,7 +25,8 @@ use std::process::Command as StdCommand;
 use std::sync::Arc;
 use std::time::Duration;
 
-use adk_core::{GenerateContentConfig, SessionId, UserId};
+use adk_agent::{ParallelAgent, SequentialAgent};
+use adk_core::{Agent, GenerateContentConfig, SessionId, UserId};
 use adk_rust::prelude::*;
 use adk_rust::session::{CreateRequest, SessionService};
 use adk_rust::tool::McpToolset;
@@ -341,12 +342,35 @@ async fn run_review() -> Result<()> {
         )?;
 
         let raw_review = if changed > cfg.mapreduce_lines {
-            span.record("mode", "map-reduce");
-            info!(changed, threshold = cfg.mapreduce_lines, "large PR — map-reduce");
-            let med = build_runner_with(
-                &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
-            )?;
-            map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage).await?
+            if cfg.parallel_agent {
+                // Opt-in adk workflow-agent pipeline (item 1); falls back to the
+                // proven map-reduce if it errors at runtime.
+                span.record("mode", "parallel-agent");
+                info!(changed, threshold = cfg.mapreduce_lines, "large PR — parallel-agent pipeline");
+                match parallel_agent_review(
+                    &cfg, &api_key, &meta, &diff, &addenda, crabcc.clone(), &mut usage,
+                )
+                .await
+                {
+                    Ok(r) => r,
+                    Err(e) => {
+                        warn!(error = %e, "parallel-agent path failed — falling back to map-reduce");
+                        span.record("mode", "map-reduce-fallback");
+                        let med = build_runner_with(
+                            &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
+                        )?;
+                        map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage)
+                            .await?
+                    }
+                }
+            } else {
+                span.record("mode", "map-reduce");
+                info!(changed, threshold = cfg.mapreduce_lines, "large PR — map-reduce");
+                let med = build_runner_with(
+                    &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
+                )?;
+                map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage).await?
+            }
         } else {
             span.record("mode", "single-pass");
             let body = rtk_condensed(&cfg)
@@ -465,39 +489,8 @@ fn build_runner_with(
     structured: bool,
     crabcc: Option<Arc<dyn Toolset>>,
 ) -> Result<ReviewRunner> {
-    let or_config = OpenRouterConfig::new(api_key.to_string(), cfg.model.clone())
-        .with_base_url(cfg.base_url.clone())
-        .with_http_referer("https://github.com/peterlodri-sec/vaked-base")
-        .with_title("vaked-ci-reviewer")
-        .with_default_api_mode(OpenRouterApiMode::ChatCompletions);
-    let model = OpenRouterClient::new(or_config).map_err(|e| anyhow!("OpenRouter client: {e}"))?;
-
-    let mut gen_cfg = GenerateContentConfig {
-        temperature: Some(0.1),
-        top_p: Some(0.9),
-        max_output_tokens: Some(max_out),
-        seed: Some(7),
-        ..Default::default()
-    };
-    if structured {
-        gen_cfg.response_schema = Some(findings_schema());
-    }
-    // High reasoning + a stable prompt-cache key (OpenRouter caches the static
-    // system-prompt prefix; cached tokens show up in usage / Langfuse).
-    OpenRouterRequestOptions::default()
-        .with_reasoning(OpenRouterReasoningConfig {
-            effort: Some(effort.to_string()),
-            enabled: Some(true),
-            ..Default::default()
-        })
-        .with_prompt_cache_key(CACHE_KEY)
-        // Resilience: let OpenRouter fall back to another GLM-4.6 host if one is down.
-        .with_provider_preferences(OpenRouterProviderPreferences {
-            allow_fallbacks: Some(true),
-            ..Default::default()
-        })
-        .insert_into_config(&mut gen_cfg)
-        .map_err(|e| anyhow!("openrouter options: {e}"))?;
+    let model = build_or_model(cfg, api_key)?;
+    let gen_cfg = gen_config(effort, max_out, structured)?;
 
     // Bounded retries so a flaky tool call retries instead of failing the turn.
     let retry = || RetryBudget {
@@ -560,6 +553,254 @@ fn build_runner_with(
         .build()
         .map_err(|e| anyhow!("runner build: {e}"))?;
     Ok(ReviewRunner { runner, sessions })
+}
+
+/// The OpenRouter model client (shared shape for every reviewer agent).
+fn build_or_model(cfg: &Config, api_key: &str) -> Result<OpenRouterClient> {
+    let or_config = OpenRouterConfig::new(api_key.to_string(), cfg.model.clone())
+        .with_base_url(cfg.base_url.clone())
+        .with_http_referer("https://github.com/peterlodri-sec/vaked-base")
+        .with_title("vaked-ci-reviewer")
+        .with_default_api_mode(OpenRouterApiMode::ChatCompletions);
+    OpenRouterClient::new(or_config).map_err(|e| anyhow!("OpenRouter client: {e}"))
+}
+
+/// Generation config: low-temp/fixed-seed + reasoning effort, a stable prompt-cache
+/// key (OpenRouter caches the static system-prompt prefix), provider fallbacks, and
+/// the structured-output schema when `structured`.
+fn gen_config(effort: &str, max_out: i32, structured: bool) -> Result<GenerateContentConfig> {
+    let mut gen_cfg = GenerateContentConfig {
+        temperature: Some(0.1),
+        top_p: Some(0.9),
+        max_output_tokens: Some(max_out),
+        seed: Some(7),
+        ..Default::default()
+    };
+    if structured {
+        gen_cfg.response_schema = Some(findings_schema());
+    }
+    OpenRouterRequestOptions::default()
+        .with_reasoning(OpenRouterReasoningConfig {
+            effort: Some(effort.to_string()),
+            enabled: Some(true),
+            ..Default::default()
+        })
+        .with_prompt_cache_key(CACHE_KEY)
+        .with_provider_preferences(OpenRouterProviderPreferences {
+            allow_fallbacks: Some(true),
+            ..Default::default()
+        })
+        .insert_into_config(&mut gen_cfg)
+        .map_err(|e| anyhow!("openrouter options: {e}"))?;
+    Ok(gen_cfg)
+}
+
+// ---------------------------------------------------------------------------
+// Workflow-agent pipeline (backlog item 1) — OPT-IN via PR_REVIEW_PARALLEL_AGENT.
+//
+// Replaces the hand-rolled `buffer_unordered` map-reduce with adk's workflow
+// agents: a `ParallelAgent` fan-out of per-file reviewers feeding a
+// `SequentialAgent` synthesis step. Kept opt-in (the proven `map_reduce_review`
+// stays the default, and is the runtime fallback if this path errors) until it is
+// validated live, since adk multi-agent context propagation can't be exercised in
+// CI without a model key.
+//
+// NB: each per-file diff is baked into the sub-agent *instruction* (ParallelAgent
+// broadcasts identical user content, so per-file fan-out has to live in the
+// instruction). Input guardrails only see user content, so the diff is run through
+// `guardrails::sanitize_untrusted` first to keep the same redaction/injection
+// protection at that choke point.
+// ---------------------------------------------------------------------------
+
+/// Build one reviewer `LlmAgent` for the workflow pipeline (a per-file reviewer or
+/// the synthesis step), writing its final text to session state under `output_key`.
+#[allow(clippy::too_many_arguments)]
+fn build_pipeline_agent(
+    cfg: &Config,
+    model: Arc<OpenRouterClient>,
+    name: &str,
+    effort: &str,
+    max_out: i32,
+    structured: bool,
+    instruction: String,
+    output_key: &str,
+    crabcc: Option<Arc<dyn Toolset>>,
+    output_guardrail: bool,
+) -> Result<LlmAgent> {
+    let gen_cfg = gen_config(effort, max_out, structured)?;
+    let retry = || RetryBudget {
+        max_retries: 2,
+        delay: Duration::from_millis(250),
+    };
+    let mut builder = LlmAgentBuilder::new(name)
+        .instruction(instruction)
+        .model(model)
+        .generate_content_config(gen_cfg)
+        .max_iterations(cfg.max_iters)
+        .tool_timeout(Duration::from_secs(60))
+        .tool_execution_strategy(ToolExecutionStrategy::Auto)
+        .tool_retry_budget("crabcc", retry())
+        .tool_retry_budget("read_lines", retry())
+        .tool(read_lines_tool())
+        .output_key(output_key);
+    if output_guardrail {
+        builder =
+            builder.output_guardrails(guardrails::output_guardrails(cfg.max_findings as usize));
+    }
+    if let Some(ts) = crabcc {
+        builder = builder.toolset(ts);
+    }
+    builder.build().map_err(|e| anyhow!("agent build: {e}"))
+}
+
+/// Run a built pipeline once and pull the final review out of session state
+/// (`output_key`), falling back to the synthesis agent's streamed text. Also sums
+/// token usage across every sub-agent turn.
+async fn run_collect(rr: &ReviewRunner, prompt: &str, output_key: &str) -> Result<(String, Usage)> {
+    let session_id = SessionId::generate();
+    rr.sessions
+        .create(CreateRequest {
+            app_name: "vaked-ci-reviewer".into(),
+            user_id: "vaked-ci".into(),
+            session_id: Some(session_id.to_string()),
+            state: HashMap::new(),
+        })
+        .await
+        .map_err(|e| anyhow!("session create: {e}"))?;
+
+    let content = Content::new("user").with_text(prompt);
+    let mut stream = rr
+        .runner
+        .run(
+            UserId::new("vaked-ci").map_err(|e| anyhow!("user id: {e}"))?,
+            session_id,
+            content,
+        )
+        .await
+        .map_err(|e| anyhow!("runner.run: {e}"))?;
+
+    let mut keyed = String::new();
+    let mut synth_text = String::new();
+    let mut usage = Usage::default();
+    while let Some(event) = stream.next().await {
+        let event = event.map_err(|e| anyhow!("event: {e}"))?;
+        if let Some(u) = &event.llm_response.usage_metadata {
+            usage.total += u.total_token_count as i64;
+            usage.thinking += u.thinking_token_count.unwrap_or(0) as i64;
+            usage.cached += u.cache_read_input_token_count.unwrap_or(0) as i64;
+            usage.calls += 1;
+        }
+        if let Some(v) = event.actions.state_delta.get(output_key).and_then(Value::as_str) {
+            keyed = v.to_string();
+        }
+        if event.author == "synthesis"
+            && let Some(content) = &event.llm_response.content
+        {
+            for part in &content.parts {
+                if let Some(t) = part.text() {
+                    synth_text.push_str(t);
+                }
+            }
+        }
+    }
+    let text = if keyed.trim().is_empty() {
+        synth_text
+    } else {
+        keyed
+    };
+    Ok((text, usage))
+}
+
+/// Per-file reviewers (adk `ParallelAgent`) → synthesis (`SequentialAgent`).
+#[allow(clippy::too_many_arguments)]
+async fn parallel_agent_review(
+    cfg: &Config,
+    api_key: &str,
+    meta: &PrMeta,
+    diff: &str,
+    addenda: &str,
+    crabcc: Option<Arc<dyn Toolset>>,
+    usage: &mut Usage,
+) -> Result<String> {
+    let files = split_per_file(diff);
+    let total = files.len();
+    let budget = cfg.max_diff_chars / 4;
+    let model = Arc::new(build_or_model(cfg, api_key)?);
+
+    let mut reviewers: Vec<Arc<dyn Agent>> = Vec::new();
+    for (i, (path, section)) in files.into_iter().take(MAX_FILES_MAPREDUCE).enumerate() {
+        let (section, _) = truncate(&section, budget);
+        let safe = guardrails::sanitize_untrusted(&section);
+        let instruction = format!(
+            "{}\n\n## Your assignment\nReview ONLY this file's diff per your rules. Output findings bullets only — no verdict line, no JSON. If clean, output nothing.\nFile: {path}\n```diff\n{safe}\n```{addenda}",
+            system_prompt(cfg.max_findings, cfg.crabcc_budget, false)
+        );
+        let agent = build_pipeline_agent(
+            cfg,
+            model.clone(),
+            &format!("file-reviewer-{i}"),
+            PERFILE_REASONING_EFFORT,
+            1024,
+            false,
+            instruction,
+            &format!("review_{i}"),
+            crabcc.clone(),
+            false,
+        )?;
+        reviewers.push(Arc::new(agent));
+    }
+    if reviewers.is_empty() {
+        return Ok(clean_verdict(cfg.structured));
+    }
+    let note = if total > MAX_FILES_MAPREDUCE {
+        format!(" (only the first {MAX_FILES_MAPREDUCE} of {total} files were reviewed)")
+    } else {
+        String::new()
+    };
+
+    let parallel = ParallelAgent::new("file-reviewers", reviewers);
+    let synth_instruction = format!(
+        "{}\n\n## Your assignment\nThe conversation above holds per-file findings from a large PR ({total} files){note}. Produce the FINAL review per your output contract: dedupe, drop noise, keep the most important, group by severity, lead with the verdict line.\n\nPR #{}: {}",
+        system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured),
+        meta.number,
+        meta.title
+    );
+    let synth = build_pipeline_agent(
+        cfg,
+        model.clone(),
+        "synthesis",
+        &cfg.reasoning_effort,
+        4096,
+        cfg.structured,
+        synth_instruction,
+        "final_review",
+        None,
+        true,
+    )?;
+
+    let pipeline = SequentialAgent::new(
+        "review-pipeline",
+        vec![Arc::new(parallel) as Arc<dyn Agent>, Arc::new(synth)],
+    );
+
+    let run_config = RunConfig::builder().auto_cache(true).build();
+    let sessions: Arc<dyn SessionService> = Arc::new(InMemorySessionService::new());
+    let runner = Runner::builder()
+        .app_name("vaked-ci-reviewer")
+        .agent(Arc::new(pipeline))
+        .session_service(sessions.clone())
+        .run_config(run_config)
+        .build()
+        .map_err(|e| anyhow!("pipeline runner build: {e}"))?;
+
+    let rr = ReviewRunner { runner, sessions };
+    let (text, u) =
+        run_collect(&rr, "Review the pull request per your instructions.", "final_review").await?;
+    *usage += u;
+    if text.trim().is_empty() {
+        return Err(anyhow!("parallel pipeline produced no synthesis output"));
+    }
+    Ok(text)
 }
 
 /// A read-only tool: pull an inclusive 1-based line range from a repo file.
@@ -1218,6 +1459,7 @@ struct Config {
     concurrency: usize,
     structured: bool,
     trace_payloads: bool,
+    parallel_agent: bool,
 }
 
 impl Config {
@@ -1277,6 +1519,7 @@ impl Config {
             concurrency: env_usize("PR_REVIEW_CONCURRENCY", DEFAULT_CONCURRENCY).max(1),
             structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
             trace_payloads: std::env::var("PR_REVIEW_TRACE_PAYLOADS").is_ok(),
+            parallel_agent: std::env::var("PR_REVIEW_PARALLEL_AGENT").is_ok(),
         })
     }
 
@@ -1303,6 +1546,7 @@ impl Config {
             concurrency: DEFAULT_CONCURRENCY,
             structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
             trace_payloads: false,
+            parallel_agent: false,
         }
     }
 }
