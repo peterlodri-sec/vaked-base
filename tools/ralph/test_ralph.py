@@ -862,6 +862,142 @@ def test_track_skip_advances_rotation() -> None:
         assert not os.path.exists(os.path.join(tmpdir, "flaky.ralph-log.md"))
 
 
+def test_supervised_decide_track_folds_cost() -> None:
+    """_supervised_decide_track folds the iteration cost + model into status."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Track, TrackContext
+
+    track = Track(name="t", topic="T", model="vendor/m", label="track:t",
+                  context=TrackContext(docs=[], paths=[]))
+    status = {"total_cost": 0.0, "subjects": {}, "recent": []}
+    args = types.SimpleNamespace()
+
+    with mock.patch.object(ralph, "_resolve_api_key", return_value="k"), \
+         mock.patch.object(ralph, "_decide_track", return_value=0.25), \
+         mock.patch.object(ralph, "_prior_titles", return_value=[]):
+        ralph._supervised_decide_track(args, track, status)
+
+    assert abs(status["total_cost"] - 0.25) < 1e-9
+    assert status["subjects"]["t"]["model"] == "vendor/m"
+    assert abs(status["subjects"]["t"]["cost"] - 0.25) < 1e-9
+
+
+def test_render_dashboard_tracks_model_column() -> None:
+    """Track status renders a model column and uses the 'track' label."""
+    from ralphcore import render_dashboard
+    status = {
+        "running": True, "current": "graph-concept", "iteration": 2,
+        "total_cost": 0.01, "budget_total": 2.0,
+        "subjects": {"graph-concept": {"entries": 1, "last_title": "LPG split",
+                                       "cost": 0.01,
+                                       "model": "deepseek/deepseek-v4-flash"}},
+        "recent": [{"subject": "graph-concept", "date": "2026-06-12", "title": "LPG split"}],
+    }
+    out = render_dashboard(status, 100, 100)
+    assert "track" in out and "graph-concept" in out
+    assert "deepseek/deepseek-v4-flash" in out and "LPG split" in out
+
+
+def test_run_tracks_budget_zero_no_iterations() -> None:
+    """`run` (default = tracks) with budget 0 makes no API call and exits clean."""
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    r = subprocess.run([sys.executable, os.path.join(here, "ralph.py"), "run",
+                        "--budget-total", "0", "--max-iters", "1"],
+                       capture_output=True, text=True, cwd=here, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert "budget" in (r.stdout + r.stderr).lower()
+
+
+def test_run_tracks_seeds_total_cost_from_ledger() -> None:
+    """A fresh status.json must seed cumulative spend from the committed event
+    ledger, so a stateless restart respects the budget already spent."""
+    import subprocess
+    from ralphcore import make_entry, GENESIS_HASH
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # ledger already records $0.50 of spend on a track decide
+        e = make_entry(GENESIS_HASH, 0,
+                       {"event": "decide", "track": "graph-concept",
+                        "iteration": 1, "cost": 0.5, "total_cost": 0.5})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        # budget below recorded spend → must stop immediately, no API call
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--budget-total", "0.10", "--state-dir", tmpdir, "--max-iters", "1"],
+            capture_output=True, text=True, cwd=here, timeout=30)
+        assert r.returncode == 0, r.stderr
+        assert "budget" in (r.stdout + r.stderr).lower(), r.stdout
+
+
+def test_run_tracks_reconciles_stale_status() -> None:
+    """When status.json is stale-low but the ledger records more spend, the
+    budget check must use the ledger total (reconciled on start), not the cache."""
+    import subprocess
+    from ralphcore import make_entry, GENESIS_HASH
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # stale cache says $0 spent...
+        with open(os.path.join(tmpdir, "status.json"), "w", encoding="utf-8") as f:
+            json.dump({"running": False, "current": None, "total_cost": 0.0,
+                       "budget_total": 2.0, "subjects": {}, "recent": [],
+                       "last_step_epoch": 0}, f)
+        # ...but the ledger records $0.50
+        e = make_entry(GENESIS_HASH, 0,
+                       {"event": "decide", "track": "graph-concept",
+                        "iteration": 1, "cost": 0.5, "total_cost": 0.5})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--budget-total", "0.10", "--state-dir", tmpdir, "--max-iters", "1"],
+            capture_output=True, text=True, cwd=here, timeout=30)
+        assert r.returncode == 0, r.stderr
+        assert "budget" in (r.stdout + r.stderr).lower(), r.stdout
+
+
+def test_run_tracks_max_ticks_stops_promptly() -> None:
+    """`run --max-ticks 1` with a long interval must NOT sleep the interval after
+    the final tick (it should exit promptly). No API key → decide is a no-op."""
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    env = dict(os.environ)
+    env.pop("OPENROUTER_API_KEY", None)
+    env.pop("RALPH_API_KEY", None)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # timeout well under the 900s interval: if the fix regresses, this hangs
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--max-ticks", "1", "--interval", "900", "--budget-total", "5",
+             "--state-dir", tmpdir],
+            capture_output=True, text=True, cwd=here, env=env, timeout=20)
+        assert r.returncode == 0, r.stderr
+
+
+def test_clear_step_resets_flag() -> None:
+    """_clear_step turns off the one-shot step flag, leaving paused intact."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig = ralph.CONTROL_PATH
+        ralph.CONTROL_PATH = os.path.join(tmpdir, "control.json")
+        try:
+            with open(ralph.CONTROL_PATH, "w") as f:
+                json.dump({"paused": True, "step": True, "interval": 5}, f)
+            ralph._clear_step()
+            with open(ralph.CONTROL_PATH) as f:
+                d = json.load(f)
+        finally:
+            ralph.CONTROL_PATH = orig
+        assert d["step"] is False
+        assert d["paused"] is True and d["interval"] == 5
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

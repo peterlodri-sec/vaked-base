@@ -595,6 +595,22 @@ def read_control() -> C.Control:
         return C.parse_control(None)
 
 
+def _clear_step() -> None:
+    """Reset the one-shot `step` flag after a stepped iteration, keeping
+    paused/interval intact. No-op if control.json is missing/unset."""
+    try:
+        with open(CONTROL_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return
+    if d.get("step"):
+        d["step"] = False
+        tmp = CONTROL_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+        os.replace(tmp, CONTROL_PATH)
+
+
 def _events_tail_hash() -> str:
     """Return the `hash` of the last entry in EVENTS_PATH, or GENESIS_HASH."""
     try:
@@ -668,10 +684,124 @@ def _apply_state_dir(d: str) -> None:
     EVENTS_PATH = os.path.join(d, "events.jsonl")
 
 
+def _supervised_decide_track(args, track: C.Track, status: dict) -> None:
+    """One track decide iteration; fold cost + result into status. Contained --
+    a failure here never crashes the supervisor. `_decide_track` appends its own
+    decide/skip event, so the track supervisor must NOT double-append."""
+    api_key = _resolve_api_key()
+    if not api_key:
+        print("no API key — set RALPH_API_KEY or OPENROUTER_API_KEY — cannot decide",
+              file=sys.stderr)
+        return
+    try:
+        before = len(_prior_titles(track.name))
+        cost = _decide_track(args, track, api_key)
+        status["total_cost"] = status.get("total_cost", 0.0) + cost
+        after = _prior_titles(track.name)
+        subjects = status.setdefault("subjects", {})
+        rec = subjects.setdefault(track.name,
+                                  {"entries": 0, "last_title": "-", "cost": 0.0,
+                                   "model": track.model})
+        rec["model"] = track.model
+        rec["cost"] = rec.get("cost", 0.0) + cost
+        if len(after) > before:
+            rec["entries"] = len(after)
+            rec["last_title"] = after[-1]
+            status.setdefault("recent", []).insert(
+                0, {"subject": track.name, "date": _today(), "title": after[-1]})
+            status["recent"] = status["recent"][:10]
+    except Exception as e:
+        print("iteration failed for %s: %s" % (track.name, e), file=sys.stderr)
+
+
 def cmd_run(args) -> int:
     if getattr(args, "state_dir", None):
         _apply_state_dir(args.state_dir)
+    if getattr(args, "repo_mode", False):
+        return _run_repos(args)
+    return _run_tracks(args)
 
+
+def _run_tracks(args) -> int:
+    """Supervisor over concept tracks (the primary mode): round-robin tracks,
+    one model each, budget-capped. Each iteration's decide/skip event is logged
+    by _decide_track itself."""
+    tracks = C.load_tracks(args.tracks)
+    names = [t.name for t in tracks]
+    by_name = {t.name: t for t in tracks}
+    status = read_status()
+    if status is None:
+        status = {
+            "running": True, "current": None, "iteration": 0,
+            "total_cost": 0.0, "budget_total": args.budget_total,
+            "subjects": {t.name: {"entries": 0, "last_title": "-", "cost": 0.0,
+                                  "model": t.model} for t in tracks},
+            "recent": [], "last_step_epoch": 0, "mode": "tracks",
+        }
+    status["running"] = True
+    status["budget_total"] = args.budget_total
+    status.setdefault("subjects", {})
+    # status.json is a derived cache (gitignored); the committed event ledger is
+    # the state-of-record. Reconcile rotation pointer + cumulative spend against
+    # it on EVERY start — even when status exists but is stale (e.g. an external
+    # `decide --next-track` advanced the ledger the cache never saw) — so we
+    # never restart at track #1 or under-count spend already past the budget.
+    ledger_total = _events_total_cost()
+    if ledger_total > float(status.get("total_cost", 0.0) or 0.0):
+        status["total_cost"] = ledger_total
+    ledger_track = _last_decided_track()
+    if ledger_track is not None:
+        status["current"] = ledger_track
+    iters = 0
+    ticks = 0
+    try:
+        while True:
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
+            ctrl = read_control()
+            if status["total_cost"] >= args.budget_total:
+                print("budget cap reached ($%.2f) — stopping" % args.budget_total)
+                break
+            if args.max_iters and iters >= args.max_iters:
+                print("max-iters reached — stopping")
+                break
+            interval = ctrl.interval if ctrl.interval is not None else args.interval
+            if ctrl.paused and not ctrl.step:
+                append_event({"tick": ticks, "event": "paused"})
+                ticks += 1
+                write_status(status)
+                if args.max_ticks and ticks >= args.max_ticks:
+                    break
+                time.sleep(min(interval, 2.0))
+                continue
+            nxt = C.next_track(names, status["current"], set())
+            if nxt is None:
+                print("no tracks available — stopping", file=sys.stderr)
+                break
+            status["current"] = nxt
+            status["iteration"] += 1
+            iters += 1
+            _supervised_decide_track(args, by_name[nxt], status)
+            status["last_step_epoch"] = int(time.time())
+            if ctrl.step:                 # one-shot consumed → back to paused
+                _clear_step()
+            ticks += 1
+            write_status(status)
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
+            if args.max_iters and iters >= args.max_iters:
+                continue
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\nSIGINT — shutting down")
+    finally:
+        status["running"] = False
+        write_status(status)
+    return 0
+
+
+def _run_repos(args) -> int:
+    """DEPRECATED supervisor over whole repos (the original round-robin)."""
     repos = C.load_repos(args.repos)
     names = [r.name for r in repos]
     by_name = {r.name: r for r in repos}
@@ -701,6 +831,8 @@ def cmd_run(args) -> int:
                 append_event({"tick": ticks, "event": "paused"})
                 ticks += 1
                 write_status(status)
+                if args.max_ticks and ticks >= args.max_ticks:
+                    break
                 time.sleep(min(interval, 2.0))
                 continue
             unavailable = {r.name for r in repos if not os.path.isdir(r.path)}
@@ -716,8 +848,12 @@ def cmd_run(args) -> int:
             append_event({"tick": ticks, "event": "decide", "repo": nxt,
                           "iteration": status["iteration"],
                           "total_cost": status["total_cost"]})
+            if ctrl.step:                 # one-shot consumed → back to paused
+                _clear_step()
             ticks += 1
             write_status(status)
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
             if args.max_iters and iters >= args.max_iters:
                 continue
             time.sleep(interval)
@@ -834,6 +970,9 @@ def main(argv: list[str] | None = None) -> int:
     p_decide.set_defaults(func=cmd_decide)
 
     p_run = sub.add_parser("run", parents=[common])
+    p_run.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
+    p_run.add_argument("--repo-mode", action="store_true",
+                       help="DEPRECATED: round-robin whole repos instead of tracks")
     p_run.add_argument("--interval", type=int, default=900)
     p_run.add_argument("--budget-total", type=float, default=2.00)
     p_run.add_argument("--max-iters", type=int, default=0)
