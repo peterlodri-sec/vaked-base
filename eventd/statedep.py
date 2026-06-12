@@ -15,9 +15,27 @@ order (protocol/rfcs/0004-multi-agent-state-dependency.md §8):
 (Order 5 — the DAG compiler pass — lives in vakedc, not here. Order 8 — the
 zero-copy scan path — is a Zig-port concern, explicitly after correctness.)
 
-Payloads are plain dicts with a ``kind`` discriminator: eventd payload bodies
-are JSON; the ``.hcplang`` frames in RFC 0004 §2 are the wire form, this is
-the logged form. Field names match the RFC structs exactly.
+Payloads are plain dicts with a ``kind`` discriminator and a ``v`` schema
+version (reserved migration space — the byte format hardens at the Zig port):
+eventd payload bodies are JSON; the ``.hcplang`` frames in RFC 0004 §2 are the
+wire form, this is the logged form. Field names match the RFC structs exactly.
+Step / epoch fields are **integers only** — floats are banned from statedep
+payloads (cross-runtime number-encoding drift is not worth inviting).
+
+Fold semantics (normative for the reference — the Zig port reproduces them):
+
+  * **Latest-wins in log order** per ``(consumer, producer)`` key.
+  * **Re-registration is a new dependency generation**: it REPLACES the
+    anchor; cold start validates only the latest registration.
+  * **A backwards checkpoint** (lower ``min_required_step`` than its
+    predecessor) is accepted: it moves the GC floor *down* — the conservative
+    direction. History is only ever released by raising the value.
+  * **Eviction voids ALL the consumer's edges at its log position; each edge
+    is individually revived only by a ``DependencyRegistration`` logged AFTER
+    the eviction** (a real per-producer re-anchor, §6 explicit recovery).
+    Re-anchoring producer A does not revive a stale anchor on producer B, and
+    an ordinary checkpoint from an evicted consumer — e.g. a delayed write
+    from the dead process — never re-admits anything.
 """
 from __future__ import annotations
 
@@ -28,6 +46,16 @@ KIND_CHECKPOINT = "consumer_checkpoint"
 KIND_REWIND = "rewind_event"
 KIND_EVICTION = "consumer_evicted"
 
+STATEDEP_V = 1
+
+
+def _require_int(name: str, value):
+    """Step/epoch fields are ints, full stop (bool is not an int here)."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{name} must be an int — floats/non-ints are banned "
+                        f"in statedep payloads")
+    return value
+
 
 # --------------------------------------------------------------------------- #
 # Payload constructors (RFC 0004 §2 — logged form)
@@ -37,40 +65,46 @@ def dependency_registration(consumer: str, producer: str, consumer_step: int,
                             producer_step: int, producer_step_hash: str,
                             topology_epoch: int) -> dict:
     """§3.1: MUST be logged before the consumer reads the producer's output."""
-    return {"kind": KIND_REGISTRATION, "consumer": consumer,
-            "producer": producer, "consumer_step": consumer_step,
-            "producer_step": producer_step,
+    return {"kind": KIND_REGISTRATION, "v": STATEDEP_V, "consumer": consumer,
+            "producer": producer,
+            "consumer_step": _require_int("consumer_step", consumer_step),
+            "producer_step": _require_int("producer_step", producer_step),
             "producer_step_hash": producer_step_hash,
-            "topology_epoch": topology_epoch}
+            "topology_epoch": _require_int("topology_epoch", topology_epoch)}
 
 
 def consumer_checkpoint(consumer_agent: str, producer_agent: str,
                         min_required_step: int, consumer_checkpoint_step: int,
                         topology_epoch: int, last_heartbeat_at: str) -> dict:
     """§4: the consumer's durable acknowledgement; feeds the GC floor."""
-    return {"kind": KIND_CHECKPOINT, "consumer_agent": consumer_agent,
+    return {"kind": KIND_CHECKPOINT, "v": STATEDEP_V,
+            "consumer_agent": consumer_agent,
             "producer_agent": producer_agent,
-            "min_required_step": min_required_step,
-            "consumer_checkpoint_step": consumer_checkpoint_step,
-            "topology_epoch": topology_epoch,
+            "min_required_step": _require_int("min_required_step",
+                                              min_required_step),
+            "consumer_checkpoint_step": _require_int(
+                "consumer_checkpoint_step", consumer_checkpoint_step),
+            "topology_epoch": _require_int("topology_epoch", topology_epoch),
             "last_heartbeat_at": last_heartbeat_at}
 
 
 def rewind_event(producer: str, rewind_to_step: int, rewind_to_hash: str,
                  topology_epoch: int) -> dict:
     """§3.3: anchors above ``rewind_to_step`` are void after this event."""
-    return {"kind": KIND_REWIND, "producer": producer,
-            "rewind_to_step": rewind_to_step,
+    return {"kind": KIND_REWIND, "v": STATEDEP_V, "producer": producer,
+            "rewind_to_step": _require_int("rewind_to_step", rewind_to_step),
             "rewind_to_hash": rewind_to_hash,
-            "topology_epoch": topology_epoch}
+            "topology_epoch": _require_int("topology_epoch", topology_epoch)}
 
 
 def consumer_evicted(consumer_agent: str, reason: str,
                      topology_epoch: int) -> dict:
     """§4.2: explicit, logged eviction of a dead consumer from the GC floor —
     never silent. Voids that consumer's anchors (cold start will pause it)."""
-    return {"kind": KIND_EVICTION, "consumer_agent": consumer_agent,
-            "reason": reason, "topology_epoch": topology_epoch}
+    return {"kind": KIND_EVICTION, "v": STATEDEP_V,
+            "consumer_agent": consumer_agent,
+            "reason": reason,
+            "topology_epoch": _require_int("topology_epoch", topology_epoch)}
 
 
 # --------------------------------------------------------------------------- #
@@ -99,14 +133,15 @@ class DependencyIndex:
         seq it was registered at (rewinds logged AFTER it can void it);
       * ``checkpoints[(consumer, producer)]`` — the latest acknowledgement;
       * ``rewinds[producer]`` — the latest rewind (with its log seq);
-      * ``evicted`` — consumers removed from the floor by explicit eviction.
+      * ``evicted[consumer]`` — the log seq of the latest explicit eviction;
+        an edge is LIVE iff its registration was logged after that seq.
     """
 
     def __init__(self):
         self.registrations: dict[tuple[str, str], dict] = {}
         self.checkpoints: dict[tuple[str, str], dict] = {}
         self.rewinds: dict[str, dict] = {}
-        self.evicted: set[str] = set()
+        self.evicted: dict[str, int] = {}
 
     @classmethod
     def from_entries(cls, entries: list[dict]) -> "DependencyIndex":
@@ -123,8 +158,19 @@ class DependencyIndex:
             elif kind == KIND_REWIND:
                 idx.rewinds[p["producer"]] = dict(p, _at_seq=e["seq"])
             elif kind == KIND_EVICTION:
-                idx.evicted.add(p["consumer_agent"])
+                idx.evicted[p["consumer_agent"]] = e["seq"]
         return idx
+
+    def _edge_live(self, consumer: str, producer: str) -> bool:
+        """An edge survives eviction only via a registration logged AFTER the
+        consumer's latest eviction (§6 explicit recovery is per producer:
+        re-anchoring A never revives a stale anchor on B; checkpoints never
+        revive anything)."""
+        ev_seq = self.evicted.get(consumer)
+        if ev_seq is None:
+            return True
+        reg = self.registrations.get((consumer, producer))
+        return reg is not None and reg["_at_seq"] > ev_seq
 
     # -- GC floor (§4) -------------------------------------------------------
 
@@ -141,7 +187,7 @@ class DependencyIndex:
         whose consumer has not checkpointed past it."""
         floors = []
         for consumer, prod in set(self.registrations) | set(self.checkpoints):
-            if prod != producer or consumer in self.evicted:
+            if prod != producer or not self._edge_live(consumer, prod):
                 continue
             reg = self.registrations.get((consumer, prod))
             cp = self.checkpoints.get((consumer, prod))
@@ -162,7 +208,8 @@ class DependencyIndex:
 
         An anchor is stale when: the anchored entry is missing (truncated past
         the floor), its hash diverges, a rewind for the producer logged after
-        the registration undercuts it, or the consumer was evicted (§4.2)."""
+        the registration undercuts it, or the edge was voided by an eviction
+        and not re-anchored since (§4.2 — liveness is per producer edge)."""
         observed_tip = entries[-1]["seq"] if entries else None
         for (cons, producer), reg in self.registrations.items():
             if cons != consumer:
@@ -174,7 +221,7 @@ class DependencyIndex:
                 observed_tip=observed_tip,
                 topology_epoch=reg["topology_epoch"],
             )
-            if consumer in self.evicted:
+            if not self._edge_live(consumer, producer):
                 return stale
             step = reg["producer_step"]
             if observed_tip is None or step > observed_tip:

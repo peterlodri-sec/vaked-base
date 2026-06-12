@@ -8,8 +8,14 @@ Reference tooling over a JSONL eventd log (issue #18, RFC 0004):
     python3 -m eventd floor     <log> <producer-agent>
     python3 -m eventd coldstart <log> <consumer-agent>
 
-Exit codes: 0 ok / verified / RUNNING; 1 tampered, lock refusal, or
-PAUSED(stale_dependency).
+Exit codes are STABLE ORACLE CONTRACT (harness scripts and the Zig-port
+parity tests depend on them):
+
+    0   ok / chain verified / dependencies verified ⇒ RUNNING
+    2   usage error
+    3   PAUSED(stale_dependency)  — coldstart refused the RUNNING transition
+    4   tampered / malformed log  — the audit spine is broken
+    5   writer refused            — single-writer lock held elsewhere
 """
 from __future__ import annotations
 
@@ -21,38 +27,47 @@ from dataclasses import asdict
 from .log import EventLog, TamperError, WriterLockError
 from .statedep import DependencyIndex
 
+EXIT_OK = 0
+EXIT_USAGE = 2
+EXIT_STALE = 3
+EXIT_TAMPERED = 4
+EXIT_LOCKED = 5
+
 
 def _open_ro(path: str) -> EventLog:
     try:
         return EventLog(path)
     except TamperError as e:
         print(f"eventd: TAMPERED — {e}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(EXIT_TAMPERED)
 
 
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__, file=sys.stderr)
-        return 2
+        return EXIT_USAGE
     cmd, path, *rest = argv
 
     if cmd == "verify":
         log = _open_ro(path)
         print(f"eventd: {path} — chain OK ({len(log)} entries, "
               f"tail {log.tail_hash[:16]}…)")
-        return 0
+        return EXIT_OK
 
     if cmd == "append":
         payload = json.loads(rest[0] if rest else sys.stdin.read())
         try:
             with EventLog(path, writer=True) as log:
                 entry = log.append(payload)
-        except (TamperError, WriterLockError) as e:
+        except TamperError as e:
             print(f"eventd: refused — {e}", file=sys.stderr)
-            return 1
+            return EXIT_TAMPERED
+        except WriterLockError as e:
+            print(f"eventd: refused — {e}", file=sys.stderr)
+            return EXIT_LOCKED
         print(f"eventd: appended seq {entry['seq']} "
               f"({entry['hash'][:16]}…) to {path}")
-        return 0
+        return EXIT_OK
 
     if cmd == "replay":
         log = _open_ro(path)
@@ -62,7 +77,7 @@ def main(argv: list[str]) -> int:
         print(f"eventd: {path} — {len(log)} entries, tail {log.tail_hash[:16]}…")
         for kind, n in sorted(kinds.items()):
             print(f"  {kind}: {n}")
-        return 0
+        return EXIT_OK
 
     if cmd == "floor":
         log = _open_ro(path)
@@ -73,7 +88,7 @@ def main(argv: list[str]) -> int:
         else:
             print(f"eventd: {rest[0]} — producer_gc_floor = {floor} "
                   f"(compaction legal strictly below)")
-        return 0
+        return EXIT_OK
 
     if cmd == "coldstart":
         log = _open_ro(path)
@@ -81,13 +96,13 @@ def main(argv: list[str]) -> int:
             .verify_cold_start(rest[0], log.entries)
         if stale is None:
             print(f"eventd: {rest[0]} — dependencies verified ⇒ RUNNING")
-            return 0
+            return EXIT_OK
         print(f"eventd: {rest[0]} — PAUSED(stale_dependency): "
               f"{json.dumps(asdict(stale), sort_keys=True)}")
-        return 1
+        return EXIT_STALE
 
     print(f"eventd: unknown command {cmd!r}", file=sys.stderr)
-    return 2
+    return EXIT_USAGE
 
 
 if __name__ == "__main__":

@@ -81,9 +81,10 @@ not fracture another. This is exactly what Track D (control) consumes.
    It also carries the **RFC 0004 state-dependency layer** (`eventd.statedep`:
    DependencyRegistration / ConsumerCheckpoint / RewindEvent / eviction
    payloads, the O(1) `DependencyIndex`, `gc_floor`, cold-start verifier —
-   RFC 0004 §8 orders 1–4, 6, 7). Remaining for this phase: the Zig daemon
-   port (#15 pattern, Python as oracle) and the per-runtime log path as a
-   0012 lowering output.
+   RFC 0004 §8 orders 1–4, 6, 7). The per-runtime log path is now a 0012
+   lowering output (`eventd.config` → `gen/eventd.json`, presence-gated on
+   memory/workflow decls). Remaining for this phase: the Zig daemon port
+   (#15 pattern, Python as oracle).
 3. runtime fold: reconstruct the typed semantic graph from the log (state =
    fold), over the arena.
 4. (Track D) rewind/jump: fold 0..N; arena snapshots for O(1) checkpoints.

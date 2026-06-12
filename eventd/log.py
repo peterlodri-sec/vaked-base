@@ -63,13 +63,10 @@ class EventLog:
 
     def __init__(self, path: str, *, writer: bool = False, verify: bool = True):
         self.path = path
-        self._entries = load_entries(path)
-        if verify and not verify_chain(self._entries):
-            raise TamperError(
-                f"{path}: hash chain verification failed "
-                f"({len(self._entries)} entries) — refusing to serve a "
-                f"tampered audit spine")
         self._fh = None
+        # Writer path: take the exclusive lock FIRST, then load/verify under
+        # it — loading before locking races a departing writer's final append
+        # and would chain the next entry off a stale tail (Codex P1, PR #31).
         if writer:
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
             self._fh = open(path, "a", encoding="utf-8")
@@ -81,6 +78,16 @@ class EventLog:
                 raise WriterLockError(
                     f"{path}: another writer holds the log "
                     f"(single-writer discipline)") from e
+        try:
+            self._entries = load_entries(path)
+            if verify and not verify_chain(self._entries):
+                raise TamperError(
+                    f"{path}: hash chain verification failed "
+                    f"({len(self._entries)} entries) — refusing to serve a "
+                    f"tampered audit spine")
+        except TamperError:
+            self.close()   # never hold the writer lock on a refused log
+            raise
 
     # -- read side -----------------------------------------------------------
 
