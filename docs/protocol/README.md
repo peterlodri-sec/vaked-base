@@ -18,9 +18,12 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 
 | Term | Meaning |
 |------|---------|
-| Control frame | Votive `control` frame addressed to the supervision plane: pause / resume / slow / step / rewind |
-| `ControlAck` | The response: applied or refused, with the eventd seq of the logged action |
-| `control_action` | The eventd payload kind recording every ACCEPTED control frame (write-ahead, before effect) |
+| Control-plane frame | Votive `request` frame addressed to the supervision plane: pause / resume / slow / step / rewind ("control plane" names the destination, not the frame class) |
+| Scope | `runtime` (the whole OTP tree) or `agent` (one supervisor child); case 0 `unspecified` is refused |
+| Target | Declared name (child id / runtime name), fenced by the current topology epoch |
+| `ControlAck` | The response: applied, or refused with a typed `ControlRefusal` reason |
+| `control_action` | The eventd payload kind recording every APPLIED control frame (write-ahead, before effect; carries corr + actor) |
+| Step | One-shot tick while paused; stays paused afterwards |
 
 ### State dependency ([RFC 0004](../../protocol/rfcs/0004-multi-agent-state-dependency.md))
 
