@@ -33,7 +33,7 @@ its strategy, and its restart semantics are the real deliverable.
 | Vaked `strategy` | OTP `SupFlags.strategy` | Rationale |
 |------------------|------------------------|-----------|
 | `"supervised-dag"` — **v0** | `one_for_one` | independent restarts. Blanket sibling cascades (`rest_for_one` over declaration order) would restart *unrelated* members — in `operator-field`, `mediaCompress` and `operatorMap` share no data-flow edge, yet a `mediaCompress` crash would bounce `operatorMap` purely by position. Downstream *consistency* is not the supervisor's blunt instrument anyway: it is RFC 0004's job — a restarted producer's consumers re-verify their anchors and pause as `stale_dependency` if actually affected. |
-| `"supervised-dag"` — **edge-aware follow-up** | `rest_for_one` **per topologically-contiguous dependency chain** (chain = a connected component of the members' data-flow edges, children in topo order; unrelated chains under separate sub-supervisors) | the restart cascade becomes a *correct* optimization: only true downstreams restart eagerly instead of waiting to pause on a stale anchor |
+| `"supervised-dag"` — **edge-aware follow-up** | `rest_for_one` **only for components that are linear chains** (each chain its own sub-supervisor, children in chain order). **Branching components stay `one_for_one`**: a flat `rest_for_one` child list cannot express a DAG — with `A -> B` and `A -> C`, a `B` crash would restart `C` purely by position. Stock OTP strategies cannot say "restart exactly my descendants"; for general DAGs, eager descendant-restart is **supervisord control-plane logic** (it holds the RFC 0004 `DependencyIndex` and can compute the true descendant set), not a strategy flag | the cascade is applied exactly where it is expressible (linear chains), and everywhere else the dependency layer — pausing or daemon-driven restart over the index — carries the semantics |
 | anything else (forward-compat) | `one_for_one` | independent restarts; no ordering claim |
 
 `SupFlags`: `intensity => 3, period => 10` (v0 defaults; a future `budget`
@@ -104,8 +104,9 @@ called out here so the bump is an explicit, reviewed act.
    on `systemd.units`).
 3. Golden fixture extension (the explicit bump above).
 4. `task otp-smoke` devshell target + run it once; record output in the PR.
-5. Follow-ups: edge-aware chains (`rest_for_one` per dependency chain, topo
-   order, checker WARN — 0013 Pass-1 reuse), budget→SupFlags,
+5. Follow-ups: edge-aware chains (`rest_for_one` for LINEAR chains only;
+   branching DAGs keep `one_for_one` + index-driven restart in supervisord;
+   topo order + checker WARN — 0013 Pass-1 reuse), budget→SupFlags,
    worker→Zig-daemon port (with the daemons, #15-era).
 
 ## Open
