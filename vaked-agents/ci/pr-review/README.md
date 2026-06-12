@@ -117,9 +117,12 @@ The diff is **untrusted input**, so the reviewer agent runs adk guardrails
 - **Output** — a findings cap to `PR_REVIEW_MAX_FINDINGS`.
 
 All guardrails `Transform`/`Pass` (never `Fail`), so they can't suppress the
-advisory review. The parallel pipeline bakes per-file diffs into agent
-*instructions* (which guardrails don't see), so it pre-sanitizes that text and the
-PR metadata with the same redaction/defang functions.
+advisory review. The parallel pipeline passes per-file diffs + PR metadata to
+agents via **session state** (referenced by a single `{placeholder}` in the
+instruction) — guardrails don't see instructions/state, so that text is
+pre-sanitized with the same redaction/defang; routing it through state (a
+single-pass, non-rescanned injection) also stops the diff's own `{...}` from being
+re-templated.
 
 ## Eval
 

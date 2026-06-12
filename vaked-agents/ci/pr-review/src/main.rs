@@ -669,14 +669,19 @@ fn build_pipeline_agent(
 /// Run a built pipeline once and pull the final review out of session state
 /// (`output_key`), falling back to the synthesis agent's streamed text. Also sums
 /// token usage across every sub-agent turn.
-async fn run_collect(rr: &ReviewRunner, prompt: &str, output_key: &str) -> Result<(String, Usage)> {
+async fn run_collect(
+    rr: &ReviewRunner,
+    prompt: &str,
+    output_key: &str,
+    initial_state: HashMap<String, Value>,
+) -> Result<(String, Usage)> {
     let session_id = SessionId::generate();
     rr.sessions
         .create(CreateRequest {
             app_name: "vaked-ci-reviewer".into(),
             user_id: "vaked-ci".into(),
             session_id: Some(session_id.to_string()),
-            state: HashMap::new(),
+            state: initial_state,
         })
         .await
         .map_err(|e| anyhow!("session create: {e}"))?;
@@ -740,15 +745,25 @@ async fn parallel_agent_review(
     let budget = cfg.max_diff_chars / 4;
     let model = Arc::new(build_or_model(cfg, api_key)?);
 
+    // Untrusted text (per-file diff/path, PR title) goes into SESSION STATE and is
+    // referenced from the instruction by a single `{placeholder}`. adk templates
+    // instructions via `inject_session_state`, and the injected value is not
+    // re-scanned — so the diff's own `{...}` (format strings, blocks, even a
+    // literal `{review_0}`) can't trigger templating, which would otherwise error
+    // or splice another file's findings into this one's instruction. It is still
+    // sanitized (guardrails don't see instructions or injected state).
+    let mut initial_state: HashMap<String, Value> = HashMap::new();
     let mut reviewers: Vec<Arc<dyn Agent>> = Vec::new();
     for (i, (path, section)) in files.into_iter().take(MAX_FILES_MAPREDUCE).enumerate() {
         let (section, _) = truncate(&section, budget);
-        // The diff body AND the file path are untrusted and get baked into the
-        // instruction (which guardrails don't see) — sanitize both.
-        let safe = guardrails::sanitize_untrusted(&section);
-        let safe_path = guardrails::sanitize_untrusted(&path);
+        let body = format!(
+            "File: {}\n```diff\n{}\n```{addenda}",
+            guardrails::sanitize_untrusted(&path),
+            guardrails::sanitize_untrusted(&section),
+        );
+        initial_state.insert(format!("file_body_{i}"), Value::String(body));
         let instruction = format!(
-            "{}\n\n## Your assignment\nReview ONLY this file's diff per your rules. Output findings bullets only — no verdict line, no JSON. If clean, output nothing.\nFile: {safe_path}\n```diff\n{safe}\n```{addenda}",
+            "{}\n\n## Your assignment\nReview ONLY this file's diff per your rules. Output findings bullets only — no verdict line, no JSON. If clean, output nothing.\n{{file_body_{i}}}",
             system_prompt(cfg.max_findings, cfg.crabcc_budget, false)
         );
         let agent = build_pipeline_agent(
@@ -789,14 +804,16 @@ async fn parallel_agent_review(
         })
         .collect();
 
-    // The PR title is untrusted and baked into the instruction — sanitize it (the
-    // default path defangs it for free via build_prompt → guarded user content).
-    let safe_title = guardrails::sanitize_untrusted(&meta.title);
+    // The PR title is untrusted too — sanitize it and pass it via state (same
+    // templating hazard as the diff), referenced by `{pr_title}`.
+    initial_state.insert(
+        "pr_title".to_string(),
+        Value::String(guardrails::sanitize_untrusted(&meta.title)),
+    );
     let synth_instruction = format!(
-        "{}\n\n## Your assignment\nThe conversation above holds per-file findings from a large PR ({total} files){note}. Produce the FINAL review per your output contract: dedupe, drop noise, keep the most important, group by severity, lead with the verdict line.\n\nPR #{}: {}",
+        "{}\n\n## Your assignment\nThe conversation above holds per-file findings from a large PR ({total} files){note}. Produce the FINAL review per your output contract: dedupe, drop noise, keep the most important, group by severity, lead with the verdict line.\n\nPR #{}: {{pr_title}}",
         system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured),
         meta.number,
-        safe_title
     );
     let synth = build_pipeline_agent(
         cfg,
@@ -825,8 +842,13 @@ async fn parallel_agent_review(
         .map_err(|e| anyhow!("pipeline runner build: {e}"))?;
 
     let rr = ReviewRunner { runner, sessions };
-    let (text, u) =
-        run_collect(&rr, "Review the pull request per your instructions.", "final_review").await?;
+    let (text, u) = run_collect(
+        &rr,
+        "Review the pull request per your instructions.",
+        "final_review",
+        initial_state,
+    )
+    .await?;
     *usage += u;
     if text.trim().is_empty() {
         return Err(anyhow!("parallel pipeline produced no synthesis output"));
