@@ -38,6 +38,26 @@ tasks:
     desc: 'parse → check → lower, BuildKit-style.  Usage: task all -- file.vaked [out]'
     cmds: ['{{.RUN}} bash tools/vaked-run.sh all {{.CLI_ARGS}}']
 
+  otp-smoke:
+    desc: 'Compile + boot the lowered OTP tree (#19 acceptance demo).  Usage: task otp-smoke -- file.vaked'
+    cmds:
+      - |
+        {{.RUN}} bash -c '
+          set -euo pipefail
+          src="${1:-vaked/examples/agentfield-swe.vaked}"
+          out=$(mktemp -d)
+          python3 -m vakedc lower "$src" --out "$out"
+          cd "$out/gen/otp"
+          erlc *.erl
+          sup=$(basename "$(ls ./*_sup.erl)" .erl)
+          echo "== booting $sup; expect one heartbeat per child =="
+          erl -noshell -eval "
+            {ok, _} = ${sup}:start_link(),
+            timer:sleep(6000),
+            io:format(\"otp-smoke: supervisor + children alive~n\"),
+            halt(0)."
+        ' otp-smoke {{.CLI_ARGS}}
+
   build-runner:
     desc: Recompile the Amber runner (host `amber`, not the devshell).
     cmds: ['amber build tools/vaked-run.ab tools/vaked-run.sh']
