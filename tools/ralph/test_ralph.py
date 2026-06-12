@@ -433,6 +433,37 @@ def test_resolve_api_key_precedence() -> None:
 
 
 # ---------------------------------------------------------------------------
+# M1 — hash-chained event log + live control state
+# ---------------------------------------------------------------------------
+
+def test_chain_verify_and_tamper() -> None:
+    from ralphcore import make_entry, verify_chain, GENESIS_HASH, chain_hash
+    e0 = make_entry(GENESIS_HASH, 0, {"step": "start"})
+    e1 = make_entry(e0["hash"], 1, {"step": "decide", "repo": "crabcc"})
+    e2 = make_entry(e1["hash"], 2, {"step": "decide", "repo": "vaked-base"})
+    chain = [e0, e1, e2]
+    assert verify_chain(chain), "clean chain must verify"
+    # tamper a payload → hash no longer recomputes
+    bad = [dict(e0), dict(e1), dict(e2)]
+    bad[1] = dict(bad[1]); bad[1]["payload"] = {"step": "decide", "repo": "EVIL"}
+    assert not verify_chain(bad), "tampered payload must fail"
+    # reorder → prev-link breaks
+    assert not verify_chain([e0, e2, e1]), "reordered chain must fail"
+    # genesis link is enforced
+    assert make_entry(GENESIS_HASH, 0, {"x": 1})["prev"] == GENESIS_HASH
+    assert e1["hash"] == chain_hash(e0["hash"], e1["payload"])
+
+
+def test_parse_control() -> None:
+    from ralphcore import parse_control, Control
+    assert parse_control(None) == Control()
+    assert parse_control({}) == Control()
+    assert parse_control({"paused": True}) == Control(paused=True)
+    c = parse_control({"paused": False, "interval": 30, "step": True})
+    assert c.interval == 30.0 and c.step is True and c.paused is False
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
