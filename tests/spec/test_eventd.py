@@ -475,6 +475,20 @@ def _test_cli(lines):
                 ok = False
                 lines.append(f"  FAIL cli: {' '.join(args)} → exit "
                              f"{r.returncode}, want {want}: {r.stderr.strip()}")
+        # Track D jump/replay: `state --at N` folds 0..N — inspecting the
+        # rewound log BEFORE its rewind entry shows the pre-rewind world
+        # (floor pinned), at the tip shows the rewind recorded
+        r = run("state", rewound, "--at", "1")
+        if r.returncode != 0 or "rewind[" in r.stdout:
+            ok = False
+            lines.append(f"  FAIL cli: state --at 1 should predate the "
+                         f"rewind: exit {r.returncode}: {r.stdout!r}")
+        r = run("state", rewound)
+        if r.returncode != 0 or "rewind[alpha]: to step 0" not in r.stdout:
+            ok = False
+            lines.append(f"  FAIL cli: state at tip should show the rewind: "
+                         f"{r.stdout!r}")
+
         # tampered log: every command must refuse with exit 4
         raw = open(good, encoding="utf-8").read()
         open(good, "w", encoding="utf-8").write(raw.replace("step", "step!", 1))

@@ -5,8 +5,15 @@ Reference tooling over a JSONL eventd log (issue #18, RFC 0004):
     python3 -m eventd verify    <log>
     python3 -m eventd append    <log> '<payload json>'
     python3 -m eventd replay    <log>
+    python3 -m eventd state     <log> [--at N]
     python3 -m eventd floor     <log> <producer-agent>
     python3 -m eventd coldstart <log> <consumer-agent>
+
+``state`` is the Track D jump/replay verb (control-plane design 2026-06-12):
+verify the whole chain, then fold entries 0..N (default: tip) and print the
+folded view as of N — per-kind counts and the live state-dependency summary
+(GC floors per producer). Read-only; "going back" in anger is a RewindEvent
+APPEND, never truncation.
 
 Exit codes are STABLE ORACLE CONTRACT (harness scripts and the Zig-port
 parity tests depend on them):
@@ -77,6 +84,33 @@ def main(argv: list[str]) -> int:
         print(f"eventd: {path} — {len(log)} entries, tail {log.tail_hash[:16]}…")
         for kind, n in sorted(kinds.items()):
             print(f"  {kind}: {n}")
+        return EXIT_OK
+
+    if cmd == "state":
+        log = _open_ro(path)
+        n = len(log)
+        if rest and rest[0] == "--at":
+            n = min(int(rest[1]) + 1, len(log))   # inclusive entry index N
+        entries = log.entries[:n]
+        kinds = Counter(e["payload"].get("kind", "(other)") for e in entries)
+        tail = entries[-1]["hash"][:16] if entries else "(genesis)"
+        print(f"eventd: {path} — state as of entry {n - 1 if n else '-'} "
+              f"({n}/{len(log)} entries, tail {tail}…)")
+        for kind, c in sorted(kinds.items()):
+            print(f"  {kind}: {c}")
+        idx = DependencyIndex.from_entries(entries)
+        producers = sorted({p for (_c, p) in idx.registrations}
+                           | {p for (_c, p) in idx.checkpoints})
+        for p in producers:
+            floor = idx.gc_floor(p)
+            print(f"  floor[{p}]: "
+                  f"{floor if floor is not None else 'none'}")
+        if idx.rewinds:
+            for p, rw in sorted(idx.rewinds.items()):
+                print(f"  rewind[{p}]: to step {rw['rewind_to_step']} "
+                      f"(epoch {rw['topology_epoch']})")
+        if idx.evicted:
+            print(f"  evicted: {', '.join(sorted(idx.evicted))}")
         return EXIT_OK
 
     if cmd == "floor":
