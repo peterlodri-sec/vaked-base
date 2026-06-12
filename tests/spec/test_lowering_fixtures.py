@@ -48,6 +48,8 @@ EMITTER_REGISTRY = {
     "nix.spine", "docs.runtime",
     # emit-SELECTED (direct gen/ artifacts)
     "catalog.jsonl", "catalog.sqlite", "crabcc.index", "zig.daemoncfg",
+    # Parallel groups — OTP supervision (0012 §7 graduated)
+    "otp.supervision",
     # DEFERRED (interface slots, §7)
     "ebpf.policy", "otel.config", "systemd.units", "surface.launcher",
 }

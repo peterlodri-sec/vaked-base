@@ -1497,6 +1497,63 @@ def emit_oci_containers(graph: Graph, nodes: list[GraphNode]) -> tuple[dict[str,
 
 
 # --------------------------------------------------------------------------- #
+# Emitter: otp.supervision (per parallel) — gen/otp/<name>.supervision.json.
+# --------------------------------------------------------------------------- #
+
+def emit_otp_supervision(graph, nodes):
+    """Emit one ``gen/otp/<name>.supervision.json`` per ``parallel`` node (0012 §7).
+
+    Each file is a boring, inspectable supervision descriptor consumed by the
+    ``agent-supervisord`` OTP daemon.  The JSON is sorted-key, 2-space indent,
+    trailing newline — fully deterministic (§2.1).
+
+    Strategy mapping (v1): ``"supervised-dag"`` maps to OTP ``:rest_for_one``
+    semantics (dependency-ordered restart: if child N fails, children N+1..last
+    are restarted before N is restarted).  The raw strategy string is passed
+    through unchanged so the daemon can apply its own mapping; no enum closure is
+    invented here (that is a language change, separate concern).
+
+    Content schema::
+
+        {
+          "children": [ {"fiber": "<ref>"}, ... ],   // source order
+          "strategy": "<strategy string>",
+          "supervisor": "<supervisor ref>"
+        }
+    """
+    rv = _runtime_view(graph)
+    if rv is None:
+        return {}, []
+    sf = graph.source_file
+    files = {}
+    entries = []
+    for par in nodes:
+        supervisor = _ref(par.props.get("supervisor"))
+        strategy = _lit(par.props.get("strategy"))
+        fibers_prop = par.props.get("fibers")
+        children = []
+        if isinstance(fibers_prop, list):
+            for x in fibers_prop:
+                r = _ref(x)
+                if r is not None:
+                    children.append({"fiber": r})
+        content = {
+            "supervisor": supervisor,
+            "strategy": strategy,
+            "children": children,
+        }
+        text = json.dumps(content, indent=2, sort_keys=True) + "\n"
+        path = "gen/otp/%s.supervision.json" % par.name
+        files[path] = text
+        entries.append(ProvEntry(
+            artifact=path, region=None, source_file=sf,
+            decl="parallel " + par.name, span=par.provenance.span,
+            emitter="otp.supervision",
+            inputs_projection=_node_projection(par)))
+    return files, entries
+
+
+# --------------------------------------------------------------------------- #
 # Deferred emitters (0012 §7) — inert registry slots that emit nothing.
 # --------------------------------------------------------------------------- #
 
@@ -1616,6 +1673,8 @@ REGISTRY = {
     "host.resources": _Registered("host.resources", emit_host_resources),
     "caddy.ingress":  _Registered("caddy.ingress", emit_caddy_ingress),
     "oci.containers": _Registered("oci.containers", emit_oci_containers),
+    # Parallel groups — OTP supervision descriptor (implemented, §7 graduated).
+    "otp.supervision":  _Registered("otp.supervision", emit_otp_supervision),
     # DEFERRED (interface slots, §7) — inert no-ops
     "ebpf.policy":      _Registered("ebpf.policy", emit_deferred, deferred=True),
     "otel.config":      _Registered("otel.config", emit_deferred, deferred=True),
@@ -1686,6 +1745,10 @@ def lower(graph, items=None) -> LowerResult:
     # (crabcc.index provenance entries are produced inside emit_nix_spine, which
     #  is the spine emitter; we do not double-run it. catalog.sqlite is deferred
     #  in this fixture set — jsonl only.)
+
+    # Direct: OTP supervision descriptors for parallel groups.
+    if rv.parallels:
+        _run("otp.supervision", rv.parallels)
 
     # Direct: NixOS-deployment cohort (#1-#6), each gated on presence.
     if rv.secrets:

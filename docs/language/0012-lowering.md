@@ -319,6 +319,9 @@ emit-SELECTED (direct artifacts in gen/, run when an emit target names them):
   crabcc.index     index        (emit ∋ nix.derivation)   → crabcc index drv (in spine) §5.3
   zig.daemoncfg    fiber/engine                            → gen/zig/<name>.json        §5.2
 
+IMPLEMENTED (parallel group — §7 graduated):
+  otp.supervision  parallel                  → gen/otp/<name>.supervision.json  §7
+
 DEFERRED (interface slot defined; mapping deferred — §7):
   ebpf.policy      mesh/capability grants    → (no-op today)
   otel.config      stream/observe            → (no-op today)
@@ -716,9 +719,18 @@ A worked excerpt consistent with this schema is in
 
 ## 7. Interface-stubbed (deferred) targets
 
-These targets have a **registry slot and a contract**, but their mapping is
-**deferred**. Each slot's emitter exists as an explicit no-op (§2.2, §3.2.5) —
-emitting it produces nothing today, not an error. Defining the slot now keeps
+> **`otp.supervision` is IMPLEMENTED** (graduated from this section). A
+> `parallel` node now lowers to `gen/otp/<name>.supervision.json` — a boring,
+> inspectable supervision descriptor consumed by the `agent-supervisord` OTP
+> daemon.  Artifact path: `gen/otp/<name>.supervision.json`.  Strategy mapping
+> (v1): `"supervised-dag"` corresponds to OTP `:rest_for_one` semantics
+> (dependency-ordered restart); the raw strategy string is passed through in the
+> JSON so the daemon applies its own mapping.  See the fixture at
+> [`vaked/examples/lowering/gen/otp/operator-runtime.supervision.json`](../../vaked/examples/lowering/gen/otp/operator-runtime.supervision.json).
+
+The remaining targets have a **registry slot and a contract**, but their mapping
+is **deferred**. Each slot's emitter exists as an explicit no-op (§2.2, §3.2.5)
+— emitting it produces nothing today, not an error. Defining the slot now keeps
 the registry test honest (adding the real mapping later touches no core) and
 records *what the mapping must cover* so it isn't reinvented.
 

@@ -54,6 +54,8 @@ EMITTER_REGISTRY = {
     # NixOS-deployment cohort (#1-#6).
     "sops.secrets", "nixos.service", "host.resources", "caddy.ingress",
     "oci.containers",
+    # Parallel groups — OTP supervision (0012 §7 graduated).
+    "otp.supervision",
 }
 
 
@@ -270,6 +272,72 @@ def _find_hash(artifacts, ap, region):
 
 
 # --------------------------------------------------------------------------- #
+# 5. OTP supervision emitter unit test.
+# --------------------------------------------------------------------------- #
+
+def _test_otp_supervision(lines):
+    """Unit test: emit_otp_supervision produces the expected JSON for the
+    operator-field parallel node (supervisor, strategy, children in order)."""
+    ok = True
+    src = open(OPERATOR_FIELD, encoding="utf-8").read()
+    items = parse_source(src, OPERATOR_FIELD_REL)
+    graph = build_graph(items, OPERATOR_FIELD_REL)
+
+    rv = lower_mod._runtime_view(graph)
+    if not rv or not rv.parallels:
+        lines.append("  FAIL otp-supervision: no parallel nodes found in operator-field")
+        return False
+
+    files, entries = lower_mod.emit_otp_supervision(graph, rv.parallels)
+
+    expected_path = "gen/otp/operator-runtime.supervision.json"
+    if expected_path not in files:
+        ok = False
+        lines.append(f"  FAIL otp-supervision: {expected_path} not in emitted files")
+        return ok
+
+    content = json.loads(files[expected_path])
+    want = {
+        "children": [{"fiber": "mediaCompress"}, {"fiber": "operatorMap"}],
+        "strategy": "supervised-dag",
+        "supervisor": "otp",
+    }
+    if content != want:
+        ok = False
+        lines.append(f"  FAIL otp-supervision: content mismatch: got {content!r}")
+        return ok
+
+    # trailing newline
+    if not files[expected_path].endswith("\n"):
+        ok = False
+        lines.append("  FAIL otp-supervision: missing trailing newline")
+
+    # one ProvEntry per parallel node
+    if len(entries) != 1:
+        ok = False
+        lines.append(f"  FAIL otp-supervision: expected 1 entry, got {len(entries)}")
+    else:
+        e = entries[0]
+        if e.artifact != expected_path:
+            ok = False
+            lines.append(f"  FAIL otp-supervision: entry artifact={e.artifact!r}")
+        if e.emitter != "otp.supervision":
+            ok = False
+            lines.append(f"  FAIL otp-supervision: entry emitter={e.emitter!r}")
+        if e.decl != "parallel operator-runtime":
+            ok = False
+            lines.append(f"  FAIL otp-supervision: entry decl={e.decl!r}")
+        if e.region is not None:
+            ok = False
+            lines.append(f"  FAIL otp-supervision: entry region should be None, got {e.region!r}")
+
+    if ok:
+        lines.append(f"  PASS otp-supervision: gen/otp/operator-runtime.supervision.json "
+                     f"correct (supervisor=otp, strategy=supervised-dag, 2 children)")
+    return ok
+
+
+# --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
 
@@ -284,6 +352,8 @@ def run():
     ok &= _test_determinism(lines)
     lines.append("manifest integrity:")
     ok &= _test_manifest_integrity(lines)
+    lines.append("otp-supervision:")
+    ok &= _test_otp_supervision(lines)
     return bool(ok), lines
 
 
