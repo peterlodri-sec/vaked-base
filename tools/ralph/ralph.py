@@ -745,7 +745,7 @@ def replay_events(entries: list[dict]) -> dict:
         "decisions": 0,
         "ticks": len(entries),
         "total_cost": 0.0,
-        "repos": {},
+        "subjects": {},
         "paused": 0,
     }
     for e in entries:
@@ -756,13 +756,17 @@ def replay_events(entries: list[dict]) -> dict:
             cost = p.get("total_cost", 0.0)
             if cost > state["total_cost"]:
                 state["total_cost"] = cost
-            repo = p.get("repo")
-            if repo is not None:
-                rec = state["repos"].setdefault(repo, {"decisions": 0, "last_iteration": None})
+            # repo-mode events key on "repo"; track-mode on "track". Bucket
+            # either so per-subject (per-track/per-model) audit stays populated.
+            subject = p.get("repo") or p.get("track")
+            if subject is not None:
+                rec = state["subjects"].setdefault(subject, {"decisions": 0, "last_iteration": None})
                 rec["decisions"] += 1
                 rec["last_iteration"] = p.get("iteration")
         elif event == "paused":
             state["paused"] += 1
+    # Back-compat alias: callers/tests that read the old "repos" key still work.
+    state["repos"] = state["subjects"]
     return state
 
 

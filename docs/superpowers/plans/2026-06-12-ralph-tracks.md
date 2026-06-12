@@ -234,11 +234,13 @@ def test_track_decide_uses_track_model_both_stages(monkeypatch):
       decisions): `schedule: 0 */3 * * *` + `workflow_dispatch`;
       `concurrency: ralph-tracks`; `checkout@v4` with `fetch-depth: 0`;
       `uv run --project tools/ralph tools/ralph/ralph.py decide --next-track`;
-      commit `docs/decisions/` + `state/events.jsonl` and push. Secrets:
-      `OPENROUTER_API_KEY` (+ `LANGFUSE_*` when Phase 4 lands).
-- [ ] Confirm `state/events.jsonl` is **not** gitignored (only `status.json`
-      is) so the chain is committed; `ralph events --replay` verifies on any
-      checkout.
+      commit `docs/decisions/` + `tools/ralph/state/events.jsonl` (the real
+      `EVENTS_PATH`, under `STATE_DIR = tools/ralph/state`) and push. Secrets:
+      `OPENROUTER_API_KEY` + `GH_TOKEN: ${{ github.token }}` (+ `LANGFUSE_*`
+      when Phase 4 lands).
+- [ ] Confirm `tools/ralph/state/events.jsonl` is **not** gitignored (only
+      `tools/ralph/state/status.json` is) so the chain is committed;
+      `ralph events --replay` verifies on any checkout.
 - [ ] Commit `feat(ci): scheduled ralph-tracks decide + commit`.
 
 > Manual verification: `workflow_dispatch` one run; confirm a `<track>.ralph-log.md`

@@ -575,6 +575,33 @@ def test_replay_events_fold() -> None:
     assert state["repos"]["b"]["decisions"] == 1, f"repos[b].decisions: {state['repos']['b']['decisions']}"
 
 
+def test_replay_events_track_subjects() -> None:
+    """Track-only decide events (keyed on `track`) populate the per-subject view."""
+    import importlib
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+
+    payloads = [
+        {"event": "decide", "track": "graph-concept", "iteration": 1, "cost": 0.01, "total_cost": 0.01},
+        {"event": "decide", "track": "hcp-litany", "iteration": 1, "cost": 0.02, "total_cost": 0.03},
+        {"event": "decide", "track": "graph-concept", "iteration": 2, "cost": 0.02, "total_cost": 0.05},
+    ]
+    entries = []
+    prev = GENESIS_HASH
+    for i, p in enumerate(payloads):
+        e = make_entry(prev, i, p)
+        entries.append(e)
+        prev = e["hash"]
+
+    state = ralph.replay_events(entries)
+    assert state["decisions"] == 3
+    assert abs(state["total_cost"] - 0.05) < 1e-9, state["total_cost"]
+    assert state["subjects"]["graph-concept"]["decisions"] == 2
+    assert state["subjects"]["graph-concept"]["last_iteration"] == 2
+    assert state["subjects"]["hcp-litany"]["decisions"] == 1
+    assert state["repos"] is state["subjects"]   # back-compat alias
+
+
 def test_events_verify_cli_ok_and_tamper() -> None:
     """ralph.py events --state-dir: rc=0 + 'chain OK' for valid chain; rc=1 + 'INVALID' for tampered."""
     import subprocess
