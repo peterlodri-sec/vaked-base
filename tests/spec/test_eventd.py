@@ -617,7 +617,8 @@ def _test_lowering_wiring(lines):
         msrc = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
                 '  stream a { source = agentpipe.a  type = Agent.T }\n'
                 '  stream b { source = agentpipe.b  type = Agent.T }\n'
-                '  memory m { source = [stream.a, stream.b] }\n}\n')
+                '  memory m {\n    source = [stream.a, stream.b]\n'
+                '    schema = schema.episode\n  }\n}\n')
         mp = os.path.join(tmp, "multisrc.vaked")
         open(mp, "w", encoding="utf-8").write(msrc)
         mout = os.path.join(tmp, "multisrc")
@@ -634,6 +635,10 @@ def _test_lowering_wiring(lines):
                 ok = False
                 lines.append(f"  FAIL lowering: list source dropped/mangled: "
                              f"{mcfg.get('source')!r}")
+            if mcfg.get("schema") != "schema.episode":
+                ok = False
+                lines.append(f"  FAIL lowering: memory schema ref dropped: "
+                             f"{mcfg.get('schema')!r}")
         if ok:
             lines.append("  lowering-wiring: workflow spec (depth 4, 4 steps, "
                          "3 edges) + memory store + eventd contract emitted, "
