@@ -117,6 +117,28 @@ def _test_artifacts_structure(lines):
     return ok
 
 
+def _test_slug(lines):
+    """Slugs are strictly [a-z][a-z0-9_]* — pure ASCII, whatever the runtime
+    name throws at them (Unicode digits/letters must not leak into module
+    names; erlc rejects them)."""
+    from vakedc.lower import _otp_slug
+    pat = re.compile(r"^[a-z][a-z0-9_]*$")
+    cases = ["agent-field", "operator-field", "٣", "Łódź-9", "9lives",
+             "", "agent.field v2"]
+    bad = [(n, _otp_slug(n)) for n in cases
+           if not (pat.match(_otp_slug(n)) and _otp_slug(n).isascii())]
+    if bad:
+        lines.append(f"  FAIL otp-slug: illegal slugs: {bad}")
+        return False
+    if _otp_slug("agent-field") != "agent_field":
+        lines.append(f"  FAIL otp-slug: agent-field → "
+                     f"{_otp_slug('agent-field')!r}")
+        return False
+    lines.append("  slug: hostile names (unicode digits/letters, leading "
+                 "digit, empty) all lower to [a-z][a-z0-9_]*")
+    return True
+
+
 def _test_duplicate_members(lines):
     """A repeated member (within a list or across otp groups) must emit ONE
     child spec — OTP rejects duplicate child ids at boot
@@ -203,8 +225,8 @@ def _test_determinism(lines):
 def run():
     lines = []
     ok = True
-    for fn in (_test_artifacts_structure, _test_duplicate_members,
-               _test_gating, _test_determinism):
+    for fn in (_test_artifacts_structure, _test_slug,
+               _test_duplicate_members, _test_gating, _test_determinism):
         try:
             ok = fn(lines) and ok
         except Exception as e:
