@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 
 
@@ -195,18 +196,27 @@ def build_stage1_messages(
     compact_state: str,
     prior_titles: list[str],
     mission: str = "",
+    overrides: "list[str] | None" = None,
 ) -> list[dict]:
     """Build the message list for the stage-1 (candidate enumeration) LLM call.
     `subject` is what the advisor reasons about — a repo name (deprecated repo
     mode) or a track topic. `mission` (the PURPOSE.md preamble) is prepended to
-    the system message so the loop always reasons in service of its stated goal."""
+    the system message so the loop always reasons in service of its stated goal.
+    `overrides` are prior recommendations the human REJECTED (the ratify
+    feedback loop) — injected so the loop learns what not to repeat."""
     titles = "\n".join("- " + t for t in prior_titles) or "(none yet)"
     system = _STAGE1_SYS.format(subject=subject)
     if mission.strip():
         system = mission.strip() + "\n\n---\n\n" + system
+    user = f"# Prior decision titles\n{titles}\n\n# Project state\n{compact_state}"
+    if overrides:
+        rejected = "\n".join("- " + o for o in overrides)
+        user = ("# Human overrides — prior recommendations the human REJECTED. "
+                "Do NOT repeat these; address the stated reason instead.\n"
+                + rejected + "\n\n" + user)
     return [
         {"role": "system", "content": system},
-        {"role": "user", "content": f"# Prior decision titles\n{titles}\n\n# Project state\n{compact_state}"},
+        {"role": "user", "content": user},
     ]
 
 
@@ -380,3 +390,41 @@ def parse_control(d: dict | None) -> Control:
         interval=float(iv) if iv is not None else None,
         step=bool(d.get("step", False)),
     )
+
+
+# ---------------------------------------------------------------------------
+# Ratify workflow — the human-in-the-loop leg. A ratification is a SEPARATE
+# append (decision entries are never edited), so each verdict is one line in
+# docs/decisions/<track>.ratify-log.md:
+#   - <track>#<N> — **ratify** | **override** | **defer** — <reason> — @handle YYYY-MM-DD
+# ---------------------------------------------------------------------------
+
+_RATIFY_RE = re.compile(
+    r"^-\s*(?P<id>[A-Za-z0-9._-]+#\d+)\s*—\s*"
+    r"\*\*(?P<verdict>ratify|override|defer)\*\*\s*—\s*"
+    r"(?P<reason>.+?)\s*—\s*@?\S+\s+\d{4}-\d{2}-\d{2}\s*$"
+)
+
+
+def parse_ratify_line(line: str) -> "dict | None":
+    """Parse one ratification line into ``{id, verdict, reason, score}`` —
+    ``ratify`` → score 1, ``override``/``defer`` → 0 — or None if malformed."""
+    m = _RATIFY_RE.match(line.strip())
+    if not m:
+        return None
+    verdict = m.group("verdict")
+    return {
+        "id": m.group("id"),
+        "verdict": verdict,
+        "reason": m.group("reason").strip(),
+        "score": 1 if verdict == "ratify" else 0,
+    }
+
+
+def ratify_rate(verdicts: list[str]) -> "float | None":
+    """Ratify-rate = ratified / (ratified + overridden). ``defer`` is not yet
+    acted on, so it's excluded from the denominator. None if nothing acted."""
+    acted = [v for v in verdicts if v in ("ratify", "override")]
+    if not acted:
+        return None
+    return sum(1 for v in acted if v == "ratify") / len(acted)
