@@ -166,6 +166,62 @@ pub const Arena = struct {
         const node = self.lookup(id) orelse return error.NodeNotFound;
         return self.refcounts[node.ordinal].load(.monotonic);
     }
+
+    // ----- snapshots / checkpoints (time-travel: Track D #20, eventd #18) ----- #
+    // A snapshot pins the reachable closure of its roots so the data survives GC
+    // while a runtime can rewind/jump to it. Because the arena is immutable +
+    // content-addressed, a node reachable from two snapshots is pinned by BOTH
+    // (refcount == 2) via structural sharing — so releasing one snapshot leaves
+    // the other's view fully intact. That is the rewind-doesn't-fracture-siblings
+    // guarantee #16/#20 depend on.
+
+    /// A captured graph state: its live roots at sequence `seq`. `roots` is
+    /// caller-owned (typically the runtime's live root set folded from eventd).
+    pub const Snapshot = struct {
+        seq: u64,
+        roots: []const NodeId,
+    };
+
+    fn _walkClosure(self: Arena, id: NodeId, visited: *std.AutoHashMap(NodeId, void),
+                    delta: i64) (std.mem.Allocator.Error)!void {
+        if (visited.contains(id)) return;
+        try visited.put(id, {});
+        const node = self.lookup(id) orelse return; // dangling edge: skip (checker forbids these)
+        if (delta > 0) {
+            _ = self.refcounts[node.ordinal].fetchAdd(1, .monotonic);
+        } else {
+            _ = self.refcounts[node.ordinal].fetchSub(1, .monotonic);
+        }
+        for (self.children(node)) |child| {
+            try self._walkClosure(child, visited, delta);
+        }
+    }
+
+    /// Pin the reachable closure of `root` (refcount +1 per distinct node).
+    pub fn pinClosure(self: Arena, gpa: std.mem.Allocator, root: NodeId) !void {
+        var visited = std.AutoHashMap(NodeId, void).init(gpa);
+        defer visited.deinit();
+        try self._walkClosure(root, &visited, 1);
+    }
+
+    /// Release the reachable closure of `root` (refcount -1 per distinct node).
+    pub fn unpinClosure(self: Arena, gpa: std.mem.Allocator, root: NodeId) !void {
+        var visited = std.AutoHashMap(NodeId, void).init(gpa);
+        defer visited.deinit();
+        try self._walkClosure(root, &visited, -1);
+    }
+
+    /// Capture a snapshot: pin every root's closure, return the Snapshot.
+    pub fn snapshot(self: Arena, gpa: std.mem.Allocator, seq: u64,
+                    roots: []const NodeId) !Snapshot {
+        for (roots) |r| try self.pinClosure(gpa, r);
+        return .{ .seq = seq, .roots = roots };
+    }
+
+    /// Release a snapshot: unpin every root's closure.
+    pub fn release(self: Arena, gpa: std.mem.Allocator, snap: Snapshot) !void {
+        for (snap.roots) |r| try self.unpinClosure(gpa, r);
+    }
 };
 
 // 0.16 binarySearch(T, items, context, compareFn): the key is the `context`,
@@ -234,4 +290,61 @@ test "arena round-trip: lookup, data, edges, capability-gated graft" {
     _ = try arena.graft(id_a, cap_all);
     try t.expectEqual(@as(u32, 2), try arena.refcount(id_a));
     try t.expectEqual(@as(u32, 1), try arena.drop(id_a));
+}
+
+test "snapshot closure: shared child survives releasing a sibling snapshot" {
+    const t = std.testing;
+    var buf: [4096]u8 = undefined;
+    @memset(&buf, 0);
+
+    // Layout: [Header][A][B][C][childcell:NodeId=C][index(3)]
+    const a_off: Offset = @sizeOf(Header);
+    const b_off: Offset = a_off + @sizeOf(Node);
+    const c_off: Offset = b_off + @sizeOf(Node);
+    const child_off: Offset = c_off + @sizeOf(Node); // 8-aligned (Node is)
+    const index_off: Offset = std.mem.alignForward(u64, child_off + @sizeOf(NodeId), 8);
+
+    const id_a: NodeId = 0x10;
+    const id_b: NodeId = 0x20;
+    const id_c: NodeId = 0x30;
+
+    const hdr: *Header = @ptrCast(@alignCast(&buf[0]));
+    hdr.* = .{ .arena_len = index_off + 3 * @sizeOf(IndexEntry), .node_count = 3, .index_off = index_off };
+
+    // shared child cell: a single NodeId = C, referenced by both A and B.
+    const cell: *NodeId = @ptrCast(@alignCast(&buf[child_off]));
+    cell.* = id_c;
+    const child_slice = RelSlice(NodeId){ .off = child_off, .len = 1 };
+
+    const a: *Node = @ptrCast(@alignCast(&buf[a_off]));
+    a.* = .{ .id = id_a, .type_sig_hash = 0, .kind = 1, .ordinal = 0, .children = child_slice };
+    const b: *Node = @ptrCast(@alignCast(&buf[b_off]));
+    b.* = .{ .id = id_b, .type_sig_hash = 0, .kind = 1, .ordinal = 1, .children = child_slice };
+    const c: *Node = @ptrCast(@alignCast(&buf[c_off]));
+    c.* = .{ .id = id_c, .type_sig_hash = 0, .kind = 2, .ordinal = 2 };
+
+    const idx: [*]IndexEntry = @ptrCast(@alignCast(&buf[index_off]));
+    idx[0] = .{ .id = id_a, .node_off = a_off };
+    idx[1] = .{ .id = id_b, .node_off = b_off };
+    idx[2] = .{ .id = id_c, .node_off = c_off };
+
+    var refs = [_]std.atomic.Value(u32){ .init(0), .init(0), .init(0) };
+    const arena = try Arena.init(buf[0..hdr.arena_len], refs[0..]);
+    const gpa = t.allocator;
+
+    const s_a = try arena.snapshot(gpa, 1, &[_]NodeId{id_a});
+    try t.expectEqual(@as(u32, 1), try arena.refcount(id_a));
+    try t.expectEqual(@as(u32, 1), try arena.refcount(id_c)); // closure pinned the child
+
+    const s_b = try arena.snapshot(gpa, 2, &[_]NodeId{id_b});
+    try t.expectEqual(@as(u32, 2), try arena.refcount(id_c)); // shared → both snapshots pin it
+
+    try arena.release(gpa, s_a);
+    try t.expectEqual(@as(u32, 0), try arena.refcount(id_a)); // A's branch released
+    try t.expectEqual(@as(u32, 1), try arena.refcount(id_b)); // B untouched
+    try t.expectEqual(@as(u32, 1), try arena.refcount(id_c)); // shared child SURVIVES for B
+
+    try arena.release(gpa, s_b);
+    try t.expectEqual(@as(u32, 0), try arena.refcount(id_b));
+    try t.expectEqual(@as(u32, 0), try arena.refcount(id_c)); // last holder gone → collectable
 }
