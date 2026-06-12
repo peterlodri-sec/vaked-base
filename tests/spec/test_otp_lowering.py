@@ -245,9 +245,10 @@ def _test_colmena(lines):
         lhive = open(os.path.join(lout, "gen/colmena/hive.nix"),
                      encoding="utf-8").read()
         if "deployment.allowLocalDeployment = true;" not in lhive \
-                or "targetHost" in lhive:
+                or "deployment.targetHost = null;" not in lhive:
             ok = False
-            lines.append("  FAIL colmena: local deploy form wrong")
+            lines.append("  FAIL colmena: local deploy form wrong "
+                         "(needs allowLocalDeployment + targetHost = null)")
         prov = json.load(open(os.path.join(lout, "provenance.json")))
         ents = prov["artifacts"].get("gen/colmena/hive.nix", [])
         if not ents or any(e["emitter"] != "colmena.hive" for e in ents):
