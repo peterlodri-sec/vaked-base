@@ -27,10 +27,11 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
 - **High reasoning** — GLM-4.6 runs at `effort: high` (best lens for catching
   logic/edge/security bugs), wired through the OpenRouter extension on
   `GenerateContentConfig`. Overridable via `PR_REVIEW_REASONING_EFFORT`.
-- **Map-reduce for large PRs (parallel)** — above `PR_REVIEW_MAPREDUCE_LINES`
-  (default 600) changed lines, each file is reviewed independently —
-  `PR_REVIEW_CONCURRENCY` (default 6) at a time — then a synthesis pass dedupes
-  and groups into the final review.
+- **Workflow-agent pipeline for large PRs** — above `PR_REVIEW_MAPREDUCE_LINES`
+  (default 600) changed lines, an adk `ParallelAgent` reviews each file
+  independently and a `SequentialAgent` synthesis pass dedupes and groups into the
+  final review. Set `PR_REVIEW_LEGACY_MAPREDUCE` to use the original
+  `buffer_unordered` map-reduce instead (it is also the runtime fallback).
 - **Tiered reasoning** — per-file passes run at `effort: medium` (mechanical),
   the final/synthesis pass at `high` — large-PR speed without losing the deep pass.
 - **Structured output + caveman prose** — the final pass returns strict JSON
@@ -103,7 +104,7 @@ diff-only review.
 | `PR_REVIEW_CONCURRENCY` | `6` | parallel per-file passes (map-reduce) + tool concurrency |
 | `PR_REVIEW_NO_STRUCTURED` | — | set to disable structured JSON output |
 | `PR_REVIEW_TRACE_PAYLOADS` | — | set to record prompt/response payloads into Langfuse spans |
-| `PR_REVIEW_PARALLEL_AGENT` | — | set to use the adk `ParallelAgent`/`SequentialAgent` pipeline for large PRs instead of the default map-reduce (falls back to map-reduce on error) |
+| `PR_REVIEW_LEGACY_MAPREDUCE` | — | set to force the original buffer_unordered map-reduce for large PRs; default is the adk `ParallelAgent`/`SequentialAgent` pipeline (which also falls back to map-reduce on error) |
 | `PR_REVIEW_EVAL_TOLERANCE` | `0.0` | `--eval` regression tolerance: fail if `baseline − current > tolerance` on any case |
 
 ## Security guardrails
@@ -116,7 +117,7 @@ The diff is **untrusted input**, so the reviewer agent runs adk guardrails
 - **Output** — a findings cap to `PR_REVIEW_MAX_FINDINGS`.
 
 All guardrails `Transform`/`Pass` (never `Fail`), so they can't suppress the
-advisory review. The opt-in parallel path bakes per-file diffs into agent
+advisory review. The parallel pipeline bakes per-file diffs into agent
 *instructions* (which guardrails don't see), so it pre-sanitizes that text and the
 PR metadata with the same redaction/defang functions.
 

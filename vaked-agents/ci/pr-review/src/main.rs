@@ -12,12 +12,16 @@
 //! caveman prose / exceptions), rendered to markdown. Never blocks a merge: any
 //! failure logs and exits 0. Traces to self-hosted Langfuse.
 //!
+//! Large PRs use an adk `ParallelAgent`/`SequentialAgent` pipeline by default
+//! (`PR_REVIEW_LEGACY_MAPREDUCE` forces the original buffer_unordered map-reduce,
+//! which is also the runtime fallback if the pipeline errors).
+//!
 //! Env (see README for the full table):
 //!   OPENROUTER_API_KEY | PR_REVIEW_API_KEY · PR_REVIEW_MODEL · OPENROUTER_BASE_URL
 //!   PR_REVIEW_MAX_DIFF_CHARS · PR_REVIEW_REASONING_EFFORT · PR_REVIEW_MAPREDUCE_LINES
 //!   PR_REVIEW_MAX_FINDINGS · PR_REVIEW_CRABCC_BUDGET · PR_REVIEW_MAX_ITERS
 //!   PR_REVIEW_CONCURRENCY · PR_REVIEW_NO_STRUCTURED · PR_REVIEW_NO_RTK
-//!   PR_REVIEW_PARALLEL_AGENT · PR_REVIEW_EVAL_TOLERANCE · PR_REVIEW_TRACE_PAYLOADS
+//!   PR_REVIEW_LEGACY_MAPREDUCE · PR_REVIEW_EVAL_TOLERANCE · PR_REVIEW_TRACE_PAYLOADS
 //!   GH_TOKEN | GITHUB_TOKEN · GITHUB_REPOSITORY · GITHUB_EVENT_PATH
 //!   LANGFUSE_URL · LANGFUSE_API_KEY · CRABCC_BIN · RTK_BIN · BASE_SHA · HEAD_SHA
 //!
@@ -349,9 +353,18 @@ async fn run_review() -> Result<()> {
         )?;
 
         let raw_review = if changed > cfg.mapreduce_lines {
-            if cfg.parallel_agent {
-                // Opt-in adk workflow-agent pipeline (item 1); falls back to the
-                // proven map-reduce if it errors at runtime.
+            if cfg.legacy_mapreduce {
+                // Opt-out escape hatch (PR_REVIEW_LEGACY_MAPREDUCE) to the original
+                // buffer_unordered orchestration.
+                span.record("mode", "map-reduce");
+                info!(changed, threshold = cfg.mapreduce_lines, "large PR — map-reduce (legacy)");
+                let med = build_runner_with(
+                    &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
+                )?;
+                map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage).await?
+            } else {
+                // Default (item 1): adk workflow-agent pipeline. The legacy map-reduce
+                // is kept only as a runtime fallback if the pipeline errors.
                 span.record("mode", "parallel-agent");
                 info!(changed, threshold = cfg.mapreduce_lines, "large PR — parallel-agent pipeline");
                 match parallel_agent_review(
@@ -370,13 +383,6 @@ async fn run_review() -> Result<()> {
                             .await?
                     }
                 }
-            } else {
-                span.record("mode", "map-reduce");
-                info!(changed, threshold = cfg.mapreduce_lines, "large PR — map-reduce");
-                let med = build_runner_with(
-                    &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
-                )?;
-                map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage).await?
             }
         } else {
             span.record("mode", "single-pass");
@@ -1524,7 +1530,7 @@ struct Config {
     concurrency: usize,
     structured: bool,
     trace_payloads: bool,
-    parallel_agent: bool,
+    legacy_mapreduce: bool,
 }
 
 impl Config {
@@ -1584,7 +1590,7 @@ impl Config {
             concurrency: env_usize("PR_REVIEW_CONCURRENCY", DEFAULT_CONCURRENCY).max(1),
             structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
             trace_payloads: std::env::var("PR_REVIEW_TRACE_PAYLOADS").is_ok(),
-            parallel_agent: std::env::var("PR_REVIEW_PARALLEL_AGENT").is_ok(),
+            legacy_mapreduce: std::env::var("PR_REVIEW_LEGACY_MAPREDUCE").is_ok(),
         })
     }
 
@@ -1611,7 +1617,7 @@ impl Config {
             concurrency: DEFAULT_CONCURRENCY,
             structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
             trace_payloads: false,
-            parallel_agent: false,
+            legacy_mapreduce: false,
         }
     }
 }
