@@ -245,9 +245,9 @@ ralph watch  [--refresh 3]      # dashboard columns: track / model / n / last / 
 ralph events [--replay]         # unchanged (chain verify + replay)
 ```
 
-`--repo`/`--repos` retained as deprecated aliases for one release, or removed
-outright given the repo round-robin is being replaced (owner's call — see open
-questions).
+`--repo`/`--repos` retained as **deprecated aliases** (owner decision
+2026-06-12): the track path is primary, the repo round-robin keeps working with
+a deprecation note for one release before removal.
 
 ## Safety (unchanged invariants)
 
@@ -304,14 +304,19 @@ questions).
 
 Phases 1–3 deliver the core loop; 4–5 are independently shippable.
 
-## Open questions (for the owner)
+## Resolved decisions (owner, 2026-06-12)
 
-- **`--repo` retirement:** drop the repo round-robin outright, or keep it as a
-  deprecated mode for a release?
-- **4 tracks day one, or ramp from 2?** The cadence math says start
-  conservative; confirm you want all four live immediately.
-- **Self-hosted endpoint in CI:** route the four models through your
-  trust-boundary inference host (`RALPH_BASE_URL` secret), or accept OpenRouter
-  for the public design content?
-- **Track issue labels:** create `track:language|graph|mlir|protocol` labels now
-  (sharper issue scoping), or rely on doc-glob context until issues accrue?
+- **`--repo` kept deprecated.** Track path is primary; repo round-robin keeps
+  working with a deprecation note for one release, then removed.
+- **All 4 tracks live day one.** Cadence is the guard, not track count: pace the
+  cron to ~8 total decisions/day (`0 */3 * * *` → 2/track/day), which fits the
+  ~1h daily ratify budget (~7 min/entry). Only tighten the schedule once the
+  ratify pass demonstrably keeps up; drop tracks if it can't (one-line config).
+- **`track:*` labels created now** — `track:language`, `track:graph`,
+  `track:mlir`, `track:protocol` (sharper issue scoping; `gather_context`
+  filters issues by them, falling back to all-open until issues accrue).
+- **Self-hosted CI endpoint: pending.** No trust-boundary inference host exists
+  yet (`agentfield-inference-host` is a placeholder in the `agentfield-stack`
+  stub). The `RALPH_BASE_URL`/`RALPH_API_KEY` hook is in place; until a real
+  host lands, CI uses OpenRouter for this (owner-authored) design content. Wire
+  the secret URL when the host is real.
