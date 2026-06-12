@@ -46,6 +46,12 @@ use tracing::{Instrument, field, info, info_span, warn};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
+// mimalloc: a faster general-purpose allocator for the agent's String/Vec/JSON
+// churn (diff parsing, rendering). A global bump/arena would be unsound here —
+// tokio/reqwest/rustls hold long-lived allocations that must be freed.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 const DEFAULT_MODEL: &str = "z-ai/glm-4.6";
 const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const DEFAULT_MAX_DIFF_CHARS: usize = 48_000;

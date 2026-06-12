@@ -66,9 +66,10 @@ fleet. `ci/` is the CI-bot subtree.
 as a rolling GitHub Release asset (`pr-review-bin`). `pr-review.yml` downloads
 that prebuilt binary per PR instead of compiling adk-rust (~2 min) every time. If
 the asset is missing — or the PR changes the agent's own source — it builds from
-source as a fallback (dogfooding stays honest), accelerated by `sccache`. The
+source as a fallback (dogfooding stays honest), accelerated by `sccache` + the
+`mold` linker (swap to `wild` by changing the setup action + `-fuse-ld`). The
 release profile (thin-LTO, `strip`, `panic=abort`) + rustls (no system OpenSSL)
-keep the baked binary ~10 MB for a fast download.
+keep the baked binary ~10 MB; the agent runs on the **mimalloc** global allocator.
 
 ## Secrets (repo → Settings → Secrets → Actions)
 

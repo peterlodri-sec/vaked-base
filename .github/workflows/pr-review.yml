@@ -78,10 +78,13 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: vaked-agents/ci/pr-review
-      # sccache speeds the from-source fallback (gated the same way).
+      # sccache + mold speed the from-source fallback (gated the same way).
       - name: Set up sccache
         if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
         uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up mold linker
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: rui314/setup-mold@v1
 
       # RTK ("Rust Token Killer") condenses the diff. Public tool, best-effort.
       - name: Install RTK (optional)
@@ -123,6 +126,9 @@ jobs:
             echo "::notice::prebuilt unavailable — building from source"
             if command -v sccache >/dev/null; then
               export RUSTC_WRAPPER=sccache SCCACHE_GHA_ENABLED=true
+            fi
+            if command -v mold >/dev/null; then
+              export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
             fi
             cargo run --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
               --repo "${GITHUB_REPOSITORY}" --pr "${PR_NUMBER}"
