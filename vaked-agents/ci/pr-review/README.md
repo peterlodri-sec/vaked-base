@@ -21,9 +21,20 @@ fleet. `ci/` is the CI-bot subtree.
   wired in as an adk-rust `McpToolset` (`crabcc --mcp`), so the model resolves
   definitions/references beyond the diff. The on-disk `.crabcc/` index is reused
   (refreshed, not rebuilt) and cached across CI runs.
+- **RTK token-killer** — when [rtk-ai/rtk] is present, the diff is fetched as a
+  condensed `rtk git diff base...head` (60–90% fewer tokens → cheaper, larger
+  effective budget); falls back to `gh pr diff` otherwise.
 - **Langfuse tracing** — every run exports OTLP/HTTP spans to your self-hosted
   Langfuse.
 - Low temperature + fixed seed, opt-out label, and empty-diff skip.
+
+## Cold start (baking)
+
+`pr-review-build.yml` compiles the release binary once on `main` and publishes it
+as a rolling GitHub Release asset (`pr-review-bin`). `pr-review.yml` downloads
+that prebuilt binary per PR instead of compiling adk-rust (~2 min) every time. If
+the asset is missing — or the PR changes the agent's own source — it builds from
+source as a fallback (dogfooding stays honest).
 
 ## Secrets (repo → Settings → Secrets → Actions)
 
@@ -46,6 +57,9 @@ diff-only review.
 | `PR_REVIEW_MAX_DIFF_CHARS` | `48000` | diff budget before truncation |
 | `PR_REVIEW_API_KEY` | — | takes precedence over `OPENROUTER_API_KEY` |
 | `CRABCC_BIN` | `crabcc` | crabcc binary path |
+| `RTK_BIN` | `rtk` | rtk binary path |
+| `PR_REVIEW_NO_RTK` | — | set to disable rtk diff compression |
+| `BASE_SHA` / `HEAD_SHA` | — | PR base/head for the rtk diff range (CI sets these) |
 
 ## Local dry-run (prints the review, posts nothing)
 
@@ -60,3 +74,4 @@ appears in Langfuse. `gh` must be authenticated (`gh auth status`).
 
 [adk-rust]: https://github.com/zavora-ai/adk-rust
 [crabcc-labs/crabcc]: https://github.com/crabcc-labs/crabcc
+[rtk-ai/rtk]: https://github.com/rtk-ai/rtk

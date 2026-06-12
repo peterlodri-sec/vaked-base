@@ -18,6 +18,9 @@
 //!   GITHUB_REPOSITORY / GITHUB_EVENT_PATH     provided by GitHub Actions
 //!   LANGFUSE_URL, LANGFUSE_API_KEY            optional tracing (base64 basic token)
 //!   CRABCC_BIN                                crabcc binary (default `crabcc`)
+//!   RTK_BIN                                   rtk binary (default `rtk`)
+//!   PR_REVIEW_NO_RTK                          set to disable rtk diff compression
+//!   BASE_SHA / HEAD_SHA                        PR base/head for the rtk diff range
 //!
 //! Args: --repo <owner/name> --pr <N> --model <id> --dry-run
 
@@ -391,7 +394,40 @@ fn fetch_pr_meta(cfg: &Config) -> Result<PrMeta> {
 }
 
 fn fetch_diff(cfg: &Config) -> Result<String> {
+    // Prefer RTK's condensed diff (fewer tokens) when we have a base/head pair
+    // and a working git checkout. Any failure (rtk absent, shallow clone, empty
+    // output) falls back to the authoritative `gh pr diff`.
+    if cfg.use_rtk
+        && let (Some(base), Some(head)) = (&cfg.base_sha, &cfg.head_sha)
+    {
+        match rtk_diff(cfg, base, head) {
+            Ok(d) if !d.trim().is_empty() => {
+                info!("diff via rtk (condensed)");
+                return Ok(d);
+            }
+            Ok(_) => warn!("rtk produced an empty diff — falling back to gh"),
+            Err(e) => warn!(error = %e, "rtk diff failed — falling back to gh"),
+        }
+    }
     gh(&["pr", "diff", &cfg.pr.to_string(), "--repo", &cfg.repo])
+}
+
+/// `rtk git diff <base>...<head>` — a token-reduced diff over the PR's range.
+/// Three-dot range = changes since the merge-base (PR semantics).
+fn rtk_diff(cfg: &Config, base: &str, head: &str) -> Result<String> {
+    let range = format!("{base}...{head}");
+    let out = StdCommand::new(&cfg.rtk_bin)
+        .args(["git", "diff", &range])
+        .output()
+        .with_context(|| format!("running `{} git diff`", cfg.rtk_bin))?;
+    if !out.status.success() {
+        return Err(anyhow!(
+            "`{} git diff {range}` failed: {}",
+            cfg.rtk_bin,
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 
 fn post_review(cfg: &Config, body: &str) -> Result<()> {
@@ -426,6 +462,12 @@ struct Config {
     api_key: Option<String>,
     max_diff_chars: usize,
     dry_run: bool,
+    // RTK ("Rust Token Killer") condenses the diff to cut tokens. Used when a
+    // base/head pair is available (CI) and not disabled; falls back to `gh`.
+    rtk_bin: String,
+    use_rtk: bool,
+    base_sha: Option<String>,
+    head_sha: Option<String>,
 }
 
 impl Config {
@@ -473,6 +515,10 @@ impl Config {
             api_key: env_first(&["PR_REVIEW_API_KEY", "OPENROUTER_API_KEY"]),
             max_diff_chars,
             dry_run,
+            rtk_bin: env_first(&["RTK_BIN"]).unwrap_or_else(|| "rtk".to_string()),
+            use_rtk: std::env::var("PR_REVIEW_NO_RTK").is_err(),
+            base_sha: env_first(&["BASE_SHA"]),
+            head_sha: env_first(&["HEAD_SHA"]),
         })
     }
 }
