@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import datetime
+import glob
 import json
 import os
 import subprocess
@@ -25,6 +26,7 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 PURPOSE_PATH = os.path.join(HERE, "PURPOSE.md")
 DEFAULT_S1 = "qwen/qwen3-235b-a22b-thinking-2507"
 DEFAULT_S2 = "deepseek/deepseek-v4-flash"
+HOME_GH = "peterlodri-sec/vaked-base"   # tracks read issues from the home repo
 
 
 def read_purpose() -> str:
@@ -110,6 +112,102 @@ def gather_context(repo: C.Repo, git_log_window: int, compact: bool) -> str:
                 pass
 
     return "\n\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Per-track context (read-only, all inside the home repo / vaked-base)
+# ---------------------------------------------------------------------------
+
+
+def _expand_doc_globs(patterns: list[str]) -> list[str]:
+    """Resolve track doc globs against REPO_HOME. `recursive=True` is required
+    so `**` descends (else protocol/** + vaked/examples/** drop nested files);
+    keep only files, de-duped and sorted for determinism."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for pat in patterns:
+        for fp in sorted(glob.glob(os.path.join(REPO_HOME, pat), recursive=True)):
+            if os.path.isfile(fp) and fp not in seen:
+                seen.add(fp)
+                out.append(fp)
+    return out
+
+
+def _track_issues(label: str) -> "tuple[list[dict], str]":
+    """Open issues in the home repo filtered by `label`. Falls back to all-open
+    (with a note) ONLY when the label filter itself fails (gh unavailable / the
+    label is unusable) — a successful-but-empty scoped result is preserved, so a
+    freshly-triaged label with zero issues stays scoped instead of pulling in
+    unrelated work. Returns (issues, note)."""
+    def _query(extra: list[str]) -> "list[dict] | None":
+        # None ⇒ gh unavailable / error; [] ⇒ a successful but empty result.
+        raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
+                    "--limit", "40", "--json", "number,title,body"] + extra,
+                   cwd=REPO_HOME)
+        if not raw:
+            return None
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+
+    if label:
+        issues = _query(["--label", label])
+        if issues is not None:
+            return issues, ""   # scoped result (even if empty) — keep it
+        return (_query([]) or []), f" (no usable {label} filter; showing all open)"
+    return (_query([]) or []), ""
+
+
+def gather_track_context(track: C.Track, git_log_window: int, compact: bool) -> str:
+    """Read-only project state scoped to a track, all inside REPO_HOME:
+    label-filtered home-repo issues, the track's doc globs, and a path-scoped
+    git log. compact=True trims for stage 1; full text for stage 2."""
+    parts: list[str] = []
+
+    issues, note = _track_issues(track.label)
+    if issues:
+        if compact:
+            lines = [f"#{i['number']} {i['title']}" for i in issues]
+            parts.append(f"## Open issues{note}\n" + "\n".join(lines))
+        else:
+            chunks = [f"### #{i['number']} {i['title']}\n{(i.get('body') or '')[:4000]}"
+                      for i in issues]
+            parts.append(f"## Open issues{note}\n" + "\n\n".join(chunks))
+    else:
+        parts.append("## Open issues\n(unavailable)")
+
+    for fpath in _expand_doc_globs(track.context.docs):
+        try:
+            with open(fpath, encoding="utf-8", errors="replace") as f:
+                txt = f.read()
+        except OSError:
+            continue
+        rel = os.path.relpath(fpath, REPO_HOME)
+        parts.append(f"## {rel}\n{txt[:1500] if compact else txt}")
+
+    cmd = ["git", "log", "--oneline", f"-n{git_log_window}"]
+    if track.context.paths:
+        cmd += ["--", *track.context.paths]
+    log = _run(cmd, cwd=REPO_HOME)
+    if log:
+        parts.append("## Git log\n" + log.rstrip())
+
+    return "\n\n".join(parts)
+
+
+def _open_track_issue_count(track: C.Track) -> int:
+    cmd = ["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
+           "--limit", "200", "--json", "number"]
+    if track.label:
+        cmd += ["--label", track.label]
+    raw = _run(cmd, cwd=REPO_HOME)
+    if not raw:
+        return 0
+    try:
+        return len(json.loads(raw))
+    except (json.JSONDecodeError, TypeError):
+        return 0
 
 
 def openrouter_call(
@@ -264,12 +362,16 @@ def _message_content(resp: dict) -> "str | None":
         return None
 
 
-def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float:
-    base_url = getattr(args, "base_url", None)
-    s1 = openrouter_call(args.stage1_model, s1_msgs, api_key=api_key,
+def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
+                stage2_model, api_key, base_url, seed):
+    """Run both LLM stages and return ``(cost, body)`` or ``None`` to skip the
+    iteration. `subject` keys the stage-2 prompt; `full_context_builder()` is
+    called only once stage 1 yields a candidate (so we don't gather the full
+    context for a skipped iteration). Shared by repo and track decide paths."""
+    s1 = openrouter_call(stage1_model, s1_msgs, api_key=api_key,
                          temperature=0.4, max_tokens=2000,
                          reasoning={"enabled": True, "effort": "medium"},
-                         response_format=_STAGE1_SCHEMA, seed=args.seed,
+                         response_format=_STAGE1_SCHEMA, seed=seed,
                          base_url=base_url)
     s1_text = _message_content(s1)
     try:
@@ -279,24 +381,39 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
     if not cands:
         print("stage-1 returned no usable candidates; skipping iteration",
               file=sys.stderr)
-        return 0.0
+        return None
     chosen = C.select_candidate(cands)
     if chosen is None:
         print("no candidates; skipping", file=sys.stderr)
-        return 0.0
-    full = gather_context(repo, args.git_log_window, compact=False)
-    full += "\n\n## Full prior decisions\n" + _read_log(repo.name)
-    s2_msgs = C.build_stage2_messages(repo.name, full, chosen)
-    s2 = openrouter_call(args.stage2_model, s2_msgs, api_key=api_key,
+        return None
+    full = full_context_builder()
+    s2_msgs = C.build_stage2_messages(subject, full, chosen)
+    s2 = openrouter_call(stage2_model, s2_msgs, api_key=api_key,
                          temperature=0.3, max_tokens=1800, base_url=base_url)
     body = _message_content(s2)
     if not body:
         print("stage-2 returned no usable content; skipping iteration",
               file=sys.stderr)
-        return 0.0
-    p1 = C.FALLBACK_PRICES.get(args.stage1_model, C.Price(0.10, 0.10))
-    p2 = C.FALLBACK_PRICES.get(args.stage2_model, C.Price(0.10, 0.20))
+        return None
+    p1 = C.FALLBACK_PRICES.get(stage1_model, C.Price(0.10, 0.10))
+    p2 = C.FALLBACK_PRICES.get(stage2_model, C.Price(0.10, 0.20))
     cost = C.cost_usd(s1.get("usage", {}), p1) + C.cost_usd(s2.get("usage", {}), p2)
+    return cost, body
+
+
+def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float:
+    """Deprecated repo-mode iteration: two-stage, two-model (stage1/stage2)."""
+    base_url = getattr(args, "base_url", None)
+
+    def full_ctx() -> str:
+        return (gather_context(repo, args.git_log_window, compact=False)
+                + "\n\n## Full prior decisions\n" + _read_log(repo.name))
+
+    result = _run_stages(repo.name, s1_msgs, full_ctx, args.stage1_model,
+                         args.stage2_model, api_key, base_url, args.seed)
+    if result is None:
+        return 0.0
+    cost, body = result
     head = _run(["git", "rev-parse", "--short", "HEAD"], repo.path).strip() or "?"
     n = len(_prior_titles(repo.name)) + 1
     entry = C.format_entry(n=n, date=_today(), repo=repo.name, head=head,
@@ -309,12 +426,82 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
     return cost
 
 
+def _decide_track(args, track: C.Track, api_key: str) -> float:
+    """Track-mode iteration: two-stage, ONE model (track.model) for both
+    stages. Writes to docs/decisions/<track>.ralph-log.md."""
+    base_url = getattr(args, "base_url", None)
+    compact = gather_track_context(track, args.git_log_window, compact=True)
+    s1_msgs = C.build_stage1_messages(track.topic, compact,
+                                      _prior_titles(track.name),
+                                      mission=read_purpose())
+
+    def full_ctx() -> str:
+        return (gather_track_context(track, args.git_log_window, compact=False)
+                + "\n\n## Full prior decisions\n" + _read_log(track.name))
+
+    result = _run_stages(track.topic, s1_msgs, full_ctx, track.model,
+                         track.model, api_key, base_url, args.seed)
+    if result is None:
+        # No decision this tick (model skipped). Still advance the rotation
+        # pointer with a skip event, or one flaky track would starve the rest.
+        append_event({"event": "skip", "track": track.name})
+        return 0.0
+    cost, body = result
+    head = _run(["git", "rev-parse", "--short", "HEAD"], REPO_HOME).strip() or "?"
+    n = len(_prior_titles(track.name)) + 1
+    model_short = track.model.split("/")[-1]
+    entry = C.format_entry(n=n, date=_today(), repo=track.name, head=head,
+                           open_issues=_open_track_issue_count(track), body=body,
+                           s1=model_short, s2=model_short, subject_label="Track")
+    _append_log(track.name, entry)
+    # Emit the rotation event so --next-track advances and CI persists it.
+    # The track decision-maker logs its own decide event (unlike repo-mode,
+    # where cmd_run appends); a future track supervisor must not double-append.
+    # `total_cost` is cumulative (prior ledger spend + this cost) so
+    # `events --replay` reconstructs total spend across stateless CI runs.
+    append_event({"event": "decide", "track": track.name, "iteration": n,
+                  "cost": cost, "total_cost": _events_total_cost() + cost})
+    print("decided #%d for %s (cost $%.4f): %s" % (n, track.name, cost,
+                                                   entry.splitlines()[0]))
+    return cost
+
+
+def _last_decided_track() -> "str | None":
+    """The most recently *attempted* track (rotation pointer for --next-track).
+    Counts both `decide` and `skip` events — a skip must still advance rotation
+    so one flaky track can't starve the others. None if none attempted yet."""
+    for e in reversed(load_events()):
+        payload = e.get("payload", {})
+        if payload.get("track") and payload.get("event") in ("decide", "skip"):
+            return payload["track"]
+    return None
+
+
+def _events_total_cost() -> float:
+    """Cumulative spend recorded across decide events (the max `total_cost` seen,
+    which the supervisor and track decide both write monotonically)."""
+    total = 0.0
+    for e in load_events():
+        payload = e.get("payload", {})
+        if payload.get("event") == "decide":
+            total = max(total, float(payload.get("total_cost", 0.0) or 0.0))
+    return total
+
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
 
 
 def cmd_decide(args) -> int:
+    # Track mode is primary; --repo is the deprecated path.
+    if getattr(args, "track", None) or getattr(args, "next_track", False):
+        return _cmd_decide_track(args)
+    if not getattr(args, "repo", None):
+        print("one of --track / --next-track / --repo is required", file=sys.stderr)
+        return 2
+    print("note: --repo mode is deprecated; prefer --track", file=sys.stderr)
+
     repos_list = C.load_repos(args.repos)
     repo_map = {r.name: r for r in repos_list}
     if args.repo not in repo_map:
@@ -341,6 +528,43 @@ def cmd_decide(args) -> int:
         return 1
 
     _decide_live(args, repo, s1_msgs, api_key)
+    return 0
+
+
+def _cmd_decide_track(args) -> int:
+    tracks = C.load_tracks(args.tracks)
+    tmap = {t.name: t for t in tracks}
+    if getattr(args, "next_track", False):
+        nxt = C.next_track([t.name for t in tracks], _last_decided_track(), set())
+        if nxt is None:
+            print("no tracks available", file=sys.stderr)
+            return 2
+        track = tmap[nxt]
+    else:
+        if args.track not in tmap:
+            print(f"unknown track: {args.track!r}", file=sys.stderr)
+            return 2
+        track = tmap[args.track]
+
+    compact_ctx = gather_track_context(track, args.git_log_window, compact=True)
+    s1_msgs = C.build_stage1_messages(track.topic, compact_ctx,
+                                      _prior_titles(track.name),
+                                      mission=read_purpose())
+
+    if args.dry_run:
+        approx_tokens = sum(len(m["content"]) // 4 for m in s1_msgs)
+        print(f"=== stage 1 prompt ({track.model}) ===")
+        print(json.dumps(s1_msgs, indent=2)[:2000])
+        print("=== cost estimate ===")
+        print(f"approximate token estimate: ~{approx_tokens} prompt tokens")
+        return 0
+
+    api_key = _resolve_api_key()
+    if not api_key:
+        print("no API key — set RALPH_API_KEY or OPENROUTER_API_KEY", file=sys.stderr)
+        return 1
+
+    _decide_track(args, track, api_key)
     return 0
 
 
@@ -525,7 +749,7 @@ def replay_events(entries: list[dict]) -> dict:
         "decisions": 0,
         "ticks": len(entries),
         "total_cost": 0.0,
-        "repos": {},
+        "subjects": {},
         "paused": 0,
     }
     for e in entries:
@@ -536,13 +760,17 @@ def replay_events(entries: list[dict]) -> dict:
             cost = p.get("total_cost", 0.0)
             if cost > state["total_cost"]:
                 state["total_cost"] = cost
-            repo = p.get("repo")
-            if repo is not None:
-                rec = state["repos"].setdefault(repo, {"decisions": 0, "last_iteration": None})
+            # repo-mode events key on "repo"; track-mode on "track". Bucket
+            # either so per-subject (per-track/per-model) audit stays populated.
+            subject = p.get("repo") or p.get("track")
+            if subject is not None:
+                rec = state["subjects"].setdefault(subject, {"decisions": 0, "last_iteration": None})
                 rec["decisions"] += 1
                 rec["last_iteration"] = p.get("iteration")
         elif event == "paused":
             state["paused"] += 1
+    # Back-compat alias: callers/tests that read the old "repos" key still work.
+    state["repos"] = state["subjects"]
     return state
 
 
@@ -596,7 +824,11 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_decide = sub.add_parser("decide", parents=[common])
-    p_decide.add_argument("--repo", required=True)
+    p_decide.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
+    p_decide.add_argument("--track", help="concept track from tracks.json (primary)")
+    p_decide.add_argument("--next-track", action="store_true",
+                          help="pick the next track via the event-log rotation pointer")
+    p_decide.add_argument("--repo", help="DEPRECATED: repo mode (prefer --track)")
     p_decide.add_argument("--seed", type=int, default=42)
     p_decide.add_argument("--dry-run", action="store_true")
     p_decide.set_defaults(func=cmd_decide)

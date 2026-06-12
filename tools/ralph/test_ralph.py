@@ -575,6 +575,33 @@ def test_replay_events_fold() -> None:
     assert state["repos"]["b"]["decisions"] == 1, f"repos[b].decisions: {state['repos']['b']['decisions']}"
 
 
+def test_replay_events_track_subjects() -> None:
+    """Track-only decide events (keyed on `track`) populate the per-subject view."""
+    import importlib
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+
+    payloads = [
+        {"event": "decide", "track": "graph-concept", "iteration": 1, "cost": 0.01, "total_cost": 0.01},
+        {"event": "decide", "track": "hcp-litany", "iteration": 1, "cost": 0.02, "total_cost": 0.03},
+        {"event": "decide", "track": "graph-concept", "iteration": 2, "cost": 0.02, "total_cost": 0.05},
+    ]
+    entries = []
+    prev = GENESIS_HASH
+    for i, p in enumerate(payloads):
+        e = make_entry(prev, i, p)
+        entries.append(e)
+        prev = e["hash"]
+
+    state = ralph.replay_events(entries)
+    assert state["decisions"] == 3
+    assert abs(state["total_cost"] - 0.05) < 1e-9, state["total_cost"]
+    assert state["subjects"]["graph-concept"]["decisions"] == 2
+    assert state["subjects"]["graph-concept"]["last_iteration"] == 2
+    assert state["subjects"]["hcp-litany"]["decisions"] == 1
+    assert state["repos"] is state["subjects"]   # back-compat alias
+
+
 def test_events_verify_cli_ok_and_tamper() -> None:
     """ralph.py events --state-dir: rc=0 + 'chain OK' for valid chain; rc=1 + 'INVALID' for tampered."""
     import subprocess
@@ -655,6 +682,195 @@ def test_events_replay_cli() -> None:
         assert r.returncode == 0, f"expected rc=0, got {r.returncode}; stderr={r.stderr}"
         parsed = json.loads(r.stdout)
         assert parsed["decisions"] == 2, f"decisions: {parsed['decisions']}"
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 — tracks (config + pure core)
+# ---------------------------------------------------------------------------
+
+def test_load_tracks_parses_fields() -> None:
+    from ralphcore import load_tracks
+
+    cfg = {"tracks": [{"name": "t", "topic": "T", "model": "x/y",
+                       "label": "track:t",
+                       "context": {"docs": ["a/**"], "paths": ["a/"]}}]}
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump(cfg, fh)
+        p = fh.name
+    try:
+        tracks = load_tracks(p)
+        assert len(tracks) == 1, f"expected 1 track, got {len(tracks)}"
+        t = tracks[0]
+        assert t.name == "t" and t.model == "x/y" and t.label == "track:t"
+        assert t.topic == "T"
+        assert t.context.docs == ["a/**"] and t.context.paths == ["a/"]
+    finally:
+        os.unlink(p)
+
+
+def test_next_track_advances_wraps_skips() -> None:
+    from ralphcore import next_track
+
+    names = ["a", "b", "c"]
+    assert next_track(names, "a", set()) == "b"
+    assert next_track(names, "c", set()) == "a"        # wrap
+    assert next_track(names, None, set()) == "a"        # first run
+    assert next_track(names, "a", {"b"}) == "c"         # skip unavailable
+    assert next_track(names, "a", {"a", "b", "c"}) is None
+
+
+def test_stage1_subject_keyed() -> None:
+    from ralphcore import build_stage1_messages
+
+    msgs = build_stage1_messages("the Vaked grammar", "STATE", ["Prior X"])
+    blob = json.dumps(msgs)
+    assert "the Vaked grammar" in blob, "subject missing"
+    assert "Prior X" in blob and "candidates" in blob
+
+
+def test_decide_dry_run_track_writes_nothing() -> None:
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    env = dict(os.environ)
+    env.pop("OPENROUTER_API_KEY", None)
+    env.pop("RALPH_API_KEY", None)
+    r = subprocess.run(
+        [sys.executable, os.path.join(here, "ralph.py"), "decide",
+         "--track", "base-language-spec", "--dry-run"],
+        capture_output=True, text=True, env=env, cwd=here, timeout=60,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "stage 1" in r.stdout.lower() and "estimate" in r.stdout.lower()
+    # the track model should head the prompt banner
+    assert "qwen/qwen3-235b-a22b-thinking-2507" in r.stdout
+
+
+def test_decide_track_uses_track_model_both_stages() -> None:
+    """_decide_track calls the model with track.model for BOTH stages."""
+    import importlib
+    import tempfile
+    import unittest.mock as mock
+
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Track, TrackContext
+
+    track = Track(name="t", topic="topic T", model="vendor/m1",
+                  label="track:t", context=TrackContext(docs=[], paths=[]))
+
+    s1 = {"choices": [{"message": {"content":
+          json.dumps({"candidates": [{"title": "X", "why_now": "n",
+                                      "urgency": 5, "addressed": False}]})}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    s2 = {"choices": [{"message": {"content": "**Decision / question:** X"}}],
+          "usage": {"prompt_tokens": 80, "completion_tokens": 40}}
+    calls = iter([s1, s2])
+    seen_models: list[str] = []
+
+    def fake_call(model, *a, **kw):
+        seen_models.append(model)
+        return next(calls)
+
+    args = types.SimpleNamespace(git_log_window=5, seed=42)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_dir = ralph.DECISIONS_DIR
+        orig_ctx = ralph.gather_track_context
+        orig_events = ralph.EVENTS_PATH
+        orig_state = ralph.STATE_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        ralph.gather_track_context = lambda tr, w, compact: "FAKE"
+        ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
+        ralph.STATE_DIR = tmpdir
+        try:
+            with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
+                cost = ralph._decide_track(args, track, "key")
+            # the decide event must be logged so --next-track can rotate
+            last = ralph._last_decided_track()
+            # replay must reconstruct spend from the event's total_cost
+            replayed = ralph.replay_events(ralph.load_events())
+        finally:
+            ralph.DECISIONS_DIR = orig_dir
+            ralph.gather_track_context = orig_ctx
+            ralph.EVENTS_PATH = orig_events
+            ralph.STATE_DIR = orig_state
+
+        assert seen_models == ["vendor/m1", "vendor/m1"], seen_models
+        assert cost > 0.0
+        assert last == "t", f"rotation pointer not recorded: {last}"
+        assert abs(replayed["total_cost"] - cost) < 1e-9, replayed["total_cost"]
+        log_path = os.path.join(tmpdir, "t.ralph-log.md")
+        assert os.path.exists(log_path)
+        content = open(log_path).read()
+        assert "Decision #1" in content and "**Track:** t" in content
+
+
+def test_track_issues_empty_scope_no_fallback() -> None:
+    """A label with zero open issues stays scoped (no all-open fallback); only a
+    gh failure (empty output) triggers the fallback."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+
+    # labeled query returns an empty JSON array (success) → keep empty, no note
+    with mock.patch.object(ralph, "_run", return_value="[]"):
+        issues, note = ralph._track_issues("track:mlir")
+    assert issues == [] and note == "", (issues, note)
+
+    # gh failure (empty string) on the label query → fall back to all-open
+    seq = iter(["", json.dumps([{"number": 1, "title": "X"}])])
+    with mock.patch.object(ralph, "_run", side_effect=lambda *a, **k: next(seq)):
+        issues, note = ralph._track_issues("track:mlir")
+    assert len(issues) == 1 and "all open" in note, (issues, note)
+
+
+def test_track_skip_advances_rotation() -> None:
+    """A track whose model returns no usable candidates still logs a skip event,
+    so --next-track moves on instead of re-selecting the same failing track."""
+    import importlib
+    import tempfile
+    import unittest.mock as mock
+
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Track, TrackContext
+
+    track = Track(name="flaky", topic="T", model="vendor/m",
+                  label="track:flaky", context=TrackContext(docs=[], paths=[]))
+    # stage-1 returns no usable candidates → _run_stages returns None (skip)
+    degenerate = {"choices": [], "usage": {}}
+    args = types.SimpleNamespace(git_log_window=5, seed=42)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_dir, orig_ctx = ralph.DECISIONS_DIR, ralph.gather_track_context
+        orig_events, orig_state = ralph.EVENTS_PATH, ralph.STATE_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        ralph.gather_track_context = lambda tr, w, compact: "FAKE"
+        ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
+        ralph.STATE_DIR = tmpdir
+        try:
+            with mock.patch.object(ralph, "openrouter_call", return_value=degenerate):
+                cost = ralph._decide_track(args, track, "key")
+            last = ralph._last_decided_track()
+            events = ralph.load_events()
+        finally:
+            ralph.DECISIONS_DIR, ralph.gather_track_context = orig_dir, orig_ctx
+            ralph.EVENTS_PATH, ralph.STATE_DIR = orig_events, orig_state
+
+        assert cost == 0.0
+        assert last == "flaky", f"skip must advance rotation pointer: {last}"
+        assert events[-1]["payload"]["event"] == "skip"
+        # no decision log written on a skip
+        assert not os.path.exists(os.path.join(tmpdir, "flaky.ralph-log.md"))
+
+
+def test_every_track_model_has_price() -> None:
+    from ralphcore import load_tracks, FALLBACK_PRICES, Price
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    tracks = load_tracks(os.path.join(here, "tracks.json"))
+    assert tracks, "tracks.json should define at least one track"
+    for t in tracks:
+        price = FALLBACK_PRICES.get(t.model)
+        assert isinstance(price, Price), f"add a FALLBACK_PRICES entry for {t.model}"
 
 
 # ---------------------------------------------------------------------------
