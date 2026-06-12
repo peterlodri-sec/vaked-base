@@ -134,25 +134,29 @@ def _expand_doc_globs(patterns: list[str]) -> list[str]:
 
 
 def _track_issues(label: str) -> "tuple[list[dict], str]":
-    """Open issues in the home repo filtered by `label`; falls back to all-open
-    (with a note) if the label yields none. Returns (issues, note)."""
-    def _list(extra: list[str]) -> list[dict]:
+    """Open issues in the home repo filtered by `label`. Falls back to all-open
+    (with a note) ONLY when the label filter itself fails (gh unavailable / the
+    label is unusable) — a successful-but-empty scoped result is preserved, so a
+    freshly-triaged label with zero issues stays scoped instead of pulling in
+    unrelated work. Returns (issues, note)."""
+    def _query(extra: list[str]) -> "list[dict] | None":
+        # None ⇒ gh unavailable / error; [] ⇒ a successful but empty result.
         raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
                     "--limit", "40", "--json", "number,title,body"] + extra,
                    cwd=REPO_HOME)
         if not raw:
-            return []
+            return None
         try:
             return json.loads(raw)
         except json.JSONDecodeError:
-            return []
+            return None
 
     if label:
-        issues = _list(["--label", label])
-        if issues:
-            return issues, ""
-        return _list([]), f" (no {label}-labelled issues; showing all open)"
-    return _list([]), ""
+        issues = _query(["--label", label])
+        if issues is not None:
+            return issues, ""   # scoped result (even if empty) — keep it
+        return (_query([]) or []), f" (no usable {label} filter; showing all open)"
+    return (_query([]) or []), ""
 
 
 def gather_track_context(track: C.Track, git_log_window: int, compact: bool) -> str:
@@ -450,8 +454,10 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
     # Emit the rotation event so --next-track advances and CI persists it.
     # The track decision-maker logs its own decide event (unlike repo-mode,
     # where cmd_run appends); a future track supervisor must not double-append.
-    append_event({"event": "decide", "track": track.name,
-                  "iteration": n, "cost": cost})
+    # `total_cost` is cumulative (prior ledger spend + this cost) so
+    # `events --replay` reconstructs total spend across stateless CI runs.
+    append_event({"event": "decide", "track": track.name, "iteration": n,
+                  "cost": cost, "total_cost": _events_total_cost() + cost})
     print("decided #%d for %s (cost $%.4f): %s" % (n, track.name, cost,
                                                    entry.splitlines()[0]))
     return cost
@@ -465,6 +471,17 @@ def _last_decided_track() -> "str | None":
         if payload.get("event") == "decide" and payload.get("track"):
             return payload["track"]
     return None
+
+
+def _events_total_cost() -> float:
+    """Cumulative spend recorded across decide events (the max `total_cost` seen,
+    which the supervisor and track decide both write monotonically)."""
+    total = 0.0
+    for e in load_events():
+        payload = e.get("payload", {})
+        if payload.get("event") == "decide":
+            total = max(total, float(payload.get("total_cost", 0.0) or 0.0))
+    return total
 
 
 # ---------------------------------------------------------------------------
@@ -787,7 +804,6 @@ def cmd_watch(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--repos", default=os.path.join(HERE, "repos.json"))
-    common.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
     common.add_argument("--stage1-model", default=DEFAULT_S1)
     common.add_argument("--stage2-model", default=DEFAULT_S2)
     common.add_argument("--git-log-window", type=int, default=30)
@@ -800,6 +816,7 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_decide = sub.add_parser("decide", parents=[common])
+    p_decide.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
     p_decide.add_argument("--track", help="concept track from tracks.json (primary)")
     p_decide.add_argument("--next-track", action="store_true",
                           help="pick the next track via the event-log rotation pointer")

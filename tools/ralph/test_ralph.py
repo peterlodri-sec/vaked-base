@@ -759,6 +759,8 @@ def test_decide_track_uses_track_model_both_stages() -> None:
                 cost = ralph._decide_track(args, track, "key")
             # the decide event must be logged so --next-track can rotate
             last = ralph._last_decided_track()
+            # replay must reconstruct spend from the event's total_cost
+            replayed = ralph.replay_events(ralph.load_events())
         finally:
             ralph.DECISIONS_DIR = orig_dir
             ralph.gather_track_context = orig_ctx
@@ -768,10 +770,30 @@ def test_decide_track_uses_track_model_both_stages() -> None:
         assert seen_models == ["vendor/m1", "vendor/m1"], seen_models
         assert cost > 0.0
         assert last == "t", f"rotation pointer not recorded: {last}"
+        assert abs(replayed["total_cost"] - cost) < 1e-9, replayed["total_cost"]
         log_path = os.path.join(tmpdir, "t.ralph-log.md")
         assert os.path.exists(log_path)
         content = open(log_path).read()
         assert "Decision #1" in content and "**Track:** t" in content
+
+
+def test_track_issues_empty_scope_no_fallback() -> None:
+    """A label with zero open issues stays scoped (no all-open fallback); only a
+    gh failure (empty output) triggers the fallback."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+
+    # labeled query returns an empty JSON array (success) → keep empty, no note
+    with mock.patch.object(ralph, "_run", return_value="[]"):
+        issues, note = ralph._track_issues("track:mlir")
+    assert issues == [] and note == "", (issues, note)
+
+    # gh failure (empty string) on the label query → fall back to all-open
+    seq = iter(["", json.dumps([{"number": 1, "title": "X"}])])
+    with mock.patch.object(ralph, "_run", side_effect=lambda *a, **k: next(seq)):
+        issues, note = ralph._track_issues("track:mlir")
+    assert len(issues) == 1 and "all open" in note, (issues, note)
 
 
 def test_every_track_model_has_price() -> None:
