@@ -658,6 +658,61 @@ def test_events_replay_cli() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Phase 1 — tracks (config + pure core)
+# ---------------------------------------------------------------------------
+
+def test_load_tracks_parses_fields() -> None:
+    from ralphcore import load_tracks
+
+    cfg = {"tracks": [{"name": "t", "topic": "T", "model": "x/y",
+                       "label": "track:t",
+                       "context": {"docs": ["a/**"], "paths": ["a/"]}}]}
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as fh:
+        json.dump(cfg, fh)
+        p = fh.name
+    try:
+        tracks = load_tracks(p)
+        assert len(tracks) == 1, f"expected 1 track, got {len(tracks)}"
+        t = tracks[0]
+        assert t.name == "t" and t.model == "x/y" and t.label == "track:t"
+        assert t.topic == "T"
+        assert t.context.docs == ["a/**"] and t.context.paths == ["a/"]
+    finally:
+        os.unlink(p)
+
+
+def test_next_track_advances_wraps_skips() -> None:
+    from ralphcore import next_track
+
+    names = ["a", "b", "c"]
+    assert next_track(names, "a", set()) == "b"
+    assert next_track(names, "c", set()) == "a"        # wrap
+    assert next_track(names, None, set()) == "a"        # first run
+    assert next_track(names, "a", {"b"}) == "c"         # skip unavailable
+    assert next_track(names, "a", {"a", "b", "c"}) is None
+
+
+def test_stage1_subject_keyed() -> None:
+    from ralphcore import build_stage1_messages
+
+    msgs = build_stage1_messages("the Vaked grammar", "STATE", ["Prior X"])
+    blob = json.dumps(msgs)
+    assert "the Vaked grammar" in blob, "subject missing"
+    assert "Prior X" in blob and "candidates" in blob
+
+
+def test_every_track_model_has_price() -> None:
+    from ralphcore import load_tracks, FALLBACK_PRICES, Price
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    tracks = load_tracks(os.path.join(here, "tracks.json"))
+    assert tracks, "tracks.json should define at least one track"
+    for t in tracks:
+        price = FALLBACK_PRICES.get(t.model)
+        assert isinstance(price, Price), f"add a FALLBACK_PRICES entry for {t.model}"
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 

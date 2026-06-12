@@ -38,6 +38,54 @@ def load_repos(config_path: str) -> list[Repo]:
 
 
 # ---------------------------------------------------------------------------
+# Tracks — the primary axis (per-model concept loops). A track is a concept
+# area inside the home repo, pinned to one model. `tracks.json` replaces
+# `repos.json`; `Repo`/`load_repos` are kept for the deprecated repo mode.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class TrackContext:
+    """What a track reads: doc globs + path filters (relative to the home repo)."""
+
+    docs: list[str]
+    paths: list[str]
+
+
+@dataclass(frozen=True)
+class Track:
+    """A concept track: a topic + the one model that advances it."""
+
+    name: str
+    topic: str
+    model: str
+    label: str
+    context: TrackContext
+
+
+def load_tracks(config_path: str) -> list[Track]:
+    """Load tracks from a JSON config file."""
+    with open(config_path, encoding="utf-8") as f:
+        data = json.load(f)
+    out: list[Track] = []
+    for t in data["tracks"]:
+        c = t.get("context", {})
+        out.append(
+            Track(
+                name=t["name"],
+                topic=t["topic"],
+                model=t["model"],
+                label=t.get("label", ""),
+                context=TrackContext(
+                    docs=list(c.get("docs", [])),
+                    paths=list(c.get("paths", [])),
+                ),
+            )
+        )
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Task 2 — Cost math
 # ---------------------------------------------------------------------------
 
@@ -57,9 +105,15 @@ def cost_usd(usage: dict, price: Price) -> float:
     return pin / 1e6 * price.prompt_per_m + pout / 1e6 * price.completion_per_m
 
 
+# Per-1M-token fallback prices. The deepseek/qwen rates are real as of
+# 2026-06-11; the hy3-preview/mimo rates are placeholders until the live
+# OpenRouter /models refresh (Phase 4) overrides them. Every track model in
+# tracks.json MUST have an entry here so cost is never silently guessed.
 FALLBACK_PRICES: dict[str, Price] = {
     "qwen/qwen3-235b-a22b-thinking-2507": Price(0.10, 0.10),
     "deepseek/deepseek-v4-flash": Price(0.098, 0.197),
+    "tencent/hy3-preview": Price(0.10, 0.20),     # placeholder — refresh from /models
+    "xiaomi/mimo-v2.5": Price(0.10, 0.20),        # placeholder — refresh from /models
 }
 
 
@@ -87,16 +141,17 @@ def select_candidate(candidates: list[dict]) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Task 4 — Round-robin repo selection
+# Round-robin selection — one ring algorithm shared by the deprecated repo
+# axis (`next_repo`) and the primary track axis (`next_track`).
 # ---------------------------------------------------------------------------
 
 
-def next_repo(
+def _next_in_ring(
     names: list[str],
     current: str | None,
     unavailable: set,
 ) -> str | None:
-    """Return the next repo name in round-robin order, skipping unavailable.
+    """Return the next name in round-robin order, skipping unavailable ones.
 
     Returns None if every name is unavailable.
     If current is None or not in names, returns the first available name.
@@ -115,32 +170,38 @@ def next_repo(
     return available[0]
 
 
+# Same algorithm, two names: repos are the deprecated axis, tracks the primary.
+next_repo = _next_in_ring
+next_track = _next_in_ring
+
+
 # ---------------------------------------------------------------------------
 # Task 5 — Prompt + entry formatting
 # ---------------------------------------------------------------------------
 
 _STAGE1_SYS = (
-    "You are the strategy advisor for the {repo} repository. From the project state and the titles of prior decisions, identify the open STRATEGIC decisions that matter most right now. Return JSON ONLY matching the schema: "
+    "You are the strategy advisor for {subject}. From the project state and the titles of prior decisions, identify the open STRATEGIC decisions that matter most right now. Return JSON ONLY matching the schema: "
     '{{"candidates":[{{"title":str,"why_now":str,"urgency":1-5,"addressed":bool}}]}}. '
     "Mark addressed=true if a prior-decision title already covers it. Rank by urgency. Do not invent work; ground every candidate in the provided state."
 )
 
 _STAGE2_SYS = (
-    "You are the strategy advisor for the {repo} repository. Given ONE chosen decision and the full project context, write a single decision entry in GitHub-flavored markdown with these bold-labelled lines: Decision / question, Options, Recommendation, Risks, Next actions, Confidence (low|med|high). Be concrete and grounded; no preamble, output only the entry body."
+    "You are the strategy advisor for {subject}. Given ONE chosen decision and the full project context, write a single decision entry in GitHub-flavored markdown with these bold-labelled lines: Decision / question, Options, Recommendation, Risks, Next actions, Confidence (low|med|high). Be concrete and grounded; no preamble, output only the entry body."
 )
 
 
 def build_stage1_messages(
-    repo: str,
+    subject: str,
     compact_state: str,
     prior_titles: list[str],
     mission: str = "",
 ) -> list[dict]:
     """Build the message list for the stage-1 (candidate enumeration) LLM call.
-    `mission` (the PURPOSE.md preamble) is prepended to the system message so the
-    loop always reasons in service of its stated goal."""
+    `subject` is what the advisor reasons about — a repo name (deprecated repo
+    mode) or a track topic. `mission` (the PURPOSE.md preamble) is prepended to
+    the system message so the loop always reasons in service of its stated goal."""
     titles = "\n".join("- " + t for t in prior_titles) or "(none yet)"
-    system = _STAGE1_SYS.format(repo=repo)
+    system = _STAGE1_SYS.format(subject=subject)
     if mission.strip():
         system = mission.strip() + "\n\n---\n\n" + system
     return [
@@ -150,14 +211,15 @@ def build_stage1_messages(
 
 
 def build_stage2_messages(
-    repo: str,
+    subject: str,
     full_context: str,
     candidate: dict,
 ) -> list[dict]:
-    """Build the message list for the stage-2 (decision body) LLM call."""
+    """Build the message list for the stage-2 (decision body) LLM call.
+    `subject` is a repo name or track topic (see build_stage1_messages)."""
     c = json.dumps(candidate, ensure_ascii=False)
     return [
-        {"role": "system", "content": _STAGE2_SYS.format(repo=repo)},
+        {"role": "system", "content": _STAGE2_SYS.format(subject=subject)},
         {"role": "user", "content": f"# Chosen decision\n{c}\n\n# Full project context\n{full_context}"},
     ]
 
