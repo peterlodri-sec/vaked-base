@@ -464,6 +464,67 @@ def test_parse_control() -> None:
 
 
 # ---------------------------------------------------------------------------
+# M1 — append_event / paused ticks
+# ---------------------------------------------------------------------------
+
+def test_event_log_chain_appends() -> None:
+    """append_event 3× builds a valid hash-chained JSONL file."""
+    import importlib, tempfile
+    ralph = importlib.import_module("ralph")
+    from ralphcore import verify_chain, GENESIS_HASH
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_events = ralph.EVENTS_PATH
+        orig_state = ralph.STATE_DIR
+        ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
+        ralph.STATE_DIR = tmpdir
+        try:
+            ralph.append_event({"action": "a"})
+            ralph.append_event({"action": "b"})
+            ralph.append_event({"action": "c"})
+        finally:
+            ralph.EVENTS_PATH = orig_events
+            ralph.STATE_DIR = orig_state
+
+        with open(os.path.join(tmpdir, "events.jsonl"), encoding="utf-8") as f:
+            lines = [l for l in f.readlines() if l.strip()]
+        entries = [json.loads(l) for l in lines]
+        assert len(entries) == 3, f"expected 3 entries, got {len(entries)}"
+        assert [e["seq"] for e in entries] == [0, 1, 2], "seqs must be 0,1,2"
+        assert verify_chain(entries), "chain must verify"
+
+
+def test_run_paused_ticks_without_deciding() -> None:
+    """--max-ticks 2 with paused=true exits rc=0 without any API call."""
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    from ralphcore import verify_chain
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        control = os.path.join(tmpdir, "control.json")
+        with open(control, "w") as f:
+            json.dump({"paused": True}, f)
+
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--budget-total", "5", "--max-ticks", "2",
+             "--interval", "0", "--state-dir", tmpdir],
+            capture_output=True, text=True, cwd=here, timeout=30,
+        )
+        assert r.returncode == 0, f"non-zero rc: {r.stderr}"
+
+        events_path = os.path.join(tmpdir, "events.jsonl")
+        assert os.path.exists(events_path), "events.jsonl not created"
+        with open(events_path, encoding="utf-8") as f:
+            lines = [l for l in f.readlines() if l.strip()]
+        entries = [json.loads(l) for l in lines]
+        assert len(entries) == 2, f"expected 2 paused events, got {len(entries)}"
+        assert all(e["payload"].get("event") == "paused" for e in entries), \
+            "all events should be paused"
+        assert verify_chain(entries), "chain must verify"
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
