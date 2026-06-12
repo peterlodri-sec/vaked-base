@@ -1018,6 +1018,90 @@ def test_langfuse_disabled_without_config() -> None:
             os.environ["LANGFUSE_PUBLIC_KEY"] = orig
 
 
+def test_parse_ratify_line() -> None:
+    from ralphcore import parse_ratify_line
+    r = parse_ratify_line(
+        "- graph-concept#3 — **override** — wrong layering — @pl 2026-06-12")
+    assert r == {"id": "graph-concept#3", "verdict": "override",
+                 "reason": "wrong layering", "score": 0}, r
+    # ratify → score 1
+    r2 = parse_ratify_line("- hcp-litany#1 — **ratify** — sound — @x 2026-06-12")
+    assert r2["score"] == 1 and r2["verdict"] == "ratify"
+    # defer → score 0
+    assert parse_ratify_line("- a#2 — **defer** — later — @x 2026-06-12")["score"] == 0
+    # malformed / non-ratify lines → None
+    assert parse_ratify_line("not a ratify line") is None
+    assert parse_ratify_line("- a#2 — **maybe** — x — @x 2026-06-12") is None
+
+
+def test_ratify_rate() -> None:
+    from ralphcore import ratify_rate
+    # defer excluded from the denominator
+    assert ratify_rate(["ratify", "ratify", "override", "defer"]) == 2 / 3
+    assert ratify_rate(["ratify", "ratify"]) == 1.0
+    assert ratify_rate([]) is None
+    assert ratify_rate(["defer", "defer"]) is None   # nothing acted
+
+
+def test_build_stage1_injects_overrides() -> None:
+    from ralphcore import build_stage1_messages
+    msgs = build_stage1_messages("the graph", "STATE", ["Prior X"],
+                                 overrides=["graph#1: wrong layer"])
+    user = msgs[1]["content"]
+    assert "Human overrides" in user and "graph#1: wrong layer" in user
+    # without overrides the section is absent (backward compatible)
+    plain = build_stage1_messages("the graph", "STATE", ["Prior X"])
+    assert "Human overrides" not in plain[1]["content"]
+
+
+def test_recent_overrides_reads_log() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        try:
+            with open(os.path.join(tmpdir, "graph-concept.ratify-log.md"), "w",
+                      encoding="utf-8") as f:
+                f.write("# header\n")
+                f.write("- graph-concept#1 — **ratify** — good — @x 2026-06-12\n")
+                f.write("- graph-concept#2 — **override** — wrong layer — @x 2026-06-12\n")
+            overrides = ralph._recent_overrides("graph-concept")
+        finally:
+            ralph.DECISIONS_DIR = orig
+        assert overrides == ["graph-concept#2: wrong layer"], overrides
+
+
+def test_cmd_ratify_summary() -> None:
+    """`ralph ratify` prints a per-track summary + overall ratify-rate."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    here = os.path.dirname(os.path.abspath(__file__))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        try:
+            # one decision + a ratify verdict for a real track name
+            with open(os.path.join(tmpdir, "graph-concept.ralph-log.md"), "w",
+                      encoding="utf-8") as f:
+                f.write("## 2026-06-12 — Decision #1: Split the LPG\nbody\n")
+            with open(os.path.join(tmpdir, "graph-concept.ratify-log.md"), "w",
+                      encoding="utf-8") as f:
+                f.write("- graph-concept#1 — **ratify** — sound — @x 2026-06-12\n")
+            args = types.SimpleNamespace(tracks=os.path.join(here, "tracks.json"))
+            import io
+            import contextlib
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = ralph.cmd_ratify(args)
+            out = buf.getvalue()
+        finally:
+            ralph.DECISIONS_DIR = orig
+        assert rc == 0
+        assert "graph-concept" in out and "ratify-rate" in out
+        assert "100%" in out   # 1 ratify / (1 ratify + 0 override)
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

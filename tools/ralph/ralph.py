@@ -396,6 +396,31 @@ def _read_log(repo_name: str) -> str:
         return "(none)"
 
 
+def _ratify_log_path(name: str) -> str:
+    return os.path.join(DECISIONS_DIR, f"{name}.ratify-log.md")
+
+
+def _read_ratify(name: str) -> list[dict]:
+    """Parsed ratification records for a track (skips malformed/comment lines)."""
+    out: list[dict] = []
+    try:
+        with open(_ratify_log_path(name), encoding="utf-8") as f:
+            for line in f:
+                rec = C.parse_ratify_line(line)
+                if rec:
+                    out.append(rec)
+    except FileNotFoundError:
+        pass
+    return out
+
+
+def _recent_overrides(name: str, limit: int = 5) -> list[str]:
+    """Recent 'override' reasons for a track, as 'id: reason' — fed back into
+    stage 1 so the loop learns what the human rejected."""
+    overrides = [r for r in _read_ratify(name) if r["verdict"] == "override"]
+    return ["%s: %s" % (r["id"], r["reason"]) for r in overrides[-limit:]]
+
+
 _LOG_HEADER = (
     "# Ralph decision log — {repo}\n\n"
     "> Machine-generated, ADVISORY. Each entry is one strategic decision surfaced by the ralph loop "
@@ -543,7 +568,8 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
     compact = gather_track_context(track, args.git_log_window, compact=True)
     s1_msgs = C.build_stage1_messages(track.topic, compact,
                                       _prior_titles(track.name),
-                                      mission=read_purpose())
+                                      mission=read_purpose(),
+                                      overrides=_recent_overrides(track.name))
 
     def full_ctx() -> str:
         return (gather_track_context(track, args.git_log_window, compact=False)
@@ -1037,6 +1063,33 @@ def cmd_events(args) -> int:
     return 0
 
 
+def cmd_ratify(args) -> int:
+    """Summarize the human ratify status per track: decisions surfaced, verdicts
+    recorded, ratify-rate, and the un-acted backlog. Reads the advisory + ratify
+    logs only (no network). See docs/decisions/RATIFY.md for the process."""
+    tracks = C.load_tracks(args.tracks)
+    print("ralph ratify — advisory decision status (see docs/decisions/RATIFY.md)\n")
+    print("%-20s %5s %7s %9s %6s %6s %7s" %
+          ("track", "dec", "ratify", "override", "defer", "todo", "rate"))
+    all_verdicts: list[str] = []
+    for t in tracks:
+        recs = _read_ratify(t.name)
+        verdicts = [r["verdict"] for r in recs]
+        all_verdicts += verdicts
+        decisions = len(_prior_titles(t.name))
+        nr, no, nd = (verdicts.count("ratify"), verdicts.count("override"),
+                      verdicts.count("defer"))
+        todo = max(0, decisions - (nr + no))   # deferred items re-surface → still "todo"
+        rate = C.ratify_rate(verdicts)
+        rate_s = "—" if rate is None else "%d%%" % round(rate * 100)
+        print("%-20s %5d %7d %9d %6d %6d %7s" %
+              (t.name, decisions, nr, no, nd, todo, rate_s))
+    overall = C.ratify_rate(all_verdicts)
+    print("\noverall ratify-rate: %s   (ratified / (ratified + overridden))" %
+          ("—" if overall is None else "%d%%" % round(overall * 100)))
+    return 0
+
+
 def cmd_watch(args) -> int:
     try:
         while True:
@@ -1104,6 +1157,10 @@ def main(argv: list[str] | None = None) -> int:
     p_events.add_argument("--state-dir", default=None,
                           help="override state directory (default: tools/ralph/state/)")
     p_events.set_defaults(func=cmd_events)
+
+    p_ratify = sub.add_parser("ratify", help="summarize human ratify status per track")
+    p_ratify.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
+    p_ratify.set_defaults(func=cmd_ratify)
 
     args = parser.parse_args(argv)
     try:
