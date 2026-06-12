@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""ralph — decision/strategy loop (decide / run / watch). Stdlib only."""
+"""ralph — decision/strategy loop (decide / run / watch).
+
+The core is Python stdlib only. Langfuse tracing is an OPTIONAL extra: it is
+imported lazily and every call is guarded, so the loop runs identically with
+zero third-party deps. Enable it with the `tracing` extra + LANGFUSE_* env:
+    uv run --project tools/ralph --extra tracing tools/ralph/ralph.py …
+"""
 from __future__ import annotations
 import argparse
 import datetime
@@ -15,6 +21,11 @@ import urllib.error
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import ralphcore as C  # noqa: E402
+
+try:                                  # optional observability — never required
+    from langfuse import Langfuse as _Langfuse
+except Exception:                     # not installed → tracing is a no-op
+    _Langfuse = None
 
 REPO_HOME = os.path.abspath(os.path.join(HERE, "..", ".."))   # vaked-base
 DECISIONS_DIR = os.path.join(REPO_HOME, "docs", "decisions")
@@ -48,6 +59,39 @@ def _resolve_base_url(explicit: "str | None" = None) -> str:
 
 def _resolve_api_key() -> str:
     return os.environ.get("RALPH_API_KEY") or os.environ.get("OPENROUTER_API_KEY") or ""
+
+
+# ---------------------------------------------------------------------------
+# Optional Langfuse tracing — lazily initialized, fully guarded. Returns None
+# (a no-op) unless the SDK is installed AND LANGFUSE_PUBLIC_KEY is set, so the
+# loop's behaviour is identical with or without observability.
+# ---------------------------------------------------------------------------
+
+_LF_CLIENT = None
+_LF_INIT = False
+
+
+def _langfuse():
+    """The Langfuse client, or None when tracing is unavailable/unconfigured."""
+    global _LF_CLIENT, _LF_INIT
+    if not _LF_INIT:
+        _LF_INIT = True
+        if _Langfuse is not None and os.environ.get("LANGFUSE_PUBLIC_KEY"):
+            try:
+                _LF_CLIENT = _Langfuse()   # reads LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST
+            except Exception:
+                _LF_CLIENT = None
+    return _LF_CLIENT
+
+
+def _flush_langfuse() -> None:
+    """Flush buffered spans before exit (no-op when tracing is off)."""
+    client = _langfuse()
+    if client is not None:
+        try:
+            client.flush()
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +254,31 @@ def _open_track_issue_count(track: C.Track) -> int:
         return 0
 
 
+def _trace_generation(gen, model: str, resp: dict, meta: "dict | None",
+                      latency: float) -> None:
+    """Record an LLM call's result onto an open Langfuse generation. Fully
+    guarded — any tracing failure is swallowed (observability never breaks the
+    loop). No-op when `gen` is None."""
+    if gen is None:
+        return
+    try:
+        usage = resp.get("usage") or {}
+        update = {
+            "output": _message_content(resp),
+            "usage_details": {
+                "prompt_tokens": int(usage.get("prompt_tokens", 0) or 0),
+                "completion_tokens": int(usage.get("completion_tokens", 0) or 0),
+            },
+            "metadata": {**(meta or {}), "latency_s": round(latency, 3)},
+        }
+        price = C.FALLBACK_PRICES.get(model)
+        if price is not None:
+            update["cost_details"] = {"total_cost": C.cost_usd(usage, price)}
+        gen.update(**update)
+    except Exception:
+        pass
+
+
 def openrouter_call(
     model: str,
     messages: list[dict],
@@ -222,6 +291,8 @@ def openrouter_call(
     seed: int | None = None,
     retries: int = 3,
     base_url: str | None = None,
+    span_name: str = "ralph.generation",
+    span_meta: dict | None = None,
 ) -> dict:
     body: dict = {
         "model": model,
@@ -243,16 +314,49 @@ def openrouter_call(
         "Content-Type": "application/json",
     }
 
+    # Open an optional Langfuse generation span around the call (no-op if off).
+    lf = _langfuse()
+    gen_cm = gen = None
+    if lf is not None:
+        try:
+            params = {"temperature": temperature, "top_p": 0.95, "max_tokens": max_tokens}
+            if seed is not None:
+                params["seed"] = seed
+            gen_cm = lf.start_as_current_generation(
+                name=span_name, model=model, input=messages, model_parameters=params)
+            gen = gen_cm.__enter__()
+        except Exception:
+            gen_cm = gen = None
+
+    t0 = time.time()
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
             req = urllib.request.Request(_resolve_base_url(base_url), data=data, headers=headers)
             with urllib.request.urlopen(req, timeout=120) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                parsed = json.loads(resp.read().decode("utf-8"))
+            _trace_generation(gen, model, parsed, span_meta, time.time() - t0)
+            if gen_cm is not None:
+                try:
+                    gen_cm.__exit__(None, None, None)
+                except Exception:
+                    pass
+            return parsed
         except Exception as exc:
             last_exc = exc
             time.sleep(2 ** attempt)
 
+    if gen is not None:
+        try:
+            gen.update(level="ERROR", status_message=str(last_exc),
+                       metadata={**(span_meta or {}), "latency_s": round(time.time() - t0, 3)})
+        except Exception:
+            pass
+    if gen_cm is not None:
+        try:
+            gen_cm.__exit__(None, None, None)
+        except Exception:
+            pass
     raise RuntimeError(f"openrouter_call failed after {retries} attempts: {last_exc}")
 
 
@@ -363,16 +467,19 @@ def _message_content(resp: dict) -> "str | None":
 
 
 def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
-                stage2_model, api_key, base_url, seed):
+                stage2_model, api_key, base_url, seed, meta=None):
     """Run both LLM stages and return ``(cost, body)`` or ``None`` to skip the
     iteration. `subject` keys the stage-2 prompt; `full_context_builder()` is
     called only once stage 1 yields a candidate (so we don't gather the full
-    context for a skipped iteration). Shared by repo and track decide paths."""
+    context for a skipped iteration). `meta` tags the Langfuse spans (e.g. the
+    track name). Shared by repo and track decide paths."""
+    base_meta = meta or {}
     s1 = openrouter_call(stage1_model, s1_msgs, api_key=api_key,
                          temperature=0.4, max_tokens=2000,
                          reasoning={"enabled": True, "effort": "medium"},
                          response_format=_STAGE1_SCHEMA, seed=seed,
-                         base_url=base_url)
+                         base_url=base_url, span_name="ralph.rank",
+                         span_meta={**base_meta, "stage": 1})
     s1_text = _message_content(s1)
     try:
         cands = json.loads(s1_text).get("candidates", []) if s1_text else []
@@ -389,7 +496,9 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
     full = full_context_builder()
     s2_msgs = C.build_stage2_messages(subject, full, chosen)
     s2 = openrouter_call(stage2_model, s2_msgs, api_key=api_key,
-                         temperature=0.3, max_tokens=1800, base_url=base_url)
+                         temperature=0.3, max_tokens=1800, base_url=base_url,
+                         span_name="ralph.deep-dive",
+                         span_meta={**base_meta, "stage": 2})
     body = _message_content(s2)
     if not body:
         print("stage-2 returned no usable content; skipping iteration",
@@ -410,7 +519,8 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
                 + "\n\n## Full prior decisions\n" + _read_log(repo.name))
 
     result = _run_stages(repo.name, s1_msgs, full_ctx, args.stage1_model,
-                         args.stage2_model, api_key, base_url, args.seed)
+                         args.stage2_model, api_key, base_url, args.seed,
+                         meta={"repo": repo.name})
     if result is None:
         return 0.0
     cost, body = result
@@ -440,7 +550,8 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
                 + "\n\n## Full prior decisions\n" + _read_log(track.name))
 
     result = _run_stages(track.topic, s1_msgs, full_ctx, track.model,
-                         track.model, api_key, base_url, args.seed)
+                         track.model, api_key, base_url, args.seed,
+                         meta={"track": track.name, "model": track.model})
     if result is None:
         # No decision this tick (model skipped). Still advance the rotation
         # pointer with a skip event, or one flaky track would starve the rest.
@@ -595,6 +706,22 @@ def read_control() -> C.Control:
         return C.parse_control(None)
 
 
+def _clear_step() -> None:
+    """Reset the one-shot `step` flag after a stepped iteration, keeping
+    paused/interval intact. No-op if control.json is missing/unset."""
+    try:
+        with open(CONTROL_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return
+    if d.get("step"):
+        d["step"] = False
+        tmp = CONTROL_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+        os.replace(tmp, CONTROL_PATH)
+
+
 def _events_tail_hash() -> str:
     """Return the `hash` of the last entry in EVENTS_PATH, or GENESIS_HASH."""
     try:
@@ -668,10 +795,124 @@ def _apply_state_dir(d: str) -> None:
     EVENTS_PATH = os.path.join(d, "events.jsonl")
 
 
+def _supervised_decide_track(args, track: C.Track, status: dict) -> None:
+    """One track decide iteration; fold cost + result into status. Contained --
+    a failure here never crashes the supervisor. `_decide_track` appends its own
+    decide/skip event, so the track supervisor must NOT double-append."""
+    api_key = _resolve_api_key()
+    if not api_key:
+        print("no API key — set RALPH_API_KEY or OPENROUTER_API_KEY — cannot decide",
+              file=sys.stderr)
+        return
+    try:
+        before = len(_prior_titles(track.name))
+        cost = _decide_track(args, track, api_key)
+        status["total_cost"] = status.get("total_cost", 0.0) + cost
+        after = _prior_titles(track.name)
+        subjects = status.setdefault("subjects", {})
+        rec = subjects.setdefault(track.name,
+                                  {"entries": 0, "last_title": "-", "cost": 0.0,
+                                   "model": track.model})
+        rec["model"] = track.model
+        rec["cost"] = rec.get("cost", 0.0) + cost
+        if len(after) > before:
+            rec["entries"] = len(after)
+            rec["last_title"] = after[-1]
+            status.setdefault("recent", []).insert(
+                0, {"subject": track.name, "date": _today(), "title": after[-1]})
+            status["recent"] = status["recent"][:10]
+    except Exception as e:
+        print("iteration failed for %s: %s" % (track.name, e), file=sys.stderr)
+
+
 def cmd_run(args) -> int:
     if getattr(args, "state_dir", None):
         _apply_state_dir(args.state_dir)
+    if getattr(args, "repo_mode", False):
+        return _run_repos(args)
+    return _run_tracks(args)
 
+
+def _run_tracks(args) -> int:
+    """Supervisor over concept tracks (the primary mode): round-robin tracks,
+    one model each, budget-capped. Each iteration's decide/skip event is logged
+    by _decide_track itself."""
+    tracks = C.load_tracks(args.tracks)
+    names = [t.name for t in tracks]
+    by_name = {t.name: t for t in tracks}
+    status = read_status()
+    if status is None:
+        status = {
+            "running": True, "current": None, "iteration": 0,
+            "total_cost": 0.0, "budget_total": args.budget_total,
+            "subjects": {t.name: {"entries": 0, "last_title": "-", "cost": 0.0,
+                                  "model": t.model} for t in tracks},
+            "recent": [], "last_step_epoch": 0, "mode": "tracks",
+        }
+    status["running"] = True
+    status["budget_total"] = args.budget_total
+    status.setdefault("subjects", {})
+    # status.json is a derived cache (gitignored); the committed event ledger is
+    # the state-of-record. Reconcile rotation pointer + cumulative spend against
+    # it on EVERY start — even when status exists but is stale (e.g. an external
+    # `decide --next-track` advanced the ledger the cache never saw) — so we
+    # never restart at track #1 or under-count spend already past the budget.
+    ledger_total = _events_total_cost()
+    if ledger_total > float(status.get("total_cost", 0.0) or 0.0):
+        status["total_cost"] = ledger_total
+    ledger_track = _last_decided_track()
+    if ledger_track is not None:
+        status["current"] = ledger_track
+    iters = 0
+    ticks = 0
+    try:
+        while True:
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
+            ctrl = read_control()
+            if status["total_cost"] >= args.budget_total:
+                print("budget cap reached ($%.2f) — stopping" % args.budget_total)
+                break
+            if args.max_iters and iters >= args.max_iters:
+                print("max-iters reached — stopping")
+                break
+            interval = ctrl.interval if ctrl.interval is not None else args.interval
+            if ctrl.paused and not ctrl.step:
+                append_event({"tick": ticks, "event": "paused"})
+                ticks += 1
+                write_status(status)
+                if args.max_ticks and ticks >= args.max_ticks:
+                    break
+                time.sleep(min(interval, 2.0))
+                continue
+            nxt = C.next_track(names, status["current"], set())
+            if nxt is None:
+                print("no tracks available — stopping", file=sys.stderr)
+                break
+            status["current"] = nxt
+            status["iteration"] += 1
+            iters += 1
+            _supervised_decide_track(args, by_name[nxt], status)
+            status["last_step_epoch"] = int(time.time())
+            if ctrl.step:                 # one-shot consumed → back to paused
+                _clear_step()
+            ticks += 1
+            write_status(status)
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
+            if args.max_iters and iters >= args.max_iters:
+                continue
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("\nSIGINT — shutting down")
+    finally:
+        status["running"] = False
+        write_status(status)
+    return 0
+
+
+def _run_repos(args) -> int:
+    """DEPRECATED supervisor over whole repos (the original round-robin)."""
     repos = C.load_repos(args.repos)
     names = [r.name for r in repos]
     by_name = {r.name: r for r in repos}
@@ -701,6 +942,8 @@ def cmd_run(args) -> int:
                 append_event({"tick": ticks, "event": "paused"})
                 ticks += 1
                 write_status(status)
+                if args.max_ticks and ticks >= args.max_ticks:
+                    break
                 time.sleep(min(interval, 2.0))
                 continue
             unavailable = {r.name for r in repos if not os.path.isdir(r.path)}
@@ -716,8 +959,12 @@ def cmd_run(args) -> int:
             append_event({"tick": ticks, "event": "decide", "repo": nxt,
                           "iteration": status["iteration"],
                           "total_cost": status["total_cost"]})
+            if ctrl.step:                 # one-shot consumed → back to paused
+                _clear_step()
             ticks += 1
             write_status(status)
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
             if args.max_iters and iters >= args.max_iters:
                 continue
             time.sleep(interval)
@@ -834,6 +1081,9 @@ def main(argv: list[str] | None = None) -> int:
     p_decide.set_defaults(func=cmd_decide)
 
     p_run = sub.add_parser("run", parents=[common])
+    p_run.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
+    p_run.add_argument("--repo-mode", action="store_true",
+                       help="DEPRECATED: round-robin whole repos instead of tracks")
     p_run.add_argument("--interval", type=int, default=900)
     p_run.add_argument("--budget-total", type=float, default=2.00)
     p_run.add_argument("--max-iters", type=int, default=0)
@@ -856,7 +1106,10 @@ def main(argv: list[str] | None = None) -> int:
     p_events.set_defaults(func=cmd_events)
 
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    finally:
+        _flush_langfuse()   # ship any buffered spans (no-op when tracing is off)
 
 
 if __name__ == "__main__":
