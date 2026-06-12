@@ -14,6 +14,14 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 | `.hcplang` | Schema / interface definition language for HCP messages |
 | `hcpbin` | Canonical binary encoding |
 
+### Control frames ([RFC 0005](../../protocol/rfcs/0005-control-frames.md))
+
+| Term | Meaning |
+|------|---------|
+| Control frame | Votive `control` frame addressed to the supervision plane: pause / resume / slow / step / rewind |
+| `ControlAck` | The response: applied or refused, with the eventd seq of the logged action |
+| `control_action` | The eventd payload kind recording every ACCEPTED control frame (write-ahead, before effect) |
+
 ### State dependency ([RFC 0004](../../protocol/rfcs/0004-multi-agent-state-dependency.md))
 
 | Term | Meaning |

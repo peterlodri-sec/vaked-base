@@ -62,8 +62,9 @@ must reproduce. Exit codes follow the frozen table (0 ok / 4 tampered).
 
 1. *(this slice)* `eventd state --at N` + spec-test group (fold-at semantics:
    the same log inspected at N=3 vs N=tip shows pre/post-rewind floors).
-2. Control-frame catalog → HCP RFC 0005 (pause/resume/slow/step/rewind frames,
-   `.hcplang`, preceptord authority — who may rewind is a policy decision).
+2. *(done)* Control-frame catalog → [RFC 0005](../../../protocol/rfcs/0005-control-frames.md)
+   (pause/resume/slow/step/rewind + `ControlAck`, preceptord authority,
+   accepted actions logged write-ahead as `control_action` events).
 3. Supervisor loop (with the agent-supervisord daemon design): control file →
    frames; ralph `Control` semantics promoted.
 4. Arena snapshot index for O(1) jumps (#35).
