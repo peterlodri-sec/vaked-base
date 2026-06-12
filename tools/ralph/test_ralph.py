@@ -701,6 +701,70 @@ def test_stage1_subject_keyed() -> None:
     assert "Prior X" in blob and "candidates" in blob
 
 
+def test_decide_dry_run_track_writes_nothing() -> None:
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    env = dict(os.environ)
+    env.pop("OPENROUTER_API_KEY", None)
+    env.pop("RALPH_API_KEY", None)
+    r = subprocess.run(
+        [sys.executable, os.path.join(here, "ralph.py"), "decide",
+         "--track", "base-language-spec", "--dry-run"],
+        capture_output=True, text=True, env=env, cwd=here, timeout=60,
+    )
+    assert r.returncode == 0, r.stderr
+    assert "stage 1" in r.stdout.lower() and "estimate" in r.stdout.lower()
+    # the track model should head the prompt banner
+    assert "qwen/qwen3-235b-a22b-thinking-2507" in r.stdout
+
+
+def test_decide_track_uses_track_model_both_stages() -> None:
+    """_decide_track calls the model with track.model for BOTH stages."""
+    import importlib
+    import tempfile
+    import unittest.mock as mock
+
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Track, TrackContext
+
+    track = Track(name="t", topic="topic T", model="vendor/m1",
+                  label="track:t", context=TrackContext(docs=[], paths=[]))
+
+    s1 = {"choices": [{"message": {"content":
+          json.dumps({"candidates": [{"title": "X", "why_now": "n",
+                                      "urgency": 5, "addressed": False}]})}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    s2 = {"choices": [{"message": {"content": "**Decision / question:** X"}}],
+          "usage": {"prompt_tokens": 80, "completion_tokens": 40}}
+    calls = iter([s1, s2])
+    seen_models: list[str] = []
+
+    def fake_call(model, *a, **kw):
+        seen_models.append(model)
+        return next(calls)
+
+    args = types.SimpleNamespace(git_log_window=5, seed=42)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_dir = ralph.DECISIONS_DIR
+        orig_ctx = ralph.gather_track_context
+        ralph.DECISIONS_DIR = tmpdir
+        ralph.gather_track_context = lambda tr, w, compact: "FAKE"
+        try:
+            with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
+                cost = ralph._decide_track(args, track, "key")
+        finally:
+            ralph.DECISIONS_DIR = orig_dir
+            ralph.gather_track_context = orig_ctx
+
+        assert seen_models == ["vendor/m1", "vendor/m1"], seen_models
+        assert cost > 0.0
+        log_path = os.path.join(tmpdir, "t.ralph-log.md")
+        assert os.path.exists(log_path)
+        content = open(log_path).read()
+        assert "Decision #1" in content and "**Track:** t" in content
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

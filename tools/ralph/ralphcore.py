@@ -233,8 +233,11 @@ def format_entry(
     body: str,
     s1: str,
     s2: str,
+    subject_label: str = "Repo",
 ) -> str:
-    """Format a completed decision entry for the decision log."""
+    """Format a completed decision entry for the decision log. `repo` is the
+    subject name (a repo in repo mode, a track name in track mode);
+    `subject_label` is the bold label for it ("Repo" or "Track")."""
     first = next(
         (ln.strip(" #*-") for ln in body.splitlines() if ln.strip()),
         "untitled",
@@ -242,7 +245,7 @@ def format_entry(
     title = first[:80]
     return (
         f"## {date} — Decision #{n}: {title}\n"
-        f"- **Repo:** {repo} · **Models:** stage1 {s1} · stage2 {s2}\n"
+        f"- **{subject_label}:** {repo} · **Models:** stage1 {s1} · stage2 {s2}\n"
         f"- **Context snapshot:** HEAD {head}, {open_issues} open issues\n\n"
         f"{body.rstrip()}\n\n"
     )
