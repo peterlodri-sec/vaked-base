@@ -159,6 +159,7 @@ on:
   schedule: [{ cron: "0 */3 * * *" }]    # ~8 decisions/day (2/track) — fits the 1h ratify budget
   workflow_dispatch: {}
 concurrency: { group: ralph-tracks, cancel-in-progress: false }
+permissions: { contents: write }         # the tick commit pushes the appended log + events.jsonl
 jobs:
   decide:
     runs-on: ubuntu-latest
@@ -170,6 +171,7 @@ jobs:
         # --project selects tools/ralph/pyproject.toml so langfuse is synced
         # (without it, uv runs dep-less and silently takes the no-traces path)
         env:
+          GH_TOKEN: ${{ github.token }}      # gh issue list needs a token in CI
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
