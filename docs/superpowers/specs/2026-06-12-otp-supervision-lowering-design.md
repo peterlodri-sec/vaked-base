@@ -32,22 +32,22 @@ its strategy, and its restart semantics are the real deliverable.
 
 | Vaked `strategy` | OTP `SupFlags.strategy` | Rationale |
 |------------------|------------------------|-----------|
-| `"supervised-dag"` | `rest_for_one` | children ordered by dataflow: restarting an upstream member restarts everything downstream of it — exactly the RFC 0004 dependency-cascade semantics, enforced by the supervisor itself |
+| `"supervised-dag"` — **v0** | `one_for_one` | independent restarts. Blanket sibling cascades (`rest_for_one` over declaration order) would restart *unrelated* members — in `operator-field`, `mediaCompress` and `operatorMap` share no data-flow edge, yet a `mediaCompress` crash would bounce `operatorMap` purely by position. Downstream *consistency* is not the supervisor's blunt instrument anyway: it is RFC 0004's job — a restarted producer's consumers re-verify their anchors and pause as `stale_dependency` if actually affected. |
+| `"supervised-dag"` — **edge-aware follow-up** | `rest_for_one` **per topologically-contiguous dependency chain** (chain = a connected component of the members' data-flow edges, children in topo order; unrelated chains under separate sub-supervisors) | the restart cascade becomes a *correct* optimization: only true downstreams restart eagerly instead of waiting to pause on a stale anchor |
 | anything else (forward-compat) | `one_for_one` | independent restarts; no ordering claim |
 
 `SupFlags`: `intensity => 3, period => 10` (v0 defaults; a future `budget`
 hook may parameterize). Child specs: `restart => permanent, shutdown => 5000,
 type => worker`.
 
-## Child ordering (the dataflow DAG)
+## Child ordering
 
-For `supervised-dag`, children MUST be in topological order of the members'
-data-flow (fiber A `output = artifacts.x`, fiber B `input = artifacts.x` ⇒ A
-before B; a surface consuming streams orders after their producers).
-**v0 ships declaration order** — deterministic, and correct for every example
-in-tree (authors write producers first) — with the topo-sort as the first
-follow-up (it is Pass-1 machinery from 0013 reused over fiber edges; the
-checker should then also WARN when declaration order contradicts topo order).
+Child-list order is **declaration order** in v0 — purely for byte-determinism
+of the emitted module; with `one_for_one` it carries **no restart-coupling
+claim**. The edge-aware follow-up (0013 Pass-1 machinery reused over fiber
+`input`/`output` edges; surfaces order after their stream producers) computes
+the real chains, switches them to `rest_for_one`, and adds a checker WARN when
+declaration order contradicts topo order.
 
 ## Selection & the golden-freeze problem
 
@@ -104,7 +104,8 @@ called out here so the bump is an explicit, reviewed act.
    on `systemd.units`).
 3. Golden fixture extension (the explicit bump above).
 4. `task otp-smoke` devshell target + run it once; record output in the PR.
-5. Follow-ups: topo-order children (0013 Pass-1 reuse), budget→SupFlags,
+5. Follow-ups: edge-aware chains (`rest_for_one` per dependency chain, topo
+   order, checker WARN — 0013 Pass-1 reuse), budget→SupFlags,
    worker→Zig-daemon port (with the daemons, #15-era).
 
 ## Open
