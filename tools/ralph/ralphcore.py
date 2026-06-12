@@ -238,3 +238,69 @@ def render_dashboard(
             lines.append(f"  [{entry.get('repo', '?')}] {entry.get('date', '?')} — {entry.get('title', '?')}")
 
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# M1 (flow driver) — immutable hash-chained event log + live control state.
+#   * The event log is the driver's state-of-record (status.json becomes a
+#     derived cache). Append-only; each entry hash-chains the previous so the
+#     run history is tamper-evident and replayable (the "immutable" theory).
+#   * Control state is read live each tick from a control file (the "control"
+#     theory: pause/resume, slow, step without restarting the driver).
+# ---------------------------------------------------------------------------
+
+import hashlib
+
+GENESIS_HASH = "0" * 64
+
+
+def _canon(payload: dict) -> str:
+    """Canonical JSON of a payload (sorted keys, compact) — the bytes hashed."""
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
+
+
+def chain_hash(prev_hex: str, payload: dict) -> str:
+    """sha256(prev_hash || canonical(payload)) — the link function."""
+    return hashlib.sha256((prev_hex + _canon(payload)).encode("utf-8")).hexdigest()
+
+
+def make_entry(prev_hex: str, seq: int, payload: dict) -> dict:
+    """One hash-chained log entry. `prev_hex` is GENESIS_HASH for seq 0."""
+    return {"seq": seq, "prev": prev_hex, "payload": payload,
+            "hash": chain_hash(prev_hex, payload)}
+
+
+def verify_chain(entries: list[dict]) -> bool:
+    """True iff `entries` is a contiguous, untampered chain from genesis:
+    seq is 0,1,2,…; each `prev` links the prior `hash`; each `hash` recomputes."""
+    prev = GENESIS_HASH
+    for i, e in enumerate(entries):
+        if e.get("seq") != i:
+            return False
+        if e.get("prev") != prev:
+            return False
+        if e.get("hash") != chain_hash(prev, e.get("payload", {})):
+            return False
+        prev = e["hash"]
+    return True
+
+
+@dataclass(frozen=True)
+class Control:
+    """Live driver control, read each tick. `interval=None` ⇒ use CLI default.
+    `step` is one-shot: run a single tick even while paused, then stay paused."""
+    paused: bool = False
+    interval: float | None = None
+    step: bool = False
+
+
+def parse_control(d: dict | None) -> Control:
+    """Normalize a control file dict into a Control (missing/empty ⇒ defaults)."""
+    if not d:
+        return Control()
+    iv = d.get("interval")
+    return Control(
+        paused=bool(d.get("paused", False)),
+        interval=float(iv) if iv is not None else None,
+        step=bool(d.get("step", False)),
+    )
