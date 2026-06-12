@@ -42,7 +42,10 @@ from eventd import (  # noqa: E402
 )
 from eventd.core import canonical_json, make_entry  # noqa: E402
 
-# Shared payload vectors — exercise unicode, nesting, key order, numbers.
+# Shared payload vectors — exercise unicode, nesting, key order, numbers,
+# plus the hostile canonicalization cases the cross-language hash contract
+# must pin down (core.py dialect speclet): -0.0, shortest-round-trip floats,
+# big ints, precomposed vs combining unicode (NOT normalized — by design).
 _VECTORS = [
     {"event": "boot", "runtime": "agent-field"},
     {"b": 2, "a": 1, "nested": {"y": [1, 2, 3], "x": None}},
@@ -50,6 +53,13 @@ _VECTORS = [
     {"kind": "dependency_registration", "consumer": "beta", "producer": "alpha",
      "consumer_step": 7, "producer_step": 2,
      "producer_step_hash": "ab" * 32, "topology_epoch": 1},
+    {"x": -0.0},
+    {"x": 1.0},
+    {"x": 1e-6},
+    {"x": 100000000000000000000},
+    {"x": "é"},                  # U+00E9 precomposed
+    {"x": "é"},            # e + combining acute — a DIFFERENT payload
+    {"b": 1, "a": 2},
 ]
 
 
@@ -73,9 +83,22 @@ def _test_format_parity(lines):
         ok = False
         lines.append("  FAIL parity: cross-verification failed "
                      "(eventd↔ralphcore chains)")
+    # precomposed vs combining MUST hash differently (no normalization)
+    if canonical_json({"x": "é"}) == canonical_json({"x": "é"}):
+        ok = False
+        lines.append("  FAIL parity: unicode normalization leaked into "
+                     "canonical_json")
+    # NaN/Infinity are rejected (stricter than ralphcore's invalid-JSON output)
+    try:
+        canonical_json({"x": float("nan")})
+        ok = False
+        lines.append("  FAIL parity: NaN was not rejected")
+    except ValueError:
+        pass
     if ok:
-        lines.append(f"  format-parity: {len(_VECTORS)} vectors — identical "
-                     f"entries, cross-verified chains (format frozen)")
+        lines.append(f"  format-parity: {len(_VECTORS)} vectors (incl. -0.0, "
+                     f"1e-6, bigint, é vs e+combining) — identical entries, "
+                     f"cross-verified chains; NaN rejected")
     return ok
 
 
@@ -136,10 +159,48 @@ def _test_log_discipline(lines):
             ok = False
             lines.append(f"  FAIL log: lock not released after refused "
                          f"writer open: {e}")
+        # crash-tail: a truncated final record (torn write) is TAMPER —
+        # refused by default; repair is a future explicit operator command
+        raw2 = open(path, encoding="utf-8").read()
+        open(path, "w", encoding="utf-8").write(raw2 + '{"seq": 99, "pre')
+        try:
+            EventLog(path)
+            ok = False
+            lines.append("  FAIL log: truncated tail did NOT raise "
+                         "TamperError")
+        except TamperError:
+            pass
+        open(path, "w", encoding="utf-8").write(raw2)
+        # single-writer across PROCESSES (the production risk is competing
+        # daemon instances, not two handles in one process)
+        holder = subprocess.Popen(
+            [sys.executable, "-c",
+             "import sys; sys.path.insert(0, %r)\n"
+             "from eventd import EventLog\n"
+             "log = EventLog(%r, writer=True)\n"
+             "print('locked', flush=True)\n"
+             "import time; time.sleep(30)" % (REPO, path)],
+            stdout=subprocess.PIPE, text=True)
+        try:
+            if holder.stdout.readline().strip() != "locked":
+                ok = False
+                lines.append("  FAIL log: cross-process lock holder did not "
+                             "start")
+            else:
+                try:
+                    EventLog(path, writer=True)
+                    ok = False
+                    lines.append("  FAIL log: writer in a second PROCESS was "
+                                 "NOT refused")
+                except WriterLockError:
+                    pass
+        finally:
+            holder.terminate()
+            holder.wait()
         if ok:
             lines.append("  log-discipline: append+fsync, reopen verifies, "
-                         "tamper/malformed line ⇒ hard error, second writer "
-                         "refused")
+                         "tamper/malformed/truncated-tail ⇒ hard error, "
+                         "second writer refused (in-process + cross-process)")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return ok
@@ -240,6 +301,79 @@ def _test_statedep(lines):
             lines.append("  FAIL statedep: recovered consumer with a fresh "
                          "valid anchor should be RUNNING")
 
+        # an ordinary checkpoint from the dead process does NOT undo eviction
+        # (Codex P1 on #33): re-admission requires a fresh registration
+        path = os.path.join(tmp, "ghost-checkpoint.jsonl")
+        with EventLog(path, writer=True) as log:
+            log.append({"agent": "alpha", "event": "step", "n": 0})
+            anchored = log.append({"agent": "alpha", "event": "step", "n": 1})
+            log.append(dependency_registration(
+                "gamma", "alpha", consumer_step=0, producer_step=1,
+                producer_step_hash=anchored["hash"], topology_epoch=1))
+            log.append(consumer_evicted("gamma", "lease expired", 1))
+            log.append(consumer_checkpoint(          # delayed ghost write
+                "gamma", "alpha", min_required_step=0,
+                consumer_checkpoint_step=9, topology_epoch=1,
+                last_heartbeat_at="2026-06-12T16:10:00Z"))
+            ghost = log.entries
+        idx = DependencyIndex.from_entries(ghost)
+        if idx.gc_floor("alpha") is not None:
+            ok = False
+            lines.append(f"  FAIL statedep: ghost checkpoint re-admitted an "
+                         f"evicted consumer (floor {idx.gc_floor('alpha')})")
+        if idx.verify_cold_start("gamma", ghost) is None:
+            ok = False
+            lines.append("  FAIL statedep: evicted consumer with only a ghost "
+                         "checkpoint must stay PAUSED")
+
+        # a BACKWARDS checkpoint (lower min_required_step) is latest-wins —
+        # it moves the floor DOWN, the conservative direction
+        path = os.path.join(tmp, "backwards.jsonl")
+        with EventLog(path, writer=True) as log:
+            log.append(consumer_checkpoint(
+                "beta", "alpha", min_required_step=10,
+                consumer_checkpoint_step=0, topology_epoch=1,
+                last_heartbeat_at="2026-06-12T16:00:00Z"))
+            log.append(consumer_checkpoint(
+                "beta", "alpha", min_required_step=5,
+                consumer_checkpoint_step=1, topology_epoch=1,
+                last_heartbeat_at="2026-06-12T16:01:00Z"))
+            backwards = log.entries
+        if DependencyIndex.from_entries(backwards).gc_floor("alpha") != 5:
+            ok = False
+            lines.append("  FAIL statedep: backwards checkpoint should be "
+                         "latest-wins (floor 5)")
+
+        # re-registration is a NEW GENERATION: after a rewind voids the old
+        # anchor, a fresh registration on surviving history runs again
+        path = os.path.join(tmp, "regen.jsonl")
+        with EventLog(path, writer=True) as log:
+            base = log.append({"agent": "alpha", "event": "step", "n": 0})
+            anchored = log.append({"agent": "alpha", "event": "step", "n": 1})
+            log.append(dependency_registration(
+                "beta", "alpha", consumer_step=0, producer_step=1,
+                producer_step_hash=anchored["hash"], topology_epoch=1))
+            log.append(rewind_event("alpha", rewind_to_step=0,
+                                    rewind_to_hash=base["hash"],
+                                    topology_epoch=2))
+            log.append(dependency_registration(
+                "beta", "alpha", consumer_step=1, producer_step=0,
+                producer_step_hash=base["hash"], topology_epoch=2))
+            regen = log.entries
+        if DependencyIndex.from_entries(regen) \
+                .verify_cold_start("beta", regen) is not None:
+            ok = False
+            lines.append("  FAIL statedep: re-registration (new generation) "
+                         "on surviving history should be RUNNING")
+
+        # statedep payloads ban floats in step/epoch fields
+        try:
+            dependency_registration("b", "a", 0, 1.5, "x" * 64, 1)
+            ok = False
+            lines.append("  FAIL statedep: float producer_step was accepted")
+        except TypeError:
+            pass
+
         # an UNACKNOWLEDGED registration pins the floor at its own anchor —
         # §4 condition 1: no checkpoint yet ⇒ no truncation through it
         # (Codex P1, PR #31)
@@ -294,10 +428,12 @@ def _test_cli(lines):
             return subprocess.run([sys.executable, "-m", "eventd", *args],
                                   capture_output=True, text=True, cwd=REPO)
 
+        # exit codes are STABLE ORACLE CONTRACT (eventd/__main__.py table):
+        # 0 ok/RUNNING · 2 usage · 3 stale_dependency · 4 tampered · 5 locked
         cases = [
             (("verify", good), 0),
             (("coldstart", good, "beta"), 0),
-            (("coldstart", rewound, "beta"), 1),
+            (("coldstart", rewound, "beta"), 3),
             (("floor", good, "alpha"), 0),
         ]
         for args, want in cases:
@@ -306,17 +442,17 @@ def _test_cli(lines):
                 ok = False
                 lines.append(f"  FAIL cli: {' '.join(args)} → exit "
                              f"{r.returncode}, want {want}: {r.stderr.strip()}")
-        # tampered log: every command must refuse with exit 1
+        # tampered log: every command must refuse with exit 4
         raw = open(good, encoding="utf-8").read()
         open(good, "w", encoding="utf-8").write(raw.replace("step", "step!", 1))
         r = run("verify", good)
-        if r.returncode != 1:
+        if r.returncode != 4:
             ok = False
             lines.append(f"  FAIL cli: verify on tampered log → exit "
-                         f"{r.returncode}, want 1")
+                         f"{r.returncode}, want 4")
         if ok:
-            lines.append("  cli: verify/coldstart/floor exit codes correct; "
-                         "tampered log refused")
+            lines.append("  cli: frozen exit-code table holds "
+                         "(0 ok / 3 stale / 4 tampered)")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return ok
@@ -386,6 +522,33 @@ def _test_lowering_wiring(lines):
                 ok = False
                 lines.append(f"  FAIL lowering: {rel} not byte-identical "
                              f"across runs")
+
+        # provenance inputsHash covers STEP/EDGE inputs (Codex P2 on #33):
+        # two workflows identical at the record level but wired differently
+        # must produce different inputsHash values
+        hashes = []
+        for variant, edge in (("wa", "a -> b"), ("wb", "b -> a")):
+            src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+                   '  workflow w {\n    node a { agent = m.x }\n'
+                   '    node b { agent = m.y }\n    %s\n  }\n}\n' % edge)
+            vp = os.path.join(tmp, variant + ".vaked")
+            open(vp, "w", encoding="utf-8").write(src)
+            out = os.path.join(tmp, variant)
+            r = subprocess.run(
+                [sys.executable, "-m", "vakedc", "lower", vp, "--out", out],
+                capture_output=True, text=True, cwd=REPO)
+            if r.returncode != 0:
+                ok = False
+                lines.append(f"  FAIL lowering: variant {variant} failed: "
+                             f"{r.stderr.strip()}")
+                break
+            prov = json.load(open(os.path.join(out, "provenance.json")))
+            hashes.append(
+                prov["artifacts"]["gen/workflow/w.json"][0]["inputsHash"])
+        if len(hashes) == 2 and hashes[0] == hashes[1]:
+            ok = False
+            lines.append("  FAIL lowering: rewiring the DAG did not change "
+                         "the workflow inputsHash")
         if ok:
             lines.append("  lowering-wiring: workflow spec (depth 4, 4 steps, "
                          "3 edges) + memory store + eventd contract emitted, "
