@@ -583,6 +583,35 @@ def _test_lowering_wiring(lines):
             lines.append("  FAIL lowering: rewiring the DAG did not change "
                          "the workflow inputsHash")
 
+        # inline budget RECORDS survive into the spec (Codex round 4): the
+        # Budget aux type admits both a budget-decl ref and an inline record
+        bsrc = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+                '  workflow w {\n'
+                '    budget = {\n      tokens = 10\n      toolCalls = 2\n    }\n'
+                '    node a {\n      agent = m.x\n'
+                '      budget = {\n        tokens = 5\n      }\n    }\n  }\n}\n')
+        bp = os.path.join(tmp, "inline-budget.vaked")
+        open(bp, "w", encoding="utf-8").write(bsrc)
+        bout = os.path.join(tmp, "inline-budget")
+        r = subprocess.run(
+            [sys.executable, "-m", "vakedc", "lower", bp, "--out", bout],
+            capture_output=True, text=True, cwd=REPO)
+        if r.returncode != 0:
+            ok = False
+            lines.append(f"  FAIL lowering: inline-budget variant failed: "
+                         f"{r.stderr.strip()}")
+        else:
+            bw = json.load(open(os.path.join(bout, "gen/workflow/w.json")))
+            if bw.get("budget") != {"tokens": 10, "toolCalls": 2}:
+                ok = False
+                lines.append(f"  FAIL lowering: inline workflow budget "
+                             f"dropped/mangled: {bw.get('budget')!r}")
+            sb = bw.get("steps", [{}])[0].get("budget")
+            if sb != {"tokens": 5}:
+                ok = False
+                lines.append(f"  FAIL lowering: inline step budget "
+                             f"dropped/mangled: {sb!r}")
+
         # list-valued memory sources survive into the store config (Codex
         # round 3): source = [stream.a, stream.b] must emit both
         msrc = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
