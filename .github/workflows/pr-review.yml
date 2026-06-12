@@ -26,6 +26,10 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # Surface the optional crabcc PAT as env: the `secrets` context cannot be used
+    # in step `if:` conditions, but `env` can.
+    env:
+      CRABCC_INSTALL_TOKEN: ${{ secrets.CRABCC_INSTALL_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,9 +54,7 @@ jobs:
       # crabcc is a private (crabcc-labs) tool. Install only when a PAT with access
       # is configured; otherwise the agent degrades to a diff-only review.
       - name: Install crabcc (optional)
-        if: ${{ secrets.CRABCC_INSTALL_TOKEN != '' }}
-        env:
-          CRABCC_INSTALL_TOKEN: ${{ secrets.CRABCC_INSTALL_TOKEN }}
+        if: ${{ env.CRABCC_INSTALL_TOKEN != '' }}
         run: |
           git config --global url."https://x-access-token:${CRABCC_INSTALL_TOKEN}@github.com/".insteadOf "https://github.com/"
           CARGO_NET_GIT_FETCH_WITH_CLI=true \
