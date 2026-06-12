@@ -36,8 +36,8 @@ its strategy, and its restart semantics are the real deliverable.
 | `"supervised-dag"` — **edge-aware follow-up** | `rest_for_one` **only for components that are linear chains** (each chain its own sub-supervisor, children in chain order). **Branching components stay `one_for_one`**: a flat `rest_for_one` child list cannot express a DAG — with `A -> B` and `A -> C`, a `B` crash would restart `C` purely by position. Stock OTP strategies cannot say "restart exactly my descendants"; for general DAGs, eager descendant-restart is **supervisord control-plane logic** (it holds the RFC 0004 `DependencyIndex` and can compute the true descendant set), not a strategy flag | the cascade is applied exactly where it is expressible (linear chains), and everywhere else the dependency layer — pausing or daemon-driven restart over the index — carries the semantics |
 | anything else (forward-compat) | `one_for_one` | independent restarts; no ordering claim |
 
-`SupFlags`: `intensity => 3, period => 10` (v0 defaults; a future `budget`
-hook may parameterize). Child specs: `restart => permanent, shutdown => 5000,
+`SupFlags`: `intensity => 3, period => 10` (v0 defaults; a future `budget`/`runclass`
+hook may parameterize — runclass carries maxRestarts/window). Child specs: `restart => permanent, shutdown => 5000,
 type => worker`.
 
 ## Child ordering
