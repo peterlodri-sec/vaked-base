@@ -117,9 +117,13 @@ class DependencyIndex:
             if kind == KIND_REGISTRATION:
                 idx.registrations[(p["consumer"], p["producer"])] = \
                     dict(p, _at_seq=e["seq"])
+                # explicit recovery (§6): a fresh durable anchor logged after
+                # an eviction re-admits the consumer (Codex P2, PR #31)
+                idx.evicted.discard(p["consumer"])
             elif kind == KIND_CHECKPOINT:
                 idx.checkpoints[(p["consumer_agent"], p["producer_agent"])] = \
                     dict(p, _at_seq=e["seq"])
+                idx.evicted.discard(p["consumer_agent"])
             elif kind == KIND_REWIND:
                 idx.rewinds[p["producer"]] = dict(p, _at_seq=e["seq"])
             elif kind == KIND_EVICTION:

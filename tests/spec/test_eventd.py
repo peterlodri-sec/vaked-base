@@ -118,6 +118,24 @@ def _test_log_discipline(lines):
             lines.append("  FAIL log: malformed line did NOT raise TamperError")
         except TamperError:
             pass
+        # writer-open on a refused log must release the lock (Codex P1 round 2:
+        # the writer locks FIRST, then loads/verifies under the lock; a refusal
+        # must not leave the lock held)
+        try:
+            EventLog(path, writer=True)
+            ok = False
+            lines.append("  FAIL log: writer open on tampered log did NOT "
+                         "raise TamperError")
+        except TamperError:
+            pass
+        open(path, "w", encoding="utf-8").write(raw)   # restore good log
+        try:
+            with EventLog(path, writer=True) as w:
+                w.append({"event": "post-recovery"})
+        except (TamperError, WriterLockError) as e:
+            ok = False
+            lines.append(f"  FAIL log: lock not released after refused "
+                         f"writer open: {e}")
         if ok:
             lines.append("  log-discipline: append+fsync, reopen verifies, "
                          "tamper/malformed line ⇒ hard error, second writer "
@@ -194,6 +212,33 @@ def _test_statedep(lines):
             ok = False
             lines.append(f"  FAIL statedep: post-eviction floor should be 1, "
                          f"got {idx.gc_floor('alpha')}")
+
+        # explicit recovery re-admits an evicted consumer (Codex P2 round 2,
+        # RFC §6): a fresh registration/checkpoint logged AFTER the eviction
+        # clears it from the fold — its new anchor constrains compaction again
+        path = os.path.join(tmp, "recovered.jsonl")
+        with EventLog(path, writer=True) as log:
+            log.append({"agent": "alpha", "event": "step", "n": 0})
+            anchored = log.append({"agent": "alpha", "event": "step", "n": 1})
+            log.append(consumer_checkpoint(
+                "gamma", "alpha", min_required_step=0,
+                consumer_checkpoint_step=4, topology_epoch=1,
+                last_heartbeat_at="2026-06-12T16:00:00Z"))
+            log.append(consumer_evicted("gamma", "lease expired", 1))
+            log.append(dependency_registration(
+                "gamma", "alpha", consumer_step=0, producer_step=1,
+                producer_step_hash=anchored["hash"], topology_epoch=2))
+            recovered = log.entries
+        idx = DependencyIndex.from_entries(recovered)
+        if idx.gc_floor("alpha") != 1:
+            ok = False
+            lines.append(f"  FAIL statedep: recovered consumer should pin "
+                         f"floor at its new anchor (1), got "
+                         f"{idx.gc_floor('alpha')}")
+        if idx.verify_cold_start("gamma", recovered) is not None:
+            ok = False
+            lines.append("  FAIL statedep: recovered consumer with a fresh "
+                         "valid anchor should be RUNNING")
 
         # an UNACKNOWLEDGED registration pins the floor at its own anchor —
         # §4 condition 1: no checkpoint yet ⇒ no truncation through it
@@ -277,11 +322,84 @@ def _test_cli(lines):
     return ok
 
 
+# --------------------------------------------------------------------------- #
+# 6. lowering wiring (#18/#24/#27) — the runtime-plane emitters
+# --------------------------------------------------------------------------- #
+# `vakedc lower` on the daily-use target system emits the workflow spec, the
+# memory store config, and the per-runtime eventd log contract — presence-
+# gated, byte-deterministic, with the AOT depth precomputed.
+
+_AF_EXAMPLE = os.path.join("vaked", "examples", "agentfield-swe.vaked")
+
+
+def _test_lowering_wiring(lines):
+    ok = True
+    tmp = tempfile.mkdtemp(prefix="eventd-spec-")
+    try:
+        outs = []
+        for run_dir in ("l1", "l2"):
+            out = os.path.join(tmp, run_dir)
+            r = subprocess.run(
+                [sys.executable, "-m", "vakedc", "lower", _AF_EXAMPLE,
+                 "--out", out],
+                capture_output=True, text=True, cwd=REPO)
+            if r.returncode != 0:
+                lines.append(f"  FAIL lowering: vakedc lower failed: "
+                             f"{r.stderr.strip()}")
+                return False
+            outs.append(out)
+
+        want = ["gen/eventd.json", "gen/memory/palace.json",
+                "gen/workflow/swe_af.json"]
+        for rel in want:
+            if not os.path.exists(os.path.join(outs[0], rel)):
+                ok = False
+                lines.append(f"  FAIL lowering: missing artifact {rel}")
+        if not ok:
+            return False
+
+        wf = json.load(open(os.path.join(outs[0], "gen/workflow/swe_af.json")))
+        if wf.get("depth") != 4 or len(wf.get("steps", [])) != 4 \
+                or len(wf.get("edges", [])) != 3:
+            ok = False
+            lines.append(f"  FAIL lowering: workflow spec shape wrong "
+                         f"(depth={wf.get('depth')}, "
+                         f"steps={len(wf.get('steps', []))}, "
+                         f"edges={len(wf.get('edges', []))})")
+        ev = json.load(open(os.path.join(outs[0], "gen/eventd.json")))
+        mem = json.load(open(os.path.join(outs[0], "gen/memory/palace.json")))
+        if not (ev["log"] == mem["log"] == wf["log"]
+                == "var/lib/agent-field/eventd/log.jsonl"):
+            ok = False
+            lines.append("  FAIL lowering: log paths inconsistent across "
+                         "eventd/memory/workflow artifacts")
+        if ev.get("verify_on_boot") is not True:
+            ok = False
+            lines.append("  FAIL lowering: eventd.json must mandate "
+                         "verify_on_boot")
+
+        # byte-determinism across the two runs, every emitted file
+        for rel in want:
+            b1 = open(os.path.join(outs[0], rel), "rb").read()
+            b2 = open(os.path.join(outs[1], rel), "rb").read()
+            if b1 != b2:
+                ok = False
+                lines.append(f"  FAIL lowering: {rel} not byte-identical "
+                             f"across runs")
+        if ok:
+            lines.append("  lowering-wiring: workflow spec (depth 4, 4 steps, "
+                         "3 edges) + memory store + eventd contract emitted, "
+                         "log paths consistent, byte-deterministic")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok
+
+
 def run():
     lines = []
     ok = True
     for fn in (_test_format_parity, _test_log_discipline, _test_determinism,
-               _test_statedep, _test_cli):
+               _test_statedep, _test_cli, _test_lowering_wiring):
         try:
             ok = fn(lines) and ok
         except Exception as e:
