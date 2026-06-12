@@ -402,7 +402,7 @@ def parse_control(d: dict | None) -> Control:
 _RATIFY_RE = re.compile(
     r"^-\s*(?P<id>[A-Za-z0-9._-]+#\d+)\s*—\s*"
     r"\*\*(?P<verdict>ratify|override|defer)\*\*\s*—\s*"
-    r"(?P<reason>.+?)\s*—\s*@?\S+\s+\d{4}-\d{2}-\d{2}\s*$"
+    r"(?P<reason>.+?)\s*—\s*@\S+\s+\d{4}-\d{2}-\d{2}\s*$"
 )
 
 
