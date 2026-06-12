@@ -19,6 +19,8 @@ REPO_HOME = os.path.abspath(os.path.join(HERE, "..", ".."))   # vaked-base
 DECISIONS_DIR = os.path.join(REPO_HOME, "docs", "decisions")
 STATE_DIR = os.path.join(HERE, "state")
 STATUS_PATH = os.path.join(STATE_DIR, "status.json")
+CONTROL_PATH = os.path.join(STATE_DIR, "control.json")
+EVENTS_PATH = os.path.join(STATE_DIR, "events.jsonl")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_S1 = "qwen/qwen3-235b-a22b-thinking-2507"
 DEFAULT_S2 = "deepseek/deepseek-v4-flash"
@@ -348,6 +350,52 @@ def write_status(status: dict) -> None:
     os.replace(tmp, STATUS_PATH)
 
 
+def read_control() -> C.Control:
+    """Read CONTROL_PATH and parse it. Missing or malformed -> defaults."""
+    try:
+        with open(CONTROL_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        return C.parse_control(d)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return C.parse_control(None)
+
+
+def _events_tail_hash() -> str:
+    """Return the `hash` of the last entry in EVENTS_PATH, or GENESIS_HASH."""
+    try:
+        with open(EVENTS_PATH, encoding="utf-8") as f:
+            last = None
+            for line in f:
+                line = line.strip()
+                if line:
+                    last = line
+        if last is None:
+            return C.GENESIS_HASH
+        return json.loads(last)["hash"]
+    except (FileNotFoundError, OSError, json.JSONDecodeError, KeyError):
+        return C.GENESIS_HASH
+
+
+def _events_count() -> int:
+    """Number of entries in EVENTS_PATH (= next seq)."""
+    try:
+        with open(EVENTS_PATH, encoding="utf-8") as f:
+            return sum(1 for line in f if line.strip())
+    except (FileNotFoundError, OSError):
+        return 0
+
+
+def append_event(payload: dict) -> dict:
+    """Build and append one hash-chained entry to EVENTS_PATH. Return the entry."""
+    prev = _events_tail_hash()
+    seq = _events_count()
+    entry = C.make_entry(prev, seq, payload)
+    os.makedirs(STATE_DIR, exist_ok=True)
+    with open(EVENTS_PATH, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry) + "\n")
+    return entry
+
+
 def _supervised_decide(args, repo: C.Repo, status: dict) -> None:
     """One decide iteration; fold cost + result into status. Contained --
     a failure here never crashes the supervisor."""
@@ -376,7 +424,19 @@ def _supervised_decide(args, repo: C.Repo, status: dict) -> None:
         print("iteration failed for %s: %s" % (repo.name, e), file=sys.stderr)
 
 
+def _apply_state_dir(d: str) -> None:
+    """Redirect all state-file globals to an alternate directory."""
+    global STATE_DIR, STATUS_PATH, CONTROL_PATH, EVENTS_PATH
+    STATE_DIR = d
+    STATUS_PATH = os.path.join(d, "status.json")
+    CONTROL_PATH = os.path.join(d, "control.json")
+    EVENTS_PATH = os.path.join(d, "events.jsonl")
+
+
 def cmd_run(args) -> int:
+    if getattr(args, "state_dir", None):
+        _apply_state_dir(args.state_dir)
+
     repos = C.load_repos(args.repos)
     names = [r.name for r in repos]
     by_name = {r.name: r for r in repos}
@@ -389,14 +449,25 @@ def cmd_run(args) -> int:
     status["running"] = True
     status["budget_total"] = args.budget_total
     iters = 0
+    ticks = 0
     try:
         while True:
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
+            ctrl = read_control()
             if status["total_cost"] >= args.budget_total:
                 print("budget cap reached ($%.2f) — stopping" % args.budget_total)
                 break
             if args.max_iters and iters >= args.max_iters:
                 print("max-iters reached — stopping")
                 break
+            interval = ctrl.interval if ctrl.interval is not None else args.interval
+            if ctrl.paused and not ctrl.step:
+                append_event({"tick": ticks, "event": "paused"})
+                ticks += 1
+                write_status(status)
+                time.sleep(min(interval, 2.0))
+                continue
             unavailable = {r.name for r in repos if not os.path.isdir(r.path)}
             nxt = C.next_repo(names, status["current"], unavailable)
             if nxt is None:
@@ -407,10 +478,14 @@ def cmd_run(args) -> int:
             iters += 1
             _supervised_decide(args, by_name[nxt], status)
             status["last_step_epoch"] = int(time.time())
+            append_event({"tick": ticks, "event": "decide", "repo": nxt,
+                          "iteration": status["iteration"],
+                          "total_cost": status["total_cost"]})
+            ticks += 1
             write_status(status)
             if args.max_iters and iters >= args.max_iters:
                 continue
-            time.sleep(args.interval)
+            time.sleep(interval)
     except KeyboardInterrupt:
         print("\nSIGINT — shutting down")
     finally:
@@ -462,6 +537,10 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--interval", type=int, default=900)
     p_run.add_argument("--budget-total", type=float, default=2.00)
     p_run.add_argument("--max-iters", type=int, default=0)
+    p_run.add_argument("--max-ticks", type=int, default=0,
+                       help="stop after this many control polls (0 = unbounded)")
+    p_run.add_argument("--state-dir", default=None,
+                       help="override state directory (default: tools/ralph/state/)")
     p_run.add_argument("--seed", type=int, default=42)
     p_run.set_defaults(func=cmd_run)
 
