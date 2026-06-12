@@ -524,6 +524,24 @@ def test_run_paused_ticks_without_deciding() -> None:
         assert verify_chain(entries), "chain must verify"
 
 
+def test_stage1_mission_preamble() -> None:
+    from ralphcore import build_stage1_messages
+    # no mission → system is just the stage-1 instruction
+    plain = build_stage1_messages("crabcc", "STATE", [])
+    assert "ratify" not in plain[0]["content"]
+    # with mission → preamble prepended to system
+    m = build_stage1_messages("crabcc", "STATE", [], mission="MISSION: ratify-rate is the metric.")
+    assert m[0]["content"].startswith("MISSION: ratify-rate is the metric.")
+    assert "candidates" in m[0]["content"]  # original instruction still present
+
+
+def test_read_purpose_present() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    p = ralph.read_purpose()
+    assert "ralph-loop" in p and "ratify" in p, "PURPOSE.md should be read"
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------

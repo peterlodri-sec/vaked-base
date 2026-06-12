@@ -22,8 +22,19 @@ STATUS_PATH = os.path.join(STATE_DIR, "status.json")
 CONTROL_PATH = os.path.join(STATE_DIR, "control.json")
 EVENTS_PATH = os.path.join(STATE_DIR, "events.jsonl")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+PURPOSE_PATH = os.path.join(HERE, "PURPOSE.md")
 DEFAULT_S1 = "qwen/qwen3-235b-a22b-thinking-2507"
 DEFAULT_S2 = "deepseek/deepseek-v4-flash"
+
+
+def read_purpose() -> str:
+    """The PURPOSE.md mission preamble injected into every stage-1 call. Empty
+    string if absent (the loop still works, just without the goal preamble)."""
+    try:
+        with open(PURPOSE_PATH, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return ""
 
 
 # Endpoint + key resolution (OpenRouter by default; override to a self-hosted,
@@ -313,7 +324,7 @@ def cmd_decide(args) -> int:
     repo = repo_map[args.repo]
     compact_ctx = gather_context(repo, args.git_log_window, compact=True)
     prior_titles = _prior_titles(repo.name)
-    s1_msgs = C.build_stage1_messages(repo.name, compact_ctx, prior_titles)
+    s1_msgs = C.build_stage1_messages(repo.name, compact_ctx, prior_titles, mission=read_purpose())
 
     if args.dry_run:
         model = args.stage1_model
@@ -406,7 +417,7 @@ def _supervised_decide(args, repo: C.Repo, status: dict) -> None:
         return
     try:
         compact = gather_context(repo, args.git_log_window, compact=True)
-        s1_msgs = C.build_stage1_messages(repo.name, compact, _prior_titles(repo.name))
+        s1_msgs = C.build_stage1_messages(repo.name, compact, _prior_titles(repo.name), mission=read_purpose())
         before = len(_prior_titles(repo.name))
         cost = _decide_live(args, repo, s1_msgs, api_key)
         status["total_cost"] = status.get("total_cost", 0.0) + cost

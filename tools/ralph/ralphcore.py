@@ -134,11 +134,17 @@ def build_stage1_messages(
     repo: str,
     compact_state: str,
     prior_titles: list[str],
+    mission: str = "",
 ) -> list[dict]:
-    """Build the message list for the stage-1 (candidate enumeration) LLM call."""
+    """Build the message list for the stage-1 (candidate enumeration) LLM call.
+    `mission` (the PURPOSE.md preamble) is prepended to the system message so the
+    loop always reasons in service of its stated goal."""
     titles = "\n".join("- " + t for t in prior_titles) or "(none yet)"
+    system = _STAGE1_SYS.format(repo=repo)
+    if mission.strip():
+        system = mission.strip() + "\n\n---\n\n" + system
     return [
-        {"role": "system", "content": _STAGE1_SYS.format(repo=repo)},
+        {"role": "system", "content": system},
         {"role": "user", "content": f"# Prior decision titles\n{titles}\n\n# Project state\n{compact_state}"},
     ]
 
