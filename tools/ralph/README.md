@@ -104,12 +104,29 @@ neither `OPENROUTER_API_KEY` nor `RALPH_API_KEY` is set. To enable the loop, add
 the repository secret (and optionally `RALPH_BASE_URL`/`RALPH_API_KEY` for a
 self-hosted endpoint). Run it on demand any time via **workflow_dispatch**.
 
+## Observability (optional Langfuse tracing)
+
+Tracing is an **optional extra** — the loop is stdlib-only and runs identically
+without it. Each LLM call is wrapped in a [Langfuse](https://langfuse.com)
+generation span recording the model, input, output, token usage, computed USD
+cost, and latency, tagged with the track + stage. It's a no-op unless **both**
+the SDK is installed (the `tracing` extra) and `LANGFUSE_PUBLIC_KEY` is set:
+
+```bash
+LANGFUSE_PUBLIC_KEY=pk-… LANGFUSE_SECRET_KEY=sk-… LANGFUSE_HOST=https://your-langfuse \
+  uv run --project tools/ralph --extra tracing tools/ralph/ralph.py decide --next-track
+```
+
+In CI, set the `LANGFUSE_PUBLIC_KEY`/`LANGFUSE_SECRET_KEY`/`LANGFUSE_HOST`
+repository secrets — the workflow then auto-enables the `tracing` extra. Tracing
+failures are swallowed: observability never breaks the loop.
+
 ## Status / roadmap
 
 - ✅ Phase 1–2: config + pure core, per-track scoped context, single-model
   two-stage `decide`, `--track`/`--next-track` rotation, supervisor + dashboard.
 - ✅ Phase 3: CI cron host + these docs.
-- ⏳ Phase 4: optional Langfuse tracing (`uv run --project tools/ralph --extra tracing`).
+- ✅ Phase 4: optional Langfuse tracing (above).
 - ⏳ Phase 5: the ratify workflow (`docs/decisions/RATIFY.md` + ratify scores).
 
 Tests: `python3 tools/ralph/test_ralph.py` (stdlib runner; the network stages are
