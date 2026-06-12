@@ -38,6 +38,19 @@ tasks:
     desc: 'parse → check → lower, BuildKit-style.  Usage: task all -- file.vaked [out]'
     cmds: ['{{.RUN}} bash tools/vaked-run.sh all {{.CLI_ARGS}}']
 
+  deploy:
+    desc: 'Lower then colmena apply the declared hosts (#51).  Usage: task deploy -- file.vaked'
+    cmds:
+      - |
+        {{.RUN}} bash -c '
+          set -euo pipefail
+          src="${1:-vaked/examples/agentfield-swe.vaked}"
+          out=$(mktemp -d)
+          python3 -m vakedc lower "$src" --out "$out"
+          test -f "$out/gen/colmena/hive.nix" || { echo "no hosts declared — nothing to deploy"; exit 0; }
+          colmena apply --config "$out/gen/colmena/hive.nix"
+        ' deploy {{.CLI_ARGS}}
+
   otp-smoke:
     desc: 'Compile + boot the lowered OTP tree (#19 acceptance demo).  Usage: task otp-smoke -- file.vaked'
     cmds:

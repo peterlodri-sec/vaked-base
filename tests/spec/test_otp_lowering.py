@@ -200,6 +200,77 @@ def _test_gating(lines):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _test_colmena(lines):
+    """#51: host decls lower to gen/colmena/hive.nix — node per host with
+    targetHost/system; `deploy = "local"` flips to allowLocalDeployment;
+    no hosts => no gen/colmena; byte-deterministic."""
+    ok = True
+    tmp = tempfile.mkdtemp(prefix="otp-spec-")
+    try:
+        # agentfield-swe declares host vps (ssh form)
+        outs = []
+        for d in ("c1", "c2"):
+            out = os.path.join(tmp, d)
+            r = _lower(out)
+            if r.returncode != 0:
+                lines.append(f"  FAIL colmena: lower failed: {r.stderr.strip()}")
+                return False
+            outs.append(out)
+        hive_p = os.path.join(outs[0], "gen/colmena/hive.nix")
+        if not os.path.exists(hive_p):
+            lines.append("  FAIL colmena: hive.nix not emitted for host decl")
+            return False
+        hive = open(hive_p, encoding="utf-8").read()
+        for needle in ('"vps" = { ... }: {',
+                       'deployment.targetHost = "root@vps";',
+                       'nixpkgs.system = "x86_64-linux";',
+                       "imports = [ ../../nixos/agent-field.nix ];"):
+            if needle not in hive:
+                ok = False
+                lines.append(f"  FAIL colmena: hive missing {needle!r}")
+        b1 = open(hive_p, "rb").read()
+        b2 = open(os.path.join(outs[1], "gen/colmena/hive.nix"), "rb").read()
+        if b1 != b2:
+            ok = False
+            lines.append("  FAIL colmena: hive.nix not byte-identical across runs")
+
+        # local-deploy variant + provenance tagging
+        src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+               '  host box { system = "x86_64-linux"  deploy = "local" }\n}\n')
+        vp = os.path.join(tmp, "local.vaked")
+        open(vp, "w", encoding="utf-8").write(src)
+        lout = os.path.join(tmp, "local")
+        r = _lower(lout, src=vp)
+        lhive = open(os.path.join(lout, "gen/colmena/hive.nix"),
+                     encoding="utf-8").read()
+        if "deployment.allowLocalDeployment = true;" not in lhive \
+                or "targetHost" in lhive:
+            ok = False
+            lines.append("  FAIL colmena: local deploy form wrong")
+        prov = json.load(open(os.path.join(lout, "provenance.json")))
+        ents = prov["artifacts"].get("gen/colmena/hive.nix", [])
+        if not ents or any(e["emitter"] != "colmena.hive" for e in ents):
+            ok = False
+            lines.append("  FAIL colmena: provenance not tagged colmena.hive")
+
+        # gating: hostless runtime emits no gen/colmena
+        src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+               '  stream s { source = agentpipe.s  type = Agent.T }\n}\n')
+        vp = os.path.join(tmp, "nohost.vaked")
+        open(vp, "w", encoding="utf-8").write(src)
+        nout = os.path.join(tmp, "nohost")
+        _lower(nout, src=vp)
+        if os.path.exists(os.path.join(nout, "gen", "colmena")):
+            ok = False
+            lines.append("  FAIL colmena: hostless runtime emitted gen/colmena")
+        if ok:
+            lines.append("  colmena: hive per host (ssh + local forms), "
+                         "gated on presence, provenance tagged, deterministic")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok
+
+
 def _test_determinism(lines):
     tmp = tempfile.mkdtemp(prefix="otp-spec-")
     try:
@@ -226,7 +297,8 @@ def run():
     lines = []
     ok = True
     for fn in (_test_artifacts_structure, _test_slug,
-               _test_duplicate_members, _test_gating, _test_determinism):
+               _test_duplicate_members, _test_gating, _test_colmena,
+               _test_determinism):
         try:
             ok = fn(lines) and ok
         except Exception as e:
