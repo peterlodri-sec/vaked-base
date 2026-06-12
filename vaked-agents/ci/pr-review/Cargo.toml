@@ -10,7 +10,8 @@ description = "Vaked CI PR-review agent (adk-rust + OpenRouter, crabcc-indexed, 
 [workspace]
 
 [dependencies]
-# adk-rust agent stack. default-features off to drop the Gemini provider we don't use.
+# adk-rust agent stack. default-features off to drop the Gemini provider we don't
+# use; adk-core uses rustls (no system OpenSSL).
 adk-rust = { version = "1.0.0", default-features = false, features = [
     "agents",
     "models",
@@ -19,7 +20,7 @@ adk-rust = { version = "1.0.0", default-features = false, features = [
     "openrouter",
     "mcp",
 ] }
-adk-core = "1.0.0"
+adk-core = { version = "1.0.0", features = ["rustls"] }
 adk-model = { version = "1.0.0", features = ["openrouter"] }
 
 tokio = { version = "1", features = ["full"] }
@@ -27,6 +28,7 @@ futures = "0.3"
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+schemars = "1" # JSON schema for the read_lines tool parameters
 
 # crabcc symbol index, spoken to over MCP (stdio child process: `crabcc --mcp`).
 # Same rmcp line adk-tool uses, so the client types unify.
@@ -34,6 +36,7 @@ rmcp = { version = "1.7", features = ["client", "transport-child-process"] }
 
 # Tracing → self-hosted Langfuse over OTLP/HTTP. Pinned to adk's OTel 0.31 line so
 # the global tracer provider unifies with adk-rust's internal `tracing` spans.
+# rustls transport (no native-tls).
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-opentelemetry = "0.32"
@@ -42,5 +45,14 @@ opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31", default-features = false, features = [
     "trace",
     "http-proto",
-    "reqwest-client",
+    "reqwest-rustls",
 ] }
+
+# Faster startup + smaller baked binary (compile cost lands on the baker, which
+# we don't wait on). panic=abort is fine for a CLI that signals via exit codes.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+

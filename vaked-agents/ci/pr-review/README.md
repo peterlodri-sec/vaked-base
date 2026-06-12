@@ -27,9 +27,22 @@ fleet. `ci/` is the CI-bot subtree.
 - **High reasoning** — GLM-4.6 runs at `effort: high` (best lens for catching
   logic/edge/security bugs), wired through the OpenRouter extension on
   `GenerateContentConfig`. Overridable via `PR_REVIEW_REASONING_EFFORT`.
-- **Map-reduce for large PRs** — above `PR_REVIEW_MAPREDUCE_LINES` (default 600)
-  changed lines, each file is reviewed independently then a synthesis pass dedupes
+- **Map-reduce for large PRs (parallel)** — above `PR_REVIEW_MAPREDUCE_LINES`
+  (default 600) changed lines, each file is reviewed independently —
+  `PR_REVIEW_CONCURRENCY` (default 6) at a time — then a synthesis pass dedupes
   and groups into the final review.
+- **Tiered reasoning** — per-file passes run at `effort: medium` (mechanical),
+  the final/synthesis pass at `high` — large-PR speed without losing the deep pass.
+- **Structured output + caveman prose** — the final pass returns strict JSON
+  (`verdict` / `findings[]` / `prose` / `exceptions`) rendered to markdown: exact
+  finding counts for the status, blunt prose for humans. Falls back to raw text if
+  a provider returns non-conforming output. Disable with `PR_REVIEW_NO_STRUCTURED`.
+- **Prompt caching** — a stable cache key + identical system-prompt prefix let
+  OpenRouter cache the prefix; cached tokens are recorded in usage / Langfuse.
+- **Secret redaction (pre-send guardrail)** — likely credentials are scrubbed
+  from the diff before it ever reaches the model.
+- **`read_lines` tool** — a native read-only Rust `FunctionTool` so the model can
+  pull exact surrounding context crabcc's symbol index doesn't cover.
 - **Noise filtering** — lockfiles, generated, and binary paths are excluded from
   the diff (git pathspec + post-filter) before the model ever sees them.
 - **Language-conditional checklists** — Nix/Zig/Rust/Python/EBNF/OTP checklists
@@ -50,7 +63,9 @@ fleet. `ci/` is the CI-bot subtree.
 as a rolling GitHub Release asset (`pr-review-bin`). `pr-review.yml` downloads
 that prebuilt binary per PR instead of compiling adk-rust (~2 min) every time. If
 the asset is missing — or the PR changes the agent's own source — it builds from
-source as a fallback (dogfooding stays honest).
+source as a fallback (dogfooding stays honest), accelerated by `sccache`. The
+release profile (thin-LTO, `strip`, `panic=abort`) + rustls (no system OpenSSL)
+keep the baked binary ~10 MB for a fast download.
 
 ## Secrets (repo → Settings → Secrets → Actions)
 
@@ -81,6 +96,8 @@ diff-only review.
 | `PR_REVIEW_MAX_FINDINGS` | `20` | cap on findings in the final review |
 | `PR_REVIEW_CRABCC_BUDGET` | `8` | max crabcc tool calls the model may make |
 | `PR_REVIEW_MAX_ITERS` | `12` | max agent tool-loop iterations |
+| `PR_REVIEW_CONCURRENCY` | `6` | parallel per-file passes (map-reduce) + tool concurrency |
+| `PR_REVIEW_NO_STRUCTURED` | — | set to disable structured JSON output |
 
 ## Eval
 

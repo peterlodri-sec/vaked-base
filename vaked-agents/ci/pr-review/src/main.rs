@@ -1,21 +1,21 @@
 //! Vaked CI PR-review agent.
 //!
 //! Advisory PR reviewer on adk-rust. Reads a PR's diff (RTK-condensed, noise
-//! filtered), reviews it with a non-frontier OpenRouter model (GLM-4.6, high
-//! reasoning) — with the repo's `crabcc` symbol index as an MCP toolset — and
-//! posts ONE structured review comment (replacing its prior one). Large PRs are
-//! map-reduced per file. Never blocks a merge: any failure logs and exits 0.
-//! Every run traces to self-hosted Langfuse (OTLP/HTTP) with token usage, and
-//! publishes an advisory commit status with the finding count.
+//! filtered, secret-redacted), reviews it with a non-frontier OpenRouter model
+//! (GLM-4.6) — with the repo's `crabcc` symbol index + a `read_lines` tool as MCP
+//! / native tools — and posts ONE structured review comment (replacing its prior
+//! one). Large PRs are map-reduced per file in parallel. Tiered reasoning: high
+//! for the final pass, medium for per-file passes. Output is structured JSON
+//! (verdict / findings / caveman prose / exceptions), rendered to markdown. Never
+//! blocks a merge: any failure logs and exits 0. Traces to self-hosted Langfuse.
 //!
 //! Env (see README for the full table):
-//!   OPENROUTER_API_KEY | PR_REVIEW_API_KEY   (required) OpenRouter key
-//!   PR_REVIEW_MODEL (z-ai/glm-4.6) · OPENROUTER_BASE_URL · PR_REVIEW_MAX_DIFF_CHARS
-//!   PR_REVIEW_REASONING_EFFORT (high) · PR_REVIEW_MAPREDUCE_LINES (600)
-//!   PR_REVIEW_MAX_FINDINGS (20) · PR_REVIEW_CRABCC_BUDGET (8) · PR_REVIEW_MAX_ITERS (12)
+//!   OPENROUTER_API_KEY | PR_REVIEW_API_KEY · PR_REVIEW_MODEL · OPENROUTER_BASE_URL
+//!   PR_REVIEW_MAX_DIFF_CHARS · PR_REVIEW_REASONING_EFFORT · PR_REVIEW_MAPREDUCE_LINES
+//!   PR_REVIEW_MAX_FINDINGS · PR_REVIEW_CRABCC_BUDGET · PR_REVIEW_MAX_ITERS
+//!   PR_REVIEW_CONCURRENCY · PR_REVIEW_NO_STRUCTURED · PR_REVIEW_NO_RTK
 //!   GH_TOKEN | GITHUB_TOKEN · GITHUB_REPOSITORY · GITHUB_EVENT_PATH
-//!   LANGFUSE_URL · LANGFUSE_API_KEY · CRABCC_BIN · RTK_BIN · PR_REVIEW_NO_RTK
-//!   BASE_SHA · HEAD_SHA
+//!   LANGFUSE_URL · LANGFUSE_API_KEY · CRABCC_BIN · RTK_BIN · BASE_SHA · HEAD_SHA
 //!
 //! Args: --repo <owner/name> --pr <N> --model <id> --dry-run
 //!       --eval <dir>   score the reviewer against local *.diff/*.expect fixtures
@@ -29,13 +29,18 @@ use adk_core::{GenerateContentConfig, SessionId, UserId};
 use adk_rust::prelude::*;
 use adk_rust::session::{CreateRequest, SessionService};
 use adk_rust::tool::McpToolset;
+use adk_rust::{ToolConcurrencyConfig, ToolExecutionStrategy};
 use anyhow::{Context, Result, anyhow};
 use futures::StreamExt;
+use futures::stream;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use rmcp::ServiceExt;
 use rmcp::transport::TokioChildProcess;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 use tokio::process::Command as TokioCommand;
 use tracing::{Instrument, field, info, info_span, warn};
 use tracing_subscriber::layer::SubscriberExt;
@@ -49,45 +54,17 @@ const DEFAULT_MAX_FINDINGS: u32 = 20;
 const DEFAULT_CRABCC_BUDGET: u32 = 8;
 const DEFAULT_MAX_ITERS: u32 = 12;
 const DEFAULT_REASONING_EFFORT: &str = "high";
+const PERFILE_REASONING_EFFORT: &str = "medium";
+const DEFAULT_CONCURRENCY: usize = 6;
 const MAX_FILES_MAPREDUCE: usize = 40;
+const CACHE_KEY: &str = "vaked-ci-reviewer-v1";
 const COMMENT_MARKER: &str = "<!-- vaked-pr-review -->";
 const OPT_OUT_LABEL: &str = "no-bot-review";
-
-/// Files whose diffs are noise for review: drop them from the diff entirely.
-fn is_noise(path: &str) -> bool {
-    let p = path.to_ascii_lowercase();
-    const SUFFIXES: &[&str] = &[
-        ".lock", ".snap", ".min.js", ".min.css", ".pb.go", ".png", ".jpg", ".jpeg", ".gif", ".svg",
-        ".ico", ".pdf", ".woff", ".woff2", ".ttf", ".lockb",
-    ];
-    const NAMES: &[&str] = &[
-        "cargo.lock",
-        "flake.lock",
-        "package-lock.json",
-        "yarn.lock",
-        "pnpm-lock.yaml",
-        "poetry.lock",
-        "go.sum",
-    ];
-    const DIRS: &[&str] = &[
-        "vendor/",
-        "node_modules/",
-        "dist/",
-        "build/",
-        "target/",
-        ".crabcc/",
-    ];
-    let base = p.rsplit('/').next().unwrap_or(&p);
-    NAMES.contains(&base)
-        || SUFFIXES.iter().any(|s| p.ends_with(s))
-        || DIRS.iter().any(|d| p.contains(d))
-}
 
 #[tokio::main]
 async fn main() {
     let tracer_provider = setup_tracing();
 
-    // `--eval <dir>` is a self-contained scoring mode; everything else is review.
     let code = if let Some(dir) = eval_dir() {
         match run_eval(&dir).await {
             Ok(()) => 0,
@@ -128,7 +105,6 @@ fn setup_tracing() -> Option<SdkTracerProvider> {
     let endpoint = format!("{}/api/public/otel/v1/traces", base.trim_end_matches('/'));
     let mut headers = HashMap::new();
     if let Some(token) = token {
-        // LANGFUSE_API_KEY holds base64("public:secret").
         headers.insert("Authorization".to_string(), format!("Basic {token}"));
     }
 
@@ -176,11 +152,30 @@ struct ReviewRunner {
     sessions: Arc<dyn SessionService>,
 }
 
-/// Static reviewer persona + hard output contract. `max_findings` / `crabcc_budget`
-/// are baked in so the model self-limits.
-fn system_prompt(max_findings: u32, crabcc_budget: u32) -> String {
-    format!(
-        r#"You are the Vaked CI reviewer: a council of seven senior engineers reviewing one pull request. Speak with ONE blunt voice.
+#[derive(Default, Clone, Copy)]
+struct Usage {
+    total: i64,
+    thinking: i64,
+    cached: i64,
+    calls: u32,
+}
+impl std::ops::AddAssign for Usage {
+    fn add_assign(&mut self, o: Self) {
+        self.total += o.total;
+        self.thinking += o.thinking;
+        self.cached += o.cached;
+        self.calls += o.calls;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Prompts
+// ---------------------------------------------------------------------------
+
+/// Reviewer persona + output contract. `structured` switches the contract to the
+/// JSON schema (verdict / findings / prose / exceptions).
+fn system_prompt(max_findings: u32, crabcc_budget: u32, structured: bool) -> String {
+    let lenses = r#"You are the Vaked CI reviewer: a council of seven senior engineers reviewing one pull request. Speak with ONE blunt voice.
 
 Vaked is a flake-native capability-graph language: declarations compile to a typed semantic graph, then to artifacts (flake.nix / NixOS modules, Zig daemon configs, eBPF policy manifests, OTel config, docs). It runs on NixOS under an OTP supervision plane orchestrating single-purpose Zig enforcement daemons, with eBPF as the evidence layer and an HCP/Litany wire protocol. Grammar-first: language changes start in the EBNF + an example.
 
@@ -191,30 +186,30 @@ Review through these seven lenses, raising only what applies to the diff:
 4. Security & capability auditor — least privilege, eBPF policy, secrets, injection, supply chain.
 5. Compiler / type-systems engineer — the vakedc parse→check→lower pipeline, EBNF↔type-schema consistency.
 6. OTP/BEAM supervision engineer — supervision trees, fault isolation, Zig-daemon orchestration.
-7. Protocol / wire-format designer — HCP/Litany RFCs, votive frames, .hcplang/hcpbin compatibility.
+7. Protocol / wire-format designer — HCP/Litany RFCs, votive frames, .hcplang/hcpbin compatibility."#;
 
-TOOLS: you have a `crabcc` toolset (the repo's symbol index). Use it to resolve definitions/references for symbols the diff touches before judging them — but call it at most {crabcc_budget} times total; do not browse.
+    let tools = format!(
+        "\n\nTOOLS: `crabcc` (symbol index — resolve defs/refs for touched symbols; ≤{crabcc_budget} calls total) and `read_lines(path,start,end)` (pull exact surrounding context). Use them before judging code you can look up; do not browse."
+    );
 
-SEVERITY:
-- Blocking — breaks the build, is incorrect, loses data, or is a security hole.
-- Major — likely bug, wrong abstraction, or real perf/robustness problem.
-- Minor — smaller correctness/clarity issue worth fixing.
-- Nit — style/naming/polish.
+    let severity = "\n\nSEVERITY: Blocking = breaks build/correctness/security or loses data. Major = likely bug / wrong abstraction / real perf or robustness problem. Minor = smaller correctness or clarity issue. Nit = style/naming/polish.";
 
-OUTPUT CONTRACT — caveman voice, maximum signal, zero slop:
-- No preamble, greetings, praise, restating the diff, or summary-of-summary.
-- Only flag lines THIS diff adds or changes (lines starting with `+`). Never flag unchanged context.
-- Start with one line: `**Verdict:** <one short clause>`.
-- Then findings ONLY, grouped under `### Blocking`, `### Major`, `### Minor`, `### Nit` (omit empty groups).
-- Each finding: `` - `path:line` — problem; fix. `` One sentence. Concrete. No hedging.
-- At most {max_findings} findings total, highest severity first. A short review of real issues beats a long list of guesses.
-- If the diff is clean, output exactly: `**Verdict:** No blocking issues.` and nothing else.
-- Never ask questions. Never request changes formally. You are advisory."#
-    )
+    let common = format!(
+        "\n\nRULES — caveman voice, maximum signal, zero slop:\n- Only flag lines THIS diff adds or changes (lines starting with `+`). Never flag unchanged context.\n- One sentence per finding. Concrete `path:line` + a fix. No hedging, no praise, no preamble.\n- At most {max_findings} findings, highest severity first. A short review of real issues beats a long list of guesses."
+    );
+
+    if structured {
+        format!(
+            "{lenses}{tools}{severity}{common}\n\nOUTPUT: respond ONLY with JSON matching the provided schema.\n- `verdict`: one short clause (\"No blocking issues.\" when clean).\n- `prose`: the full caveman markdown review body, starting with `**Verdict:** ...`, then findings grouped under `### Blocking/### Major/### Minor/### Nit` (omit empty groups). This is what humans read — keep it blunt.\n- `findings`: the same findings as structured records (severity/path/line/problem/fix), for tooling.\n- `exceptions`: list any place you deviated from the contract or could not comply (e.g. unknown line number, file not in diff), one short string each; empty array if none.\nIf the diff is clean: verdict \"No blocking issues.\", prose exactly `**Verdict:** No blocking issues.`, findings [], exceptions [].\nNever ask questions. You are advisory."
+        )
+    } else {
+        format!(
+            "{lenses}{tools}{severity}{common}\n\nOUTPUT: findings bullets only — `` - `path:line` — problem; fix. `` — no verdict line, no JSON. If clean, output nothing. You are advisory."
+        )
+    }
 }
 
 /// Language-specific checklist lines for the file extensions present in the diff.
-/// Sharpens the review without bloating the prompt for irrelevant languages.
 fn language_addenda(files: &[String]) -> String {
     let has = |ext: &str| files.iter().any(|f| f.to_ascii_lowercase().ends_with(ext));
     let mut out = Vec::new();
@@ -246,6 +241,39 @@ fn language_addenda(files: &[String]) -> String {
     }
 }
 
+/// Strict JSON schema for the structured review.
+fn findings_schema() -> Value {
+    json!({
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["verdict", "prose", "findings", "exceptions"],
+        "properties": {
+            "verdict": { "type": "string" },
+            "prose": { "type": "string" },
+            "findings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["severity", "path", "line", "problem", "fix"],
+                    "properties": {
+                        "severity": { "type": "string", "enum": ["Blocking", "Major", "Minor", "Nit"] },
+                        "path": { "type": "string" },
+                        "line": { "type": "string" },
+                        "problem": { "type": "string" },
+                        "fix": { "type": "string" }
+                    }
+                }
+            },
+            "exceptions": { "type": "array", "items": { "type": "string" } }
+        }
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Review orchestration
+// ---------------------------------------------------------------------------
+
 async fn run_review() -> Result<()> {
     let cfg = Config::from_env_and_args()?;
     let span = info_span!(
@@ -257,6 +285,7 @@ async fn run_review() -> Result<()> {
         mode = field::Empty,
         total_tokens = field::Empty,
         thinking_tokens = field::Empty,
+        cached_tokens = field::Empty,
         findings = field::Empty,
     );
     async move {
@@ -267,7 +296,7 @@ async fn run_review() -> Result<()> {
         }
 
         let raw = fetch_diff(&cfg)?;
-        let diff = filter_unified(&raw);
+        let diff = redact_secrets(&filter_unified(&raw));
         if diff.trim().is_empty() {
             info!("empty diff after filtering — nothing to review");
             return Ok(());
@@ -279,43 +308,55 @@ async fn run_review() -> Result<()> {
         let api_key = cfg.api_key.clone().ok_or_else(|| {
             anyhow!("no OpenRouter key — set OPENROUTER_API_KEY or PR_REVIEW_API_KEY")
         })?;
-        let runner = build_runner(&cfg, api_key).await?;
-
+        let crabcc = connect_crabcc(&cfg).await.map_or_else(
+            |e| {
+                warn!(error = %e, "crabcc unavailable — reviewing without it");
+                None
+            },
+            |t| Some(Arc::new(t) as Arc<dyn Toolset>),
+        );
         let addenda = language_addenda(&meta.files);
         let mut usage = Usage::default();
 
-        let review = if changed > cfg.mapreduce_lines {
+        // High-reasoning, structured final-output runner (single-pass + synthesis).
+        let high = build_runner_with(
+            &cfg, &api_key, &cfg.reasoning_effort, 4096, cfg.structured, crabcc.clone(),
+        )?;
+
+        let raw_review = if changed > cfg.mapreduce_lines {
             span.record("mode", "map-reduce");
             info!(changed, threshold = cfg.mapreduce_lines, "large PR — map-reduce");
-            map_reduce_review(&runner, &cfg, &meta, &diff, &addenda, &mut usage).await?
+            let med = build_runner_with(
+                &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
+            )?;
+            map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage).await?
         } else {
             span.record("mode", "single-pass");
-            // Small/medium: prefer RTK's condensed diff for token savings.
             let body = rtk_condensed(&cfg)
-                .map(|c| filter_unified(&c))
+                .map(|c| redact_secrets(&filter_unified(&c)))
                 .filter(|c| !c.trim().is_empty())
                 .unwrap_or(diff);
             let (body, truncated) = truncate(&body, cfg.max_diff_chars);
             let prompt = build_prompt(&meta, &body, truncated, &addenda);
-            let (text, u) = ask(&runner, prompt).await?;
+            let (text, u) = ask(&high, prompt).await?;
             usage += u;
             text
         };
 
-        let review = review.trim().to_string();
+        let (review, n_findings, n_blocking) = render_review(&raw_review, cfg.max_findings as usize);
         if review.is_empty() {
             return Err(anyhow!("model returned empty review"));
         }
 
         span.record("total_tokens", usage.total);
         span.record("thinking_tokens", usage.thinking);
-        let (n_findings, n_blocking) = count_findings(&review);
+        span.record("cached_tokens", usage.cached);
         span.record("findings", n_findings);
-        info!(total_tokens = usage.total, findings = n_findings, blocking = n_blocking, "review ready");
+        info!(total = usage.total, cached = usage.cached, findings = n_findings, blocking = n_blocking, "review ready");
 
         let body = format!(
-            "{COMMENT_MARKER}\n{review}\n\n---\n<sub>🦴 vaked-ci-reviewer · {} · {} findings · {} tok · OpenRouter · automated, advisory</sub>",
-            cfg.model, n_findings, usage.total
+            "{COMMENT_MARKER}\n{review}\n\n---\n<sub>🦴 vaked-ci-reviewer · {} · {} findings · {} tok ({} cached) · OpenRouter · automated, advisory</sub>",
+            cfg.model, n_findings, usage.total, usage.cached
         );
 
         if cfg.dry_run {
@@ -332,9 +373,11 @@ async fn run_review() -> Result<()> {
     .await
 }
 
-/// Per-file passes over a large diff, then one synthesis pass into the final review.
+/// Per-file passes (in parallel) over a large diff, then one synthesis pass.
+#[allow(clippy::too_many_arguments)]
 async fn map_reduce_review(
-    runner: &ReviewRunner,
+    med: &ReviewRunner,
+    high: &ReviewRunner,
     cfg: &Config,
     meta: &PrMeta,
     diff: &str,
@@ -343,13 +386,23 @@ async fn map_reduce_review(
 ) -> Result<String> {
     let files = split_per_file(diff);
     let total = files.len();
+    let budget = cfg.max_diff_chars / 4;
+
+    let results: Vec<(String, Result<(String, Usage)>)> =
+        stream::iter(files.into_iter().take(MAX_FILES_MAPREDUCE).map(|(path, section)| async move {
+            let (section, _) = truncate(&section, budget);
+            let prompt = format!(
+                "Review ONLY this file's diff per your rules. File: {path}\n```diff\n{section}\n```{addenda}"
+            );
+            (path, ask(med, prompt).await)
+        }))
+        .buffer_unordered(cfg.concurrency)
+        .collect()
+        .await;
+
     let mut raw_findings = String::new();
-    for (path, section) in files.into_iter().take(MAX_FILES_MAPREDUCE) {
-        let (section, _) = truncate(&section, cfg.max_diff_chars / 4);
-        let prompt = format!(
-            "Review ONLY this file's diff. Output findings bullets only — NO verdict line — in the finding format. If clean, output nothing.\n\nFile: {path}\n```diff\n{section}\n```{addenda}"
-        );
-        match ask(runner, prompt).await {
+    for (path, res) in results {
+        match res {
             Ok((text, u)) => {
                 *usage += u;
                 let t = text.trim();
@@ -366,68 +419,148 @@ async fn map_reduce_review(
         ));
     }
     if raw_findings.trim().is_empty() {
-        return Ok("**Verdict:** No blocking issues.".to_string());
+        return Ok(clean_verdict(cfg.structured));
     }
+
     let synth = format!(
         "Below are raw per-file findings from a large PR ({total} files). Produce the FINAL review per your output contract: dedupe, keep the most important, group by severity, lead with the verdict line.\n\nPR #{}: {}\n{raw_findings}",
         meta.number, meta.title
     );
-    let (text, u) = ask(runner, synth).await?;
+    let (text, u) = ask(high, synth).await?;
     *usage += u;
     Ok(text)
 }
 
-/// Build the agent (model + reasoning + crabcc toolset + loop bounds) and a Runner.
-async fn build_runner(cfg: &Config, api_key: String) -> Result<ReviewRunner> {
-    let or_config = OpenRouterConfig::new(api_key, cfg.model.clone())
+fn clean_verdict(structured: bool) -> String {
+    if structured {
+        json!({"verdict":"No blocking issues.","prose":"**Verdict:** No blocking issues.","findings":[],"exceptions":[]}).to_string()
+    } else {
+        "**Verdict:** No blocking issues.".to_string()
+    }
+}
+
+/// Build a reviewer (model + reasoning + caching + tools + loop bounds) and Runner.
+fn build_runner_with(
+    cfg: &Config,
+    api_key: &str,
+    effort: &str,
+    max_out: i32,
+    structured: bool,
+    crabcc: Option<Arc<dyn Toolset>>,
+) -> Result<ReviewRunner> {
+    let or_config = OpenRouterConfig::new(api_key.to_string(), cfg.model.clone())
         .with_base_url(cfg.base_url.clone())
         .with_http_referer("https://github.com/peterlodri-sec/vaked-base")
         .with_title("vaked-ci-reviewer")
         .with_default_api_mode(OpenRouterApiMode::ChatCompletions);
     let model = OpenRouterClient::new(or_config).map_err(|e| anyhow!("OpenRouter client: {e}"))?;
 
-    // High reasoning effort via the OpenRouter extension bag on GenerateContentConfig.
     let mut gen_cfg = GenerateContentConfig {
         temperature: Some(0.1),
         top_p: Some(0.9),
-        max_output_tokens: Some(4096),
+        max_output_tokens: Some(max_out),
         seed: Some(7),
         ..Default::default()
     };
-    let reasoning = OpenRouterReasoningConfig {
-        effort: Some(cfg.reasoning_effort.clone()),
-        enabled: Some(true),
-        ..Default::default()
-    };
+    if structured {
+        gen_cfg.response_schema = Some(findings_schema());
+    }
+    // High reasoning + a stable prompt-cache key (OpenRouter caches the static
+    // system-prompt prefix; cached tokens show up in usage / Langfuse).
     OpenRouterRequestOptions::default()
-        .with_reasoning(reasoning)
+        .with_reasoning(OpenRouterReasoningConfig {
+            effort: Some(effort.to_string()),
+            enabled: Some(true),
+            ..Default::default()
+        })
+        .with_prompt_cache_key(CACHE_KEY)
         .insert_into_config(&mut gen_cfg)
-        .map_err(|e| anyhow!("reasoning config: {e}"))?;
+        .map_err(|e| anyhow!("openrouter options: {e}"))?;
 
     let mut builder = LlmAgentBuilder::new("vaked-ci-reviewer")
-        .instruction(system_prompt(cfg.max_findings, cfg.crabcc_budget))
+        .instruction(system_prompt(
+            cfg.max_findings,
+            cfg.crabcc_budget,
+            structured,
+        ))
         .model(Arc::new(model))
         .generate_content_config(gen_cfg)
         .max_iterations(cfg.max_iters)
-        .tool_timeout(Duration::from_secs(60));
-
-    match connect_crabcc(cfg).await {
-        Ok(toolset) => {
-            info!("crabcc MCP toolset connected");
-            builder = builder.toolset(Arc::new(toolset));
-        }
-        Err(e) => warn!(error = %e, "crabcc unavailable — reviewing diff-only"),
+        .tool_timeout(Duration::from_secs(60))
+        .tool_execution_strategy(ToolExecutionStrategy::Auto)
+        .tool(read_lines_tool());
+    if let Some(ts) = crabcc {
+        builder = builder.toolset(ts);
     }
-
     let agent = builder.build().map_err(|e| anyhow!("agent build: {e}"))?;
+
+    let run_config = RunConfig::builder()
+        .tool_concurrency(ToolConcurrencyConfig {
+            max_concurrency: Some(cfg.concurrency),
+            ..Default::default()
+        })
+        .build();
+
     let sessions: Arc<dyn SessionService> = Arc::new(InMemorySessionService::new());
     let runner = Runner::builder()
         .app_name("vaked-ci-reviewer")
         .agent(Arc::new(agent))
         .session_service(sessions.clone())
+        .run_config(run_config)
         .build()
         .map_err(|e| anyhow!("runner build: {e}"))?;
     Ok(ReviewRunner { runner, sessions })
+}
+
+/// A read-only tool: pull an inclusive 1-based line range from a repo file.
+#[derive(Deserialize, Serialize, JsonSchema)]
+struct ReadLinesArgs {
+    /// Repository-relative file path (no leading `/`, no `..`).
+    path: String,
+    /// 1-based inclusive start line.
+    start: u32,
+    /// 1-based inclusive end line.
+    end: u32,
+}
+
+fn read_lines_tool() -> Arc<dyn Tool> {
+    Arc::new(
+        FunctionTool::new(
+            "read_lines",
+            "Read an inclusive 1-based line range from a repo-relative file (read-only).",
+            |_ctx: Arc<dyn ToolContext>, args: Value| async move {
+                let path = args
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string();
+                let start = args
+                    .get("start")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(1)
+                    .max(1) as usize;
+                let end = args
+                    .get("end")
+                    .and_then(Value::as_u64)
+                    .unwrap_or(start as u64) as usize;
+                if path.is_empty() || path.contains("..") || path.starts_with('/') {
+                    return Ok(json!({"error": "path must be repo-relative, no '..'"}));
+                }
+                let text = match std::fs::read_to_string(&path) {
+                    Ok(t) => t,
+                    Err(e) => return Ok(json!({"error": format!("read {path}: {e}")})),
+                };
+                let lines: Vec<&str> = text.lines().collect();
+                let s = start.saturating_sub(1).min(lines.len());
+                let e = end.min(lines.len()).max(s).min(s + 400); // cap 400 lines
+                let slice: String = lines[s..e].join("\n").chars().take(8000).collect();
+                Ok(json!({"path": path, "start": start, "end": e, "content": slice}))
+            },
+        )
+        .with_read_only(true)
+        .with_concurrency_safe(true)
+        .with_parameters_schema::<ReadLinesArgs>(),
+    )
 }
 
 /// Spawn `crabcc --mcp` over stdio and wrap it as a toolset (index refreshed first).
@@ -451,7 +584,7 @@ async fn connect_crabcc(cfg: &Config) -> Result<McpToolset> {
     Ok(McpToolset::new(client).with_name("crabcc"))
 }
 
-/// One agent turn (fresh session); returns (text, token usage).
+/// One agent turn (fresh session); returns (text, token usage incl. cached).
 async fn ask(rr: &ReviewRunner, prompt: String) -> Result<(String, Usage)> {
     let session_id = SessionId::generate();
     rr.sessions
@@ -482,6 +615,7 @@ async fn ask(rr: &ReviewRunner, prompt: String) -> Result<(String, Usage)> {
         if let Some(u) = &event.llm_response.usage_metadata {
             usage.total += u.total_token_count as i64;
             usage.thinking += u.thinking_token_count.unwrap_or(0) as i64;
+            usage.cached += u.cache_read_input_token_count.unwrap_or(0) as i64;
             usage.calls += 1;
         }
         if let Some(content) = &event.llm_response.content {
@@ -493,20 +627,6 @@ async fn ask(rr: &ReviewRunner, prompt: String) -> Result<(String, Usage)> {
         }
     }
     Ok((out, usage))
-}
-
-#[derive(Default, Clone, Copy)]
-struct Usage {
-    total: i64,
-    thinking: i64,
-    calls: u32,
-}
-impl std::ops::AddAssign for Usage {
-    fn add_assign(&mut self, o: Self) {
-        self.total += o.total;
-        self.thinking += o.thinking;
-        self.calls += o.calls;
-    }
 }
 
 fn build_prompt(meta: &PrMeta, diff: &str, truncated: bool, addenda: &str) -> String {
@@ -536,10 +656,189 @@ fn build_prompt(meta: &PrMeta, diff: &str, truncated: bool, addenda: &str) -> St
 }
 
 // ---------------------------------------------------------------------------
+// Rendering structured output → markdown
+// ---------------------------------------------------------------------------
+
+/// Render the model's raw output (JSON or prose) to the final markdown review,
+/// returning (markdown, total_findings, blocking_findings). Falls back to raw
+/// text if JSON parsing fails, so a non-conforming provider never breaks posting.
+fn render_review(raw: &str, max_findings: usize) -> (String, usize, usize) {
+    let cleaned = strip_code_fences(raw.trim());
+    if let Ok(v) = serde_json::from_str::<Value>(cleaned)
+        && (v.get("verdict").is_some() || v.get("findings").is_some())
+    {
+        let verdict = v["verdict"].as_str().unwrap_or("").trim();
+        let findings = v["findings"].as_array().cloned().unwrap_or_default();
+        let total = findings.len();
+        let blocking = findings
+            .iter()
+            .filter(|f| f["severity"].as_str() == Some("Blocking"))
+            .count();
+
+        let prose = v["prose"].as_str().unwrap_or("").trim();
+        let mut body = if prose.is_empty() {
+            let mut s = format!(
+                "**Verdict:** {}\n",
+                if verdict.is_empty() {
+                    "see findings"
+                } else {
+                    verdict
+                }
+            );
+            s.push_str(&render_findings(&findings, max_findings));
+            s
+        } else if prose.starts_with("**Verdict:") || verdict.is_empty() {
+            prose.to_string()
+        } else {
+            format!("**Verdict:** {verdict}\n\n{prose}")
+        };
+
+        let exceptions: Vec<String> = v["exceptions"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|e| e.as_str().map(|s| s.trim().to_string()))
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !exceptions.is_empty() {
+            body.push_str("\n\n### Notes\n");
+            for e in exceptions {
+                body.push_str(&format!("- {e}\n"));
+            }
+        }
+        return (body.trim().to_string(), total, blocking);
+    }
+
+    let (total, blocking) = count_findings(raw);
+    (raw.trim().to_string(), total, blocking)
+}
+
+fn render_findings(findings: &[Value], max: usize) -> String {
+    let mut out = String::new();
+    for sev in ["Blocking", "Major", "Minor", "Nit"] {
+        let group: Vec<&Value> = findings
+            .iter()
+            .filter(|f| f["severity"].as_str() == Some(sev))
+            .collect();
+        if group.is_empty() {
+            continue;
+        }
+        out.push_str(&format!("\n### {sev}\n"));
+        for f in group.into_iter().take(max) {
+            let path = f["path"].as_str().unwrap_or("?");
+            let line = f["line"].as_str().unwrap_or("?");
+            let problem = f["problem"].as_str().unwrap_or("").trim();
+            let fix = f["fix"].as_str().unwrap_or("").trim();
+            out.push_str(&format!("- `{path}:{line}` — {problem}; {fix}\n"));
+        }
+    }
+    out
+}
+
+fn strip_code_fences(s: &str) -> &str {
+    let s = s.trim();
+    if let Some(rest) = s.strip_prefix("```json").or_else(|| s.strip_prefix("```")) {
+        return rest.trim_end_matches("```").trim();
+    }
+    s
+}
+
+// ---------------------------------------------------------------------------
+// Secret redaction (pre-send guardrail)
+// ---------------------------------------------------------------------------
+
+/// Scrub likely credentials from diff text before it ever reaches the model.
+/// Conservative: token prefixes + `key = value` lines where the key looks secret.
+fn redact_secrets(diff: &str) -> String {
+    const PREFIXES: &[&str] = &[
+        "sk-",
+        "ghp_",
+        "gho_",
+        "ghu_",
+        "ghs_",
+        "github_pat_",
+        "xoxb-",
+        "xoxp-",
+        "AKIA",
+        "ASIA",
+        "AIza",
+        "-----BEGIN",
+        "glpat-",
+        "sk-ant-",
+        "sk-or-",
+    ];
+    const KEYWORDS: &[&str] = &[
+        "secret",
+        "token",
+        "password",
+        "passwd",
+        "api_key",
+        "apikey",
+        "private_key",
+    ];
+    const PLACEHOLDER: &str = "«redacted-secret»";
+
+    diff.lines()
+        .map(|line| {
+            // Keep diff structure markers; redact within content.
+            let mut redacted = line.to_string();
+            for tok in line.split_whitespace() {
+                let bare = tok.trim_matches(|c| matches!(c, '"' | '\'' | ',' | ';' | '(' | ')'));
+                if bare.len() >= 12 && PREFIXES.iter().any(|p| bare.starts_with(p)) {
+                    redacted = redacted.replace(bare, PLACEHOLDER);
+                }
+            }
+            let lower = line.to_ascii_lowercase();
+            if KEYWORDS.iter().any(|k| lower.contains(k))
+                && let Some(idx) = line.find(['=', ':'])
+            {
+                let (head, tail) = line.split_at(idx + 1);
+                let tail_trim = tail.trim();
+                if tail_trim.len() >= 8 && !tail_trim.starts_with("//") {
+                    redacted = format!("{head} {PLACEHOLDER}");
+                }
+            }
+            redacted
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+// ---------------------------------------------------------------------------
 // Diff helpers
 // ---------------------------------------------------------------------------
 
-/// Split a unified diff into (path, section) per file, keyed on `diff --git`.
+fn is_noise(path: &str) -> bool {
+    let p = path.to_ascii_lowercase();
+    const SUFFIXES: &[&str] = &[
+        ".lock", ".snap", ".min.js", ".min.css", ".pb.go", ".png", ".jpg", ".jpeg", ".gif", ".svg",
+        ".ico", ".pdf", ".woff", ".woff2", ".ttf", ".lockb",
+    ];
+    const NAMES: &[&str] = &[
+        "cargo.lock",
+        "flake.lock",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "poetry.lock",
+        "go.sum",
+    ];
+    const DIRS: &[&str] = &[
+        "vendor/",
+        "node_modules/",
+        "dist/",
+        "build/",
+        "target/",
+        ".crabcc/",
+    ];
+    let base = p.rsplit('/').next().unwrap_or(&p);
+    NAMES.contains(&base)
+        || SUFFIXES.iter().any(|s| p.ends_with(s))
+        || DIRS.iter().any(|d| p.contains(d))
+}
+
 fn split_per_file(unified: &str) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
     let mut path = String::new();
@@ -549,11 +848,10 @@ fn split_per_file(unified: &str) -> Vec<(String, String)> {
             if !buf.is_empty() {
                 out.push((std::mem::take(&mut path), std::mem::take(&mut buf)));
             }
-            // "a/<x> b/<y>" — take the b-side path.
             path = rest
                 .split(" b/")
                 .nth(1)
-                .map(|s| s.to_string())
+                .map(String::from)
                 .unwrap_or_else(|| rest.to_string());
         }
         buf.push_str(line);
@@ -565,10 +863,9 @@ fn split_per_file(unified: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Drop file sections whose path is review-noise (lockfiles, generated, binaries).
 fn filter_unified(unified: &str) -> String {
     if !unified.contains("diff --git ") {
-        return unified.to_string(); // not a standard unified diff (e.g. rtk output)
+        return unified.to_string();
     }
     split_per_file(unified)
         .into_iter()
@@ -578,7 +875,6 @@ fn filter_unified(unified: &str) -> String {
         .join("")
 }
 
-/// Count added/removed source lines (ignoring `+++`/`---` headers).
 fn count_changed_lines(unified: &str) -> usize {
     unified
         .lines()
@@ -589,10 +885,8 @@ fn count_changed_lines(unified: &str) -> usize {
         .count()
 }
 
-/// Rough finding accounting for the advisory status: (total, blocking).
 fn count_findings(review: &str) -> (usize, usize) {
-    let mut total = 0usize;
-    let mut blocking = 0usize;
+    let (mut total, mut blocking) = (0usize, 0usize);
     let mut in_blocking = false;
     for line in review.lines() {
         let t = line.trim_start();
@@ -609,7 +903,7 @@ fn count_findings(review: &str) -> (usize, usize) {
 }
 
 // ---------------------------------------------------------------------------
-// gh CLI helpers
+// gh CLI / git helpers
 // ---------------------------------------------------------------------------
 
 fn gh(args: &[&str]) -> Result<String> {
@@ -623,6 +917,17 @@ fn gh(args: &[&str]) -> Result<String> {
             args.join(" "),
             String::from_utf8_lossy(&out.stderr).trim()
         ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+fn git(args: &[&str]) -> Result<String> {
+    let out = StdCommand::new("git")
+        .args(args)
+        .output()
+        .with_context(|| format!("running `git {}`", args.join(" ")))?;
+    if !out.status.success() {
+        return Err(anyhow!("`git {}` failed", args.join(" ")));
     }
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }
@@ -673,8 +978,6 @@ fn fetch_pr_meta(cfg: &Config) -> Result<PrMeta> {
 }
 
 fn fetch_diff(cfg: &Config) -> Result<String> {
-    // Plain unified diff over the PR range (honors path excludes natively), so the
-    // structured passes (filter / per-file / map-reduce) work. gh is the fallback.
     if let (Some(base), Some(head)) = (&cfg.base_sha, &cfg.head_sha) {
         let range = format!("{base}...{head}");
         let mut args = vec!["diff".to_string(), range, "--".to_string(), ".".to_string()];
@@ -689,7 +992,6 @@ fn fetch_diff(cfg: &Config) -> Result<String> {
     gh(&["pr", "diff", &cfg.pr.to_string(), "--repo", &cfg.repo])
 }
 
-/// `rtk git diff base...head` — a token-reduced diff for the single-pass path.
 fn rtk_condensed(cfg: &Config) -> Option<String> {
     if !cfg.use_rtk {
         return None;
@@ -716,7 +1018,6 @@ fn rtk_condensed(cfg: &Config) -> Option<String> {
     None
 }
 
-/// git pathspec exclusions mirroring `is_noise` (best-effort; post-filter still runs).
 fn noise_pathspecs() -> Vec<String> {
     [
         "Cargo.lock",
@@ -742,18 +1043,6 @@ fn noise_pathspecs() -> Vec<String> {
     .collect()
 }
 
-fn git(args: &[&str]) -> Result<String> {
-    let out = StdCommand::new("git")
-        .args(args)
-        .output()
-        .with_context(|| format!("running `git {}`", args.join(" ")))?;
-    if !out.status.success() {
-        return Err(anyhow!("`git {}` failed", args.join(" ")));
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
-}
-
-/// Replace-don't-stack: delete prior bot comments (by marker), then post one.
 fn post_review(cfg: &Config, body: &str) -> Result<()> {
     delete_prior_comments(cfg);
     let mut path = std::env::temp_dir();
@@ -775,14 +1064,8 @@ fn post_review(cfg: &Config, body: &str) -> Result<()> {
 
 fn delete_prior_comments(cfg: &Config) {
     let endpoint = format!("repos/{}/issues/{}/comments", cfg.repo, cfg.pr);
-    let jq = format!("'.[] | select(.body | contains(\"{COMMENT_MARKER}\")) | .id'");
-    let ids = match gh(&[
-        "api",
-        "--paginate",
-        &endpoint,
-        "--jq",
-        jq.trim_matches('\''),
-    ]) {
+    let jq = format!(".[] | select(.body | contains(\"{COMMENT_MARKER}\")) | .id");
+    let ids = match gh(&["api", "--paginate", &endpoint, "--jq", &jq]) {
         Ok(s) => s,
         Err(e) => {
             warn!(error = %e, "could not list prior comments — skipping dedupe");
@@ -797,7 +1080,6 @@ fn delete_prior_comments(cfg: &Config) {
     }
 }
 
-/// Advisory commit status (always `success`) carrying the finding count.
 fn set_advisory_status(cfg: &Config, desc: &str) {
     let Some(sha) = &cfg.head_sha else { return };
     let endpoint = format!("repos/{}/statuses/{}", cfg.repo, sha);
@@ -832,13 +1114,18 @@ fn eval_dir() -> Option<String> {
     None
 }
 
-/// Score the reviewer against `<dir>/*.diff` fixtures: each `<name>.expect` holds
-/// newline-separated substrings the review should contain (case-insensitive).
 async fn run_eval(dir: &str) -> Result<()> {
     let api_key = env_first(&["PR_REVIEW_API_KEY", "OPENROUTER_API_KEY"])
         .ok_or_else(|| anyhow!("eval needs OPENROUTER_API_KEY"))?;
     let cfg = Config::eval_defaults();
-    let runner = build_runner(&cfg, api_key).await?;
+    let runner = build_runner_with(
+        &cfg,
+        &api_key,
+        &cfg.reasoning_effort,
+        4096,
+        cfg.structured,
+        None,
+    )?;
 
     let mut entries: Vec<_> = std::fs::read_dir(dir)
         .with_context(|| format!("reading eval dir {dir}"))?
@@ -858,8 +1145,7 @@ async fn run_eval(dir: &str) -> Result<()> {
             .to_string_lossy()
             .into_owned();
         let diff = std::fs::read_to_string(&diff_path)?;
-        let expect_path = diff_path.with_extension("expect");
-        let expects: Vec<String> = std::fs::read_to_string(&expect_path)
+        let expects: Vec<String> = std::fs::read_to_string(diff_path.with_extension("expect"))
             .unwrap_or_default()
             .lines()
             .map(|l| l.trim().to_lowercase())
@@ -875,7 +1161,8 @@ async fn run_eval(dir: &str) -> Result<()> {
         };
         let (body, truncated) = truncate(&diff, cfg.max_diff_chars);
         let prompt = build_prompt(&meta, &body, truncated, &language_addenda(&meta.files));
-        let (review, _) = ask(&runner, prompt).await?;
+        let (raw, _) = ask(&runner, prompt).await?;
+        let (review, _, _) = render_review(&raw, cfg.max_findings as usize);
         let lc = review.to_lowercase();
         let hits = expects.iter().filter(|e| lc.contains(*e)).count();
         let ok = hits == expects.len();
@@ -918,6 +1205,8 @@ struct Config {
     max_findings: u32,
     crabcc_budget: u32,
     max_iters: u32,
+    concurrency: usize,
+    structured: bool,
 }
 
 impl Config {
@@ -974,10 +1263,11 @@ impl Config {
             crabcc_budget: env_usize("PR_REVIEW_CRABCC_BUDGET", DEFAULT_CRABCC_BUDGET as usize)
                 as u32,
             max_iters: env_usize("PR_REVIEW_MAX_ITERS", DEFAULT_MAX_ITERS as usize) as u32,
+            concurrency: env_usize("PR_REVIEW_CONCURRENCY", DEFAULT_CONCURRENCY).max(1),
+            structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
         })
     }
 
-    /// Minimal config for `--eval` (no PR / repo context needed).
     fn eval_defaults() -> Self {
         Self {
             repo: String::new(),
@@ -998,6 +1288,8 @@ impl Config {
             max_findings: DEFAULT_MAX_FINDINGS,
             crabcc_budget: DEFAULT_CRABCC_BUDGET,
             max_iters: DEFAULT_MAX_ITERS,
+            concurrency: DEFAULT_CONCURRENCY,
+            structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
         }
     }
 }
@@ -1014,7 +1306,6 @@ fn env_usize(key: &str, default: usize) -> usize {
         .unwrap_or(default)
 }
 
-/// PR number from the Actions event payload, else the `refs/pull/<N>/merge` ref.
 fn detect_pr_number() -> Option<u64> {
     if let Ok(path) = std::env::var("GITHUB_EVENT_PATH")
         && let Ok(raw) = std::fs::read_to_string(&path)
@@ -1035,7 +1326,6 @@ fn detect_pr_number() -> Option<u64> {
         .ok()
 }
 
-/// Truncate to a char budget on a line boundary; returns (text, was_truncated).
 fn truncate(s: &str, max: usize) -> (String, bool) {
     if s.len() <= max {
         return (s.to_string(), false);
