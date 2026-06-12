@@ -911,6 +911,48 @@ def test_run_tracks_budget_zero_no_iterations() -> None:
     assert "budget" in (r.stdout + r.stderr).lower()
 
 
+def test_run_tracks_seeds_total_cost_from_ledger() -> None:
+    """A fresh status.json must seed cumulative spend from the committed event
+    ledger, so a stateless restart respects the budget already spent."""
+    import subprocess
+    from ralphcore import make_entry, GENESIS_HASH
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # ledger already records $0.50 of spend on a track decide
+        e = make_entry(GENESIS_HASH, 0,
+                       {"event": "decide", "track": "graph-concept",
+                        "iteration": 1, "cost": 0.5, "total_cost": 0.5})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        # budget below recorded spend → must stop immediately, no API call
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--budget-total", "0.10", "--state-dir", tmpdir, "--max-iters", "1"],
+            capture_output=True, text=True, cwd=here, timeout=30)
+        assert r.returncode == 0, r.stderr
+        assert "budget" in (r.stdout + r.stderr).lower(), r.stdout
+
+
+def test_clear_step_resets_flag() -> None:
+    """_clear_step turns off the one-shot step flag, leaving paused intact."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig = ralph.CONTROL_PATH
+        ralph.CONTROL_PATH = os.path.join(tmpdir, "control.json")
+        try:
+            with open(ralph.CONTROL_PATH, "w") as f:
+                json.dump({"paused": True, "step": True, "interval": 5}, f)
+            ralph._clear_step()
+            with open(ralph.CONTROL_PATH) as f:
+                d = json.load(f)
+        finally:
+            ralph.CONTROL_PATH = orig
+        assert d["step"] is False
+        assert d["paused"] is True and d["interval"] == 5
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

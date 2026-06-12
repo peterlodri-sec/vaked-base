@@ -595,6 +595,22 @@ def read_control() -> C.Control:
         return C.parse_control(None)
 
 
+def _clear_step() -> None:
+    """Reset the one-shot `step` flag after a stepped iteration, keeping
+    paused/interval intact. No-op if control.json is missing/unset."""
+    try:
+        with open(CONTROL_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return
+    if d.get("step"):
+        d["step"] = False
+        tmp = CONTROL_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+        os.replace(tmp, CONTROL_PATH)
+
+
 def _events_tail_hash() -> str:
     """Return the `hash` of the last entry in EVENTS_PATH, or GENESIS_HASH."""
     try:
@@ -713,13 +729,18 @@ def _run_tracks(args) -> int:
     tracks = C.load_tracks(args.tracks)
     names = [t.name for t in tracks]
     by_name = {t.name: t for t in tracks}
-    status = read_status() or {
-        "running": True, "current": None, "iteration": 0,
-        "total_cost": 0.0, "budget_total": args.budget_total,
-        "subjects": {t.name: {"entries": 0, "last_title": "-", "cost": 0.0,
-                              "model": t.model} for t in tracks},
-        "recent": [], "last_step_epoch": 0, "mode": "tracks",
-    }
+    status = read_status()
+    if status is None:
+        # status.json is a derived cache (gitignored); the committed event
+        # ledger is the state-of-record. Seed rotation + spend from it so a
+        # stateless restart resumes instead of re-running track #1 / re-spending.
+        status = {
+            "running": True, "current": _last_decided_track(), "iteration": 0,
+            "total_cost": _events_total_cost(), "budget_total": args.budget_total,
+            "subjects": {t.name: {"entries": 0, "last_title": "-", "cost": 0.0,
+                                  "model": t.model} for t in tracks},
+            "recent": [], "last_step_epoch": 0, "mode": "tracks",
+        }
     status["running"] = True
     status["budget_total"] = args.budget_total
     status.setdefault("subjects", {})
@@ -752,6 +773,8 @@ def _run_tracks(args) -> int:
             iters += 1
             _supervised_decide_track(args, by_name[nxt], status)
             status["last_step_epoch"] = int(time.time())
+            if ctrl.step:                 # one-shot consumed → back to paused
+                _clear_step()
             ticks += 1
             write_status(status)
             if args.max_iters and iters >= args.max_iters:
@@ -811,6 +834,8 @@ def _run_repos(args) -> int:
             append_event({"tick": ticks, "event": "decide", "repo": nxt,
                           "iteration": status["iteration"],
                           "total_cost": status["total_cost"]})
+            if ctrl.step:                 # one-shot consumed → back to paused
+                _clear_step()
             ticks += 1
             write_status(status)
             if args.max_iters and iters >= args.max_iters:
