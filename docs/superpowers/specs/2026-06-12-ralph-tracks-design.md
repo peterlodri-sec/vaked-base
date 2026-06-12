@@ -156,7 +156,7 @@ stateless CI run resumes the round-robin with zero extra state.
 
 ```yaml
 on:
-  schedule: [{ cron: "*/30 * * * *" }]   # tune to the ratify budget (below)
+  schedule: [{ cron: "0 */3 * * *" }]    # ~8 decisions/day (2/track) — fits the 1h ratify budget
   workflow_dispatch: {}
 concurrency: { group: ralph-tracks, cancel-in-progress: false }
 jobs:
@@ -166,7 +166,9 @@ jobs:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }             # full history: events.jsonl chain + path-scoped git log
       - run: pipx install uv
-      - run: uv run tools/ralph/ralph.py decide --next-track   # rotation from event log
+      - run: uv run --project tools/ralph tools/ralph/ralph.py decide --next-track
+        # --project selects tools/ralph/pyproject.toml so langfuse is synced
+        # (without it, uv runs dep-less and silently takes the no-traces path)
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
