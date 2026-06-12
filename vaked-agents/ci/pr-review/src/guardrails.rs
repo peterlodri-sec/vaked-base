@@ -273,6 +273,14 @@ impl Guardrail for FindingsCap {
         }
         arr.sort_by_key(|f| sev_rank(f.get("severity").and_then(Value::as_str).unwrap_or("Nit")));
         arr.truncate(self.max);
+        // Blank the human-visible `prose` so the renderer rebuilds it from the
+        // *capped* findings array. `render_review` prefers non-empty `prose` as the
+        // posted body, so leaving the model's original prose here would still show
+        // every over-limit finding while the count reflected only `max` (the cap
+        // would be cosmetic). Empty prose makes the renderer regenerate from findings.
+        if let Some(prose) = v.get_mut("prose") {
+            *prose = Value::String(String::new());
+        }
         let json = serde_json::to_string(&v).unwrap_or_else(|_| text.to_string());
         let capped = Content {
             role: content.role.clone(),
@@ -311,5 +319,44 @@ mod tests {
     fn defang_leaves_ordinary_code_alone() {
         let src = "+fn override_default() {}\n+// normal comment";
         assert_eq!(defang_injection(src), src);
+    }
+
+    #[tokio::test]
+    async fn findings_cap_truncates_and_blanks_prose() {
+        // Three findings, cap = 1. The guardrail must keep the single
+        // highest-severity finding AND blank the prose so the renderer can't
+        // re-emit the over-limit findings (the Codex P2 regression).
+        let json = serde_json::json!({
+            "verdict": "issues",
+            "prose": "**Verdict:** issues\n### Minor\n- `a:1` — x; y\n- `b:2` — x; y\n- `c:3` — x; y",
+            "findings": [
+                {"severity": "Minor", "path": "a", "line": "1", "problem": "x", "fix": "y"},
+                {"severity": "Blocking", "path": "b", "line": "2", "problem": "x", "fix": "y"},
+                {"severity": "Minor", "path": "c", "line": "3", "problem": "x", "fix": "y"}
+            ],
+            "exceptions": []
+        })
+        .to_string();
+        let content = Content {
+            role: "model".into(),
+            parts: vec![Part::Text { text: json }],
+        };
+        match (FindingsCap { max: 1 }).validate(&content).await {
+            GuardrailResult::Transform { new_content, .. } => {
+                let txt = new_content
+                    .parts
+                    .iter()
+                    .find_map(|p| match p {
+                        Part::Text { text } => Some(text.clone()),
+                        _ => None,
+                    })
+                    .unwrap();
+                let v: Value = serde_json::from_str(&txt).unwrap();
+                assert_eq!(v["findings"].as_array().unwrap().len(), 1);
+                assert_eq!(v["findings"][0]["severity"], "Blocking"); // kept top severity
+                assert_eq!(v["prose"], ""); // prose blanked → renderer rebuilds from capped findings
+            }
+            other => panic!("expected Transform, got {other:?}"),
+        }
     }
 }
