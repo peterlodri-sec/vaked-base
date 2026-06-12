@@ -29,7 +29,7 @@ use adk_core::{GenerateContentConfig, SessionId, UserId};
 use adk_rust::prelude::*;
 use adk_rust::session::{CreateRequest, SessionService};
 use adk_rust::tool::McpToolset;
-use adk_rust::{ToolConcurrencyConfig, ToolExecutionStrategy};
+use adk_rust::{RetryBudget, ToolConcurrencyConfig, ToolExecutionStrategy};
 use anyhow::{Context, Result, anyhow};
 use futures::StreamExt;
 use futures::stream;
@@ -474,9 +474,19 @@ fn build_runner_with(
             ..Default::default()
         })
         .with_prompt_cache_key(CACHE_KEY)
+        // Resilience: let OpenRouter fall back to another GLM-4.6 host if one is down.
+        .with_provider_preferences(OpenRouterProviderPreferences {
+            allow_fallbacks: Some(true),
+            ..Default::default()
+        })
         .insert_into_config(&mut gen_cfg)
         .map_err(|e| anyhow!("openrouter options: {e}"))?;
 
+    // Bounded retries so a flaky tool call retries instead of failing the turn.
+    let retry = || RetryBudget {
+        max_retries: 2,
+        delay: Duration::from_millis(250),
+    };
     let mut builder = LlmAgentBuilder::new("vaked-ci-reviewer")
         .instruction(system_prompt(
             cfg.max_findings,
@@ -488,17 +498,23 @@ fn build_runner_with(
         .max_iterations(cfg.max_iters)
         .tool_timeout(Duration::from_secs(60))
         .tool_execution_strategy(ToolExecutionStrategy::Auto)
+        .tool_retry_budget("crabcc", retry())
+        .tool_retry_budget("read_lines", retry())
         .tool(read_lines_tool());
     if let Some(ts) = crabcc {
         builder = builder.toolset(ts);
     }
     let agent = builder.build().map_err(|e| anyhow!("agent build: {e}"))?;
 
+    // Optionally record prompt/response payloads into spans for richer Langfuse
+    // generations (safe — the diff is already redacted before it reaches here).
     let run_config = RunConfig::builder()
         .tool_concurrency(ToolConcurrencyConfig {
             max_concurrency: Some(cfg.concurrency),
             ..Default::default()
         })
+        .record_payloads(cfg.trace_payloads)
+        .trace_payload_max_bytes(16_384)
         .build();
 
     let sessions: Arc<dyn SessionService> = Arc::new(InMemorySessionService::new());
@@ -662,49 +678,71 @@ fn build_prompt(meta: &PrMeta, diff: &str, truncated: bool, addenda: &str) -> St
 /// Render the model's raw output (JSON or prose) to the final markdown review,
 /// returning (markdown, total_findings, blocking_findings). Falls back to raw
 /// text if JSON parsing fails, so a non-conforming provider never breaks posting.
+#[derive(Deserialize, Default)]
+struct Finding {
+    #[serde(default)]
+    severity: String,
+    #[serde(default)]
+    path: String,
+    #[serde(default)]
+    line: String,
+    #[serde(default)]
+    problem: String,
+    #[serde(default)]
+    fix: String,
+}
+
+#[derive(Deserialize, Default)]
+struct StructuredReview {
+    #[serde(default)]
+    verdict: String,
+    #[serde(default)]
+    prose: String,
+    #[serde(default)]
+    findings: Vec<Finding>,
+    #[serde(default)]
+    exceptions: Vec<String>,
+}
+
 fn render_review(raw: &str, max_findings: usize) -> (String, usize, usize) {
     let cleaned = strip_code_fences(raw.trim());
-    if let Ok(v) = serde_json::from_str::<Value>(cleaned)
-        && (v.get("verdict").is_some() || v.get("findings").is_some())
+    if let Ok(r) = serde_json::from_str::<StructuredReview>(cleaned)
+        && !(r.verdict.is_empty() && r.prose.is_empty() && r.findings.is_empty())
     {
-        let verdict = v["verdict"].as_str().unwrap_or("").trim();
-        let findings = v["findings"].as_array().cloned().unwrap_or_default();
-        let total = findings.len();
-        let blocking = findings
+        let verdict = r.verdict.trim();
+        let total = r.findings.len();
+        let blocking = r
+            .findings
             .iter()
-            .filter(|f| f["severity"].as_str() == Some("Blocking"))
+            .filter(|f| f.severity == "Blocking")
             .count();
 
-        let prose = v["prose"].as_str().unwrap_or("").trim();
+        let prose = r.prose.trim();
         let mut body = if prose.is_empty() {
-            let mut s = format!(
-                "**Verdict:** {}\n",
-                if verdict.is_empty() {
-                    "see findings"
-                } else {
-                    verdict
-                }
-            );
-            s.push_str(&render_findings(&findings, max_findings));
-            s
+            let head = if verdict.is_empty() {
+                "see findings"
+            } else {
+                verdict
+            };
+            format!(
+                "**Verdict:** {head}\n{}",
+                render_findings(&r.findings, max_findings)
+            )
         } else if prose.starts_with("**Verdict:") || verdict.is_empty() {
             prose.to_string()
         } else {
             format!("**Verdict:** {verdict}\n\n{prose}")
         };
 
-        let exceptions: Vec<String> = v["exceptions"]
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .filter_map(|e| e.as_str().map(|s| s.trim().to_string()))
-                    .filter(|s| !s.is_empty())
-                    .collect()
-            })
-            .unwrap_or_default();
-        if !exceptions.is_empty() {
+        let notes: Vec<&str> = r
+            .exceptions
+            .iter()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
+        if !notes.is_empty() {
             body.push_str("\n\n### Notes\n");
-            for e in exceptions {
+            for e in notes {
                 body.push_str(&format!("- {e}\n"));
             }
         }
@@ -715,23 +753,22 @@ fn render_review(raw: &str, max_findings: usize) -> (String, usize, usize) {
     (raw.trim().to_string(), total, blocking)
 }
 
-fn render_findings(findings: &[Value], max: usize) -> String {
+fn render_findings(findings: &[Finding], max: usize) -> String {
     let mut out = String::new();
     for sev in ["Blocking", "Major", "Minor", "Nit"] {
-        let group: Vec<&Value> = findings
-            .iter()
-            .filter(|f| f["severity"].as_str() == Some(sev))
-            .collect();
+        let group: Vec<&Finding> = findings.iter().filter(|f| f.severity == sev).collect();
         if group.is_empty() {
             continue;
         }
         out.push_str(&format!("\n### {sev}\n"));
         for f in group.into_iter().take(max) {
-            let path = f["path"].as_str().unwrap_or("?");
-            let line = f["line"].as_str().unwrap_or("?");
-            let problem = f["problem"].as_str().unwrap_or("").trim();
-            let fix = f["fix"].as_str().unwrap_or("").trim();
-            out.push_str(&format!("- `{path}:{line}` — {problem}; {fix}\n"));
+            let path = if f.path.is_empty() { "?" } else { &f.path };
+            let line = if f.line.is_empty() { "?" } else { &f.line };
+            out.push_str(&format!(
+                "- `{path}:{line}` — {}; {}\n",
+                f.problem.trim(),
+                f.fix.trim()
+            ));
         }
     }
     out
@@ -1207,6 +1244,7 @@ struct Config {
     max_iters: u32,
     concurrency: usize,
     structured: bool,
+    trace_payloads: bool,
 }
 
 impl Config {
@@ -1265,6 +1303,7 @@ impl Config {
             max_iters: env_usize("PR_REVIEW_MAX_ITERS", DEFAULT_MAX_ITERS as usize) as u32,
             concurrency: env_usize("PR_REVIEW_CONCURRENCY", DEFAULT_CONCURRENCY).max(1),
             structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
+            trace_payloads: std::env::var("PR_REVIEW_TRACE_PAYLOADS").is_ok(),
         })
     }
 
@@ -1290,6 +1329,7 @@ impl Config {
             max_iters: DEFAULT_MAX_ITERS,
             concurrency: DEFAULT_CONCURRENCY,
             structured: std::env::var("PR_REVIEW_NO_STRUCTURED").is_err(),
+            trace_payloads: false,
         }
     }
 }

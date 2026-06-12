@@ -54,6 +54,9 @@ fleet. `ci/` is the CI-bot subtree.
   `total_tokens`, `thinking_tokens`, and `findings` recorded as span attributes.
 - **Eval harness** — `--eval <dir>` scores the reviewer against `*.diff`/`*.expect`
   fixtures (see `evals/`).
+- **Resilience** — OpenRouter provider fallback (`allow_fallbacks`), bounded tool
+  retries, and a supply-chain audit (`cargo-deny`/`cargo-audit`) that runs only on
+  agent **version bumps** (`pr-review-audit.yml`).
 - Bounded tool loop (`PR_REVIEW_MAX_ITERS`, 60s tool timeout) + 25-min CI cap,
   low temperature + fixed seed, opt-out label, and empty-diff skip.
 
@@ -98,6 +101,7 @@ diff-only review.
 | `PR_REVIEW_MAX_ITERS` | `12` | max agent tool-loop iterations |
 | `PR_REVIEW_CONCURRENCY` | `6` | parallel per-file passes (map-reduce) + tool concurrency |
 | `PR_REVIEW_NO_STRUCTURED` | — | set to disable structured JSON output |
+| `PR_REVIEW_TRACE_PAYLOADS` | — | set to record prompt/response payloads into Langfuse spans |
 
 ## Eval
 

@@ -1,0 +1,59 @@
+name: pr-review-audit
+
+# Supply-chain audit (cargo-deny + cargo-audit) for the PR-review agent — runs
+# ONLY when the crate version bumps (or on manual dispatch), not on every change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - vaked-agents/ci/pr-review/Cargo.toml
+      - vaked-agents/ci/pr-review/Cargo.lock
+      - vaked-agents/ci/pr-review/deny.toml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vaked-agents/ci/pr-review
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect version bump
+        id: ver
+        run: |
+          cur=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          prev=$(git show HEAD~1:vaked-agents/ci/pr-review/Cargo.toml 2>/dev/null \
+                 | sed -n 's/^version = "\(.*\)"/\1/p' | head -1 || true)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$cur" != "$prev" ]; then
+            echo "run=true"  >> "$GITHUB_OUTPUT"
+            echo "::notice::auditing pr-review $cur (was '${prev:-none}')"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::version unchanged ($cur) — skipping audit"
+          fi
+
+      - name: Install Rust toolchain
+        if: steps.ver.outputs.run == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-deny + cargo-audit
+        if: steps.ver.outputs.run == 'true'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit
+
+      - name: cargo deny
+        if: steps.ver.outputs.run == 'true'
+        run: cargo deny check advisories bans sources
+
+      - name: cargo audit
+        if: steps.ver.outputs.run == 'true'
+        run: cargo audit
