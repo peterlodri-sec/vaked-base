@@ -224,6 +224,7 @@ def _test_colmena(lines):
         for needle in ('"vps" = { ... }: {',
                        'deployment.targetHost = "root@vps";',
                        'nixpkgs.system = "x86_64-linux";',
+                       "nixpkgs = <nixpkgs>;",   # PATH form (per-node system honored)
                        "imports = [ ../../nixos/agent-field.nix ];"):
             if needle not in hive:
                 ok = False
@@ -252,6 +253,37 @@ def _test_colmena(lines):
         if not ents or any(e["emitter"] != "colmena.hive" for e in ents):
             ok = False
             lines.append("  FAIL colmena: provenance not tagged colmena.hive")
+
+        # injection: ${ antiquotation / quote / backslash in deploy must be
+        # neutralized (issue #7 splice class) — no active ${ } in the output
+        src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+               '  host h { system = "x86_64-linux"  deploy = "a${pwn}b" }\n}\n')
+        vp = os.path.join(tmp, "inject.vaked")
+        open(vp, "w", encoding="utf-8").write(src)
+        iout = os.path.join(tmp, "inject")
+        _lower(iout, src=vp)
+        ihive = open(os.path.join(iout, "gen/colmena/hive.nix"),
+                     encoding="utf-8").read()
+        # emitted form is a single backslash before ${ : \${pwn}
+        if "${pwn}" in ihive.replace("\${pwn}", ""):
+            ok = False
+            lines.append("  FAIL colmena: ${ } antiquotation not neutralized")
+
+        # multi-host: two hosts emit two nodes in declaration order
+        src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+               '  host alpha { system = "x86_64-linux"  deploy = "ssh://root@a" }\n'
+               '  host beta  { system = "aarch64-linux" deploy = "ssh://root@b" }\n}\n')
+        vp = os.path.join(tmp, "multi.vaked")
+        open(vp, "w", encoding="utf-8").write(src)
+        mout = os.path.join(tmp, "multi")
+        _lower(mout, src=vp)
+        mhive = open(os.path.join(mout, "gen/colmena/hive.nix"),
+                     encoding="utf-8").read()
+        ia, ib = mhive.find('"alpha"'), mhive.find('"beta"')
+        if ia < 0 or ib < 0 or ia > ib:
+            ok = False
+            lines.append("  FAIL colmena: two hosts not both present in "
+                         "declaration order")
 
         # gating: hostless runtime emits no gen/colmena
         src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'

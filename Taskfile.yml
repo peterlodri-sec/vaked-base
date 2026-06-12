@@ -39,13 +39,14 @@ tasks:
     cmds: ['{{.RUN}} bash tools/vaked-run.sh all {{.CLI_ARGS}}']
 
   deploy:
-    desc: 'Lower then colmena apply the declared hosts (#51).  Usage: task deploy -- file.vaked'
+    desc: 'Lower then colmena apply the declared hosts (#51).  Usage: task deploy -- file.vaked  (aspirational: needs nixosModules.<runtime> materialized — interface-only in the spine today)'
     cmds:
       - |
         {{.RUN}} bash -c '
           set -euo pipefail
           src="${1:-vaked/examples/agentfield-swe.vaked}"
           out=$(mktemp -d)
+          trap "rm -rf $out" EXIT
           python3 -m vakedc lower "$src" --out "$out"
           test -f "$out/gen/colmena/hive.nix" || { echo "no hosts declared — nothing to deploy"; exit 0; }
           colmena apply --config "$out/gen/colmena/hive.nix"
