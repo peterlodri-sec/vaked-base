@@ -30,10 +30,12 @@ Fold semantics (normative for the reference — the Zig port reproduces them):
   * **A backwards checkpoint** (lower ``min_required_step`` than its
     predecessor) is accepted: it moves the GC floor *down* — the conservative
     direction. History is only ever released by raising the value.
-  * **Eviction is undone only by a fresh ``DependencyRegistration``** (a real
-    re-anchor, §6 explicit recovery). An ordinary checkpoint from an evicted
-    consumer — e.g. a delayed write from the dead process — is recorded but
-    does NOT re-admit it.
+  * **Eviction voids ALL the consumer's edges at its log position; each edge
+    is individually revived only by a ``DependencyRegistration`` logged AFTER
+    the eviction** (a real per-producer re-anchor, §6 explicit recovery).
+    Re-anchoring producer A does not revive a stale anchor on producer B, and
+    an ordinary checkpoint from an evicted consumer — e.g. a delayed write
+    from the dead process — never re-admits anything.
 """
 from __future__ import annotations
 
@@ -131,14 +133,15 @@ class DependencyIndex:
         seq it was registered at (rewinds logged AFTER it can void it);
       * ``checkpoints[(consumer, producer)]`` — the latest acknowledgement;
       * ``rewinds[producer]`` — the latest rewind (with its log seq);
-      * ``evicted`` — consumers removed from the floor by explicit eviction.
+      * ``evicted[consumer]`` — the log seq of the latest explicit eviction;
+        an edge is LIVE iff its registration was logged after that seq.
     """
 
     def __init__(self):
         self.registrations: dict[tuple[str, str], dict] = {}
         self.checkpoints: dict[tuple[str, str], dict] = {}
         self.rewinds: dict[str, dict] = {}
-        self.evicted: set[str] = set()
+        self.evicted: dict[str, int] = {}
 
     @classmethod
     def from_entries(cls, entries: list[dict]) -> "DependencyIndex":
@@ -149,19 +152,25 @@ class DependencyIndex:
             if kind == KIND_REGISTRATION:
                 idx.registrations[(p["consumer"], p["producer"])] = \
                     dict(p, _at_seq=e["seq"])
-                # explicit recovery (§6): only a fresh durable ANCHOR logged
-                # after an eviction re-admits the consumer. An ordinary
-                # checkpoint (e.g. a delayed write from the dead process)
-                # does NOT — eviction would be trivially undone otherwise.
-                idx.evicted.discard(p["consumer"])
             elif kind == KIND_CHECKPOINT:
                 idx.checkpoints[(p["consumer_agent"], p["producer_agent"])] = \
                     dict(p, _at_seq=e["seq"])
             elif kind == KIND_REWIND:
                 idx.rewinds[p["producer"]] = dict(p, _at_seq=e["seq"])
             elif kind == KIND_EVICTION:
-                idx.evicted.add(p["consumer_agent"])
+                idx.evicted[p["consumer_agent"]] = e["seq"]
         return idx
+
+    def _edge_live(self, consumer: str, producer: str) -> bool:
+        """An edge survives eviction only via a registration logged AFTER the
+        consumer's latest eviction (§6 explicit recovery is per producer:
+        re-anchoring A never revives a stale anchor on B; checkpoints never
+        revive anything)."""
+        ev_seq = self.evicted.get(consumer)
+        if ev_seq is None:
+            return True
+        reg = self.registrations.get((consumer, producer))
+        return reg is not None and reg["_at_seq"] > ev_seq
 
     # -- GC floor (§4) -------------------------------------------------------
 
@@ -178,7 +187,7 @@ class DependencyIndex:
         whose consumer has not checkpointed past it."""
         floors = []
         for consumer, prod in set(self.registrations) | set(self.checkpoints):
-            if prod != producer or consumer in self.evicted:
+            if prod != producer or not self._edge_live(consumer, prod):
                 continue
             reg = self.registrations.get((consumer, prod))
             cp = self.checkpoints.get((consumer, prod))
@@ -199,7 +208,8 @@ class DependencyIndex:
 
         An anchor is stale when: the anchored entry is missing (truncated past
         the floor), its hash diverges, a rewind for the producer logged after
-        the registration undercuts it, or the consumer was evicted (§4.2)."""
+        the registration undercuts it, or the edge was voided by an eviction
+        and not re-anchored since (§4.2 — liveness is per producer edge)."""
         observed_tip = entries[-1]["seq"] if entries else None
         for (cons, producer), reg in self.registrations.items():
             if cons != consumer:
@@ -211,7 +221,7 @@ class DependencyIndex:
                 observed_tip=observed_tip,
                 topology_epoch=reg["topology_epoch"],
             )
-            if consumer in self.evicted:
+            if not self._edge_live(consumer, producer):
                 return stale
             step = reg["producer_step"]
             if observed_tip is None or step > observed_tip:

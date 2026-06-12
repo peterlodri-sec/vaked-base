@@ -366,6 +366,39 @@ def _test_statedep(lines):
             lines.append("  FAIL statedep: re-registration (new generation) "
                          "on surviving history should be RUNNING")
 
+        # eviction is voided PER EDGE (Codex round 3): re-anchoring alpha
+        # must not revive the stale beta anchor — and beta's floor must not
+        # be constrained by the dead edge
+        path = os.path.join(tmp, "per-edge.jsonl")
+        with EventLog(path, writer=True) as log:
+            a0 = log.append({"agent": "alpha", "event": "step", "n": 0})
+            b0 = log.append({"agent": "beta", "event": "step", "n": 0})
+            log.append(dependency_registration(
+                "gamma", "alpha", consumer_step=0, producer_step=0,
+                producer_step_hash=a0["hash"], topology_epoch=1))
+            log.append(dependency_registration(
+                "gamma", "beta", consumer_step=0, producer_step=1,
+                producer_step_hash=b0["hash"], topology_epoch=1))
+            log.append(consumer_evicted("gamma", "lease expired", 1))
+            log.append(dependency_registration(      # re-anchor ALPHA only
+                "gamma", "alpha", consumer_step=1, producer_step=0,
+                producer_step_hash=a0["hash"], topology_epoch=2))
+            per_edge = log.entries
+        idx = DependencyIndex.from_entries(per_edge)
+        if idx.gc_floor("alpha") != 0:
+            ok = False
+            lines.append(f"  FAIL statedep: re-anchored alpha edge should pin "
+                         f"floor 0, got {idx.gc_floor('alpha')}")
+        if idx.gc_floor("beta") is not None:
+            ok = False
+            lines.append(f"  FAIL statedep: dead beta edge must not constrain "
+                         f"compaction, got {idx.gc_floor('beta')}")
+        stale = idx.verify_cold_start("gamma", per_edge)
+        if stale is None or stale.producer != "beta":
+            ok = False
+            lines.append(f"  FAIL statedep: unrecovered beta edge should "
+                         f"pause gamma, got {stale}")
+
         # statedep payloads ban floats in step/epoch fields
         try:
             dependency_registration("b", "a", 0, 1.5, "x" * 64, 1)
@@ -549,6 +582,29 @@ def _test_lowering_wiring(lines):
             ok = False
             lines.append("  FAIL lowering: rewiring the DAG did not change "
                          "the workflow inputsHash")
+
+        # list-valued memory sources survive into the store config (Codex
+        # round 3): source = [stream.a, stream.b] must emit both
+        msrc = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+                '  stream a { source = agentpipe.a  type = Agent.T }\n'
+                '  stream b { source = agentpipe.b  type = Agent.T }\n'
+                '  memory m { source = [stream.a, stream.b] }\n}\n')
+        mp = os.path.join(tmp, "multisrc.vaked")
+        open(mp, "w", encoding="utf-8").write(msrc)
+        mout = os.path.join(tmp, "multisrc")
+        r = subprocess.run(
+            [sys.executable, "-m", "vakedc", "lower", mp, "--out", mout],
+            capture_output=True, text=True, cwd=REPO)
+        if r.returncode != 0:
+            ok = False
+            lines.append(f"  FAIL lowering: multi-source memory failed: "
+                         f"{r.stderr.strip()}")
+        else:
+            mcfg = json.load(open(os.path.join(mout, "gen/memory/m.json")))
+            if mcfg.get("source") != ["stream.a", "stream.b"]:
+                ok = False
+                lines.append(f"  FAIL lowering: list source dropped/mangled: "
+                             f"{mcfg.get('source')!r}")
         if ok:
             lines.append("  lowering-wiring: workflow spec (depth 4, 4 steps, "
                          "3 edges) + memory store + eventd contract emitted, "
