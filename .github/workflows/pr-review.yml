@@ -127,9 +127,14 @@ jobs:
             if command -v sccache >/dev/null; then
               export RUSTC_WRAPPER=sccache SCCACHE_GHA_ENABLED=true
             fi
-            if command -v mold >/dev/null; then
-              export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
-            fi
+            # Fastest available linker: wild > lld > mold.
+            FUSE=""
+            command -v mold    >/dev/null && FUSE=mold
+            command -v ld.lld  >/dev/null && FUSE=lld
+            command -v ld.wild >/dev/null && FUSE=wild
+            FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
+            [ -n "$FUSE" ] && FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+            export RUSTFLAGS="$FLAGS"
             cargo run --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
               --repo "${GITHUB_REPOSITORY}" --pr "${PR_NUMBER}"
           fi
