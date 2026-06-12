@@ -748,17 +748,26 @@ def test_decide_track_uses_track_model_both_stages() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         orig_dir = ralph.DECISIONS_DIR
         orig_ctx = ralph.gather_track_context
+        orig_events = ralph.EVENTS_PATH
+        orig_state = ralph.STATE_DIR
         ralph.DECISIONS_DIR = tmpdir
         ralph.gather_track_context = lambda tr, w, compact: "FAKE"
+        ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
+        ralph.STATE_DIR = tmpdir
         try:
             with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
                 cost = ralph._decide_track(args, track, "key")
+            # the decide event must be logged so --next-track can rotate
+            last = ralph._last_decided_track()
         finally:
             ralph.DECISIONS_DIR = orig_dir
             ralph.gather_track_context = orig_ctx
+            ralph.EVENTS_PATH = orig_events
+            ralph.STATE_DIR = orig_state
 
         assert seen_models == ["vendor/m1", "vendor/m1"], seen_models
         assert cost > 0.0
+        assert last == "t", f"rotation pointer not recorded: {last}"
         log_path = os.path.join(tmpdir, "t.ralph-log.md")
         assert os.path.exists(log_path)
         content = open(log_path).read()

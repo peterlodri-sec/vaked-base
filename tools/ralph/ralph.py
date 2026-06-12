@@ -447,6 +447,11 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
                            open_issues=_open_track_issue_count(track), body=body,
                            s1=model_short, s2=model_short, subject_label="Track")
     _append_log(track.name, entry)
+    # Emit the rotation event so --next-track advances and CI persists it.
+    # The track decision-maker logs its own decide event (unlike repo-mode,
+    # where cmd_run appends); a future track supervisor must not double-append.
+    append_event({"event": "decide", "track": track.name,
+                  "iteration": n, "cost": cost})
     print("decided #%d for %s (cost $%.4f): %s" % (n, track.name, cost,
                                                    entry.splitlines()[0]))
     return cost
