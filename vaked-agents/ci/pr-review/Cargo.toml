@@ -1,0 +1,46 @@
+[package]
+name = "vaked-pr-review"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.94"
+publish = false
+description = "Vaked CI PR-review agent (adk-rust + OpenRouter, crabcc-indexed, Langfuse-traced)"
+
+# Standalone crate — do not join a parent Cargo workspace (there is none at repo root).
+[workspace]
+
+[dependencies]
+# adk-rust agent stack. default-features off to drop the Gemini provider we don't use.
+adk-rust = { version = "1.0.0", default-features = false, features = [
+    "agents",
+    "models",
+    "runner",
+    "sessions",
+    "openrouter",
+    "mcp",
+] }
+adk-core = "1.0.0"
+adk-model = { version = "1.0.0", features = ["openrouter"] }
+
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# crabcc symbol index, spoken to over MCP (stdio child process: `crabcc --mcp`).
+# Same rmcp line adk-tool uses, so the client types unify.
+rmcp = { version = "1.7", features = ["client", "transport-child-process"] }
+
+# Tracing → self-hosted Langfuse over OTLP/HTTP. Pinned to adk's OTel 0.31 line so
+# the global tracer provider unifies with adk-rust's internal `tracing` spans.
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-opentelemetry = "0.32"
+opentelemetry = "0.31"
+opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31", default-features = false, features = [
+    "trace",
+    "http-proto",
+    "reqwest-client",
+] }

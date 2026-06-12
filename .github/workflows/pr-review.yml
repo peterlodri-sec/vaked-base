@@ -1,0 +1,71 @@
+name: pr-review
+
+# Advisory PR reviewer: an adk-rust agent (vaked-agents/ci/pr-review) that runs a
+# non-frontier OpenRouter model (GLM-4.6) over the diff, with the repo's own crabcc
+# symbol index wired in over MCP, and traces every run to self-hosted Langfuse.
+# It posts ONE COMMENT review and never fails the check (fork PRs get no secrets,
+# which simply disables the step's network calls — the job still passes).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to review
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  # One in-flight review per PR; newer pushes cancel stale runs.
+  group: pr-review-${{ github.event.pull_request.number || github.event.inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # Cache the heavy adk-rust build so re-runs are fast (first run is cold).
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/pr-review
+
+      # Reuse the crabcc symbol index across runs (the agent refreshes it in place).
+      - name: Cache crabcc index
+        uses: actions/cache@v4
+        with:
+          path: .crabcc
+          key: crabcc-index-${{ github.repository }}
+          restore-keys: crabcc-index-
+
+      # crabcc is a private (crabcc-labs) tool. Install only when a PAT with access
+      # is configured; otherwise the agent degrades to a diff-only review.
+      - name: Install crabcc (optional)
+        if: ${{ secrets.CRABCC_INSTALL_TOKEN != '' }}
+        env:
+          CRABCC_INSTALL_TOKEN: ${{ secrets.CRABCC_INSTALL_TOKEN }}
+        run: |
+          git config --global url."https://x-access-token:${CRABCC_INSTALL_TOKEN}@github.com/".insteadOf "https://github.com/"
+          CARGO_NET_GIT_FETCH_WITH_CLI=true \
+            cargo install --git https://github.com/crabcc-labs/crabcc crabcc-cli --force || \
+            echo "crabcc install failed — agent will review diff-only"
+
+      - name: Run PR reviewer
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LANGFUSE_URL: ${{ secrets.LANGFUSE_URL }}
+          LANGFUSE_API_KEY: ${{ secrets.LANGFUSE_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+        run: |
+          cargo run --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
+            --repo "${GITHUB_REPOSITORY}" --pr "${PR_NUMBER}"
