@@ -1,0 +1,140 @@
+name: pr-review
+
+# Advisory PR reviewer: an adk-rust agent (vaked-agents/ci/pr-review) that runs a
+# non-frontier OpenRouter model (GLM-4.6) over the diff, with the repo's own crabcc
+# symbol index wired in over MCP, RTK condensing the diff to save tokens, and
+# tracing every run to self-hosted Langfuse. It posts ONE COMMENT review and never
+# fails the check (fork PRs get no secrets, which just disables the network calls).
+#
+# Cold start is avoided by downloading the prebuilt binary published by
+# pr-review-build.yml (rolling `pr-review-bin` release). Compiling from source is
+# only a fallback when the prebuilt asset is unavailable.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number to review
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write # advisory commit status with the finding count
+
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number || github.event.inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25 # hard cap so a runaway tool loop can't hang CI
+    env:
+      # `secrets` can't be used in step `if:`; surface what we gate on as env.
+      CRABCC_INSTALL_TOKEN: ${{ secrets.CRABCC_INSTALL_TOKEN }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so RTK can diff base...head.
+          fetch-depth: 0
+
+      # Dogfooding: if this PR changes the agent itself, build from source so the
+      # review runs the new code instead of a stale prebuilt.
+      - name: Detect agent source changes
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=false
+          if [ -n "${BASE_SHA}" ] && [ -n "${HEAD_SHA}" ] && \
+             git diff --name-only "${BASE_SHA}...${HEAD_SHA}" -- vaked-agents/ci/pr-review | grep -q .; then
+            changed=true
+          fi
+          echo "agent=${changed}" >> "$GITHUB_OUTPUT"
+
+      # Fast path: grab the prebuilt agent (no compile). Skipped when the agent
+      # source changed; continue-on-error so a missing asset falls through to build.
+      - name: Download prebuilt agent
+        id: prebuilt
+        if: steps.changed.outputs.agent != 'true'
+        continue-on-error: true
+        run: |
+          gh release download pr-review-bin \
+            --pattern vaked-pr-review-linux-x86_64 \
+            --output ./vaked-pr-review
+          chmod +x ./vaked-pr-review
+
+      # Fallback toolchain + cache, only when we must build from source.
+      - name: Install Rust toolchain
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo build
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/pr-review
+      # sccache + mold speed the from-source fallback (gated the same way).
+      - name: Set up sccache
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up mold linker
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: rui314/setup-mold@v1
+
+      # RTK ("Rust Token Killer") condenses the diff. Public tool, best-effort.
+      - name: Install RTK (optional)
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh \
+            || echo "rtk install skipped — agent falls back to gh pr diff"
+
+      # Reuse the crabcc symbol index across runs (the agent refreshes it in place).
+      - name: Cache crabcc index
+        uses: actions/cache@v4
+        with:
+          path: .crabcc
+          key: crabcc-index-${{ github.repository }}
+          restore-keys: crabcc-index-
+
+      # crabcc is a private (crabcc-labs) tool — install only with a PAT.
+      - name: Install crabcc (optional)
+        if: ${{ env.CRABCC_INSTALL_TOKEN != '' }}
+        run: |
+          git config --global url."https://x-access-token:${CRABCC_INSTALL_TOKEN}@github.com/".insteadOf "https://github.com/"
+          CARGO_NET_GIT_FETCH_WITH_CLI=true \
+            cargo install --git https://github.com/crabcc-labs/crabcc crabcc-cli --force || \
+            echo "crabcc install failed — agent will review diff-only"
+
+      - name: Run PR reviewer
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LANGFUSE_URL: ${{ secrets.LANGFUSE_URL }}
+          LANGFUSE_API_KEY: ${{ secrets.LANGFUSE_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.rtk/bin:$PATH"
+          if [ -x ./vaked-pr-review ]; then
+            echo "::notice::using prebuilt agent (no compile)"
+            ./vaked-pr-review --repo "${GITHUB_REPOSITORY}" --pr "${PR_NUMBER}"
+          else
+            echo "::notice::prebuilt unavailable — building from source"
+            if command -v sccache >/dev/null; then
+              export RUSTC_WRAPPER=sccache SCCACHE_GHA_ENABLED=true
+            fi
+            # Fastest available linker: wild > lld > mold.
+            FUSE=""
+            command -v mold    >/dev/null && FUSE=mold
+            command -v ld.lld  >/dev/null && FUSE=lld
+            command -v ld.wild >/dev/null && FUSE=wild
+            FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
+            [ -n "$FUSE" ] && FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+            export RUSTFLAGS="$FLAGS"
+            cargo run --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
+              --repo "${GITHUB_REPOSITORY}" --pr "${PR_NUMBER}"
+          fi

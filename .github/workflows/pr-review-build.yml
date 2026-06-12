@@ -1,0 +1,75 @@
+name: pr-review-build
+
+# "Bakes" the PR-review agent: compiles the release binary once and publishes it
+# as a rolling GitHub Release asset (tag `pr-review-bin`). The pr-review workflow
+# downloads this instead of compiling adk-rust on every PR, killing cold start.
+# Runs when the crate changes on main, or on demand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - vaked-agents/ci/pr-review/**
+      - .github/workflows/pr-review-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write # create/update the release + upload the asset
+
+concurrency:
+  group: pr-review-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/pr-review
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+      # Prefer wild (fast, incremental). Best-effort: install + expose as `ld.wild`
+      # so `-fuse-ld=wild` resolves; falls back to lld/mold if this fails.
+      - name: Set up wild linker (preferred)
+        continue-on-error: true
+        run: |
+          cargo install --locked wild-linker
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$(command -v wild)" "$HOME/.local/bin/ld.wild"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build release binary
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          # Fastest available linker: wild > lld > mold (mold is always installed).
+          FUSE=mold
+          command -v ld.lld  >/dev/null && FUSE=lld
+          command -v ld.wild >/dev/null && FUSE=wild
+          echo "::notice::linking with $FUSE"
+          export RUSTFLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0 -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+          cargo build --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml
+          cp vaked-agents/ci/pr-review/target/release/vaked-pr-review \
+             vaked-pr-review-linux-x86_64
+
+      - name: Publish rolling release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure the rolling release exists, then clobber the asset in place.
+          gh release view pr-review-bin >/dev/null 2>&1 || \
+            gh release create pr-review-bin \
+              --title "PR-review agent (prebuilt)" \
+              --notes "Rolling prebuilt linux-x86_64 binary of vaked-agents/ci/pr-review. Auto-updated from main." \
+              --prerelease
+          gh release upload pr-review-bin vaked-pr-review-linux-x86_64 --clobber
