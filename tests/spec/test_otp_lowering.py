@@ -117,6 +117,41 @@ def _test_artifacts_structure(lines):
     return ok
 
 
+def _test_duplicate_members(lines):
+    """A repeated member (within a list or across otp groups) must emit ONE
+    child spec — OTP rejects duplicate child ids at boot
+    ({error,{start_spec,{duplicate_child_name,_}}})."""
+    tmp = tempfile.mkdtemp(prefix="otp-spec-")
+    try:
+        src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
+               '  engine e { package = nix.derivation }\n'
+               '  stream s { source = agentpipe.s  type = Agent.T }\n'
+               '  fiber f { engine = e  input = stream.s  output = artifacts.x }\n'
+               '  parallel "p" {\n    fibers = [f, f]\n'
+               '    strategy = "supervised-dag"\n    supervisor = otp\n  }\n'
+               '  parallel "q" {\n    fibers = [f]\n'
+               '    strategy = "supervised-dag"\n    supervisor = otp\n  }\n}\n')
+        vp = os.path.join(tmp, "dup.vaked")
+        open(vp, "w", encoding="utf-8").write(src)
+        out = os.path.join(tmp, "out")
+        r = _lower(out, src=vp)
+        if r.returncode != 0:
+            lines.append(f"  FAIL otp-dup: lower failed: {r.stderr.strip()}")
+            return False
+        sup = open(os.path.join(out, "gen/otp/t_sup.erl"),
+                   encoding="utf-8").read()
+        ids = re.findall(r"#\{id => '([^']+)'", sup)
+        if ids != ["f"]:
+            lines.append(f"  FAIL otp-dup: expected one deduped child ['f'], "
+                         f"got {ids}")
+            return False
+        lines.append("  duplicate-members: repeated member (in-list + "
+                     "cross-group) emits exactly one child spec")
+        return True
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def _test_gating(lines):
     tmp = tempfile.mkdtemp(prefix="otp-spec-")
     try:
@@ -168,7 +203,8 @@ def _test_determinism(lines):
 def run():
     lines = []
     ok = True
-    for fn in (_test_artifacts_structure, _test_gating, _test_determinism):
+    for fn in (_test_artifacts_structure, _test_duplicate_members,
+               _test_gating, _test_determinism):
         try:
             ok = fn(lines) and ok
         except Exception as e:
