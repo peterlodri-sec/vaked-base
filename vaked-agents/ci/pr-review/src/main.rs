@@ -774,7 +774,21 @@ async fn parallel_agent_review(
         String::new()
     };
 
-    let parallel = ParallelAgent::new("file-reviewers", reviewers);
+    // Bound fan-out to PR_REVIEW_CONCURRENCY: adk's `ParallelAgent` has no built-in
+    // cap (it launches every sub-agent at once), so run the per-file reviewers in
+    // sequential batches of `concurrency` — each batch a `ParallelAgent`, the
+    // batches chained by the `SequentialAgent`. Mirrors the legacy path's
+    // `buffer_unordered(cfg.concurrency)` throttle.
+    let conc = cfg.concurrency.max(1);
+    let mut stages: Vec<Arc<dyn Agent>> = reviewers
+        .chunks(conc)
+        .enumerate()
+        .map(|(n, chunk)| {
+            Arc::new(ParallelAgent::new(format!("file-reviewers-{n}"), chunk.to_vec()))
+                as Arc<dyn Agent>
+        })
+        .collect();
+
     // The PR title is untrusted and baked into the instruction — sanitize it (the
     // default path defangs it for free via build_prompt → guarded user content).
     let safe_title = guardrails::sanitize_untrusted(&meta.title);
@@ -796,11 +810,9 @@ async fn parallel_agent_review(
         None,
         true,
     )?;
+    stages.push(Arc::new(synth));
 
-    let pipeline = SequentialAgent::new(
-        "review-pipeline",
-        vec![Arc::new(parallel) as Arc<dyn Agent>, Arc::new(synth)],
-    );
+    let pipeline = SequentialAgent::new("review-pipeline", stages);
 
     let run_config = RunConfig::builder().auto_cache(true).build();
     let sessions: Arc<dyn SessionService> = Arc::new(InMemorySessionService::new());
