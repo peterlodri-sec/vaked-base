@@ -73,8 +73,17 @@ not fracture another. This is exactly what Track D (control) consumes.
 
 1. **(done) format + tooling reference** — ralph driver: chain + verify + replay,
    29/29 tests. eventd adopts this format verbatim.
-2. eventd daemon: single-writer append + fsync + boot-time chain verify; per-
-   runtime log path as a 0012 lowering output.
+2. **(reference done)** eventd daemon: single-writer append + fsync + boot-time
+   chain verify — the **Python reference/oracle** lives at `/eventd`
+   (`EventLog`: flock single-writer, fsync-on-append, TamperError on boot;
+   CLI `python3 -m eventd {verify,append,replay,floor,coldstart}`;
+   `tests/spec/test_eventd.py` cross-verifies the format against ralphcore).
+   It also carries the **RFC 0004 state-dependency layer** (`eventd.statedep`:
+   DependencyRegistration / ConsumerCheckpoint / RewindEvent / eviction
+   payloads, the O(1) `DependencyIndex`, `gc_floor`, cold-start verifier —
+   RFC 0004 §8 orders 1–4, 6, 7). Remaining for this phase: the Zig daemon
+   port (#15 pattern, Python as oracle) and the per-runtime log path as a
+   0012 lowering output.
 3. runtime fold: reconstruct the typed semantic graph from the log (state =
    fold), over the arena.
 4. (Track D) rewind/jump: fold 0..N; arena snapshots for O(1) checkpoints.
