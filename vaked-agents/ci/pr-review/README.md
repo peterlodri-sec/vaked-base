@@ -7,7 +7,7 @@ structured, advisory-only review comment**. It never blocks a merge: any failure
 logs and exits 0.
 
 This is the first inhabitant of `vaked-agents/` — the home for the Vaked agent
-fleet. `ci/` is the CI-bot subtree.
+fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../BACKLOG.md).
 
 ## What makes it good, not sloppy
 
