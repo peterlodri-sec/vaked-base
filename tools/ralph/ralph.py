@@ -731,12 +731,9 @@ def _run_tracks(args) -> int:
     by_name = {t.name: t for t in tracks}
     status = read_status()
     if status is None:
-        # status.json is a derived cache (gitignored); the committed event
-        # ledger is the state-of-record. Seed rotation + spend from it so a
-        # stateless restart resumes instead of re-running track #1 / re-spending.
         status = {
-            "running": True, "current": _last_decided_track(), "iteration": 0,
-            "total_cost": _events_total_cost(), "budget_total": args.budget_total,
+            "running": True, "current": None, "iteration": 0,
+            "total_cost": 0.0, "budget_total": args.budget_total,
             "subjects": {t.name: {"entries": 0, "last_title": "-", "cost": 0.0,
                                   "model": t.model} for t in tracks},
             "recent": [], "last_step_epoch": 0, "mode": "tracks",
@@ -744,6 +741,17 @@ def _run_tracks(args) -> int:
     status["running"] = True
     status["budget_total"] = args.budget_total
     status.setdefault("subjects", {})
+    # status.json is a derived cache (gitignored); the committed event ledger is
+    # the state-of-record. Reconcile rotation pointer + cumulative spend against
+    # it on EVERY start — even when status exists but is stale (e.g. an external
+    # `decide --next-track` advanced the ledger the cache never saw) — so we
+    # never restart at track #1 or under-count spend already past the budget.
+    ledger_total = _events_total_cost()
+    if ledger_total > float(status.get("total_cost", 0.0) or 0.0):
+        status["total_cost"] = ledger_total
+    ledger_track = _last_decided_track()
+    if ledger_track is not None:
+        status["current"] = ledger_track
     iters = 0
     ticks = 0
     try:
@@ -762,6 +770,8 @@ def _run_tracks(args) -> int:
                 append_event({"tick": ticks, "event": "paused"})
                 ticks += 1
                 write_status(status)
+                if args.max_ticks and ticks >= args.max_ticks:
+                    break
                 time.sleep(min(interval, 2.0))
                 continue
             nxt = C.next_track(names, status["current"], set())
@@ -777,6 +787,8 @@ def _run_tracks(args) -> int:
                 _clear_step()
             ticks += 1
             write_status(status)
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
             if args.max_iters and iters >= args.max_iters:
                 continue
             time.sleep(interval)
@@ -819,6 +831,8 @@ def _run_repos(args) -> int:
                 append_event({"tick": ticks, "event": "paused"})
                 ticks += 1
                 write_status(status)
+                if args.max_ticks and ticks >= args.max_ticks:
+                    break
                 time.sleep(min(interval, 2.0))
                 continue
             unavailable = {r.name for r in repos if not os.path.isdir(r.path)}
@@ -838,6 +852,8 @@ def _run_repos(args) -> int:
                 _clear_step()
             ticks += 1
             write_status(status)
+            if args.max_ticks and ticks >= args.max_ticks:
+                break
             if args.max_iters and iters >= args.max_iters:
                 continue
             time.sleep(interval)

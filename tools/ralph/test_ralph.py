@@ -934,6 +934,51 @@ def test_run_tracks_seeds_total_cost_from_ledger() -> None:
         assert "budget" in (r.stdout + r.stderr).lower(), r.stdout
 
 
+def test_run_tracks_reconciles_stale_status() -> None:
+    """When status.json is stale-low but the ledger records more spend, the
+    budget check must use the ledger total (reconciled on start), not the cache."""
+    import subprocess
+    from ralphcore import make_entry, GENESIS_HASH
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # stale cache says $0 spent...
+        with open(os.path.join(tmpdir, "status.json"), "w", encoding="utf-8") as f:
+            json.dump({"running": False, "current": None, "total_cost": 0.0,
+                       "budget_total": 2.0, "subjects": {}, "recent": [],
+                       "last_step_epoch": 0}, f)
+        # ...but the ledger records $0.50
+        e = make_entry(GENESIS_HASH, 0,
+                       {"event": "decide", "track": "graph-concept",
+                        "iteration": 1, "cost": 0.5, "total_cost": 0.5})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--budget-total", "0.10", "--state-dir", tmpdir, "--max-iters", "1"],
+            capture_output=True, text=True, cwd=here, timeout=30)
+        assert r.returncode == 0, r.stderr
+        assert "budget" in (r.stdout + r.stderr).lower(), r.stdout
+
+
+def test_run_tracks_max_ticks_stops_promptly() -> None:
+    """`run --max-ticks 1` with a long interval must NOT sleep the interval after
+    the final tick (it should exit promptly). No API key → decide is a no-op."""
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    env = dict(os.environ)
+    env.pop("OPENROUTER_API_KEY", None)
+    env.pop("RALPH_API_KEY", None)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # timeout well under the 900s interval: if the fix regresses, this hangs
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--max-ticks", "1", "--interval", "900", "--budget-total", "5",
+             "--state-dir", tmpdir],
+            capture_output=True, text=True, cwd=here, env=env, timeout=20)
+        assert r.returncode == 0, r.stderr
+
+
 def test_clear_step_resets_flag() -> None:
     """_clear_step turns off the one-shot step flag, leaving paused intact."""
     import importlib
