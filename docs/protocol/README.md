@@ -14,6 +14,18 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 | `.hcplang` | Schema / interface definition language for HCP messages |
 | `hcpbin` | Canonical binary encoding |
 
+### State dependency ([RFC 0004](../../protocol/rfcs/0004-multi-agent-state-dependency.md))
+
+| Term | Meaning |
+|------|---------|
+| `DependencyRegistration` | Write-ahead control frame: a consumer's causal anchor on a producer step, logged before consumption |
+| `ConsumerCheckpoint` | Durable acknowledgement of how far a producer dependency is folded into the consumer's committed state |
+| `RewindEvent` | Event frame voiding anchors above a producer's rewind point |
+| Topology epoch | Version of the state-dependency graph carried by every dependency artifact |
+| GC floor | Lowest producer step pinned by any downstream checkpoint — compaction is legal only strictly below it |
+| Edge kind | `state_dependency` (must be a DAG) vs `observation` / `control_signal` / `metrics` (cycles tolerated) |
+| `stale_dependency` | Paused lifecycle state entered when cold-start anchor verification fails |
+
 ## Daemons (proposed — roles to be fixed in RFCs)
 
 | Daemon | Proposed role |
