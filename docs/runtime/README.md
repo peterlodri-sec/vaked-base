@@ -14,6 +14,7 @@ The runtime is the **enforcement and supervision plane** that a Vaked declaratio
 | `mcp-brokerd` | Zig | mcp | Brokered MCP tool calls — policy, budgets, approvals, structured errors |
 | `fs-snapshotd` | Zig | filesystem | Overlays, diffs, write budgets, artifact capture |
 | `eventd` | Zig | — | Append-only, hash-chained event log (tamper-evident audit spine) |
+| `memoryd` | Zig | — | Runtime memory plane for the `memory` kind: mines `source` streams into typed entries appended via `eventd`, serves capability-bound recall over the folded state ([0014](../language/0014-memory-primitive.md), #24) |
 | `otelcol` | (OpenTelemetry) | — | Telemetry collection/export across the plane |
 
 ## Membrane mapping
