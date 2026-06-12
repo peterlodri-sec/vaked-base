@@ -823,6 +823,45 @@ def test_track_issues_empty_scope_no_fallback() -> None:
     assert len(issues) == 1 and "all open" in note, (issues, note)
 
 
+def test_track_skip_advances_rotation() -> None:
+    """A track whose model returns no usable candidates still logs a skip event,
+    so --next-track moves on instead of re-selecting the same failing track."""
+    import importlib
+    import tempfile
+    import unittest.mock as mock
+
+    ralph = importlib.import_module("ralph")
+    from ralphcore import Track, TrackContext
+
+    track = Track(name="flaky", topic="T", model="vendor/m",
+                  label="track:flaky", context=TrackContext(docs=[], paths=[]))
+    # stage-1 returns no usable candidates → _run_stages returns None (skip)
+    degenerate = {"choices": [], "usage": {}}
+    args = types.SimpleNamespace(git_log_window=5, seed=42)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        orig_dir, orig_ctx = ralph.DECISIONS_DIR, ralph.gather_track_context
+        orig_events, orig_state = ralph.EVENTS_PATH, ralph.STATE_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        ralph.gather_track_context = lambda tr, w, compact: "FAKE"
+        ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
+        ralph.STATE_DIR = tmpdir
+        try:
+            with mock.patch.object(ralph, "openrouter_call", return_value=degenerate):
+                cost = ralph._decide_track(args, track, "key")
+            last = ralph._last_decided_track()
+            events = ralph.load_events()
+        finally:
+            ralph.DECISIONS_DIR, ralph.gather_track_context = orig_dir, orig_ctx
+            ralph.EVENTS_PATH, ralph.STATE_DIR = orig_events, orig_state
+
+        assert cost == 0.0
+        assert last == "flaky", f"skip must advance rotation pointer: {last}"
+        assert events[-1]["payload"]["event"] == "skip"
+        # no decision log written on a skip
+        assert not os.path.exists(os.path.join(tmpdir, "flaky.ralph-log.md"))
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

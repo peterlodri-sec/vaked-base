@@ -442,6 +442,9 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
     result = _run_stages(track.topic, s1_msgs, full_ctx, track.model,
                          track.model, api_key, base_url, args.seed)
     if result is None:
+        # No decision this tick (model skipped). Still advance the rotation
+        # pointer with a skip event, or one flaky track would starve the rest.
+        append_event({"event": "skip", "track": track.name})
         return 0.0
     cost, body = result
     head = _run(["git", "rev-parse", "--short", "HEAD"], REPO_HOME).strip() or "?"
@@ -464,11 +467,12 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
 
 
 def _last_decided_track() -> "str | None":
-    """The track of the most recent `decide` event in the log (rotation pointer
-    for --next-track). None if no track decision has been logged yet."""
+    """The most recently *attempted* track (rotation pointer for --next-track).
+    Counts both `decide` and `skip` events — a skip must still advance rotation
+    so one flaky track can't starve the others. None if none attempted yet."""
     for e in reversed(load_events()):
         payload = e.get("payload", {})
-        if payload.get("event") == "decide" and payload.get("track"):
+        if payload.get("track") and payload.get("event") in ("decide", "skip"):
             return payload["track"]
     return None
 
