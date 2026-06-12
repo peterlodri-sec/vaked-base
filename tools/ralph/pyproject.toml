@@ -1,0 +1,26 @@
+# ralph — uv project metadata.
+#
+# The loop itself (ralph.py + ralphcore.py) is PURE PYTHON STDLIB and runs with
+# zero third-party deps. This file exists so the CI host can `uv run --project
+# tools/ralph …` and so optional observability can be layered on without
+# touching the stdlib core.
+#
+# Langfuse tracing is an OPTIONAL extra (Phase 4): the loop imports it lazily
+# and no-ops when absent, so it is NOT a default dependency. Enable with:
+#   uv run --project tools/ralph --extra tracing tools/ralph/ralph.py …
+
+[project]
+name = "ralph"
+version = "0.1.0"
+description = "Budget MoE decision/strategy loop over Vaked concept tracks"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+# v3+ — the loop uses the v3 tracing API (start_as_current_generation /
+# generation.update); a v2 wheel would silently no-op (AttributeError, caught).
+tracing = ["langfuse>=3"]
+
+[tool.uv]
+# A script collection, not an installable package — don't try to build it.
+package = false

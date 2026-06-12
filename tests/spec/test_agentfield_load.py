@@ -44,7 +44,8 @@ import vakedc  # noqa: E402
 BUILTINS = os.path.join(REPO, "vaked", "schema", "builtins.vaked")
 GOLDEN = os.path.join(HERE, "golden", "agentfield-load.diagnostics.json")
 
-N_LOAD = 256          # fan-out width for the clean/load groups
+N_LOAD = 512          # fan-out width (raised from 256 after the #29 fix
+                      # made checking linear: ~0.2s at this width)
 N_GOLDEN = 8          # small + readable for the byte-exact fault fixture
 TIME_CAP_S = 60.0     # generous blowup guard, not a perf target
 

@@ -14,6 +14,12 @@ use "./engines/zig.vaked"
 runtime "agent-field" {
   systems = ["x86_64-linux"]
 
+  # The box this runtime deploys to (#28 third slice).
+  host vps {
+    system = "x86_64-linux"
+    deploy = "ssh://root@vps"
+  }
+
   index repoCorpus {
     source = [github("peterlodri-sec/vaked-base")]
     normalize = crabcc.markdown
@@ -108,10 +114,17 @@ runtime "agent-field" {
     plan -> code -> review -> publish
   }
 
+  # The scheduling class interactive agents run under (#28).
+  runclass interactive {
+    priority = "high"
+    interval = 5s
+  }
+
   fiber transcriptMiner {
     engine = zigDaemon
     input = stream.transcripts
     output = artifacts.palaceEntries
+    runclass = runclass.interactive
   }
 
   surface fieldView {

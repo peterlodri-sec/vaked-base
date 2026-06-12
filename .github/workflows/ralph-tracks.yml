@@ -1,0 +1,89 @@
+name: ralph-tracks
+
+# Scheduled host for the ralph concept-track loop. Each tick runs ONE track's
+# decision (rotation derived from the committed event ledger) and commits the
+# appended decision log + events.jsonl. No long-lived daemon; the hash-chained
+# events.jsonl in git history is the rotation pointer and the audit trail.
+#
+# Safe to merge before secrets exist: if OPENROUTER_API_KEY is unset the job
+# no-ops cleanly (it does not fail). Add the secret to actually enable the loop.
+
+on:
+  schedule:
+    # ~8 decisions/day (≈2 per track across 4 tracks) — paced to a ~1h/day
+    # human ratify budget. Tighten only once ratification keeps up.
+    - cron: "0 */3 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  # Serialize ticks so two runs never race the append-only ledger.
+  group: ralph-tracks
+  cancel-in-progress: false
+
+permissions:
+  # The tick commit pushes the appended decision log + events.jsonl.
+  contents: write
+
+jobs:
+  decide:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: events.jsonl chain replay + path-scoped `git log`.
+          fetch-depth: 0
+
+      - name: Guard — skip when no OpenRouter key is configured
+        id: guard
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          RALPH_API_KEY: ${{ secrets.RALPH_API_KEY }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ] && [ -z "$RALPH_API_KEY" ]; then
+            echo "no API key secret set — skipping (add OPENROUTER_API_KEY to enable)"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install uv
+        if: steps.guard.outputs.run == 'true'
+        run: pipx install uv
+
+      - name: Decide one track (rotation from the event ledger)
+        if: steps.guard.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}                       # gh issue list needs a token in CI
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          RALPH_API_KEY: ${{ secrets.RALPH_API_KEY }}         # optional: self-hosted endpoint key
+          RALPH_BASE_URL: ${{ secrets.RALPH_BASE_URL }}       # optional: trust-boundary endpoint
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}   # optional: enables tracing
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+        run: |
+          # Only pull the (heavy) langfuse extra when tracing is actually configured.
+          EXTRA=""
+          if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="--extra tracing"; fi
+          uv run --project tools/ralph $EXTRA tools/ralph/ralph.py decide --next-track
+
+      - name: Commit the decision + event ledger
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          git config user.name  "ralph-loop"
+          git config user.email "ralph@vaked.local"
+          # Stage the directories (both always exist via .gitkeep) rather than a
+          # specific file, so a missing events.jsonl / skipped decision can't make
+          # `git add` exit 128; the diff-quiet check below is the real
+          # nothing-to-commit guard. status.json stays gitignored.
+          git add docs/decisions/ tools/ralph/state/
+          if git diff --cached --quiet; then
+            echo "no changes to commit"
+          else
+            # [skip ci] — a decision tick shouldn't re-trigger spec-tests.
+            git commit -m "ralph(tracks): decision tick [skip ci]"
+            # Cron is serialized by `concurrency`, but a human push could land
+            # between checkout and push — rebase onto it to avoid a rejected
+            # non-fast-forward.
+            git pull --rebase --autostash
+            git push
+          fi

@@ -31,6 +31,7 @@ Vaked source → typed semantic graph → generated artifacts
 | `protocol/` | **protocol** (stub) | HCP / Litany wire protocol — `rfcs/`, daemon + tool roster |
 | `docs/protocol/` | **protocol** (stub) | HCP / Litany overview |
 | `vaked-agents/` | **agents** | The Vaked agent fleet — `ci/pr-review` (advisory CI reviewer); roadmap in [`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md) |
+| `tools/ralph/` | **tooling** | `ralph` — autonomous per-model decision loop over Vaked concept tracks (see [`tools/ralph/README.md`](tools/ralph/README.md)) |
 | `flake.nix` | infra | Dev shell (Zig, BEAM/OTP, Rust-to-build-CrabCC, tooling) |
 | `.mcp.json` | infra | Project MCP servers (github, context7, repowise, workspace-fs, playwright) |
 | `.claude/skills/` | infra | Project skills: `vaked-language-author`, `hcp-rfc-author` |
@@ -53,3 +54,15 @@ Verification dashboard: `python3 tools/specdash/build.py --serve`
 This is a **scaffold**. The language track (`vaked/`, `docs/language/`) carries real design content. The runtime (`daemons/`) and protocol (`protocol/`) subtrees are **indexed stubs** — each subsystem gets its own design → plan → implementation cycle. Nothing here is implemented yet beyond the dev shell and the language design docs.
 
 See [`docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md`](docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md) for the scaffold's design record, and [`CLAUDE.md`](CLAUDE.md) for working conventions (including the environment **patch-doctor** runbook).
+
+## Dogfooding — the `ralph` decision loop
+
+[`tools/ralph/`](tools/ralph/README.md) is an autonomous, budget-capped loop that
+continuously surfaces the most important open **decision** for each hard design
+area (one OpenRouter model pinned per area) and appends it to a human-ratified,
+hash-chained decision log. It dogfoods Vaked's own theories before they land in
+the language — **parallel** (round-robins tracks), **immutable** (append-only
+event ledger as the state-of-record), and **control** (pause/slow/step at
+runtime) — and runs cheaply as a scheduled CI tick. See
+[`tools/ralph/README.md`](tools/ralph/README.md) for tracks, commands, and the
+CI host.

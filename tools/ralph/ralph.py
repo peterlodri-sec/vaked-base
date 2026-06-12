@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""ralph — decision/strategy loop (decide / run / watch). Stdlib only."""
+"""ralph — decision/strategy loop (decide / run / watch).
+
+The core is Python stdlib only. Langfuse tracing is an OPTIONAL extra: it is
+imported lazily and every call is guarded, so the loop runs identically with
+zero third-party deps. Enable it with the `tracing` extra + LANGFUSE_* env:
+    uv run --project tools/ralph --extra tracing tools/ralph/ralph.py …
+"""
 from __future__ import annotations
 import argparse
 import datetime
@@ -15,6 +21,11 @@ import urllib.error
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import ralphcore as C  # noqa: E402
+
+try:                                  # optional observability — never required
+    from langfuse import Langfuse as _Langfuse
+except Exception:                     # not installed → tracing is a no-op
+    _Langfuse = None
 
 REPO_HOME = os.path.abspath(os.path.join(HERE, "..", ".."))   # vaked-base
 DECISIONS_DIR = os.path.join(REPO_HOME, "docs", "decisions")
@@ -48,6 +59,39 @@ def _resolve_base_url(explicit: "str | None" = None) -> str:
 
 def _resolve_api_key() -> str:
     return os.environ.get("RALPH_API_KEY") or os.environ.get("OPENROUTER_API_KEY") or ""
+
+
+# ---------------------------------------------------------------------------
+# Optional Langfuse tracing — lazily initialized, fully guarded. Returns None
+# (a no-op) unless the SDK is installed AND LANGFUSE_PUBLIC_KEY is set, so the
+# loop's behaviour is identical with or without observability.
+# ---------------------------------------------------------------------------
+
+_LF_CLIENT = None
+_LF_INIT = False
+
+
+def _langfuse():
+    """The Langfuse client, or None when tracing is unavailable/unconfigured."""
+    global _LF_CLIENT, _LF_INIT
+    if not _LF_INIT:
+        _LF_INIT = True
+        if _Langfuse is not None and os.environ.get("LANGFUSE_PUBLIC_KEY"):
+            try:
+                _LF_CLIENT = _Langfuse()   # reads LANGFUSE_PUBLIC_KEY/SECRET_KEY/HOST
+            except Exception:
+                _LF_CLIENT = None
+    return _LF_CLIENT
+
+
+def _flush_langfuse() -> None:
+    """Flush buffered spans before exit (no-op when tracing is off)."""
+    client = _langfuse()
+    if client is not None:
+        try:
+            client.flush()
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +254,31 @@ def _open_track_issue_count(track: C.Track) -> int:
         return 0
 
 
+def _trace_generation(gen, model: str, resp: dict, meta: "dict | None",
+                      latency: float) -> None:
+    """Record an LLM call's result onto an open Langfuse generation. Fully
+    guarded — any tracing failure is swallowed (observability never breaks the
+    loop). No-op when `gen` is None."""
+    if gen is None:
+        return
+    try:
+        usage = resp.get("usage") or {}
+        update = {
+            "output": _message_content(resp),
+            "usage_details": {
+                "prompt_tokens": int(usage.get("prompt_tokens", 0) or 0),
+                "completion_tokens": int(usage.get("completion_tokens", 0) or 0),
+            },
+            "metadata": {**(meta or {}), "latency_s": round(latency, 3)},
+        }
+        price = C.FALLBACK_PRICES.get(model)
+        if price is not None:
+            update["cost_details"] = {"total_cost": C.cost_usd(usage, price)}
+        gen.update(**update)
+    except Exception:
+        pass
+
+
 def openrouter_call(
     model: str,
     messages: list[dict],
@@ -222,6 +291,8 @@ def openrouter_call(
     seed: int | None = None,
     retries: int = 3,
     base_url: str | None = None,
+    span_name: str = "ralph.generation",
+    span_meta: dict | None = None,
 ) -> dict:
     body: dict = {
         "model": model,
@@ -243,16 +314,49 @@ def openrouter_call(
         "Content-Type": "application/json",
     }
 
+    # Open an optional Langfuse generation span around the call (no-op if off).
+    lf = _langfuse()
+    gen_cm = gen = None
+    if lf is not None:
+        try:
+            params = {"temperature": temperature, "top_p": 0.95, "max_tokens": max_tokens}
+            if seed is not None:
+                params["seed"] = seed
+            gen_cm = lf.start_as_current_generation(
+                name=span_name, model=model, input=messages, model_parameters=params)
+            gen = gen_cm.__enter__()
+        except Exception:
+            gen_cm = gen = None
+
+    t0 = time.time()
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
             req = urllib.request.Request(_resolve_base_url(base_url), data=data, headers=headers)
             with urllib.request.urlopen(req, timeout=120) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                parsed = json.loads(resp.read().decode("utf-8"))
+            _trace_generation(gen, model, parsed, span_meta, time.time() - t0)
+            if gen_cm is not None:
+                try:
+                    gen_cm.__exit__(None, None, None)
+                except Exception:
+                    pass
+            return parsed
         except Exception as exc:
             last_exc = exc
             time.sleep(2 ** attempt)
 
+    if gen is not None:
+        try:
+            gen.update(level="ERROR", status_message=str(last_exc),
+                       metadata={**(span_meta or {}), "latency_s": round(time.time() - t0, 3)})
+        except Exception:
+            pass
+    if gen_cm is not None:
+        try:
+            gen_cm.__exit__(None, None, None)
+        except Exception:
+            pass
     raise RuntimeError(f"openrouter_call failed after {retries} attempts: {last_exc}")
 
 
@@ -290,6 +394,31 @@ def _read_log(repo_name: str) -> str:
             return f.read()
     except FileNotFoundError:
         return "(none)"
+
+
+def _ratify_log_path(name: str) -> str:
+    return os.path.join(DECISIONS_DIR, f"{name}.ratify-log.md")
+
+
+def _read_ratify(name: str) -> list[dict]:
+    """Parsed ratification records for a track (skips malformed/comment lines)."""
+    out: list[dict] = []
+    try:
+        with open(_ratify_log_path(name), encoding="utf-8") as f:
+            for line in f:
+                rec = C.parse_ratify_line(line)
+                if rec:
+                    out.append(rec)
+    except FileNotFoundError:
+        pass
+    return out
+
+
+def _recent_overrides(name: str, limit: int = 5) -> list[str]:
+    """Recent 'override' reasons for a track, as 'id: reason' — fed back into
+    stage 1 so the loop learns what the human rejected."""
+    overrides = [r for r in _read_ratify(name) if r["verdict"] == "override"]
+    return ["%s: %s" % (r["id"], r["reason"]) for r in overrides[-limit:]]
 
 
 _LOG_HEADER = (
@@ -363,16 +492,19 @@ def _message_content(resp: dict) -> "str | None":
 
 
 def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
-                stage2_model, api_key, base_url, seed):
+                stage2_model, api_key, base_url, seed, meta=None):
     """Run both LLM stages and return ``(cost, body)`` or ``None`` to skip the
     iteration. `subject` keys the stage-2 prompt; `full_context_builder()` is
     called only once stage 1 yields a candidate (so we don't gather the full
-    context for a skipped iteration). Shared by repo and track decide paths."""
+    context for a skipped iteration). `meta` tags the Langfuse spans (e.g. the
+    track name). Shared by repo and track decide paths."""
+    base_meta = meta or {}
     s1 = openrouter_call(stage1_model, s1_msgs, api_key=api_key,
                          temperature=0.4, max_tokens=2000,
                          reasoning={"enabled": True, "effort": "medium"},
                          response_format=_STAGE1_SCHEMA, seed=seed,
-                         base_url=base_url)
+                         base_url=base_url, span_name="ralph.rank",
+                         span_meta={**base_meta, "stage": 1})
     s1_text = _message_content(s1)
     try:
         cands = json.loads(s1_text).get("candidates", []) if s1_text else []
@@ -389,7 +521,9 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
     full = full_context_builder()
     s2_msgs = C.build_stage2_messages(subject, full, chosen)
     s2 = openrouter_call(stage2_model, s2_msgs, api_key=api_key,
-                         temperature=0.3, max_tokens=1800, base_url=base_url)
+                         temperature=0.3, max_tokens=1800, base_url=base_url,
+                         span_name="ralph.deep-dive",
+                         span_meta={**base_meta, "stage": 2})
     body = _message_content(s2)
     if not body:
         print("stage-2 returned no usable content; skipping iteration",
@@ -410,7 +544,8 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
                 + "\n\n## Full prior decisions\n" + _read_log(repo.name))
 
     result = _run_stages(repo.name, s1_msgs, full_ctx, args.stage1_model,
-                         args.stage2_model, api_key, base_url, args.seed)
+                         args.stage2_model, api_key, base_url, args.seed,
+                         meta={"repo": repo.name})
     if result is None:
         return 0.0
     cost, body = result
@@ -433,14 +568,16 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
     compact = gather_track_context(track, args.git_log_window, compact=True)
     s1_msgs = C.build_stage1_messages(track.topic, compact,
                                       _prior_titles(track.name),
-                                      mission=read_purpose())
+                                      mission=read_purpose(),
+                                      overrides=_recent_overrides(track.name))
 
     def full_ctx() -> str:
         return (gather_track_context(track, args.git_log_window, compact=False)
                 + "\n\n## Full prior decisions\n" + _read_log(track.name))
 
     result = _run_stages(track.topic, s1_msgs, full_ctx, track.model,
-                         track.model, api_key, base_url, args.seed)
+                         track.model, api_key, base_url, args.seed,
+                         meta={"track": track.name, "model": track.model})
     if result is None:
         # No decision this tick (model skipped). Still advance the rotation
         # pointer with a skip event, or one flaky track would starve the rest.
@@ -926,6 +1063,33 @@ def cmd_events(args) -> int:
     return 0
 
 
+def cmd_ratify(args) -> int:
+    """Summarize the human ratify status per track: decisions surfaced, verdicts
+    recorded, ratify-rate, and the un-acted backlog. Reads the advisory + ratify
+    logs only (no network). See docs/decisions/RATIFY.md for the process."""
+    tracks = C.load_tracks(args.tracks)
+    print("ralph ratify — advisory decision status (see docs/decisions/RATIFY.md)\n")
+    print("%-20s %5s %7s %9s %6s %6s %7s" %
+          ("track", "dec", "ratify", "override", "defer", "todo", "rate"))
+    all_verdicts: list[str] = []
+    for t in tracks:
+        recs = _read_ratify(t.name)
+        verdicts = [r["verdict"] for r in recs]
+        all_verdicts += verdicts
+        decisions = len(_prior_titles(t.name))
+        nr, no, nd = (verdicts.count("ratify"), verdicts.count("override"),
+                      verdicts.count("defer"))
+        todo = max(0, decisions - (nr + no))   # deferred items re-surface → still "todo"
+        rate = C.ratify_rate(verdicts)
+        rate_s = "—" if rate is None else "%d%%" % round(rate * 100)
+        print("%-20s %5d %7d %9d %6d %6d %7s" %
+              (t.name, decisions, nr, no, nd, todo, rate_s))
+    overall = C.ratify_rate(all_verdicts)
+    print("\noverall ratify-rate: %s   (ratified / (ratified + overridden))" %
+          ("—" if overall is None else "%d%%" % round(overall * 100)))
+    return 0
+
+
 def cmd_watch(args) -> int:
     try:
         while True:
@@ -994,8 +1158,15 @@ def main(argv: list[str] | None = None) -> int:
                           help="override state directory (default: tools/ralph/state/)")
     p_events.set_defaults(func=cmd_events)
 
+    p_ratify = sub.add_parser("ratify", help="summarize human ratify status per track")
+    p_ratify.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
+    p_ratify.set_defaults(func=cmd_ratify)
+
     args = parser.parse_args(argv)
-    return args.func(args)
+    try:
+        return args.func(args)
+    finally:
+        _flush_langfuse()   # ship any buffered spans (no-op when tracing is off)
 
 
 if __name__ == "__main__":
