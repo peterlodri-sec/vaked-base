@@ -163,7 +163,8 @@ jobs:
   decide:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4            # full history for events.jsonl
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }             # full history: events.jsonl chain + path-scoped git log
       - run: pipx install uv
       - run: uv run tools/ralph/ralph.py decide --next-track   # rotation from event log
         env:
