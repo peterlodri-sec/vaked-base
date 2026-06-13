@@ -13,7 +13,7 @@ export function TopBar() {
   const setSource = useEditorStore((s) => s.setSource);
   const setFilePath = useGraphStore((s) => s.setFilePath);
   const { parseFile, lowerFile } = useVakedc();
-  const { toggleSidebar, toggleSessionPanel } = useUIStore();
+  const { toggleSidebar, toggleSessionPanel, toggleTerminal } = useUIStore();
 
   const handleOpen = async () => {
     if (opening) return;
@@ -144,6 +144,9 @@ export function TopBar() {
       </button>
       <button onClick={toggleSessionPanel} style={btnStyle("#1f2937", "#6b7280")} title="Toggle AI session">
         💬
+      </button>
+      <button onClick={toggleTerminal} style={btnStyle("#1f2937", "#6b7280")} title="Toggle terminal (Ghostty)">
+        ▦
       </button>
     </div>
   );
