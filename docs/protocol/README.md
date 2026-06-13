@@ -25,6 +25,15 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 | `control_action` | The eventd payload kind recording every APPLIED control frame (write-ahead, before effect; carries corr + actor) |
 | Step | One-shot tick while paused; stays paused afterwards |
 
+### Inter-host fabric ([RFC 0006](../../protocol/rfcs/0006-transport-identity-distribution.md))
+
+| Term | Meaning |
+|------|---------|
+| SVID / SPIFFE ID | Per-agent transport identity; the SPIFFE ID is the canonical AgentId (resolves the RFC 0005 name→AgentId question via oraclefd) |
+| Trust domain | The SPIFFE root scoping one fleet's identities |
+| Subject | A NATS pub/sub address (`agent.<id>.rewind`); wildcard interest = O(1) fan-out matching |
+| Fabric boundary | NATS carries notifications + proofs only; the hash-chained log stays the single source of truth |
+
 ### State dependency ([RFC 0004](../../protocol/rfcs/0004-multi-agent-state-dependency.md))
 
 | Term | Meaning |
