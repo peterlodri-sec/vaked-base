@@ -164,3 +164,36 @@ jobs:
             ran: nix flake check --no-build --all-systems
             ${{ steps.sum.outputs.tail }}
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # vakedc-zig: actually COMPILE the Zig front-end + run its unit tests. The
+  # earlier jobs never built it, so a compile error in the binary (e.g. an
+  # unresolved inferred error set reachable only from `main`) could pass CI
+  # while `zig build` was broken. `nix build .#vakedc-zig` runs `zig build`,
+  # which is the gate that catches it.
+  zig-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Build vakedc-zig binary (hermetic — catches compile errors)
+        run: nix build .#vakedc-zig
+
+      - name: Run zig unit tests (lexer + parser)
+        run: nix develop --command bash -c 'cd zig/vakedc && zig build test'
+
+      - name: Smoke-parse the dogfeed example
+        run: ./result/bin/vakedc-zig parse --no-cache vaked/examples/compiler/vakedc-zig.vaked > /dev/null
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ spec-tests (zig-build) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

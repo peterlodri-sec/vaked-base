@@ -223,14 +223,14 @@ pub fn writeJson(file: File, writer: anytype, alloc: std.mem.Allocator) !void {
     try writer.writeAll("]}");
 }
 
-fn writeJsonItem(writer: anytype, item: Item) !void {
+fn writeJsonItem(writer: anytype, item: Item) anyerror!void {
     switch (item) {
         .import_decl => |imp| try writeJsonImport(writer, imp),
         .decl => |d| try writeJsonDecl(writer, d),
     }
 }
 
-fn writeJsonImport(writer: anytype, imp: Import) !void {
+fn writeJsonImport(writer: anytype, imp: Import) anyerror!void {
     try writer.writeAll("{\"_type\":\"import\",\"path\":");
     try writeJsonString(writer, imp.path);
     try writer.writeAll(",\"span\":");
@@ -238,7 +238,7 @@ fn writeJsonImport(writer: anytype, imp: Import) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonDecl(writer: anytype, d: Decl) !void {
+fn writeJsonDecl(writer: anytype, d: Decl) anyerror!void {
     try writer.writeAll("{\"_type\":\"decl\",\"kind\":");
     try writeJsonString(writer, d.kind);
     try writer.writeAll(",\"name\":");
@@ -264,7 +264,7 @@ fn writeJsonDecl(writer: anytype, d: Decl) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonAnnotation(writer: anytype, ann: Annotation) !void {
+fn writeJsonAnnotation(writer: anytype, ann: Annotation) anyerror!void {
     try writer.writeAll("{\"_type\":\"annotation\",\"name\":");
     try writeJsonString(writer, ann.name);
     try writer.writeAll(",\"args\":");
@@ -281,7 +281,7 @@ fn writeJsonAnnotation(writer: anytype, ann: Annotation) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonSignature(writer: anytype, sig: Signature) !void {
+fn writeJsonSignature(writer: anytype, sig: Signature) anyerror!void {
     try writer.writeAll("{\"params\":[");
     for (sig.params, 0..) |p, i| {
         if (i > 0) try writer.writeByte(',');
@@ -306,7 +306,7 @@ fn writeJsonSignature(writer: anytype, sig: Signature) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonStmt(writer: anytype, stmt: Stmt) !void {
+fn writeJsonStmt(writer: anytype, stmt: Stmt) anyerror!void {
     switch (stmt) {
         .assignment => |a| try writeJsonAssignment(writer, a),
         .field_decl => |f| try writeJsonFieldDecl(writer, f),
@@ -321,7 +321,7 @@ fn writeJsonStmt(writer: anytype, stmt: Stmt) !void {
     }
 }
 
-fn writeJsonAssignment(writer: anytype, a: Assignment) !void {
+fn writeJsonAssignment(writer: anytype, a: Assignment) anyerror!void {
     try writer.writeAll("{\"_type\":\"assignment\",\"target\":");
     try writeJsonString(writer, a.target);
     try writer.writeAll(",\"op\":");
@@ -331,7 +331,7 @@ fn writeJsonAssignment(writer: anytype, a: Assignment) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonFieldDecl(writer: anytype, f: FieldDecl) !void {
+fn writeJsonFieldDecl(writer: anytype, f: FieldDecl) anyerror!void {
     try writer.writeAll("{\"_type\":\"field_decl\",\"name\":");
     try writeJsonString(writer, f.name);
     try writer.writeAll(",\"type\":");
@@ -344,7 +344,7 @@ fn writeJsonFieldDecl(writer: anytype, f: FieldDecl) !void {
     try writer.writeAll("]}");
 }
 
-fn writeJsonRefinement(writer: anytype, r: Refinement) !void {
+fn writeJsonRefinement(writer: anytype, r: Refinement) anyerror!void {
     switch (r) {
         .required => try writer.writeAll("{\"_type\":\"required\"}"),
         .optional => try writer.writeAll("{\"_type\":\"optional\"}"),
@@ -390,7 +390,7 @@ fn writeJsonRefinement(writer: anytype, r: Refinement) !void {
     }
 }
 
-fn writeJsonGrantDecl(writer: anytype, g: GrantDecl) !void {
+fn writeJsonGrantDecl(writer: anytype, g: GrantDecl) anyerror!void {
     try writer.writeAll("{\"_type\":\"grant_decl\",\"names\":[");
     for (g.names, 0..) |name, i| {
         if (i > 0) try writer.writeByte(',');
@@ -399,7 +399,7 @@ fn writeJsonGrantDecl(writer: anytype, g: GrantDecl) !void {
     try writer.writeAll("]}");
 }
 
-fn writeJsonOrderDecl(writer: anytype, o: OrderDecl) !void {
+fn writeJsonOrderDecl(writer: anytype, o: OrderDecl) anyerror!void {
     try writer.writeAll("{\"_type\":\"order_decl\",\"chains\":[");
     for (o.chains, 0..) |chain, i| {
         if (i > 0) try writer.writeByte(',');
@@ -413,7 +413,7 @@ fn writeJsonOrderDecl(writer: anytype, o: OrderDecl) !void {
     try writer.writeAll("]}");
 }
 
-fn writeJsonInherit(writer: anytype, inh: InheritStmt) !void {
+fn writeJsonInherit(writer: anytype, inh: InheritStmt) anyerror!void {
     try writer.writeAll("{\"_type\":\"inherit\",\"names\":[");
     for (inh.names, 0..) |name, i| {
         if (i > 0) try writer.writeByte(',');
@@ -422,7 +422,7 @@ fn writeJsonInherit(writer: anytype, inh: InheritStmt) !void {
     try writer.writeAll("]}");
 }
 
-fn writeJsonEdge(writer: anytype, e: Edge) !void {
+fn writeJsonEdge(writer: anytype, e: Edge) anyerror!void {
     try writer.writeAll("{\"_type\":\"edge\",\"refs\":[");
     for (e.refs, 0..) |ref, i| {
         if (i > 0) try writer.writeByte(',');
@@ -437,7 +437,7 @@ fn writeJsonEdge(writer: anytype, e: Edge) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonNodeDecl(writer: anytype, nd: NodeDecl) !void {
+fn writeJsonNodeDecl(writer: anytype, nd: NodeDecl) anyerror!void {
     try writer.writeAll("{\"_type\":\"node_decl\",\"name\":");
     try writeJsonString(writer, nd.name);
     try writer.writeAll(",\"body\":[");
@@ -450,7 +450,7 @@ fn writeJsonNodeDecl(writer: anytype, nd: NodeDecl) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonApp(writer: anytype, a: App) !void {
+fn writeJsonApp(writer: anytype, a: App) anyerror!void {
     try writer.writeAll("{\"_type\":\"app\",\"ref\":");
     try writeJsonRef(writer, a.ref);
     try writer.writeAll(",\"args\":");
@@ -478,7 +478,7 @@ fn writeJsonApp(writer: anytype, a: App) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonExpr(writer: anytype, expr: Expr) !void {
+fn writeJsonExpr(writer: anytype, expr: Expr) anyerror!void {
     switch (expr) {
         .literal => |lit| try writeJsonLiteral(writer, lit),
         .list => |items| {
@@ -501,7 +501,7 @@ fn writeJsonExpr(writer: anytype, expr: Expr) !void {
     }
 }
 
-fn writeJsonLiteral(writer: anytype, lit: Literal) !void {
+fn writeJsonLiteral(writer: anytype, lit: Literal) anyerror!void {
     const kind_str: []const u8 = switch (lit.kind) {
         .string => "string",
         .number => "number",
@@ -520,7 +520,7 @@ fn writeJsonLiteral(writer: anytype, lit: Literal) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonRef(writer: anytype, ref: Ref) !void {
+fn writeJsonRef(writer: anytype, ref: Ref) anyerror!void {
     try writer.writeAll("{\"_type\":\"ref\",\"parts\":[");
     for (ref.parts, 0..) |part, i| {
         if (i > 0) try writer.writeByte(',');
@@ -531,14 +531,14 @@ fn writeJsonRef(writer: anytype, ref: Ref) !void {
     try writer.writeByte('}');
 }
 
-fn writeJsonRecordEntry(writer: anytype, entry: RecordEntry) !void {
+fn writeJsonRecordEntry(writer: anytype, entry: RecordEntry) anyerror!void {
     switch (entry) {
         .assignment => |a| try writeJsonAssignment(writer, a),
         .inherit => |inh| try writeJsonInherit(writer, inh),
     }
 }
 
-fn writeJsonSpan(writer: anytype, span: Span) !void {
+fn writeJsonSpan(writer: anytype, span: Span) anyerror!void {
     try writer.print("{{\"byte_start\":{d},\"byte_end\":{d},\"line\":{d},\"col\":{d}}}", .{
         span.byte_start,
         span.byte_end,
@@ -548,7 +548,7 @@ fn writeJsonSpan(writer: anytype, span: Span) !void {
 }
 
 // Write a JSON-escaped string with surrounding quotes.
-fn writeJsonString(writer: anytype, s: []const u8) !void {
+fn writeJsonString(writer: anytype, s: []const u8) anyerror!void {
     try writer.writeByte('"');
     for (s) |c| {
         switch (c) {
