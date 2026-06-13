@@ -6,6 +6,8 @@
 
 ## 📰 Recent news
 
+**2026-06-13 — vakedc-zig v0.1.0 landed ([#118](https://github.com/peterlodri-sec/vaked-base/pull/118)) — first Zig-native compiler-parser.** `source bytes → lexer → parser → JSON AST` with ralphloop-cache as a native primitive. Build it: `nix build .#vakedc-zig` → `result/bin/vakedc-zig parse <file.vaked>`. The dogfeed loop surfaced two language gaps ([#114](https://github.com/peterlodri-sec/vaked-base/issues/114), [#115](https://github.com/peterlodri-sec/vaked-base/issues/115)). Full chronicle: [`docs/README/README.md`](docs/README/README.md).
+
 **2026-06-13 — the first end-to-end vertical slice landed ([#107](https://github.com/peterlodri-sec/vaked-base/pull/107)), one-shot by an agent.** A `network` egress membrane now goes declare → lower → load real eBPF → enforce → testify → verify. From the [PR disclaimer](https://github.com/peterlodri-sec/vaked-base/pull/107#issuecomment-4699358410):
 
 > New **CI-triggered** and **cron-triggered** agents now run inside GitHub Actions on this repo, and a **self-hosted control plane on `crabcc.app`** is starting to get plugged into the same loop. […] Most of this work was one-shot […] by **Claude Code** […]. Where the sandbox kernel refused the cgroup-BPF attach, the daemon reports it and falls back to the reference datapath rather than faking in-kernel enforcement.
@@ -37,6 +39,7 @@ Vaked source → typed semantic graph → generated artifacts
 |------|--------|-----------------|
 | `vaked/` | **language** | The Vaked language itself — `grammar/` (EBNF), `schema/`, `examples/` |
 | `vakedc/` | **language** | `vakedc` — the prototype front-end: lexer + parser → Labeled Property Graph + type checker (0011 stages 1–4) + lowering (0012). Pipeline **parse → check → lower**: `python3 -m vakedc parse <file>`; `python3 -m vakedc check <file> [--json]`; `python3 -m vakedc lower <file> [--out DIR]` (checks first; refuses to emit on any diagnostic; writes `flake.nix`, `gen/…`, `provenance.json`) |
+| `zig/vakedc/` | **language** | `vakedc-zig` v0.1.0 — Zig-native parse stage. `nix build .#vakedc-zig` → `result/bin/vakedc-zig parse [--cache-dir DIR] [--no-cache] <file.vaked>`. ralphloop-cache built in. See [`docs/language/0018-zig-compiler-design.md`](docs/language/0018-zig-compiler-design.md) |
 | `docs/language/` | **language** | Design series (`0001`-manifesto … `0008`-parallelism … `0010`-mirageos) + `references/` |
 | `docs/context/` | **context** | `PROJECT_CONTEXT.md` — the canonical overview |
 | `prompts/` | **context** | `dedicated-language-session.md` — kickoff prompt for the language-only session |
