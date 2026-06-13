@@ -435,6 +435,73 @@ same value — the property `eventd`'s hash chain and `litanyreplay` depend on.
   records/unions are prefixed by an unsigned varint byte-length or element-count
   as specified per type below. `string` is prefixed by its **byte** length.
 
+### 6.1.1 Worked examples: primitive types
+
+To ground the encoding rules, here are hex-annotated examples of primitives in canonical form:
+
+**Unsigned integers (LEB128, minimal encoding):**
+
+```
+0    → 0x00          (single byte)
+127  → 0x7f          (max single-byte unsigned)
+128  → 0x80 0x01     (minimum two-byte; 0x80 is continuation, 0x01 is final)
+255  → 0xff 0x01
+16384 → 0x80 0x80 0x01  (three bytes; note: not 0x80 0x80 0x00, which is non-minimal)
+```
+
+**Signed integers (zig-zag + LEB128):**
+
+For `i8` (`k=8`): zig-zag formula is `(n << 1) ^ (n >> 7)`.
+
+```
+i8(0)    → 0x00              (zig-zag(0) = 0)
+i8(1)    → 0x02              (zig-zag(1) = 2)
+i8(-1)   → 0x01              (zig-zag(-1) = 1; the sign flip is here)
+i8(127)  → 0xfe 0x01         (zig-zag(127) = 254; two bytes)
+i8(-128) → 0xff 0x01         (zig-zag(-128) = 255; two bytes)
+```
+
+For `i64` (`k=64`): zig-zag formula is `(n << 1) ^ (n >> 63)`.
+
+```
+i64(-1)  → 0x01              (zig-zag(-1) = 1)
+i64(-9223372036854775808) → varint(18446744073709551615) = 0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff 0xff 0x01  (10 bytes, canonical)
+```
+
+**Bool:**
+
+```
+false → 0x00  (only valid representation)
+true  → 0x01  (only valid representation)
+```
+
+Any other byte (e.g., 0x02 for `true`) is rejected as malformed.
+
+**Floats (IEEE-754, little-endian):**
+
+```
+f32(0.0)   → 0x00 0x00 0x00 0x00
+f32(1.0)   → 0x00 0x00 0x80 0x3f
+f32(NaN)   → 0x00 0x00 0xc0 0x7f  (canonical quiet NaN, not any other NaN variant)
+f32(-0.0)  → 0x00 0x00 0x00 0x80 ... but canonicalized to 0x00 0x00 0x00 0x00 (as +0.0)
+```
+
+**String (UTF-8, NFC-normalized, length-prefixed):**
+
+```
+"" (empty)        → 0x00                (varint(len=0))
+"hi"              → 0x02 0x68 0x69      (varint(len=2) + "hi")
+"café" (precomposed é)  → 0x05 0x63 0x61 0x66 0xc3 0xa9  (varint(len=5) + UTF-8 bytes)
+  (If the input is "café" decomposed, NFC normalization converts it to the precomposed form above.)
+```
+
+**Bytes (length-prefixed, no normalization):**
+
+```
+[]           → 0x00              (varint(count=0))
+[0x6b, 0x65, 0x79]  → 0x03 0x6b 0x65 0x79  (varint(len=3) + raw bytes)
+```
+
 ### 6.2 Records and frames: field ordering & tags
 
 A record/frame value is encoded as a sequence of **present fields, emitted in
@@ -517,6 +584,55 @@ recursive: a record-typed field of a record-typed field obeys the same test.
 Decoders MUST treat "tag absent" and "tag present with default value" for a
 non-optional field as the same value; encoders MUST choose the omitted form.
 
+### 6.3.1 Worked examples: default omission
+
+**Nested record all-default omission:**
+
+Schema:
+```hcplang
+record Inner { x: u32 @1 = 0, y: u32 @2 = 0 }
+record Outer { inner: Inner @1, z: u32 @2 }
+```
+
+Encoding `Outer{ inner: Inner{x:0, y:0}, z: 1 }`:
+- `inner` is all-default (x=0, y=0), so it MUST be omitted
+- `z` is non-default (1 != 0)
+- **Encoded bytes:** `02 01` (tag @2, varint(1))
+
+Encoding `Outer{ inner: Inner{x:1, y:0}, z: 1 }`:
+- `inner` has x=1 (non-default), so it MUST be emitted
+- Within `inner`: y=0 (default) is omitted
+- Encoded bytes: `01 02 01 02 01` (tag @1, then `inner` as `02 01`, tag @2, varint(1))
+  - `01` = tag @1
+  - `02 01` = inner: tag @1 (x), varint(1)
+  - `02` = tag @2 (z)
+  - `01` = varint(1)
+
+**Optional aggregate (list<T>? vs list<T>):**
+
+Schema:
+```hcplang
+record Config {
+  tags: list<string> @1
+  optional_attrs: list<string>? @2
+}
+```
+
+Encoding `Config{ tags: [], optional_attrs: absent }`:
+- `tags` is empty list (default), omitted
+- `optional_attrs` is absent, omitted
+- **Encoded bytes:** (empty)
+
+Encoding `Config{ tags: [], optional_attrs: [] }`:
+- `tags` is empty (default), omitted
+- `optional_attrs` is present-but-empty (distinct from absent), so emitted as tag + count=0
+- **Encoded bytes:** `02 00` (tag @2, varint(count=0))
+
+Encoding `Config{ tags: ["a", "b"], optional_attrs: absent }`:
+- `tags` is non-empty, emitted
+- `optional_attrs` is absent, omitted
+- **Encoded bytes:** `01 02 01 61 01 62` (tag @1, count=2, then "a", then "b")
+
 ### 6.4 Scalar canonicalisation
 
 - **Bool.** `bool` encodes as a single byte: `false = 0x00`, `true = 0x01`. On
@@ -598,6 +714,100 @@ This is what makes unknown arms both skippable and preservable byte-for-byte —
 the earlier "no length on known arms, length on unknown arms" split was
 self-contradictory (a decoder cannot know an arm is unknown until it has already
 needed the length to find the value's end).
+
+### 6.7.1 Worked examples: unions and enums
+
+**Union with known arm:**
+
+Schema:
+```hcplang
+union Payload {
+  text: string @1
+  binary: bytes @2
+}
+```
+
+Encoding `Payload.text("hi")`:
+- Arm tag: 1
+- Arm value encoding: `02 68 69` (string "hi" = varint(len=2) + bytes)
+- Arm value byte-length: 3
+- **Encoded bytes:** `01 03 02 68 69` (varint(1), varint(3), then the value)
+
+Encoding `Payload.binary([0x00, 0xFF])`:
+- Arm tag: 2
+- Arm value encoding: `02 00 ff` (bytes = varint(len=2) + 0x00 0xFF)
+- Arm value byte-length: 3
+- **Encoded bytes:** `02 03 02 00 ff` (varint(2), varint(3), then the value)
+
+**Union with unknown arm (forward-compat preservation):**
+
+Hypothetical V2 schema adds new arm @3; V1 decoder encounters it:
+- Arm tag: 3 (unknown to V1)
+- Arm byte-length: 5 (tells V1 how many bytes to skip)
+- Arm raw bytes: (anything, e.g., `01 02 03 04 05`)
+- **V1 encoded form:** `03 05 01 02 03 04 05`
+- **V1 decoder action:** Recognizes arm 3 as unknown, skips 5 bytes, preserves the entire sequence for round-trip
+- **V1 re-encode:** `03 05 01 02 03 04 05` (byte-for-byte identical)
+
+**Enum with known and unknown cases:**
+
+Schema:
+```hcplang
+enum Severity { info = 0, warn = 1, err = 2 }
+```
+
+Encoding `Severity.info`:
+- **Encoded bytes:** `00` (varint(0))
+
+Encoding `Severity.warn`:
+- **Encoded bytes:** `01` (varint(1))
+
+Encoding (from V2 schema) `Severity.unknown(5)`:
+- V1 decoder receives varint(5), doesn't recognize case 5, surfaces "unknown(5)"
+- **V1 re-encode:** `05` (varint(5), byte-for-byte identical)
+
+### 6.6.1 Worked examples: lists and maps
+
+**List (element-count prefix):**
+
+Schema:
+```hcplang
+record Event {
+  tags: list<string> @1
+}
+```
+
+Encoding `Event{ tags: [] }`:
+- Empty list uses count = 0
+- **Encoded bytes:** (empty, because the field defaults to empty and is omitted)
+
+Encoding `Event{ tags: ["a", "bc"] }`:
+- Count: 2
+- Element 1: string "a" = varint(len=1) + `0x61`
+- Element 2: string "bc" = varint(len=2) + `0x62 0x63`
+- **Encoded bytes:** `01 02 01 61 02 62 63` (tag @1, count=2, then "a", then "bc")
+
+**Map (entry count, sorted by canonical key order):**
+
+Schema:
+```hcplang
+record Config {
+  labels: map<string, string> @1
+}
+```
+
+Encoding `Config{ labels: {"zebra": "1", "apple": "2", "banana": "3"} }`:
+- Count: 3
+- **Keys sorted by canonical byte order (UTF-8 for strings):**
+  - "apple" < "banana" < "zebra" (lexicographic)
+- **Encoded entries (in sorted order):**
+  - "apple" → "2": varint(len=5) + "apple" + varint(len=1) + "2"
+  - "banana" → "3": varint(len=6) + "banana" + varint(len=1) + "3"
+  - "zebra" → "1": varint(len=5) + "zebra" + varint(len=1) + "1"
+- **Full encoding:** `01 03 05 61 70 70 6c 65 01 32 06 62 61 6e 61 6e 61 01 33 05 7a 65 62 72 61 01 31`
+  - `01` = tag @1
+  - `03` = count=3
+  - Then entries in key-sorted order
 
 ### 6.8 Canonicality requirement (normative)
 
@@ -804,6 +1014,89 @@ arm value's byte-length, then the `hash` itself (`varint(byte-len) value`,
 The `severity` field is omitted whenever it equals its `info` default (§6.3), so
 a default-severity response carries only `@1`.
 
+### 10.1 Additional worked examples
+
+**ToolCallResponse with non-default severity:**
+
+Encoding `ToolCallResponse{ result: Payload.text("ok"), severity: err }`:
+- Field `@1` (result): non-optional union, always emitted
+  - Arm tag 1 (text)
+  - Arm byte-len: 3 (for the string)
+  - Arm value: `02 6f 6b` (string "ok")
+- Field `@2` (severity): non-default (err = 2), so emitted
+  - Tag @2, value 2
+
+**Full encoding:**
+```
+01              # field tag @1 (result)
+01              # union arm-tag @1 (text)
+03              # union arm byte-len = 3
+02 6f 6b        # string "ok" (varint(2) + bytes)
+02              # field tag @2 (severity)
+02              # enum value 2 (err)
+```
+
+**ToolCallResponse with default severity (omitted):**
+
+Encoding `ToolCallResponse{ result: Payload.binary([0x00, 0xFF]), severity: info }`:
+- Field `@1` (result): always emitted
+  - Arm tag 2 (binary)
+  - Arm byte-len: 3
+  - Arm value: `02 00 ff`
+- Field `@2` (severity): default (info = 0), so omitted
+
+**Full encoding:**
+```
+01              # field tag @1 (result)
+02              # union arm-tag @2 (binary)
+03              # union arm byte-len = 3
+02 00 ff        # bytes [0x00, 0xFF]
+```
+(Note: only @1 is emitted; @2 is implicitly 0/info)
+
+**ToolEvent (streaming event with timestamp and optional metadata):**
+
+Hypothetical schema:
+```hcplang
+record Attribute { key: string @1, value: string @2 }
+
+frame ToolEvent event {
+  id:        uuid      @1
+  timestamp: timestamp @2
+  severity:  Severity  @3 = info
+  attrs:     list<Attribute> @4?
+}
+```
+
+Encoding `ToolEvent{ id: <uuid>, timestamp: 1718284800000000000, severity: warn, attrs: absent }`:
+- Field `@1` (id): always emitted (uuid has no implicit default)
+  - 16 bytes (uuid)
+- Field `@2` (timestamp): always emitted (timestamp has no implicit default)
+  - varint-encoded nanoseconds since epoch
+- Field `@3` (severity): non-default (warn = 1), emitted
+- Field `@4` (attrs): absent, omitted
+
+**Full encoding:** (16 + varint-timestamp + 1 + ... bytes)
+
+**Map-containing frame:**
+
+Hypothetical schema:
+```hcplang
+record WatchControl {
+  session: uuid @1
+  filters: map<string, string> @2?
+}
+```
+
+Encoding `WatchControl{ session: <uuid>, filters: {"path": "/tmp", "mode": "watch"} }`:
+- Field `@1` (session): always emitted (16 bytes)
+- Field `@2` (filters): present (not absent), with entries sorted by key
+  - Count: 2
+  - Entry 1 ("mode" < "path" lexicographically): "mode" → "watch"
+  - Entry 2: "path" → "/tmp"
+
+**Full encoding:** (16-byte uuid, then map encoding)
+
 ## 11. Security considerations
 
 - **Authority** is `preceptord`'s; `.hcplang` only provides the typed vocabulary
@@ -844,13 +1137,15 @@ Several are inherited from [`0001-hcp.md`](./0001-hcp.md)'s open questions.
    extension space but does not define the extension mechanism. Should unknown
    top-level extensions be a reserved union at `@0`, or handled purely by the
    wire layer?
-4. **Hash algorithm default.** §6.5 defaults schema digests / `eventd` to
-   SHA-256. Should BLAKE3-256 be the default (speed), and should the algorithm be
-   schema-pinned, connection-negotiated, or fixed protocol-wide? *(Provisional,
-   for the human to confirm: independent of the default, §6.5 now **length-
-   prefixes the digest** (`varint(algo-id) varint(len) bytes`) so that an unknown
-   future `algo-id` is skippable and round-trippable. That wire-skippability fix
-   stands whatever default you pick here; it does not pre-decide the default.)*
+4. **Hash algorithm default.** *(Provisional decision: SHA-256)* §6.5 defaults to
+   **SHA-256 (algo-id 0x01)** for schema digests and `eventd` hashing. BLAKE3-256
+   is registered (algo-id 0x02) but not default. The reason for staying with SHA-256
+   in this revision: established, widespread, sufficient performance, and
+   implementation burden is unwarranted for a draft. A future RFC may promote BLAKE3-256
+   or another algorithm if deployment evidence warrants it. Independently, §6.5's
+   **length-prefix design** (`varint(algo-id) varint(len) bytes`) means unknown
+   future `algo-id`s are skippable and round-trippable, so the choice here does not
+   pre-lock the extension mechanism.
 5. **`map` key canonicalisation for floats.** Float keys are disallowed
    (`key_type` excludes `f32`/`f64`) to avoid `-0.0`/NaN ordering ambiguity. Is
    that restriction acceptable, or is there a real need for float-keyed maps?
@@ -858,18 +1153,18 @@ Several are inherited from [`0001-hcp.md`](./0001-hcp.md)'s open questions.
    default-valued non-optional fields for canonicality. An alternative is "always
    emit non-optional fields" (simpler decoders, larger frames, but also
    canonical). Which trade-off does HCP want?
-7. **String normalisation cost.** §6.4 mandates NFC normalisation of `string` on
-   encode. This is a real CPU cost on the hot path in the Zig daemons. Acceptable,
-   or should normalisation be the producer's responsibility with decoders
-   trusting (and only validating) NFC? *(Provisional, for the human to confirm:
-   this question is about **who pays** the cost and stays open. Independently,
-   §6.4 now **pins the Unicode version to 15.1.0** for NFC, because NFC output is
-   version-dependent and a bare "normalise to NFC" rule is not byte-for-byte
-   deterministic across implementations — without a pinned version the `eventd`
-   hash chain diverges between peers built against different Unicode tables. The
-   version pin is required for determinism regardless of who runs the
-   normalisation; please confirm 15.1.0 as the frozen baseline, or substitute the
-   preferred stable Unicode version.)*
+7. **String normalisation responsibility.** *(Provisional decision: encode-time)* §6.4
+   mandates NFC normalisation of `string` values to **Unicode 15.1.0** before
+   encoding. This is a CPU cost on the hot path. **Provisional decision:** Producers
+   (agents, tools, etc.) are responsible for normalising strings before passing them
+   to the encoder. Decoders MAY validate that received strings are NFC-normalized and
+   MUST accept non-canonical (non-NFC) strings as a frame-level error, but are **not**
+   required to normalize on the decode path (simpler, faster decoders). This trades
+   producer cost for simpler, safer decoders. If performance data later shows this
+   is unacceptable, the RFC may shift responsibility to decoders (at the cost of
+   added complexity). Independently, the **Unicode 15.1.0 version pin** (§6.4) is
+   non-negotiable: NFC output is version-dependent; without a pinned version, the
+   `eventd` hash chain diverges between peers built against different Unicode tables.
 8. **Service/method authority granularity.** §8/§9 let `preceptord` scope by
    service, frame class, or schema digest. Is method-level (`call invoke`)
    granularity also required, and if so should methods carry a stable id like
