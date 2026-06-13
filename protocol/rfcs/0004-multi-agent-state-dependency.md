@@ -151,6 +151,42 @@ above `rewind_to_step` MUST treat them as void and re-enter dependency
 verification (§6) — running state built on a voided anchor is the precise
 failure this RFC exists to prevent.
 
+### 3.3.1 RewindEvent scope & cascade semantics (provisional)
+
+When a producer P rewinds to step R, the scope of affected anchors is **all
+downstream consumers C that hold a DependencyRegistration on P for any step >
+R**. RewindEvent is emitted to `eventd` and broadcast (via NATS pub/sub, RFC
+0006 §3, or via Litany Wire if the discovery mechanism prefers point-to-point
+unicast to each subscriber — TBD in RFC 0006). Consumers handle the event as
+follows:
+
+- **Immediate effect:** Any outstanding `ConsumerCheckpoint` for P that
+  references `producer_step > rewind_to_step` is **invalidated immediately**.
+  The consumer MUST NOT use such a checkpoint to justify further compaction of
+  P's history.
+- **Cold-start re-entry:** On next cold-start (agent restart or state
+  verification cycle), the consumer runs §6 verification and discovers the stale
+  anchor via the `ConsumerCheckpoint` check (§6, step 3): if the anchored step
+  hash is no longer in P's canonical history (it was rewound away), the check
+  fails and the consumer pauses in `stale_dependency`.
+- **Cascade rule (provisional):** If consumer C depends on producer P, and C's
+  output is depended on by consumer D, is D affected by P's rewind? **Working
+  decision:** D is **not** directly paused by P's rewind. D only learns of the
+  problem if C itself pauses (`stale_dependency`) and D (on its next
+  verification) detects that C is paused or its checkpoint is stale. This is a
+  transitive, discovery-based cascade, not a direct broadcast cascade. The
+  rationale is avoiding cascading pauses across unrelated dependency trees; the
+  cost is that D's verification may need to retry if C is still recovering.
+
+### 3.3.2 RewindEvent acknowledgement (provisional)
+
+**Working decision:** RewindEvent is **fire-and-forget**, not acknowledged. A
+consumer receiving RewindEvent is responsible for eventually (on next
+verification or checkpoint) learning of the stale anchor. If a consumer crashes
+before reacting, its old checkpoint is marked stale on recovery. This is
+simpler than two-phase rewind but requires cold-start to be mandatory (which
+§6 already mandates).
+
 ## 4. Invariant I — dependency-aware log GC
 
 > No agent may truncate producer history that is still referenced by any
@@ -177,7 +213,7 @@ A producer may compact or truncate log entries **strictly below**
 3. **Epoch auditable.** The topology epoch that created the dependency edge
    is still available for audit (§7).
 
-### 4.2 Dead consumers
+### 4.2 Dead consumers & checkpoint liveness
 
 A consumer that stops checkpointing pins the floor forever — a denial-of-
 compaction hazard. `last_heartbeat_at` (fed by `candled` liveness) is the
@@ -186,6 +222,56 @@ the floor computation **only** by an explicit, logged operator/supervisor
 action — never silently. Eviction voids that consumer's anchors; if it
 returns, cold-start verification (§6) pauses it as `stale_dependency` rather
 than letting it run on history that no longer exists.
+
+### 4.2.1 Checkpoint emission trigger policy (provisional)
+
+**Working decision:** A producer SHOULD emit a `ConsumerCheckpoint` (or trigger
+the consumer to emit one) under **both** periodic and on-demand conditions:
+
+- **Periodic (default 1000 steps):** Every N steps of producer work, the producer
+  or consumer (whichever is policy-assigned) emits a checkpoint. Default N = 1000
+  is a provisional tuning constant; it balances GC floor granularity (higher N
+  means coarser pinning, more history kept) with checkpoint overhead (lower N
+  means more frames logged). Producers with high step rates (streaming) may use
+  N = 10,000; low-rate consumers may use N = 100. The constant is per-dependency
+  (or per-consumer), not global.
+- **On-demand:** An operator, application, or `agent-supervisord` policy may
+  request an immediate checkpoint (e.g., before a scheduled GC or before
+  operator intervention). This is a `ConsumerCheckpoint` frame sent immediately
+  with the consumer's current committed state.
+
+**Default-if-absent:** If a producer reaches 10× the periodic threshold without
+receiving a checkpoint (consumer never caught up), it issues a backpressure
+warning to `eventd` and MAY begin dropping history without waiting for a
+checkpoint (with operator override). This prevents a dead consumer from
+permanently blocking GC.
+
+### 4.2.2 Checkpoint lease duration & eviction (provisional)
+
+**Working decision:** A consumer's checkpoint is considered **active** (holds the
+GC floor) if its `last_heartbeat_at` is within the **lease window**. Default
+lease window: **24 hours**. After 24 hours of silence (no new checkpoint, no
+heartbeat), a `ConsumerCheckpoint` MAY be evicted from the GC floor
+computation. Eviction is **not automatic** — it is triggered by:
+
+- An operator command (logged as a `ConsumerCheckpointEvicted` event in `eventd`).
+- An automated supervisor policy (e.g., `agent-supervisord` marks dead agents as
+  `stale_dependency` on restart, which voids their checkpoints).
+- **Never silently.** The eviction is an explicit, audited action so operators
+  can see who lost the right to pin history.
+
+After eviction, if the consumer later restarts:
+1. Its old checkpoint is no longer pinning the floor, so P may have compacted
+   history below the old anchor.
+2. Cold-start verification (§6) checks the anchored step hash against P's
+   canonical tip — it will not be found (compacted away).
+3. Verification fails → consumer is paused `stale_dependency` (§6, case 4).
+4. Operator must re-anchor the consumer (e.g., via an explicit
+   `ConsumerCheckpoint` at a new, valid step) before the consumer can resume.
+
+**Lease duration is tunable:** The 24-hour default is provisional. Deployments
+may adjust via `agent-supervisord` policy (shorter for aggressive GC, longer for
+conservative anchoring). The constant is global, not per-edge.
 
 ## 5. Invariant II — the state-dependency subgraph is a DAG
 
