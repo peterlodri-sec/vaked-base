@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -12,9 +12,10 @@ import {
 import "@xyflow/react/dist/style.css";
 
 import type { Node, Edge, NodeMouseHandler } from "@xyflow/react";
-import type { RFNodeData, RFEdgeData } from "@/types/graph";
+import type { RFNodeData, RFEdgeData, VakedNode as VakedNodeType } from "@/types/graph";
 import { VakedNode } from "./VakedNode";
 import { VakedEdge } from "./VakedEdge";
+import { NodeContextMenu } from "./NodeContextMenu";
 import { useGraphStore } from "@/store";
 import { applyElkLayout } from "@/graph/layout";
 import { getKindConfig } from "@/graph/kindConfig";
@@ -22,11 +23,19 @@ import { getKindConfig } from "@/graph/kindConfig";
 const nodeTypes = { vakedNode: VakedNode };
 const edgeTypes = { vakedEdge: VakedEdge };
 
+interface ContextMenuState {
+  node: VakedNodeType;
+  x: number;
+  y: number;
+}
+
 export function GraphCanvas() {
   const rfNodesFromStore = useGraphStore((s) => s.rfNodes);
   const rfEdgesFromStore = useGraphStore((s) => s.rfEdges);
+  const graphNodes = useGraphStore((s) => s.graph.nodes);
   const selectNode = useGraphStore((s) => s.selectNode);
   const setRfNodes = useGraphStore((s) => s.setRfNodes);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<RFNodeData>(rfNodesFromStore);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RFEdgeData>(rfEdgesFromStore);
@@ -49,12 +58,25 @@ export function GraphCanvas() {
   const onNodeClick: NodeMouseHandler<RFNodeData> = useCallback(
     (_evt, node) => {
       selectNode(node.id);
+      setContextMenu(null);
     },
     [selectNode]
   );
 
+  const onNodeContextMenu: NodeMouseHandler<RFNodeData> = useCallback(
+    (evt, node) => {
+      evt.preventDefault();
+      const vakedNode = graphNodes.find((n) => n.id === node.id);
+      if (vakedNode) {
+        setContextMenu({ node: vakedNode, x: evt.clientX, y: evt.clientY });
+      }
+    },
+    [graphNodes]
+  );
+
   const onPaneClick = useCallback(() => {
     selectNode(null);
+    setContextMenu(null);
   }, [selectNode]);
 
   return (
@@ -65,6 +87,7 @@ export function GraphCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
+        onNodeContextMenu={onNodeContextMenu}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -102,6 +125,14 @@ export function GraphCanvas() {
           </Panel>
         )}
       </ReactFlow>
+      {contextMenu && (
+        <NodeContextMenu
+          node={contextMenu.node}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </div>
   );
 }

@@ -17,10 +17,12 @@ export function Editor({ filePath }: EditorProps) {
   const monacoRef = useRef<typeof Monaco | null>(null);
   const versionRef = useRef(1);
 
-  const { source, setSource, diagnostics } = useEditorStore((s) => ({
+  const { source, setSource, diagnostics, pendingEdit, clearPendingEdit } = useEditorStore((s) => ({
     source: s.source,
     setSource: s.setSource,
     diagnostics: s.diagnostics,
+    pendingEdit: s.pendingEdit,
+    clearPendingEdit: s.clearPendingEdit,
   }));
 
   const highlightedNodeId = useGraphStore((s) => s.highlightedNodeId);
@@ -54,6 +56,24 @@ export function Editor({ filePath }: EditorProps) {
       : null;
     highlightNodeProvenance(editor, node);
   }, [highlightedNodeId, graph]);
+
+  // Apply a pending AI-suggested edit when accepted from MessageBubble
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !pendingEdit) return;
+    const { range, newText } = pendingEdit;
+    editor.executeEdits("ai-suggest", [{
+      range: {
+        startLineNumber: range.startLine,
+        startColumn: range.startCol,
+        endLineNumber: range.endLine,
+        endColumn: range.endCol,
+      },
+      text: newText,
+    }]);
+    editor.focus();
+    clearPendingEdit();
+  }, [pendingEdit, clearPendingEdit]);
 
   // Notify LSP when file opens
   useEffect(() => {
