@@ -50,7 +50,7 @@ Both channels work the same way: write the message to a staging file, commit it,
 | Telegram | `.github/social/telegram.txt` | `telegram-post.yml` | `TELEGRAM_TOKEN` + `TELEGRAM_TO` (in `ci` env) |
 
 **Protocol for agent sessions:**
-1. Write the message to the staging file (plain text, no length limit for Telegram).
+1. Write the message to the staging file (plain text; Telegram hard-caps at **4096 characters** — keep posts under that or split across commits).
 2. Commit and push — the workflow fires automatically on any branch.
 3. After CI confirms the post, clear the file in a follow-up commit so re-pushes don't re-post.
 
