@@ -209,7 +209,7 @@ pub fn tokenize(
         // Track last significant token index
         const sig_idx = toks.items.len;
 
-        // ---- String "..." with ${ref} interpolation -------------------------
+        // ---- String "..." (raw scan; no interpolation in v0.1.0) ------------
         if (c == '"') {
             var j = tz.pos + 1;
             var closed = false;
@@ -241,7 +241,7 @@ pub fn tokenize(
             continue;
         }
 
-        // ---- Regex literal: /.../ — only valid right after `matches` IDENT ----
+        // ---- Regex literal: /.../ — only valid after a `matches` IDENT -------
         if (c == '/') {
             // Check if last significant token is IDENT "matches"
             const is_after_matches = blk: {
@@ -355,7 +355,7 @@ pub fn tokenize(
 
         // ---- Single-char operators ------------------------------------------
         {
-            const single_ops = "=<>.;:,@()[]{}|";
+            const single_ops = "=<>.;:,@()[]{}|-";
             var is_single = false;
             for (single_ops) |sc| {
                 if (c == sc) { is_single = true; break; }
@@ -377,9 +377,8 @@ pub fn tokenize(
         }
 
         // ---- Numbers / durations / bytes ------------------------------------
-        if (isDigit(c) or (c == '-' and tz.pos + 1 < src.len and isDigit(src[tz.pos + 1]))) {
+        if (isDigit(c)) {
             var j = tz.pos;
-            if (src[j] == '-') j += 1;
             while (j < src.len and isDigit(src[j])) j += 1;
             var is_float = false;
             if (j < src.len and src[j] == '.' and j + 1 < src.len and isDigit(src[j + 1])) {

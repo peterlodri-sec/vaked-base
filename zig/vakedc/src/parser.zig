@@ -98,6 +98,18 @@ pub const Parser = struct {
         }
     }
 
+    // nth non-newline token from current position (0 = current, 1 = next non-nl, …)
+    fn peekNonNl(self: *Parser, n: usize) Token {
+        var count: usize = 0;
+        var p = self.pos;
+        while (p < self.tokens.len) : (p += 1) {
+            if (self.tokens[p].kind == .newline) continue;
+            if (count == n) return self.tokens[p];
+            count += 1;
+        }
+        return self.tokens[self.tokens.len - 1]; // EOF
+    }
+
     fn advance(self: *Parser) Token {
         const t = self.tokens[self.pos];
         if (self.pos + 1 < self.tokens.len) self.pos += 1;
@@ -356,40 +368,45 @@ pub const Parser = struct {
 
     fn lookaheadField(self: *Parser) bool {
         // "field" ident ":"
-        if (self.peek(1).kind != .ident) return false;
-        return self.isOpAt(2, ":");
+        if (self.peekNonNl(1).kind != .ident) return false;
+        const t2 = self.peekNonNl(2);
+        return t2.kind == .op and std.mem.eql(u8, t2.value, ":");
     }
 
     fn lookaheadGrant(self: *Parser) bool {
         // "grant" ident
-        return self.peek(1).kind == .ident;
+        return self.peekNonNl(1).kind == .ident;
     }
 
     fn lookaheadOrder(self: *Parser) bool {
         // "order" ident "<"
-        if (self.peek(1).kind != .ident) return false;
-        return self.isOpAt(2, "<");
+        if (self.peekNonNl(1).kind != .ident) return false;
+        const t2 = self.peekNonNl(2);
+        return t2.kind == .op and std.mem.eql(u8, t2.value, "<");
     }
 
     fn lookaheadAssign(self: *Parser) bool {
         // ident ("=" | "?=")
-        const next = self.peek(1);
+        const next = self.peekNonNl(1);
         if (next.kind != .op) return false;
         return std.mem.eql(u8, next.value, "=") or std.mem.eql(u8, next.value, "?=");
     }
 
     fn lookaheadNode(self: *Parser) bool {
         // "node" name "{"
-        const nt = self.peek(1);
+        const nt = self.peekNonNl(1);
         if (nt.kind != .ident and nt.kind != .string) return false;
-        return self.isOpAt(2, "{");
+        const t2 = self.peekNonNl(2);
+        return t2.kind == .op and std.mem.eql(u8, t2.value, "{");
     }
 
     fn lookaheadDecl(self: *Parser) bool {
         // kind name ( "{" | "(" )
-        const nt = self.peek(1);
+        const nt = self.peekNonNl(1);
         if (nt.kind != .ident and nt.kind != .string) return false;
-        return self.isOpAt(2, "{") or self.isOpAt(2, "(");
+        const t2 = self.peekNonNl(2);
+        return (t2.kind == .op and std.mem.eql(u8, t2.value, "{")) or
+               (t2.kind == .op and std.mem.eql(u8, t2.value, "("));
     }
 
     // ---- Statement forms ---------------------------------------------------
@@ -398,6 +415,7 @@ pub const Parser = struct {
     fn parseFieldDecl(self: *Parser) ParseError!ast.FieldDecl {
         self.pos += 1; // "field"
         const name = try self.expectIdent();
+        self.skipNl();
         _ = try self.expectOp(":");
         const ty = try self.parseType();
         var refinements = std.ArrayList(ast.Refinement).init(self.alloc);
@@ -506,6 +524,7 @@ pub const Parser = struct {
     // order_decl = "order" order_chain { ";" order_chain } ;
     fn parseOrderDecl(self: *Parser) ParseError!ast.OrderDecl {
         self.pos += 1; // "order"
+        self.skipNl();
         var chains = std.ArrayList(ast.OrderChain).init(self.alloc);
         try chains.append(try self.parseOrderChain());
         while (self.isOp(";")) {
@@ -727,6 +746,7 @@ pub const Parser = struct {
             try items.append(try self.parseExpr());
             while (self.isOp(",")) {
                 self.pos += 1;
+                self.skipNl();
                 if (self.isOp("]")) break; // tolerate trailing comma
                 try items.append(try self.parseExpr());
             }
