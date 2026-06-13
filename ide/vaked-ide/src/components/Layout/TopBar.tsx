@@ -13,7 +13,7 @@ export function TopBar() {
   const setSource = useEditorStore((s) => s.setSource);
   const setFilePath = useGraphStore((s) => s.setFilePath);
   const { parseFile, lowerFile } = useVakedc();
-  const { toggleSidebar, toggleSessionPanel, toggleTerminal } = useUIStore();
+  const { toggleSidebar, toggleSessionPanel, toggleTerminal, openCommandPalette } = useUIStore();
 
   const handleOpen = async () => {
     if (opening) return;
@@ -147,6 +147,31 @@ export function TopBar() {
       </button>
       <button onClick={toggleTerminal} style={btnStyle("#1f2937", "#6b7280")} title="Toggle terminal (Ghostty)">
         ▦
+      </button>
+
+      {/* Command palette trigger */}
+      <button
+        onClick={openCommandPalette}
+        title="Command palette (⌘K)"
+        style={{
+          ...btnStyle("#1f2937", "#9ca3af"),
+          display: "flex",
+          alignItems: "center",
+          gap: "5px",
+        }}
+      >
+        <span>⌘K</span>
+        <kbd style={{
+          background: "#0d1117",
+          border: "1px solid #374151",
+          borderRadius: "3px",
+          color: "#4b5563",
+          fontSize: "9px",
+          padding: "1px 4px",
+          fontFamily: "monospace",
+        }}>
+          ctrl+k
+        </kbd>
       </button>
     </div>
   );

@@ -49,7 +49,9 @@ export function StatusBar() {
       )}
 
       <span style={{ marginLeft: "auto" }}>
-        Ln {cursorLine}, Col {cursorCol}
+        {filePath ? `Ln ${cursorLine}, Col ${cursorCol}` : (
+          <span style={{ color: "#374151" }}>⌘K to open commands</span>
+        )}
       </span>
 
       <span>vaked-ide v0.1.0</span>
