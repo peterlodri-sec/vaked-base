@@ -39,9 +39,12 @@ the actual file/issue.
 
 **Decision-quality knobs** (env *variables*):
 
-- `RALPH_WRITER_MODEL` — a strong shared model for stage 2 + stage 3 (e.g. a
-  full DeepSeek-V4 / big Qwen). Defaults to the track's own model; if the writer
-  call fails it falls back to the track model, so a bad slug never breaks a tick.
+- `RALPH_WRITER_MODEL` — a strong shared model for stage 2 + stage 3
+  (recommended: `deepseek/deepseek-v4-pro`, the full V4 — ~$0.008/tick; or
+  `anthropic/claude-opus-4.8` for premium grounding). Defaults to the track's
+  own model; if the writer call fails it falls back to the track model, so a bad
+  slug never breaks a tick. Add a `FALLBACK_PRICES` entry for the slug so the
+  ledger reports real cost (else a `$0.10/$0.20` placeholder is used).
 - `RALPH_CRITIQUE` — `off` disables the stage-3 self-critique pass (on by default).
 
 ## Commands

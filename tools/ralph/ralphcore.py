@@ -116,6 +116,7 @@ FALLBACK_PRICES: dict[str, Price] = {
     "tencent/hy3-preview": Price(0.10, 0.20),     # placeholder — refresh from /models
     "xiaomi/mimo-v2.5": Price(0.10, 0.20),        # placeholder — refresh from /models
     "openai/gpt-oss-120b": Price(0.10, 0.30),     # toot generator — placeholder
+    "deepseek/deepseek-v4-pro": Price(0.435, 0.87),  # RALPH_WRITER_MODEL (full V4) — live /models 2026-06-13
 }
 
 
