@@ -139,6 +139,14 @@ decision.
   announce failing` — at most one open per repo), and exits non-zero (red CI).
   The decision is already committed, and the announcement retries each tick until
   it succeeds (then close the issue).
+- **One generated image per toot:** an OpenRouter image model
+  (`google/gemini-2.5-flash-image`, override with `RALPH_IMAGE_MODEL`) draws an
+  abstract graph-motif picture from the decision title + the Vaked-language
+  concept; it's uploaded to Mastodon (`POST /api/v2/media`, with alt-text) and
+  attached to the status. **Entirely best-effort** — no key, a model/upload
+  error, or unparseable data degrades silently to a text-only toot; the image
+  never blocks or fails the post. `RALPH_TOOT_IMAGE=off` disables it; it's also
+  skipped under `--dry-run`.
 - **No-op** without `MASTODON_ACCESS_TOKEN`. Config: `MASTODON_BASE_URL`
   (instance), `MASTODON_VISIBILITY` (env *variable*, default `unlisted`),
   `MASTODON_ANNOUNCE=off` kill-switch. Generation uses the same OpenRouter/

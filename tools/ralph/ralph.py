@@ -8,6 +8,8 @@ zero third-party deps. Enable it with the `tracing` extra + LANGFUSE_* env:
 """
 from __future__ import annotations
 import argparse
+import base64
+import binascii
 import datetime
 import glob
 import json
@@ -19,6 +21,7 @@ import time
 import urllib.request
 import urllib.error
 import urllib.parse
+import uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -44,6 +47,7 @@ MASTODON_DEFAULT_BASE = "https://social.crabcc.app"   # private, self-hosted
 MASTODON_MAX_CHARS = 470                # safety margin under Mastodon's 500
 ANNOUNCE_MODEL = "openai/gpt-oss-120b"  # writes the toot (separate from decide)
 ANNOUNCE_LOOKBACK = 5                   # how far back to retry un-announced decisions
+TOOT_IMAGE_MODEL = "google/gemini-2.5-flash-image"  # generates the toot's media
 
 
 def read_purpose() -> str:
@@ -225,14 +229,16 @@ def _rate_limit_wait(exc, default: int = 5, cap: int = 60) -> int:
 
 def _post_toot(host: str, token: str, text: str, visibility: str, idem_key: str,
                *, language: str = "en", spoiler_text: "str | None" = None,
-               retries: int = 3) -> dict:
+               media_ids: "list[str] | None" = None, retries: int = 3) -> dict:
     """POST one status, up to `retries` times. Honors Mastodon rate limiting
     (429 → wait per Retry-After / X-RateLimit-Reset) and retries transient 5xx /
     network errors with backoff; raises on the final failure (fail fast). The
     same Idempotency-Key across attempts makes retries safe (no double-post)."""
-    fields = {"status": text, "visibility": visibility, "language": language}
+    fields = [("status", text), ("visibility", visibility), ("language", language)]
     if spoiler_text:
-        fields["spoiler_text"] = spoiler_text
+        fields.append(("spoiler_text", spoiler_text))
+    for mid in (media_ids or []):           # repeated media_ids[] = array form-encoding
+        fields.append(("media_ids[]", mid))
     data = urllib.parse.urlencode(fields).encode()
     headers = {"Authorization": "Bearer " + token,
                "Content-Type": "application/x-www-form-urlencoded",
@@ -263,6 +269,185 @@ def _post_toot(host: str, token: str, text: str, visibility: str, idem_key: str,
                 raise
             time.sleep(2 ** attempt)
     raise last   # pragma: no cover
+
+
+# ---------------------------------------------------------------------------
+# Toot image: generate ONE picture per post with an OpenRouter image model, then
+# upload it to Mastodon as media. Entirely BEST-EFFORT — any failure (no key,
+# model error, unparseable data, upload/processing failure) degrades silently to
+# a text-only toot; the image must NEVER block or fail the announcement.
+# ---------------------------------------------------------------------------
+
+# An image prompt grounded in the decision + the Vaked language concept. No text
+# in the picture (models render words badly) — pure abstract graph motif.
+_IMAGE_PROMPT = (
+    "Abstract minimalist poster illustration for a software design decision. "
+    "Subject: {title}. Theme: 'Vaked' — a capability-graph language where a "
+    "declaration compiles to a typed semantic graph: nodes, typed edges, "
+    "capabilities, supervision and enforcement layers. Style: clean flat vector, "
+    "geometric directed-graph motifs, deep indigo and teal palette on dark, "
+    "subtle glow, high contrast, square composition. Absolutely NO text, NO "
+    "words, NO letters, NO numbers, NO logos."
+)
+_DATA_URL_RE = re.compile(r"^data:(?P<mime>[\w.+-]+/[\w.+-]+);base64,(?P<b64>.+)$", re.S)
+_IMG_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif"}
+
+
+def _toot_image_on() -> bool:
+    """Image-per-toot is on by default; RALPH_TOOT_IMAGE=off|0|false disables it."""
+    return os.environ.get("RALPH_TOOT_IMAGE", "").strip().lower() not in ("0", "off", "false", "no")
+
+
+def _first_image_url(resp: dict) -> "str | None":
+    """The first generated image's data URL, at OpenRouter's documented path
+    choices[0].message.images[].image_url.url (tolerant of shape variations)."""
+    try:
+        msg = resp["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError):
+        return None
+    for img in (msg.get("images") or []):
+        if not isinstance(img, dict):
+            continue
+        iu = img.get("image_url")
+        url = iu.get("url") if isinstance(iu, dict) else (iu if isinstance(iu, str) else None)
+        if isinstance(url, str) and url.strip():
+            return url.strip()
+    return None
+
+
+def _decode_data_url(url: str) -> "tuple[bytes, str] | None":
+    """(raw_bytes, mime) from a base64 data URL, or None if it isn't one / is
+    empty / fails to decode."""
+    m = _DATA_URL_RE.match((url or "").strip())
+    if not m:
+        return None
+    try:
+        raw = base64.b64decode(m.group("b64"), validate=False)
+    except (binascii.Error, ValueError):
+        return None
+    if not raw:
+        return None
+    return raw, (m.group("mime") or "image/png").lower()
+
+
+def _generate_image(title: str, model: str, api_key: str,
+                    base_url: "str | None") -> "tuple[bytes, str] | None":
+    """Generate ONE image for the toot via an OpenRouter image model. Returns
+    (raw_bytes, mime) or None. Best-effort: any failure returns None so the toot
+    still posts text-only."""
+    if not api_key:
+        return None
+    prompt = _IMAGE_PROMPT.format(title=_clean_title(title)[:200] or "a design decision")
+    try:
+        resp = openrouter_call(
+            model, [{"role": "user", "content": prompt}],
+            api_key=api_key, temperature=0.9, max_tokens=4096,
+            modalities=["image", "text"], base_url=base_url,
+            span_name="ralph.toot-image", span_meta={"model": model})
+    except Exception as e:   # noqa: BLE001 — image is optional
+        print("[announce] image generation failed (%s) — text-only toot"
+              % type(e).__name__, file=sys.stderr)
+        return None
+    url = _first_image_url(resp)
+    if not url:
+        print("[announce] image gen returned no image (finish=%s) — text-only toot"
+              % _finish_reason(resp), file=sys.stderr)
+        return None
+    decoded = _decode_data_url(url)
+    if decoded is None:
+        print("[announce] image data URL unparseable — text-only toot", file=sys.stderr)
+    return decoded
+
+
+def _multipart(fields: "dict[str, str]", file_field: str, filename: str,
+               mime: str, content: bytes) -> "tuple[bytes, str]":
+    """Build a multipart/form-data body (stdlib only). Returns (body, content_type)."""
+    boundary = "----ralph" + uuid.uuid4().hex
+    bb = boundary.encode()
+    nl = b"\r\n"
+    out = bytearray()
+    for k, v in fields.items():
+        out += b"--" + bb + nl
+        out += ('Content-Disposition: form-data; name="%s"' % k).encode() + nl + nl
+        out += str(v).encode("utf-8") + nl
+    out += b"--" + bb + nl
+    out += ('Content-Disposition: form-data; name="%s"; filename="%s"'
+            % (file_field, filename)).encode() + nl
+    out += ("Content-Type: %s" % mime).encode() + nl + nl
+    out += content + nl
+    out += b"--" + bb + b"--" + nl
+    return bytes(out), "multipart/form-data; boundary=" + boundary
+
+
+def _await_media(host: str, token: str, mid: str, *, tries: int = 12,
+                 delay: int = 2) -> bool:
+    """Poll GET /api/v1/media/:id until a 202-processing upload is ready. 200 =
+    ready; 206 (still processing) is a 2xx, so urlopen returns it without raising
+    and we just retry. Bounded; any HTTPError (e.g. 422 failed) gives up."""
+    headers = {"Authorization": "Bearer " + token}
+    for _ in range(tries):
+        try:
+            req = urllib.request.Request(host + "/api/v1/media/" + mid, headers=headers)
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                if resp.status == 200:
+                    return True
+                # 206 Partial Content (still processing) → fall through and retry.
+        except Exception:
+            return False
+        time.sleep(delay)
+    return False
+
+
+def _upload_media(host: str, token: str, content: bytes, mime: str,
+                  alt: str) -> "str | None":
+    """Upload one image (POST /api/v2/media) and return its media id, polling
+    briefly if it 202-processes. Best-effort: None on any failure."""
+    ext = _IMG_EXT.get(mime, "png")
+    body, ctype = _multipart({"description": (alt or "")[:1400]}, "file",
+                             "ralph." + ext, mime, content)
+    headers = {"Authorization": "Bearer " + token, "Content-Type": ctype}
+    try:
+        req = urllib.request.Request(host + "/api/v2/media", data=body,
+                                     method="POST", headers=headers)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            obj = json.loads(resp.read().decode("utf-8"))
+            code = resp.status
+    except Exception as e:   # noqa: BLE001 — media is optional
+        print("[announce] media upload failed (%s) — text-only toot"
+              % type(e).__name__, file=sys.stderr)
+        return None
+    mid = (obj or {}).get("id")
+    if not mid:
+        return None
+    if code == 202 and not _await_media(host, token, mid):
+        print("[announce] media %s not ready in time — text-only toot" % mid,
+              file=sys.stderr)
+        return None
+    return mid
+
+
+def _maybe_toot_image(title: str, host: str, token: str, api_key: str,
+                      base_url: "str | None") -> "list[str] | None":
+    """Generate + upload one image for the toot; returns [media_id] or None.
+    Wholly best-effort — never raises, so it can't block the announcement."""
+    try:
+        model = os.environ.get("RALPH_IMAGE_MODEL", "").strip() or TOOT_IMAGE_MODEL
+        img = _generate_image(title, model, api_key, base_url)
+        if img is None:
+            return None
+        raw, mime = img
+        alt = ("Abstract graph-motif illustration for the ralph decision: "
+               + _clean_title(title))[:1400]
+        mid = _upload_media(host, token, raw, mime, alt)
+        if not mid:
+            return None
+        print("[announce] image attached media_id=%s bytes=%d mime=%s model=%s"
+              % (mid, len(raw), mime, model))
+        return [mid]
+    except Exception as e:   # noqa: BLE001 — belt-and-suspenders; never block the toot
+        print("[announce] image step errored (%s) — text-only toot"
+              % type(e).__name__, file=sys.stderr)
+        return None
 
 
 def _short_err(exc: Exception) -> str:
@@ -506,6 +691,7 @@ def openrouter_call(
     max_tokens: int,
     reasoning: dict | None = None,
     response_format: dict | None = None,
+    modalities: list | None = None,
     seed: int | None = None,
     retries: int = 3,
     base_url: str | None = None,
@@ -523,6 +709,8 @@ def openrouter_call(
         body["reasoning"] = reasoning
     if response_format is not None:
         body["response_format"] = response_format
+    if modalities is not None:               # e.g. ["image", "text"] for image gen
+        body["modalities"] = modalities
     if seed is not None:
         body["seed"] = seed
 
@@ -1477,17 +1665,27 @@ def cmd_announce(args) -> int:
     spoiler = ("ralph · sensitive decision (review before sharing)"
                if _is_sensitive(_decision_block(track, n) or title) else None)
 
+    # One generated image per toot (best-effort; degrades to text-only). Skipped
+    # in --dry-run and when RALPH_TOOT_IMAGE=off so previews/CI stay network-light.
+    media_ids = None
+    if not dry and _toot_image_on():
+        media_ids = _maybe_toot_image(title, host, token, _resolve_api_key(),
+                                      getattr(args, "base_url", None))
+
     # PII-safe debug BEFORE (no token; the body is what gets broadcast anyway).
-    print("[announce] -> host=%s id=%s chars=%d/%d visibility=%s sensitive=%s"
-          % (host, did, len(toot), MASTODON_MAX_CHARS, visibility, bool(spoiler)))
+    print("[announce] -> host=%s id=%s chars=%d/%d visibility=%s sensitive=%s media=%d"
+          % (host, did, len(toot), MASTODON_MAX_CHARS, visibility, bool(spoiler),
+             len(media_ids or [])))
     print("[announce] body |%s|" % toot)
 
     if dry:
-        print("[announce] --dry-run: not posting")
+        print("[announce] --dry-run: not posting"
+              + (" (image generation also skipped)" if _toot_image_on() else ""))
         return 0
 
     try:
-        resp = _post_toot(host, token, toot, visibility, did, spoiler_text=spoiler)
+        resp = _post_toot(host, token, toot, visibility, did, spoiler_text=spoiler,
+                          media_ids=media_ids)
     except Exception as exc:   # noqa: BLE001 — report loudly, fail the step
         print("[announce] AFTER: FAILED %s: %s"
               % (type(exc).__name__, _short_err(exc)), file=sys.stderr)
