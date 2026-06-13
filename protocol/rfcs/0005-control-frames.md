@@ -368,6 +368,30 @@ Response (same corr <uuid-w>):
       logged_seq: none,
       detail: "hash mismatch; step 50 has different hash"
     }
+    
+  if producer_uuid does not exist in topology:
+    ControlAck {
+      applied: false,
+      reason: unknown_target,
+      logged_seq: none,
+      detail: "producer agent not found in current topology"
+    }
+    
+  if topology_epoch (5) is not the current epoch (current is 6):
+    ControlAck {
+      applied: false,
+      reason: stale_epoch,
+      logged_seq: none,
+      detail: "requested epoch 5 but current epoch is 6"
+    }
+    
+  if preceptord policy denies the requester authority to rewind:
+    ControlAck {
+      applied: false,
+      reason: denied,
+      logged_seq: none,
+      detail: "principal lacks rewind authority on this producer"
+    }
 ```
 
 ## 5. ControlRefusal reason taxonomy
