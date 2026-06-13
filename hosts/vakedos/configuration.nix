@@ -157,8 +157,16 @@
   # === Nix: make the EPYC earn its keep as a build host ======================
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
+    # max-jobs = derivations built in parallel; "auto" = number of CPUs.
     max-jobs = "auto";
-    cores = 0; # use all cores per job
+    # cores = NIX_BUILD_CORES, the parallelism *inside* one derivation.
+    # 0 means "use all available CPU cores" (per the Nix manual — this is also
+    # the Nix default; it is NOT 1 core). Combined with max-jobs=auto this can
+    # oversubscribe (≈ cpus × cpus threads); the usual risk is OOM from many
+    # parallel linkers, which the 196 GB ECC removes — so we let it use the whole
+    # box. If you ever see scheduler thrashing on huge parallel builds, cap it,
+    # e.g. max-jobs=8; cores=8 on a ~64-thread part.
+    cores = 0;
     trusted-users = [ "root" "@wheel" ];
     http-connections = 50;
     substituters = [ "https://cache.nixos.org" ];
