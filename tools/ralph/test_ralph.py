@@ -1509,6 +1509,42 @@ def test_cmd_digest_oversized_rnd_fits_budget() -> None:
         assert ralph._mastodon_len(m.group(1)) <= ralph.MASTODON_MAX_CHARS
 
 
+def test_parse_candidates_tolerant() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    raw = '{"candidates": [{"title": "A", "urgency": 5}]}'
+    fenced = "```json\n" + raw + "\n```"
+    prose = "Sure, here are the candidates:\n" + raw + "\nHope that helps!"
+    want = [{"title": "A", "urgency": 5}]
+    for t in (raw, fenced, prose):
+        assert ralph._parse_candidates(t) == want, t
+    assert ralph._parse_candidates("no json here") == []
+    assert ralph._parse_candidates(None) == []
+    assert ralph._parse_candidates("") == []
+
+
+def test_run_stages_falls_back_to_reasoning() -> None:
+    """A thinking model with content=null but JSON in `reasoning` still yields
+    candidates (no skip)."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    s1 = {"choices": [{"message": {"content": None, "reasoning":
+            'thinking… ```json\n{"candidates":[{"title":"X","why_now":"n",'
+            '"urgency":5,"addressed":false}]}\n```'},
+            "finish_reason": "stop"}], "usage": {}}
+    s2 = {"choices": [{"message": {"content": "**Decision / question:** X"}}],
+          "usage": {}}
+    calls = iter([s1, s2])
+    with mock.patch.object(ralph, "openrouter_call",
+                           side_effect=lambda *a, **k: next(calls)):
+        res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
+                                lambda: "CTX", "m1", "m2", "key", None, 42)
+    assert res is not None
+    _, body = res
+    assert "Decision" in body
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 
