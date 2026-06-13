@@ -30,10 +30,19 @@ problem well enough to ratify?). Configured in [`tracks.json`](tracks.json):
 | `mlir-topology` | `track:mlir` | `xiaomi/mimo-v2.5` | MLIR topology-compilation dialects (0013) + memory primitive (0014) |
 | `hcp-litany` | `track:protocol` | `tencent/hy3-preview` | the HCP / Litany wire protocol (RFCs) |
 
-Each iteration is **two-stage, one model**: stage 1 ranks candidate decisions
-(reasoning + JSON), stage 2 writes the chosen decision entry. Context is scoped
-to the track — label-filtered home-repo issues, the track's doc globs, and a
-path-scoped `git log`.
+Each iteration is **three stages**: stage 1 ranks candidate decisions
+(reasoning + JSON, the track's model), stage 2 writes the chosen decision entry,
+and stage 3 self-critiques → rewrites it for sharper, better-grounded output.
+Context is scoped to the track — label-filtered home-repo issues, the track's
+doc globs, and a path-scoped `git log`; the prompts require every claim to cite
+the actual file/issue.
+
+**Decision-quality knobs** (env *variables*):
+
+- `RALPH_WRITER_MODEL` — a strong shared model for stage 2 + stage 3 (e.g. a
+  full DeepSeek-V4 / big Qwen). Defaults to the track's own model; if the writer
+  call fails it falls back to the track model, so a bad slug never breaks a tick.
+- `RALPH_CRITIQUE` — `off` disables the stage-3 self-critique pass (on by default).
 
 ## Commands
 

@@ -188,7 +188,14 @@ _STAGE1_SYS = (
 )
 
 _STAGE2_SYS = (
-    "You are the strategy advisor for {subject}. Given ONE chosen decision and the full project context, write a single decision entry in GitHub-flavored markdown with these bold-labelled lines: Decision / question, Options, Recommendation, Risks, Next actions, Confidence (low|med|high). Be concrete and grounded; no preamble, output only the entry body."
+    "You are the strategy advisor for {subject}. Given ONE chosen decision and the full project context, write a single decision entry in GitHub-flavored markdown with these bold-labelled lines: Decision / question, Options, Recommendation, Risks, Next actions, Confidence (low|med|high). "
+    "GROUND every claim in the provided context — reference the actual file or issue it relies on (e.g. `docs/language/0011-type-system.md`, issue #17). Do NOT invent facts, files, or issues not present in the context. Make the Recommendation concrete and the Next actions a specific PR or issue to open. No preamble; output only the entry body."
+)
+
+_CRITIQUE_SYS = (
+    "You are a rigorous reviewer improving a DRAFT strategic decision entry for {subject}. "
+    "Rewrite it to be sharper and better grounded: every claim must cite the actual file or issue it relies on (from the context); cut hand-waving and hedging; make the Recommendation concrete and the Next actions a specific PR/issue. Remove any claim not supported by the context. "
+    "Keep the SAME bold-labelled structure (Decision / question, Options, Recommendation, Risks, Next actions, Confidence). Output ONLY the improved entry body — no preamble, no meta-commentary about your changes."
 )
 
 
@@ -232,6 +239,20 @@ def build_stage2_messages(
     return [
         {"role": "system", "content": _STAGE2_SYS.format(subject=subject)},
         {"role": "user", "content": f"# Chosen decision\n{c}\n\n# Full project context\n{full_context}"},
+    ]
+
+
+def build_critique_messages(
+    subject: str,
+    draft: str,
+    full_context: str,
+) -> list[dict]:
+    """Stage-3 self-critique → rewrite of a stage-2 draft, grounded in context."""
+    return [
+        {"role": "system", "content": _CRITIQUE_SYS.format(subject=subject)},
+        {"role": "user", "content":
+            f"# Draft decision entry to improve\n{draft}\n\n"
+            f"# Grounding context (cite these; reject claims not supported here)\n{full_context}"},
     ]
 
 
