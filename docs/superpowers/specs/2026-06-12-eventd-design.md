@@ -97,6 +97,27 @@ not fracture another. This is exactly what Track D (control) consumes.
   boot rejects); a replay determinism test (same log → byte-identical folded
   state).
 
+## Hardening (#35)
+
+Operator/robustness slice landed in the reference (CI-tested):
+
+- `gc_floor_explain` / `eventd floor <p> --explain` — lists the live consumers
+  pinning `producer_gc_floor` (consumer, min_required_step, source, heartbeat)
+  for diagnosis when GC refuses to move.
+- `DependencyIndex.prune_evicted` — reclaims an evicted consumer's dead
+  **checkpoint** keys only; never changes floor / cold-start results.
+  Registrations are retained — a dead registration is the record that the
+  consumer still owes a re-anchor (cold-start reads it as a PAUSE), so it is
+  not garbage.
+- `repair_truncate_tail` / `eventd repair --truncate-tail` — the explicit
+  operator crash-recovery command: drops the unverifiable suffix past the
+  longest valid prefix, appends a `log_repair` event (the truncation is itself
+  audited), re-verifies, idempotent. A torn tail stays a hard error until run.
+
+Still open on #35 (Zig-daemon / multi-log gated): snapshot/compaction, group
+commit, lock portability, the cold-start `ProducerUnavailable` vs
+`MissingAnchor` split, identity-namespace rules.
+
 ## Open
 
 - fsync cadence vs throughput (batch-append?).

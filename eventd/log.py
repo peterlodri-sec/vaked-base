@@ -18,7 +18,10 @@ import json
 import os
 from functools import reduce
 
-from .core import GENESIS_HASH, entry_line, make_entry, verify_chain
+from .core import (GENESIS_HASH, chain_hash, entry_line, make_entry,
+                   verify_chain)
+
+KIND_REPAIR = "log_repair"
 
 
 class TamperError(Exception):
@@ -50,6 +53,86 @@ def load_entries(path: str) -> list[dict]:
             return entries
     except FileNotFoundError:
         return []
+
+
+def _longest_valid_prefix(path: str) -> list[dict]:
+    """The longest contiguous, untampered chain prefix readable from ``path``
+    (line by line from genesis), stopping at the first line that fails to
+    parse or fails to chain. Everything after is the unverifiable suffix."""
+    prefix = []
+    prev = GENESIS_HASH
+    try:
+        f = open(path, encoding="utf-8")
+    except FileNotFoundError:
+        return []
+    with f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                break
+            if (e.get("seq") != len(prefix) or e.get("prev") != prev
+                    or e.get("hash") != chain_hash(prev, e.get("payload", {}))):
+                break
+            prefix.append(e)
+            prev = e["hash"]
+    return prefix
+
+
+def repair_truncate_tail(path: str) -> dict:
+    """#35 — the explicit operator crash-recovery command. A torn final write
+    (or any unverifiable suffix) leaves a chain that boot-verify REFUSES;
+    this drops everything after the longest valid prefix and appends a
+    ``log_repair`` event recording the drop, so the chain is intact again and
+    the truncation is itself in the audit trail. **A break anywhere truncates
+    everything after it** — a hash chain cannot resume past a broken link, so
+    a mid-log tamper (not just a torn tail) drops the whole unverifiable
+    suffix; the ``dropped`` count + ``log_repair`` entry make the loss
+    explicit. The rewrite is crash-atomic (temp file → fsync → ``os.replace``
+    → dir fsync), so a crash mid-repair never destroys the verified prefix.
+
+    Takes the single-writer lock (it mutates the file). Returns
+    ``{"repaired": bool, "dropped": int, "tail_seq": int|None}``. ``repaired``
+    is False (a no-op) when the chain is already intact. NOT daemon-automatic:
+    a truncated tail stays a hard error until an operator runs this."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    fh = open(path, "a", encoding="utf-8")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as e:
+        fh.close()
+        raise WriterLockError(
+            f"{path}: another writer holds the log "
+            f"(single-writer discipline)") from e
+    try:
+        prefix = _longest_valid_prefix(path)
+        raw = [ln for ln in open(path, encoding="utf-8") if ln.strip()]
+        dropped = len(raw) - len(prefix)
+        if dropped <= 0:
+            return {"repaired": False, "dropped": 0, "tail_seq": None}
+        prev = prefix[-1]["hash"] if prefix else GENESIS_HASH
+        repair = make_entry(prev, len(prefix),
+                            {"kind": KIND_REPAIR, "v": 1, "dropped": dropped})
+        # crash-atomic: temp → fsync → replace → dir fsync (never truncate the
+        # live file in place — a second crash would lose the verified prefix).
+        tmp = path + ".repair.tmp"
+        with open(tmp, "w", encoding="utf-8") as w:
+            for e in prefix:
+                w.write(entry_line(e))
+            w.write(entry_line(repair))
+            w.flush()
+            os.fsync(w.fileno())
+        os.replace(tmp, path)
+        dfd = os.open(os.path.dirname(path) or ".", os.O_RDONLY)
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
+        return {"repaired": True, "dropped": dropped, "tail_seq": repair["seq"]}
+    finally:
+        fh.close()   # releases the flock
 
 
 class EventLog:

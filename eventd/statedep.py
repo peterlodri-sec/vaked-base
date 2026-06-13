@@ -198,6 +198,62 @@ class DependencyIndex:
                 floors.append(reg["producer_step"])
         return min(floors) if floors else None
 
+    def gc_floor_explain(self, producer: str) -> dict:
+        """Operator diagnosis (#35): *which* live consumers pin
+        ``producer_gc_floor`` and why. Returns
+        ``{"floor": int|None, "pinned_by": [ {consumer, min_required_step,
+        source, last_heartbeat_at} … ]}`` — one contributor per live edge,
+        sorted by (min_required_step, consumer) so the floor is
+        ``pinned_by[0]["min_required_step"]`` and the listing is
+        deterministic. ``source`` is ``"checkpoint"`` (acknowledged) or
+        ``"registration"`` (unacknowledged anchor); ``last_heartbeat_at`` is
+        the checkpoint's heartbeat or ``None`` for a bare registration. This
+        is what an operator reads when GC refuses to move."""
+        pinned = []
+        for consumer, prod in set(self.registrations) | set(self.checkpoints):
+            if prod != producer or not self._edge_live(consumer, prod):
+                continue
+            reg = self.registrations.get((consumer, prod))
+            cp = self.checkpoints.get((consumer, prod))
+            if cp is not None and (reg is None
+                                   or cp["_at_seq"] > reg["_at_seq"]):
+                pinned.append({"consumer": consumer,
+                               "min_required_step": cp["min_required_step"],
+                               "source": "checkpoint",
+                               "last_heartbeat_at": cp.get("last_heartbeat_at")})
+            elif reg is not None:
+                pinned.append({"consumer": consumer,
+                               "min_required_step": reg["producer_step"],
+                               "source": "registration",
+                               "last_heartbeat_at": None})
+        pinned.sort(key=lambda c: (c["min_required_step"], c["consumer"]))
+        floor = pinned[0]["min_required_step"] if pinned else None
+        return {"floor": floor, "pinned_by": pinned}
+
+    # -- memory bounding (#35) ------------------------------------------------
+
+    def prune_evicted(self) -> int:
+        """Reclaim the dead **checkpoint** records of evicted consumers: a
+        checkpoint whose edge is no longer live (``_edge_live`` False) only
+        ever fed the GC floor, and ``gc_floor`` already filters it out, so
+        dropping it changes nothing — it just frees memory in a long-running
+        daemon that evicted a never-returning consumer.
+
+        **Registrations are deliberately NOT pruned.** ``verify_cold_start``
+        reads a dead registration as an active PAUSE signal (the consumer
+        still owes a re-anchor on that producer, §6); deleting it would
+        silently flip a consumer from PAUSED to RUNNING. (A re-anchor after
+        eviction overwrites the key with a live registration via latest-wins,
+        so the only dead registrations left are genuinely-owed ones.) Returns
+        the count removed; never changes ``gc_floor`` / ``verify_cold_start``
+        results."""
+        removed = 0
+        for key in [k for k in self.checkpoints
+                    if not self._edge_live(k[0], k[1])]:
+            del self.checkpoints[key]
+            removed += 1
+        return removed
+
     # -- cold-start verifier (§6) ---------------------------------------------
 
     def verify_cold_start(self, consumer: str,

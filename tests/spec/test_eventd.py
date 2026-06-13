@@ -38,7 +38,7 @@ import ralphcore  # noqa: E402  (tools/ralph — the proven format reference)
 from eventd import (  # noqa: E402
     DependencyIndex, EventLog, TamperError, WriterLockError,
     consumer_checkpoint, consumer_evicted, dependency_registration,
-    rewind_event, verify_chain,
+    repair_truncate_tail, rewind_event, verify_chain,
 )
 from eventd.core import canonical_json, make_entry  # noqa: E402
 
@@ -662,11 +662,124 @@ def _test_lowering_wiring(lines):
     return ok
 
 
+def _test_hardening(lines):
+    """#35 hardening slice: gc_floor_explain (which consumers pin the floor),
+    prune_evicted (memory reclaim without changing results), and
+    repair_truncate_tail (operator crash-recovery that re-verifies + logs)."""
+    ok = True
+    tmp = tempfile.mkdtemp(prefix="eventd-spec-")
+    try:
+        path = os.path.join(tmp, "h.jsonl")
+        with EventLog(path, writer=True) as log:
+            log.append({"agent": "alpha", "event": "step", "n": 0})
+            a1 = log.append({"agent": "alpha", "event": "step", "n": 1})
+            log.append(consumer_checkpoint("beta", "alpha", 1, 0, 1,
+                                           "2026-06-13T00:00:00Z"))
+            log.append(consumer_checkpoint("gamma", "alpha", 0, 4, 1,
+                                           "2026-06-13T00:00:00Z"))
+            log.append(dependency_registration("delta", "alpha", 0, 1,
+                                               a1["hash"], 1))   # unacked
+
+        # explain: floor=0 pinned by gamma; deterministic order; delta is an
+        # unacknowledged registration contributor
+        idx = DependencyIndex.from_entries(EventLog(path).entries)
+        info = idx.gc_floor_explain("alpha")
+        if info["floor"] != 0 or info["pinned_by"][0]["consumer"] != "gamma":
+            ok = False
+            lines.append(f"  FAIL explain: floor/first-pinner wrong: {info}")
+        sources = {c["consumer"]: c["source"] for c in info["pinned_by"]}
+        if sources.get("delta") != "registration":
+            ok = False
+            lines.append(f"  FAIL explain: delta should be a registration "
+                         f"contributor: {sources}")
+
+        # prune: evict gamma → floor rises to 1; prune drops gamma's dead
+        # record without changing the floor
+        with EventLog(path, writer=True) as log:
+            log.append(consumer_evicted("gamma", "lease expired", 1))
+        idx = DependencyIndex.from_entries(EventLog(path).entries)
+        before = len(idx.registrations) + len(idx.checkpoints)
+        floor_before = idx.gc_floor("alpha")
+        removed = idx.prune_evicted()
+        after = len(idx.registrations) + len(idx.checkpoints)
+        if not (removed == 1 and after == before - 1
+                and idx.gc_floor("alpha") == floor_before == 1):
+            ok = False
+            lines.append(f"  FAIL prune: removed={removed} before={before} "
+                         f"after={after} floor={idx.gc_floor('alpha')}")
+
+        # prune must NOT flip cold-start: X anchors A+B, is evicted, re-anchors
+        # ONLY A → still owes B → PAUSED, before AND after prune (a dead
+        # registration is load-bearing and must survive pruning)
+        p2 = os.path.join(tmp, "h2.jsonl")
+        with EventLog(p2, writer=True) as log:
+            a = log.append({"agent": "A", "event": "step", "n": 0})
+            b = log.append({"agent": "B", "event": "step", "n": 0})
+            log.append(dependency_registration("X", "A", 0, 0, a["hash"], 1))
+            log.append(dependency_registration("X", "B", 0, 0, b["hash"], 1))
+            log.append(consumer_evicted("X", "lease expired", 1))
+            log.append(dependency_registration("X", "A", 1, 0, a["hash"], 2))
+        ents = EventLog(p2).entries
+        idx2 = DependencyIndex.from_entries(ents)
+        if idx2.verify_cold_start("X", ents) is None:
+            ok = False
+            lines.append("  FAIL prune-safety: X owes B → must be PAUSED "
+                         "pre-prune")
+        idx2.prune_evicted()
+        stale = idx2.verify_cold_start("X", ents)
+        if stale is None or stale.producer != "B":
+            ok = False
+            lines.append(f"  FAIL prune-safety: pruning flipped cold-start "
+                         f"(X must still be PAUSED on B): {stale}")
+
+        # repair: a torn tail makes boot REFUSE; repair drops it, logs
+        # log_repair, and the result re-verifies
+        try:
+            EventLog(path)
+        except TamperError:
+            ok = False
+            lines.append("  FAIL repair: clean log unexpectedly tampered")
+        good_len = len(EventLog(path))
+        with open(path, "a", encoding="utf-8") as f:
+            f.write('{"seq": 99, "pre')            # torn final write
+        try:
+            EventLog(path)
+            ok = False
+            lines.append("  FAIL repair: torn tail did not refuse pre-repair")
+        except TamperError:
+            pass
+        res = repair_truncate_tail(path)
+        if not (res["repaired"] and res["dropped"] == 1):
+            ok = False
+            lines.append(f"  FAIL repair: result wrong: {res}")
+        reopened = EventLog(path)            # must verify now
+        if len(reopened) != good_len + 1:    # prefix + one log_repair entry
+            ok = False
+            lines.append(f"  FAIL repair: post-repair len {len(reopened)} "
+                         f"!= {good_len + 1}")
+        if reopened.entries[-1]["payload"].get("kind") != "log_repair":
+            ok = False
+            lines.append("  FAIL repair: tail is not a log_repair event")
+        # idempotent: a clean log repairs to a no-op
+        if repair_truncate_tail(path)["repaired"]:
+            ok = False
+            lines.append("  FAIL repair: clean log should be a no-op")
+
+        if ok:
+            lines.append("  hardening: floor --explain pinners, prune_evicted "
+                         "reclaims without changing floor, repair drops torn "
+                         "tail + logs log_repair + re-verifies + idempotent")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok
+
+
 def run():
     lines = []
     ok = True
     for fn in (_test_format_parity, _test_log_discipline, _test_determinism,
-               _test_statedep, _test_cli, _test_lowering_wiring):
+               _test_statedep, _test_hardening, _test_cli,
+               _test_lowering_wiring):
         try:
             ok = fn(lines) and ok
         except Exception as e:
