@@ -23,6 +23,13 @@ wait / block-conflict / hold-on-base onto an `eventd` ledger. Advisory dry-run,
 opt-in `train:auto`, never auto-resolves conflicts. See
 [`tools/yardmaster/`](../tools/yardmaster/README.md).
 
+**Shipped.** **label-tagger** (`new-agent` · autonomous triage) — labels PRs and
+issues from the live `.github/labels.yml` taxonomy, syncs GitHub milestones to
+GOALS.md phases, generates Keep-a-Changelog entries on push-to-main, and optionally
+creates version tags. Grounded in the current docs on every run (GOALS.md,
+docs/context/TIMELINE.md, labels.yml) — no hard-coded knowledge. Advisory, never
+blocks CI. Opt-out via `no-auto-label` label. See [`ci/label-tagger/`](ci/label-tagger/).
+
 ---
 
 ## A. Reviewer upgrades — extend `ci/pr-review`

@@ -1,0 +1,315 @@
+name: label-tagger
+
+# Doc-grounded triage agent: labels PRs/issues, generates changelogs, syncs
+# GitHub milestones — always from the live GOALS.md / TIMELINE.md / labels.yml,
+# never from hard-coded knowledge. Advisory: never fails CI.
+#
+# Modes (set automatically from event type, or manually via workflow_dispatch):
+#   label          — label a PR or issue and optionally assign a milestone
+#   changelog      — generate a Keep-a-Changelog entry on push to main
+#   milestone-sync — upsert GitHub milestones from GOALS.md phases
+#   all            — milestone-sync then label (dispatch default)
+#
+# Prebuilt binary from the rolling `label-tagger-bin` release is used as the
+# fast path. Compiling from source is the fallback when the binary is missing
+# or the agent source itself changed (dogfooding).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issues:
+    types: [opened, edited]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode: label|changelog|milestone-sync|all"
+        required: false
+        default: "all"
+        type: choice
+        options: [label, changelog, milestone-sync, all]
+      target:
+        description: "PR or issue number (for label mode)"
+        required: false
+
+permissions:
+  contents: write        # CHANGELOG.md commit + tag creation
+  pull-requests: write   # label application + advisory comment
+  issues: write          # issue label application
+  statuses: write        # advisory commit status
+
+concurrency:
+  group: label-tagger-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    environment: ci
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Full history so the changelog step can git-log back to the last tag.
+          fetch-depth: 0
+
+      # Dogfooding: if this event's diff touched the agent source, build from
+      # source so the run uses the new code rather than a stale prebuilt.
+      - name: Detect agent source changes
+        id: changed
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=false
+          if [ -n "${BASE_SHA}" ] && [ -n "${HEAD_SHA}" ] && \
+             git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+               -- vaked-agents/ci/label-tagger | grep -q .; then
+            changed=true
+          fi
+          echo "agent=${changed}" >> "$GITHUB_OUTPUT"
+
+      # Fast path: prebuilt binary from rolling release (no compile).
+      - name: Download prebuilt agent
+        id: prebuilt
+        if: steps.changed.outputs.agent != 'true'
+        continue-on-error: true
+        run: |
+          gh release download label-tagger-bin \
+            --pattern vaked-label-tagger-linux-x86_64 \
+            --output ./vaked-label-tagger
+          chmod +x ./vaked-label-tagger
+
+      # Fallback: compile from source. Only activated when prebuilt is missing
+      # or the agent source itself changed.
+      - name: Install Rust toolchain
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/label-tagger
+
+      - name: Set up sccache
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Set up mold linker
+        if: steps.changed.outputs.agent == 'true' || steps.prebuilt.outcome == 'failure'
+        uses: rui314/setup-mold@v1
+
+      # Select operating mode from event type, falling back to dispatch input.
+      - name: Determine mode
+        id: mode
+        run: |
+          if   [ "${{ github.event_name }}" = "push"             ]; then
+            echo "mode=changelog" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode || 'all' }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=label" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Run the agent. Output goes to a temp file so later steps can inspect it.
+      - name: Run label-tagger agent
+        id: run
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LANGFUSE_URL:       ${{ secrets.LANGFUSE_URL }}
+          LANGFUSE_API_KEY:   ${{ secrets.LANGFUSE_API_KEY }}
+          MODE:               ${{ steps.mode.outputs.mode }}
+          PR_NUMBER:          ${{ github.event.pull_request.number || github.event.inputs.target }}
+          ISSUE_NUMBER:       ${{ github.event.issue.number }}
+          BASE_SHA:           ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA:           ${{ github.event.pull_request.head.sha || github.sha }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
+        run: |
+          OUTPUT_FILE="$RUNNER_TEMP/lt-output.json"
+          if [ -x ./vaked-label-tagger ]; then
+            echo "::notice::using prebuilt agent (no compile)"
+            ./vaked-label-tagger > "$OUTPUT_FILE"
+          else
+            echo "::notice::prebuilt unavailable — building from source"
+            probe() {
+              printf 'int main(){return 0;}' > "$RUNNER_TEMP/ld.c" && \
+              cc -fuse-ld="$1" "$RUNNER_TEMP/ld.c" -o "$RUNNER_TEMP/ld.out" 2>/dev/null
+            }
+            FUSE=""
+            for c in mold lld wild; do probe "$c" && FUSE="$c"; done
+            FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
+            [ -n "$FUSE" ] && FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+            export RUSTFLAGS="$FLAGS"
+            if command -v sccache >/dev/null; then
+              export RUSTC_WRAPPER=sccache SCCACHE_GHA_ENABLED=true
+            fi
+            cargo run --release \
+              --manifest-path vaked-agents/ci/label-tagger/Cargo.toml \
+              -- > "$OUTPUT_FILE"
+          fi
+          echo "output_file=$OUTPUT_FILE" >> "$GITHUB_OUTPUT"
+          echo "--- agent output ---"
+          cat "$OUTPUT_FILE"
+
+      # -----------------------------------------------------------------------
+      # Apply labels and milestone to a PR.
+      # -----------------------------------------------------------------------
+      - name: Apply labels / milestone (PR)
+        if: >-
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'workflow_dispatch' &&
+           (github.event.inputs.mode == 'label' || github.event.inputs.mode == 'all'))
+        env:
+          REPO: ${{ github.repository }}
+          PR:   ${{ github.event.pull_request.number || github.event.inputs.target }}
+        run: |
+          OUTPUT=$(cat "${{ steps.run.outputs.output_file }}")
+          LABELS=$(printf '%s' "$OUTPUT" | jq -r '.labels[]?' 2>/dev/null | paste -sd ',')
+          MILESTONE=$(printf '%s' "$OUTPUT" | jq -r '.milestone // empty' 2>/dev/null)
+          COMMENT=$(printf '%s' "$OUTPUT" | jq -r '.comment // empty' 2>/dev/null)
+
+          if [ -n "$LABELS" ] && [ -n "$PR" ]; then
+            gh pr edit "$PR" --repo "$REPO" --add-label "$LABELS" \
+              || echo "::warning::label application failed (non-blocking)"
+          fi
+
+          if [ -n "$MILESTONE" ] && [ -n "$PR" ]; then
+            MID=$(gh api "repos/$REPO/milestones" \
+              --jq ".[] | select(.title == \"$MILESTONE\") | .number" 2>/dev/null | head -1)
+            if [ -z "$MID" ]; then
+              MID=$(gh api -X POST "repos/$REPO/milestones" \
+                -f title="$MILESTONE" --jq '.number' 2>/dev/null || echo "")
+            fi
+            if [ -n "$MID" ]; then
+              gh api -X PATCH "repos/$REPO/issues/$PR" \
+                -F milestone="$MID" \
+                || echo "::warning::milestone assignment failed (non-blocking)"
+            fi
+          fi
+
+          # Post advisory comment (idempotent via marker).
+          if [ -n "$COMMENT" ] && [ -n "$PR" ]; then
+            ENDPOINT="repos/$REPO/issues/$PR/comments"
+            OLD_IDS=$(gh api --paginate "$ENDPOINT" \
+              --jq '.[] | select(.body | contains("<!-- vaked-label-tagger -->")) | .id' 2>/dev/null || true)
+            for ID in $OLD_IDS; do
+              gh api -X DELETE "repos/$REPO/issues/comments/$ID" 2>/dev/null || true
+            done
+            BODY="<!-- vaked-label-tagger -->
+$COMMENT
+
+---
+<sub>vaked-label-tagger · automated, advisory</sub>"
+            printf '%s' "$BODY" | gh pr comment "$PR" --repo "$REPO" --body-file - \
+              || echo "::warning::advisory comment failed (non-blocking)"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Apply labels to an issue.
+      # -----------------------------------------------------------------------
+      - name: Apply labels (issue)
+        if: github.event_name == 'issues'
+        env:
+          REPO:  ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          OUTPUT=$(cat "${{ steps.run.outputs.output_file }}")
+          LABELS=$(printf '%s' "$OUTPUT" | jq -r '.labels[]?' 2>/dev/null | paste -sd ',')
+          if [ -n "$LABELS" ]; then
+            gh issue edit "$ISSUE" --repo "$REPO" --add-label "$LABELS" \
+              || echo "::warning::issue label application failed (non-blocking)"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Update CHANGELOG.md and optionally create a git tag + release.
+      # Runs on push-to-main or when changelog mode is explicitly dispatched.
+      # -----------------------------------------------------------------------
+      - name: Update CHANGELOG and create tag (changelog mode)
+        if: >-
+          github.event_name == 'push' ||
+          (github.event_name == 'workflow_dispatch' &&
+           (github.event.inputs.mode == 'changelog' || github.event.inputs.mode == 'all'))
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          OUTPUT=$(cat "${{ steps.run.outputs.output_file }}")
+          ENTRY=$(printf '%s' "$OUTPUT" | jq -r '.changelog_entry // empty' 2>/dev/null)
+          NEW_TAG=$(printf '%s' "$OUTPUT" | jq -r '.new_tag // empty' 2>/dev/null)
+
+          if [ -n "$ENTRY" ]; then
+            git config user.name  "vaked-label-tagger[bot]"
+            git config user.email "label-tagger@users.noreply.github.com"
+
+            # Prepend entry: inject after the marker comment line.
+            if grep -q "<!-- vaked-label-tagger prepends" CHANGELOG.md 2>/dev/null; then
+              # Prepend after the marker
+              sed -i "s|<!-- vaked-label-tagger prepends entries here.*-->|&\n\n$ENTRY|" CHANGELOG.md || \
+                printf '%s\n\n' "$ENTRY" | cat - CHANGELOG.md > /tmp/cl_new.md && mv /tmp/cl_new.md CHANGELOG.md
+            else
+              printf '%s\n\n' "$ENTRY" | cat - CHANGELOG.md > /tmp/cl_new.md && mv /tmp/cl_new.md CHANGELOG.md
+            fi
+
+            git add CHANGELOG.md
+            if ! git diff --cached --quiet; then
+              git commit -m "chore(changelog): update from $(git rev-parse --short HEAD~1) [skip ci]" \
+                --author="vaked-label-tagger[bot] <label-tagger@users.noreply.github.com>"
+              git pull --rebase --autostash
+              git push
+            fi
+          fi
+
+          if [ -n "$NEW_TAG" ]; then
+            git tag -a "$NEW_TAG" -m "Release $NEW_TAG" || echo "::warning::tag already exists"
+            git push origin "$NEW_TAG" \
+              || echo "::warning::tag push failed (non-blocking)"
+            NOTE="${ENTRY:-Auto-tagged by vaked-label-tagger.}"
+            printf '%s' "${NOTE:0:1000}" | gh release create "$NEW_TAG" \
+              --title "$NEW_TAG" \
+              --notes-file - \
+              --repo "$REPO" \
+              || echo "::warning::release create failed (non-blocking)"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Upsert GitHub milestones from GOALS.md phases.
+      # Runs on manual dispatch with mode=milestone-sync or mode=all.
+      # -----------------------------------------------------------------------
+      - name: Sync milestones
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          (github.event.inputs.mode == 'milestone-sync' || github.event.inputs.mode == 'all')
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          OUTPUT=$(cat "${{ steps.run.outputs.output_file }}")
+          printf '%s' "$OUTPUT" | jq -c '.milestones_to_upsert[]?' 2>/dev/null | while IFS= read -r MS; do
+            TITLE=$(printf '%s' "$MS" | jq -r '.title')
+            DESC=$(printf '%s' "$MS" | jq -r '.description // ""')
+            EXISTING=$(gh api "repos/$REPO/milestones" \
+              --jq ".[] | select(.title == \"$TITLE\") | .number" 2>/dev/null | head -1)
+            if [ -z "$EXISTING" ]; then
+              gh api -X POST "repos/$REPO/milestones" \
+                -f title="$TITLE" -f description="$DESC" \
+                && echo "::notice::created milestone: $TITLE" \
+                || echo "::warning::milestone create failed for: $TITLE"
+            else
+              gh api -X PATCH "repos/$REPO/milestones/$EXISTING" \
+                -f description="$DESC" \
+                && echo "::notice::updated milestone: $TITLE" \
+                || echo "::warning::milestone update failed for: $TITLE"
+            fi
+          done
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to:      ${{ secrets.TELEGRAM_TO }}
+          token:   ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ label-tagger failed (mode=${{ steps.mode.outputs.mode }}) on ${{ github.ref_name }}
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
