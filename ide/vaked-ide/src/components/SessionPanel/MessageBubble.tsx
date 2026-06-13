@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { AgentBadge } from "./AgentBadge";
-import type { SessionMessage } from "@/types/session";
+import type { SessionMessage, SuggestedEdit } from "@/types/session";
+import { useEditorStore } from "@/store";
 
 interface MessageBubbleProps {
   message: SessionMessage;
@@ -7,6 +9,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
+  const setPendingEdit = useEditorStore((s) => s.setPendingEdit);
   return (
     <div style={{
       display: "flex",
@@ -42,25 +45,109 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         )}
       </div>
       {message.suggestedEdit && (
-        <div style={{
-          maxWidth: "90%",
-          background: "#052e16",
-          border: "1px solid #16a34a",
-          borderRadius: "8px",
-          padding: "8px 12px",
-          fontSize: "12px",
-          color: "#86efac",
-          fontFamily: "monospace",
-        }}>
-          <div style={{ color: "#16a34a", marginBottom: "4px", fontSize: "11px" }}>
-            ✎ Suggested edit
-          </div>
-          <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-            {message.suggestedEdit.newText}
-          </pre>
-          <div style={{ color: "#6b7280", marginTop: "4px", fontFamily: "sans-serif", fontSize: "11px" }}>
-            {message.suggestedEdit.rationale}
-          </div>
+        <SuggestEditCard edit={message.suggestedEdit} onAccept={() => setPendingEdit(message.suggestedEdit!)} />
+      )}
+    </div>
+  );
+}
+
+function SuggestEditCard({ edit, onAccept }: { edit: SuggestedEdit; onAccept: () => void }) {
+  const [dismissed, setDismissed] = useState(false);
+  const [accepted, setAccepted] = useState(false);
+
+  if (dismissed) return null;
+
+  return (
+    <div style={{
+      maxWidth: "90%",
+      background: accepted ? "#052e16" : "#0d1117",
+      border: `1px solid ${accepted ? "#16a34a" : "#374151"}`,
+      borderRadius: "8px",
+      overflow: "hidden",
+      fontSize: "12px",
+      fontFamily: "monospace",
+      transition: "border-color 0.2s",
+    }}>
+      {/* Header */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        padding: "6px 10px",
+        background: "#111827",
+        borderBottom: "1px solid #1f2937",
+      }}>
+        <span style={{ color: "#6366f1", fontSize: "11px" }}>✎</span>
+        <span style={{ color: "#9ca3af", fontSize: "11px", flex: 1 }}>Suggested edit</span>
+        <span style={{ color: "#4b5563", fontSize: "10px" }}>
+          Ln {edit.range.startLine}–{edit.range.endLine}
+        </span>
+      </div>
+
+      {/* Diff preview */}
+      <pre style={{
+        margin: 0,
+        padding: "8px 10px",
+        color: "#86efac",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
+        maxHeight: "120px",
+        overflowY: "auto",
+        borderBottom: "1px solid #1f2937",
+      }}>
+        {edit.newText}
+      </pre>
+
+      {/* Rationale */}
+      {edit.rationale && (
+        <div style={{ padding: "5px 10px", color: "#6b7280", fontFamily: "sans-serif", fontSize: "11px", borderBottom: "1px solid #1f2937" }}>
+          {edit.rationale}
+        </div>
+      )}
+
+      {/* Actions */}
+      {!accepted ? (
+        <div style={{ display: "flex", gap: "1px" }}>
+          <button
+            onClick={() => { setAccepted(true); onAccept(); }}
+            style={{
+              flex: 1,
+              background: "#052e16",
+              border: "none",
+              color: "#4ade80",
+              padding: "6px",
+              cursor: "pointer",
+              fontSize: "11px",
+              fontFamily: "monospace",
+              transition: "background 0.1s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#14532d")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#052e16")}
+          >
+            ✓ Accept
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            style={{
+              flex: 1,
+              background: "#1f1215",
+              border: "none",
+              color: "#f87171",
+              padding: "6px",
+              cursor: "pointer",
+              fontSize: "11px",
+              fontFamily: "monospace",
+              transition: "background 0.1s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#2d1515")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#1f1215")}
+          >
+            ✕ Reject
+          </button>
+        </div>
+      ) : (
+        <div style={{ padding: "5px 10px", color: "#16a34a", fontSize: "11px", fontFamily: "sans-serif" }}>
+          ✓ Applied to editor
         </div>
       )}
     </div>
