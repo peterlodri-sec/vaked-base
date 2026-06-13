@@ -39,6 +39,16 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
   (`verdict` / `findings[]` / `prose` / `exceptions`) rendered to markdown: exact
   finding counts for the status, blunt prose for humans. Falls back to raw text if
   a provider returns non-conforming output. Disable with `PR_REVIEW_NO_STRUCTURED`.
+- **Inline autofix suggestions** — for `Nit`/`Minor` findings with a mechanical
+  one-/few-line fix, the model emits an exact `suggestion`, posted as a GitHub
+  ```` ```suggestion ```` block on the diff line so the author can click *Commit
+  suggestion*. Only lines present in the **current** diff get a comment (stale /
+  off-diff findings are dropped, also avoiding 422s); `Major`/`Blocking` stay
+  summary-only. Prior suggestions (marked `<!-- vaked-autofix -->`) are deleted
+  each run, so re-reviews don't pile up stale comments. On by default; disable with
+  `PR_REVIEW_NO_AUTOFIX`.
+- **Cost estimate** — the footer shows `cost ~$X` from token usage × a blended
+  `$/Mtok` rate (`PR_REVIEW_USD_PER_MTOK`, default 0.5).
 - **Prompt caching** — a stable cache key + identical system-prompt prefix let
   OpenRouter cache the prefix; cached tokens are recorded in usage / Langfuse.
 - **Secret redaction (pre-send guardrail)** — likely credentials are scrubbed
@@ -107,6 +117,8 @@ diff-only review.
 | `PR_REVIEW_TRACE_PAYLOADS` | — | set to record prompt/response payloads into Langfuse spans |
 | `PR_REVIEW_PARALLEL_AGENT` | — | set to use the adk `ParallelAgent`/`SequentialAgent` pipeline for large PRs instead of the default map-reduce (opt-in until validated live; falls back to map-reduce on error) |
 | `PR_REVIEW_EVAL_TOLERANCE` | `0.0` | `--eval` regression tolerance: fail if `baseline − current > tolerance` on any case |
+| `PR_REVIEW_NO_AUTOFIX` | — | set to disable inline ```suggestion``` comments for Nit/Minor findings |
+| `PR_REVIEW_USD_PER_MTOK` | `0.5` | blended $/million-token rate for the footer cost estimate |
 
 ## Security guardrails
 
