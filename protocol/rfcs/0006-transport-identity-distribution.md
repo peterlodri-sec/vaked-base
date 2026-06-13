@@ -71,7 +71,74 @@ the epoch is per dependency graph. A frame carries both — its SVID proves the
 sender, its `topology_epoch` fences which graph authorized the edge. Rotation
 mid-epoch is normal and must not invalidate in-flight epoch-valid frames.
 
-## 2. Distribution (NATS)
+### 1.5 SPIFFE credential refresh & SVID rotation (provisional)
+
+**Working decision — Automatic SVID rotation via Workload API:**
+
+Each workload (agent, daemon) obtains an SVID from a local SPIRE agent via the
+Workload API. SVIDs have a finite lifetime (typically 1 hour, but configurable
+per SPIRE deployment). When an SVID is about to expire:
+
+- **Rotation trigger:** The workload (Litany Wire implementation) monitors SVID
+  expiry and proactively fetches a new SVID from the Workload API before the
+  current one expires. No explicit operator action needed — rotation is automatic.
+
+- **Connection impact:** When a Litany Wire connection is established, the
+  current SVID is used for mTLS handshake (TLS layer, before frame parse). If
+  the SVID expires mid-connection:
+  - **On outbound:** A peer wishing to send a new frame fetches a fresh SVID
+    and, if the current certificate is expiring within a window (e.g., < 5 min
+    to expiry), closes the connection and reconnects with the new SVID.
+  - **On inbound:** The peer's current SVID is already used for the connection;
+    the connection is unaffected by the peer's internal rotation. No renegotiation
+    happens mid-connection.
+
+- **Chapter continuity:** A chapter (session, RFC 0003 §6.1) is scoped to a
+  connection; if a connection closes due to SVID rotation, the chapter ends.
+  Whether chapters can be resumed across a new connection is RFC 0003 §6.5
+  (working decision: no resumption in v1).
+
+- **Identity consistency:** A rotated SVID carries the same SPIFFE ID (same
+  topology place, e.g. `spiffe://domain/runtime/rt/agent/coder`), so the
+  identity is stable across rotations — peers on the other side see no change
+  except a brief connection drop. Re-connection with the new SVID restores
+  service. In a high-latency or flaky network, multiple rotations (each
+  closing a connection) might occur; this is normal and safe.
+
+### 1.6 Trust domain validation at handshake (provisional)
+
+**Working decision — Trust domain verified at TLS layer, optional handshake exchange:**
+
+The SPIFFE trust domain (the root of the identity URI, e.g. `spiffe://agentfield.example`)
+is embedded in the SVID's X.509 certificate. The TLS handshake validates the
+certificate; the SPIFFE ID (including the trust domain) is extracted from the
+certificate and made available to the frame layer.
+
+- **TLS-layer validation:** Before any Litany Wire frame is parsed (§1.2), the
+  peer's SVID certificate is validated:
+  - Certificate is signed by a trusted SPIRE server.
+  - Certificate is not expired.
+  - Subject Alt Name (SAN) contains the SPIFFE ID URI.
+
+- **Frame-layer assumption:** The frame layer assumes the TLS peer is
+  authentically identified by the SPIFFE ID from the SAN. No additional
+  trust-domain exchange in the `HELLO` frame is required; the `HELLO` simply
+  carries the initiator's self-identified SPIFFE ID as advisory (for audit),
+  but the **authoritative identity is the TLS peer identity**.
+
+- **Mismatched trust domain:** If a peer's SPIFFE ID trust domain is not in
+  the expected set (e.g., a connection from `spiffe://untrusted.example` when
+  only `spiffe://agentfield.example` is trusted), the connection is aborted at
+  the TLS layer — the HELLO frame never arrives, and the protocol falls back to
+  transport fault handling (RFC 0003 §9.1). This is not a frame-level `REFUSE`;
+  it is a lower-layer rejection.
+
+- **Trust domain gossip (optional, for audit):** If desired, `HELLO` may carry
+  an optional `trust_domain` field (not currently in the schema, but could be
+  added as a P2 extension) for operator visibility. This is purely advisory; the
+  TLS layer is the authority.
+
+![Cross-Host Trust Boundary with SPIFFE](../../docs/assets/diagrams/07_cross_host_trust.svg)
 
 ### 2.1 Subject taxonomy
 
@@ -103,6 +170,73 @@ RFC 0004 §4.1's retained proofs (snapshot / Merkle accumulator / segment
 footer) are transported across hosts via JetStream KV / object store — so a
 remote consumer can fetch the proof a producer's GC floor references without a
 direct connection to the producer's `reliquaryd`.
+
+### 2.3 Event propagation & control action distribution (provisional)
+
+**Working decision — Litany Wire is control plane; NATS is fan-out:**
+
+The distinction between **identity-proven point-to-point frames** (Litany Wire)
+and **best-effort notifications** (NATS) is architectural:
+
+- **Point-to-point (Litany Wire, RFC 0003):** `DependencyRegistration` (RFC 0004
+  §3.1), `ConsumerCheckpoint` (RFC 0004 §4), `control_action` events (RFC 0005
+  §3), and control-plane requests (RFC 0005 §1) are **acknowledged Litany Wire
+  frames**. They carry identity (SPIFFE ID, mTLS), correlation ids, and are
+  logged to the local `eventd` (single source of truth). These are never lost
+  (Litany Wire guarantees delivery on a live connection) and never replayed
+  incorrectly.
+
+- **Best-effort notifications (NATS):** `RewindEvent` (RFC 0004 §3.3) is **also
+  published to NATS** on the `agent.<producer-id>.rewind` topic. This is a
+  **notification only** — the producer writes `RewindEvent` to its local eventd,
+  and simultaneously publishes the notification. Downstream consumers subscribe
+  `agent.*.rewind` and are notified asynchronously that a producer rewound;
+  they do not act on the notification alone, but use it as a prompt to run their
+  cold-start verification (RFC 0004 §6), which re-checks the eventd log and
+  proofs.
+
+**Rationale:** `RewindEvent` is broadcast (affects many consumers) and urgent
+(consumers should re-verify quickly), so NATS fan-out is lower-latency than
+waiting for each consumer to poll. But NATS is not authoritative (it may be
+stale, lost, or duplicated), so a consumer that never receives the notification
+is not corrupted — it learns of the rewind on next verification. This two-layer
+design (Litany for mutation, NATS for notification) keeps NATS safe as a
+secondary, non-critical channel.
+
+**Control actions are not published to NATS.** The `control_action` event (RFC
+0005 §3) is logged only to the executing runtime's eventd (write-ahead,
+before effect); it is **not** replicated to other nodes via NATS. Cross-host
+observers of a control action (e.g., a surface watching all control events) must
+poll the executor's eventd or request the event via a Litany Wire query — not
+via NATS.
+
+### 2.4 RewindEvent propagation across hosts (provisional)
+
+**Working decision — Producer initiates broadcast:**
+
+When a producer's history is rewound (RFC 0005 `RewindControl` applied):
+
+1. **Local write:** The producer's `agent-supervisord` appends `RewindEvent` to
+   its local eventd (write-ahead, before effect — RFC 0004 §3.1).
+2. **NATS publish:** Immediately after (or as close to atomic as OTP scheduling
+   allows), the supervisor publishes the `RewindEvent` to the NATS subject
+   `agent.<producer-uuid>.rewind`. The event is the same `RewindEvent` record
+   (fields: producer, rewind_to_step, rewind_to_hash, topology_epoch).
+3. **Consumer subscription:** Any consumer holding a dependency on the producer
+   subscribes `agent.*.rewind` (or `agent.<producer-uuid>.rewind` specifically).
+   On receiving the notification, the consumer does **not** take action
+   immediately; it schedules a state-verification run (RFC 0004 §6, cold-start
+   or on-demand) to check its own anchors.
+4. **Re-verification:** The consumer's verification reads its own checkpoints
+   and queries the producer's eventd/proofs to discover that the anchor is
+   stale. If stale, the consumer pauses itself (`stale_dependency`).
+
+**No two-phase acknowledge:** The producer does not wait for consumer acks. If
+a consumer never receives the NATS notification (network partitioned, NATS
+broker down, subscription not yet open), it will discover the stale anchor on
+its next scheduled verification or on next restart (cold-start always verifies).
+
+![NATS Cross-Host Distribution](../../docs/assets/diagrams/10_nats_distribution.svg)
 
 ## 3. The boundary (normative)
 
@@ -137,6 +271,171 @@ arise for them.
   rewind or a dependency state, because every consumer re-verifies against the
   tamper-evident log + proof. This is the single most important security
   property of the design.
+
+## 4. Authority model across hosts (provisional)
+
+**Working decision — Local per-host authority with SPIFFE identity:**
+
+When a peer from host A (with SPIFFE ID `spiffe://domain/agent/X`) sends a frame
+to host B (targeting an agent Y on host B), host B's `preceptord` evaluates
+authority **locally per host** using the peer's SPIFFE ID and the target agent's
+properties. The principal (X's SPIFFE identity) is verified at TLS time (§1.2)
+and is then passed to `preceptord` for policy evaluation. Policies may reference:
+
+- **SPIFFE attributes:** trust domain, org, agent name, role
+- **Target:** agent Y's name, topology epoch
+- **Action:** verb (pause, rewind, etc.) or capability (read eventd, fetch
+  proofs)
+
+**Example:** Policy on host B might be: "any agent in domain `spiffe://domain` may
+pause an agent in the same domain," or "only `spiffe://domain/supervisor` may
+rewind," or "cross-domain pause is denied by default."
+
+**No global consensus:** If host A's preceptord allows a control action that host
+B's preceptord denies, the action is **not** performed on host B. The two hosts
+may diverge (one allows a rewind, the other doesn't); the log, not the wire, is
+authoritative (RFC 0004 single-writer per host). If both hosts have consumers on
+the same producer, the producer's rewind is visible to both; consumers on B that
+are denied the rewind by B's policy do not execute it (so B's eventd shows the
+rewind but B's workers did not pause for it). This is acceptable because
+dependency verification (RFC 0004 §6) is per-host and per-agent; a divergence is
+observable in B's eventd chain and the consumer's pause state.
+
+**Future:** Cross-host authority consensus (two-phase commit, voting, ZKP proofs)
+is a deployment-specific concern outside the scope of this RFC. Deployments that
+need consistency may enforce it at policy authoring time (synchronized preceptord
+configs) or via a policy oracle that responds to all hosts.
+
+## 5. Worked example: cross-host DependencyRegistration
+
+A consumer C on host A depends on producer P on host B. C registers the
+dependency and folds P's output into its state.
+
+```
+Host A                                Host B
+───────────────────────────────────────────────
+Consumer C (SPIFFE ID:
+  spiffe://domain/runtime/rtA/agent/C)
+
+[C decides to consume P's step 100]
+
+1. [C opens Litany connection to host B / oraclefd lookup]
+   [oraclefd resolves P's hostname/IP]
+   
+2. [TLS handshake with P's host]
+   [C's cert: spiffe://domain/runtime/rtA/agent/C]
+   [P's host validates C's cert (trust domain match)]
+   [Connection open; chapters may be created]
+   
+3. [C sends DependencyRegistration request (RFC 0004 §3)]
+   DependencyRegistration {
+     consumer: C_uuid,
+     producer: P_uuid,
+     producer_step: 100,
+     producer_step_hash: <H(step-100)>,
+     topology_epoch: 5
+   }
+   ────────────────────────────→
+                               [P's host receives frame]
+                               [preceptord checks: does C have
+                                permission to consume P?]
+                               if ALLOWED:
+                                 [P's agent-supervisord logs
+                                  DependencyRegistration to eventd]
+                                 [Responds with ControlAck{applied:true}]
+                               if DENIED:
+                                 [Responds: ControlAck{applied:false,
+                                  reason:authority_denied}]
+   
+   ←──────────────────────────
+   ControlAck {
+     applied: true,
+     logged_seq: 9876
+   }
+   
+4. [C fetches P's step 100 output]
+   [If step 100 is retained (not compacted):
+    C reads output, folds into state, emits ConsumerCheckpoint]
+   
+5. [Later: P rewinds to step 50 (via operator RewindControl on host B)]
+   [P emits RewindEvent to eventd]
+   [P publishes RewindEvent to NATS: agent.<P_uuid>.rewind]
+   
+6. [C subscribes to NATS agent.*.rewind (receives notifications)]
+   [C receives RewindEvent notification]
+   [C schedules state verification (RFC 0004 §6)]
+   
+7. [On next verification, C queries P's eventd (via host B connection)]
+   [C verifies step 100 hash against P's current state]
+   [Step 100 is no longer in history (compacted/rewound)]
+   [C discovers stale anchor, pauses itself: stale_dependency]
+   [C signals operator or awaits re-anchoring]
+```
+
+**Key points:**
+- Identity is verified at TLS layer before any frame is parsed.
+- DependencyRegistration is an identity-proven, acknowledged Litany Wire frame.
+- Authority is checked by preceptord on the producer's host.
+- RewindEvent notification arrives via NATS (best-effort; not authoritative).
+- Consumer discovers stale anchor via verification, not by trusting the
+  notification alone.
+- If C and P are on different hosts, the mechanism is unchanged — only the
+  transport and topology details differ. RFC 0006 assumes single-host RFCs
+  0003–0005 and adds the multi-host layer.
+
+## 6. NATS subscription management & cleanup (provisional)
+
+Agents subscribe to NATS topics to receive notifications (e.g. `agent.*.rewind`
+for RewindEvent broadcasts). Subscription lifecycle management:
+
+- **Startup:** On `agent-supervisord` startup, the supervisor creates subscriptions
+  for the agent: `agent.<self-uuid>.rewind` and optionally `agent.<self-uuid>.step`
+  (if enabled for metrics). These are durable subscriptions (persisted in JetStream
+  if available, so messages are not lost during broker outages).
+  
+- **Dependency registration:** When a consumer registers a dependency on a producer
+  (RFC 0004 §3.1), the consumer may also subscribe `agent.<producer-uuid>.rewind`
+  (per-producer topic) to be notified of that specific producer's rewind events.
+  Alternatively, the consumer subscribes `agent.*.rewind` (wildcard) and filters
+  locally on the producer UUID in the event body.
+  
+- **Cleanup on shutdown:** When an agent shuts down or a dependency is revoked,
+  subscriptions are unsubscribed. For per-producer subscriptions, cleanup is
+  explicit. For wildcard subscriptions, cleanup is implicit (the subscription
+  survives the agent, but delivered messages to a dead consumer are lost).
+  
+- **Resource bounds:** A NATS broker has a finite number of subscription slots.
+  Per-producer subscriptions (O(n) where n = number of producers) should be
+  avoided if possible; wildcard subscriptions (O(1)) scale better for large
+  dependency graphs. The tradeoff is per-producer specificity vs. global scalability.
+
+---
+
+## 7. Relic distribution across hosts via JetStream (provisional)
+
+`reliquaryd` (RFC 0001) stores relics (retained proofs, snapshots, accumulators)
+locally. In a multi-host fabric (RFC 0006), a remote consumer may need to fetch a
+relic from a producer's host. Distribution is via NATS JetStream KV or Object Store:
+
+- **Local relic storage:** Each host's `reliquaryd` stores relics in JetStream KV:
+  - Key: `relic:<hash>` (e.g. `relic:sha256:abc123...`)
+  - Value: the relic bytes (proof, snapshot, etc.)
+  
+- **Cross-host relic fetch:** A remote consumer that needs to verify a GC floor
+  proof (RFC 0004 §4.1) fetches the relic by hash from the local JetStream KV.
+  If the relic is not local, the consumer may trigger a fetch from the producer's
+  host via:
+  - Direct Litany Wire query to the producer's `reliquaryd` (if Litany connection
+    is open).
+  - Or, a background daemon replicates relics from producer hosts to a shared
+    JetStream bucket (out of scope here; deployment-specific).
+  
+- **Relic lifecycle & retention:** A relic is retained as long as it is pinned by
+  an active checkpoint (RFC 0004 §4.2). Once all checkpoints move past the relic's
+  step, the relic MAY be deleted. Deletion is explicit (operator or daemon-driven),
+  never automatic, to ensure audited retention.
+
+---
 
 ## Open questions
 
