@@ -429,15 +429,30 @@ Algorithm: compute_gc_floor(producer_uuid)
   **Atomic fence requirement (P1 architectural):** Recomputation and truncation
   MUST be fenced against new consumer registrations. The producer MUST either:
   1. **Freeze the registration set:** Hold a read-only lock on the active consumer
-     registry during recompute+truncate (single atomic operation), or
+     registry during recompute+truncate (single atomic operation), with explicit
+     timeout (e.g., 5 seconds). If fence cannot be acquired within timeout, **abort
+     compaction** without truncating — retry on next compaction cycle. Lock timeout
+     prevents indefinite wait if a registration is stuck.
   2. **Epoch-fence the floor:** Assign a monotonic registration epoch to each
-     consumer; compute GC floor using only epochs ≤ frozen_epoch; truncate only
-     entries whose GC floor was computed at that frozen_epoch (rejecting
-     registrations at higher epochs until truncate completes).
+     consumer (increment on each new registration, persisted in producer durable
+     state). During recompute:
+     - Capture current_epoch from producer's epoch counter
+     - Compute GC floor using only checkpoints with epoch ≤ current_epoch
+     - Increment producer's epoch counter (blocks new registrations at higher epochs)
+     - Truncate entries strictly below GC floor
+     - Release the epoch lock (resume accepting new registrations)
+     Epochs are strictly ordered: epoch_N+1 may not be assigned until truncate
+     for epoch_N completes.
   
   Without this fence, a concurrent registration can race between recompute and
   truncate, allowing history to be deleted that a newly-registered consumer
   depends on. This is a **silent data loss hazard** and MUST be prevented.
+  
+  **Failure handling:** If compaction fails (fence timeout, disk error, epoch
+  transition failure), the producer MUST log the failure, leave history intact,
+  and alert the operator. The GC floor remains pinned by active checkpoints; no
+  history is lost. Retry on next compaction cycle (operator may investigate the
+  failure in the meantime).
 
 - **Frequency:** Compaction should be infrequent (e.g., daily) to reduce
   recomputation overhead and allow checkpoint batching. The pattern is:
@@ -564,7 +579,11 @@ up and sprints into corrupt history" failure mode.
 **For each direct producer dependency, perform two verification passes:**
 
 ```
-Algorithm: verify_anchor_with_transitive(consumer, producer_uuid, anchored_step_hash, topology_epoch)
+Algorithm: verify_anchor_with_transitive(consumer, producer_uuid, anchored_step_hash, 
+                                         topology_epoch, depth=0, visited={})
+
+MAX_RECURSION_DEPTH = 256  // Prevent DoS via deep dependency chains
+                           // (max 256 agents in a chain; typical chains are ~5–10)
 
 PASS 1 — Direct anchor verification:
 
@@ -589,15 +608,25 @@ PASS 1 — Direct anchor verification:
 
 PASS 2 — Transitive verification (cascade rule):
 
-6. For each of *producer*'s own direct dependencies (if producer is itself a consumer):
+6. Cycle detection: if producer_uuid in visited:
+   → return VERIFIED (cycle detected; DAG invariant (§5) should prevent,
+     but if a cycle exists, treating it as verified is safe — the cycle
+     itself is a build-time error, not a runtime verification failure)
+   
+7. Recursion depth check: if depth >= MAX_RECURSION_DEPTH:
+   → return PAUSED(stale_dependency) — malformed dependency graph
+     (too many hops; likely indicates configuration error or attack)
+   
+8. For each of *producer*'s own direct dependencies (if producer is itself a consumer):
    (This implements the cascade rule: if C depends on P, and P depends on X,
     then C's validity transitively depends on P's validity.)
    
-   Recursively call verify_anchor_with_transitive(producer, X, …) for each X
+   visited.add(producer_uuid)
+   Recursively call verify_anchor_with_transitive(producer, X, …, depth+1, visited)
    if ANY recursive call returns PAUSED(stale_dependency):
       → return PAUSED(stale_dependency)  [transitive pause]
    
-7. Return: VERIFIED
+9. Return: VERIFIED
 
 Aggregate result:
   if ANY dependency (direct or transitive) fails → consumer enters PAUSED(stale_dependency)

@@ -129,6 +129,16 @@ certificate and made available to the frame layer.
   attacker could spoof a peer's trust domain in the `HELLO` (TLS completion is
   the ordering guarantee that prevents the race).
   
+  **TLS-layer fence:** The TLS handshake is atomic from the frame layer's
+  perspective: once TLS completes successfully, the responder's certificate
+  validation (including SPIFFE ID extraction) is complete and the trust domain
+  is frozen for that connection. A peer cannot race a modified certificate or
+  identity change during HELLO processing. If a peer somehow sends multiple
+  HELLO frames, only the first is processed (§5.2); subsequent frames are
+  protocol violations. The trust domain extracted from the TLS peer certificate
+  (the connection-level property) is authoritative and does not change for the
+  lifetime of the TCP/socket connection.
+  
 - **Authoritative identity chain:** TLS layer validates the certificate; frame
   layer validates the trust domain field in `HELLO` against the TLS peer
   identity. The `HELLO` trust domain is the **authoritative identity** for the
