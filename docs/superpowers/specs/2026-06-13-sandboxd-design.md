@@ -109,7 +109,7 @@ leading `"_generated"` header — see
 [`gen/zig/mediaCompress.json`](../../../vaked/examples/lowering/gen/zig/mediaCompress.json)).
 sandboxd reads the **process + filesystem membrane** projection of that config:
 the namespace set, the mount/overlay mapping, the cgroup resource limits, and the
-exec command (from `engine` / `engine_package`).
+executable + argv to run.
 
 **What exists today vs. what this design depends on.** The membrane *authority*
 is already in the language: `capability fs`
@@ -117,16 +117,21 @@ is already in the language: `capability fs`
 `capability process` (`none < spawn_sandboxed < spawn < exec_host`) declare the
 qualitative grant, and `runclass` carries scheduling/priority. But the
 **operational inputs native-exec enforces with** — the concrete namespace set,
-the mount/overlay mapping, and the cgroup resource limits (`cpu`/`mem`/`io`/`pids`)
-— are **not sourced yet**: [0012 §5.2](../../language/0012-lowering.md) lowers only
-`engine`/`input`/`output`/`policy`/`budget`/`observe`, and the `budget` schema is
+the mount/overlay mapping, the cgroup resource limits (`cpu`/`mem`/`io`/`pids`),
+**and the resolved executable + argv** — are **not sourced yet**:
+[0012 §5.2](../../language/0012-lowering.md) lowers only
+`engine`/`input`/`output`/`policy`/`budget`/`observe`; the `budget` schema is
 **closed** to `tokens`/`wallClock`/`toolCalls`/`approvals`/`fuel` (no OS-resource
-axis).
+axis); and `engine_package` is emitted as a **flake attribute name** (e.g.
+`packages.<system>.zigDaemon`) the Nix module resolves at build — *not* a store
+path / binary / argv the daemon can `execve` from the JSON alone (0012 §5.2,
+§2.3).
 
 Defining that projection — lowering the `fs`/`process` capability grants into a
-concrete mount + namespace plan, plus a resource-limits field (a new schema, or a
-`budget`/`runclass` extension) for cgroup `cpu`/`mem`/`io`/`pids` — is therefore a
-**design dependency of this daemon, not a settled contract**. It is exactly the
+concrete mount + namespace plan, a resource-limits field (a new schema, or a
+`budget`/`runclass` extension) for cgroup `cpu`/`mem`/`io`/`pids`, and the
+module-resolved **executable + argv** (from the `engine_package` attribute) — is
+therefore a **design dependency of this daemon, not a settled contract**. It is exactly the
 "richer … membranes [that] arrives with the daemon designs" the `host` schema
 comment anticipates; because it adds language surface it **is** subject to the
 grammar-first/issue gate. Tracked in *Plan* (step 0) and *Open*. (An earlier draft
@@ -212,10 +217,11 @@ runnability is a **devshell gate**, and CI stays bytes/structure.
    namespace plan, and add a resource-limits source (new schema, or a
    `budget`/`runclass` extension) for cgroup `cpu`/`mem`/`io`/`pids`, with the
    `gen/zig/<fiber>.json` field mapping ([0012 §5.2](../../language/0012-lowering.md)),
-   **and** the NixOS-module routing that points an agent-workload fiber's config
-   at `sandboxd` (today §4.3 wires it only to `fs-snapshotd`). This is the
-   language/lowering dependency surfaced in *Config contract*; it needs its own
-   issue.
+   the module-resolved **executable + argv** (the `engine_package` attribute is a
+   flake attr name, not a binary the daemon can `execve` from JSON), **and** the
+   NixOS-module routing that points an agent-workload fiber's config at `sandboxd`
+   (today §4.3 wires it only to `fs-snapshotd`). This is the language/lowering
+   dependency surfaced in *Config contract*; it needs its own issue.
 1. *(impl PR 1)* `daemons/sandboxd/` skeleton (Zig) + `gen/zig/<fiber>.json`
    parse; native-exec boundary as a no-op/echo runner.
 2. *(impl PR 2)* native-exec for real: namespaces + cgroup-v2 delegation +
@@ -233,9 +239,10 @@ runnability is a **devshell gate**, and CI stays bytes/structure.
 ## Open
 
 - **Sandbox config projection (the language/lowering dependency)** — the concrete
-  mount/namespace plan + cgroup resource-limit fields native-exec enforces with
-  are not yet sourced by `gen/zig/<fiber>.json` or the closed `budget` schema (see
-  *Config contract*). How `capability fs`/`capability process` grants + a new
+  mount/namespace plan, cgroup resource-limit fields, and resolved executable/argv
+  native-exec enforces with are not yet sourced by `gen/zig/<fiber>.json` or the
+  closed `budget` schema, and `engine_package` is a flake attr name, not a binary
+  (see *Config contract*). How `capability fs`/`capability process` grants + a new
   resource-limits field lower to the daemon config — **and the NixOS-module routing
   that points an agent-workload fiber's config at `sandboxd` (today §4.3 wires it
   only to `fs-snapshotd`)** — is *Plan step 0* and the gating dependency for the
