@@ -1,0 +1,30 @@
+# vaked-telebot — interactive Telegram control surface for the Vaked agent fleet.
+# Long-poll daemon for the self-hosted crabcc.app plane.
+#
+#   sudo cp tools/telebot/vaked-telebot.service /etc/systemd/system/
+#   sudoedit /etc/vaked-telebot.env        # secrets, chmod 600 (see README)
+#   sudo systemctl enable --now vaked-telebot
+[Unit]
+Description=vaked-telebot — interactive Telegram control surface for the agent fleet
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Secrets (TELEGRAM_TOKEN/TELEGRAM_TO/TELEGRAM_ADMIN_IDS, GITHUB_TOKEN/REPOSITORY,
+# OPENROUTER_API_KEY, optional TELEBOT_MODEL) — keep this file chmod 600.
+EnvironmentFile=/etc/vaked-telebot.env
+WorkingDirectory=/opt/vaked-base
+ExecStart=/usr/bin/python3 tools/telebot/telebot.py
+Restart=on-failure
+RestartSec=5
+
+# Hardening — the daemon only needs to read the repo and write its own state dir.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/vaked-base/tools/telebot/state
+
+[Install]
+WantedBy=multi-user.target
