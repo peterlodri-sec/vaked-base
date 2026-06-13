@@ -26,8 +26,11 @@ handshake: "Hybrid handshake (baked in)" {
 
 frames: "Votive Frames over Litany Wire\n(confidential + integrity by construction)" {class: pq}
 
-initiator -> handshake.kem: "1. ClientHello + hybrid pubkeys"
+initiator -> handshake.kem: "1. ClientHello + hybrid pubkeys\n+ ML-DSA sig over transcript"
 responder -> handshake.kem: "2. ServerHello + ML-DSA sig over transcript"
+handshake.kem -> mutual: "both sigs verified"
+mutual: "mutual transcript auth\n(both SVIDs proven before frame admission)" {class: secret}
+mutual -> handshake.aead
 handshake.aead -> frames: "3. encrypted frames"
 
 today: "RFC 0003 today: wire 'adds no crypto of its own';\nconfidentiality delegated to the substrate (quantum-vulnerable)" {class: classic}
