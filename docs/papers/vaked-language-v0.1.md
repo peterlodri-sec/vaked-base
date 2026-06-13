@@ -202,7 +202,7 @@ capability fs {
 }
 ```
 
-The order `<` is read "is weaker than." The reflexive-transitive closure `≤` forms a **partial order**.
+The order `<` is read "is weaker than." The reflexive-transitive closure `≤` forms a **partial order** on individual capabilities. (Notation: `≤` denotes the attenuation order on capabilities; `⊑` denotes set subset on granted capability sets.)
 
 A principal `p` has:
 - **`granted(p)`** — the set of capabilities written on `p` (e.g., `capabilities = [fs.repo_rw]`)
@@ -353,8 +353,8 @@ We measure compilation performance on three case studies.
 - Artifact sizes are compact (8–18 KB for typical examples).
 
 **Determinism:**
-- 19/19 examples produce byte-identical artifacts on repeated runs.
-- 100 iterations per example, 0 hash divergences.
+- 18/19 valid examples produce byte-identical artifacts on repeated runs.
+- 100 iterations per example, 0 hash divergences. (One example, `types/rejected.vaked`, is a negative test case and produces errors by design.)
 
 ### 5.2 Case Studies
 
@@ -535,7 +535,7 @@ For each case study, we verify:
 - [ ] **Provenance accuracy:** `provenance.json` maps artifact regions to source correctly
 - [ ] **Determinism:** Repeated `lower` → bit-identical artifacts
 
-All three case studies pass all checks. ✅
+All four case studies pass all checks. ✅
 
 ---
 
