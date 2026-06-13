@@ -715,17 +715,17 @@ def _issues_for_labels(labels: list[str]) -> "tuple[list[dict], str]":
 
     union: dict[int, dict] = {}
     any_ok = False
-    for lab in labels:
-        res = _query_open_issues(["--label", lab])
+    for label in labels:
+        res = _query_open_issues(["--label", label])
         if res is None:
-            continue                     # this label failed; try the others
+            continue                     # this label query failed; try the others
         any_ok = True
-        for it in res:
-            union[it["number"]] = it
+        for issue in res:
+            union[int(issue["number"])] = issue   # int() keeps the dict[int, …] key honest
     if not any_ok:
         # every label query failed → gh unusable → fall back to all-open
         return (_query_open_issues([]) or []), " (no usable label filter; showing all open)"
-    issues = sorted(union.values(), key=lambda i: -i["number"])
+    issues = sorted(union.values(), key=lambda issue: -int(issue["number"]))
     return issues, ""
 
 
