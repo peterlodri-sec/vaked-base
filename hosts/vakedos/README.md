@@ -41,6 +41,18 @@ each membrane needs is present and tuned, so the compiler-emitted
 ECC integrity is monitored host-wide via `rasdaemon`, and a ZFS pool reservation
 keeps the mirror from wedging at 100%.
 
+### Performance profile
+
+- **EPYC P-states**: `amd_pstate=active` + performance EPP.
+- **Low-latency / low-jitter**: idle capped to C1 (`processor.max_cstate=1`) and
+  the NMI watchdog dropped. Trade-off: shallower C-states can *lower* peak
+  single-core turbo (less power ceded by idle cores) — determinism over boost.
+- **Global `-march`**: `nixpkgs.hostPlatform` rebuilds the whole closure for the
+  host CPU. It is set to **`x86-64-v3`** (safe on every AMD EPYC). **Confirm the
+  CPU and bump `vakedCpuArch` to the exact `znverN` before relying on it** — a
+  too-new `-march` makes the box unbootable, and the rebuild bypasses the binary
+  cache (use `--build-on-remote`, below).
+
 ## Hard constraint: Vultr bare metal is **Legacy BIOS only**
 
 Vultr bare metal does **not** support EFI. Everything here is GRUB + a 1 MiB
@@ -58,7 +70,8 @@ Rent the Vultr bare-metal EPYC. Boot Vultr's default Linux (or rescue) with a
 **Legacy/PCBIOS** image and confirm you can `ssh root@<IP>`.
 
 ### 2. Fill in the placeholders
-Three things must be edited before installing:
+These are intentional fill-before-deploy markers (the advisory CI reviewer will
+flag them — that's expected). Edit before installing:
 
 - **Disk IDs** — find the stable device paths:
   ```sh
@@ -67,7 +80,8 @@ Three things must be edited before installing:
   Put the two `/dev/disk/by-id/...` names into **both** `disko.nix` (`device`)
   **and** `configuration.nix` (`boot.loader.grub.devices`). Never use `/dev/sdX`.
 
-- **`networking.hostId`** — generate a unique 8-hex-digit id (required by ZFS):
+- **`networking.hostId`** — generate a unique 8-hex-digit id (required by ZFS;
+  the `deadbeef` default must be replaced to avoid pool-import collisions):
   ```sh
   head -c4 /dev/urandom | od -A none -t x4
   ```
@@ -75,6 +89,14 @@ Three things must be edited before installing:
 
 - **SSH public key** — replace every `REPLACE-WITH-YOUR-SSH-PUBLIC-KEY` in
   `configuration.nix` with your real `ssh-ed25519 ...` key.
+
+- **`vakedCpuArch`** (only if relying on global `-march`) — confirm the CPU and
+  set the exact arch:
+  ```sh
+  ssh root@<IP> 'lscpu | grep -E "Model name|Flags" | grep -o avx512f'  # Zen4/5?
+  ```
+  Leave `x86-64-v3` if unsure (safe everywhere); set `znver4`/`znver5` only for a
+  confirmed Zen 4/5 part.
 
 ### 3. Dry-build locally first (no hardware needed)
 From the repo root:
@@ -91,10 +113,12 @@ nix run github:nix-community/nixos-anywhere -- \
 ### 4. Install
 ```sh
 nix run github:nix-community/nixos-anywhere -- \
-  --flake .#vakedos root@<IP>
+  --flake .#vakedos --build-on-remote root@<IP>
 ```
 This wipes the target disks, lays out the ZFS mirror, and installs. The box
-reboots into `vakedos` when done.
+reboots into `vakedos` when done. `--build-on-remote` makes the EPYC build the
+(from-source, global-`-march`) closure itself — faster than your laptop and it
+avoids shipping a giant closure over the wire.
 
 ### 5. Verify (on the box)
 ```sh
@@ -110,6 +134,10 @@ wasmtime --version            # sandbox wasm isolation backend present
 nft list ruleset              # nftables backend active (network membrane)
 sysctl net.ipv4.tcp_congestion_control  # = bbr
 cat /proc/sys/user/max_user_namespaces  # > 0 (sandbox userns)
+# performance profile
+lscpu | grep -E "Model name|scaling driver"  # confirm CPU + amd-pstate active
+cat /sys/module/processor/parameters/max_cstate 2>/dev/null  # = 1 (low-jitter)
+dmesg | grep -i "illegal instruction" || echo "no SIGILL — -march OK"
 nix build nixpkgs#hello       # Nix builder healthy (scratch on /build)
 sudo reboot                   # comes back up → BIOS/GRUB + mirror boot survive
 ```

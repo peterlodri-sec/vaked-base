@@ -47,8 +47,9 @@
       # EPYC/ECC-tuned Nix build host; no runtime daemons are wired (they are stubs,
       # see docs/runtime/README.md). See hosts/vakedos/README.md for the Vultr
       # bare-metal install runbook.
+      # No `system` here: the host pins its platform (and the global -march) via
+      # nixpkgs.hostPlatform inside configuration.nix, so it owns that one option.
       nixosConfigurations.vakedos = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
         modules = [
           disko.nixosModules.disko
           ./hosts/vakedos/configuration.nix

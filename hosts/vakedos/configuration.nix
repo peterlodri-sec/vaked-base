@@ -10,10 +10,26 @@
 # §4.3). Boot is Legacy/BIOS GRUB because Vultr bare metal has no EFI.
 { config, lib, pkgs, ... }:
 
+let
+  # MICROARCH (global -march). x86-64-v3 is SAFE on every AMD EPYC (Zen 1+,
+  # AVX2/FMA/BMI2). Confirm the box's CPU first (`lscpu`); only then bump to
+  # "znver4"/"znver5" — a too-new -march makes the system UNBOOTABLE (illegal
+  # instructions). This rebuilds the whole closure from source (no binary cache),
+  # so install with `nixos-anywhere --build-on-remote` to build on the EPYC.
+  vakedCpuArch = "x86-64-v3";
+in
 {
   imports = [
     ./disko.nix
   ];
+
+  # Global microarchitecture tuning — the host owns nixpkgs.hostPlatform (hence
+  # no `system` arg in the flake's nixosSystem call).
+  nixpkgs.hostPlatform = {
+    system = "x86_64-linux";
+    gcc.arch = vakedCpuArch;
+    gcc.tune = vakedCpuArch;
+  };
 
   # === Boot: Legacy BIOS / GRUB on both mirror members ========================
   boot.loader.grub = {
@@ -74,6 +90,14 @@
     "zfs.zfs_arc_max=68719476736"
     # Active P-state control for EPYC (briefing §III SRE strategy).
     "amd_pstate=active"
+    # Low-latency / low-jitter profile (chosen tuning): cap idle to C1 so cores
+    # wake without deep-sleep latency, and drop the periodic NMI watchdog.
+    # TRADE-OFF: shallower C-states reduce the power headroom idle cores cede, so
+    # peak single-core turbo can be LOWER than with deep C-states — determinism
+    # over absolute boost. For harder isolation, reserve cores for the daemons
+    # with isolcpus=/nohz_full=/rcu_nocbs= once the core layout is known.
+    "processor.max_cstate=1"
+    "nmi_watchdog=0"
   ];
 
   # === Membrane substrate ====================================================
