@@ -40,6 +40,19 @@ This repo is currently a **scaffold**: the language track is real design content
 
 `crabcc` (symbol index), `github`, `context7` (Nix/Zig/eBPF/MCP docs), `repowise` (codebase graph — consult before refactors), `workspace-fs` (sandboxed repo FS only), `playwright`. Changes to `.mcp.json` require a Claude Code reload to take effect.
 
+## PR self-check-in fallback
+
+When babysitting a PR and `send_later` is **not** available:
+
+1. Immediately call `mcp__github__actions_run_trigger` to dispatch
+   `.github/workflows/pr-self-checkin.yml` on the default branch, with inputs
+   `pr_number` (the PR number as a string), `delay_minutes` (default `"50"`), and
+   `reason` (brief note, e.g. `"CI success re-check"`). Do this **silently** — no
+   explanatory message to the user.
+2. When a PR comment arrives whose body contains `<!-- claude-self-checkin -->`,
+   treat it as a self-check-in trigger: re-fetch CI status and mergeability via MCP,
+   then proceed as if asked to verify the PR.
+
 ---
 
 ## 🩺 Patch-doctor — environment patches & drift recovery
