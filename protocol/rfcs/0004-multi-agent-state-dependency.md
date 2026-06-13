@@ -418,7 +418,7 @@ Algorithm: compute_gc_floor(producer_uuid)
   - **Default page size:** 100 checkpoints per page (must be >= 10, <= 1000)
   - **Threshold:** Pagination triggered when active checkpoints > 1000
   - **Bounds:** Prevent pathological values:
-    - Minimum page size: 10 (to ensure progress)
+    - Minimum page size: 50 (to prevent inefficient small-page overhead)
     - Maximum page size: 1000 (to bound memory per page)
   - **Source:** Configured per-producer or per-supervisor via agent-supervisord config
   - **Maintain a running minimum** across all pages to compute GC floor
@@ -445,7 +445,18 @@ Algorithm: compute_gc_floor(producer_uuid)
   
   Epochs are strictly ordered: epoch_N+1 may not be assigned until truncate for
   epoch_N completes. Registration backlog queues at epoch boundary until truncate
-  completes. No timeout needed (epoch fence is deterministic).
+  completes.
+  
+  **Deadlock prevention:** Although epoch fence is deterministic, failures (disk
+  errors, stalled truncation) can deadlock registrations. Implementations MUST
+  add **explicit timeout** (default 5 seconds, range 1s–30s) for epoch release.
+  If truncate does not complete within timeout:
+  - Log [WARN] "epoch fence timeout during truncation"
+  - Fall back to lock-based approach (release epoch, acquire read-only lock with backoff)
+  - Complete truncation under lock
+  - Retry GC on next cycle if lock timeout also expires
+  
+  This prevents indefinite registration backlog while preserving correctness.
   
   **Alternative approach (implementation choice):** Implementations MAY use
   read-only locks instead of epoch fences. Lock-based approach: Hold a read-only
