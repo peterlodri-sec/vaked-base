@@ -117,7 +117,7 @@ def topo_order(prs: list) -> list:
     return out
 
 
-def decide(pr: PR, base_open: bool) -> "tuple[str, str]":
+def decide(pr: PR, base_open: bool, default_branch: str = "main") -> "tuple[str, str]":
     """The train's action for ``pr`` → ``(action, reason)``. ``base_open`` is
     True when a stacked dependency is still an open (unmerged) PR. TOTAL over
     every ``mergeable_state`` (the test asserts this)."""
@@ -127,6 +127,14 @@ def decide(pr: PR, base_open: bool) -> "tuple[str, str]":
         return SKIP, "not opt-in (needs %s label or fleet author)" % OPT_IN_LABEL
     if base_open:
         return SKIP, "waiting on an unmerged base PR"
+    if pr.base_ref != default_branch:
+        # base is neither the default branch nor a still-open PR: an ORPHANED
+        # stacked PR — its parent merged/closed but the child was not retargeted.
+        # Merging now would integrate into the stale base branch, not the default
+        # branch (closing the PR without landing on main). Never act — retarget
+        # the PR's base to %s first.
+        return SKIP, ("base %r is not the default branch (%s) — retarget before "
+                      "merging" % (pr.base_ref, default_branch))
     st = pr.mergeable_state
     if st == "dirty":
         return BLOCK_CONFLICT, "merge conflict — needs human resolution"
@@ -146,7 +154,7 @@ def decide(pr: PR, base_open: bool) -> "tuple[str, str]":
     return WAIT, "mergeability unknown; recompute next tick"
 
 
-def plan_train(prs: list) -> list:
+def plan_train(prs: list, default_branch: str = "main") -> list:
     """The full planned train: ``[(number, action, reason), ...]`` in merge
     order. Pure — what ``plan`` prints and ``tick`` consumes (acting on the first
     non-terminal action)."""
@@ -159,7 +167,7 @@ def plan_train(prs: list) -> list:
     for n in order:
         p = by_num[n]
         base_open = any(d in open_numbers and d not in merged_yet for d in deps[n])
-        action, reason = decide(p, base_open)
+        action, reason = decide(p, base_open, default_branch)
         out.append((n, action, reason))
     return out
 
@@ -195,6 +203,9 @@ class GitHub:
         except urllib.error.HTTPError as e:
             detail = e.read().decode(errors="replace")[:200]
             raise RuntimeError("GitHub %s %s -> %s %s" % (method, path, e.code, detail))
+
+    def default_branch(self) -> str:
+        return self._req("GET", "/repos/%s" % self.repo).get("default_branch", "main")
 
     def open_prs(self) -> list:
         return self._req("GET", "/repos/%s/pulls?state=open&per_page=100" % self.repo)
@@ -270,6 +281,20 @@ def _read_control():
     return ralphcore.parse_control(d)
 
 
+def _clear_step() -> None:
+    """Consume the one-shot ``step`` flag after a stepped tick (mirrors ralph's
+    ``_clear_step``). Without this a ``{"paused": true, "step": true}`` control
+    file would make *every* subsequent tick act while the train looks paused."""
+    try:
+        d = json.load(open(CONTROL_PATH, encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return
+    if d.get("step"):
+        d["step"] = False
+        with open(CONTROL_PATH, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+
+
 # --------------------------------------------------------------------------- #
 # The tick.
 # --------------------------------------------------------------------------- #
@@ -280,13 +305,15 @@ def run_tick(gh: GitHub, *, enable_merge: bool) -> dict:
     ctrl = _read_control()
     if ctrl.paused and not ctrl.step:
         return {"action": "paused", "reason": "control.json paused"}
+    if ctrl.step:
+        _clear_step()                       # one-shot: consume it for this tick
 
     prs = fetch_prs(gh)
     if not prs:
         _ledger_append({"kind": "observed", "open_prs": 0})
         return {"action": "idle", "reason": "no open PRs"}
 
-    planned = plan_train(prs)
+    planned = plan_train(prs, gh.default_branch())
     by_num = {p.number: p for p in prs}
     _ledger_append({"kind": "observed", "open_prs": len(prs),
                     "train": [[n, a] for n, a, _ in planned]})
@@ -336,9 +363,9 @@ def _gh_from_env(repo: "str | None") -> GitHub:
     return GitHub(token, repo)
 
 
-def _print_plan(prs: list):
+def _print_plan(prs: list, default_branch: str = "main"):
     print("== merge train (%d open PRs) ==" % len(prs))
-    for n, action, reason in plan_train(prs):
+    for n, action, reason in plan_train(prs, default_branch):
         print("  #%-4d  %-14s  %s" % (n, action, reason))
 
 
@@ -368,7 +395,7 @@ def main(argv=None) -> int:
 
     gh = _gh_from_env(args.repo)
     if args.cmd == "plan":
-        _print_plan(fetch_prs(gh))
+        _print_plan(fetch_prs(gh), gh.default_branch())
         return 0
     if args.cmd == "tick":
         enable = bool(getattr(args, "enable", False)) or \

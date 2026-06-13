@@ -6,6 +6,7 @@ table, the stacked-PR planning, and the eventd ledger round-trip (the same
 hash-chain the live agent writes). The GitHub REST client is not exercised here
 (it is a thin urllib wrapper; the live `plan` dry-run validates it end to end).
 """
+import json
 import os
 import sys
 import tempfile
@@ -88,6 +89,13 @@ def _test_decision_total(lines):
     if a != ym.MERGE:
         ok = False
         lines.append(f"  FAIL decide: fleet author not opt-in ({a})")
+    # orphaned stacked PR: base is a non-default branch with no open parent PR
+    # (parent merged/closed) → never merge into the stale base; retarget first.
+    a, r = ym.decide(_pr(1, "h", "stale-parent-branch", state="clean", ci="success"),
+                     base_open=False, default_branch="main")
+    if a != ym.SKIP or "retarget" not in r:
+        ok = False
+        lines.append(f"  FAIL decide: orphaned stacked PR not held for retarget ({a}: {r})")
     if ok:
         lines.append("  PASS decide: total over all mergeable_states; deny-by-default opt-in; "
                      "dirty→needs-human, behind→update, clean+green→merge")
@@ -150,6 +158,28 @@ def _test_ledger(lines):
 
 # --------------------------------------------------------------------------- #
 
+def _test_clear_step(lines):
+    ok = True
+    with tempfile.TemporaryDirectory() as td:
+        cp = os.path.join(td, "control.json")
+        saved = ym.CONTROL_PATH
+        ym.CONTROL_PATH = cp
+        try:
+            json.dump({"paused": True, "step": True}, open(cp, "w"))
+            ym._clear_step()
+            after = json.load(open(cp))
+            if after.get("step") is not False or after.get("paused") is not True:
+                ok = False
+                lines.append(f"  FAIL step: control after clear = {after} "
+                             "(want step false, paused true)")
+        finally:
+            ym.CONTROL_PATH = saved
+    if ok:
+        lines.append("  PASS step: one-shot step flag consumed (paused preserved) — "
+                     "no runaway acting while paused")
+    return ok
+
+
 def run():
     lines = []
     ok = True
@@ -158,6 +188,7 @@ def run():
         ("decision table (total)", _test_decision_total),
         ("plan (stacked hold)", _test_plan_stacked),
         ("ledger (eventd round-trip)", _test_ledger),
+        ("control (one-shot step)", _test_clear_step),
     ]:
         lines.append(label + ":")
         ok &= fn(lines)
