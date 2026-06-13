@@ -63,6 +63,12 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
   per-file pass re-sends the same prefix — DeepSeek's automatic prefix caching (and
   Anthropic/Gemini explicit caching) reuses it. Cross-PR hits are rare (cache TTL),
   so keep the prefix stable and prefer a caching-friendly model.
+- **Docs-aware routing** — a docs/prose-only PR (all changed files `.md`/`.rst`/…)
+  uses a lighter doc-reviewer persona and stays single-pass; the 7-lens engineering
+  council only fires when there's actual code, so design docs don't draw code-shaped
+  noise.
+- **Reads through truncation** — if the diff is truncated/partial the reviewer is
+  instructed to `read_lines` the changed files rather than punt with "cannot review."
 - **Restraint + calibration** — tuned from real runs (the reviewer was padding to
   the cap with fabricated/subjective nits): findings are capped low (10), the prompt
   forbids non-diff-visible nits (EOF newline, file length, naming taste) and requires
