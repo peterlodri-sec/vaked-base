@@ -81,7 +81,7 @@ class Track:
     label: str
     context: TrackContext
     # Real issue-tracker labels this track scopes to (OR-union). Defaults to
-    # `[label]` in `load_tracks` when omitted; the historical single `label`
+    issue_labels: list[str] | None = None
     # (the `track:*` scheme) is kept only as that fallback. See `_issues_for_labels`.
     issue_labels: list[str] = field(default_factory=list)
 
