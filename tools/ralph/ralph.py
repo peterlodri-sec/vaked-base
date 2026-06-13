@@ -1524,9 +1524,16 @@ def cmd_digest(args) -> int:
 
     recap, rnd = _generate_recap(_activity_24h(), stats,
                                  _resolve_api_key(), getattr(args, "base_url", None))
-    rnd_line = " · ".join("%s %s" % (t.strip(), _rnd_link(t)) for t in rnd[:3])
-    fixed = (("\n\nR&D: " + rnd_line) if rnd_line else "") + "\n\n#vaked #ralph #recap"
-    body = _truncate(recap, MASTODON_MAX_CHARS - _mastodon_len(fixed))
+    # Cap each topic, then drop R&D items until the fixed tail leaves room for a
+    # minimal recap — so an overlong gpt-oss topic can't push the toot over budget.
+    topics = [t.strip()[:40] for t in rnd[:3] if t.strip()]
+    while True:
+        rnd_line = " · ".join("%s %s" % (t, _rnd_link(t)) for t in topics)
+        fixed = (("\n\nR&D: " + rnd_line) if rnd_line else "") + "\n\n#vaked #ralph #recap"
+        if not topics or MASTODON_MAX_CHARS - _mastodon_len(fixed) >= 24:
+            break
+        topics = topics[:-1]
+    body = _truncate(recap, max(0, MASTODON_MAX_CHARS - _mastodon_len(fixed)))
     toot = body + fixed
     host = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
     visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"

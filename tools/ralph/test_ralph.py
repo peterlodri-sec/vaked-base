@@ -1480,6 +1480,35 @@ def test_cmd_digest_recap_has_rnd_links() -> None:
         assert "#recap" in out
 
 
+def test_cmd_digest_oversized_rnd_fits_budget() -> None:
+    """Pathologically long gpt-oss R&D topics must not push the toot over 470."""
+    import importlib
+    import io
+    import contextlib
+    import re as _re
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    here = os.path.dirname(os.path.abspath(__file__))
+    huge = ["x" * 300, "y" * 300, "z" * 300]
+    with tempfile.TemporaryDirectory() as tmpdir:
+        args = types.SimpleNamespace(state_dir=tmpdir, base_url=None, dry_run=True,
+                                     tracks=os.path.join(here, "tracks.json"))
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        buf = io.StringIO()
+        try:
+            with mock.patch.object(ralph, "_generate_recap",
+                                   return_value=("a" * 400, huge)), \
+                 contextlib.redirect_stdout(buf):
+                ralph.cmd_digest(args)
+        finally:
+            ralph.DECISIONS_DIR = orig
+        # the printed body line: "[digest] body |<toot>|"
+        m = _re.search(r"\[digest\] body \|(.*)\|", buf.getvalue(), _re.S)
+        assert m, buf.getvalue()
+        assert ralph._mastodon_len(m.group(1)) <= ralph.MASTODON_MAX_CHARS
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 
