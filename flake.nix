@@ -28,6 +28,8 @@
             elixir
             rustc                 # CrabCC indexes — toolchain to build crabcc-labs/crabcc
             cargo
+            nodejs_22             # Surfaces reveal — Astro/Starlight docs site (site/)
+            caddy                 # serve the built docs (site/dist) for self-hosting
             git
             jq
             just
@@ -35,11 +37,62 @@
           shellHook = ''
             echo "vaked-base · Vaked declares · Nix materializes · OTP supervises · Zig enforces · eBPF testifies · CrabCC indexes · Surfaces reveal"
             echo "crabcc: $(command -v crabcc >/dev/null 2>&1 && crabcc --version || echo 'not installed — see CLAUDE.md patch-doctor')"
+            echo "docs:   cd site && npm install && npm run dev   (build: npm run build · nix build .#docs)"
           '';
         };
       });
 
       formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
+
+      # Surfaces reveal. `packages.docs` is the self-hostable documentation site:
+      # the Astro/Starlight project in site/ rendered to a static bundle. The
+      # prebuild step (site/scripts/sync-docs.mjs) reads the repo's docs/, vaked/
+      # and protocol/ Markdown — so the build source includes those trees too.
+      # Build:  nix build .#docs   →   result/  (static HTML; serve with caddy/nginx)
+      packages = forAllSystems (pkgs:
+        let
+          inherit (pkgs) lib;
+          # Only the inputs the docs build actually needs (keeps the build pure
+          # and avoids node_modules/dist/.git from the working tree).
+          docsSrc = lib.fileset.toSource {
+            root = ./.;
+            fileset = lib.fileset.unions [
+              ./site/package.json
+              ./site/package-lock.json
+              ./site/astro.config.mjs
+              ./site/tsconfig.json
+              ./site/scripts
+              ./site/src
+              ./site/public
+              ./docs
+              ./vaked
+              ./protocol
+            ];
+          };
+        in
+        {
+          docs = pkgs.buildNpmPackage {
+            pname = "vaked-docs";
+            version = "0.1.0";
+            src = docsSrc;
+
+            # npm phases run inside site/, but the whole repo is present so the
+            # sync step can read ../docs, ../vaked, ../protocol.
+            postPatch = "cd site";
+
+            # Hashless, lockfile-driven dependency import (no npmDepsHash to keep
+            # in sync). Requires nixpkgs' importNpmLock (nixos-unstable).
+            npmDeps = pkgs.importNpmLock { npmRoot = ./site; };
+            npmConfigHook = pkgs.importNpmLock.npmConfigHook;
+
+            # `npm run build` runs sync-docs then `astro build` → site/dist.
+            installPhase = ''
+              runHook preInstall
+              cp -r dist "$out"
+              runHook postInstall
+            '';
+          };
+        });
 
       # Nix materializes. `vakedos` is the bare-metal materialization target — the
       # NixOS substrate a Vaked runtime's emitted nixosModules.<runtime> will later

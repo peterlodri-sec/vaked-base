@@ -1,0 +1,29 @@
+# Caddyfile — self-host the built Vaked docs (site/dist).
+#
+#   Build first:  npm run build      (or: nix build .#docs)
+#   Serve local:  caddy run --config site/Caddyfile     → http://localhost:8788
+#
+# For a public deployment, replace the :8788 block with your domain; Caddy will
+# provision and renew TLS automatically:
+#
+#   docs.example.com {
+#       root * /var/www/vaked-docs        # contents of site/dist (or nix result/)
+#       encode zstd gzip
+#       file_server
+#       try_files {path} {path}/ {path}.html =404
+#   }
+
+:8788 {
+	root * dist
+	encode zstd gzip
+	file_server
+
+	# Starlight emits pretty-URL directories (foo/index.html). Resolve requests
+	# to the right file, otherwise serve the 404 page.
+	try_files {path} {path}/ {path}.html =404
+
+	handle_errors {
+		rewrite * /404.html
+		file_server
+	}
+}
