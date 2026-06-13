@@ -27,19 +27,15 @@ Send **any other text** and an OpenRouter model answers about the repo/fleet
 
 ## Run (self-hosted, crabcc.app plane)
 
-It's a **long-poll daemon** (instant replies). Deploy on the crabcc.app host with
-the included systemd unit:
+It's a **long-poll daemon** (instant replies). The included systemd unit runs it
+**unprivileged** (`DynamicUser=yes`), with a private `StateDirectory`, the full
+sandbox set (`NoNewPrivileges`, `ProtectSystem=strict`, empty `CapabilityBoundingSet`,
+…), and secrets via a **systemd credential** (tmpfs, never in the process env or
+`systemctl show`) — not inline `Environment=`.
 
 ```bash
-sudo cp tools/telebot/vaked-telebot.service /etc/systemd/system/
-sudoedit /etc/vaked-telebot.env        # see below (chmod 600)
-sudo systemctl enable --now vaked-telebot
-journalctl -u vaked-telebot -f
-```
-
-`/etc/vaked-telebot.env`:
-
-```ini
+# 1. the secrets file (plain KEY=VALUE), root-only
+sudo install -m 600 /dev/stdin /etc/vaked-telebot.env <<'ENV'
 TELEGRAM_TOKEN=123:abc            # @vakedAIcrabcc_bot
 TELEGRAM_TO=-5386943266           # the vaked group
 TELEGRAM_ADMIN_IDS=111111111      # comma-separated; who may trigger workflows
@@ -47,9 +43,21 @@ GITHUB_TOKEN=ghp_...              # repo + actions:write (for dispatch)
 GITHUB_REPOSITORY=peterlodri-sec/vaked-base
 OPENROUTER_API_KEY=sk-or-...      # or TELEBOT_API_KEY; free-form ask
 # TELEBOT_MODEL=deepseek/deepseek-v4-flash   # optional override
+ENV
+
+# 2. the unit (loads the file via LoadCredential → $CREDENTIALS_DIRECTORY)
+sudo cp tools/telebot/vaked-telebot.service /etc/systemd/system/
+sudo systemctl enable --now vaked-telebot
+journalctl -u vaked-telebot -f
 ```
 
-Or run it directly: `python3 tools/telebot/telebot.py` with the same env.
+The daemon reads those keys from `$CREDENTIALS_DIRECTORY/telebot.env` when run
+under systemd (`_load_credentials`); set them as plain env vars for an ad-hoc run
+(`python3 tools/telebot/telebot.py`).
+
+**NixOS:** prefer a `systemd.services.vaked-telebot` module (the store `python3` +
+`sops`/`agenix` for the credential) over this generic unit; the daemon is
+stdlib-only, so no Python packages are needed beyond the interpreter.
 
 ## Design
 

@@ -40,7 +40,10 @@ for p in (REPO_ROOT, os.path.join(REPO_ROOT, "tools", "yardmaster")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-STATE_DIR = os.path.join(HERE, "state")
+# State dir is overridable so the systemd unit can point it at a private
+# StateDirectory (=/var/lib/vaked-telebot) under DynamicUser, rather than the
+# read-only repo checkout.
+STATE_DIR = os.environ.get("TELEBOT_STATE_DIR") or os.path.join(HERE, "state")
 OFFSET_PATH = os.path.join(STATE_DIR, "offset")
 LOG_PATH = os.path.join(STATE_DIR, "log.jsonl")
 
@@ -409,7 +412,26 @@ def _write_offset(o: int) -> None:
     open(OFFSET_PATH, "w").write(str(o))
 
 
+def _load_credentials() -> None:
+    """Load secrets from a systemd ``LoadCredential=`` drop (``$CREDENTIALS_DIRECTORY/
+    telebot.env``) into the environment — so the daemon can run as ``DynamicUser``
+    with its tokens in a tmpfs credentials store, never inlined in the unit/process
+    environment. A no-op outside systemd."""
+    cdir = os.environ.get("CREDENTIALS_DIRECTORY")
+    if not cdir:
+        return
+    try:
+        for line in open(os.path.join(cdir, "telebot.env"), encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+    except OSError:
+        pass
+
+
 def run_daemon() -> int:
+    _load_credentials()
     token = os.environ.get("TELEGRAM_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY", "peterlodri-sec/vaked-base")
     chat_id = int(os.environ.get("TELEGRAM_TO", "0") or "0")
