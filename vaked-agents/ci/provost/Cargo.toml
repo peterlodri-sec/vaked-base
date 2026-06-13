@@ -49,4 +49,8 @@ opentelemetry-otlp = { version = "0.31", default-features = false, features = [
 lto = "fat"
 codegen-units = 1
 strip = true
-panic = "abort"
+# panic=unwind (the Rust default) so a panic on the OTel batch-export background
+# thread (no Tokio reactor there) unwinds just that thread instead of aborting the
+# whole process mid-run — same fleet hardening as pr-review. The CLI signals via
+# exit codes, never panics, so this has no behavioural effect on the agent itself.
+panic = "unwind"
