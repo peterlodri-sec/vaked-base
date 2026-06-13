@@ -1197,7 +1197,123 @@ Conformance vectors (golden framings, handshake transcripts, a credit-stall
 scenario, and a non-canonical-body rejection case) accompany this RFC as a
 companion artifact (Open question 1), validated by `litanydump` / `litanyreplay`.
 
-## 12. Transport binding profiles (non-normative)
+## 11. Chapter & connection lifecycle state machine
+
+The connection and its chapters progress through defined states. This diagram shows
+the state machine for a single chapter within a connection (the connection itself
+has OPEN/CLOSED states managed by the transport; chapters are nested within OPEN).
+
+```text
+                        ┌─────────────┐
+                        │    OPEN     │  ← chapter opened by "open" control frame
+                        └──────┬──────┘
+                               │
+                      ┌────────┼────────┐
+                      │                 │
+              ┌───────▼────────┐  ┌────▼────────┐
+              │   STREAMING    │  │   PAUSED    │  ← PauseControl applied
+              │ (frames flow)  │  │(scheduler off)
+              └───────┬────────┘  └────┬────────┘
+                      │                │
+                      │◄───────────────┘ (ResumeControl)
+                      │
+                      │ (pause request)
+                      ▼
+              ┌───────────────┐
+              │  REWINDING    │  ← RewindControl: dependencies re-verify
+              └──────┬────────┘
+                     │
+         ┌───────────┼───────────┐
+         │                       │
+    ┌────▼────────┐     ┌───────▼──────┐
+    │  RUNNING    │     │  PAUSED      │  ← stale_dependency
+    │ (resume OK) │     │ (operator    │
+    └────┬────────┘     │  intervention)
+         │              └───────┬──────┘
+         │ (close frame)        │ (explicit recovery)
+         │                      │
+         └──────────┬───────────┘
+                    ▼
+           ┌────────────────┐
+           │    CLOSED      │  ← chapter ended
+           └────────────────┘
+```
+
+**State meanings:**
+- **OPEN:** Chapter is active; frames may arrive.
+- **STREAMING:** Normal operation; `pause`/`resume` verbs are scheduling-only.
+- **PAUSED:** Scheduler is off (PauseControl applied); in-flight requests drain; new ones queue.
+- **REWINDING:** Producer has rewound; dependents are paused, then restarted for verification.
+- **RUNNING:** Post-rewind verification passed; resume is safe.
+- **PAUSED (stale_dependency):** Cold-start or rewind verification failed; requires explicit recovery.
+- **CLOSED:** Chapter has ended; frames referencing this chapter are rejected with `chapter-closed` error.
+
+---
+
+## 12. Chapter multiplexing worked example
+
+Two independent chapters (chapters A and B) share one connection. They are
+multiplexed by their chapter ids (assigned at `open` frame). The wire can
+interleave frames from both chapters; the frame header's chapter id routes each
+frame.
+
+```text
+Initiator                                Responder
+──────────────────────────────────────────────────
+open { chapter_id: A_uuid }  ──────→    [creates chapter A]
+                             ←────── open { chapter_id: A_uuid }
+
+open { chapter_id: B_uuid }  ──────→    [creates chapter B]
+                             ←────── open { chapter_id: B_uuid }
+
+request {                    ──────→
+  chapter: A_uuid,
+  corr: req1_uuid,
+  method: "fetch"
+}
+                                        [processes request on chapter A]
+request {                    ──────→
+  chapter: B_uuid,
+  corr: req2_uuid,
+  method: "list"
+}
+                                        [processes request on chapter B]
+                             ←────── response {
+                                        chapter: B_uuid,
+                                        corr: req2_uuid,
+                                        body: [items...]
+                                      }
+
+                             ←────── response {
+                                        chapter: A_uuid,
+                                        corr: req1_uuid,
+                                        body: [data...]
+                                      }
+
+pause { chapter: A_uuid }    ──────→    [pauses chapter A only]
+                                        [chapter B continues]
+
+request {                    ──────→
+  chapter: B_uuid,
+  corr: req3_uuid,
+  method: "update"
+}
+                             ←────── response { ... }  [B still works]
+
+close { chapter: A_uuid }    ──────→    [closes chapter A]
+                             ←────── close { chapter: A_uuid }
+                                        [B is unaffected]
+```
+
+**Key points:**
+- Each chapter is independent; pause on A doesn't affect B.
+- Frame routing is by chapter id in the header (implicit, not in body).
+- Responses must echo the request's chapter id and correlation id.
+- Closing chapter A has no effect on chapter B.
+
+---
+
+## 13. Transport binding profiles (non-normative)
 
 These profiles are **non-normative**: they describe how three concrete substrates
 satisfy the §3 transport contract. None is *the* baseline — a conforming peer
@@ -1206,75 +1322,108 @@ picks whichever the deployment provides. (This resolves
 choice to the Litany Wire RFC": the answer is **transport-agnostic, no mandated
 baseline**.)
 
-### 12.1 `stdio`
+### 13.1 `stdio` — concrete spawn & handshake example
 
-A child process speaks Litany Wire over its inherited **stdin/stdout** pair;
-stderr is out of band (logs). The pair is one connection: stdout is the child's
-send direction, stdin its receive direction.
+A parent process launches a child agent under `agent-supervisord`:
 
-- T1/T2 (reliable, ordered): OS pipes are reliable, in-order octet streams.
-- T3 (length-unframed): pipes carry no message boundaries — the wire frames.
-- T4 (full-duplex): the two pipes are independent directions.
-- T5 (close/half-close): closing stdout signals EOF to the parent's read
-  (directional half-close, T5); process exit / closing both is the abortive case.
-- Roles (§5.1): the **spawning parent is the responder, the child the
-  initiator** (the child sends `HELLO` on startup) — or the reverse, fixed by the
-  launch contract; whichever, it is agreed before spawn.
-- Fit: the natural transport for a locally-spawned tool/agent under
-  `agent-supervisord` / `sandboxd`. No naming or addressing needed; the OS supplies
-  the channel and its security (process boundary, inherited fds).
+```bash
+# Parent (responder)
+child_pid = spawn("./agent-binary", stdin=parent_read, stdout=parent_write, stderr=log_fd)
+conn = Litany.open(reader=parent_read, writer=parent_write, role=responder)
 
-### 12.2 Unix domain socket
+# Child (initiator)
+conn = Litany.open(reader=stdin, writer=stdout, role=initiator)
+conn.send_hello(wire_version=1, max_frame=1048576, schemas=[...])
 
-A `SOCK_STREAM` `AF_UNIX` socket at a filesystem path. The `connect()` side is the
-**initiator**, the `accept()` side the **responder** (§5.1).
+# Parent receives HELLO, sends HELLO-ACK
+parent_hello = conn.recv_hello()
+conn.send_hello_ack(...)
 
-- T1/T2: `SOCK_STREAM` is reliable and in-order.
-- T3: stream sockets carry no message boundaries — the wire frames. (A
-  `SOCK_SEQPACKET` variant would preserve boundaries; the wire ignores them, T3.)
-- T4: full-duplex by construction.
-- T5: `shutdown(SHUT_WR)` is directional half-close; `close`/reset is abortive.
-- **Security (§13):** authentication is **filesystem permissions** on the socket
-  path (and optionally `SO_PEERCRED`/`getpeereid` peer-credential checks); confine
-  the socket to a directory only authorised principals can reach.
-- Fit: the standard local IPC transport between Vaked daemons on one host (e.g.
-  `petitiond` ingress, `mcp-brokerd`), where a parent/child pipe is not the right
-  shape.
+# Both sides proceed with frame exchange
+```
 
-### 12.3 `vsock` (VM / MirageOS-unikernel boundary)
+**Practical notes:**
+- The parent and child agree on roles before spawn (via launch contract).
+- No address/naming needed; the OS pipes are the channel.
+- On spawn, both stdin/stdout are inherited; they are the connection.
+- If child crashes, `agent-supervisord` sees the process exit and tears down the
+  connection (transport fault, §9.1).
 
-`AF_VSOCK` (`SOCK_STREAM`) connects a host and a guest VM by `(CID, port)` without
-a network stack — the transport for a sealed
-[**MirageOS unikernel**](../../docs/language/0010-mirageos-unikernel-surface.md)
-materialization of an enforcement membrane. The guest (or whichever side
-`connect()`s) is the **initiator**.
+### 13.2 Unix domain socket — concrete bind & accept example
 
-- T1/T2: `vsock` stream sockets are reliable and in-order.
-- T3: octet stream, no message boundaries — the wire frames.
-- T4: full-duplex.
-- T5: directional half-close + abortive reset as for any stream socket.
-- **Security (§13):** the trust boundary is the **host/guest virtualization
-  boundary** itself — `vsock` is not routable off the machine, so the substrate's
-  isolation *is* the channel's security; no tailnet is needed for the
-  host↔unikernel hop. A sealed unikernel is "deny-by-default by construction"
-  (`0010` §"The idea"); Litany Wire over `vsock` is then the only sanctioned
-  surface in or out of the membrane, which is exactly the strong reading `0010`
-  argues for.
-- Fit & note: a constrained unikernel peer may prefer the §8.5 `stream-pause`
-  capability over credit accounting. `vsock` matters specifically because a
-  unikernel has no host kernel to attach eBPF to (`0010` Open question 2), so the
-  evidence story leans on `eventd` over the wire (§10) rather than kernel
-  testimony — a connection-level reason Litany Wire's own `eventd` integration
-  matters more, not less, on this binding.
+A daemon (`petitiond`) listens on a unix socket; a client connects:
 
-## 13. Security considerations
+```bash
+# Daemon (responder)
+socket = socket(AF_UNIX, SOCK_STREAM)
+socket.bind("/var/run/vaked/petitiond.sock")
+socket.listen(backlog=128)
+socket.chmod(0o700)  # owner-only access
+
+while True:
+  client_sock, _ = socket.accept()
+  conn = Litany.open(reader=client_sock, writer=client_sock, role=responder)
+  handle_connection(conn)
+
+# Client (initiator)
+client_sock = socket(AF_UNIX, SOCK_STREAM)
+client_sock.connect("/var/run/vaked/petitiond.sock")
+conn = Litany.open(reader=client_sock, writer=client_sock, role=initiator)
+conn.send_hello(...)
+```
+
+**Practical notes:**
+- Permission-based security: only processes that can read/write the socket file
+  can connect.
+- Listening daemon is the responder; clients are initiators.
+- Multiple clients can connect; each gets its own socket and connection.
+- The path is a well-known daemon socket (similar to systemd user sockets).
+
+### 13.3 `vsock` — concrete VM/host example
+
+A host daemon listens on a `vsock` port; a guest unikernel connects:
+
+```bash
+# Host (responder)
+sock = socket(AF_VSOCK, SOCK_STREAM)
+sock.bind(VMADDR_CID_ANY, port=5000)  # VMADDR_CID_ANY = all guests
+sock.listen()
+
+(guest_cid, guest_port), _ = sock.accept()
+conn = Litany.open(reader=sock, writer=sock, role=responder)
+handle_guest(conn, guest_cid)
+
+# Guest unikernel (initiator)
+sock = socket(AF_VSOCK, SOCK_STREAM)
+sock.connect(VMADDR_CID_HOST, port=5000)  # VMADDR_CID_HOST = the host
+conn = Litany.open(reader=sock, writer=sock, role=initiator)
+conn.send_hello(...)
+```
+
+**Practical notes:**
+- `vsock` is a hypervisor-mediated socket; no networking stack needed.
+- Host CID is a well-known constant (`VMADDR_CID_HOST`); guest CID is assigned
+  by the hypervisor.
+- Used for sealed unikernel ↔ host enforcement boundaries (RFC 0010).
+- Security is the hypervisor isolation (not a network hop).
+
+---
+
+## 14. Security considerations
+
+### 14.1 Substrate authentication & confidentiality
 
 - **The wire assumes an authenticated, confidential substrate.** Litany Wire adds
   no encryption or peer authentication of its own; it relies on the substrate: a
   WireGuard tailnet for remote connections, unix-socket filesystem permissions for
-  local ones, or the host/guest trust boundary of a vsock channel (§12). A
+  local ones, or the host/guest trust boundary of a vsock channel (§13). A
   deployment that exposes Litany Wire over an unauthenticated, cleartext transport
   is misconfigured — the magic (§5.2) is a *format* check, never an *auth* check.
+- **Multi-host deployments (RFC 0006)** use mTLS (SPIFFE/SPIRE) at the TLS layer,
+  which provides identity-verified channels before any Litany frame is parsed.
+
+### 14.2 Authority & policy enforcement
+
 - **Authority is `preceptord`'s, enforced above the wire.** The wire delivers
   `open`/`request`/subscription frames; *whether* a peer may open a chapter or
   invoke a service is a `preceptord` decision
@@ -1283,6 +1432,9 @@ materialization of an enforcement membrane. The guest (or whichever side
   bypass authority: e.g. a frame referencing a schema digest outside the agreed
   set is rejected (§5.4), and replayed frames are re-admitted under current policy
   (§10).
+
+### 14.3 Tamper-evidence via canonical encoding
+
 - **Tamper-evidence rests on canonicality.** §4's canonical framing and
   `hcpbin`'s canonical bodies are what make the `eventd` chain meaningful; a
   non-canonical framing — *or admitting a non-canonical body* — would let two
@@ -1291,12 +1443,25 @@ materialization of an enforcement membrane. The guest (or whichever side
   chain requires strictly-canonical `frame-bytes` end to end and a non-canonical
   body is a frame-level `error` that is **never** chained (§9.2, §10): conformance
   to §4 *and* to `0002` §6.8 is a security property, not merely a correctness one.
-- **Resource-exhaustion resistance.** `max_frame` (§4.3) bounds per-frame
-  allocation; per-stream credit (§8) bounds per-stream buffering; the
-  connection-level guard and idle/liveness timers (§7) bound a stalled or hostile
-  peer's ability to pin resources. A peer that violates framing or credit is torn
-  down (§9.1), not indulged; a peer that repeatedly sends non-canonical bodies MAY
-  be torn down as policy (§9.2).
+
+### 14.4 Resource-exhaustion DoS resistance
+
+- **Resource limits bound DoS:** `max_frame` (§4.3) bounds per-frame allocation
+  (prevents huge length claims); per-stream credit (§8) bounds per-stream buffering
+  (prevents unbounded queuing on one stream); the connection-level liveness guard
+  (§7.3) bounds idle-peer resource consumption (detects & closes dead connections).
+- **Peer violations are terminal:** A peer that violates framing (§9.1) or credit
+  (§8.4) is torn down immediately — the connection cannot be trusted. A peer that
+  repeatedly sends non-canonical bodies (§9.2) MAY be torn down as local policy
+  (a peer that cannot produce canonical `hcpbin` is buggy or hostile).
+
+### 14.5 Control-plane deadlock-free guarantee
+
+- **Control frames bypass data backpressure (§7.2, §8.3):** This is a security
+  property: the control plane (pause/resume/rewind, credit grants, liveness) is
+  guaranteed to make progress even when a data stream is paused or stalled. A
+  slow application cannot starve the control plane, which is essential for
+  operator intervention (e.g. pausing a runaway agent).
 - **`@redact` is honoured end to end.** Fields marked `@redact`
   ([`0002-hcplang.md`](./0002-hcplang.md) §11) still participate in encoding and
   hashing (the chain covers the real value) but are elided from `litanydump`

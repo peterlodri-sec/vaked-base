@@ -379,6 +379,60 @@ Consumer C (SPIFFE ID:
   transport and topology details differ. RFC 0006 assumes single-host RFCs
   0003–0005 and adds the multi-host layer.
 
+## 6. NATS subscription management & cleanup (provisional)
+
+Agents subscribe to NATS topics to receive notifications (e.g. `agent.*.rewind`
+for RewindEvent broadcasts). Subscription lifecycle management:
+
+- **Startup:** On `agent-supervisord` startup, the supervisor creates subscriptions
+  for the agent: `agent.<self-uuid>.rewind` and optionally `agent.<self-uuid>.step`
+  (if enabled for metrics). These are durable subscriptions (persisted in JetStream
+  if available, so messages are not lost during broker outages).
+  
+- **Dependency registration:** When a consumer registers a dependency on a producer
+  (RFC 0004 §3.1), the consumer may also subscribe `agent.<producer-uuid>.rewind`
+  (per-producer topic) to be notified of that specific producer's rewind events.
+  Alternatively, the consumer subscribes `agent.*.rewind` (wildcard) and filters
+  locally on the producer UUID in the event body.
+  
+- **Cleanup on shutdown:** When an agent shuts down or a dependency is revoked,
+  subscriptions are unsubscribed. For per-producer subscriptions, cleanup is
+  explicit. For wildcard subscriptions, cleanup is implicit (the subscription
+  survives the agent, but delivered messages to a dead consumer are lost).
+  
+- **Resource bounds:** A NATS broker has a finite number of subscription slots.
+  Per-producer subscriptions (O(n) where n = number of producers) should be
+  avoided if possible; wildcard subscriptions (O(1)) scale better for large
+  dependency graphs. The tradeoff is per-producer specificity vs. global scalability.
+
+---
+
+## 7. Relic distribution across hosts via JetStream (provisional)
+
+`reliquaryd` (RFC 0001) stores relics (retained proofs, snapshots, accumulators)
+locally. In a multi-host fabric (RFC 0006), a remote consumer may need to fetch a
+relic from a producer's host. Distribution is via NATS JetStream KV or Object Store:
+
+- **Local relic storage:** Each host's `reliquaryd` stores relics in JetStream KV:
+  - Key: `relic:<hash>` (e.g. `relic:sha256:abc123...`)
+  - Value: the relic bytes (proof, snapshot, etc.)
+  
+- **Cross-host relic fetch:** A remote consumer that needs to verify a GC floor
+  proof (RFC 0004 §4.1) fetches the relic by hash from the local JetStream KV.
+  If the relic is not local, the consumer may trigger a fetch from the producer's
+  host via:
+  - Direct Litany Wire query to the producer's `reliquaryd` (if Litany connection
+    is open).
+  - Or, a background daemon replicates relics from producer hosts to a shared
+    JetStream bucket (out of scope here; deployment-specific).
+  
+- **Relic lifecycle & retention:** A relic is retained as long as it is pinned by
+  an active checkpoint (RFC 0004 §4.2). Once all checkpoints move past the relic's
+  step, the relic MAY be deleted. Deletion is explicit (operator or daemon-driven),
+  never automatic, to ensure audited retention.
+
+---
+
 ## Open questions
 
 1. **RFC 0003 integration**: is NATS a *Litany Wire transport* (frames tunnel

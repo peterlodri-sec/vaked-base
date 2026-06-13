@@ -438,6 +438,41 @@ load-bearing), attributing the rewind to its principal.
 - Tamper evidence of recorded actions is inherited from eventd (hash chain;
   boot-time hard verify).
 
+## 6. SetIntervalControl interaction with heartbeat (provisional)
+
+When a SetIntervalControl request changes an agent's tick interval:
+
+- **Immediate effect:** The scheduler's interval is updated; subsequent ticks occur
+  at the new rate.
+- **Heartbeat independence:** `SetIntervalControl` does **not** affect the
+  connection-level liveness heartbeat (RFC 0003 §7). The agent may be slow
+  (ticking every 5 seconds), but the connection's idle timer (15 s default)
+  continues to trigger `ping` frames independently.
+- **Use case:** An operator may slow a worker (`interval_ms = 5000`) to reduce
+  CPU churn during GC, without affecting the connection's liveness.
+
+## 7. RewindControl targeting & step identification (provisional)
+
+A RewindControl request targets a producer by AgentId (UUID) and specifies a
+rewind point. The rewind point is identified by **both**:
+
+- **`rewind_to_step`:** The step number (u64) in the producer's eventd.
+- **`rewind_to_hash`:** The hash of that step's entry (hash value).
+
+The supervisor:
+
+1. Looks up the producer by UUID (via oraclefd).
+2. Fetches the step at `rewind_to_step` from the producer's eventd.
+3. Computes the hash of that step's entry.
+4. Verifies it matches `rewind_to_hash` (ensures caller is targeting the intended
+   step, preventing accidental rewinds to the wrong step if step numbers have
+   shifted due to external replication).
+5. If hashes match: applies the rewind (RFC 0004 §3.3).
+6. If hashes don't match: refuses the rewind with `invalid_rewind` reason.
+
+This two-part identification (step number + hash) prevents off-by-one errors and
+adds an extra layer of verification.
+
 ## Open questions
 
 - Should `StepControl` carry a count (`steps: u32 = 1`)?

@@ -347,6 +347,36 @@ ConsumerCheckpoint update ─→     ConsumerCheckpoint update
 - Consumer discovers stale anchor via cold-start verification, not by trusting the notification.
 - No automatic recovery; operator/supervisor must explicitly re-anchor or clear the pause.
 
+### 4.3 Garbage collection floor computation & pinning algorithm
+
+The GC floor is computed dynamically at compaction time from the set of all active
+checkpoints. The algorithm is:
+
+```
+Algorithm: compute_gc_floor(producer_uuid)
+
+1. Fetch all ConsumerCheckpoint entries from eventd for this producer
+   that are:
+   - Within the active lease window (last_heartbeat_at > now - 24h)
+   - Not marked as evicted
+   
+2. Extract min_required_step from each checkpoint
+
+3. GC_floor = minimum(all extracted steps)
+
+4. Producer may compact/truncate log entries strictly below GC_floor
+
+5. Retain proofs for all steps >= GC_floor (in snapshot, accumulator, or footer)
+```
+
+**Implementation note:** The set of active checkpoints may change frequently (new
+consumers anchor, old ones checkpoint deeper, leases expire). Compaction should be
+infrequent (e.g., daily) to reduce recomputation overhead. A producer typically
+computes the floor once and compacts a range, then waits for new checkpoints
+before compacting further.
+
+---
+
 ## 5. Invariant II — the state-dependency subgraph is a DAG
 
 > Dependency edges used for **state consumption** MUST form a DAG per
@@ -377,6 +407,48 @@ authority axis (attenuation-checked, not state-consuming); surface `input`
 edges are `observation`. This section generalizes that split to all runtime
 dependency edges, so feedback loops stay possible without ever becoming
 state-consumption deadlock.
+
+### 5.1 Cycle detection & prevention (provisional)
+
+At compile time, the `VerifyStateDependencyDAG` pass performs a topological sort
+of the state-dependency subgraph:
+
+```
+Algorithm: verify_state_dependency_dag(agent_graph, epoch)
+
+1. Build subgraph G = {agents, state_dependency edges}
+   (exclude observation, control_signal, metrics edges)
+
+2. Perform topological sort (Kahn's algorithm or DFS-based)
+   - Mark all nodes unvisited
+   - For each node with in_degree == 0:
+     - Perform DFS; mark visited
+     - If back edge detected (node visits itself): CYCLE FOUND
+   
+3. If cycle found:
+   - Extract cycle path: A → B → C → A
+   - Report compile error (E-CYCLE-DETECTED)
+   - Suggest remediation: change one edge to observation or control_signal
+   
+4. If no cycle: pass; emit augmented AST with topology_epoch
+```
+
+**Runtime safeguard:** At registration time (RFC 0004 §3.1), even though the
+compiler has already verified the build-time graph, a runtime check may verify
+that the registering edge does not close a loop:
+
+```
+Algorithm: verify_registration_acyclic(consumer, producer, current_edges)
+
+1. Hypothetically add edge: consumer → producer
+2. Check if producer can reach consumer via existing edges
+   (depth-limited BFS; limit = num_agents)
+3. If reachable: REJECT registration (would create cycle)
+4. Else: ACCEPT (registration proceeds)
+```
+
+This second check is conservative (allows the already-verified build graph) but
+catches any dynamic topology changes that might have slipped past the compiler.
 
 ## 6. Invariant III — cold start verifies before RUNNING
 
