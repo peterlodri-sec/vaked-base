@@ -11,6 +11,7 @@ import argparse
 import base64
 import binascii
 import datetime
+import functools
 import glob
 import json
 import os
@@ -32,6 +33,32 @@ try:                                  # optional observability — never require
 except Exception:                     # not installed → tracing is a no-op
     _Langfuse = None
 
+try:                                  # optional fast JSON — falls back to stdlib
+    import orjson as _orjson
+except Exception:
+    _orjson = None
+
+try:                                  # optional image compression for toot media
+    from PIL import Image as _PILImage
+except Exception:                     # not installed → upload the raw image as-is
+    _PILImage = None
+
+
+def _loads(data):
+    """Fast JSON parse — orjson when installed, stdlib otherwise. Accepts str or
+    bytes. orjson.JSONDecodeError subclasses json.JSONDecodeError, so existing
+    `except json.JSONDecodeError` handlers still catch malformed input. Used for
+    DESERIALIZATION only; the hash-chained ledger keeps stdlib json.dumps so the
+    committed canonical bytes (and their hashes) never shift."""
+    if _orjson is not None:
+        return _orjson.loads(data)
+    if isinstance(data, (bytes, bytearray)):
+        data = data.decode("utf-8")
+    return _STD_JSON_LOADS(data)
+
+
+_STD_JSON_LOADS = json.loads
+
 REPO_HOME = os.path.abspath(os.path.join(HERE, "..", ".."))   # vaked-base
 DECISIONS_DIR = os.path.join(REPO_HOME, "docs", "decisions")
 STATE_DIR = os.path.join(HERE, "state")
@@ -48,6 +75,7 @@ MASTODON_MAX_CHARS = 470                # safety margin under Mastodon's 500
 ANNOUNCE_MODEL = "openai/gpt-oss-120b"  # writes the toot (separate from decide)
 ANNOUNCE_LOOKBACK = 5                   # how far back to retry un-announced decisions
 TOOT_IMAGE_MODEL = "google/gemini-2.5-flash-image"  # generates the toot's media
+CRITIQUE_CONTEXT_CHARS = 32000          # cap grounding context for the stage-3 critique
 
 
 def read_purpose() -> str:
@@ -139,16 +167,22 @@ def _truncate(text: str, limit: int) -> str:
     return cut.rstrip() + "…"
 
 
+_MD_FENCE_RE = re.compile(r"```.*?```", re.S)            # code fences
+_MD_HEADING_RE = re.compile(r"(?m)^\s{0,3}#{1,6}\s*")    # headings
+_MD_BULLET_RE = re.compile(r"(?m)^\s{0,3}[-*+]\s+")      # bullets
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")       # [txt](url) → txt
+
+
 def _strip_md(text: str) -> str:
     """Mastodon renders plain text, NOT markdown — strip the markup that would
     otherwise show as literal `**`, `#`, `` ` `` in the toot."""
     if not text:
         return ""
-    t = re.sub(r"```.*?```", "", text, flags=re.S)      # code fences
+    t = _MD_FENCE_RE.sub("", text)
     t = t.replace("**", "").replace("__", "").replace("`", "")
-    t = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", t)          # headings
-    t = re.sub(r"(?m)^\s{0,3}[-*+]\s+", "", t)           # bullets
-    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)       # [txt](url) → txt
+    t = _MD_HEADING_RE.sub("", t)
+    t = _MD_BULLET_RE.sub("", t)
+    t = _MD_LINK_RE.sub(r"\1", t)
     return t.strip()
 
 
@@ -249,7 +283,7 @@ def _post_toot(host: str, token: str, text: str, visibility: str, idem_key: str,
             req = urllib.request.Request(host + "/api/v1/statuses", data=data,
                                          method="POST", headers=headers)
             with urllib.request.urlopen(req, timeout=15) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                return _loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             last = e
             if attempt == retries - 1:
@@ -291,6 +325,39 @@ _IMAGE_PROMPT = (
 )
 _DATA_URL_RE = re.compile(r"^data:(?P<mime>[\w.+-]+/[\w.+-]+);base64,(?P<b64>.+)$", re.S)
 _IMG_EXT = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif"}
+TOOT_IMAGE_MAX_EDGE = 1280              # downscale the longest side to this (px)
+TOOT_IMAGE_JPEG_QUALITY = 82           # re-encode to progressive JPEG at this quality
+
+
+def _compress_image(raw: bytes, mime: str) -> "tuple[bytes, str]":
+    """Shrink the generated image before upload: downscale the longest edge to
+    TOOT_IMAGE_MAX_EDGE and re-encode as an optimized progressive JPEG. A model
+    PNG is often ~800 KB; this typically lands ~100-200 KB. Best-effort — if
+    Pillow is absent, the result would be larger, or anything errors, returns the
+    original bytes unchanged (the image is never dropped over compression)."""
+    if _PILImage is None:
+        return raw, mime
+    try:
+        import io
+        with _PILImage.open(io.BytesIO(raw)) as im:
+            im = im.convert("RGB")                       # JPEG has no alpha
+            w, h = im.size
+            longest = max(w, h)
+            if longest > TOOT_IMAGE_MAX_EDGE:
+                scale = TOOT_IMAGE_MAX_EDGE / float(longest)
+                im = im.resize((max(1, round(w * scale)), max(1, round(h * scale))),
+                               _PILImage.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, format="JPEG", quality=TOOT_IMAGE_JPEG_QUALITY,
+                    optimize=True, progressive=True)
+            out = buf.getvalue()
+        if out and len(out) < len(raw):
+            return out, "image/jpeg"
+        return raw, mime                                 # no win → keep original
+    except Exception as e:   # noqa: BLE001 — compression is optional
+        print("[announce] image compression failed (%s) — uploading original"
+              % type(e).__name__, file=sys.stderr)
+        return raw, mime
 
 
 def _toot_image_on() -> bool:
@@ -410,7 +477,7 @@ def _upload_media(host: str, token: str, content: bytes, mime: str,
         req = urllib.request.Request(host + "/api/v2/media", data=body,
                                      method="POST", headers=headers)
         with urllib.request.urlopen(req, timeout=30) as resp:
-            obj = json.loads(resp.read().decode("utf-8"))
+            obj = _loads(resp.read().decode("utf-8"))
             code = resp.status
     except Exception as e:   # noqa: BLE001 — media is optional
         print("[announce] media upload failed (%s) — text-only toot"
@@ -436,13 +503,15 @@ def _maybe_toot_image(title: str, host: str, token: str, api_key: str,
         if img is None:
             return None
         raw, mime = img
+        orig_bytes = len(raw)
+        raw, mime = _compress_image(raw, mime)           # shrink before upload
         alt = ("Abstract graph-motif illustration for the ralph decision: "
                + _clean_title(title))[:1400]
         mid = _upload_media(host, token, raw, mime, alt)
         if not mid:
             return None
-        print("[announce] image attached media_id=%s bytes=%d mime=%s model=%s"
-              % (mid, len(raw), mime, model))
+        print("[announce] image attached media_id=%s bytes=%d (from %d) mime=%s model=%s"
+              % (mid, len(raw), orig_bytes, mime, model))
         return [mid]
     except Exception as e:   # noqa: BLE001 — belt-and-suspenders; never block the toot
         print("[announce] image step errored (%s) — text-only toot"
@@ -464,7 +533,7 @@ def _open_announce_failure_issue(host: str, did: str, exc: Exception) -> None:
     raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
                 "--limit", "100", "--json", "title"], cwd=REPO_HOME)
     try:
-        if raw and any(i.get("title") == title for i in json.loads(raw)):
+        if raw and any(i.get("title") == title for i in _loads(raw)):
             print("[announce] failure issue already open — not duplicating")
             return
     except (json.JSONDecodeError, TypeError):
@@ -488,7 +557,7 @@ def _close_announce_failure_issue() -> None:
     raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
                 "--limit", "100", "--json", "number,title"], cwd=REPO_HOME)
     try:
-        for i in json.loads(raw or "[]"):
+        for i in _loads(raw or "[]"):
             if i.get("title") == title:
                 _run(["gh", "issue", "close", str(i["number"]), "--repo", HOME_GH,
                       "--comment", "ralph announce recovered — closing."], cwd=REPO_HOME)
@@ -510,55 +579,93 @@ def _run(cmd: list[str], cwd: str, timeout: int = 30) -> str:
         return ""
 
 
-def gather_context(repo: C.Repo, git_log_window: int, compact: bool) -> str:
+def _repo_tree(path: str, limit: int = 120) -> str:
+    """A compact, deterministic file-tree summary (tracked files grouped by
+    top-level dir with counts), so the model knows the repo's shape. Bounded."""
+    files = [ln for ln in _run(["git", "ls-files"], cwd=path).splitlines() if ln]
+    if not files:
+        return ""
+    counts: dict[str, int] = {}
+    is_dir: dict[str, bool] = {}
+    for f in files:
+        top, _, rest = f.partition("/")
+        counts[top] = counts.get(top, 0) + 1
+        is_dir[top] = is_dir.get(top, False) or bool(rest)
+    lines = [f"{top}/ ({counts[top]})" if is_dir[top] else top
+             for top in sorted(counts)]
+    return "\n".join(lines[:limit])
+
+
+def _gh_json(args: list[str], cwd: str) -> list:
+    raw = _run(args, cwd=cwd)
+    if not raw:
+        return []
+    try:
+        return _loads(raw)
+    except json.JSONDecodeError:
+        return []
+
+
+@functools.lru_cache(maxsize=16)
+def _gather_context_cached(repo_gh: str, repo_path: str, git_log_window: int,
+                           compact: bool, head: str) -> str:
+    """Build the repo context string. Memoized on HEAD (and the inputs) so
+    repeated calls in one run don't re-shell-out; the `head` key invalidates the
+    cache when the repo moves. Content is ordered STABLE → VOLATILE (key files,
+    then tree, then issues/PRs, then the git log last) so an LLM provider's
+    prompt-prefix cache can reuse the unchanging head of the prompt across ticks."""
     parts: list[str] = []
 
-    # Open issues
-    raw = _run(
-        ["gh", "issue", "list", "--repo", repo.gh, "--state", "open",
-         "--limit", "40", "--json", "number,title,body"],
-        cwd=repo.path,
-    )
-    if raw:
-        try:
-            issues = json.loads(raw)
-        except json.JSONDecodeError:
-            issues = []
-    else:
-        issues = []
-
-    if issues:
-        if compact:
-            lines = [f"#{i['number']} {i['title']}" for i in issues]
-            parts.append("## Open issues\n" + "\n".join(lines))
-        else:
-            chunks = []
-            for i in issues:
-                body = (i.get("body") or "")[:4000]
-                chunks.append(f"### #{i['number']} {i['title']}\n{body}")
-            parts.append("## Open issues\n" + "\n\n".join(chunks))
-    else:
-        parts.append("## Open issues\n(unavailable)")
-
-    # Git log
-    log = _run(["git", "log", "--oneline", f"-n{git_log_window}"], cwd=repo.path)
-    if log:
-        parts.append("## Git log\n" + log.rstrip())
-
-    # Key files
+    # 1) Key files — most stable, first (good prompt-cache prefix).
     for rel in ("README.md", "CLAUDE.md", "AGENTS.md"):
-        fpath = os.path.join(repo.path, rel)
+        fpath = os.path.join(repo_path, rel)
         if os.path.isfile(fpath):
             try:
                 with open(fpath, encoding="utf-8") as f:
                     txt = f.read()
-                if compact:
-                    txt = txt[:1500]
-                parts.append(f"## {rel}\n{txt}")
             except OSError:
-                pass
+                continue
+            parts.append(f"## {rel}\n{txt[:1500] if compact else txt}")
+
+    # 2) Repo file tree — fairly stable layout.
+    tree = _repo_tree(repo_path)
+    if tree:
+        parts.append("## Repo layout (tracked files by top-level dir)\n" + tree)
+
+    # 3) Open issues.
+    issues = _gh_json(["gh", "issue", "list", "--repo", repo_gh, "--state", "open",
+                       "--limit", "40", "--json", "number,title,body"], cwd=repo_path)
+    if issues:
+        if compact:
+            parts.append("## Open issues\n"
+                         + "\n".join(f"#{i['number']} {i['title']}" for i in issues))
+        else:
+            parts.append("## Open issues\n" + "\n\n".join(
+                f"### #{i['number']} {i['title']}\n{(i.get('body') or '')[:4000]}"
+                for i in issues))
+    else:
+        parts.append("## Open issues\n(unavailable)")
+
+    # 4) Open pull requests — richer signal on in-flight work.
+    prs = _gh_json(["gh", "pr", "list", "--repo", repo_gh, "--state", "open",
+                    "--limit", "30", "--json", "number,title"], cwd=repo_path)
+    if prs:
+        parts.append("## Open pull requests\n"
+                     + "\n".join(f"#{p['number']} {p['title']}" for p in prs))
+
+    # 5) Git log — most volatile, LAST so it never shifts the cached prefix above.
+    log = _run(["git", "log", "--oneline", f"-n{git_log_window}"], cwd=repo_path)
+    if log:
+        parts.append("## Git log\n" + log.rstrip())
 
     return "\n\n".join(parts)
+
+
+def gather_context(repo: C.Repo, git_log_window: int, compact: bool) -> str:
+    """Read-only project state for a repo (deprecated repo mode). Cache-friendly:
+    memoized on HEAD and ordered stable→volatile (see `_gather_context_cached`)."""
+    head = _run(["git", "rev-parse", "HEAD"], cwd=repo.path).strip() or "?"
+    return _gather_context_cached(repo.gh, repo.path, git_log_window, compact, head)
 
 
 # ---------------------------------------------------------------------------
@@ -594,7 +701,7 @@ def _track_issues(label: str) -> "tuple[list[dict], str]":
         if not raw:
             return None
         try:
-            return json.loads(raw)
+            return _loads(raw)
         except json.JSONDecodeError:
             return None
 
@@ -652,7 +759,7 @@ def _open_track_issue_count(track: C.Track) -> int:
     if not raw:
         return 0
     try:
-        return len(json.loads(raw))
+        return len(_loads(raw))
     except (json.JSONDecodeError, TypeError):
         return 0
 
@@ -740,7 +847,7 @@ def openrouter_call(
         try:
             req = urllib.request.Request(_resolve_base_url(base_url), data=data, headers=headers)
             with urllib.request.urlopen(req, timeout=120) as resp:
-                parsed = json.loads(resp.read().decode("utf-8"))
+                parsed = _loads(resp.read().decode("utf-8"))
             _trace_generation(gen, model, parsed, span_meta, time.time() - t0)
             if gen_cm is not None:
                 try:
@@ -895,7 +1002,7 @@ def _open_issue_count(repo: C.Repo) -> int:
     if not raw:
         return 0
     try:
-        return len(json.loads(raw))
+        return len(_loads(raw))
     except (json.JSONDecodeError, TypeError):
         return 0
 
@@ -972,7 +1079,7 @@ def _parse_candidates(text: "str | None") -> list:
         return []
     for chunk in (text, _strip_fences(text)):
         try:
-            c = json.loads(chunk).get("candidates")
+            c = _loads(chunk).get("candidates")
             if isinstance(c, list):
                 return c
         except (json.JSONDecodeError, AttributeError):
@@ -980,7 +1087,7 @@ def _parse_candidates(text: "str | None") -> list:
     m = _JSON_OBJ_RE.search(text)
     if m:
         try:
-            c = json.loads(m.group(0)).get("candidates")
+            c = _loads(m.group(0)).get("candidates")
             if isinstance(c, list):
                 return c
         except (json.JSONDecodeError, AttributeError):
@@ -994,7 +1101,7 @@ def _parse_json_obj(text: "str | None") -> dict:
         return {}
     for chunk in (text, _strip_fences(text)):
         try:
-            obj = json.loads(chunk)
+            obj = _loads(chunk)
             if isinstance(obj, dict):
                 return obj
         except (json.JSONDecodeError, AttributeError):
@@ -1002,7 +1109,7 @@ def _parse_json_obj(text: "str | None") -> dict:
     m = _JSON_OBJ_RE.search(text)
     if m:
         try:
-            obj = json.loads(m.group(0))
+            obj = _loads(m.group(0))
             if isinstance(obj, dict):
                 return obj
         except (json.JSONDecodeError, AttributeError):
@@ -1033,7 +1140,7 @@ def _writer_call(writer: str, fallback: str, msgs, **kw):
 
 def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
                 stage2_model, api_key, base_url, seed, meta=None):
-    """Run both LLM stages and return ``(cost, body)`` or ``None`` to skip the
+    """Run both LLM stages and return ``(cost, body, writer_used)`` or ``None`` to skip the
     iteration. `subject` keys the stage-2 prompt; `full_context_builder()` is
     called only once stage 1 yields a candidate (so we don't gather the full
     context for a skipped iteration). `meta` tags the Langfuse spans (e.g. the
@@ -1083,13 +1190,18 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
 
     # Stage 3 — self-critique → rewrite for sharper, better-grounded entries.
     # Best-effort over a USABLE stage-2 draft: a critique failure (transient 5xx,
-    # both writer + fallback down) or an unusable rewrite must NEVER lose the
-    # decision, so any error keeps the stage-2 body. Cost for the call is counted
-    # whenever it was actually made, including the keep-draft path, so the ledger
-    # never under-reports spend.
+    # both writer + fallback down) or a rewrite that doesn't read like a finished
+    # entry must NEVER lose the decision, so we keep the stage-2 body in those
+    # cases. Cost for the call is counted whenever it was actually made, including
+    # the keep-draft path, so the ledger never under-reports spend.
     if _critique_on():
         try:
-            s3_msgs = C.build_critique_messages(subject, body, full)
+            # Cap the grounding context for the critique: it already has the full
+            # draft, so the entire (doubled) prior-decisions log isn't needed —
+            # this halves the stage-3 token bill on a large ledger.
+            crit_ctx = (full if len(full) <= CRITIQUE_CONTEXT_CHARS
+                        else full[:CRITIQUE_CONTEXT_CHARS] + "\n\n[context truncated for critique]")
+            s3_msgs = C.build_critique_messages(subject, body, crit_ctx)
             s3, used3 = _writer_call(writer, stage2_model, s3_msgs, api_key=api_key,
                                      base_url=base_url, temperature=0.2, max_tokens=2200,
                                      span_name="ralph.critique",
@@ -1097,15 +1209,19 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
             cost += C.cost_usd(s3.get("usage", {}),
                                C.FALLBACK_PRICES.get(used3, C.Price(0.10, 0.20)))
             improved = (_message_content(s3) or _reasoning_text(s3) or "").strip()
-            if len(improved) >= 40:      # a real rewrite, not an empty/garbage reply
+            # Only accept a rewrite that actually reads like a decision entry — a
+            # reasoning/preview model can return its review notes instead of the
+            # rewritten entry; that must not overwrite a clean stage-2 draft.
+            if len(improved) >= 40 and C.looks_like_entry(improved):
                 body = improved
             else:
-                print("[decide] critique produced nothing usable (finish=%s) — keeping draft"
-                      % _finish_reason(s3), file=sys.stderr)
+                print("[decide] critique output isn't a clean entry (finish=%s, "
+                      "chars=%d) — keeping stage-2 draft"
+                      % (_finish_reason(s3), len(improved)), file=sys.stderr)
         except Exception as e:           # noqa: BLE001 — never drop a good draft
             print("[decide] critique pass failed (%s) — keeping stage-2 draft"
                   % type(e).__name__, file=sys.stderr)
-    return cost, body.strip()
+    return cost, body.strip(), used2
 
 
 def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float:
@@ -1121,13 +1237,13 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
                          meta={"repo": repo.name})
     if result is None:
         return 0.0
-    cost, body = result
+    cost, body, writer_used = result
     head = _run(["git", "rev-parse", "--short", "HEAD"], repo.path).strip() or "?"
     n = len(_prior_titles(repo.name)) + 1
     entry = C.format_entry(n=n, date=_today(), repo=repo.name, head=head,
                            open_issues=_open_issue_count(repo), body=body,
                            s1=args.stage1_model.split("/")[-1],
-                           s2=args.stage2_model.split("/")[-1])
+                           s2=writer_used.split("/")[-1])
     _append_log(repo.name, entry)
     print("decided #%d for %s (cost $%.4f): %s" % (n, repo.name, cost,
                                                     entry.splitlines()[0]))
@@ -1156,13 +1272,13 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
         # pointer with a skip event, or one flaky track would starve the rest.
         append_event({"event": "skip", "track": track.name})
         return 0.0
-    cost, body = result
+    cost, body, writer_used = result
     head = _run(["git", "rev-parse", "--short", "HEAD"], REPO_HOME).strip() or "?"
     n = len(_prior_titles(track.name)) + 1
-    model_short = track.model.split("/")[-1]
     entry = C.format_entry(n=n, date=_today(), repo=track.name, head=head,
                            open_issues=_open_track_issue_count(track), body=body,
-                           s1=model_short, s2=model_short, subject_label="Track")
+                           s1=track.model.split("/")[-1],
+                           s2=writer_used.split("/")[-1], subject_label="Track")
     _append_log(track.name, entry)
     # Emit the rotation event so --next-track advances and CI persists it.
     # The track decision-maker logs its own decide event (unlike repo-mode,
@@ -1282,7 +1398,8 @@ def read_status() -> "dict | None":
     if not os.path.exists(STATUS_PATH):
         return None
     try:
-        return json.load(open(STATUS_PATH, encoding="utf-8"))
+        with open(STATUS_PATH, encoding="utf-8") as f:
+            return _loads(f.read())
     except json.JSONDecodeError:
         return None
 
@@ -1299,7 +1416,7 @@ def read_control() -> C.Control:
     """Read CONTROL_PATH and parse it. Missing or malformed -> defaults."""
     try:
         with open(CONTROL_PATH, encoding="utf-8") as f:
-            d = json.load(f)
+            d = _loads(f.read())
         return C.parse_control(d)
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return C.parse_control(None)
@@ -1310,7 +1427,7 @@ def _clear_step() -> None:
     paused/interval intact. No-op if control.json is missing/unset."""
     try:
         with open(CONTROL_PATH, encoding="utf-8") as f:
-            d = json.load(f)
+            d = _loads(f.read())
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return
     if d.get("step"):
@@ -1358,7 +1475,7 @@ def _verified_entries_for_prime() -> list[dict]:
     entries: list[dict] = []
     for n, bl in enumerate(raw, 1):
         try:
-            e = json.loads(bl.decode("utf-8"))
+            e = _loads(bl)
         except (json.JSONDecodeError, UnicodeDecodeError) as ex:
             raise EventLogTamper(
                 f"{EVENTS_PATH}:{n}: unparseable log line — run `ralph run` to "
@@ -1465,7 +1582,7 @@ def _boot_recover_events() -> None:
     bad_was_parseable = False
     for idx, bl in enumerate(raw):
         try:
-            e = json.loads(bl.decode("utf-8"))
+            e = _loads(bl)
             parseable = isinstance(e, dict)
         except (json.JSONDecodeError, UnicodeDecodeError):
             e, parseable = None, False
@@ -1738,7 +1855,7 @@ def load_events() -> list[dict]:
             for line in f:
                 line = line.strip()
                 if line:
-                    entries.append(json.loads(line))
+                    entries.append(_loads(line))
             return entries
     except (FileNotFoundError, OSError):
         return []

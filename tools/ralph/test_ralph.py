@@ -1835,8 +1835,9 @@ def test_run_stages_falls_back_to_reasoning() -> None:
         res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
                                 lambda: "CTX", "m1", "m2", "key", None, 42)
     assert res is not None
-    _, body = res
+    _, body, writer_used = res
     assert "Decision" in body
+    assert writer_used == "m2"          # no override → the (track) stage-2 model
 
 
 def test_run_stages_critique_and_writer_override() -> None:
@@ -1848,10 +1849,12 @@ def test_run_stages_critique_and_writer_override() -> None:
     s1 = {"choices": [{"message": {"content":
             '{"candidates":[{"title":"X","why_now":"n","urgency":5,"addressed":false}]}'}}],
           "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
-    s2 = {"choices": [{"message": {"content": "**Decision / question:** draft"}}],
+    s2 = {"choices": [{"message": {"content":
+            "**Decision / question:** draft\n**Recommendation:** A\n**Next actions:** open PR"}}],
           "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
     s3 = {"choices": [{"message": {"content":
-            "**Decision / question:** improved & grounded entry per docs/0011"}}],
+            "**Decision / question:** improved & grounded entry per docs/0011\n"
+            "**Recommendation:** A\n**Next actions:** open PR #9"}}],
           "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
     seen = []
 
@@ -1865,9 +1868,10 @@ def test_run_stages_critique_and_writer_override() -> None:
         res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
                                 lambda: "CTX", "m1/rank", "m2/track", "key", None, 42)
     assert res is not None
-    cost, body = res
+    cost, body, writer_used = res
     assert seen == ["m1/rank", "vendor/writer", "vendor/writer"], seen   # stage1 rank, then writer x2
     assert "improved" in body and "draft" not in body                    # critique rewrite won
+    assert writer_used == "vendor/writer"                                # label reflects the writer
     assert cost > 0
 
 
@@ -1900,10 +1904,86 @@ def test_run_stages_critique_failure_keeps_draft() -> None:
         res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
                                 lambda: "CTX", "m1/rank", "m2/track", "key", None, 42)
     assert res is not None, "critique failure must not abort the decision"
-    cost, body = res
+    cost, body, writer_used = res
     assert "stage-2 draft" in body              # kept the draft
     assert calls["n"] == 3                       # stage1, stage2, then the failing critique
+    assert writer_used == "m2/track"            # fell back to the track stage-2 model
     assert cost > 0
+
+
+def test_looks_like_entry_accepts_real_entry_rejects_notes() -> None:
+    from ralphcore import looks_like_entry
+    good = ("**Decision / question:** Prioritize hcpbin\n"
+            "**Options:** A, B\n**Recommendation:** A per RFC 0002 §6\n"
+            "**Risks:** edge cases\n**Next actions:** open PR\n**Confidence:** high")
+    assert looks_like_entry(good) is True
+    assert looks_like_entry("## Decision / question\nfoo\nRecommendation: A\nNext actions: PR") is True
+    # The real leak from the live run — review notes, not an entry.
+    notes = ("We need to improve the draft strategic decision entry. Let's first "
+             "identify the issues:\n- The draft claims... We'll keep. "
+             "Recommendation: Option A. Next actions: open a PR.")
+    assert looks_like_entry(notes) is False        # leads with "We need to"
+    assert looks_like_entry("") is False
+    assert looks_like_entry("**Decision:** stub") is False   # missing structure
+
+
+def test_run_stages_critique_notes_keep_draft() -> None:
+    """If stage-3 returns review NOTES instead of a rewritten entry, the clean
+    stage-2 draft is kept (the live-run regression)."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    s1 = {"choices": [{"message": {"content":
+            '{"candidates":[{"title":"X","why_now":"n","urgency":5,"addressed":false}]}'}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    s2 = {"choices": [{"message": {"content":
+            "**Decision / question:** ship hcpbin\n**Recommendation:** A\n**Next actions:** PR"}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    s3 = {"choices": [{"message": {"content":
+            "We need to improve the draft. Let's identify issues: the Recommendation "
+            "and Next actions could be sharper. We'll keep option A."}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    calls = iter([s1, s2, s3])
+    with mock.patch.dict(os.environ, {"RALPH_CRITIQUE": "on"}, clear=False), \
+         mock.patch.object(ralph, "openrouter_call", side_effect=lambda *a, **k: next(calls)):
+        os.environ.pop("RALPH_WRITER_MODEL", None)
+        res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
+                                lambda: "CTX", "m1", "m2", "key", None, 42)
+    assert res is not None
+    cost, body, _ = res
+    assert "ship hcpbin" in body and "We need to improve" not in body   # kept the draft
+    assert cost > 0                                                     # s3 still billed
+
+
+def test_run_stages_critique_truncates_long_context() -> None:
+    """The critique pass caps the grounding context it sends (cost control)."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    s1 = {"choices": [{"message": {"content":
+            '{"candidates":[{"title":"X","why_now":"n","urgency":5,"addressed":false}]}'}}],
+          "usage": {}}
+    s2 = {"choices": [{"message": {"content":
+            "**Decision / question:** d\n**Recommendation:** A\n**Next actions:** PR"}}], "usage": {}}
+    s3 = {"choices": [{"message": {"content":
+            "**Decision / question:** d2\n**Recommendation:** A\n**Next actions:** PR #1"}}], "usage": {}}
+    calls = iter([s1, s2, s3])
+    seen_user = []
+
+    def fake(model, messages, *a, **k):
+        if any("Grounding context" in m.get("content", "") for m in messages):
+            seen_user.append(messages[-1]["content"])
+        return next(calls)
+
+    big = "Z" * (ralph.CRITIQUE_CONTEXT_CHARS + 5000)
+    with mock.patch.dict(os.environ, {"RALPH_CRITIQUE": "on"}, clear=False), \
+         mock.patch.object(ralph, "openrouter_call", side_effect=fake):
+        os.environ.pop("RALPH_WRITER_MODEL", None)
+        ralph._run_stages("subj", [{"role": "user", "content": "x"}],
+                          lambda: big, "m1", "m2", "key", None, 42)
+    assert seen_user, "critique user message not seen"
+    assert "[context truncated for critique]" in seen_user[0]
+    assert len(seen_user[0]) < len(big)
 
 
 def test_writer_call_falls_back_to_track_model() -> None:
@@ -2172,6 +2252,106 @@ def test_cmd_announce_text_only_when_image_fails() -> None:
             ralph.DECISIONS_DIR = orig
         assert rc == 0
         assert captured.get("media_ids") in (None, [])
+
+
+# ---------------------------------------------------------------------------
+# orjson parse shim, image compression, richer/cache-friendly context
+# ---------------------------------------------------------------------------
+
+
+def test_loads_parses_str_and_bytes() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    import ralphcore as core
+    for loads in (ralph._loads, core._loads):
+        assert loads('{"a": 1, "b": [2, 3]}') == {"a": 1, "b": [2, 3]}
+        assert loads(b'{"a": 1}') == {"a": 1}
+
+
+def test_loads_raises_jsondecodeerror_on_garbage() -> None:
+    """Existing `except json.JSONDecodeError` handlers must still catch bad input
+    whether stdlib or orjson backs `_loads` (orjson subclasses it)."""
+    import importlib
+    import json
+    ralph = importlib.import_module("ralph")
+    try:
+        ralph._loads("{not json")
+        assert False, "should have raised"
+    except json.JSONDecodeError:
+        pass
+
+
+def test_compress_image_fallback_returns_raw_without_pillow() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    with mock.patch.object(ralph, "_PILImage", None):
+        out = ralph._compress_image(b"\x89PNG rawbytes", "image/png")
+    assert out == (b"\x89PNG rawbytes", "image/png")
+
+
+def test_compress_image_shrinks_when_pillow_present() -> None:
+    """If Pillow is installed, a big PNG is downscaled + re-encoded smaller JPEG."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    if ralph._PILImage is None:
+        return  # Pillow not installed in this env — fallback path covered above
+    import io
+    img = ralph._PILImage.new("RGB", (3000, 2000), (40, 30, 80))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    raw = buf.getvalue()
+    out, mime = ralph._compress_image(raw, "image/png")
+    assert mime == "image/jpeg" and len(out) < len(raw)
+    with ralph._PILImage.open(io.BytesIO(out)) as got:
+        assert max(got.size) <= ralph.TOOT_IMAGE_MAX_EDGE
+
+
+def test_repo_tree_groups_by_top_dir() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    listing = "README.md\ntools/a.py\ntools/b.py\ndocs/x.md\n"
+    with mock.patch.object(ralph, "_run", return_value=listing):
+        tree = ralph._repo_tree("/whatever")
+    assert "README.md" in tree            # top-level file, no slash/count
+    assert "tools/ (2)" in tree           # dir with count
+    assert "docs/ (1)" in tree
+
+
+def test_gather_context_is_rich_and_cache_friendly() -> None:
+    """Key files lead (stable prefix for prompt caching), git log trails, and the
+    output now includes the repo tree + open PRs."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    import ralphcore as core
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "README.md"), "w", encoding="utf-8") as f:
+            f.write("# Title\nthe readme body")
+
+        def fake_run(cmd, cwd, timeout=30):
+            if cmd[:2] == ["git", "rev-parse"]:
+                return "headsha\n"
+            if cmd[:2] == ["git", "ls-files"]:
+                return "README.md\ntools/a.py\ntools/b.py\n"
+            if cmd[:2] == ["git", "log"]:
+                return "headsha most recent commit\n"
+            if cmd[:1] == ["gh"] and "issue" in cmd:
+                return '[{"number":1,"title":"An issue","body":"x"}]'
+            if cmd[:1] == ["gh"] and "pr" in cmd:
+                return '[{"number":2,"title":"A PR"}]'
+            return ""
+
+        repo = core.Repo(name="r", path=d, gh="o/r")
+        with mock.patch.object(ralph, "_run", side_effect=fake_run):
+            out = ralph.gather_context(repo, 20, compact=False)
+    assert "the readme body" in out
+    assert "Repo layout" in out and "tools/ (2)" in out
+    assert "## Open pull requests\n#2 A PR" in out
+    assert "#1 An issue" in out
+    # stable (key files) before volatile (git log)
+    assert out.index("README.md") < out.index("## Git log")
 
 
 # ---------------------------------------------------------------------------

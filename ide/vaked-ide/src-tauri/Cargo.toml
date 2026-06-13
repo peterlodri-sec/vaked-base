@@ -1,0 +1,51 @@
+[package]
+name = "vaked-ide"
+version = "0.1.0"
+description = "Vaked IDE — visual graph AI-native editor"
+authors = []
+license = ""
+repository = ""
+edition = "2021"
+
+[lib]
+name = "vaked_ide_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "vaked-ide"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util = "0.3"
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+
+# Embedded native terminal via libghostty (macOS-only; opt-in, OFF by default).
+# See docs/terminal-embedding.md. Enable with: cargo build --features ghostty
+[features]
+ghostty = ["dep:objc2"]
+
+# objc2 (AppKit NSView overlay) only links on macOS, only when `ghostty` is on.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.5", optional = true }
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
