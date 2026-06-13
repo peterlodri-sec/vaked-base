@@ -303,6 +303,7 @@ fn findings_schema() -> Value {
 // ---------------------------------------------------------------------------
 
 async fn run_review() -> Result<()> {
+    let started = std::time::Instant::now();
     let cfg = Config::from_env_and_args()?;
     let span = info_span!(
         "pr_review",
@@ -410,8 +411,8 @@ async fn run_review() -> Result<()> {
         info!(total = usage.total, cached = usage.cached, findings = n_findings, blocking = n_blocking, "review ready");
 
         let body = format!(
-            "{COMMENT_MARKER}\n{review}\n\n---\n<sub>🦴 vaked-ci-reviewer · {} · {} findings · {} tok ({} cached) · OpenRouter · automated, advisory</sub>",
-            cfg.model, n_findings, usage.total, usage.cached
+            "{COMMENT_MARKER}\n{review}\n\n---\n<sub>🦴 vaked-ci-reviewer · {} · {} findings · {} tok ({} cached) · pr-review runtime: {:.1}s · OpenRouter · automated, advisory</sub>",
+            cfg.model, n_findings, usage.total, usage.cached, started.elapsed().as_secs_f64()
         );
 
         if cfg.dry_run {
