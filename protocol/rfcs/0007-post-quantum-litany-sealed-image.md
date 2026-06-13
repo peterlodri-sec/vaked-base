@@ -232,7 +232,10 @@ answer is attestation over the image measurement:
    sealed image as it loads it — the measurement is the content hash the
    votive seal already covers.
 2. The image (or the hypervisor on its behalf) emits a **PQC attestation quote**:
-   an ML-DSA signature over `{ measurement, nonce, topology_epoch }`.
+   a signature over `{ measurement, nonce, topology_epoch }` in the **same suite
+   as the votive seal** (§4, §6) — **hybrid** Ed25519+ML-DSA (both halves
+   verified) during migration, ML-DSA-only for PQC-only deployments — so a weak
+   PQC half alone cannot forge a quote for a malicious measured image.
 3. The quote is **recorded to `eventd`** (write-ahead, before the image is
    admitted), so attestation becomes part of the tamper-evident history — the
    same shape as `control_action` (RFC 0005 §3).
