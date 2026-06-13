@@ -63,12 +63,18 @@
 
   # Bare metal: favor throughput/latency over power savings — interactive agent
   # runclasses (e.g. runclass.interactive, agentfield-swe.vaked) want low latency.
+  # amd_pstate=active drives the modern AMD EPYC (Zen 3+/Zen 5) P-states via the
+  # amd-pstate-epp driver; "performance" maps to the performance EPP hint. On a
+  # CPU without CPPC the kernel falls back to acpi-cpufreq automatically.
   powerManagement.cpuFreqGovernor = lib.mkDefault "performance";
 
-  # Cap the ZFS ARC at ~64 GiB and prefer fast network paths. This is a build +
-  # runtime host: leave RAM for Nix builds and agent workloads rather than letting
-  # ZFS claim ~half of the 196 GB.
-  boot.kernelParams = [ "zfs.zfs_arc_max=68719476736" ];
+  boot.kernelParams = [
+    # Cap the ZFS ARC at ~64 GiB — leave RAM for Nix builds + agent workloads
+    # rather than letting ZFS claim ~half of the 196 GB.
+    "zfs.zfs_arc_max=68719476736"
+    # Active P-state control for EPYC (briefing §III SRE strategy).
+    "amd_pstate=active"
+  ];
 
   # === Membrane substrate ====================================================
   # Each block below maps a Vaked runtime membrane (PROJECT_CONTEXT.md) to the
@@ -101,6 +107,10 @@
     # index corpora pulls + surface streams over the fat pipe.
     "net.core.default_qdisc" = "fq";
     "net.ipv4.tcp_congestion_control" = "bbr";
+    # Litany Wire / data-plane wants io_uring (+ O_DIRECT) for the daemons
+    # (briefing §III storage). 0 = enabled (kernel ≥6.6; no-op on the default
+    # kernel, but documents intent and guards against a hardened override).
+    "kernel.io_uring_disabled" = 0;
   };
 
   # BEAM/OTP and many-fiber workloads exhaust the default fd ceiling; raise the
