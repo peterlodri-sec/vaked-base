@@ -185,17 +185,19 @@ Beyond performance, the test suite verifies **correctness**:
 
 For the research paper, report:
 
+# Source: examples/evaluation/baseline.json (single_run; ~50ms interpreter
+# startup floor is included in every number). See METHODOLOGY.md for caveats.
 ```
-Benchmark Results (seconds, mean ± stddev over 10 runs):
+Benchmark Results (seconds, from baseline.json single_run):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Example             Parse      Check      Lower
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-operator-field      0.007±0.001 0.003±0.001 0.012±0.002
-agentfield-swe      0.032±0.002 0.015±0.002 0.048±0.003
-memory              0.011±0.001 0.007±0.001 0.022±0.002
+operator-field      0.068      0.060      0.063
+agentfield-swe      0.070      0.070      0.073
+memory              0.061      0.057      0.058
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Determinism: 100% (300 iterations, zero hash divergences)
+Determinism: 100% (20 iterations per example, zero hash divergences among valid examples)
 
 Artifact Sizes:
 - operator-field:    22 KB (flake.nix 8KB, gen/ 14KB)
