@@ -120,23 +120,23 @@ certificate and made available to the frame layer.
   - Certificate is not expired.
   - Subject Alt Name (SAN) contains the SPIFFE ID URI.
 
-- **Frame-layer assumption:** The frame layer assumes the TLS peer is
-  authentically identified by the SPIFFE ID from the SAN. No additional
-  trust-domain exchange in the `HELLO` frame is required; the `HELLO` simply
-  carries the initiator's self-identified SPIFFE ID as advisory (for audit),
-  but the **authoritative identity is the TLS peer identity**.
+- **Frame-layer validation (MANDATORY):** The `HELLO` frame MUST carry the
+  initiator's trust domain (extracted from TLS SAN certificate). The responder
+  validates that the `HELLO` trust domain matches the TLS-authenticated trust
+  domain; a mismatch is a frame-level error (`REFUSE{trust-domain-mismatch}`).
+  This prevents downgrade attacks where an attacker could spoof a peer's trust
+  domain in the `HELLO` before TLS authentication is complete.
+  
+- **Authoritative identity chain:** TLS layer validates the certificate; frame
+  layer validates the trust domain field in `HELLO` against the TLS peer
+  identity. The `HELLO` trust domain is the **authoritative identity** for the
+  frame layer (independent of TLS peer name).
 
-- **Mismatched trust domain:** If a peer's SPIFFE ID trust domain is not in
-  the expected set (e.g., a connection from `spiffe://untrusted.example` when
-  only `spiffe://agentfield.example` is trusted), the connection is aborted at
-  the TLS layer — the HELLO frame never arrives, and the protocol falls back to
-  transport fault handling (RFC 0003 §9.1). This is not a frame-level `REFUSE`;
-  it is a lower-layer rejection.
-
-- **Trust domain gossip (optional, for audit):** If desired, `HELLO` may carry
-  an optional `trust_domain` field (not currently in the schema, but could be
-  added as a P2 extension) for operator visibility. This is purely advisory; the
-  TLS layer is the authority.
+- **Mismatched trust domain:** If a peer's `HELLO` trust domain does not match
+  the TLS-authenticated SVID trust domain, the responder sends a frame-level
+  `REFUSE{trust-domain-mismatch}` and closes the chapter. This is a frame-level
+  error, not a transport-layer rejection, to ensure observability and audit
+  trails. The connection may remain open for other chapters if policy permits.
 
 ![Cross-Host Trust Boundary with SPIFFE](../../docs/assets/diagrams/07_cross_host_trust.svg)
 
@@ -216,25 +216,32 @@ via NATS.
 
 When a producer's history is rewound (RFC 0005 `RewindControl` applied):
 
-1. **Local write:** The producer's `agent-supervisord` appends `RewindEvent` to
-   its local eventd (write-ahead, before effect — RFC 0004 §3.1).
-2. **NATS publish:** Immediately after (or as close to atomic as OTP scheduling
-   allows), the supervisor publishes the `RewindEvent` to the NATS subject
+1. **Local write (durable):** The producer's `agent-supervisord` appends `RewindEvent` to
+   its local eventd (write-ahead, before effect — RFC 0004 §3.1). This write is
+   **durable** and **irrevocable**; the rewind is now part of the canonical history.
+2. **NATS publish (conditional):** Only **after** the eventd write completes
+   successfully, the supervisor publishes the `RewindEvent` to NATS subject
    `agent.<producer-uuid>.rewind`. The event is the same `RewindEvent` record
    (fields: producer, rewind_to_step, rewind_to_hash, topology_epoch).
+   If NATS publish fails (broker unavailable, network partition), the producer
+   logs the failure and **does not retry**; consumers will discover staleness
+   via cold-start verification (below).
 3. **Consumer subscription:** Any consumer holding a dependency on the producer
-   subscribes `agent.*.rewind` (or `agent.<producer-uuid>.rewind` specifically).
-   On receiving the notification, the consumer does **not** take action
-   immediately; it schedules a state-verification run (RFC 0004 §6, cold-start
-   or on-demand) to check its own anchors.
-4. **Re-verification:** The consumer's verification reads its own checkpoints
-   and queries the producer's eventd/proofs to discover that the anchor is
-   stale. If stale, the consumer pauses itself (`stale_dependency`).
+   subscribes `agent.<producer-uuid>.rewind` (or wildcard patterns).
+   On receiving the notification, the consumer schedules a state-verification
+   run (RFC 0004 §6) to check its own anchors **asynchronously** (not immediately).
+4. **Re-verification (fail-safe):** The consumer's verification reads its own
+   checkpoints and queries the producer's eventd/proofs. The verification
+   discovers that the anchor step is stale (no longer in producer's history).
+   If stale, the consumer pauses itself (`stale_dependency`) and waits for
+   operator re-anchoring.
 
-**No two-phase acknowledge:** The producer does not wait for consumer acks. If
-a consumer never receives the NATS notification (network partitioned, NATS
-broker down, subscription not yet open), it will discover the stale anchor on
-its next scheduled verification or on next restart (cold-start always verifies).
+**Failure tolerance:** The producer does not wait for consumer acks. If a
+consumer never receives the NATS notification (broker down, subscription not
+yet open, network partitioned), it will discover the stale anchor **no later
+than** its next scheduled verification (RFC 0004 §4.2.1) or on cold-start
+(which always verifies, RFC 0004 §6). The NATS layer is **best-effort
+notification only**; the eventd chain is the **source of truth**.
 
 ![NATS Cross-Host Distribution](../../docs/assets/diagrams/10_nats_distribution.svg)
 
@@ -291,15 +298,24 @@ and is then passed to `preceptord` for policy evaluation. Policies may reference
 pause an agent in the same domain," or "only `spiffe://domain/supervisor` may
 rewind," or "cross-domain pause is denied by default."
 
-**No global consensus:** If host A's preceptord allows a control action that host
-B's preceptord denies, the action is **not** performed on host B. The two hosts
-may diverge (one allows a rewind, the other doesn't); the log, not the wire, is
-authoritative (RFC 0004 single-writer per host). If both hosts have consumers on
-the same producer, the producer's rewind is visible to both; consumers on B that
-are denied the rewind by B's policy do not execute it (so B's eventd shows the
-rewind but B's workers did not pause for it). This is acceptable because
-dependency verification (RFC 0004 §6) is per-host and per-agent; a divergence is
-observable in B's eventd chain and the consumer's pause state.
+**Per-host authority is final:** Each host enforces its own policy independently.
+If host A's `preceptord` allows a control action but host B's `preceptord` denies it:
+
+- **Action not performed on B:** The action (e.g., pause/rewind) is not applied to
+  B's agents, and B's `preceptord` returns a `ControlRefusal{denied}` to the requester.
+- **Divergent state is observable:** The producer (on host A) may rewind, creating a
+  `RewindEvent` in A's eventd. Consumers on B read the `RewindEvent` via NATS or
+  cold-start verification but are paused by B's policy (or lack thereof) — B's
+  supervisor does not execute the rewind locally.
+- **Consumers verify independently:** B's consumer verification (RFC 0004 §6) checks
+  the producer's eventd hash chain; if the producer rewound (per A's eventd), the
+  consumer's anchor may be stale. B's consumer pauses itself (`stale_dependency`)
+  regardless of whether B's policy would have allowed the rewind locally.
+- **This is safe:** The design relies on cryptographic verification of the eventd
+  chain, not on policy consensus. Host divergence does not create security issues;
+  it reflects organizational policy differences, which are observable in logs and
+  agent states. Operators must synchronize policy if uniform enforcement is
+  required (out of scope for this RFC; deployment concern).
 
 **Future:** Cross-host authority consensus (two-phase commit, voting, ZKP proofs)
 is a deployment-specific concern outside the scope of this RFC. Deployments that

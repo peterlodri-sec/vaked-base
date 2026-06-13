@@ -242,11 +242,20 @@ the consumer to emit one) under **both** periodic and on-demand conditions:
   operator intervention). This is a `ConsumerCheckpoint` frame sent immediately
   with the consumer's current committed state.
 
-**Default-if-absent:** If a producer reaches 10× the periodic threshold without
-receiving a checkpoint (consumer never caught up), it issues a backpressure
-warning to `eventd` and MAY begin dropping history without waiting for a
-checkpoint (with operator override). This prevents a dead consumer from
-permanently blocking GC.
+**Default-if-absent (requires operator approval):** If a producer reaches 10× the
+periodic threshold without receiving a checkpoint (consumer never caught up), it
+issues a **backpressure warning to eventd** and MUST await explicit operator
+action before dropping history. The operator may:
+
+1. **Issue `ConsumerCheckpointEvicted` command** — explicitly evicts the silent
+   consumer from the GC floor computation (logged to eventd), allowing the
+   producer to compact. This is the safe path.
+2. **Inspect the silent consumer** — via `oraclefd` or debugging, determine if
+   the consumer is actually dead and should be evicted or restarted.
+
+The producer MUST NOT silently drop history to break the backpressure deadlock.
+This prevents data loss and preserves audit trail of evictions. The operator is
+responsible for deciding whether the consumer is dead or merely slow.
 
 ### 4.2.2 Checkpoint lease duration & eviction (provisional)
 
@@ -359,25 +368,35 @@ checkpoints. The algorithm is:
 ```
 Algorithm: compute_gc_floor(producer_uuid)
 
-1. Fetch all ConsumerCheckpoint entries from eventd for this producer
+1. Fetch ConsumerCheckpoint entries from eventd for this producer
+   (use pagination if > 1000 checkpoints to avoid OOM; window size tunable)
    that are:
    - Within the active lease window (last_heartbeat_at > now - 24h)
    - Not marked as evicted
    
-2. Extract min_required_step from each checkpoint
-
-3. GC_floor = minimum(all extracted steps)
+2. For each page of checkpoints:
+   - Extract min_required_step from each checkpoint
+   - Track the minimum across all pages
+   
+3. GC_floor = minimum(all extracted steps across all pages)
 
 4. Producer may compact/truncate log entries strictly below GC_floor
 
 5. Retain proofs for all steps >= GC_floor (in snapshot, accumulator, or footer)
 ```
 
-**Implementation note:** The set of active checkpoints may change frequently (new
-consumers anchor, old ones checkpoint deeper, leases expire). Compaction should be
-infrequent (e.g., daily) to reduce recomputation overhead. A producer typically
-computes the floor once and compacts a range, then waits for new checkpoints
-before compacting further.
+**Implementation notes:**
+- **Pagination:** For deployments with many downstream consumers (>1000), split
+  the fetch into pages (e.g., 100 checkpoints/page) to avoid loading all
+  checkpoints into memory at once. Maintain a running minimum across pages.
+- **Staleness:** The set of active checkpoints may change during the fetch
+  (new consumers anchor, old ones checkpoint deeper, leases expire). The GC
+  floor computed is a **snapshot** valid at computation time; it is safe to
+  use for compaction even if checkpoints change afterward (the floor only
+  gets higher/more conservative as checkpoints advance or expire).
+- **Frequency:** Compaction should be infrequent (e.g., daily) to reduce
+  recomputation overhead and allow checkpoint batching. A producer typically
+  computes the floor once and compacts a range, then waits before recomputing.
 
 ---
 
