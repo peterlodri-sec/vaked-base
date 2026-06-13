@@ -59,6 +59,16 @@ under systemd (`_load_credentials`); set them as plain env vars for an ad-hoc ru
 `sops`/`agenix` for the credential) over this generic unit; the daemon is
 stdlib-only, so no Python packages are needed beyond the interpreter.
 
+**Turnkey:** `sudo bash tools/telebot/deploy.sh` clones/updates the repo, installs
+the unit, and starts it (after you've written `/etc/vaked-telebot.env`).
+
+**No host? Bounded GitHub Actions run.** As a bridge (or a live test), the
+[`telebot.yml`](../../.github/workflows/telebot.yml) workflow runs the bot for a
+session window (`workflow_dispatch`, `--run-seconds`) using the `ci` secrets — laggier
+and not always-on, but needs no host. **Run only ONE poller at a time:** `getUpdates`
+is single-consumer, so don't run this workflow while the crabcc.app daemon is up
+(they'd race for updates).
+
 ## Design
 
 `handle_update(Update, Ctx) -> [Op]` is a **pure function** — the Telegram /
