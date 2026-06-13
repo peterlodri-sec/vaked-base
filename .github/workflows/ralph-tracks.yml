@@ -13,7 +13,8 @@ on:
     # ~8 decisions/day (≈2 per track across 4 tracks) — paced to a ~1h/day
     # human ratify budget. Tighten only once ratification keeps up.
     - cron: "0 */3 * * *"
-    # 23:00 UTC tick so the daily recap (digest) fires near end-of-day.
+    # 23:00 UTC tick for the daily recap ONLY — the decide/announce steps are
+    # gated off this cron so it doesn't add an extra decision.
     - cron: "0 23 * * *"
   workflow_dispatch: {}
 
@@ -57,7 +58,8 @@ jobs:
         run: pipx install uv
 
       - name: Decide one track (rotation from the event ledger)
-        if: steps.guard.outputs.run == 'true'
+        # Skip on the 23:00 recap-only trigger so it doesn't add a 9th decision.
+        if: ${{ steps.guard.outputs.run == 'true' && github.event.schedule != '0 23 * * *' }}
         env:
           GH_TOKEN: ${{ github.token }}                       # gh issue list needs a token in CI
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -78,7 +80,8 @@ jobs:
       # runs via `always()`, so a Mastodon outage never drops the decision.
       - name: Announce the decision to Mastodon
         id: announce
-        if: steps.guard.outputs.run == 'true'
+        # Same gate as decide: nothing new to announce on the recap-only tick.
+        if: ${{ steps.guard.outputs.run == 'true' && github.event.schedule != '0 23 * * *' }}
         env:
           GH_TOKEN: ${{ github.token }}                       # gh issue create (failure issue) + gh
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}   # gpt-oss-120b writes the toot
