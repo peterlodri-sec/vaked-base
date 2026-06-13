@@ -334,7 +334,7 @@ We measure compilation performance across the case-study examples.
 
 **Setup:**
 - vakedc running on Python 3.11
-- Hardware: standard 2–4 GHz CPU, 8GB RAM
+- Hardware: Intel/AMD x86-64 @ 2–4 GHz, 8GB RAM (devshell: NixOS 24.05 Nix flake pinned)
 - Examples: 100–1500 line .vaked files
 
 **Results:**
@@ -521,7 +521,7 @@ Vaked enables **auditable, statically-verified infrastructure for agentic AI sys
 
 ### Configuration Languages
 
-- Hamdaoui, Y., & the Nickel contributors (Tweag) (2020–). *Nickel: Better configuration for less.* https://github.com/tweag/nickel (see also Hamdaoui, Y. (2021). "Typing in Nickel and elsewhere," CONFLANG 2021, co-located with SPLASH 2021).
+- Hamdaoui, Y., et al. (2020–). *Nickel: Better configuration for less.* https://github.com/tweag/nickel (see also Hamdaoui, Y. (2021). "Typing in Nickel and elsewhere," CONFLANG 2021, co-located with SPLASH 2021).
 - van Lohuizen, M., et al. (2018–). *The CUE Configuration Language — Language Specification.* https://cuelang.org/docs/reference/spec/
 - Gonzalez, G. (2017–). *Dhall: A programmable, non-Turing-complete configuration language.* https://dhall-lang.org/ (specification: https://github.com/dhall-lang/dhall-lang).
 
@@ -530,10 +530,10 @@ Vaked enables **auditable, statically-verified infrastructure for agentic AI sys
 - Dennis, J. B., & Van Horn, E. C. (1966). Programming semantics for multiprogrammed computations. *Communications of the ACM*, 9(3), 143–155. https://doi.org/10.1145/365230.365252
 - Saltzer, J. H., & Schroeder, M. D. (1975). The protection of information in computer systems. *Proceedings of the IEEE*, 63(9), 1278–1308. https://doi.org/10.1109/PROC.1975.9939
 - Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* (Doctoral dissertation, Johns Hopkins University). http://www.erights.org/talks/thesis/markm-thesis.pdf
-- Miller, M. S., Yee, K.-P., & Shapiro, J. (2003). *Capability myths demolished.* Technical Report SRL2003-02, Systems Research Laboratory, Johns Hopkins University. https://srl.cs.jhu.edu/pubs/SRL2003-02.pdf
-- Miller, M. S., Tribble, E. D., & Shapiro, J. (2005). Concurrency among strangers: Programming in E as plan coordination. In *Trustworthy Global Computing (TGC 2005)*, LNCS 3705, pp. 195–229. Springer. https://doi.org/10.1007/11580850_12
+- Miller, M. S., et al. (2003). *Capability myths demolished.* Technical Report SRL2003-02, Systems Research Laboratory, Johns Hopkins University. https://srl.cs.jhu.edu/pubs/SRL2003-02.pdf
+- Miller, M. S., et al. (2005). Concurrency among strangers: Programming in E as plan coordination. In *Trustworthy Global Computing (TGC 2005)*, LNCS 3705, pp. 195–229. Springer. https://doi.org/10.1007/11580850_12
 - Mettler, A., Wagner, D., & Close, T. (2010). Joe-E: A security-oriented subset of Java. In *Proceedings of NDSS 2010*. https://www.ndss-symposium.org/ndss2010/joe-e-security-oriented-subset-java/
-- Watson, R. N. M., Woodruff, J., Neumann, P. G., Moore, S. W., Anderson, J., Chisnall, D., et al. (2015). CHERI: A hybrid capability-system architecture for scalable software compartmentalization. In *2015 IEEE Symposium on Security and Privacy*, pp. 20–37. https://doi.org/10.1109/SP.2015.9
+- Watson, R. N. M., et al. (2015). CHERI: A hybrid capability-system architecture for scalable software compartmentalization. In *2015 IEEE Symposium on Security and Privacy*, pp. 20–37. https://doi.org/10.1109/SP.2015.9
 - SPIFFE Authors / CNCF (2017–). *SPIFFE: Secure Production Identity Framework for Everyone — Specification.* https://spiffe.io/docs/latest/spiffe-about/overview/
 - Open Policy Agent Authors / CNCF (2016–). *Open Policy Agent (OPA) and the Rego policy language — Documentation.* https://www.openpolicyagent.org/docs
 
@@ -544,12 +544,12 @@ Vaked enables **auditable, statically-verified infrastructure for agentic AI sys
 ### Compilers & Multi-Target Code Generation
 
 - Lattner, C., & Adve, V. (2004). LLVM: A compilation framework for lifelong program analysis & transformation. In *Proceedings of CGO 2004*, pp. 75–86. https://doi.org/10.1109/CGO.2004.1281665
-- Lattner, C., Amini, M., Bondhugula, U., Cohen, A., Davis, A., Pienaar, J., Riddle, R., Shpeisman, T., Vasilache, N., & Zinenko, O. (2021). MLIR: Scaling compiler infrastructure for domain specific computation. In *2021 IEEE/ACM International Symposium on Code Generation and Optimization (CGO)*, pp. 2–14. https://doi.org/10.1109/CGO51591.2021.9370308 (preprint: arXiv:2002.11054).
-- Chen, T., Moreau, T., Jiang, Z., Zheng, L., Yan, E., Shen, H., et al. (2018). TVM: An automated end-to-end optimizing compiler for deep learning. In *13th USENIX Symposium on Operating Systems Design and Implementation (OSDI '18)*, pp. 578–594. https://www.usenix.org/conference/osdi18/presentation/chen
+- Lattner, C., et al. (2021). MLIR: Scaling compiler infrastructure for domain specific computation. In *2021 IEEE/ACM International Symposium on Code Generation and Optimization (CGO)*, pp. 2–14. https://doi.org/10.1109/CGO51591.2021.9370308 (preprint: arXiv:2002.11054).
+- Chen, T., et al. (2018). TVM: An automated end-to-end optimizing compiler for deep learning. In *13th USENIX Symposium on Operating Systems Design and Implementation (OSDI '18)*, pp. 578–594. https://www.usenix.org/conference/osdi18/presentation/chen
 
 ### Reproducibility & Supply Chain
 
-- Dolstra, E., de Jonge, M., & Visser, E. (2004). Nix: A safe and policy-free system for software deployment. In *Proceedings of the 18th USENIX Conference on System Administration (LISA '04)*, pp. 79–92. https://www.usenix.org/legacy/publications/library/proceedings/lisa04/tech/dolstra.html (see also Dolstra, E. (2006). *The Purely Functional Software Deployment Model*, PhD thesis, Utrecht University).
+- Dolstra, E., et al. (2004). Nix: A safe and policy-free system for software deployment. In *Proceedings of the 18th USENIX Conference on System Administration (LISA '04)*, pp. 79–92. https://www.usenix.org/legacy/publications/library/proceedings/lisa04/tech/dolstra.html (see also Dolstra, E. (2006). *The Purely Functional Software Deployment Model*, PhD thesis, Utrecht University).
 - Lamb, C., & Zacchiroli, S. (2022). Reproducible builds: Increasing the integrity of software supply chains. *IEEE Software*, 39(2), 62–70. https://doi.org/10.1109/MS.2021.3073045
 - Torres-Arias, S., Afzali, H., Kuppusamy, T. K., Curtmola, R., & Cappos, J. (2019). in-toto: Providing farm-to-table guarantees for bits and bytes. In *28th USENIX Security Symposium*, pp. 1393–1410. https://www.usenix.org/conference/usenixsecurity19/presentation/torres-arias
 - Newman, Z., Meyers, J. S., & Torres-Arias, S. (2022). Sigstore: Software signing for everybody. In *Proceedings of the 2022 ACM SIGSAC Conference on Computer and Communications Security (CCS '22)*, pp. 2353–2367. https://doi.org/10.1145/3548606.3560596
