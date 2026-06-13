@@ -49,7 +49,10 @@ fi
 # dev shell could resolve a different d2 from nixos-unstable, and that version
 # string is the one byte that would otherwise change for unchanged sources.
 normalize() {
-  sed -i 's/ data-d2-version="[^"]*"//g' "$1"
+  # Portable in-place edit (GNU and BSD sed differ on `-i`): write to a temp and
+  # move. Avoids the drift guard silently no-op'ing on non-GNU sed.
+  local f="$1"
+  sed 's/ data-d2-version="[^"]*"//g' "$f" >"$f.tmp" && mv "$f.tmp" "$f"
 }
 
 drift=0

@@ -183,9 +183,14 @@ wire no longer *depends* on it.
   compromise is catastrophic and whose lifetime is years — is signed with
   **SLH-DSA** (hash-based, the most conservative assumption), even though
   per-agent SVIDs use the faster lattice ML-DSA.
-- **Votive seals.** A *votive seal* is the image's analogue of an SVID: an
-  ML-DSA signature over `{ closure_hash, provenance_hash, topology_epoch }`,
-  recorded to `eventd`. Where an SVID answers "who is this peer," a votive seal
+- **Votive seals.** A *votive seal* is the image's analogue of an SVID: a
+  signature over `{ closure_hash, provenance_hash, topology_epoch }`, recorded to
+  `eventd`. It uses the **same suite as the SVID** (§6): a **hybrid**
+  Ed25519+ML-DSA seal — both halves verified at admission — during migration, and
+  an ML-DSA-only seal for PQC-only deployments. Reserving ML-DSA-only for the
+  PQC-only phase keeps the "secure if either half holds" property: a weak PQC
+  half alone cannot forge a seal for a malicious closure while a deployment still
+  relies on the hybrid. Where an SVID answers "who is this peer," a votive seal
   answers "what image is this, and was it the one its code describes."
 - **`preceptord` authority is unchanged.** Identity (now PQ) and authority stay
   separate gates (RFC 0006 §"Security considerations"): a PQC SVID proves *who*;
