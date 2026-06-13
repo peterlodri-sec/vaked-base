@@ -98,7 +98,11 @@ min-tier buyer can prompt-inject the coder into burning the whole budget on
 attacker-controlled x402 endpoints (the agent "buys data" from the attacker; the
 operator funds it). So `pay.spend` additionally needs:
 
-1. a **separate outbound dollar ceiling** (not just the compute budget),
+1. a **separate outbound dollar ceiling** — a concrete dollar-denominated `budget`
+   field, e.g. `budget swe { tokens = …, fuel = …, spendUsd = 5.00 }`, bounding *total
+   outbound USDC* across the run and enforced by `mcp-brokerd` at the `pay.spend`
+   boundary. Compute units (`tokens`/`fuel`) do **not** bound dollars, so this is a new
+   field, not a reinterpretation of the existing ones,
 2. a **destination allowlist** — no arbitrary x402 URLs,
 3. the **wallet key isolated in the control plane, unreachable from any node holding
    `process.spawn*`** — treat the buyer `<prompt>` as fully adversarial all the way to
