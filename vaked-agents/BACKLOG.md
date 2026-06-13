@@ -30,6 +30,16 @@ creates version tags. Grounded in the current docs on every run (GOALS.md,
 docs/context/TIMELINE.md, labels.yml) — no hard-coded knowledge. Advisory, never
 blocks CI. Opt-out via `no-auto-label` label. See [`ci/label-tagger/`](ci/label-tagger/).
 
+**Shipped.** **provost** (`new-agent` · product-owner / coordination) — the layer
+above label-tagger: a scheduled reconciler that keeps the *project graph* coherent.
+Derives epics from GOALS.md phases + design specs and links child issues to them via
+native sub-issues, keeps the RFC index honest (one row per `protocol/rfcs/*` with its
+front-matter status; flags specs lacking an RFC), backfills `area/*`/`phase/*`/`type/epic`
+labels, and assigns existing milestones. Advisory + safe-sync: auto-applies reversible
+GitHub metadata; routes new epics/issues/RFC stubs to ONE coordination issue + PR for
+approval. Grounded in live docs (GOALS.md, TIMELINE.md, labels.yml, the RFC index) — no
+hard-coded knowledge. Opt-out via `no-auto-coordinate`. See [`ci/provost/`](ci/provost/).
+
 ---
 
 ## A. Reviewer upgrades — extend `ci/pr-review`

@@ -1,0 +1,298 @@
+name: provost
+
+# Doc-grounded coordination agent: reconciles the project graph — epics, the RFC
+# process, issues, milestones, and the links between them — always from the live
+# GOALS.md / TIMELINE.md / labels.yml / RFC index, never from hard-coded knowledge.
+# Advisory: never fails CI.
+#
+# Safety boundary:
+#   auto-applied (reversible GitHub metadata) — labels, sub-issue links, milestone
+#     assignment to existing milestones;
+#   surfaced for approval (content / new objects) — proposed epics/issues + the
+#     RFC index land in ONE coordination issue; proposed RFC stub files land in
+#     ONE coordination PR (branch provost/coordination).
+#
+# The prebuilt binary from the rolling `provost-bin` release is the fast path;
+# compiling from source is the fallback when the binary is missing.
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily reconcile
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode: all|rfc|epic|link"
+        required: false
+        default: "all"
+        type: choice
+        options: [all, rfc, epic, link]
+      dry_run:
+        description: "Plan only — do not apply any mutation"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write        # coordination PR branch + RFC stub scaffolds
+  issues: write          # labels, sub-issue links, coordination issue
+  pull-requests: write   # coordination PR
+
+concurrency:
+  group: provost
+  cancel-in-progress: true
+
+jobs:
+  coordinate:
+    runs-on: ubuntu-latest
+    environment: ci
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Fast path: prebuilt binary from the rolling release (no compile).
+      - name: Download prebuilt agent
+        id: prebuilt
+        continue-on-error: true
+        run: |
+          gh release download provost-bin \
+            --pattern vaked-provost-linux-x86_64 \
+            --output ./vaked-provost
+          chmod +x ./vaked-provost
+
+      # Fallback toolchain — only when the prebuilt download failed.
+      - name: Install Rust toolchain
+        if: steps.prebuilt.outcome == 'failure'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        if: steps.prebuilt.outcome == 'failure'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/provost
+
+      - name: Set up sccache
+        if: steps.prebuilt.outcome == 'failure'
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Set up mold linker
+        if: steps.prebuilt.outcome == 'failure'
+        uses: rui314/setup-mold@v1
+
+      - name: Determine options
+        id: opts
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ github.event.inputs.mode || 'all' }}" >> "$GITHUB_OUTPUT"
+            echo "dry_run=${{ github.event.inputs.dry_run }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=all" >> "$GITHUB_OUTPUT"
+            echo "dry_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run provost agent
+        id: run
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          LANGFUSE_URL:       ${{ secrets.LANGFUSE_URL }}
+          LANGFUSE_API_KEY:   ${{ secrets.LANGFUSE_API_KEY }}
+          MODE:               ${{ steps.opts.outputs.mode }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
+        run: |
+          OUT="$RUNNER_TEMP/provost-output.json"
+          if [ -x ./vaked-provost ]; then
+            echo "::notice::using prebuilt agent (no compile)"
+            ./vaked-provost > "$OUT"
+          else
+            echo "::notice::prebuilt unavailable — building from source"
+            probe() {
+              printf 'int main(){return 0;}' > "$RUNNER_TEMP/ld.c" && \
+              cc -fuse-ld="$1" "$RUNNER_TEMP/ld.c" -o "$RUNNER_TEMP/ld.out" 2>/dev/null
+            }
+            FUSE=""
+            for c in mold lld wild; do probe "$c" && FUSE="$c"; done
+            FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
+            [ -n "$FUSE" ] && FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+            export RUSTFLAGS="$FLAGS"
+            if command -v sccache >/dev/null; then
+              export RUSTC_WRAPPER=sccache SCCACHE_GHA_ENABLED=true
+            fi
+            cargo run --release \
+              --manifest-path vaked-agents/ci/provost/Cargo.toml \
+              -- > "$OUT"
+          fi
+          echo "output_file=$OUT" >> "$GITHUB_OUTPUT"
+          echo "--- provost plan ---"
+          cat "$OUT"
+
+      # -----------------------------------------------------------------------
+      # Auto-applied safe-sync: labels, native sub-issue links, milestone assign.
+      # -----------------------------------------------------------------------
+      - name: Apply safe-sync (labels / links / milestones)
+        if: steps.opts.outputs.dry_run == 'false'
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          OUT="${{ steps.run.outputs.output_file }}"
+
+          jq -c '.label_ops[]?' "$OUT" | while IFS= read -r op; do
+            N=$(printf '%s' "$op" | jq -r '.issue')
+            ADD=$(printf '%s' "$op" | jq -r '(.add // []) | join(",")')
+            REM=$(printf '%s' "$op" | jq -r '(.remove // []) | join(",")')
+            if [ -n "$ADD" ]; then
+              gh issue edit "$N" --repo "$REPO" --add-label "$ADD" \
+                && echo "::notice::#$N +[$ADD]" \
+                || echo "::warning::label add failed on #$N"
+            fi
+            if [ -n "$REM" ]; then
+              gh issue edit "$N" --repo "$REPO" --remove-label "$REM" \
+                || echo "::warning::label remove failed on #$N"
+            fi
+          done
+
+          jq -c '.link_ops[]?' "$OUT" | while IFS= read -r op; do
+            P=$(printf '%s' "$op" | jq -r '.parent_issue')
+            C=$(printf '%s' "$op" | jq -r '.child_issue')
+            CID=$(gh api "repos/$REPO/issues/$C" --jq '.id' 2>/dev/null)
+            if [ -n "$CID" ]; then
+              gh api -X POST "repos/$REPO/issues/$P/sub_issues" -F sub_issue_id="$CID" \
+                && echo "::notice::linked #$C under #$P" \
+                || echo "::warning::sub-issue link #$C->#$P failed (may already exist)"
+            fi
+          done
+
+          jq -c '.milestone_ops[]?' "$OUT" | while IFS= read -r op; do
+            N=$(printf '%s' "$op" | jq -r '.issue')
+            T=$(printf '%s' "$op" | jq -r '.milestone_title')
+            MID=$(gh api "repos/$REPO/milestones" --jq ".[] | select(.title==\"$T\") | .number" 2>/dev/null | head -1)
+            if [ -n "$MID" ]; then
+              gh api -X PATCH "repos/$REPO/issues/$N" -F milestone="$MID" \
+                && echo "::notice::#$N milestone -> $T" \
+                || echo "::warning::milestone assign failed on #$N"
+            else
+              echo "::warning::milestone '$T' not found for #$N (skipped)"
+            fi
+          done
+
+      # -----------------------------------------------------------------------
+      # Coordination issue (edit-in-place, marker-tracked): the human pane.
+      # -----------------------------------------------------------------------
+      - name: Maintain coordination issue
+        if: steps.opts.outputs.dry_run == 'false'
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          OUT="${{ steps.run.outputs.output_file }}"
+          SUMMARY=$(jq -r '.summary // ""' "$OUT")
+          if [ -z "$SUMMARY" ]; then
+            echo "::notice::empty summary — no coordination issue update"
+            exit 0
+          fi
+          BODY_FILE="$RUNNER_TEMP/coord-body.md"
+          {
+            printf '%s\n\n' '<!-- vaked-provost-coordination -->'
+            printf '%s\n' "$SUMMARY"
+            printf '\n---\n%s\n' '<sub>vaked-provost · automated, advisory · edited in place each run</sub>'
+          } > "$BODY_FILE"
+          TITLE='[provost] Coordination backlog'
+          EXISTING=$(gh issue list --repo "$REPO" --state open \
+            --search "$TITLE in:title" --json number --jq '.[0].number' 2>/dev/null)
+          if [ -n "$EXISTING" ] && [ "$EXISTING" != "null" ]; then
+            gh issue edit "$EXISTING" --repo "$REPO" --body-file "$BODY_FILE" \
+              && echo "::notice::updated coordination issue #$EXISTING" \
+              || echo "::warning::failed to update coordination issue #$EXISTING"
+          else
+            gh issue create --repo "$REPO" --title "$TITLE" --body-file "$BODY_FILE" \
+              --label type/chore --label area/agents \
+              && echo "::notice::created coordination issue" \
+              || echo "::warning::failed to create coordination issue"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Coordination PR for proposed RFC stub files (rare; only when proposed).
+      # -----------------------------------------------------------------------
+      - name: Maintain coordination PR (RFC stubs)
+        if: steps.opts.outputs.dry_run == 'false'
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          set +e
+          OUT="${{ steps.run.outputs.output_file }}"
+          COUNT=$(jq '(.proposed_rfcs // []) | length' "$OUT")
+          if [ -z "$COUNT" ] || [ "$COUNT" = "0" ]; then
+            echo "::notice::no proposed RFC stubs"
+            exit 0
+          fi
+          git config user.name  "vaked-provost[bot]"
+          git config user.email "provost@users.noreply.github.com"
+          BR=provost/coordination
+          git checkout -B "$BR"
+          TODAY=$(date +%Y-%m-%d)
+          jq -c '.proposed_rfcs[]?' "$OUT" | while IFS= read -r rfc; do
+            NUM=$(printf '%s'  "$rfc" | jq -r '.number')
+            SLUG=$(printf '%s' "$rfc" | jq -r '.slug')
+            RTITLE=$(printf '%s' "$rfc" | jq -r '.title')
+            TRACK=$(printf '%s' "$rfc" | jq -r '.track // "Protocol"')
+            RAT=$(printf '%s'  "$rfc" | jq -r '.rationale // ""')
+            F="protocol/rfcs/${NUM}-${SLUG}.md"
+            if [ -e "$F" ]; then
+              echo "::notice::$F already exists — skip"
+              continue
+            fi
+            {
+              printf '# %s — %s\n\n' "$NUM" "$RTITLE"
+              printf -- '- **Status:** Draft\n'
+              printf -- '- **Created:** %s\n' "$TODAY"
+              printf -- '- **Track:** %s\n\n' "$TRACK"
+              printf '## Abstract\n\n%s\n\n' "$RAT"
+              printf '## Terminology\n\n_TODO — align with docs/protocol/README.md._\n\n'
+              printf '## Security considerations\n\n_TODO._\n\n'
+              printf '## Open questions and deferred decisions\n\n_TODO._\n\n'
+              printf '## Related documents\n\n_TODO._\n'
+            } > "$F"
+            git add "$F"
+          done
+          if git diff --cached --quiet; then
+            echo "::notice::no new RFC stub files to commit"
+            exit 0
+          fi
+          git commit -m "chore(provost): scaffold proposed RFC stub(s) [skip ci]"
+          git push -u origin "$BR" --force
+          PR_BODY="$RUNNER_TEMP/coord-pr.md"
+          printf '%s\n\n%s\n' \
+            '<!-- vaked-provost-coordination-pr -->' \
+            'Proposed RFC stub(s) scaffolded by vaked-provost from a protocol design spec that had no RFC. Review, fill in the TODO sections, and merge — or close to reject. Advisory.' \
+            > "$PR_BODY"
+          gh pr view "$BR" --repo "$REPO" >/dev/null 2>&1 \
+            && echo "::notice::coordination PR already open" \
+            || gh pr create --repo "$REPO" --base main --head "$BR" \
+                 --title "provost: proposed RFC stub(s)" --body-file "$PR_BODY" \
+            || echo "::warning::could not create coordination PR"
+
+      - name: Plan to step summary
+        if: always()
+        run: |
+          OUT="${{ steps.run.outputs.output_file }}"
+          if [ -f "$OUT" ]; then
+            {
+              echo "## provost plan (mode=${{ steps.opts.outputs.mode }}, dry_run=${{ steps.opts.outputs.dry_run }})"
+              echo '```json'
+              cat "$OUT"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to:      ${{ secrets.TELEGRAM_TO }}
+          token:   ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ provost failed (mode=${{ steps.opts.outputs.mode }}) on ${{ github.ref_name }}
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
