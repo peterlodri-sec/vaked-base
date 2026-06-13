@@ -886,20 +886,29 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
                          C.FALLBACK_PRICES.get(used2, C.Price(0.10, 0.20))))
 
     # Stage 3 — self-critique → rewrite for sharper, better-grounded entries.
+    # Best-effort over a USABLE stage-2 draft: a critique failure (transient 5xx,
+    # both writer + fallback down) or an unusable rewrite must NEVER lose the
+    # decision, so any error keeps the stage-2 body. Cost for the call is counted
+    # whenever it was actually made, including the keep-draft path, so the ledger
+    # never under-reports spend.
     if _critique_on():
-        s3_msgs = C.build_critique_messages(subject, body, full)
-        s3, used3 = _writer_call(writer, stage2_model, s3_msgs, api_key=api_key,
-                                 base_url=base_url, temperature=0.2, max_tokens=2200,
-                                 span_name="ralph.critique",
-                                 span_meta={**base_meta, "stage": 3})
-        improved = (_message_content(s3) or _reasoning_text(s3) or "").strip()
-        if len(improved) >= 40:          # a real rewrite, not an empty/garbage reply
-            body = improved
+        try:
+            s3_msgs = C.build_critique_messages(subject, body, full)
+            s3, used3 = _writer_call(writer, stage2_model, s3_msgs, api_key=api_key,
+                                     base_url=base_url, temperature=0.2, max_tokens=2200,
+                                     span_name="ralph.critique",
+                                     span_meta={**base_meta, "stage": 3})
             cost += C.cost_usd(s3.get("usage", {}),
                                C.FALLBACK_PRICES.get(used3, C.Price(0.10, 0.20)))
-        else:
-            print("[decide] critique produced nothing usable (finish=%s) — keeping draft"
-                  % _finish_reason(s3), file=sys.stderr)
+            improved = (_message_content(s3) or _reasoning_text(s3) or "").strip()
+            if len(improved) >= 40:      # a real rewrite, not an empty/garbage reply
+                body = improved
+            else:
+                print("[decide] critique produced nothing usable (finish=%s) — keeping draft"
+                      % _finish_reason(s3), file=sys.stderr)
+        except Exception as e:           # noqa: BLE001 — never drop a good draft
+            print("[decide] critique pass failed (%s) — keeping stage-2 draft"
+                  % type(e).__name__, file=sys.stderr)
     return cost, body.strip()
 
 

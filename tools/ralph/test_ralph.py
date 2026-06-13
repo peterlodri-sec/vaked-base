@@ -1624,6 +1624,41 @@ def test_run_stages_critique_and_writer_override() -> None:
     assert cost > 0
 
 
+def test_run_stages_critique_failure_keeps_draft() -> None:
+    """A critique-call failure (after a usable stage-2 draft) must NOT abort the
+    tick — it keeps the stage-2 body and still returns the stage-1+2 cost."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    s1 = {"choices": [{"message": {"content":
+            '{"candidates":[{"title":"X","why_now":"n","urgency":5,"addressed":false}]}'}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    s2 = {"choices": [{"message": {"content": "**Decision / question:** the stage-2 draft body"}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    calls = {"n": 0}
+
+    def fake(model, *a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return s1
+        if calls["n"] == 2:
+            return s2
+        raise RuntimeError("transient 5xx during critique")
+
+    # No RALPH_WRITER_MODEL → writer == track model, so the critique call has no
+    # fallback net and raises straight out of _writer_call.
+    with mock.patch.dict(os.environ, {"RALPH_CRITIQUE": "on"}, clear=False), \
+         mock.patch.object(ralph, "openrouter_call", side_effect=fake):
+        os.environ.pop("RALPH_WRITER_MODEL", None)
+        res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
+                                lambda: "CTX", "m1/rank", "m2/track", "key", None, 42)
+    assert res is not None, "critique failure must not abort the decision"
+    cost, body = res
+    assert "stage-2 draft" in body              # kept the draft
+    assert calls["n"] == 3                       # stage1, stage2, then the failing critique
+    assert cost > 0
+
+
 def test_writer_call_falls_back_to_track_model() -> None:
     """A failing writer model degrades to the track model (no crash)."""
     import importlib
