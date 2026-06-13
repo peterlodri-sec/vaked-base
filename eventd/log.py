@@ -18,7 +18,10 @@ import json
 import os
 from functools import reduce
 
-from .core import GENESIS_HASH, entry_line, make_entry, verify_chain
+from .core import (GENESIS_HASH, chain_hash, entry_line, make_entry,
+                   verify_chain)
+
+KIND_REPAIR = "log_repair"
 
 
 class TamperError(Exception):
@@ -29,27 +32,118 @@ class WriterLockError(Exception):
     """A second writer tried to open the log (single-writer discipline)."""
 
 
+def _byte_lines(path: str) -> list[bytes]:
+    """Non-empty raw byte lines of the log. Byte-oriented on purpose: a crash
+    that tears the final line mid-multibyte leaves an incomplete UTF-8
+    sequence (entries are raw UTF-8), and strict text iteration would raise
+    ``UnicodeDecodeError`` before the caller can treat the torn line as the
+    start of the unverifiable suffix. Reading bytes defers decoding to the
+    per-line ``try`` so a bad byte sequence is handled, not a traceback."""
+    with open(path, "rb") as f:
+        return [ln for ln in f.read().split(b"\n") if ln.strip()]
+
+
 def load_entries(path: str) -> list[dict]:
     """Read a JSONL log into entries (empty if the file is missing).
 
-    A syntactically malformed line (crash torn-write, byte-level tamper) is
-    the same broken audit spine as a hash mismatch and raises ``TamperError``
-    through the same refusal path — never a raw ``JSONDecodeError``."""
+    A malformed line — bad JSON OR an undecodable (torn-UTF-8) byte sequence,
+    from a crash torn-write or byte-level tamper — is the same broken audit
+    spine as a hash mismatch and raises ``TamperError`` through the same
+    refusal path, never a raw ``JSONDecodeError`` / ``UnicodeDecodeError``."""
     try:
-        with open(path, encoding="utf-8") as f:
-            entries = []
-            for n, line in enumerate(f, 1):
-                if not line.strip():
-                    continue
-                try:
-                    entries.append(json.loads(line))
-                except json.JSONDecodeError as e:
-                    raise TamperError(
-                        f"{path}:{n}: malformed log line — broken audit "
-                        f"spine") from e
-            return entries
+        raw = _byte_lines(path)
     except FileNotFoundError:
         return []
+    entries = []
+    for n, line in enumerate(raw, 1):
+        try:
+            obj = json.loads(line.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            raise TamperError(
+                f"{path}:{n}: malformed log line — broken audit spine") from e
+        if not isinstance(obj, dict):   # valid JSON but not an entry object
+            raise TamperError(
+                f"{path}:{n}: non-object log line — broken audit spine")
+        entries.append(obj)
+    return entries
+
+
+def _longest_valid_prefix(path: str) -> list[dict]:
+    """The longest contiguous, untampered chain prefix readable from ``path``
+    (line by line from genesis), stopping at the first line that fails to
+    parse or fails to chain. Everything after is the unverifiable suffix."""
+    prefix = []
+    prev = GENESIS_HASH
+    try:
+        raw = _byte_lines(path)
+    except FileNotFoundError:
+        return []
+    for line in raw:
+        try:
+            e = json.loads(line.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            break   # torn/undecodable line ⇒ start of the unverifiable suffix
+        if not isinstance(e, dict):
+            break   # valid JSON but not an entry object ⇒ suffix terminator
+        if (e.get("seq") != len(prefix) or e.get("prev") != prev
+                or e.get("hash") != chain_hash(prev, e.get("payload", {}))):
+            break
+        prefix.append(e)
+        prev = e["hash"]
+    return prefix
+
+
+def repair_truncate_tail(path: str) -> dict:
+    """#35 — the explicit operator crash-recovery command. A torn final write
+    (or any unverifiable suffix) leaves a chain that boot-verify REFUSES;
+    this drops everything after the longest valid prefix and appends a
+    ``log_repair`` event recording the drop, so the chain is intact again and
+    the truncation is itself in the audit trail. **A break anywhere truncates
+    everything after it** — a hash chain cannot resume past a broken link, so
+    a mid-log tamper (not just a torn tail) drops the whole unverifiable
+    suffix; the ``dropped`` count + ``log_repair`` entry make the loss
+    explicit. The rewrite is crash-atomic (temp file → fsync → ``os.replace``
+    → dir fsync), so a crash mid-repair never destroys the verified prefix.
+
+    Takes the single-writer lock (it mutates the file). Returns
+    ``{"repaired": bool, "dropped": int, "tail_seq": int|None}``. ``repaired``
+    is False (a no-op) when the chain is already intact. NOT daemon-automatic:
+    a truncated tail stays a hard error until an operator runs this."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    fh = open(path, "a", encoding="utf-8")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError as e:
+        fh.close()
+        raise WriterLockError(
+            f"{path}: another writer holds the log "
+            f"(single-writer discipline)") from e
+    try:
+        prefix = _longest_valid_prefix(path)
+        dropped = len(_byte_lines(path)) - len(prefix)   # byte-oriented count
+        if dropped <= 0:
+            return {"repaired": False, "dropped": 0, "tail_seq": None}
+        prev = prefix[-1]["hash"] if prefix else GENESIS_HASH
+        repair = make_entry(prev, len(prefix),
+                            {"kind": KIND_REPAIR, "v": 1, "dropped": dropped})
+        # crash-atomic: temp → fsync → replace → dir fsync (never truncate the
+        # live file in place — a second crash would lose the verified prefix).
+        tmp = path + ".repair.tmp"
+        with open(tmp, "w", encoding="utf-8") as w:
+            for e in prefix:
+                w.write(entry_line(e))
+            w.write(entry_line(repair))
+            w.flush()
+            os.fsync(w.fileno())
+        os.replace(tmp, path)
+        dfd = os.open(os.path.dirname(path) or ".", os.O_RDONLY)
+        try:
+            os.fsync(dfd)
+        finally:
+            os.close(dfd)
+        return {"repaired": True, "dropped": dropped, "tail_seq": repair["seq"]}
+    finally:
+        fh.close()   # releases the flock
 
 
 class EventLog:

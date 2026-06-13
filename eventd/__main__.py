@@ -6,8 +6,9 @@ Reference tooling over a JSONL eventd log (issue #18, RFC 0004):
     python3 -m eventd append    <log> '<payload json>'
     python3 -m eventd replay    <log>
     python3 -m eventd state     <log> [--at N]
-    python3 -m eventd floor     <log> <producer-agent>
+    python3 -m eventd floor     <log> <producer-agent> [--explain]
     python3 -m eventd coldstart <log> <consumer-agent>
+    python3 -m eventd repair    <log> --truncate-tail
 
 ``state`` is the Track D jump/replay verb (control-plane design 2026-06-12):
 verify the whole chain, then fold entries 0..N (default: tip) and print the
@@ -31,7 +32,7 @@ import sys
 from collections import Counter
 from dataclasses import asdict
 
-from .log import EventLog, TamperError, WriterLockError
+from .log import EventLog, TamperError, WriterLockError, repair_truncate_tail
 from .statedep import DependencyIndex
 
 EXIT_OK = 0
@@ -114,14 +115,50 @@ def main(argv: list[str]) -> int:
         return EXIT_OK
 
     if cmd == "floor":
+        explain = "--explain" in rest
+        prods = [a for a in rest if not a.startswith("--")]
+        if not prods:
+            print("eventd: floor needs <producer-agent>", file=sys.stderr)
+            return EXIT_USAGE
+        producer = prods[0]
         log = _open_ro(path)
-        floor = DependencyIndex.from_entries(log.entries).gc_floor(rest[0])
+        idx = DependencyIndex.from_entries(log.entries)
+        if explain:
+            info = idx.gc_floor_explain(producer)
+            floor = info["floor"]
+            print(f"eventd: {producer} — producer_gc_floor = "
+                  f"{floor if floor is not None else 'none'}")
+            if not info["pinned_by"]:
+                print("  (no live consumer constrains compaction)")
+            for c in info["pinned_by"]:
+                print(f"  pinned by {c['consumer']} @ min_required_step="
+                      f"{c['min_required_step']} ({c['source']}; "
+                      f"heartbeat {c['last_heartbeat_at'] or '-'})")
+            return EXIT_OK
+        floor = idx.gc_floor(producer)
         if floor is None:
-            print(f"eventd: {rest[0]} — no live consumer constrains "
+            print(f"eventd: {producer} — no live consumer constrains "
                   f"compaction (floor: none)")
         else:
-            print(f"eventd: {rest[0]} — producer_gc_floor = {floor} "
+            print(f"eventd: {producer} — producer_gc_floor = {floor} "
                   f"(compaction legal strictly below)")
+        return EXIT_OK
+
+    if cmd == "repair":
+        if "--truncate-tail" not in rest:
+            print("eventd: repair needs --truncate-tail", file=sys.stderr)
+            return EXIT_USAGE
+        try:
+            result = repair_truncate_tail(path)
+        except WriterLockError as e:
+            print(f"eventd: refused — {e}", file=sys.stderr)
+            return EXIT_LOCKED
+        if not result["repaired"]:
+            print(f"eventd: {path} — chain intact, nothing to repair")
+        else:
+            print(f"eventd: {path} — truncated {result['dropped']} "
+                  f"unverifiable line(s); logged {('log_repair')} at seq "
+                  f"{result['tail_seq']}")
         return EXIT_OK
 
     if cmd == "coldstart":

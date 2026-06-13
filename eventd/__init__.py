@@ -16,7 +16,7 @@ CLI: ``python3 -m eventd {verify,append,replay,floor,coldstart} ...``.
 Python 3.12 stdlib only.
 """
 from .core import GENESIS_HASH, canonical_json, chain_hash, make_entry, verify_chain
-from .log import EventLog, TamperError, WriterLockError
+from .log import EventLog, TamperError, WriterLockError, repair_truncate_tail
 from .statedep import (
     DependencyIndex,
     StaleDependency,
@@ -28,7 +28,7 @@ from .statedep import (
 
 __all__ = [
     "GENESIS_HASH", "canonical_json", "chain_hash", "make_entry", "verify_chain",
-    "EventLog", "TamperError", "WriterLockError",
+    "EventLog", "TamperError", "WriterLockError", "repair_truncate_tail",
     "DependencyIndex", "StaleDependency",
     "dependency_registration", "consumer_checkpoint", "rewind_event",
     "consumer_evicted",
