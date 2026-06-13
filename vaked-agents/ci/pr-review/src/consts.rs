@@ -43,10 +43,7 @@ pub(crate) const COMPACTION_PRESERVE_RECENT: usize = 8;
 
 /// Agent version (from Cargo.toml) — always stamped in the posted comment footer.
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
-/// Telegram contact link surfaced in every comment footer.
-pub(crate) const TELEGRAM_URL: &str = "https://t.me/G0PH3R";
-/// `· vaked-pr-review vX.Y.Z · [open Telegram](…)` — appended to every footer so the
-/// agent always advertises its version and a contact handle.
+pub(crate) const GIT_SHA: &str = env!("GIT_SHA");
 pub(crate) fn footer_signature() -> String {
-    format!("vaked-pr-review v{VERSION} · [open Telegram]({TELEGRAM_URL})")
+    format!("vaked-pr-review v{VERSION}+{GIT_SHA} · admin: cabotage@protonmail.com")
 }

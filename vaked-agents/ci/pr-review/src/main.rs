@@ -36,8 +36,6 @@
 //!                      PR when --pr is omitted); comments only, no model call
 //!       --respond      interactive @vaked-ci responder mode
 
-use tracing::warn;
-
 mod agent;
 mod autofix;
 mod cleanup;

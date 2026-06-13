@@ -50,6 +50,9 @@ jobs:
           ln -sf "$(command -v wild)" "$HOME/.local/bin/ld.wild"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Install UPX
+        run: sudo apt-get install -y upx-ucl
+
       - name: Build release binary
         env:
           RUSTC_WRAPPER: sccache
@@ -72,6 +75,9 @@ jobs:
           cargo build --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml
           cp vaked-agents/ci/pr-review/target/release/vaked-pr-review \
              vaked-pr-review-linux-x86_64
+
+      - name: Compress binary with UPX
+        run: upx --best vaked-pr-review-linux-x86_64
 
       - name: Publish rolling release asset
         env:
