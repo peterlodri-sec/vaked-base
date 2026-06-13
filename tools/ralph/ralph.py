@@ -109,23 +109,27 @@ def _announce_mastodon(track_name: str, n: int, title: str, model: str,
     token = os.environ.get("MASTODON_ACCESS_TOKEN")
     if not token:
         return
-    base = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
-    # `or` (not a .get default) so an empty env value — what CI passes when the
-    # var is unset — still falls back instead of posting an empty visibility.
-    visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
-    status = (
-        f"🪢 ralph · {track_name} — Decision #{n}\n"
-        f"{title}\n"
-        f"model {model} · ~${cost:.4f} · advisory (awaiting ratification)"
-    )
-    data = urllib.parse.urlencode({"status": status, "visibility": visibility}).encode()
-    req = urllib.request.Request(
-        base + "/api/v1/statuses", data=data, method="POST",
-        headers={"Authorization": "Bearer " + token,
-                 "Content-Type": "application/x-www-form-urlencoded",
-                 # one toot per decision id — safe against tick re-runs
-                 "Idempotency-Key": f"ralph-{track_name}-{n}"})
+    # Everything below is best-effort — including request CONSTRUCTION, which can
+    # raise (e.g. a malformed MASTODON_BASE_URL with no scheme). Wrapping it all
+    # keeps a bad announce from ever propagating out of _decide_track and failing
+    # the CI tick / blocking the decision commit.
     try:
+        base = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
+        # `or` (not a .get default) so an empty env value — what CI passes when the
+        # var is unset — still falls back instead of posting an empty visibility.
+        visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
+        status = (
+            f"🪢 ralph · {track_name} — Decision #{n}\n"
+            f"{title}\n"
+            f"model {model} · ~${cost:.4f} · advisory (awaiting ratification)"
+        )
+        data = urllib.parse.urlencode({"status": status, "visibility": visibility}).encode()
+        req = urllib.request.Request(
+            base + "/api/v1/statuses", data=data, method="POST",
+            headers={"Authorization": "Bearer " + token,
+                     "Content-Type": "application/x-www-form-urlencoded",
+                     # one toot per decision id — safe against tick re-runs
+                     "Idempotency-Key": f"ralph-{track_name}-{n}"})
         with urllib.request.urlopen(req, timeout=30) as resp:
             resp.read()
     except Exception as e:   # noqa: BLE001 — announcing is best-effort

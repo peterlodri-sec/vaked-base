@@ -1161,6 +1161,13 @@ def test_announce_mastodon_posts_with_token() -> None:
                            side_effect=RuntimeError("boom")):
         ralph._announce_mastodon("t", 1, "x", "m", 0.0)   # must not raise
 
+    # a request-CONSTRUCTION error (e.g. malformed base URL) must also be
+    # swallowed — it happens before urlopen, so the try must wrap it too
+    with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+         mock.patch.object(ralph.urllib.request, "Request",
+                           side_effect=ValueError("unknown url type")):
+        ralph._announce_mastodon("t", 1, "x", "m", 0.0)   # must not raise
+
 
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
