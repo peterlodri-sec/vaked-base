@@ -323,3 +323,29 @@ consumer can verify the lineage of a cached AST without re-reading the source.
 | [vaked-v0-plus.ebnf](../../vaked/grammar/vaked-v0-plus.ebnf) | Grammar the parser implements (v0.3) |
 | [vakedc-zig.vaked](../../vaked/examples/compiler/vakedc-zig.vaked) | Dogfeed: the compiler pipeline described in Vaked |
 | [ralphloop-cache.vaked](../../vaked/examples/compiler/ralphloop-cache.vaked) | Isolated cache pattern example |
+| [0017 — ralphloop primitive](./0017-ralphloop-cache.md) | Proposal to make the cached loop a first-class language kind |
+
+---
+
+## 9. Differential oracle & parity roadmap
+
+A second, independent implementation of the grammar is a cheap, durable
+**differential oracle**: `vakedc-zig parse` should accept exactly what the Python
+reference `vakedc parse` accepts, and any divergence is a grammar-ambiguity bug
+worth investigating. CI now compiles the binary (the `zig-build` job in
+`spec-tests.yml`), so a broken `zig build` can no longer pass unnoticed.
+
+Parity roadmap toward replacing the Python front-end on the hot path (the v1.0
+native-rewrite line in `docs/compiler/OPTIMIZATION_ROADMAP.md`, which lands with
+the optimization-pass PR #112):
+
+1. **Differential-oracle CI:** assert `vakedc-zig parse` and `python3 -m vakedc
+   parse` agree on every committed example; expand coverage as the parser grows.
+2. Pin Zig in the flake devshell so `nix develop` provides the exact toolchain
+   (today `packages.vakedc-zig` pins it for the build only).
+3. Port `resolve` → `check` (0011), then `lower` (0012), incrementally, keeping
+   the cache in front of each stage.
+
+> Folds in the design intent from the parallel `vakedc-zig` v0.0.x scaffold (the
+> optimization-pass PR): the subset framing and the differential-oracle idea.
+> This note (0018) is the canonical v0.1.0 design.
