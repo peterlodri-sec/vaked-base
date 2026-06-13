@@ -266,7 +266,7 @@ on demand** (they are large, deterministic generator output — see
 [`METHODOLOGY.md`](METHODOLOGY.md)):
 
 ```bash
-make -C examples/evaluation loadtests   # writes swe-swarm-{1k,10k}-workers.vaked
+task loadtests   # writes swe-swarm-{1k,10k}-workers.vaked
 ```
 
 Numbers below are **measured** with `examples/evaluation/bench.py` / `vakedc`
@@ -278,7 +278,7 @@ measured-vs-projected ledger and machine details.
    - Parse ~83ms, Check ~70ms, Lower ~71ms
    - ✅ Deterministic, checks clean, suitable for quick iteration
 
-2. **Medium:** 64 workers (`make loadtests` can emit any N) — PROJECTED
+2. **Medium:** 64 workers (`task loadtests` can emit any N) — PROJECTED
    - Not yet captured in `baseline.json`; interpolated from the 8/1024 points
 
 3. **Heavy:** 1024 workers (regenerate: `--workers 1024`) — MEASURED

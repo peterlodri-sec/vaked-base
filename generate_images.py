@@ -47,7 +47,7 @@ IMAGES = {
         "output": "docs/images/capability-graph.png",
     },
     "benchmark-scalability": {
-        "prompt": "Line graph showing Vaked compiler scalability: X-axis: number of workers (8, 64, 1024, 10000), Y-axis: compile time (ms, log scale from 50 to 150000). Show three lines: Parse time, Check time, Lower time. Markers at 8/64/1K showing linear scaling, then 10K showing timeout (>120s). Legend, grid, professional scientific style.",
+        "prompt": "Line graph showing Vaked compiler scalability: X-axis: number of workers (8, 64, 1024, 10000), Y-axis: compile time (ms, log scale from 50 to 150000). Show three lines: Parse time, Check time, Lower time. Markers at 8/1024/10000 showing measured end-to-end compile time (~0.22s / ~1.6s / ~25s), with the lower stage growing super-linearly. Legend, grid, professional scientific style.",
         "alt_text": "Benchmark scalability: compile time vs. number of workers",
         "size": "1024x600",
         "output": "docs/images/benchmark-scalability.png",

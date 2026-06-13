@@ -38,7 +38,7 @@ the `vakedos` target host. Reproducers must record their own environment.
 python3 -m vakedc check vaked/examples/swe-swarm-loadtest.vaked
 
 # Large fixtures are generated, not committed:
-make -C examples/evaluation loadtests          # writes the 1k + 10k fixtures
+task loadtests          # writes the 1k + 10k fixtures
 python3 -m vakedc lower vaked/examples/swe-swarm-10k-workers.vaked
 
 # Full baseline + determinism oracle over all examples:
@@ -70,7 +70,7 @@ Status legend: **M** = measured & reproducible here · **P** = projected/estimat
   re-measured on a pinned machine, **trust `baseline.json`** and fix `BENCHMARK.md`.
 - **swe-swarm rows are absent from `baseline.json`.** The 1k/10k numbers in §3
   above were captured ad hoc during this pass; fold them into `baseline.json`
-  (run `bench.py` after `make loadtests`) so the headline numbers live in the
+  (run `bench.py` after `task loadtests`) so the headline numbers live in the
   measured artifact, not just prose.
 
 ## 5. What this demonstrates about the system
