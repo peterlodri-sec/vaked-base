@@ -1,0 +1,92 @@
+name: vakedz-ci
+
+# Builds the Zig front-end (vakedz/) and runs the closed-loop dogfooding gate:
+# `vakedz parse` must be BYTE-IDENTICAL to the Python reference (`vakedc parse`)
+# on every committed golden graph. This is the parity contract for the port.
+#
+# Zig is pinned (mlugg/setup-zig) to the build.zig.zon minimum, independent of
+# the devshell's nixpkgs Zig, so CI is fast + reproducible and the targeted std
+# API is fixed.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "vakedz/**"
+      - "vakedc/**"
+      - "vaked/examples/**"
+      - ".github/workflows/vakedz-ci.yml"
+  pull_request:
+    paths:
+      - "vakedz/**"
+      - "vakedc/**"
+      - "vaked/examples/**"
+      - ".github/workflows/vakedz-ci.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vakedz-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-crossverify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ci # only for the optional Telegram failure-notify secrets
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Download the official tagged release directly. mlugg/setup-zig fetches
+      # via a community mirror whose fallback (ziglang.org/builds) only serves
+      # dev builds, so a mirror outage 404s on a tagged release — flaky. The
+      # canonical /download/ tarball is stable.
+      - name: Install Zig 0.16.0
+        run: |
+          curl -fsSL --retry 3 --retry-delay 5 \
+            https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o /tmp/zig.tar.xz
+          mkdir -p /tmp/zig && tar -xJf /tmp/zig.tar.xz -C /tmp/zig --strip-components=1
+          echo "/tmp/zig" >> "$GITHUB_PATH"
+          /tmp/zig/zig version
+
+      - name: Set up Python 3.12 (vakedc reference for the drift guard)
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests (zig build test)
+        working-directory: vakedz
+        run: zig build test
+
+      - name: Build vakedz
+        working-directory: vakedz
+        run: zig build
+
+      - name: Cross-verify byte-parity with vakedc on the goldens
+        run: bash vakedz/test/crossverify.sh vakedz/zig-out/bin/vakedz | tee crossverify-out.txt
+
+      - name: Cache integrity self-check (ralphloop-cache hash chain)
+        run: |
+          ./vakedz/zig-out/bin/vakedz parse vaked/examples/engines/zig.vaked >/dev/null
+          ./vakedz/zig-out/bin/vakedz parse vaked/examples/engines/zig.vaked >/dev/null  # should be a cache hit
+          ./vakedz/zig-out/bin/vakedz cache verify
+
+      - name: Publish results to step summary
+        if: always()
+        run: |
+          {
+            echo "## vakedz-ci";
+            echo '```';
+            cat crossverify-out.txt 2>/dev/null || echo "(no crossverify output)";
+            echo '```';
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ vakedz-ci failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
