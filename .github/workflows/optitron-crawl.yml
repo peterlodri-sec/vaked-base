@@ -1,15 +1,27 @@
 name: optitron-crawl
 
-# vaked-optitron: a daily, abstain-by-default crawler that surfaces ONE novel, proven,
-# independently-confirmed compiler/allocator/zig/rust/vaked optimization — or nothing.
-# On a finding it opens an `agent`-labelled issue (the swe_af trigger) and stages a
-# Mastodon toot + Telegram message (the commit fires the post workflows). Advisory:
-# guards on the API key and never fails anything. See tools/optitron/README.md.
+# vaked-optitron (Go/Eino runtime): a daily, abstain-by-default crawler that surfaces ONE
+# novel, proven, independently-confirmed compiler/allocator/zig/rust/vaked optimization — or
+# nothing. On a finding it opens an `agent`-labelled issue (the swe_af trigger) and stages a
+# Mastodon toot + Telegram message (the commit fires the post workflows). Advisory: guards on
+# the API key and never fails anything. See tools/optitron/README.md.
+#
+# Triggers:
+#   • schedule  — automated daily run (trusted; no approval).
+#   • dispatch  — DOUBLE-CONFIRMED manual run:
+#       (1) you must type `confirm: RUN` when dispatching (typed gate), and
+#       (2) the `optitron-manual` Environment's required-reviewer approval must be granted
+#           (a second human click) before any spend. See the README for the one-time setup.
 on:
   schedule:
     - cron: "33 5 * * *" # daily, 05:33 UTC
   workflow_dispatch:
     inputs:
+      confirm:
+        description: 'Type RUN to confirm a manual crawl (first of two confirmations)'
+        type: string
+        required: true
+        default: ""
       dry_run:
         description: "build prompts + cost estimate only (no network)"
         type: boolean
@@ -24,7 +36,26 @@ concurrency:
   cancel-in-progress: false # serialize: single writer to the append-only ledger
 
 jobs:
+  # Confirmation #2 for manual runs: this job targets the protected `optitron-manual`
+  # Environment, so GitHub pauses for the required-reviewer approval before it (and the
+  # crawl that needs it) can proceed. Skipped entirely for scheduled runs, and skipped
+  # for manual runs where the typed confirmation (#1) is not exactly RUN.
+  approve:
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN'
+    runs-on: ubuntu-latest
+    environment: optitron-manual
+    timeout-minutes: 60
+    steps:
+      - run: echo "::notice::optitron manual run confirmed (RUN) and approved — actor=${{ github.actor }}"
+
   crawl:
+    needs: [approve]
+    # Run for a scheduled tick (approve is skipped), or for a manual run only once the
+    # approval gate has succeeded. A wrong/empty confirm ⇒ approve skipped ⇒ no crawl.
+    if: >-
+      always() &&
+      ( github.event_name == 'schedule'
+        || (github.event_name == 'workflow_dispatch' && needs.approve.result == 'success') )
     runs-on: ubuntu-latest
     environment: ci # OPENROUTER_API_KEY / LANGFUSE_* live in the `ci` Environment
     timeout-minutes: 20
@@ -36,9 +67,18 @@ jobs:
         with:
           fetch-depth: 0 # full tree so `git grep` novelty checks see everything
 
-      # Toolchains for the micro-benchmark gate (cc ships on the runner; add rustc).
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: tools/optitron/go.sum
+
+      # Toolchain for the micro-benchmark gate (cc ships on the runner; add rustc).
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Build optitron
+        run: cd tools/optitron && go build -o "$RUNNER_TEMP/optitron" ./cmd/optitron
 
       - name: Ensure `agent` label exists
         run: |
@@ -53,10 +93,8 @@ jobs:
           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          # Optional Langfuse SDK (no-op if unset); core runs on stdlib alone.
-          if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then pip install --quiet "langfuse>=3" || true; fi
           DRY=""; [ "${{ github.event.inputs.dry_run }}" = "true" ] && DRY="--dry-run"
-          python3 tools/optitron/optitron.py crawl --once --budget-total 4.0 $DRY
+          "$RUNNER_TEMP/optitron" crawl --once --budget-total 4.0 $DRY
 
       - name: Commit ledger + any staged announcements
         if: always()

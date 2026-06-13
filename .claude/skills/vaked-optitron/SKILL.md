@@ -6,8 +6,8 @@ description: >
   optimization per run, or nothing. It abstains by default; only a finding that clears a
   strict gate (>=2 independent sources + repo/ledger novelty + a REPRODUCED micro-benchmark
   + a confidence threshold) is acted on, by opening an `agent`-labelled GitHub issue (the
-  swe_af trigger) and announcing to Mastodon + Telegram. Runtime: tools/optitron/ (Python
-  cron loop, OpenRouter). Trigger on "optitron", "find an optimization", "optimization crawl".
+  swe_af trigger) and announcing to Mastodon + Telegram. Runtime: tools/optitron/ (Go/Eino
+  binary, OpenRouter). Trigger on "optitron", "find an optimization", "optimization crawl".
 ---
 
 # vaked-optitron — the optimization crawler
@@ -66,6 +66,8 @@ target files. swe_af (plan → code → review → publish) takes it from there.
 - **One per run.** Stop at the first finding that clears the gate.
 
 ## Runtime
-`tools/optitron/optitron.py` — `crawl [--once|--dry-run]`, `events [--replay]`. Append-only
-hash-chained ledger at `tools/optitron/state/events.jsonl` (the novelty memory + audit
-trail). Scheduled daily by `.github/workflows/optitron-crawl.yml`. See `tools/optitron/README.md`.
+`tools/optitron/` — a Go (Eino) binary: `optitron crawl [--once|--dry-run]`, `optitron events
+[--replay]`. Concurrent pipeline (crawl fan-out + bounded candidate worker-pool) with a
+single-writer, append-only hash-chained ledger at `tools/optitron/state/events.jsonl` (the
+novelty memory + audit trail). Scheduled daily — and gated behind a double-confirmation manual
+dispatch — by `.github/workflows/optitron-crawl.yml`. See `tools/optitron/README.md`.
