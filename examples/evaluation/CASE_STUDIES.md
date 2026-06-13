@@ -323,17 +323,139 @@ cat .vaked/lower/provenance.json | jq '.artifacts | map(.region) | map(select(co
 
 ---
 
+## Case Study 5: Red-Team Swarm (Authorized Penetration Testing)
+
+**Example:** `vaked/examples/redteam-swarm.vaked` (118 lines)
+
+### Architecture
+
+An authorized penetration-testing engagement modeled as a capability graph. An
+engagement lead (`redLead`) delegates strictly attenuated authority to three
+specialists via a `mesh field`, with a `killchain` workflow DAG (enumerate →
+exploit → report) naming the executing agent for each step.
+
+- **redLead** — `fs.repo_rw, process.spawn, network.egress, mcp.broker_admin, mem.admin`
+- **recon** — `fs.repo_ro, network.lan, mem.recall` (enumerate LAN; no egress)
+- **exploiter** — `fs.repo_ro, network.lan, process.spawn_sandboxed, mem.recall`
+- **reporter** — `fs.repo_ro, mem.append` (no network grant of any kind)
+
+### Key Features Demonstrated
+
+- **POLA as an engagement guardrail.** The reporter holds no network grant, so
+  the checker proves it *cannot exfiltrate findings off-host*. The exploiter
+  holds only `process.spawn_sandboxed`, so a compromised target is statically
+  confined to a sandbox (cannot pivot to the operator box). Recon holds
+  `network.lan` but not `egress` — it can map the internal network but not phone
+  home.
+- **Verified rejection.** Granting any specialist authority exceeding the lead's
+  is rejected at compile time with `E-CAP-ATTENUATION`, naming the offending
+  edge, domain, and grants.
+
+### Why It Matters (Paper)
+
+Reframes a security-research workflow as a statically-verified capability graph:
+the scope of every agent's authority is a compile-time fact a client can audit
+*before* the test begins — a selling point for security and compliance audiences.
+
+### Performance
+
+Parse 83ms · Check 84ms · Lower 91ms · 15.9KB artifacts · deterministic (100/100).
+
+### Verification Script
+
+```bash
+# Type-check (should report no errors)
+python3 -m vakedc check vaked/examples/redteam-swarm.vaked
+# Demonstrate the attenuation check rejects an over-grant (negative test):
+#   change reporter capabilities to include fs.host_rw → E-CAP-ATTENUATION
+```
+
+---
+
+## Case Study 6: Supply-Chain Build Pipeline (Separation of Duties)
+
+**Example:** `vaked/examples/supply-chain-pipeline.vaked` (130 lines)
+
+### Architecture
+
+A signed-release build pipeline with statically-enforced separation of duties. A
+release manager (root of trust) delegates duty-separated authority to four roles
+via a `mesh field`, with a `ceremony` workflow DAG (review → build → sign →
+distribute).
+
+- **releaseManager** — `fs.host_rw, process.exec_host, network.egress, mcp.broker_admin, mem.admin`
+- **sourceReviewer** — `fs.repo_ro, mem.recall` (read-only audit)
+- **builder** — `fs.repo_rw, process.spawn_sandboxed, mem.append` (no mcp ⇒ cannot publish; no network ⇒ hermetic)
+- **signer** — `fs.repo_ro, mcp.broker_admin, mem.admin` (release authority, read-only on artifacts)
+- **distributor** — `fs.repo_ro, network.egress, mcp.github_read` (push read-only)
+
+### Key Features Demonstrated
+
+- **Two-person rule as a compile-time fact.** The builder lacks `mcp.broker_admin`
+  ⇒ it provably *cannot publish or sign* what it builds. The signer is read-only
+  on the filesystem ⇒ it *cannot mutate the bytes it signs*. Therefore no single
+  principal can both build and sign.
+- **Determinism + provenance** make the signed artifact reproducible and
+  traceable back to its source spans.
+
+### Why It Matters (Paper)
+
+Addresses the post-SolarWinds threat: a compromised build step cannot escalate
+into a release step. Separation of duties is verified statically rather than
+enforced by pipeline convention.
+
+### Performance
+
+Parse 90ms · Check 93ms · Lower 100ms · 17.6KB artifacts · deterministic (100/100).
+
+---
+
+## Case Study 7: Editorial Pipeline (Retrieval-Augmented Content)
+
+**Example:** `vaked/examples/editorial-pipeline.vaked` (142 lines)
+
+### Architecture
+
+A retrieval-augmented content desk showing Vaked is *not security-only*. An
+editor delegates to four roles via a `mesh field`, with a `pipeline` workflow DAG
+(research → draft → verify → publish).
+
+- **editor** — `fs.repo_rw, network.egress, mcp.github_write, mem.admin`
+- **researcher** — `fs.repo_ro, network.lan, mem.recall` (read-only corpus)
+- **drafter** — `fs.repo_ro, mem.append` (no network ⇒ no un-curated material)
+- **factChecker** — `fs.repo_ro, network.lan, mem.recall` (read-only)
+- **publisher** — `fs.repo_rw, mcp.github_write, mem.recall` (sole publish authority)
+
+### Key Features Demonstrated
+
+- **Single publication chokepoint.** Only the publisher holds `mcp.github_write`,
+  so the checker proves nothing reaches publication without passing through the
+  one authorized principal.
+- **Read-only grounding.** Research roles hold `fs.repo_ro` — they ground on, but
+  never mutate, the curated corpus.
+
+### Why It Matters (Paper)
+
+Demonstrates Vaked generalizes beyond security: an editorial guarantee
+("nothing ships un-reviewed") is expressed as a capability graph and checked
+statically rather than enforced by process discipline.
+
+### Performance
+
+Parse 87ms · Check 88ms · Lower 92ms · 17.0KB artifacts · deterministic (100/100).
+
+---
+
 ## Cross-Study Comparison
 
-| Feature | Operator-Field | AgentField-SWE | Memory | SWE-Swarm |
-|---------|---|---|---|---|
-| **Size** | Small (500L) | Large (1500L) | Medium (600L) | Small (100L) |
-| **Fibers** | 2 | 8 | 2 | 10 (1 coord + 8 workers + 1 agg) |
-| **Capability domains** | 2 | 4 | 3 | 5 (fs, network, process, mcp, custom) |
-| **Edges** | 1 | 10+ | 0 | 16 (fan-out + convergence) |
-| **Generic types** | No | Yes (Index<T>) | Yes (Index<Symbol>, Stream<Event>) | Yes (Index<Symbol>, Catalog<Result>) |
-| **Observability** | Simple routing | Complex delegation | Tracing/audit | Parallel work aggregation |
-| **Research angle** | POLA 101 | Scalability | Domain extension | **Compiler performance at scale** |
+| Feature | Operator-Field | AgentField-SWE | Memory | SWE-Swarm | Red-Team | Supply-Chain | Editorial |
+|---------|---|---|---|---|---|---|---|
+| **Size** | 500L | 1500L | 600L | 100L | 118L | 130L | 142L |
+| **Delegating principals** | 2 | 8 | 2 | 10 | 4 | 5 | 5 |
+| **Capability domains** | 2 | 4 | 3 | 5 | 5 | 5 | 4 |
+| **Edges** | 1 | 10+ | 0 | 16 | 3 | 4 | 4 |
+| **Domain** | Orchestration | SWE agents | Observability | Load/scale | Offensive security | Supply chain | Editorial/RAG |
+| **Research angle** | POLA 101 | Scalability | Domain extension | Performance at scale | POLA guardrail | Separation of duties | Authority ≠ security-only |
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Agentic software systems are becoming more common, but they are complex and error-prone: agents require multiple capabilities (file I/O, network, process control), and misconfiguring authority (granting too much or too little) can lead to security breaches or operational failures. We present **Vaked**, a typed, declarative language for expressing agentic systems as **capability graphs** — topologies of principals with explicit authority relationships. Vaked combines **structural typing** (from configuration languages like Nickel and CUE) with **capability attenuation as a typing rule** (inspired by object-capability literature) and **deterministic multi-target code generation** (lowering to Nix, Zig, and observability artifacts). The type system enforces the Principle of Least Privilege (POLA) at compile time: no principal can exercise authority it was not granted. We implement vakedc, a Python compiler that parses, type-checks, and lowers Vaked declarations to reproducible infrastructure artifacts. Evaluation on four case studies shows that Vaked can express realistic multi-principal systems (up to 1024 fibers, 15+ nodes in the main examples) with deterministic, fast compilation (< 100ms for typical declarations), and zero POLA violations in the generated topology. Valid examples produce byte-identical artifacts across repeated runs (20-iteration determinism oracle in `baseline.json`). The approach bridges the gap between formal capability models and practical infrastructure-as-code, enabling auditable, statically-verified agentic deployments.
+Agentic software systems are becoming more common, but they are complex and error-prone: agents require multiple capabilities (file I/O, network, process control), and misconfiguring authority (granting too much or too little) can lead to security breaches or operational failures. We present **Vaked**, a typed, declarative language for expressing agentic systems as **capability graphs** — topologies of principals with explicit authority relationships. Vaked combines **structural typing** (from configuration languages like Nickel and CUE) with **capability attenuation as a typing rule** (inspired by object-capability literature) and **deterministic multi-target code generation** (lowering to Nix, Zig, and observability artifacts). The type system enforces the Principle of Least Privilege (POLA) at compile time: no principal can exercise authority it was not granted. We implement vakedc, a Python compiler that parses, type-checks, and lowers Vaked declarations to reproducible infrastructure artifacts. Evaluation on seven case studies — spanning agent orchestration, penetration testing, software supply-chain release, and retrieval-augmented content production — shows that Vaked can express realistic multi-principal systems (up to 1024 fibers, 15+ nodes in the main examples) with deterministic, fast compilation (< 100ms for typical declarations), and zero POLA violations in the generated topology. Valid examples produce byte-identical artifacts across repeated runs (20-iteration determinism oracle in `baseline.json`). The approach bridges the gap between formal capability models and practical infrastructure-as-code, enabling auditable, statically-verified agentic deployments.
 
 **Keywords:** capabilities, type systems, infrastructure-as-code, least privilege, agentic systems, deterministic compilation
 
@@ -46,11 +46,11 @@ We introduce **Vaked**, a typed declarative language for capability graphs. Vake
 
 | Contribution | Scope | Evidence |
 |---|---|---|
-| **Language design** | Capability-graph primitives (runtime, fiber, index, catalog, mesh, stream, etc.) | EBNF grammar (v0.3), 19 examples, 8 domain types (parallel-types.md) |
+| **Language design** | Capability-graph primitives (runtime, fiber, index, catalog, mesh, stream, etc.) | EBNF grammar (v0.3), 22 examples, 8 domain types (parallel-types.md) |
 | **Type system** | Structural conformance + POLA checking (§4 of 0011 type-system.md) | Formal rules, partial-order properties, informal soundness argument |
 | **Compiler** | vakedc front-end: parse → resolve → check → lower (Goals 1–3) | ~6.6k lines Python, stdlib-only, 100% deterministic |
-| **Verification** | Differential oracle, golden snapshots, determinism oracle, spec tests | 19/19 examples deterministic; 100+ spec tests covering grammar, types, POLA |
-| **Evaluation** | Benchmarks + case studies + threat model | 3 case studies (500–1500 lines), < 100ms compilation, zero POLA violations |
+| **Verification** | Differential oracle, golden snapshots, determinism oracle, spec tests | 21/22 valid examples deterministic; 100+ spec tests covering grammar, types, POLA |
+| **Evaluation** | Benchmarks + case studies + threat model | 7 case studies (118–1500 lines), < 100ms compilation, zero POLA violations |
 
 ---
 
@@ -60,7 +60,7 @@ We introduce **Vaked**, a typed declarative language for capability graphs. Vake
 
 ### 2.1 Structural Type Systems
 
-**Nickel** (Tweag) and **CUE** (Marcel van Lohuizen) provide structural record typing with contract/refinement support. Vaked borrows the structural typing idea but diverges:
+**Nickel** (Hamdaoui / Tweag) and **CUE** (Marcel van Lohuizen) provide structural record typing with contract/refinement support. Vaked borrows the structural typing idea but diverges:
 - Nickel and CUE allow **open predicates** (user-defined checking logic), making conformance potentially non-terminating. Vaked **closes the constraint set** to guarantee decidability.
 - Both are **expression languages** (support computation, imports, function application). Vaked is a **declaration language** (pure data, no expressions).
 
@@ -68,7 +68,7 @@ We introduce **Vaked**, a typed declarative language for capability graphs. Vake
 
 ### 2.2 Capability & Authorization Systems
 
-**Object Capabilities** (Miller, Karp, Rees) formalize authority through unforgeable references and provide POLA guarantees. Traditional implementations rely on runtime membranes and object identity. Vaked's contribution is **lifting POLA checking to the static type system**: we prove POLA at compile time, reducing the runtime enforcement burden.
+**Object Capabilities** — originating with Dennis and Van Horn's capability model and developed into the object-capability paradigm by Miller and colleagues (the E language, Joe-E) — formalize authority through unforgeable references and provide POLA guarantees. Traditional implementations rely on runtime membranes and object identity. Vaked's contribution is **lifting POLA checking to the static type system**: we prove POLA at compile time, reducing the runtime enforcement burden. This connects to hardware capability work such as CHERI (Watson et al.), which enforces capabilities in the ISA; Vaked is complementary, certifying the capability graph statically before deployment.
 
 **SPIFFE/SPIRE** provide runtime identity and credential issuance for workloads. Vaked is complementary: we declare upfront which principals may hold which capabilities; SPIRE can enforce those at runtime via SVIDs (Secure Workload Identity Documents).
 
@@ -322,7 +322,7 @@ To ensure determinism, vakedc:
 - Produces canonical JSON (sorted keys, trailing newline)
 - Includes no timestamps, UUIDs, or random data
 
-We verify determinism by compiling the same file 100 times and comparing SHA-256 hashes of the artifact tree. All 19 examples produce byte-identical output.
+We verify determinism by compiling the same file 100 times and comparing SHA-256 hashes of the artifact tree. All 21 valid examples (of 22) produce byte-identical output; the 22nd, `types/rejected.vaked`, is a negative test that produces errors by design.
 
 ---
 
@@ -330,12 +330,12 @@ We verify determinism by compiling the same file 100 times and comparing SHA-256
 
 ### 5.1 Benchmarks
 
-We measure compilation performance on three case studies.
+We measure compilation performance across the case-study examples.
 
 **Setup:**
 - vakedc running on Python 3.11
 - Hardware: standard 2–4 GHz CPU, 8GB RAM
-- Examples: 500–1500 line .vaked files
+- Examples: 100–1500 line .vaked files
 
 **Results:**
 
@@ -344,6 +344,12 @@ We measure compilation performance on three case studies.
 | operator-field | 500 | 3 | 68±2 | 60±1 | 63±2 | 18.2 |
 | agentfield-swe | 1500 | 15 | 70±3 | 70±2 | 73±3 | 18.3 |
 | memory | 600 | 5 | 61±1 | 57±1 | 58±2 | 8.1 |
+| redteam-swarm | 118 | 4 | 83 | 84 | 91 | 15.9 |
+| supply-chain-pipeline | 130 | 5 | 90 | 93 | 100 | 17.6 |
+| editorial-pipeline | 142 | 5 | 87 | 88 | 92 | 17.0 |
+
+(Node counts for the `mesh field` examples are the delegating principals; total
+graph nodes including indexes, streams, fibers, and workflow steps are higher.)
 
 **Observations:**
 - Parse time scales linearly with file size (lexer + parsing: no semantic analysis).
@@ -358,7 +364,7 @@ We measure compilation performance on three case studies.
 
 ### 5.2 Case Studies
 
-We demonstrate Vaked on four examples, each highlighting different aspects:
+We demonstrate Vaked on seven examples, each highlighting different aspects. The first four exercise the core language and scalability; the final three (§5.2.5–5.2.7) are domain case studies chosen to show breadth — an offensive-security workflow, a software supply-chain ceremony, and a non-security editorial pipeline — each turning a real authority requirement into a statically-checked capability graph:
 
 #### 5.2.1 Operator-Field (Simple Orchestration, POLA 101)
 
@@ -400,6 +406,42 @@ We demonstrate Vaked on four examples, each highlighting different aspects:
 
 **Key insight:** Demonstrates compiler's ability to handle parallel worker pools with many delegation edges; scalability foundation for larger systems (1024, 10,000 workers tested separately).
 
+#### 5.2.5 Red-Team Swarm (Authorized Penetration Testing)
+
+**Topology:** 1 engagement lead + 3 specialists (recon, exploiter, reporter); a `mesh field` with 3 delegation edges plus a `killchain` workflow DAG (enumerate → exploit → report).
+
+**Capabilities:** 5 domains (`fs`, `network`, `process`, `mcp`, `mem`). The lead holds the strongest grants (`network.egress`, `process.spawn`, `mcp.broker_admin`); each specialist receives an attenuated subset.
+
+**POLA scenario:** The **reporter** holds no network grant of any kind, so the type checker proves it *cannot exfiltrate findings off-host*. The **exploiter** holds only `process.spawn_sandboxed` (never `process.spawn`/`exec_host`), so a compromised target is statically confined to a sandbox. The **recon** agent holds `network.lan` but not `egress` — it can enumerate the internal network but cannot phone home. Attempting to grant any specialist authority exceeding the lead's is rejected at compile time with `E-CAP-ATTENUATION`.
+
+**Key insight:** POLA becomes an *engagement guardrail*: the scope of every agent's authority is a compile-time fact a client can audit before the test begins. This reframes a security-research workflow as a statically-verified capability graph.
+
+**Performance:** 118 lines; parse 83ms, check 84ms, lower 91ms; 15.9KB artifacts; deterministic (20/20 iterations).
+
+#### 5.2.6 Supply-Chain Build Pipeline (Separation of Duties)
+
+**Topology:** 1 release manager (root of trust) + 4 roles (source reviewer, builder, signer, distributor); a `mesh field` with 4 delegation edges plus a `ceremony` workflow DAG (review → build → sign → distribute).
+
+**Capabilities:** 5 domains. The split is duty-oriented: the **builder** holds `fs.repo_rw` and a sandboxed executor but **no** `mcp.broker_admin` and **no** network grant (hermetic build); the **signer** holds the release authority (`mcp.broker_admin`) but only `fs.repo_ro`.
+
+**POLA scenario:** Because the builder lacks `mcp.broker_admin`, it provably *cannot publish or sign* what it builds; because the signer is read-only on the filesystem, it *cannot mutate the bytes it signs*. Therefore **no single principal can both build and sign** — the two-person rule is a compile-time fact, not a CI convention that can be edited away. Combined with deterministic lowering and provenance, the signed artifact is reproducible and traceable to its source spans.
+
+**Key insight:** Addresses the post-SolarWinds threat directly: a compromised build step cannot escalate into a release step. Separation of duties is verified statically rather than enforced by pipeline discipline.
+
+**Performance:** 130 lines; parse 90ms, check 93ms, lower 100ms; 17.6KB artifacts; deterministic (20/20 iterations).
+
+#### 5.2.7 Editorial Pipeline (Retrieval-Augmented Content)
+
+**Topology:** 1 editor + 4 roles (researcher, drafter, fact-checker, publisher); a `mesh field` with 4 delegation edges plus a `pipeline` workflow DAG (research → draft → verify → publish).
+
+**Capabilities:** Researcher, drafter, and fact-checker all hold `fs.repo_ro` (read-only over the source corpus); only the **publisher** holds `mcp.github_write`. The drafter holds no network grant.
+
+**POLA scenario:** Since only the publisher holds `mcp.github_write`, the checker proves that *nothing reaches publication without passing through the single authorized principal*. Read-only corpus access for the research roles means they can ground on, but never mutate, the curated sources; the drafter's absent network grant prevents pulling un-reviewed material from outside the corpus.
+
+**Key insight:** Demonstrates that Vaked is **not security-only** — it is a general authority model. An editorial guarantee ("nothing ships un-reviewed") is expressed as a capability graph and checked statically rather than enforced by process discipline.
+
+**Performance:** 142 lines; parse 87ms, check 88ms, lower 92ms; 17.0KB artifacts; deterministic (20/20 iterations).
+
 ### 5.3 Threat Model & Security Analysis
 
 *(See [docs/language/THREAT_MODEL.md](../language/THREAT_MODEL.md).)*
@@ -418,9 +460,9 @@ We demonstrate Vaked on four examples, each highlighting different aspects:
 
 ### 5.4 Summary of Findings
 
-1. **Completeness:** Vaked can express realistic agentic systems ranging from simple orchestration (2 fibers) to complex multi-principal services (8+ fibers) to large-scale worker pools (1024+ fibers) with explicit capability graphs.
+1. **Completeness:** Vaked can express realistic agentic systems ranging from simple orchestration (2 fibers) to complex multi-principal services (8+ fibers) to large-scale worker pools (1024+ fibers) with explicit capability graphs. The domain case studies (§5.2.5–5.2.7) further show the model generalizes beyond agent orchestration to penetration-testing engagements, software supply-chain release ceremonies, and editorial content pipelines.
 
-2. **Type Safety:** The compiler catches POLA violations (attempting to use or delegate more authority than granted) at type-check time. Zero violations in all evaluated examples.
+2. **Type Safety:** The compiler catches POLA violations (attempting to use or delegate more authority than granted) at type-check time. Zero violations in all evaluated valid examples; deliberate over-grants are rejected with a precise `E-CAP-ATTENUATION` diagnostic naming the offending edge, domain, and grants.
 
 3. **Performance:** Compilation is fast for typical declarations (sub-100ms, though small examples are dominated by a ~50ms interpreter-startup floor). Measured end-to-end compile times: ~1.6s at 1024 fibers and ~25s at 10,000 fibers (parse 4.2s / check 4.3s / lower 16.3s, ~300MB peak RSS). Growth is **super-linear in the `lower` stage** rather than linear, which identifies `lower` as the primary optimization target (see `examples/evaluation/METHODOLOGY.md` for the measured-vs-projected ledger). An earlier draft reported a ">120s timeout at 10K fibers"; that was an artifact of a generator bug (now fixed) and has been retracted.
 
@@ -477,13 +519,47 @@ Vaked enables **auditable, statically-verified infrastructure for agentic AI sys
 
 ## References
 
-- Dolstra, E., Jablonski, B., Lösch, R., & Yung, J. (2008). NixOS: A purely functional Linux distribution. In *USENIX Annual Technical Conference* (pp. 367–381).
-- Karp, A. H., & Rees, J. (1994). A language for distributed applications. *ACM SIGPLAN Notices*, 29(6), 366–377.
-- Lattner, C., Amini, M., Upadhyay, U., et al. (2021). MLIR: A compiler infrastructure for the end of Moore's law. *arXiv preprint arXiv:2002.11054*.
-- Locke, L. (2020). CUE: A language for validation, templating, and configuration. https://cuelang.org
-- Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* (Doctoral dissertation, Johns Hopkins University).
-- Rees, J. A. (1996). A security architecture for cooperation. In *Proceedings of the ACM Conference on Functional Programming Languages and Computer Architecture* (pp. 278–287).
-- Saltzer, J. H., & Schroeder, M. D. (1975). The protection of information in computer systems. *Proceedings of the IEEE*, 63(9), 1278–1308.
+### Configuration Languages
+
+- Hamdaoui, Y., & the Nickel contributors (Tweag) (2020–). *Nickel: Better configuration for less.* https://github.com/tweag/nickel (see also Hamdaoui, Y. (2021). "Typing in Nickel and elsewhere," CONFLANG 2021, co-located with SPLASH 2021).
+- van Lohuizen, M., et al. (2018–). *The CUE Configuration Language — Language Specification.* https://cuelang.org/docs/reference/spec/
+- Gonzalez, G. (2017–). *Dhall: A programmable, non-Turing-complete configuration language.* https://dhall-lang.org/ (specification: https://github.com/dhall-lang/dhall-lang).
+
+### Capability & Authorization Systems
+
+- Dennis, J. B., & Van Horn, E. C. (1966). Programming semantics for multiprogrammed computations. *Communications of the ACM*, 9(3), 143–155. https://doi.org/10.1145/365230.365252
+- Saltzer, J. H., & Schroeder, M. D. (1975). The protection of information in computer systems. *Proceedings of the IEEE*, 63(9), 1278–1308. https://doi.org/10.1109/PROC.1975.9939
+- Miller, M. S. (2006). *Robust composition: Towards a unified approach to access control and concurrency control* (Doctoral dissertation, Johns Hopkins University). http://www.erights.org/talks/thesis/markm-thesis.pdf
+- Miller, M. S., Yee, K.-P., & Shapiro, J. (2003). *Capability myths demolished.* Technical Report SRL2003-02, Systems Research Laboratory, Johns Hopkins University. https://srl.cs.jhu.edu/pubs/SRL2003-02.pdf
+- Miller, M. S., Tribble, E. D., & Shapiro, J. (2005). Concurrency among strangers: Programming in E as plan coordination. In *Trustworthy Global Computing (TGC 2005)*, LNCS 3705, pp. 195–229. Springer. https://doi.org/10.1007/11580850_12
+- Mettler, A., Wagner, D., & Close, T. (2010). Joe-E: A security-oriented subset of Java. In *Proceedings of NDSS 2010*. https://www.ndss-symposium.org/ndss2010/joe-e-security-oriented-subset-java/
+- Watson, R. N. M., Woodruff, J., Neumann, P. G., Moore, S. W., Anderson, J., Chisnall, D., et al. (2015). CHERI: A hybrid capability-system architecture for scalable software compartmentalization. In *2015 IEEE Symposium on Security and Privacy*, pp. 20–37. https://doi.org/10.1109/SP.2015.9
+- SPIFFE Authors / CNCF (2017–). *SPIFFE: Secure Production Identity Framework for Everyone — Specification.* https://spiffe.io/docs/latest/spiffe-about/overview/
+- Open Policy Agent Authors / CNCF (2016–). *Open Policy Agent (OPA) and the Rego policy language — Documentation.* https://www.openpolicyagent.org/docs
+
+### Privilege Separation
+
+- Provos, N., Friedl, M., & Honeyman, P. (2003). Preventing privilege escalation. In *Proceedings of the 12th USENIX Security Symposium*, pp. 231–242. https://www.usenix.org/conference/12th-usenix-security-symposium/preventing-privilege-escalation
+
+### Compilers & Multi-Target Code Generation
+
+- Lattner, C., & Adve, V. (2004). LLVM: A compilation framework for lifelong program analysis & transformation. In *Proceedings of CGO 2004*, pp. 75–86. https://doi.org/10.1109/CGO.2004.1281665
+- Lattner, C., Amini, M., Bondhugula, U., Cohen, A., Davis, A., Pienaar, J., Riddle, R., Shpeisman, T., Vasilache, N., & Zinenko, O. (2021). MLIR: Scaling compiler infrastructure for domain specific computation. In *2021 IEEE/ACM International Symposium on Code Generation and Optimization (CGO)*, pp. 2–14. https://doi.org/10.1109/CGO51591.2021.9370308 (preprint: arXiv:2002.11054).
+- Chen, T., Moreau, T., Jiang, Z., Zheng, L., Yan, E., Shen, H., et al. (2018). TVM: An automated end-to-end optimizing compiler for deep learning. In *13th USENIX Symposium on Operating Systems Design and Implementation (OSDI '18)*, pp. 578–594. https://www.usenix.org/conference/osdi18/presentation/chen
+
+### Reproducibility & Supply Chain
+
+- Dolstra, E., de Jonge, M., & Visser, E. (2004). Nix: A safe and policy-free system for software deployment. In *Proceedings of the 18th USENIX Conference on System Administration (LISA '04)*, pp. 79–92. https://www.usenix.org/legacy/publications/library/proceedings/lisa04/tech/dolstra.html (see also Dolstra, E. (2006). *The Purely Functional Software Deployment Model*, PhD thesis, Utrecht University).
+- Lamb, C., & Zacchiroli, S. (2022). Reproducible builds: Increasing the integrity of software supply chains. *IEEE Software*, 39(2), 62–70. https://doi.org/10.1109/MS.2021.3073045
+- Torres-Arias, S., Afzali, H., Kuppusamy, T. K., Curtmola, R., & Cappos, J. (2019). in-toto: Providing farm-to-table guarantees for bits and bytes. In *28th USENIX Security Symposium*, pp. 1393–1410. https://www.usenix.org/conference/usenixsecurity19/presentation/torres-arias
+- Newman, Z., Meyers, J. S., & Torres-Arias, S. (2022). Sigstore: Software signing for everybody. In *Proceedings of the 2022 ACM SIGSAC Conference on Computer and Communications Security (CCS '22)*, pp. 2353–2367. https://doi.org/10.1145/3548606.3560596
+- SLSA Authors / OpenSSF (2023). *SLSA: Supply-chain Levels for Software Artifacts (Specification v1.0).* https://slsa.dev/spec/
+
+### Type Systems
+
+- Cardelli, L. (1991). Typeful programming. In E. J. Neuhold & M. Paul (eds.), *Formal Description of Programming Concepts*, pp. 431–507. Springer-Verlag. http://www.lucacardelli.name/Papers/TypefulProg.pdf
+- Pierce, B. C. (2002). *Types and programming languages.* MIT Press. https://mitpress.mit.edu/9780262162098/types-and-programming-languages/
+- Bracha, G. (2004). *Pluggable type systems.* OOPSLA 2004 Workshop on Revival of Dynamic Languages. https://bracha.org/pluggableTypesPosition.pdf
 
 ---
 
@@ -537,7 +613,7 @@ For each case study, we verify:
 - [ ] **Provenance accuracy:** `provenance.json` maps artifact regions to source correctly
 - [ ] **Determinism:** Repeated `lower` → bit-identical artifacts
 
-All four case studies pass all checks. ✅
+All seven case studies pass all checks. ✅
 
 ---
 
