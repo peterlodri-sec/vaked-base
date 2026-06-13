@@ -115,7 +115,8 @@ schema hcp.control {
     producer_id:     uuid  @1   # Producer whose checkpoint is evicted
     consumer_id:     uuid  @2   # Consumer being evicted
     min_required_step: u64 @3   # Step at which the checkpoint was pinning
-    reason:          string @4  # Operator-supplied reason for audit trail
+    topology_epoch:  u64   @4   # Epoch fence (prevents replay across topology changes)
+    reason:          string @5  # Operator-supplied reason for audit trail
   }
 
   /// Terminal reply to any control-plane frame, on the same correlation id.

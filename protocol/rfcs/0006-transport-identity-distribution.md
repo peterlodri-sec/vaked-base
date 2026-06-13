@@ -120,12 +120,14 @@ certificate and made available to the frame layer.
   - Certificate is not expired.
   - Subject Alt Name (SAN) contains the SPIFFE ID URI.
 
-- **Frame-layer validation (MANDATORY):** The `HELLO` frame MUST carry the
-  initiator's trust domain (extracted from TLS SAN certificate). The responder
-  validates that the `HELLO` trust domain matches the TLS-authenticated trust
-  domain; a mismatch is a frame-level error (`REFUSE{trust-domain-mismatch}`).
-  This prevents downgrade attacks where an attacker could spoof a peer's trust
-  domain in the `HELLO` before TLS authentication is complete.
+- **Frame-layer validation (MANDATORY, ordered after TLS completion):** Only after
+  successful TLS peer validation, the responder processes the `HELLO` frame.
+  The `HELLO` frame MUST carry the initiator's trust domain (extracted from TLS
+  SAN certificate). The responder validates that the `HELLO` trust domain matches
+  the TLS-authenticated SPIFFE ID trust domain; a mismatch is a frame-level error
+  (`REFUSE{trust-domain-mismatch}`). This prevents downgrade attacks where an
+  attacker could spoof a peer's trust domain in the `HELLO` (TLS completion is
+  the ordering guarantee that prevents the race).
   
 - **Authoritative identity chain:** TLS layer validates the certificate; frame
   layer validates the trust domain field in `HELLO` against the TLS peer

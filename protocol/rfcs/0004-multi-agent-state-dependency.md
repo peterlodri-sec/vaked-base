@@ -409,8 +409,11 @@ Algorithm: compute_gc_floor(producer_uuid)
 - **Pagination:** For deployments with many downstream consumers (>1000), split
   the fetch into pages to avoid loading all checkpoints into memory at once.
   Configuration (from producer config or agent-supervisord policy):
-  - **Default page size:** 100 checkpoints per page (tunable)
+  - **Default page size:** 100 checkpoints per page (must be >= 10, <= 1000)
   - **Threshold:** Pagination triggered when active checkpoints > 1000
+  - **Bounds:** Prevent pathological values:
+    - Minimum page size: 10 (to ensure progress)
+    - Maximum page size: 1000 (to bound memory per page)
   - **Source:** Configured per-producer or per-supervisor via agent-supervisord config
   - **Maintain a running minimum** across all pages to compute GC floor
 - **Staleness and recomputation:** The set of active checkpoints may change during
@@ -508,6 +511,16 @@ catches any dynamic topology changes that might have slipped past the compiler.
 
 > An agent cannot transition to RUNNING until its direct dependency anchors
 > are validated against the last committed dependency state.
+
+**Enforcement (mandatory):** `agent-supervisord` MUST reject any attempt to
+transition an agent to RUNNING state without first:
+1. Running complete cold-start verification (§6.1) for all direct producer dependencies
+2. Confirming all anchors are valid (present in producer's eventd history)
+3. If any anchor fails verification, the agent MUST remain PAUSED(stale_dependency)
+
+This is non-negotiable: operators cannot force-resume agents with stale dependencies.
+Only explicit recovery actions (re-anchor via new ConsumerCheckpoint, rewind fold,
+or operator re-registration) can transition a paused agent back to RUNNING.
 
 Boot sequence (transitions owned by `agent-supervisord`):
 
