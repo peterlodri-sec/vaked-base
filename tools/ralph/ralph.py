@@ -17,6 +17,7 @@ import sys
 import time
 import urllib.request
 import urllib.error
+import urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -38,6 +39,7 @@ PURPOSE_PATH = os.path.join(HERE, "PURPOSE.md")
 DEFAULT_S1 = "qwen/qwen3-235b-a22b-thinking-2507"
 DEFAULT_S2 = "deepseek/deepseek-v4-flash"
 HOME_GH = "peterlodri-sec/vaked-base"   # tracks read issues from the home repo
+MASTODON_DEFAULT_BASE = "https://social.crabcc.app"   # private, self-hosted
 
 
 def read_purpose() -> str:
@@ -92,6 +94,40 @@ def _flush_langfuse() -> None:
             client.flush()
         except Exception:
             pass
+
+
+# ---------------------------------------------------------------------------
+# Optional Mastodon announcements — post a short decision summary to a private,
+# self-hosted instance. No-op unless MASTODON_ACCESS_TOKEN is set; all errors
+# swallowed (announcing must never break or fail the decision loop). Only a
+# summary (track + title + model + cost) is posted, never the full decision body.
+# ---------------------------------------------------------------------------
+
+
+def _announce_mastodon(track_name: str, n: int, title: str, model: str,
+                       cost: float) -> None:
+    token = os.environ.get("MASTODON_ACCESS_TOKEN")
+    if not token:
+        return
+    base = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
+    visibility = os.environ.get("MASTODON_VISIBILITY", "unlisted")
+    status = (
+        f"🪢 ralph · {track_name} — Decision #{n}\n"
+        f"{title}\n"
+        f"model {model} · ~${cost:.4f} · advisory (awaiting ratification)"
+    )
+    data = urllib.parse.urlencode({"status": status, "visibility": visibility}).encode()
+    req = urllib.request.Request(
+        base + "/api/v1/statuses", data=data, method="POST",
+        headers={"Authorization": "Bearer " + token,
+                 "Content-Type": "application/x-www-form-urlencoded",
+                 # one toot per decision id — safe against tick re-runs
+                 "Idempotency-Key": f"ralph-{track_name}-{n}"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+    except Exception as e:   # noqa: BLE001 — announcing is best-effort
+        print("mastodon announce failed (non-fatal): %s" % e, file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -598,6 +634,9 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
     # `events --replay` reconstructs total spend across stateless CI runs.
     append_event({"event": "decide", "track": track.name, "iteration": n,
                   "cost": cost, "total_cost": _events_total_cost() + cost})
+    # title = the text after "Decision #N: " on the entry's header line
+    title = entry.splitlines()[0].split(": ", 1)[-1]
+    _announce_mastodon(track.name, n, title, track.model, cost)
     print("decided #%d for %s (cost $%.4f): %s" % (n, track.name, cost,
                                                    entry.splitlines()[0]))
     return cost

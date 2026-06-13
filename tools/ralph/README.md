@@ -104,9 +104,25 @@ OpenAI-compatible inference host; `RALPH_API_KEY` takes precedence over
 runs one `decide --next-track` tick on a schedule (`0 */3 * * *`) and commits the
 appended log + `events.jsonl`. It is **safe to merge before secrets exist** — a
 **guard step skips the decision** (the job succeeds, doing nothing) whenever
-neither `OPENROUTER_API_KEY` nor `RALPH_API_KEY` is set. To enable the loop, add
-the repository secret (and optionally `RALPH_BASE_URL`/`RALPH_API_KEY` for a
-self-hosted endpoint). Run it on demand any time via **workflow_dispatch**.
+neither `OPENROUTER_API_KEY` nor `RALPH_API_KEY` is set. Run it on demand any
+time via **workflow_dispatch**.
+
+Secrets live in the **`ci` GitHub Environment** — the job declares
+`environment: ci`, which is what makes `secrets.*` resolve (environment secrets
+are invisible to jobs that don't reference the environment). To enable the loop,
+add `OPENROUTER_API_KEY` to that environment (and optionally
+`RALPH_BASE_URL`/`RALPH_API_KEY`, `LANGFUSE_*`, `MASTODON_ACCESS_TOKEN`). If the
+`ci` environment has required-reviewer protection rules, scheduled runs will wait
+for approval — clear those rules for the loop to run unattended.
+
+## Announcements (optional Mastodon)
+
+When `MASTODON_ACCESS_TOKEN` is set, each decision posts a short summary (track,
+title, model, ~cost — **not** the full body) to a Mastodon instance, defaulting
+to the private, self-hosted `https://social.crabcc.app` (override with
+`MASTODON_BASE_URL`; visibility via `MASTODON_VISIBILITY`, default `unlisted`).
+An `Idempotency-Key` of `ralph-<track>-<N>` makes re-runs safe. No-op without the
+token; posting failures are swallowed and never break the loop.
 
 ## Observability (optional Langfuse tracing)
 

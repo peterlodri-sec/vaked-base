@@ -1102,6 +1102,57 @@ def test_cmd_ratify_summary() -> None:
         assert "100%" in out   # 1 ratify / (1 ratify + 0 override)
 
 
+def test_announce_mastodon_noop_without_token() -> None:
+    """No MASTODON_ACCESS_TOKEN → no HTTP call, no exception (zero-config no-op)."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    orig = os.environ.pop("MASTODON_ACCESS_TOKEN", None)
+    try:
+        with mock.patch.object(ralph.urllib.request, "urlopen") as uo:
+            ralph._announce_mastodon("graph-concept", 1, "Split the LPG", "x/y", 0.004)
+            uo.assert_not_called()
+    finally:
+        if orig is not None:
+            os.environ["MASTODON_ACCESS_TOKEN"] = orig
+
+
+def test_announce_mastodon_posts_with_token() -> None:
+    """With a token set, POSTs to <base>/api/v1/statuses with a Bearer header and
+    a summary status; an HTTP failure is swallowed (never raises)."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    env = {"MASTODON_ACCESS_TOKEN": "tok", "MASTODON_BASE_URL": "https://m.example"}
+    captured = {}
+
+    class _Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"{}"
+
+    def fake_urlopen(req, timeout=None):
+        captured["url"] = req.full_url
+        captured["auth"] = req.headers.get("Authorization")
+        captured["body"] = req.data.decode()
+        return _Resp()
+
+    with mock.patch.dict(os.environ, env), \
+         mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake_urlopen):
+        ralph._announce_mastodon("graph-concept", 7, "Adopt Zoekt", "deepseek/x", 0.004)
+
+    assert captured["url"] == "https://m.example/api/v1/statuses"
+    assert captured["auth"] == "Bearer tok"
+    assert "graph-concept" in captured["body"] and "Decision" in captured["body"]
+    assert "Adopt+Zoekt" in captured["body"] or "Adopt%20Zoekt" in captured["body"]
+
+    # an HTTP error must be swallowed, not raised
+    with mock.patch.dict(os.environ, env), \
+         mock.patch.object(ralph.urllib.request, "urlopen",
+                           side_effect=RuntimeError("boom")):
+        ralph._announce_mastodon("t", 1, "x", "m", 0.0)   # must not raise
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 

@@ -27,6 +27,10 @@ permissions:
 jobs:
   decide:
     runs-on: ubuntu-latest
+    # Secrets (OPENROUTER_API_KEY, MASTODON_ACCESS_TOKEN, LANGFUSE_*, …) live in
+    # the `ci` GitHub Environment — the job MUST reference it or `secrets.*`
+    # resolves empty and the guard below skips every run.
+    environment: ci
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,6 +64,8 @@ jobs:
           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}   # optional: enables tracing
           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
           LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}   # optional: announces to social.crabcc.app
+          MASTODON_BASE_URL: ${{ secrets.MASTODON_BASE_URL }}          # optional: override instance URL
         run: |
           # Only pull the (heavy) langfuse extra when tracing is actually configured.
           EXTRA=""
