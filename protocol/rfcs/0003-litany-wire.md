@@ -309,7 +309,7 @@ The frame header is a record encoded under `hcpbin` canonicality (§4.2 of
 - `corr`: 16 raw bytes (RFC 4122 UUID in big-endian byte order); not length-prefixed.
 - `stream`: if present, encoded as LEB128 varint.
 - `seq`: if present, encoded as LEB128 varint.
-- `end`: bool field; if true (non-default), encoded as single byte `0x01`; if false (default), omitted entirely per RFC 0002 §6.2 default omission rule. Bools are always 0x00 or 0x01 per hcpbin canonicality when present.
+- `end`: bool field; if true (non-default), encoded as single byte `0x01`; if false (default), omitted entirely per RFC 0002 §6.2 default omission rule.
 - Optional fields (`stream`, `seq`, `end`) are **omitted** (not encoded at all) if absent or false.
 
 **Wire layer guarantees (§4.2 of [`0002-hcplang.md`](./0002-hcplang.md)):**
@@ -326,14 +326,10 @@ A decoder reading the header from `frame-bytes` MUST:
 2. Read 16-byte `corr` UUID.
 3. If next tag is @2, read `stream` (u64); otherwise stream is absent (None).
 4. If next tag is @3, read `seq` (u64 varint); @3 is only valid if @2 is present. If @2 is absent and @3 appears, it is a framing violation.
-5. If next tag is @4, read `end` (bool: 0x00 or 0x01); @4 is valid ONLY if one of:
-   - (a) Both @2 AND @3 are present (stream and seq both set), OR
-   - (b) @2 is absent (implying @3 is also absent — no streaming).
-   
-   Invalid @4 cases (framing violations):
-   - @4 appears after @2 but before @3 (stream set, seq not set, end set)
-   - @2 is present but @3 is absent AND @4 is present (contradicts single-shot invariant)
-   - Multiple @4 tags in same frame
+5. If next tag is @4, read `end` (bool: 0x00 or 0x01). **Normative rule:** @4 is valid if
+   and only if **both @2 AND @3 are present** (i.e., streaming frames only).
+   Single-shot frames (@2 absent) MUST NOT include @4. Out-of-order tags (@4 before
+   @2/@3), missing @3 when @2 is present, or multiple @4 tags are framing violations.
 6. Any tag > @4 begins the frame body (@1+ tags), not the header. Decoder has finished the header.
 7. Default values: if @2, @3, or @4 are absent, use stream=None, seq=None, end=false respectively (per RFC 0002 §6.2 default omission).
 
@@ -1533,7 +1529,7 @@ schema hcp.wire {
     max_frame:       u32        @2   # Max frame size receiver will accept (bytes); ≥ 65536
     schema_digests:  vec<hash>  @3   # Hashes of supported schemas (not including hcp.wire)
     capabilities:    vec<string>@4   # Optional feature flags: ["credit", "stream-pause", …]
-    trust_domain:    string     @5   # REQUIRED: SPIFFE trust domain (extracted from TLS SAN cert); MUST be present and validated by responder
+    trust_domain:    string     @5   # REQUIRED: SPIFFE trust domain (extracted from TLS SAN cert); MUST be present and validated by responder.
   }
 
   /// Responder → initiator: ack with negotiated values.

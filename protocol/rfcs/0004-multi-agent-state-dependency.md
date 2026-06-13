@@ -265,7 +265,7 @@ the consumer to emit one) under **both** periodic and on-demand conditions:
 **Default-if-absent (requires operator approval):** If a producer reaches **N×**
 the periodic threshold without receiving a checkpoint (consumer never caught up),
 it issues a **backpressure warning to eventd** and MUST await explicit operator
-action before dropping history. Default N = **10** (configurable per producer or
+action before dropping history. Default N = **10×** (configurable per producer or
 supervisor policy via agent-supervisord config; valid range: 2–100):
 - Lower values (2–5): Aggressive backpressure, quick warning for stuck consumers
 - Default (10): Balance detection latency vs. checkpoint latency variance
@@ -433,37 +433,30 @@ Algorithm: compute_gc_floor(producer_uuid)
   is truncated.
   
   **Atomic fence requirement (P1 architectural):** Recomputation and truncation
-  MUST be fenced against new consumer registrations. The producer MUST either:
-  1. **Freeze the registration set:** Hold a read-only lock on the active consumer
-     registry during recompute+truncate (single atomic operation), with explicit
-     timeout. Default timeout is **5 seconds** (tunable per producer config; valid
-     range: 1s–30s). Lock acquisition strategy:
-     - Attempt non-blocking lock first (fast path)
-     - If unavailable, wait with backoff (e.g., exponential backoff 10ms → 50ms)
-     - On timeout expiry, **abort compaction** without truncating
-     - Log timeout with [WARN] severity, including: lock holder (if known), active
-       registrations count, pending GC floor value
-     - Retry on next compaction cycle (automatic, no operator action needed)
-     
-     Lock timeout prevents indefinite wait if a registration is stuck; history
-     remains safely pinned by checkpoints until next retry.
+  MUST be fenced against new consumer registrations using **epoch-based freezing**
+  (the normative approach). Assign a monotonic registration epoch to each consumer
+  (increment on each new registration, persisted in producer durable state). During
+  GC floor recomputation:
+  1. Capture current_epoch from producer's epoch counter
+  2. Compute GC floor using only checkpoints with epoch ≤ current_epoch
+  3. Increment producer's epoch counter (blocks new registrations at higher epochs)
+  4. Truncate entries strictly below GC floor
+  5. Release the epoch lock (resume accepting new registrations at higher epochs)
   
-  2. **Epoch-fence the floor (preferred approach):** Assign a monotonic registration
-     epoch to each consumer (increment on each new registration, persisted in
-     producer durable state). During recompute:
-     - Capture current_epoch from producer's epoch counter
-     - Compute GC floor using only checkpoints with epoch ≤ current_epoch
-     - Increment producer's epoch counter (blocks new registrations at higher epochs)
-     - Truncate entries strictly below GC floor
-     - Release the epoch lock (resume accepting new registrations)
-     
-     Epochs are strictly ordered: epoch_N+1 may not be assigned until truncate
-     for epoch_N completes. No timeout needed (epoch fence is deterministic);
-     registration backlog queues at epoch boundary until truncate completes.
+  Epochs are strictly ordered: epoch_N+1 may not be assigned until truncate for
+  epoch_N completes. Registration backlog queues at epoch boundary until truncate
+  completes. No timeout needed (epoch fence is deterministic).
+  
+  **Alternative approach (implementation choice):** Implementations MAY use
+  read-only locks instead of epoch fences. Lock-based approach: Hold a read-only
+  lock on the active consumer registry during recompute+truncate with explicit
+  timeout (default 5s, range 1s–30s). On timeout, abort compaction; retry on
+  next cycle. See implementation guidance (Appendix A) for lock acquisition
+  strategy (non-blocking fast path, backoff, logging).
   
   Without this fence, a concurrent registration can race between recompute and
   truncate, allowing history to be deleted that a newly-registered consumer
-  depends on. This is a **silent data loss hazard** and MUST be prevented.
+  depends on. This is a **silent-data-loss hazard** and MUST be prevented.
   
   **Failure handling:** If compaction fails (fence timeout, disk error, epoch
   transition failure), the producer MUST:
@@ -604,12 +597,16 @@ Algorithm: verify_anchor_with_transitive(consumer, producer_uuid, anchored_step_
                                          max_depth=MAX_RECURSION_DEPTH)
 
 MAX_RECURSION_DEPTH = 256  // Default; prevent DoS via deep dependency chains
-                           // (max 256 agents in a chain; typical chains are ~5–10)
+                           // SAFETY RATIONALE: Typical production DAGs have depth ~5–10.
+                           // Assuming ~100ms verification per agent, 256 depth = ~25.6s
+                           // max verification latency (acceptable cold-start overhead).
+                           // Deeper DAGs (depth > 256) are rare; indicate design smell
+                           // (excessive layering). Limit prevents pathological topologies.
+                           //
                            // CONFIGURABLE: agent-supervisord may override via policy
-                           // Valid range: 10 (minimum, must allow at least deep chains)
-                           //               to 1000 (maximum, for complex topologies)
-                           // Deployments with deeper DAGs may increase limit; monitor
-                           // verification latency as limit grows
+                           // Valid range: 10 (minimum, shallow DAGs) to 1000 (complex)
+                           // Monitor: measure actual max depth in production; if
+                           // approaching limit, review topology design
 
 PASS 1 — Direct anchor verification:
 
