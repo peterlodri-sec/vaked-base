@@ -782,7 +782,9 @@ def test_decide_track_uses_track_model_both_stages() -> None:
         ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
         ralph.STATE_DIR = tmpdir
         try:
-            with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
+            # mock the announcer so a token in the env can't fire a live toot
+            with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call), \
+                 mock.patch.object(ralph, "_announce_mastodon"):
                 cost = ralph._decide_track(args, track, "key")
             # the decide event must be logged so --next-track can rotate
             last = ralph._last_decided_track()
