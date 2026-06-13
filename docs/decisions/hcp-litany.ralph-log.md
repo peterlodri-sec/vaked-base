@@ -73,3 +73,62 @@ Should the `hcpbin` canonical binary encoder/decoder for `.hcplang` types be the
 **Confidence**  
 **High** — the HCP architecture places `hcpbin` as the foundational encoding (RFC 0001, RFC 0002, RFC 0003). The `hcp-core.hcplang` schema exists and is ready to serve as the conformance target. No alternative can proceed without `hcpbin` while maintaining canonicality guarantees.
 
+**Ratified:** 2026-06-13 — @cabotage
+
+## 2026-06-13 — Decision #3: Language for the hcpbin encoder/decoder implementation
+- **Track:** hcp-litany · **Authored:** session-transcript-review
+- **Context snapshot:** HEAD 0a0a5ff, 8 open issues
+
+**Decision / question:**
+Should the `hcpbin` encoder/decoder be implemented in Zig directly, or as a portable C library with Zig bindings?
+
+**Options**
+- **A** — Zig directly. RFC 0002 §7 codegen mapping already targets Zig structs for the enforcement daemons. All daemons consuming `hcpbin` frames are Zig processes. No ABI boundary required.
+- **B** — Portable C library with Zig bindings. Adds an ABI layer and C toolchain dependency; enables non-Zig consumers. No non-Zig consumer is in scope for the HCP/Litany stack.
+
+**Recommendation**
+**Option A — Zig directly.**
+RFC 0002 §7 maps `.hcplang` types to Zig structs natively; implementing `hcpbin` in Zig means the encoder/decoder operates on the same types the codegen will produce. Adding a C binding layer introduces an ABI boundary, a separate test surface, and a C toolchain dependency with no stated benefit at this stage.
+
+**Risks**
+- Zig's standard library does not include NFC normalization. RFC 0002 §6.4 requires NFC normalization pinned to Unicode 15.1.0 for string canonicalization. A focused NFC implementation or a vendored unicode table will be required. This is a known, bounded dependency — track it explicitly in the implementation issue.
+
+**Next actions**
+1. Proceed with Zig for `protocol/hcpbin/`. Close the language fork left open in Decision #2 Next actions item 2.
+2. Open a tracking sub-task in the hcpbin implementation issue for the NFC normalization dependency (RFC 0002 §6.4).
+
+**Confidence**
+**High** — Zig is the native language of the HCP enforcement daemons (RFC 0002 §7). No cross-language consumers are planned. The only non-trivial dependency (NFC) is well-scoped and does not change the language choice.
+
+**Ratified:** 2026-06-13 — @cabotage
+
+## 2026-06-13 — Decision #4: Bootstrap path for hcpbin without a .hcplang compiler
+- **Track:** hcp-litany · **Authored:** session-transcript-review
+- **Context snapshot:** HEAD 0a0a5ff, 8 open issues
+
+**Decision / question:**
+How do we bootstrap the `hcpbin` encoder/decoder when no `.hcplang` compiler exists yet to generate Zig types from schemas?
+
+**Options**
+- **A** — Hand-code Zig structs from `hcp-core.hcplang` as the initial target. The compiler becomes milestone 2 and replaces hand-coded structs once it lands.
+- **B** — Build the `.hcplang` compiler first (RFC 0002 §7 codegen), then implement `hcpbin` against its output. Delays `hcpbin` and therefore all wire framing (RFC 0003) until the compiler is complete.
+- **C** — Use a runtime schema/reflection approach (no static types). Incompatible with RFC 0002's determinism and tamper-evidence requirements; non-canonical output is possible.
+
+**Recommendation**
+**Option A — Hand-code Zig structs from `hcp-core.hcplang`.**
+`hcp-core.hcplang` is small (five frame types, two enums, two shared types, one service) and stable. Hand-translating it to Zig structs is a one-time bounded effort that immediately unblocks `hcpbin` and Litany Wire framing. Option B would serialize two subsystem design cycles before any wire-level work can begin. Option C violates the canonicality invariant that the entire `eventd` tamper-evidence chain depends on.
+
+A schema digest constant (RFC 0002 §8) embedded in the Zig source can detect drift if `hcp-core.hcplang` evolves before the compiler replaces the hand-coded structs.
+
+**Risks**
+- Hand-coded Zig structs can diverge from `hcp-core.hcplang` if the schema is updated before the compiler lands. Mitigated by: (a) embedding the `hcp-core` schema digest (RFC 0002 §8) as a compile-time constant in `protocol/hcpbin/`; (b) keeping `hcp-core.hcplang` stable until compiler codegen is validated.
+
+**Next actions**
+1. In `protocol/hcpbin/`, create `schema_types.zig` with hand-coded Zig structs for all types in `hcp-core.hcplang`. Annotate each struct with its `.hcplang` tag numbers.
+2. Embed the `hcp-core` schema digest as a `comptime` constant and add a comment referencing RFC 0002 §8.
+3. After `hcpbin` lands and is tested, open the `.hcplang` compiler subsystem (its own design → plan → implementation cycle).
+
+**Confidence**
+**High** — the hand-coded bootstrap is the standard approach for new codecs bootstrapping ahead of codegen. The schema is small and stable. The schema digest guard provides a safety net against silent drift.
+
+**Ratified:** 2026-06-13 — @cabotage
