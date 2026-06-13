@@ -2,8 +2,9 @@
 
 > Nix materializes. This is the substrate.
 
-`vakedos` is the NixOS **base host** for a Vultr bare-metal **AMD EPYC, 196 GB
-ECC** box. It is the *materialization target*: the clean, well-tuned OS that a
+`vakedos` is the NixOS **base host** for a Vultr bare-metal **AMD EPYC 4345P**
+(Zen 5, 8c/16t @ 3.8 GHz, **128 GB ECC**, 2 × 1.9 TB NVMe). It is the
+*materialization target*: the clean, well-tuned OS that a
 Vaked runtime's emitted `nixosModules.<runtime>` (the OTP control plane + Zig
 enforcement daemons) will later be layered onto — see
 [`docs/language/0012-lowering.md`](../../docs/language/0012-lowering.md) §4.3 and
@@ -48,10 +49,11 @@ keeps the mirror from wedging at 100%.
   the NMI watchdog dropped. Trade-off: shallower C-states can *lower* peak
   single-core turbo (less power ceded by idle cores) — determinism over boost.
 - **Global `-march`**: `nixpkgs.hostPlatform` rebuilds the whole closure for the
-  host CPU. It is set to **`x86-64-v3`** (safe on every AMD EPYC). **Confirm the
-  CPU and bump `vakedCpuArch` to the exact `znverN` before relying on it** — a
-  too-new `-march` makes the box unbootable, and the rebuild bypasses the binary
-  cache (use `--build-on-remote`, below).
+  host CPU. Set to **`znver4`** — the 4345P is Zen 5, so this unlocks AVX-512 + Zen
+  tuning while staying within what every recent GCC accepts. Bump `vakedCpuArch`
+  to **`znver5`** only if the stdenv GCC is ≥ 14 (older GCC rejects the string and
+  the build fails). The rebuild bypasses the binary cache and, on 8 cores, the
+  first build is long — use `--build-on-remote` (below).
 
 ## Hard constraint: Vultr bare metal is **Legacy BIOS only**
 
@@ -63,7 +65,7 @@ PCBIOS** image — not EFI.
 
 This installs remotely over SSH: it kexecs the target into a NixOS installer,
 partitions via `disko.nix`, and installs `nixosConfigurations.vakedos`. The
-target needs **≥ 2 GB RAM** (the 196 GB box is fine) and **root SSH access**.
+target needs **≥ 2 GB RAM** (the 128 GB box is fine) and **root SSH access**.
 
 ### 1. Provision the box
 Rent the Vultr bare-metal EPYC. Boot Vultr's default Linux (or rescue) with a
@@ -90,13 +92,13 @@ flag them — that's expected). Edit before installing:
 - **SSH public key** — replace every `REPLACE-WITH-YOUR-SSH-PUBLIC-KEY` in
   `configuration.nix` with your real `ssh-ed25519 ...` key.
 
-- **`vakedCpuArch`** (only if relying on global `-march`) — confirm the CPU and
-  set the exact arch:
+- **`vakedCpuArch`** — already set to `znver4` for the confirmed EPYC 4345P
+  (Zen 5). Sanity-check the part and GCC on the box, then optionally bump to
+  `znver5`:
   ```sh
-  ssh root@<IP> 'lscpu | grep -E "Model name|Flags" | grep -o avx512f'  # Zen4/5?
+  ssh root@<IP> 'lscpu | grep "Model name"'   # expect EPYC 4345P
+  gcc --version                               # ≥14 → znver5 is safe to use
   ```
-  Leave `x86-64-v3` if unsure (safe everywhere); set `znver4`/`znver5` only for a
-  confirmed Zen 4/5 part.
 
 ### 3. Dry-build locally first (no hardware needed)
 From the repo root:
@@ -124,8 +126,8 @@ avoids shipping a giant closure over the wire.
 ```sh
 zpool status rpool            # mirror ONLINE, 0 errors
 zfs list                      # /nix /var /home /build /var/lib/vaked present
-free -g                       # ~196 GB
-nproc                         # full EPYC core count
+free -g                       # ~128 GB
+nproc                         # 16 (8c/16t)
 ras-mc-ctl --status           # ECC monitoring live (also: journalctl -u rasdaemon)
 systemctl status sshd         # up, key-only login works
 # membrane substrate

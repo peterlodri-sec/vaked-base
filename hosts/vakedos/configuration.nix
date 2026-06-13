@@ -1,6 +1,7 @@
 # hosts/vakedos/configuration.nix — the vakedos bare-metal base host.
 #
-# A Vultr bare-metal AMD EPYC box (196 GB ECC) tuned as the *membrane substrate*
+# A Vultr bare-metal AMD EPYC 4345P (Zen 5, 8c/16t @ 3.8 GHz, 128 GB ECC,
+# 2×1.9 TB NVMe) tuned as the *membrane substrate*
 # for the Vaked concept: "Nix materializes · OTP supervises · Zig enforces ·
 # eBPF testifies." The runtime materializes the Vaked membranes onto a daemon
 # roster (docs/runtime/README.md, docs/context/PROJECT_CONTEXT.md); those daemons
@@ -11,12 +12,13 @@
 { config, lib, pkgs, ... }:
 
 let
-  # MICROARCH (global -march). x86-64-v3 is SAFE on every AMD EPYC (Zen 1+,
-  # AVX2/FMA/BMI2). Confirm the box's CPU first (`lscpu`); only then bump to
-  # "znver4"/"znver5" — a too-new -march makes the system UNBOOTABLE (illegal
-  # instructions). This rebuilds the whole closure from source (no binary cache),
-  # so install with `nixos-anywhere --build-on-remote` to build on the EPYC.
-  vakedCpuArch = "x86-64-v3";
+  # MICROARCH (global -march). Confirmed CPU: EPYC 4345P (Zen 5) → AVX-512 capable.
+  # "znver4" unlocks AVX-512 + Zen tuning and is accepted by every recent GCC;
+  # bump to "znver5" only if the stdenv GCC is ≥14 (older GCC rejects the arch
+  # string and the whole build fails). This rebuilds the entire closure FROM
+  # SOURCE (no binary cache) — on 8 cores the first build is long, so install with
+  # `nixos-anywhere --build-on-remote` and let the EPYC build it, not your laptop.
+  vakedCpuArch = "znver4";
 in
 {
   imports = [
@@ -85,9 +87,9 @@ in
   powerManagement.cpuFreqGovernor = lib.mkDefault "performance";
 
   boot.kernelParams = [
-    # Cap the ZFS ARC at ~64 GiB — leave RAM for Nix builds + agent workloads
-    # rather than letting ZFS claim ~half of the 196 GB.
-    "zfs.zfs_arc_max=68719476736"
+    # Cap the ZFS ARC at ~32 GiB (~1/4 of 128 GB) — the from-source -march
+    # rebuild + agent workloads need RAM more than ZFS needs read cache.
+    "zfs.zfs_arc_max=34359738368"
     # Active P-state control for EPYC (briefing §III SRE strategy).
     "amd_pstate=active"
     # Low-latency / low-jitter profile (chosen tuning): cap idle to C1 so cores
@@ -191,16 +193,18 @@ in
   # === Nix: make the EPYC earn its keep as a build host ======================
   nix.settings = {
     experimental-features = [ "nix-command" "flakes" ];
-    # max-jobs = derivations built in parallel; "auto" = number of CPUs.
+    # Build parallelism for an 8-core/16-thread box doing GLOBAL -march (from-
+    # source world rebuilds = heavy, guaranteed parallel compiles on 128 GB).
+    # max-jobs = derivations in parallel ("auto" = 16 here); fills all threads
+    # even when individual packages build single-threaded.
     max-jobs = "auto";
-    # cores = NIX_BUILD_CORES, the parallelism *inside* one derivation.
-    # 0 means "use all available CPU cores" (per the Nix manual — this is also
-    # the Nix default; it is NOT 1 core). Combined with max-jobs=auto this can
-    # oversubscribe (≈ cpus × cpus threads); the usual risk is OOM from many
-    # parallel linkers, which the 196 GB ECC removes — so we let it use the whole
-    # box. If you ever see scheduler thrashing on huge parallel builds, cap it,
-    # e.g. max-jobs=8; cores=8 on a ~64-thread part.
-    cores = 0;
+    # cores = NIX_BUILD_CORES = parallelism INSIDE one derivation. (0 means "all
+    # cores" per the Nix manual — NOT 1 core — but max-jobs=auto × cores=0 ≈
+    # 16×16 = 256 concurrent compilers, which risks OOM on 128 GB during the
+    # from-source rebuild.) Cap at 2 → total ≈ 32 threads: good throughput,
+    # bounded memory. Flip to max-jobs=4; cores=4 for fewer-but-bigger builds,
+    # or cores=0 to use the whole box once you trust the headroom.
+    cores = 2;
     trusted-users = [ "root" "@wheel" ];
     http-connections = 50;
     substituters = [ "https://cache.nixos.org" ];
