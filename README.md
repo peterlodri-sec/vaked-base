@@ -6,6 +6,16 @@
 
 ## 📰 Recent news
 
+**2026-06-13 — `swe_af` runs for real.** The lowered `workflow swe_af`
+(`agentfield-swe.vaked` → `gen/workflow/swe_af.json`) is now executable: label an
+issue `agent` and a GitHub-Actions pipeline runs `plan → code → review → publish`,
+opening an advisory PR with every node testified to an [`eventd`](eventd) hash chain.
+POLA is preserved end-to-end — the [`swe-af`](vaked-agents/ci/swe-af/README.md) agent
+authors plan + code read-only (no GitHub token), and only the broker step writes
+(`gh pr create`). The intended `dev-cx53` control-panel deploy is a follow-up runbook;
+the GHA path is what's reachable and live. Design:
+[`docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md`](docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md).
+
 **2026-06-13 — the first end-to-end vertical slice landed ([#107](https://github.com/peterlodri-sec/vaked-base/pull/107)), one-shot by an agent.** A `network` egress membrane now goes declare → lower → load real eBPF → enforce → testify → verify. From the [PR disclaimer](https://github.com/peterlodri-sec/vaked-base/pull/107#issuecomment-4699358410):
 
 > New **CI-triggered** and **cron-triggered** agents now run inside GitHub Actions on this repo, and a **self-hosted control plane on `crabcc.app`** is starting to get plugged into the same loop. […] Most of this work was one-shot […] by **Claude Code** […]. Where the sandbox kernel refused the cgroup-BPF attach, the daemon reports it and falls back to the reference datapath rather than faking in-kernel enforcement.

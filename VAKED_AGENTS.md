@@ -27,6 +27,7 @@ runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE
 | **vaked-telebot** | Python long-poll daemon | Telegram getUpdates (crabcc.app) | `tools/telebot/` ([README](tools/telebot/README.md)) | `deepseek/deepseek-v4-flash` (free-form ask) | Interactive control surface in the `vaked` group: a `/menu` of scenarios (merge train · CI & PRs · trigger workflow · fleet & decisions) plus natural-language ask. Acting (workflow dispatch) gated to `TELEGRAM_ADMIN_IDS`; actions ledgered to `eventd`. |
 | **label-tagger** | adk-rust event | `pull_request`, `issues`, push to main, dispatch | [`vaked-agents/ci/label-tagger/`](vaked-agents/ci/label-tagger/) | `deepseek/deepseek-v4-flash` | Doc-grounded triage: labels PRs/issues from the live `.github/labels.yml` taxonomy, syncs GitHub milestones to GOALS.md phases, generates Keep-a-Changelog entries on push-to-main, optionally tags. Opt-out `no-auto-label`. |
 | **provost** | adk-rust scheduled | cron daily 06:00 UTC, dispatch | `vaked-agents/ci/provost/` ([README](vaked-agents/ci/provost/README.md)) | `deepseek/deepseek-v4-flash` | Product-owner / coordination: reconciles the project graph — derives epics from GOALS.md + specs and links child issues (native sub-issues), keeps the RFC index honest, backfills labels, assigns existing milestones. Advisory + safe-sync; new epics/issues/RFC stubs land in ONE coordination issue + PR. Opt-out `no-auto-coordinate`. |
+| **swe-af** | adk-rust event | `issues` labeled `agent` (owner-gated), dispatch | [`vaked-agents/ci/swe-af/`](vaked-agents/ci/swe-af/README.md) | `deepseek/deepseek-v4-flash` (`SWE_AF_CODE_MODEL` overridable) | Runs the lowered `workflow swe_af` (plan→code→review→publish) on GitHub Actions: the agent authors a plan + full-file changes (read-only, no GH token), the shell commits a `swe-af/issue-<n>` branch, the **pr-review** agent reviews, and the broker opens an advisory PR. Every node testified to an `eventd` hash chain. **Never auto-merges.** |
 
 Workflows: [`ralph-tracks.yml`](.github/workflows/ralph-tracks.yml) ·
 [`merge-train.yml`](.github/workflows/merge-train.yml) ·
@@ -39,7 +40,9 @@ Workflows: [`ralph-tracks.yml`](.github/workflows/ralph-tracks.yml) ·
 [`label-tagger.yml`](.github/workflows/label-tagger.yml) ·
 [`label-tagger-build.yml`](.github/workflows/label-tagger-build.yml) ·
 [`provost.yml`](.github/workflows/provost.yml) ·
-[`provost-build.yml`](.github/workflows/provost-build.yml)
+[`provost-build.yml`](.github/workflows/provost-build.yml) ·
+[`swe-af.yml`](.github/workflows/swe-af.yml) ·
+[`swe-af-build.yml`](.github/workflows/swe-af-build.yml)
 
 ## Proposed agents (roadmap)
 
