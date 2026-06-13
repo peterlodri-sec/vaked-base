@@ -138,6 +138,8 @@ certificate and made available to the frame layer.
   added as a P2 extension) for operator visibility. This is purely advisory; the
   TLS layer is the authority.
 
+![Cross-Host Trust Boundary with SPIFFE](../../docs/assets/diagrams/07_cross_host_trust.svg)
+
 ### 2.1 Subject taxonomy
 
 The subject token for an agent is its **`uuid` handle** (RFC 0004), **not** the
@@ -233,6 +235,8 @@ When a producer's history is rewound (RFC 0005 `RewindControl` applied):
 a consumer never receives the NATS notification (network partitioned, NATS
 broker down, subscription not yet open), it will discover the stale anchor on
 its next scheduled verification or on next restart (cold-start always verifies).
+
+![NATS Cross-Host Distribution](../../docs/assets/diagrams/10_nats_distribution.svg)
 
 ## 3. The boundary (normative)
 

@@ -794,6 +794,8 @@ framing. A slow consumer must never force the producer into unbounded buffering,
 and the mechanism must never wedge the *connection*: control frames and every
 other stream must keep making progress no matter how stalled any one stream is.
 
+![Flow Control Deadlock Prevention](../../docs/assets/diagrams/04_flow_control_deadlock.svg)
+
 This is deliberately scoped to the **connection**, not to every individual
 stream. Credit replenishment is a SHOULD (§8.1, §8.3(2)), so a receiver MAY leave
 a single stream **permanently un-replenished**. That is a *deliberate

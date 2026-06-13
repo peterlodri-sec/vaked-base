@@ -127,6 +127,8 @@ schema hcp.statedep {
 }
 ```
 
+![State Dependency Invariants](../../docs/assets/diagrams/05_state_dependency_invariants.svg)
+
 ## 3. Write-ahead discipline
 
 ### 3.1 Registration precedes consumption
@@ -274,6 +276,8 @@ may adjust via `agent-supervisord` policy (shorter for aggressive GC, longer for
 conservative anchoring). The constant is global, not per-edge.
 
 ## 5. Checkpoint & rewind worked example
+
+![Checkpoint and Rewind Flow](../../docs/assets/diagrams/08_checkpoint_rewind.svg)
 
 A producer P evolves from step 100 to step 120, with a downstream consumer C anchored
 at step 95 (which C has already folded into its committed state). The sequence shows:

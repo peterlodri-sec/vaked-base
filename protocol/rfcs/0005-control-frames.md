@@ -215,6 +215,8 @@ frame whose `topology_epoch` is not current is refused `stale_epoch`
 (epochs are supervisor-assigned, never caller-asserted — RFC 0004 §7),
 and an empty or non-resolving `target` is refused `unknown_target`.
 
+![Control Epoch Skew and Resolution](../../docs/assets/diagrams/06_control_epoch_skew.svg)
+
 ## 2. Rewind semantics
 
 2. **rewind** composes RFC 0004 machinery and nothing else: the supervisor
@@ -380,6 +382,8 @@ frame was refused. Common reasons:
 | `not_paused` | StepControl requested, but target is not in paused state | Pause the target first, or use ResumeControl to return to normal scheduling |
 | `invalid_interval` | SetIntervalControl with `interval_ms = 0` (the omitted default) | Provide a non-zero interval_ms |
 | `invalid_rewind` | RewindControl hash does not match the specified producer step | Verify the rewind target via oraclefd or eventd before retrying |
+
+![ControlRefusal Taxonomy](../../docs/assets/diagrams/09_control_refusal.svg)
 
 All refusals result in `applied = false` and no `control_action` logged to eventd.
 The refusal itself is not logged; only the operator's audit trail records that a
