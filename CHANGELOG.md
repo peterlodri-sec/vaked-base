@@ -83,9 +83,11 @@ All notable changes to Vaked are documented here. This project adheres to [Seman
 
 | Version | Target | Scope |
 |---------|--------|-------|
-| **v0.2** | 2026-10-31 | Zig daemon implementations (sandboxd, agent-guardd, eventd) with syscall enforcement |
-| **v0.3** | 2026-12-31 | eBPF policy layer for audit and enforcement |
-| **v1.0** | 2027-03-31 | Production hardening: Rust rewrite, formal verification, security audit |
+| **v0.2** | 2026-10-31 | **Compiler performance:** Reduce type-checking from O(n) to O(n log n) via capability indexing & caching. **Runtime:** Zig daemon implementations (sandboxd, agent-guardd, eventd) with syscall enforcement. *Expected: 10K-worker test 120s→5-10s.* |
+| **v0.3** | 2026-12-31 | **Compiler:** Incremental type checking, parallel lowering (2-4× speedup). **Runtime:** eBPF policy layer for audit and enforcement. *Expected: 1K-worker under 100ms total compile.* |
+| **v1.0** | 2027-03-31 | **Compiler:** Rust rewrite for true parallelism (10-20× speedup vs. Python). **Security:** Formal verification, machine-checked POLA proof. **Release:** Production hardening, stability guarantees, security audit. *Expected: 10K-worker test under 500ms.* |
+
+See [`docs/compiler/OPTIMIZATION_ROADMAP.md`](docs/compiler/OPTIMIZATION_ROADMAP.md) for detailed compiler optimization strategy.
 
 ---
 

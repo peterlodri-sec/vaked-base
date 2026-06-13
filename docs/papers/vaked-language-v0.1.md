@@ -434,20 +434,30 @@ We introduce **Vaked**, a language for declaring agentic systems as capability g
 
 ### 6.2 Future Work
 
-**Near-term (v0.2–v0.3, 6–12 months):**
+**Compiler Performance (v0.2–v0.3, Q3–Q4 2026):**
+- **Reduce type-checking complexity from O(n) to O(n log n):** Currently, the POLA use-check iterates all used capabilities against all granted capabilities (worst-case O(n²) with n principals). Optimization: build a sorted capability-domain index and use binary search; pre-compute capability partial orders at schema load time; cache attenuation checks across edges.
+- **Implement incremental type checking:** Only re-check fibers whose declarations changed; cached POLA verdicts for unchanged subgraphs.
+- **Parallel lowering:** Emitters for independent fibers (zig configs, catalogs) can run in parallel; potential 4–8× speedup on multi-core systems.
+- **Expected result:** 10K-worker example drops from >120s to ~5–10s; 1K example under 100ms total.
+
+**Runtime & Protocol (v0.2–v0.3, Q3–Q4 2026):**
 - Implement Zig daemons (sandboxd, agent-guardd, eventd) to realize runtime enforcement of the declared POLA topology.
 - Implement eBPF policy layer for syscall-level audit and enforcement.
-- Formalize the POLA soundness proof (currently informal; a formal machine-checked proof would strengthen claims).
 
-**Medium-term (v1.0, 2027):**
-- Rewrite vakedc in Rust for performance and safety.
+**Formalization (v0.3–v1.0, Q4 2026–Q1 2027):**
+- Formalize the POLA soundness proof (currently informal; a machine-checked proof in Coq or Lean would strengthen claims).
+- Prove lowering correctness (emitted artifacts preserve declared POLA topology).
+
+**Production Hardening (v1.0, 2027):**
+- Rewrite vakedc in Rust for performance and memory safety.
 - Security audit by external researchers.
-- Produce v1.0 with stability guarantees (breaking-change deprecation process).
+- Produce v1.0 with stability guarantees (semantic versioning, breaking-change deprecation process).
 
 **Long-term (Beyond v1.0):**
 - Integration with runtime observability (OTel integration).
 - Integration with credential/secrets management (Vault, Sops).
-- Formal verification of the lowering (proving that emitted artifacts satisfy the declared POLA).
+- Formal verification of the lowering (machine-checked proof that emitted artifacts satisfy declared POLA).
+- Extension to cloud-native systems (Kubernetes RBAC, AWS IAM policy synthesis from Vaked declarations).
 
 ### 6.3 Impact
 
