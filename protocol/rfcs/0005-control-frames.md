@@ -108,6 +108,16 @@ schema hcp.control {
     topology_epoch:  u64   @4
   }
 
+  /// ADMIN: Evict a stale consumer checkpoint from the GC floor computation.
+  /// Used when a consumer is dead or unresponsive and blocking garbage collection.
+  /// Logged to eventd as an explicit operator action for audit.
+  frame ConsumerCheckpointEvicted request {
+    producer_id:     uuid  @1   # Producer whose checkpoint is evicted
+    consumer_id:     uuid  @2   # Consumer being evicted
+    min_required_step: u64 @3   # Step at which the checkpoint was pinning
+    reason:          string @4  # Operator-supplied reason for audit trail
+  }
+
   /// Terminal reply to any control-plane frame, on the same correlation id.
   frame ControlAck response {
     applied:    bool            @1
@@ -117,11 +127,12 @@ schema hcp.control {
   }
 
   service ControlPlane {
-    call pause   (PauseControl)       -> ControlAck
-    call resume  (ResumeControl)      -> ControlAck
-    call slow    (SetIntervalControl) -> ControlAck
-    call step    (StepControl)        -> ControlAck
-    call rewind  (RewindControl)      -> ControlAck
+    call pause   (PauseControl)                -> ControlAck
+    call resume  (ResumeControl)               -> ControlAck
+    call slow    (SetIntervalControl)          -> ControlAck
+    call step    (StepControl)                 -> ControlAck
+    call rewind  (RewindControl)               -> ControlAck
+    call evict_checkpoint (ConsumerCheckpointEvicted) -> ControlAck
   }
 }
 ```
