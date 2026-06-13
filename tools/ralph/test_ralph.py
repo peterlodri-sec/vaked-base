@@ -1145,6 +1145,15 @@ def test_announce_mastodon_posts_with_token() -> None:
     assert captured["auth"] == "Bearer tok"
     assert "graph-concept" in captured["body"] and "Decision" in captured["body"]
     assert "Adopt+Zoekt" in captured["body"] or "Adopt%20Zoekt" in captured["body"]
+    # default visibility when unset
+    assert "visibility=unlisted" in captured["body"]
+
+    # an EMPTY MASTODON_VISIBILITY (what CI passes when the var is unset) must
+    # still fall back to unlisted, not post an empty visibility
+    with mock.patch.dict(os.environ, {**env, "MASTODON_VISIBILITY": ""}), \
+         mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake_urlopen):
+        ralph._announce_mastodon("t", 1, "x", "m", 0.0)
+    assert "visibility=unlisted" in captured["body"]
 
     # an HTTP error must be swallowed, not raised
     with mock.patch.dict(os.environ, env), \

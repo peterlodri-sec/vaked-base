@@ -110,7 +110,9 @@ def _announce_mastodon(track_name: str, n: int, title: str, model: str,
     if not token:
         return
     base = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
-    visibility = os.environ.get("MASTODON_VISIBILITY", "unlisted")
+    # `or` (not a .get default) so an empty env value — what CI passes when the
+    # var is unset — still falls back instead of posting an empty visibility.
+    visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
     status = (
         f"🪢 ralph · {track_name} — Decision #{n}\n"
         f"{title}\n"
