@@ -180,6 +180,84 @@ def _test_clear_step(lines):
     return ok
 
 
+def _test_report(lines):
+    import report
+    import xml.dom.minidom
+    ok = True
+    planned = [(90, "merge", "clean + CI green"), (112, "skip", "waiting on base"),
+               (118, "block_conflict", "needs human")]
+    repo = "peterlodri-sec/vaked-base"
+    text = report.build_text(repo, planned, "ACTIVE (opt-in)", {"pr": 90, "action": "merge"})
+    if "yardmaster:%s" % repo not in text or "#90" not in text or "#118" not in text:
+        ok = False
+        lines.append("  FAIL report: text missing header/cars")
+    cap = report.build_caption(repo, planned, "ACTIVE (opt-in)", None)
+    if len(cap) > report.MASTODON_MAX_CHARS or "yardmaster:%s" % repo not in cap:
+        ok = False
+        lines.append(f"  FAIL report: caption bad (len {len(cap)})")
+    svg = report.build_svg(repo, planned, "ACTIVE (opt-in)")
+    try:
+        xml.dom.minidom.parseString(svg)
+    except Exception as e:
+        ok = False
+        lines.append(f"  FAIL report: SVG not well-formed ({e})")
+    for n in (90, 112, 118):
+        if "#%d" % n not in svg:
+            ok = False
+            lines.append(f"  FAIL report: SVG missing car #{n}")
+    # render is best-effort: if a rasterizer is present it must produce a PNG.
+    png = report.render_png(svg)
+    if png is not None and not png.startswith(b"\x89PNG"):
+        ok = False
+        lines.append("  FAIL report: render_png returned non-PNG bytes")
+    raster = "PNG ok" if png else "no rasterizer here (text-only fallback)"
+    if ok:
+        lines.append(f"  PASS report: emoji text + ≤{report.MASTODON_MAX_CHARS}c caption + "
+                     f"well-formed SVG infographic ({raster})")
+    return ok
+
+
+_TINY_PNG = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+             "+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC")  # 1x1 transparent PNG
+
+
+def _test_sign(lines):
+    import base64
+    import shutil
+    import subprocess
+    import report
+    if not shutil.which("openssl"):
+        lines.append("  SKIP sign: openssl not available")
+        return True
+    ok = True
+    key = subprocess.run(["openssl", "genpkey", "-algorithm", "ed25519"],
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode()
+    os.environ["YARDMASTER_SIGNING_KEY"] = key
+    try:
+        img, m = report.finalize_image(base64.b64decode(_TINY_PNG),
+                                       "peterlodri-sec/vaked-base", "deadbeef00", "tally")
+        if not m.get("image_sha256"):
+            ok = False
+            lines.append("  FAIL sign: manifest missing image_sha256")
+        if m.get("alg") != "ed25519" or "sig" not in m or "pubkey" not in m:
+            ok = False
+            lines.append(f"  FAIL sign: not signed ({m.get('alg')})")
+        elif not report.verify_manifest(m):
+            ok = False
+            lines.append("  FAIL sign: valid signature did not verify")
+        else:
+            bad = dict(m, image_sha256="0" * 64)   # tamper the signed payload
+            if report.verify_manifest(bad):
+                ok = False
+                lines.append("  FAIL sign: tampered manifest verified")
+    finally:
+        os.environ.pop("YARDMASTER_SIGNING_KEY", None)
+    if ok:
+        lines.append("  PASS sign: ed25519 manifest over image_sha256 verifies; "
+                     "tamper rejected (compress+EXIF best-effort)")
+    return ok
+
+
 def run():
     lines = []
     ok = True
@@ -189,6 +267,8 @@ def run():
         ("plan (stacked hold)", _test_plan_stacked),
         ("ledger (eventd round-trip)", _test_ledger),
         ("control (one-shot step)", _test_clear_step),
+        ("report (infographic + text)", _test_report),
+        ("image (compress + exif + sign)", _test_sign),
     ]:
         lines.append(label + ":")
         ok &= fn(lines)
