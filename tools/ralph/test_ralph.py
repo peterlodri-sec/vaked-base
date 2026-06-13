@@ -161,6 +161,21 @@ def test_format_entry() -> None:
     assert result.endswith("\n"), "must end with newline"
 
 
+def test_format_entry_title_strips_inline_markdown() -> None:
+    """A bold label like '**Decision / question:**' must not leave a stray '**'
+    (or backticks) in the one-line header title."""
+    from ralphcore import format_entry
+    result = format_entry(
+        n=2, date="2026-06-13", repo="graph-concept", head="abc123", open_issues=0,
+        body="**Decision / question:** Should `memory` be a first-class primitive?\nmore",
+        s1="qwen", s2="deepseek/deepseek-v4-pro", subject_label="Track",
+    )
+    header = result.splitlines()[0]
+    assert header.startswith("## 2026-06-13 — Decision #2: ")
+    assert "**" not in header and "`" not in header, header
+    assert "Should memory be a first-class primitive?" in header
+
+
 # ---------------------------------------------------------------------------
 # Task 6 — Dashboard rendering
 # ---------------------------------------------------------------------------
