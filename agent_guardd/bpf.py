@@ -92,15 +92,26 @@ def compile_posture(default: str) -> bytes:
 
 @dataclass
 class LoadReport:
-    """The outcome of compiling + loading + attaching a membrane's posture."""
+    """The outcome of compiling + loading (+ probing attach of) a membrane's
+    posture program.
+
+    Honesty note: ``mechanism`` is ALWAYS ``"reference"`` in this slice. The
+    loaded program is the deny-by-default *posture* (drop/pass all egress); it is
+    not allow-set-aware, so it cannot be the live per-destination enforcer — the
+    reference datapath gates and testifies every connection. ``attach_capable``
+    records that ``BPF_PROG_ATTACH`` *would* succeed on this host (a probe that is
+    attached then immediately released); it never means the testified traffic was
+    enforced in-kernel. An allow-set-aware cgroup/skb program is the follow-up
+    that would flip ``mechanism`` to ``"ebpf-cgroup"``.
+    """
     available: bool                   # bpf() usable at all
     loaded: bool                      # BPF_PROG_LOAD accepted by the verifier
     prog_fd: int = -1
     insn_count: int = 0
     verdict: str = ""                 # "drop" / "pass" (the in-kernel posture)
     verifier_log: str = ""            # the kernel verifier's trace
-    attached: bool = False            # attached at the cgroup egress hook
-    mechanism: str = "reference"      # "ebpf-cgroup" if attached, else "reference"
+    attach_capable: bool = False      # BPF_PROG_ATTACH probe at INET_EGRESS succeeded
+    mechanism: str = "reference"      # the datapath that enforces + testifies
     cgroup: "str | None" = None
     detail: str = ""
 
@@ -111,9 +122,10 @@ class LoadReport:
             return "BPF_PROG_LOAD rejected (%s)" % self.detail
         head = ("cgroup/skb posture=%s loaded (fd %d, verifier: %d insns)"
                 % (self.verdict, self.prog_fd, self.insn_count))
-        if self.attached:
-            return head + "; attached at INET_EGRESS — in-kernel enforcement"
-        return head + "; attach refused (%s) — reference datapath enforces" % self.detail
+        probe = ("egress-attach capable" if self.attach_capable
+                 else "egress-attach refused")
+        return ("%s; %s; enforcement: reference datapath (posture is not "
+                "allow-set-aware)" % (head, probe))
 
 
 def load(prog: bytes, *, name: bytes = b"vaked_guard") -> "tuple[int, int, str]":
@@ -175,12 +187,13 @@ def detach(prog_fd: int, cgroup_dir: str) -> None:
 
 
 def load_membrane(membrane, *, try_attach: bool = True) -> LoadReport:
-    """Compile + load (and best-effort attach) a membrane's posture program.
+    """Compile + load the membrane posture program and probe the egress attach.
 
     Returns a :class:`LoadReport`; never raises on an expected kernel refusal.
-    ``mechanism`` is ``"ebpf-cgroup"`` only when the program is attached at the
-    egress hook (live in-kernel enforcement); otherwise ``"reference"`` and the
-    userspace datapath is authoritative.
+    ``mechanism`` is ``"reference"`` (the userspace datapath is authoritative for
+    this slice — see :class:`LoadReport`); ``attach_capable`` records only that
+    the host *permits* the cgroup egress attach (probed then released), never
+    that the testified traffic was enforced in-kernel.
     """
     prog = compile_posture(membrane.default)
     verdict = "pass" if membrane.default == "allow" else "drop"
@@ -211,12 +224,17 @@ def load_membrane(membrane, *, try_attach: bool = True) -> LoadReport:
         return report
     ok, err = attach(fd, cg)
     if ok:
-        report.attached = True
-        report.mechanism = "ebpf-cgroup"
+        # Probe only: prove the host permits the egress attach, then release.
+        # mechanism stays "reference" — the deny-all posture is not the live
+        # per-destination enforcer, so leaving it attached would wrongly drop
+        # the allow-set too. Testimony must reflect the datapath that actually
+        # gated the connection (the reference datapath), never this probe.
+        report.attach_capable = True
         report.cgroup = cg
-        detach(fd, cg)        # demo: prove attach, then release (no traffic capture here)
+        detach(fd, cg)
+        report.detail = "egress-attach probed OK, released (posture not allow-set-aware)"
     else:
-        report.detail = "attach EINVAL/errno %d (%s)" % (err, os.strerror(err))
+        report.detail = "attach refused (errno %d: %s)" % (err, os.strerror(err))
     try:
         os.rmdir(cg)
     except OSError:
@@ -243,6 +261,6 @@ def kernel_probe() -> dict:
     return {
         "bpf_available": rep.available,
         "cgroup_skb_loadable": rep.loaded,
-        "egress_attach": rep.attached,
+        "egress_attach": rep.attach_capable,
         "detail": rep.detail,
     }

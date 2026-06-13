@@ -172,22 +172,31 @@ def _test_forged_event(lines):
     policy = Policy(runtime="agent-egress", membranes=[m])
     with tempfile.TemporaryDirectory() as td:
         log = os.path.join(td, "log.jsonl")
-        # a well-chained but LYING event: claims allow for a denied destination
         with EventLog(log, writer=True) as el:
+            # (a) well-chained but LYING: claims allow for a denied destination.
             el.append(guardd.egress_event(
                 "agentEgress", "worker", "8.8.8.8", 53,
                 "allow", "forged", "reference", seq=0))
+            # (b) unknown principal: dest matches membrane 0's allow-set, so a
+            # silent fallback would wrongly accept it — strict binding must flag it.
+            el.append(guardd.egress_event(
+                "agentEgress", "intruder", "127.0.0.1", 9,
+                "allow", "forged", "reference", seq=1))
         v = verify_run(policy, log)
         if not v.chain_ok:
             ok = False
             lines.append("  FAIL forged: chain should be intact (the lie is in "
                          "the payload, not the hash)")
-        if v.held or not v.mismatches:
+        if v.held or len(v.mismatches) != 2:
             ok = False
-            lines.append("  FAIL forged: verify did not catch the policy mismatch")
+            lines.append(f"  FAIL forged: expected 2 mismatches, got {v.mismatches}")
+        if not any("no-policy-for-principal:intruder" in str(m[2]) for m in v.mismatches):
+            ok = False
+            lines.append("  FAIL forged: unknown-principal event not bound-checked "
+                         "(silent fallback to membrane 0)")
     if ok:
-        lines.append("  PASS forged: intact-chain but policy-violating event "
-                     "flagged as a conformance mismatch (membrane VIOLATED)")
+        lines.append("  PASS forged: policy-violating event AND unknown-principal "
+                     "event both flagged (membrane VIOLATED; principal binding holds)")
     return ok
 
 
@@ -233,18 +242,20 @@ def _test_bpf(lines):
         ok = False
         lines.append("  FAIL bpf: compile_posture bytecode wrong")
     rep = bpf.load_membrane(_membrane())
-    if rep.mechanism not in ("reference", "ebpf-cgroup"):
+    # mechanism is always "reference" in this slice (the posture is not
+    # allow-set-aware, so it never enforces the testified traffic in-kernel).
+    if rep.mechanism != "reference":
         ok = False
-        lines.append(f"  FAIL bpf: unexpected mechanism {rep.mechanism!r}")
+        lines.append(f"  FAIL bpf: mechanism must be 'reference', got {rep.mechanism!r}")
     detail = "reference (bpf unavailable here)"
     if rep.available and rep.loaded:
         if rep.verdict != "drop" or rep.insn_count < 2:
             ok = False
             lines.append(f"  FAIL bpf: loaded report inconsistent ({rep})")
-        detail = ("real cgroup/skb load, verifier-accepted; attach=%s"
-                  % ("in-kernel" if rep.attached else "refused→reference"))
+        detail = ("real cgroup/skb load, verifier-accepted; egress-attach %s"
+                  % ("capable (probed)" if rep.attach_capable else "refused"))
     if ok:
-        lines.append(f"  PASS bpf: posture bytecode exact; load_membrane → {detail}")
+        lines.append(f"  PASS bpf: posture bytecode exact; mechanism=reference; {detail}")
     return ok
 
 

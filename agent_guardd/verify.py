@@ -50,8 +50,11 @@ def verify_run(policy: Policy, log_path: str) -> VerifyReport:
             continue
         rep.n_events += 1
         principal = payload.get("principal", "")
-        membrane = policy.membrane_for(principal) or (
-            policy.membranes[0] if policy.membranes else None)
+        # Strict principal binding: an event whose principal has NO membrane is a
+        # mismatch, never silently evaluated against an unrelated membrane (that
+        # would let a forged `principal='intruder'` event pass whenever its
+        # destination happened to match membrane 0).
+        membrane = policy.membrane_for(principal)
         recorded = payload.get("action")
         host, port = payload.get("daddr"), payload.get("dport")
         if recorded == "allow":
@@ -60,7 +63,8 @@ def verify_run(policy: Policy, log_path: str) -> VerifyReport:
             rep.n_deny += 1
         if membrane is None:
             rep.mismatches.append((payload.get("attempt"), recorded,
-                                   "no-policy", "%s:%s" % (host, port)))
+                                   "no-policy-for-principal:%s" % principal,
+                                   "%s:%s" % (host, port)))
             continue
         expected, _reason = decide(membrane, host, int(port))
         if expected != recorded:
