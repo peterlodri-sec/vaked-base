@@ -43,6 +43,7 @@ HOME_GH = "peterlodri-sec/vaked-base"   # tracks read issues from the home repo
 MASTODON_DEFAULT_BASE = "https://social.crabcc.app"   # private, self-hosted
 MASTODON_MAX_CHARS = 470                # safety margin under Mastodon's 500
 ANNOUNCE_MODEL = "openai/gpt-oss-120b"  # writes the toot (separate from decide)
+ANNOUNCE_LOOKBACK = 5                   # how far back to retry un-announced decisions
 
 
 def read_purpose() -> str:
@@ -134,13 +135,27 @@ def _truncate(text: str, limit: int) -> str:
     return cut.rstrip() + "…"
 
 
+def _decision_link(track_name: str) -> str:
+    """Web link to the track's decision log (private repo — for the team)."""
+    if not HOME_GH or "/" not in HOME_GH:
+        return ""
+    return "https://github.com/%s/blob/main/docs/decisions/%s.ralph-log.md" % (
+        HOME_GH, track_name)
+
+
 def _generate_toot(track_name: str, n: int, title: str, model: str, cost: float,
                    api_key: str, base_url: "str | None") -> str:
     """Build the toot: a caveman body (gpt-oss when a key is set, else a
-    deterministic fallback) truncated to fit, plus code-controlled hashtags so
-    the post is ALWAYS valid and <= MASTODON_MAX_CHARS."""
-    suffix = "\n\n" + " ".join(_toot_hashtags(track_name))
-    budget = MASTODON_MAX_CHARS - len(suffix)
+    deterministic fallback), then a code-controlled tail — the decision id
+    ``[track#N]`` (grep back to the log), a link, and hashtags — so the post is
+    ALWAYS valid and <= MASTODON_MAX_CHARS regardless of what the model returns."""
+    did = f"{track_name}#{n}"
+    link = _decision_link(track_name)
+    tail = " [%s]" % did
+    if link:
+        tail += "\n" + link
+    tail += "\n\n" + " ".join(_toot_hashtags(track_name))
+    budget = MASTODON_MAX_CHARS - len(tail)
     body = ""
     if api_key:
         try:
@@ -151,29 +166,78 @@ def _generate_toot(track_name: str, n: int, title: str, model: str, cost: float,
                      "decision #%d · track '%s'\ntitle: %s\nmodel: %s · cost ~$%.4f\n"
                      "advisory — human must ratify." % (n, track_name, title, model, cost)}],
                 api_key=api_key, temperature=0.7, max_tokens=200, base_url=base_url,
-                span_name="ralph.toot",
-                span_meta={"track": track_name, "id": f"{track_name}#{n}"})
+                span_name="ralph.toot", span_meta={"track": track_name, "id": did})
             body = (_message_content(resp) or "").strip()
         except Exception as e:   # noqa: BLE001 — gen is best-effort; fall back
             print("[announce] toot generation failed (%s) — using fallback"
                   % type(e).__name__, file=sys.stderr)
     if not body:
-        body = "ralph pick top decision %s. #%d %s. human say yes-or-no." % (
-            track_name, n, title)
-    return _truncate(body, budget) + suffix
+        body = "ralph pick top decision %s. %s. human say yes-or-no." % (
+            track_name, title)
+    return _truncate(body, budget) + tail
 
 
-def _post_toot(host: str, token: str, text: str, visibility: str,
-               idem_key: str) -> dict:
-    """POST one status; raise on any non-2xx / network error (fail fast)."""
-    data = urllib.parse.urlencode({"status": text, "visibility": visibility}).encode()
-    req = urllib.request.Request(
-        host + "/api/v1/statuses", data=data, method="POST",
-        headers={"Authorization": "Bearer " + token,
-                 "Content-Type": "application/x-www-form-urlencoded",
-                 "Idempotency-Key": "ralph-" + idem_key})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+def _rate_limit_wait(exc, default: int = 5, cap: int = 60) -> int:
+    """Seconds to wait before retrying a 429, from Retry-After or Mastodon's
+    X-RateLimit-Reset (ISO-8601). Bounded by `cap` to keep fail-fast."""
+    headers = getattr(exc, "headers", None) or {}
+    ra = headers.get("Retry-After")
+    if ra:
+        try:
+            return min(cap, max(1, int(float(ra))))
+        except ValueError:
+            pass
+    reset = headers.get("X-RateLimit-Reset")
+    if reset:
+        try:
+            t = datetime.datetime.fromisoformat(reset.replace("Z", "+00:00"))
+            secs = (t - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+            return min(cap, max(1, int(secs)))
+        except (ValueError, TypeError):
+            pass
+    return default
+
+
+def _post_toot(host: str, token: str, text: str, visibility: str, idem_key: str,
+               *, language: str = "en", spoiler_text: "str | None" = None,
+               retries: int = 3) -> dict:
+    """POST one status, up to `retries` times. Honors Mastodon rate limiting
+    (429 → wait per Retry-After / X-RateLimit-Reset) and retries transient 5xx /
+    network errors with backoff; raises on the final failure (fail fast). The
+    same Idempotency-Key across attempts makes retries safe (no double-post)."""
+    fields = {"status": text, "visibility": visibility, "language": language}
+    if spoiler_text:
+        fields["spoiler_text"] = spoiler_text
+    data = urllib.parse.urlencode(fields).encode()
+    headers = {"Authorization": "Bearer " + token,
+               "Content-Type": "application/x-www-form-urlencoded",
+               "Idempotency-Key": "ralph-" + idem_key}
+    last: Exception | None = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(host + "/api/v1/statuses", data=data,
+                                         method="POST", headers=headers)
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            last = e
+            if attempt == retries - 1:
+                raise
+            if e.code == 429:
+                wait = _rate_limit_wait(e)
+                print("[announce] 429 rate-limited; wait %ds (attempt %d/%d)"
+                      % (wait, attempt + 1, retries))
+                time.sleep(wait)
+            elif 500 <= e.code < 600:
+                time.sleep(2 ** attempt)
+            else:
+                raise   # 4xx (bad request/auth) — don't retry
+        except urllib.error.URLError as e:
+            last = e
+            if attempt == retries - 1:
+                raise
+            time.sleep(2 ** attempt)
+    raise last   # pragma: no cover
 
 
 def _short_err(exc: Exception) -> str:
@@ -523,6 +587,34 @@ def _read_log(repo_name: str) -> str:
             return f.read()
     except FileNotFoundError:
         return "(none)"
+
+
+def _decision_block(track_name: str, n: int) -> str:
+    """The text of the `## … Decision #n: …` block in a track's log (for
+    sensitivity detection). Empty if not found."""
+    log = _read_log(track_name)
+    if not log or log == "(none)":
+        return ""
+    marker = "Decision #%d:" % n
+    for block in re.split(r"(?m)^(?=## )", log):
+        if marker in block.split("\n", 1)[0]:
+            return block
+    return ""
+
+
+_SENSITIVE_RE = re.compile(
+    r"\b(secret|credential|password|token|api[- ]?key|private[- ]?key|"
+    r"vuln(?:erability)?|exploit|cve|rce|leak|pii|security)\b", re.I)
+
+
+def _is_sensitive(text: str) -> bool:
+    """A decision is 'sensitive' if it touches security topics or is low
+    confidence — those get a Mastodon content warning (spoiler_text)."""
+    if not text:
+        return False
+    if _SENSITIVE_RE.search(text):
+        return True
+    return bool(re.search(r"confidence[:\s*]*\**\s*low", text, re.I))
 
 
 def _ratify_log_path(name: str) -> str:
@@ -1244,41 +1336,53 @@ def cmd_announce(args) -> int:
         print("[announce] no MASTODON_ACCESS_TOKEN set — nothing to announce")
         return 0
 
+    dry = getattr(args, "dry_run", False)
     events = load_events()
-    last = next((e["payload"] for e in reversed(events)
-                 if e.get("payload", {}).get("event") == "decide"
-                 and e["payload"].get("track")), None)
-    if not last:
-        print("[announce] no decision in the ledger — nothing to announce")
+    decides = [e["payload"] for e in events
+               if e.get("payload", {}).get("event") == "decide"
+               and e["payload"].get("track")]
+    announced_ids = {e["payload"].get("id") for e in events
+                     if e.get("payload", {}).get("event") == "announced"}
+
+    def _pid(p) -> str:
+        return "%s#%d" % (p["track"], int(p.get("iteration", 0)))
+
+    # Oldest un-announced within a small recent window: retries an outage's
+    # decisions in order (not just the latest), while bounding any first-enable
+    # backlog so we never flood-toot ancient history.
+    recent = decides[-ANNOUNCE_LOOKBACK:]
+    pending = [p for p in recent if _pid(p) not in announced_ids]
+    if not pending:
+        print("[announce] nothing new to announce")
         return 0
-    track = last["track"]
-    n = int(last.get("iteration", 0))
-    cost = float(last.get("total_cost", last.get("cost", 0.0)) or 0.0)
-    did = f"{track}#{n}"
-    if any(e.get("payload", {}).get("event") == "announced"
-           and e["payload"].get("id") == did for e in events):
-        print(f"[announce] {did} already announced — skip")
-        return 0
+    target = pending[0]
+
+    track = target["track"]
+    n = int(target.get("iteration", 0))
+    cost = float(target.get("total_cost", target.get("cost", 0.0)) or 0.0)
+    did = _pid(target)
 
     titles = _prior_titles(track)
-    title = titles[-1] if titles else "(decision)"
+    title = titles[n - 1] if 1 <= n <= len(titles) else (titles[-1] if titles else "(decision)")
     model = _track_model(args, track)
     toot = _generate_toot(track, n, title, model, cost,
                           _resolve_api_key(), getattr(args, "base_url", None))
     host = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
     visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
+    spoiler = ("ralph · sensitive decision (review before sharing)"
+               if _is_sensitive(_decision_block(track, n) or title) else None)
 
     # PII-safe debug BEFORE (no token; the body is what gets broadcast anyway).
-    print("[announce] -> host=%s id=%s chars=%d/%d visibility=%s"
-          % (host, did, len(toot), MASTODON_MAX_CHARS, visibility))
+    print("[announce] -> host=%s id=%s chars=%d/%d visibility=%s sensitive=%s"
+          % (host, did, len(toot), MASTODON_MAX_CHARS, visibility, bool(spoiler)))
     print("[announce] body |%s|" % toot)
 
-    if getattr(args, "dry_run", False):
+    if dry:
         print("[announce] --dry-run: not posting")
         return 0
 
     try:
-        resp = _post_toot(host, token, toot, visibility, did)
+        resp = _post_toot(host, token, toot, visibility, did, spoiler_text=spoiler)
     except Exception as exc:   # noqa: BLE001 — report loudly, fail the step
         print("[announce] AFTER: FAILED %s: %s"
               % (type(exc).__name__, _short_err(exc)), file=sys.stderr)
@@ -1293,6 +1397,155 @@ def cmd_announce(args) -> int:
     append_event({"event": "announced", "id": did, "track": track,
                   "iteration": n, "status_id": status_id})
     _close_announce_failure_issue()   # recovered — clear any open failure issue
+    return 0
+
+
+_URL_RE = re.compile(r"https?://\S+")
+
+
+def _mastodon_len(text: str) -> int:
+    """Mastodon counts every URL as 23 chars regardless of length — budget by
+    that so a post with links isn't over-truncated."""
+    return len(_URL_RE.sub("u" * 23, text))
+
+
+def _rnd_link(topic: str) -> str:
+    return ("https://arxiv.org/search/?searchtype=all&query="
+            + urllib.parse.quote(topic.strip()))
+
+
+def _activity_24h() -> str:
+    """Compact summary of the last ~24h of repo activity (commit subjects +
+    today's ralph decisions), for the recap generator."""
+    parts: list[str] = []
+    log = _run(["git", "log", "--since=24 hours ago", "--pretty=%s", "-n", "40"],
+               cwd=REPO_HOME)
+    commits = [ln for ln in (log or "").splitlines() if ln.strip()]
+    if commits:
+        parts.append("commits (%d): %s" % (len(commits), "; ".join(commits[:12])))
+    today = _today()
+    decisions: list[str] = []
+    try:
+        for fn in sorted(os.listdir(DECISIONS_DIR)):
+            if not fn.endswith(".ralph-log.md"):
+                continue
+            with open(os.path.join(DECISIONS_DIR, fn), encoding="utf-8") as f:
+                for ln in f:
+                    if ln.startswith("## ") and today in ln and "Decision #" in ln:
+                        decisions.append(ln.split(":", 1)[-1].strip())
+    except OSError:
+        pass
+    if decisions:
+        parts.append("ralph decisions today: %s" % "; ".join(decisions[:8]))
+    return "\n".join(parts) or "(quiet day — no commits or decisions)"
+
+
+_RECAP_SYS = (
+    "You are ralph's daily herald for a private dev community on Mastodon. Given "
+    "today's repo activity, write a CLEAR and genuinely FUNNY recap — witty, not "
+    "cringe, no emoji spam — in at most 220 characters. Then propose 3 SHORT R&D "
+    "topics (adjacent concepts / research directions worth reading), 2-5 words "
+    "each. Return JSON ONLY: {\"recap\": str, \"rnd\": [str, str, str]}."
+)
+_RECAP_SCHEMA = {
+    "type": "json_schema",
+    "json_schema": {"name": "recap", "strict": True, "schema": {
+        "type": "object",
+        "properties": {"recap": {"type": "string"},
+                       "rnd": {"type": "array", "items": {"type": "string"}}},
+        "required": ["recap", "rnd"]}}}
+
+
+def _generate_recap(activity: str, stats: str, api_key: str,
+                    base_url: "str | None") -> "tuple[str, list[str]]":
+    """(funny recap, [3 R&D topics]) from gpt-oss; deterministic fallback."""
+    if api_key:
+        try:
+            resp = openrouter_call(
+                ANNOUNCE_MODEL,
+                [{"role": "system", "content": _RECAP_SYS},
+                 {"role": "user", "content": activity + "\n\nStats: " + stats}],
+                api_key=api_key, temperature=0.8, max_tokens=400,
+                response_format=_RECAP_SCHEMA, base_url=base_url,
+                span_name="ralph.recap", span_meta={"kind": "daily-recap"})
+            data = json.loads(_message_content(resp) or "{}")
+            recap = (data.get("recap") or "").strip()
+            rnd = [t for t in (data.get("rnd") or []) if isinstance(t, str) and t.strip()]
+            if recap and rnd:
+                return recap, rnd[:3]
+        except Exception as e:   # noqa: BLE001 — fall back
+            print("[recap] generation failed (%s) — using fallback"
+                  % type(e).__name__, file=sys.stderr)
+    return ("ralph chewed on the repo all day so you didn't have to. %s" % stats,
+            ["capability-based security", "content-addressed storage", "effect systems"])
+
+
+def cmd_digest(args) -> int:
+    """The daily **recap** sub-announcer: once per day (around `RALPH_DIGEST_HOUR`,
+    default 23:00 UTC) post a funny summary of the last 24h of repo activity +
+    ratify stats + 3 R&D suggestion links. Self-gating via a dated `digest`
+    ledger event. Best-effort: a failure prints a CI ::warning::, never red."""
+    if getattr(args, "state_dir", None):
+        _apply_state_dir(args.state_dir)
+    if os.environ.get("MASTODON_ANNOUNCE", "").strip().lower() in ("0", "off", "false", "no"):
+        print("[digest] disabled via MASTODON_ANNOUNCE — skipping")
+        return 0
+    dry = getattr(args, "dry_run", False)
+    token = os.environ.get("MASTODON_ACCESS_TOKEN")
+    if not token and not dry:
+        print("[digest] no MASTODON_ACCESS_TOKEN set — skipping")
+        return 0
+
+    today = _today()
+    if any(e.get("payload", {}).get("event") == "digest"
+           and e["payload"].get("date") == today for e in load_events()):
+        print("[digest] already posted today — skip")
+        return 0
+    hour = datetime.datetime.now(datetime.timezone.utc).hour
+    try:
+        trigger_hour = int(os.environ.get("RALPH_DIGEST_HOUR", "23"))
+    except ValueError:
+        trigger_hour = 23
+    if not dry and hour < trigger_hour:
+        print("[digest] before digest hour (%d<%d UTC) — skip" % (hour, trigger_hour))
+        return 0
+
+    # Ratify stats line.
+    verdicts: list[str] = []
+    total_dec = 0
+    for t in C.load_tracks(args.tracks):
+        verdicts += [r["verdict"] for r in _read_ratify(t.name)]
+        total_dec += len(_prior_titles(t.name))
+    rate = C.ratify_rate(verdicts)
+    stats = "%d decisions total, ratify-rate %s" % (
+        total_dec, "n/a" if rate is None else "%d%%" % round(rate * 100))
+
+    recap, rnd = _generate_recap(_activity_24h(), stats,
+                                 _resolve_api_key(), getattr(args, "base_url", None))
+    rnd_line = " · ".join("%s %s" % (t.strip(), _rnd_link(t)) for t in rnd[:3])
+    fixed = (("\n\nR&D: " + rnd_line) if rnd_line else "") + "\n\n#vaked #ralph #recap"
+    body = _truncate(recap, MASTODON_MAX_CHARS - _mastodon_len(fixed))
+    toot = body + fixed
+    host = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
+    visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
+
+    print("[digest] -> host=%s masto_chars=%d/%d visibility=%s"
+          % (host, _mastodon_len(toot), MASTODON_MAX_CHARS, visibility))
+    print("[digest] body |%s|" % toot)
+    if dry:
+        print("[digest] --dry-run: not posting")
+        return 0
+
+    try:
+        resp = _post_toot(host, token, toot, visibility, "digest-" + today)
+    except Exception as exc:   # noqa: BLE001 — digest is best-effort (no red)
+        print("[digest] failed (non-fatal): %s" % type(exc).__name__, file=sys.stderr)
+        print("::warning title=ralph digest failed::%s posting digest to %s"
+              % (type(exc).__name__, host))
+        return 0
+    print("[digest] OK status_id=%s" % (resp or {}).get("id"))
+    append_event({"event": "digest", "date": today,
+                  "status_id": (resp or {}).get("id")})
     return 0
 
 
@@ -1376,6 +1629,15 @@ def main(argv: list[str] | None = None) -> int:
     p_announce.add_argument("--dry-run", action="store_true",
                             help="build + print the toot without posting")
     p_announce.set_defaults(func=cmd_announce)
+
+    p_digest = sub.add_parser("digest", parents=[common],
+                              help="post a once-daily ratify-rate digest toot")
+    p_digest.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
+    p_digest.add_argument("--state-dir", default=None,
+                          help="override state directory (default: tools/ralph/state/)")
+    p_digest.add_argument("--dry-run", action="store_true",
+                          help="build + print the digest without posting")
+    p_digest.set_defaults(func=cmd_digest)
 
     args = parser.parse_args(argv)
     try:

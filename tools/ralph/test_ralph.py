@@ -1261,6 +1261,220 @@ def test_cmd_announce_failure_reports_and_opens_issue() -> None:
         assert any("create" in c for c in gh_calls), gh_calls
 
 
+def test_generate_toot_has_id_and_link() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    toot = ralph._generate_toot("graph-concept", 7, "Adopt Zoekt", "deepseek/x",
+                                0.0, api_key="", base_url=None)
+    assert "[graph-concept#7]" in toot
+    assert "docs/decisions/graph-concept.ralph-log.md" in toot
+    assert len(toot) <= ralph.MASTODON_MAX_CHARS
+
+
+def test_is_sensitive() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    assert ralph._is_sensitive("must rotate the secret key")
+    assert ralph._is_sensitive("an RCE in the parser")
+    assert ralph._is_sensitive("Recommendation: ...\n- **Confidence:** low")
+    assert not ralph._is_sensitive("Adopt Zoekt. Confidence: high")
+    assert not ralph._is_sensitive("")
+
+
+def test_post_toot_language_and_spoiler() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    captured = {}
+
+    class _Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"{}"
+
+    def fake(req, timeout=None):
+        captured["body"] = req.data.decode()
+        return _Resp()
+
+    with mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake):
+        ralph._post_toot("https://m", "tok", "hi", "unlisted", "x",
+                         spoiler_text="cw")
+    assert "language=en" in captured["body"]
+    assert "spoiler_text=cw" in captured["body"]
+
+
+def test_post_toot_retries_on_429() -> None:
+    """A 429 is retried (honoring the wait) up to 3 times, then succeeds."""
+    import importlib
+    import unittest.mock as mock
+    import urllib.error
+    ralph = importlib.import_module("ralph")
+
+    class _Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b'{"id":"1"}'
+
+    err = urllib.error.HTTPError("u", 429, "Too Many", {"Retry-After": "0"}, None)
+    seq = [err, err, _Resp()]
+    state = {"i": 0}
+
+    def fake(req, timeout=None):
+        v = seq[state["i"]]
+        state["i"] += 1
+        if isinstance(v, Exception):
+            raise v
+        return v
+
+    with mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake), \
+         mock.patch.object(ralph.time, "sleep"):
+        out = ralph._post_toot("https://m", "tok", "hi", "unlisted", "x")
+    assert out == {"id": "1"} and state["i"] == 3
+
+
+def test_post_toot_no_retry_on_4xx() -> None:
+    """A 4xx (bad request/auth) is NOT retried — raised immediately."""
+    import importlib
+    import unittest.mock as mock
+    import urllib.error
+    ralph = importlib.import_module("ralph")
+    err = urllib.error.HTTPError("u", 401, "Unauthorized", {}, None)
+    state = {"i": 0}
+
+    def fake(req, timeout=None):
+        state["i"] += 1
+        raise err
+
+    with mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake), \
+         mock.patch.object(ralph.time, "sleep"):
+        try:
+            ralph._post_toot("https://m", "tok", "hi", "unlisted", "x")
+            assert False, "should have raised"
+        except urllib.error.HTTPError:
+            pass
+    assert state["i"] == 1
+
+
+def test_cmd_announce_retry_older_unannounced() -> None:
+    """Two un-announced decisions → the OLDER one is announced first (retry)."""
+    import importlib
+    import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prev = GENESIS_HASH
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            for i, n in enumerate((1, 2)):
+                e = make_entry(prev, i, {"event": "decide", "track": "graph-concept",
+                                         "iteration": n, "cost": 0.01, "total_cost": 0.01})
+                f.write(json.dumps(e) + "\n")
+                prev = e["hash"]
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        try:
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+                 mock.patch.object(ralph, "_generate_toot", return_value="t #ralph"), \
+                 mock.patch.object(ralph, "_run", return_value="[]"), \
+                 mock.patch.object(ralph, "_post_toot", return_value={"id": "1"}):
+                rc = ralph.cmd_announce(_announce_args(tmpdir))
+            events = ralph.load_events()
+        finally:
+            ralph.DECISIONS_DIR = orig
+        assert rc == 0
+        announced = [e["payload"]["id"] for e in events
+                     if e["payload"].get("event") == "announced"]
+        assert announced == ["graph-concept#1"], announced   # older first
+
+
+def test_cmd_announce_spoiler_for_sensitive_decision() -> None:
+    import importlib
+    import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        e = make_entry(GENESIS_HASH, 0, {"event": "decide", "track": "graph-concept",
+                                         "iteration": 1, "cost": 0.01, "total_cost": 0.01})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        with open(os.path.join(tmpdir, "graph-concept.ralph-log.md"), "w",
+                  encoding="utf-8") as f:
+            f.write("## 2026-06-13 — Decision #1: Rotate the secret key\n"
+                    "- **Recommendation:** rotate now\n")
+        captured = {}
+
+        def fake_post(host, token, text, vis, did, **kw):
+            captured.update(kw)
+            return {"id": "1"}
+
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        try:
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+                 mock.patch.object(ralph, "_generate_toot", return_value="t #ralph"), \
+                 mock.patch.object(ralph, "_run", return_value="[]"), \
+                 mock.patch.object(ralph, "_post_toot", side_effect=fake_post):
+                ralph.cmd_announce(_announce_args(tmpdir))
+        finally:
+            ralph.DECISIONS_DIR = orig
+        assert captured.get("spoiler_text"), captured
+
+
+def test_cmd_digest_self_gates_per_day() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    here = os.path.dirname(os.path.abspath(__file__))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        args = types.SimpleNamespace(state_dir=tmpdir, base_url=None,
+                                     tracks=os.path.join(here, "tracks.json"))
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        try:
+            # RALPH_DIGEST_HOUR=0 bypasses the end-of-day hour gate in tests
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "RALPH_DIGEST_HOUR": "0"}), \
+                 mock.patch.object(ralph, "_post_toot", return_value={"id": "d1"}) as post:
+                rc1 = ralph.cmd_digest(args)
+                rc2 = ralph.cmd_digest(args)   # same day → must skip
+        finally:
+            ralph.DECISIONS_DIR = orig
+        assert rc1 == 0 and rc2 == 0
+        assert post.call_count == 1, post.call_count
+        assert any(e["payload"].get("event") == "digest" for e in ralph.load_events())
+
+
+def test_mastodon_len_counts_urls_as_23() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    url = "https://arxiv.org/search/?searchtype=all&query=effect+systems+in+pl"
+    assert len(url) > 23
+    assert ralph._mastodon_len("abc " + url) == len("abc ") + 23
+
+
+def test_cmd_digest_recap_has_rnd_links() -> None:
+    """The recap toot carries 3 R&D arXiv links + #recap and fits Mastodon."""
+    import importlib
+    import io
+    import contextlib
+    ralph = importlib.import_module("ralph")
+    here = os.path.dirname(os.path.abspath(__file__))
+    with tempfile.TemporaryDirectory() as tmpdir:
+        args = types.SimpleNamespace(state_dir=tmpdir, base_url=None, dry_run=True,
+                                     tracks=os.path.join(here, "tracks.json"))
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                rc = ralph.cmd_digest(args)   # dry-run, no key → fallback recap
+        finally:
+            ralph.DECISIONS_DIR = orig
+        out = buf.getvalue()
+        assert rc == 0
+        assert out.count("https://arxiv.org/search") == 3
+        assert "#recap" in out
+
+
 def test_every_track_model_has_price() -> None:
     from ralphcore import load_tracks, FALLBACK_PRICES, Price
 
