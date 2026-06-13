@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 try:                                  # optional fast JSON — falls back to stdlib
     import orjson as _orjson
@@ -80,6 +80,10 @@ class Track:
     model: str
     label: str
     context: TrackContext
+    # Real issue-tracker labels this track scopes to (OR-union). Defaults to
+    # `[label]` in `load_tracks` when omitted; the historical single `label`
+    # (the `track:*` scheme) is kept only as that fallback. See `_issues_for_labels`.
+    issue_labels: list[str] = field(default_factory=list)
 
 
 def load_tracks(config_path: str) -> list[Track]:
@@ -89,16 +93,23 @@ def load_tracks(config_path: str) -> list[Track]:
     out: list[Track] = []
     for t in data["tracks"]:
         c = t.get("context", {})
+        label = t.get("label", "")
+        # Prefer the explicit real-label list; fall back to the single `label`
+        # so older configs (and tests) that only set `label` still scope.
+        issue_labels = list(t.get("issue_labels", []))
+        if not issue_labels and label:
+            issue_labels = [label]
         out.append(
             Track(
                 name=t["name"],
                 topic=t["topic"],
                 model=t["model"],
-                label=t.get("label", ""),
+                label=label,
                 context=TrackContext(
                     docs=list(c.get("docs", [])),
                     paths=list(c.get("paths", [])),
                 ),
+                issue_labels=issue_labels,
             )
         )
     return out

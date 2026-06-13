@@ -688,30 +688,50 @@ def _expand_doc_globs(patterns: list[str]) -> list[str]:
     return out
 
 
-def _track_issues(label: str) -> "tuple[list[dict], str]":
-    """Open issues in the home repo filtered by `label`. Falls back to all-open
-    (with a note) ONLY when the label filter itself fails (gh unavailable / the
-    label is unusable) — a successful-but-empty scoped result is preserved, so a
-    freshly-triaged label with zero issues stays scoped instead of pulling in
-    unrelated work. Returns (issues, note)."""
-    def _query(extra: list[str]) -> "list[dict] | None":
-        # None ⇒ gh unavailable / error; [] ⇒ a successful but empty result.
-        raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
-                    "--limit", "40", "--json", "number,title,body"] + extra,
-                   cwd=REPO_HOME)
-        if not raw:
-            return None
-        try:
-            return _loads(raw)
-        except json.JSONDecodeError:
-            return None
+def _query_open_issues(extra: list[str]) -> "list[dict] | None":
+    """One `gh issue list --state open` query. None ⇒ gh unavailable / error;
+    [] ⇒ a successful but empty result."""
+    raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
+                "--limit", "40", "--json", "number,title,body"] + extra,
+               cwd=REPO_HOME)
+    if not raw:
+        return None
+    try:
+        return _loads(raw)
+    except json.JSONDecodeError:
+        return None
 
-    if label:
-        issues = _query(["--label", label])
-        if issues is not None:
-            return issues, ""   # scoped result (even if empty) — keep it
-        return (_query([]) or []), f" (no usable {label} filter; showing all open)"
-    return (_query([]) or []), ""
+
+def _issues_for_labels(labels: list[str]) -> "tuple[list[dict], str]":
+    """Open home-repo issues scoped to the OR-union of `labels` (gh's repeated
+    `--label` ANDs, so we query per label and union by issue number). Falls back
+    to all-open (with a note) ONLY when EVERY label query fails (gh unavailable /
+    every label unusable) — a successful-but-empty scoped result is preserved, so
+    a freshly-triaged label scope with zero issues stays scoped instead of
+    pulling in unrelated work. Empty `labels` ⇒ all-open. Returns (issues, note),
+    issues sorted newest-first (number desc)."""
+    if not labels:
+        return (_query_open_issues([]) or []), ""
+
+    union: dict[int, dict] = {}
+    any_ok = False
+    for lab in labels:
+        res = _query_open_issues(["--label", lab])
+        if res is None:
+            continue                     # this label failed; try the others
+        any_ok = True
+        for it in res:
+            union[it["number"]] = it
+    if not any_ok:
+        # every label query failed → gh unusable → fall back to all-open
+        return (_query_open_issues([]) or []), " (no usable label filter; showing all open)"
+    issues = sorted(union.values(), key=lambda i: -i["number"])
+    return issues, ""
+
+
+def _track_issues(label: str) -> "tuple[list[dict], str]":
+    """Back-compat single-label scope (delegates to the OR-union helper)."""
+    return _issues_for_labels([label] if label else [])
 
 
 def gather_track_context(track: C.Track, git_log_window: int, compact: bool) -> str:
@@ -720,7 +740,7 @@ def gather_track_context(track: C.Track, git_log_window: int, compact: bool) -> 
     git log. compact=True trims for stage 1; full text for stage 2."""
     parts: list[str] = []
 
-    issues, note = _track_issues(track.label)
+    issues, note = _issues_for_labels(track.issue_labels)
     if issues:
         if compact:
             lines = [f"#{i['number']} {i['title']}" for i in issues]
@@ -752,17 +772,10 @@ def gather_track_context(track: C.Track, git_log_window: int, compact: bool) -> 
 
 
 def _open_track_issue_count(track: C.Track) -> int:
-    cmd = ["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
-           "--limit", "200", "--json", "number"]
-    if track.label:
-        cmd += ["--label", track.label]
-    raw = _run(cmd, cwd=REPO_HOME)
-    if not raw:
-        return 0
-    try:
-        return len(_loads(raw))
-    except (json.JSONDecodeError, TypeError):
-        return 0
+    """Count the issues actually shown to the track — the OR-union of its
+    `issue_labels` — so the `N open issues` header matches the scoped body."""
+    issues, _ = _issues_for_labels(track.issue_labels)
+    return len(issues)
 
 
 def _trace_generation(gen, model: str, resp: dict, meta: "dict | None",
