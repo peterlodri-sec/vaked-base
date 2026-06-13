@@ -525,6 +525,247 @@ def test_run_paused_ticks_without_deciding() -> None:
         assert verify_chain(entries), "chain must verify"
 
 
+# ---------------------------------------------------------------------------
+# M1 hardening — #57 flat-cost windowing / #58 O(1) append + fsync + boot verify
+# ---------------------------------------------------------------------------
+
+def test_window_log_caps_stage2_cost() -> None:
+    """#57: window_log bounds the stage-2 'prior decisions' block — past
+    keep_recent, growing the history must NOT grow the output (the PURPOSE.md
+    near-flat-cost bet). Stage-2 used to inject the entire ever-growing log."""
+    from ralphcore import window_log
+
+    def make_log(n: int) -> str:
+        # Fixed-size body (the index appears ONLY in the header, where windowing
+        # needs it) so the only length variation between sizes is digit-count in
+        # the kept headers + the elided span — isolating "O(1) in history".
+        head = "# Ralph decision log — t\n\n> advisory\n\n"
+        body = "".join(
+            f"## 2026-06-13 — Decision #{i}: title\n"
+            f"- **Track:** t · **Models:** stage1 m · stage2 m\n"
+            f"fixed body line\nmore fixed body\n\n"
+            for i in range(1, n + 1))
+        return head + body
+
+    # at or under the window → returned unchanged
+    small = make_log(5)
+    assert window_log(small, keep_recent=20) == small
+
+    w_med = window_log(make_log(100), keep_recent=20)
+    w_big = window_log(make_log(2000), keep_recent=20)
+    # only the last 20 entries survive either way; size differs by at most a few
+    # digits in the kept headers + the #lo–#hi span → O(1), not history-scaled.
+    assert abs(len(w_big) - len(w_med)) < 128, (
+        f"windowed size grew with history: {len(w_med)} vs {len(w_big)}")
+    # and it is far smaller than the raw log it replaces (the bug it fixes)
+    assert len(w_big) < len(make_log(2000)) // 10
+    # the surviving tail is the RECENT decisions; the old prefix is summarized
+    assert "Decision #2000:" in w_big and "Decision #1981:" in w_big
+    assert "Decision #1:" not in w_big and "Decision #1980:" not in w_big
+    assert "earlier decisions elided" in w_big
+
+    # a markdown sub-header INSIDE a decision body must NOT be treated as a
+    # decision boundary (guards the precise header regex vs a naive `^## ` split):
+    # 25 real decisions, each body carrying a `## Subsection` line → exactly 5
+    # elided, never miscounted by the 25 phantom sub-headers.
+    sub = "# log\n\n" + "".join(
+        f"## 2026-06-13 — Decision #{i}: t\n"
+        f"body\n## Subsection in body {i}\nmore body\n\n"
+        for i in range(1, 26))
+    w_sub = window_log(sub, keep_recent=20)
+    assert "[5 earlier decisions elided (#1–#5)]" in w_sub, w_sub
+    assert "Decision #6: t" in w_sub and "Decision #5: t" not in w_sub
+
+
+def _swap_state_dir(ralph, tmp):
+    """Save the 4 state-path globals, point them at tmp, return the originals."""
+    orig = (ralph.STATE_DIR, ralph.STATUS_PATH, ralph.CONTROL_PATH,
+            ralph.EVENTS_PATH)
+    ralph._apply_state_dir(tmp)
+    return orig
+
+
+def _restore_state_dir(ralph, orig):
+    (ralph.STATE_DIR, ralph.STATUS_PATH, ralph.CONTROL_PATH,
+     ralph.EVENTS_PATH) = orig
+    ralph._reset_writer_cache()
+
+
+def test_append_event_is_o1_no_rescan() -> None:
+    """#58: append_event must not re-read the whole log on every call (that made
+    a run of N appends O(N^2)). The single-writer head cache primes from one
+    verified read, then advances in memory — the log file is read at most once
+    across 50 appends (subsequent appends only stat it)."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    from ralphcore import verify_chain
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _swap_state_dir(ralph, tmp)
+        reads = {"n": 0}
+        real_read = ralph._event_byte_lines
+
+        def counting():
+            reads["n"] += 1
+            return real_read()
+
+        ralph._event_byte_lines = counting
+        try:
+            for i in range(50):
+                ralph.append_event({"i": i})
+        finally:
+            ralph._event_byte_lines = real_read
+            entries = ralph.load_events()
+            _restore_state_dir(ralph, orig)
+        assert reads["n"] <= 1, f"re-read the log {reads['n']}x (should prime once)"
+        assert len(entries) == 50, f"expected 50 entries, got {len(entries)}"
+        assert [e["seq"] for e in entries] == list(range(50)), "seqs 0..49"
+        assert verify_chain(entries), "chain must verify"
+
+
+def test_append_refuses_broken_chain_on_prime() -> None:
+    """#58: a stray append onto a tampered log (no boot gate first) must fail
+    loudly — the head cache primes from a VERIFIED read, never chaining a new
+    entry onto a broken/torn tail and silently forking the chain."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _swap_state_dir(ralph, tmp)
+        try:
+            ralph.append_event({"event": "decide", "i": 1})
+            ralph.append_event({"event": "decide", "i": 2})
+            lines = open(ralph.EVENTS_PATH, encoding="utf-8").read().splitlines()
+            bad = json.loads(lines[0])
+            bad["payload"]["i"] = 999          # tamper → stored hash now stale
+            lines[0] = json.dumps(bad)
+            with open(ralph.EVENTS_PATH, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            ralph._reset_writer_cache()
+            raised = False
+            try:
+                ralph.append_event({"event": "decide", "i": 3})
+            except ralph.EventLogTamper:
+                raised = True
+            assert raised, "append onto a tampered chain must raise EventLogTamper"
+        finally:
+            _restore_state_dir(ralph, orig)
+
+
+def test_append_event_fsyncs() -> None:
+    """#58: every append fsyncs (durability — a crash leaves at worst a torn
+    final line, recoverable, never a lost acknowledged append)."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _swap_state_dir(ralph, tmp)
+        fsyncs = {"n": 0}
+        real_fsync = os.fsync
+
+        def counting_fsync(fd):
+            fsyncs["n"] += 1
+            return real_fsync(fd)
+
+        os.fsync = counting_fsync
+        try:
+            ralph.append_event({"a": 1})
+            ralph.append_event({"a": 2})
+        finally:
+            os.fsync = real_fsync
+            _restore_state_dir(ralph, orig)
+        assert fsyncs["n"] >= 2, f"expected an fsync per append, got {fsyncs['n']}"
+
+
+def test_boot_recover_truncates_torn_tail() -> None:
+    """#58: a crash that tears the final write leaves an unparseable suffix;
+    _boot_recover_events truncates it to the valid prefix + a log_repair entry
+    so the chain verifies again (auto-recovery for a torn tail)."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    from ralphcore import verify_chain
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _swap_state_dir(ralph, tmp)
+        try:
+            ralph.append_event({"event": "decide", "i": 1})
+            ralph.append_event({"event": "decide", "i": 2})
+            # simulate a torn final write: a partial, unparseable trailing line
+            with open(ralph.EVENTS_PATH, "a", encoding="utf-8") as f:
+                f.write('{"seq":2,"prev":"deadbeef","payl')   # no newline
+            ralph._reset_writer_cache()
+            ralph._boot_recover_events()
+            entries = ralph.load_events()
+            assert verify_chain(entries), "repaired chain must verify"
+            assert len(entries) == 3, f"2 originals + repair, got {len(entries)}"
+            assert entries[-1]["payload"]["event"] == "log_repair"
+            assert entries[-1]["payload"]["dropped"] == 1
+            # a subsequent append chains cleanly off the repaired tail
+            e = ralph.append_event({"event": "decide", "i": 3})
+            assert e["seq"] == 3
+            assert verify_chain(ralph.load_events())
+        finally:
+            _restore_state_dir(ralph, orig)
+
+
+def test_boot_refuses_tampered_log() -> None:
+    """#58: a tamper (a well-formed entry whose payload was edited so its hash
+    no longer matches) is NOT auto-healed — it raises EventLogTamper and the
+    file is left untouched (the audit spine must stay intact)."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        orig = _swap_state_dir(ralph, tmp)
+        try:
+            ralph.append_event({"event": "decide", "i": 1})
+            ralph.append_event({"event": "decide", "i": 2})
+            ralph.append_event({"event": "decide", "i": 3})
+            lines = open(ralph.EVENTS_PATH, encoding="utf-8").read().splitlines()
+            mid = json.loads(lines[1])
+            mid["payload"]["i"] = 999          # edits the canonical payload
+            lines[1] = json.dumps(mid)
+            with open(ralph.EVENTS_PATH, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            before = open(ralph.EVENTS_PATH, encoding="utf-8").read()
+            ralph._reset_writer_cache()
+            raised = False
+            try:
+                ralph._boot_recover_events()
+            except ralph.EventLogTamper:
+                raised = True
+            assert raised, "tamper must raise EventLogTamper, not be healed"
+            after = open(ralph.EVENTS_PATH, encoding="utf-8").read()
+            assert before == after, "a tampered log must not be modified"
+        finally:
+            _restore_state_dir(ralph, orig)
+
+
+def test_run_refuses_tampered_log_rc4() -> None:
+    """#58 end-to-end: `ralph run` boot-verifies the chain and exits 4 on a
+    tampered event log instead of chaining new entries onto it."""
+    import subprocess
+    here = os.path.dirname(os.path.abspath(__file__))
+    from ralphcore import make_entry, GENESIS_HASH
+
+    with tempfile.TemporaryDirectory() as tmp:
+        events = os.path.join(tmp, "events.jsonl")
+        e0 = make_entry(GENESIS_HASH, 0, {"event": "decide", "i": 1})
+        e1 = make_entry(e0["hash"], 1, {"event": "decide", "i": 2})
+        e0_bad = dict(e0)
+        e0_bad["payload"] = {"event": "decide", "i": 999}   # hash now stale
+        with open(events, "w", encoding="utf-8") as f:
+            f.write(json.dumps(e0_bad) + "\n")
+            f.write(json.dumps(e1) + "\n")
+        r = subprocess.run(
+            [sys.executable, os.path.join(here, "ralph.py"), "run",
+             "--budget-total", "5", "--max-ticks", "1", "--interval", "0",
+             "--state-dir", tmp],
+            capture_output=True, text=True, cwd=here, timeout=30)
+        assert r.returncode == 4, f"expected rc=4, got {r.returncode}: {r.stderr}"
+        assert "refusing to run" in r.stderr
+
+
 def test_stage1_mission_preamble() -> None:
     from ralphcore import build_stage1_messages
     # no mission → system is just the stage-1 instruction

@@ -40,6 +40,12 @@ jobs:
           python3 tests/spec/run_all.py | tee spec-out.txt
           exit ${PIPESTATUS[0]}
 
+      # The ralph driver's unit suite (stdlib-only, offline — every network call
+      # is mocked). Guards the immutable event-log invariants (hash-chain, O(1)
+      # fsynced append, boot verify/repair) + flat-cost windowing (#57/#58).
+      - name: Run ralph unit tests
+        run: python3 tools/ralph/test_ralph.py
+
       - name: Publish spec results to step summary
         if: always()
         run: |
