@@ -135,6 +135,26 @@ def _truncate(text: str, limit: int) -> str:
     return cut.rstrip() + "…"
 
 
+def _strip_md(text: str) -> str:
+    """Mastodon renders plain text, NOT markdown — strip the markup that would
+    otherwise show as literal `**`, `#`, `` ` `` in the toot."""
+    if not text:
+        return ""
+    t = re.sub(r"```.*?```", "", text, flags=re.S)      # code fences
+    t = t.replace("**", "").replace("__", "").replace("`", "")
+    t = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", t)          # headings
+    t = re.sub(r"(?m)^\s{0,3}[-*+]\s+", "", t)           # bullets
+    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)       # [txt](url) → txt
+    return t.strip()
+
+
+def _clean_title(title: str) -> str:
+    """A clean, label-free one-line title for the toot."""
+    t = _strip_md(title)
+    t = re.sub(r"^\s*decision\s*/?\s*question\s*:?\s*", "", t, flags=re.I)
+    return " ".join(t.split()).strip()
+
+
 def _decision_link(track_name: str) -> str:
     """Web link to the track's decision log (private repo — for the team)."""
     if not HOME_GH or "/" not in HOME_GH:
@@ -150,6 +170,7 @@ def _generate_toot(track_name: str, n: int, title: str, model: str, cost: float,
     ``[track#N]`` (grep back to the log), a link, and hashtags — so the post is
     ALWAYS valid and <= MASTODON_MAX_CHARS regardless of what the model returns."""
     did = f"{track_name}#{n}"
+    title = _clean_title(title)
     link = _decision_link(track_name)
     tail = " [%s]" % did
     if link:
@@ -165,14 +186,18 @@ def _generate_toot(track_name: str, n: int, title: str, model: str, cost: float,
                  {"role": "user", "content":
                      "decision #%d · track '%s'\ntitle: %s\nmodel: %s · cost ~$%.4f\n"
                      "advisory — human must ratify." % (n, track_name, title, model, cost)}],
-                api_key=api_key, temperature=0.7, max_tokens=200, base_url=base_url,
+                api_key=api_key, temperature=0.7, max_tokens=800,
+                reasoning={"effort": "low"}, base_url=base_url,
                 span_name="ralph.toot", span_meta={"track": track_name, "id": did})
-            body = (_message_content(resp) or "").strip()
+            body = _strip_md((_message_content(resp) or "").strip())
+            if not body:
+                print("[announce] toot gen empty (finish=%s) — using fallback"
+                      % _finish_reason(resp), file=sys.stderr)
         except Exception as e:   # noqa: BLE001 — gen is best-effort; fall back
             print("[announce] toot generation failed (%s) — using fallback"
                   % type(e).__name__, file=sys.stderr)
     if not body:
-        body = "ralph pick top decision %s. %s. human say yes-or-no." % (
+        body = "ralph pick top decision for %s — %s. human say yes-or-no." % (
             track_name, title)
     return _truncate(body, budget) + tail
 
@@ -765,6 +790,28 @@ def _parse_candidates(text: "str | None") -> list:
         except (json.JSONDecodeError, AttributeError):
             pass
     return []
+
+
+def _parse_json_obj(text: "str | None") -> dict:
+    """Parse a JSON object from raw / fenced / prose-embedded text. {} if none."""
+    if not text:
+        return {}
+    for chunk in (text, _strip_fences(text)):
+        try:
+            obj = json.loads(chunk)
+            if isinstance(obj, dict):
+                return obj
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    m = _JSON_OBJ_RE.search(text)
+    if m:
+        try:
+            obj = json.loads(m.group(0))
+            if isinstance(obj, dict):
+                return obj
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    return {}
 
 
 def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
@@ -1523,14 +1570,19 @@ def _generate_recap(activity: str, stats: str, api_key: str,
                 ANNOUNCE_MODEL,
                 [{"role": "system", "content": _RECAP_SYS},
                  {"role": "user", "content": activity + "\n\nStats: " + stats}],
-                api_key=api_key, temperature=0.8, max_tokens=400,
-                response_format=_RECAP_SCHEMA, base_url=base_url,
-                span_name="ralph.recap", span_meta={"kind": "daily-recap"})
-            data = json.loads(_message_content(resp) or "{}")
-            recap = (data.get("recap") or "").strip()
-            rnd = [t for t in (data.get("rnd") or []) if isinstance(t, str) and t.strip()]
+                api_key=api_key, temperature=0.8, max_tokens=2000,
+                reasoning={"effort": "low"}, response_format=_RECAP_SCHEMA,
+                base_url=base_url, span_name="ralph.recap",
+                span_meta={"kind": "daily-recap"})
+            text = _message_content(resp) or _reasoning_text(resp) or "{}"
+            data = _parse_json_obj(text)
+            recap = _strip_md((data.get("recap") or "").strip())
+            rnd = [_strip_md(t) for t in (data.get("rnd") or [])
+                   if isinstance(t, str) and t.strip()]
             if recap and rnd:
                 return recap, rnd[:3]
+            print("[recap] gen empty (finish=%s) — using fallback"
+                  % _finish_reason(resp), file=sys.stderr)
         except Exception as e:   # noqa: BLE001 — fall back
             print("[recap] generation failed (%s) — using fallback"
                   % type(e).__name__, file=sys.stderr)
