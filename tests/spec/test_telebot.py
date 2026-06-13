@@ -121,8 +121,17 @@ def _test_workflow_dispatch_gated(lines):
     if not ops or "not authorized" not in ops[0].payload.get("text", ""):
         ok = False
         lines.append("  FAIL wf: non-admin should get a deny answer")
+    # GitHub unavailable → no dispatch op, an explicit 'unavailable' message (no false success)
+    ops = tb.handle_update(_cb("wf:nix-check", user=ADMIN), _ctx(github=None, train=None))
+    if any(o.kind == "dispatch" for o in ops):
+        ok = False
+        lines.append("  FAIL wf: dispatched despite GitHub being unavailable (false success)")
+    if not any("unavailable" in o.payload.get("text", "") for o in ops if o.kind == "message"):
+        ok = False
+        lines.append("  FAIL wf: should report 'unavailable' when GitHub is not configured")
     if ok:
-        lines.append("  PASS workflow dispatch: admin dispatches; non-admin is blocked (acting gate)")
+        lines.append("  PASS workflow dispatch: admin dispatches; non-admin blocked; "
+                     "no false success when GitHub unavailable")
     return ok
 
 

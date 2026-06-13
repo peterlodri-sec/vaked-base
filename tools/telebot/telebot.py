@@ -142,7 +142,7 @@ def _handle_message(u: Update, ctx: Ctx) -> list:
         return _deny(u)
     text = (u.text or "").strip()
     if text in ("/start", "/menu", "/help"):
-        body = ("🤖 *yardmaster control* — pick a scenario, or just ask me anything "
+        body = ("🤖 yardmaster control — pick a scenario, or just ask me anything "
                 "about the repo / fleet." if text != "/help" else
                 "Commands: /menu · or send a question. Buttons: train, CI, workflows, fleet.")
         return [Op("message", {"chat_id": u.chat_id, "text": body,
@@ -174,18 +174,21 @@ def _handle_callback(u: Update, ctx: Ctx) -> list:
         return [ack, Op("message", {"chat_id": u.chat_id, "text": _scenario_ci(ctx)})]
     if data == "fleet":
         return [ack, Op("message", {"chat_id": u.chat_id, "text": _scenario_fleet(ctx)})]
-    if data == "wf":
-        return [ack, Op("message", {"chat_id": u.chat_id,
-                                    "text": "⚙️ Which workflow?", "reply_markup": wf_markup()})]
-    if data.startswith("wf:"):
+    if data == "wf" or data.startswith("wf:"):
+        if ctx.github is None:          # no GitHub dispatch → don't pretend it worked
+            return [ack, Op("message", {"chat_id": u.chat_id,
+                                        "text": "⚠️ workflow dispatch unavailable "
+                                                "(GitHub not configured)"})]
+        if data == "wf":
+            return [ack, Op("message", {"chat_id": u.chat_id,
+                                        "text": "⚙️ Which workflow?", "reply_markup": wf_markup()})]
         key = data.split(":", 1)[1]
         wf = WORKFLOWS.get(key)
         if not wf:
             return [ack, Op("message", {"chat_id": u.chat_id, "text": "unknown workflow"})]
         return [ack,
-                Op("dispatch", {"workflow": wf[0], "ref": "main", "by": u.user_id, "key": key}),
-                Op("message", {"chat_id": u.chat_id,
-                               "text": "🚀 dispatched *%s* (%s) on main" % (wf[1], wf[0])})]
+                Op("dispatch", {"workflow": wf[0], "ref": "main", "by": u.user_id, "key": key,
+                                "label": wf[1], "chat_id": u.chat_id})]
     return [ack, Op("message", {"chat_id": u.chat_id, "text": "unknown action"})]
 
 
@@ -345,12 +348,14 @@ def _ledger(payload: dict) -> None:
 
 
 def execute(ops: list, token: str, gh_ops: "GitHubOps | None") -> None:
+    # NB: messages are sent as PLAIN TEXT (no parse_mode) — bodies carry arbitrary
+    # content (PR titles, commit subjects, LLM output) that would break Markdown
+    # parsing and make Telegram silently drop the message.
     for op in ops:
         if op.kind == "message":
             p = dict(op.payload)
             if "reply_markup" in p:
                 p["reply_markup"] = json.dumps(p["reply_markup"])
-            p.setdefault("parse_mode", "Markdown")
             _tg(token, "sendMessage", p)
         elif op.kind == "photo":
             p = dict(op.payload)
@@ -360,9 +365,22 @@ def execute(ops: list, token: str, gh_ops: "GitHubOps | None") -> None:
         elif op.kind == "answer":
             _tg(token, "answerCallbackQuery", op.payload)
         elif op.kind == "dispatch":
+            chat = op.payload.get("chat_id")
+            label = op.payload.get("label", op.payload["workflow"])
+            ok = False
             if gh_ops:
-                gh_ops.dispatch(op.payload["workflow"], op.payload.get("ref", "main"))
-            _ledger({"kind": "telebot_dispatch", **op.payload})
+                try:
+                    gh_ops.dispatch(op.payload["workflow"], op.payload.get("ref", "main"))
+                    ok = True
+                except Exception as e:      # noqa: BLE001
+                    if chat:
+                        _tg(token, "sendMessage", {"chat_id": chat,
+                            "text": "❌ dispatch of %s failed: %s" % (label, e)})
+            if ok:
+                _ledger({"kind": "telebot_dispatch", **op.payload})
+                if chat:
+                    _tg(token, "sendMessage", {"chat_id": chat,
+                        "text": "🚀 dispatched %s (%s) on main" % (label, op.payload["workflow"])})
 
 
 def _update_from(raw: dict) -> "Update | None":
