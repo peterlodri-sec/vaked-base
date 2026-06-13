@@ -44,16 +44,25 @@ keeps the mirror from wedging at 100%.
 
 ### Performance profile
 
-- **EPYC P-states**: `amd_pstate=active` + performance EPP.
-- **Low-latency / low-jitter**: idle capped to C1 (`processor.max_cstate=1`) and
-  the NMI watchdog dropped. Trade-off: shallower C-states can *lower* peak
-  single-core turbo (less power ceded by idle cores) — determinism over boost.
-- **Global `-march`**: `nixpkgs.hostPlatform` rebuilds the whole closure for the
-  host CPU. Set to **`znver4`** — the 4345P is Zen 5, so this unlocks AVX-512 + Zen
-  tuning while staying within what every recent GCC accepts. Bump `vakedCpuArch`
-  to **`znver5`** only if the stdenv GCC is ≥ 14 (older GCC rejects the string and
-  the build fails). The rebuild bypasses the binary cache and, on 8 cores, the
-  first build is long — use `--build-on-remote` (below).
+The full performance review and tuning knobs live in [`../../DEPLOY.md`](../../DEPLOY.md#performance-tuning).
+In brief:
+
+- **CPU / P-states**: `amd_pstate=active` + performance EPP; **low-jitter** idle
+  (`processor.max_cstate=1`, `nmi_watchdog=0`). Trade-off: shallower C-states can
+  *lower* peak single-core turbo — determinism over boost.
+- **Global `-march`**: `nixpkgs.hostPlatform` rebuilds the whole closure as
+  **`znver4`** (Zen 5 → AVX-512 + Zen tuning, GCC-portable). Bump `vakedCpuArch`
+  to **`znver5`** only if the stdenv GCC is ≥ 14. Bypasses the binary cache; on
+  8 cores the first build is long — use `--build-on-remote`.
+- **CPU/build parallelism**: `max-jobs=auto` × `cores=2` (≈32 threads) — caps the
+  per-build memory blowup that `cores=0` would risk on 128 GB.
+- **Storage (NVMe + ZFS)**: `/build` scratch is `sync=disabled` + `lz4` +
+  `recordsize=1M`; `auto-optimise-store` dedups; ARC capped at 32 GiB; TRIM +
+  weekly scrub.
+- **Network (25 Gbps)**: BBR + `fq` + 128 MiB socket buffers + `irqbalance`.
+- **Resilience**: `zramSwap` (≈32 GiB compressed) as an OOM net during builds.
+- **Deliberately NOT changed**: CPU `mitigations` stay **on** (this is a security
+  host); NUMA is single-node (nothing to pin); THP left at `madvise`.
 
 ## Hard constraint: Vultr bare metal is **Legacy BIOS only**
 

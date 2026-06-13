@@ -20,7 +20,8 @@ This repo is currently a **scaffold**: the language track is real design content
 | `docs/runtime/`, `daemons/` | Runtime daemon roster (OTP + Zig) — stub |
 | `docs/protocol/`, `protocol/` | HCP / Litany protocol + RFCs — stub |
 | `prompts/` | `dedicated-language-session.md` kickoff prompt |
-| `flake.nix` | Dev shell (Zig, BEAM/OTP, Rust for CrabCC, tooling) |
+| `hosts/` | `vakedos` bare-metal NixOS host — the materialization target (EPYC 4345P); deploy guide in [`DEPLOY.md`](DEPLOY.md) |
+| `flake.nix` | Dev shell (Zig, BEAM/OTP, Rust for CrabCC, tooling) + `nixosConfigurations.vakedos` |
 | `.mcp.json` | Project MCP servers |
 | `.claude/skills/` | `vaked-language-author`, `hcp-rfc-author` |
 
