@@ -148,9 +148,15 @@ Litany Wire gains a confidentiality layer *below* the Votive Frame framing and
   AES-256-GCM), keyed from the handshake. Integrity and confidentiality are now
   properties of the wire, so RFC 0003 §14.1's "assume a confidential substrate"
   becomes "defense in depth," not the only line.
-- **Transcript binding.** The responder signs the handshake transcript with its
-  ML-DSA SVID key (§4), binding identity to the freshly negotiated channel and
-  preventing downgrade/relay.
+- **Mutual transcript binding.** On a cross-host connection **both** peers sign
+  the handshake transcript with their ML-DSA SVID key (§4): the responder proves
+  its identity *and* the initiator proves possession of its SVID private key
+  before the connection is accepted. This preserves RFC 0006 §1.2's "mutual SVID
+  authentication before a byte of the frame is parsed" — a copied or observed
+  SVID certificate without the matching private key cannot reach the
+  `HELLO`/`preceptord` path as that principal — and binds both identities to the
+  freshly negotiated channel, preventing downgrade and relay. (For a local
+  single-peer connection the initiator signature MAY be omitted.)
 - **Negotiation.** A `crypto_suite` field in the preamble names the KEM, AEAD,
   and signature algorithms with explicit versions. An initiator that offers only
   classical suites is refused on cross-host connections
