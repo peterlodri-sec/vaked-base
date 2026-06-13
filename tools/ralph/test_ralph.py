@@ -1271,6 +1271,41 @@ def test_generate_toot_has_id_and_link() -> None:
     assert len(toot) <= ralph.MASTODON_MAX_CHARS
 
 
+def test_strip_md_and_clean_title() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    assert ralph._strip_md("**bold** `code`") == "bold code"
+    assert "#" not in ralph._strip_md("# Heading\ntext").split("\n")[0]
+    # inline # (issue refs / would-be hashtags) is preserved
+    assert "#17" in ralph._strip_md("land Epic #17 now")
+    assert ralph._clean_title(
+        "Decision / question: **Epic #17 sequencing**") == "Epic #17 sequencing"
+
+
+def test_generate_toot_strips_markdown() -> None:
+    """A markdown-laden title/body never leaks `**` into the toot."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    md_title = "Decision / question: **Adopt `Zoekt` for search**"
+    # fallback path
+    toot = ralph._generate_toot("graph-concept", 1, md_title, "x", 0.0,
+                                api_key="", base_url=None)
+    assert "**" not in toot and "`" not in toot
+    assert "Decision / question" not in toot
+    assert len(toot) <= ralph.MASTODON_MAX_CHARS
+
+
+def test_parse_json_obj_tolerant() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    obj = '{"recap": "hi", "rnd": ["a", "b"]}'
+    assert ralph._parse_json_obj(obj) == {"recap": "hi", "rnd": ["a", "b"]}
+    assert ralph._parse_json_obj("```json\n" + obj + "\n```") == {"recap": "hi", "rnd": ["a", "b"]}
+    assert ralph._parse_json_obj("prose " + obj + " more")["recap"] == "hi"
+    assert ralph._parse_json_obj("no json") == {}
+    assert ralph._parse_json_obj(None) == {}
+
+
 def test_is_sensitive() -> None:
     import importlib
     ralph = importlib.import_module("ralph")
