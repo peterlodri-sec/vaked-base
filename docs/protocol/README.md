@@ -31,7 +31,7 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 |------|---------|
 | SVID / SPIFFE ID | Per-agent transport identity; the SPIFFE ID is the canonical AgentId (resolves the RFC 0005 name→AgentId question via oraclefd) |
 | Trust domain | The SPIFFE root scoping one fleet's identities |
-| Subject | A NATS pub/sub address (`agent.<id>.rewind`); wildcard interest = O(1) fan-out matching |
+| Subject | A NATS pub/sub address (`agent.<id>.rewind`); wildcard interest = near-constant fan-out matching, no per-peer bookkeeping |
 | Fabric boundary | NATS carries notifications + proofs only; the hash-chained log stays the single source of truth |
 
 ### State dependency ([RFC 0004](../../protocol/rfcs/0004-multi-agent-state-dependency.md))

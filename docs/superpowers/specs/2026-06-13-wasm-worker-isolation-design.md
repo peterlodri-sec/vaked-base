@@ -56,7 +56,8 @@ state (table, globals, fuel remaining). A checkpoint is a snapshot of that.
 
 - **v0 — raw blob.** The snapshot is a raw linear-memory blob, written to the
   content-addressed arena and **referenced by `NodeId` from an eventd entry**
-  (never inlined — the RFC 0004 §1 rule: payloads reference arena `NodeId`s).
+  (never inlined — the eventd-design rule: an event payload references
+  arena `NodeId`s, not inline data).
   Simple and correct; a `RewindEvent` (RFC 0004 §3.3) to step N restores the
   worker to its byte-exact image as of N, *complementing* cold-start
   verification (§6): the supervisor restores the snapshot, then re-verifies

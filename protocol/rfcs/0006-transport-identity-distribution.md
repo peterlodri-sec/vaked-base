@@ -81,8 +81,8 @@ mid-epoch is normal and must not invalidate in-flight epoch-valid frames.
 | `agent.<id>.step` | step-progress notifications (optional, for surfaces) | publish per step |
 | `runtime.<rt>.control` | RFC 0005 control frames addressed to a runtime | request-reply |
 
-A supervisor subscribes `agent.*.rewind` — **wildcard interest gives O(1)
-matching with no cluster bookkeeping**: a cross-host consumer learns a producer
+A supervisor subscribes `agent.*.rewind` — **wildcard interest gives near-constant
+matching with no per-peer cluster bookkeeping**: a cross-host consumer learns a producer
 rewound without polling the producer's log. Request/response Votive Frames
 (RFC 0002 classes) ride NATS **request-reply**; events ride **subjects**.
 
