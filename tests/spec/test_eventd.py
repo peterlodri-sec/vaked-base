@@ -765,6 +765,26 @@ def _test_hardening(lines):
             ok = False
             lines.append("  FAIL repair: clean log should be a no-op")
 
+        # torn UTF-8 tail (crash mid-multibyte): undecodable bytes must be
+        # TamperError on boot (not UnicodeDecodeError traceback) and repairable
+        p3 = os.path.join(tmp, "h3.jsonl")
+        with EventLog(p3, writer=True) as log:
+            log.append({"agent": "a", "msg": "café"})   # non-ASCII payload
+        n3 = len(EventLog(p3))
+        with open(p3, "ab") as f:
+            f.write(b'{"seq":9,"payload":{"x":"caf\xc3')   # torn mid-é
+        try:
+            EventLog(p3)
+            ok = False
+            lines.append("  FAIL repair: torn UTF-8 tail did not refuse")
+        except TamperError:
+            pass
+        r3 = repair_truncate_tail(p3)
+        if not (r3["repaired"] and r3["dropped"] == 1
+                and len(EventLog(p3)) == n3 + 1):
+            ok = False
+            lines.append(f"  FAIL repair: torn UTF-8 tail not repaired: {r3}")
+
         if ok:
             lines.append("  hardening: floor --explain pinners, prune_evicted "
                          "reclaims without changing floor, repair drops torn "

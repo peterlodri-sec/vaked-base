@@ -32,27 +32,36 @@ class WriterLockError(Exception):
     """A second writer tried to open the log (single-writer discipline)."""
 
 
+def _byte_lines(path: str) -> list[bytes]:
+    """Non-empty raw byte lines of the log. Byte-oriented on purpose: a crash
+    that tears the final line mid-multibyte leaves an incomplete UTF-8
+    sequence (entries are raw UTF-8), and strict text iteration would raise
+    ``UnicodeDecodeError`` before the caller can treat the torn line as the
+    start of the unverifiable suffix. Reading bytes defers decoding to the
+    per-line ``try`` so a bad byte sequence is handled, not a traceback."""
+    with open(path, "rb") as f:
+        return [ln for ln in f.read().split(b"\n") if ln.strip()]
+
+
 def load_entries(path: str) -> list[dict]:
     """Read a JSONL log into entries (empty if the file is missing).
 
-    A syntactically malformed line (crash torn-write, byte-level tamper) is
-    the same broken audit spine as a hash mismatch and raises ``TamperError``
-    through the same refusal path — never a raw ``JSONDecodeError``."""
+    A malformed line — bad JSON OR an undecodable (torn-UTF-8) byte sequence,
+    from a crash torn-write or byte-level tamper — is the same broken audit
+    spine as a hash mismatch and raises ``TamperError`` through the same
+    refusal path, never a raw ``JSONDecodeError`` / ``UnicodeDecodeError``."""
     try:
-        with open(path, encoding="utf-8") as f:
-            entries = []
-            for n, line in enumerate(f, 1):
-                if not line.strip():
-                    continue
-                try:
-                    entries.append(json.loads(line))
-                except json.JSONDecodeError as e:
-                    raise TamperError(
-                        f"{path}:{n}: malformed log line — broken audit "
-                        f"spine") from e
-            return entries
+        raw = _byte_lines(path)
     except FileNotFoundError:
         return []
+    entries = []
+    for n, line in enumerate(raw, 1):
+        try:
+            entries.append(json.loads(line.decode("utf-8")))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            raise TamperError(
+                f"{path}:{n}: malformed log line — broken audit spine") from e
+    return entries
 
 
 def _longest_valid_prefix(path: str) -> list[dict]:
@@ -62,22 +71,19 @@ def _longest_valid_prefix(path: str) -> list[dict]:
     prefix = []
     prev = GENESIS_HASH
     try:
-        f = open(path, encoding="utf-8")
+        raw = _byte_lines(path)
     except FileNotFoundError:
         return []
-    with f:
-        for line in f:
-            if not line.strip():
-                continue
-            try:
-                e = json.loads(line)
-            except json.JSONDecodeError:
-                break
-            if (e.get("seq") != len(prefix) or e.get("prev") != prev
-                    or e.get("hash") != chain_hash(prev, e.get("payload", {}))):
-                break
-            prefix.append(e)
-            prev = e["hash"]
+    for line in raw:
+        try:
+            e = json.loads(line.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            break   # torn/undecodable line ⇒ start of the unverifiable suffix
+        if (e.get("seq") != len(prefix) or e.get("prev") != prev
+                or e.get("hash") != chain_hash(prev, e.get("payload", {}))):
+            break
+        prefix.append(e)
+        prev = e["hash"]
     return prefix
 
 
@@ -108,8 +114,7 @@ def repair_truncate_tail(path: str) -> dict:
             f"(single-writer discipline)") from e
     try:
         prefix = _longest_valid_prefix(path)
-        raw = [ln for ln in open(path, encoding="utf-8") if ln.strip()]
-        dropped = len(raw) - len(prefix)
+        dropped = len(_byte_lines(path)) - len(prefix)   # byte-oriented count
         if dropped <= 0:
             return {"repaired": False, "dropped": 0, "tail_seq": None}
         prev = prefix[-1]["hash"] if prefix else GENESIS_HASH
