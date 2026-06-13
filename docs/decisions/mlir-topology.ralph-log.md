@@ -26,3 +26,28 @@ Next actions:
 
 Confidence: high
 
+## 2026-06-13 — Decision #2: Decision / question: Should memoryd (from 0014) and the Track‑D control plane (#
+- **Track:** mlir-topology · **Models:** stage1 mimo-v2.5 · stage2 deepseek-v4-pro
+- **Context snapshot:** HEAD 74e3092, 8 open issues
+
+**Decision / question:** Should `memoryd` (from 0014) and the Track‑D control plane (#20) formally block on the `eventd` arena snapshot API (#16, #18)?  
+**Options:**  
+1. **Block.** Require `eventd`’s arena snapshot API (content‑addressed, refcount‑GC snapshots from `zig/substrate/arena.zig` – #16) to be implemented and validated before `memoryd` and the control plane begin runtime‑level work.  
+2. **Proceed with a provisional backing store.** Implement `memoryd` against a temporary, non‑arena store (e.g., a plain append‑only file) and later swap in the arena.
+
+**Recommendation:** **Block.** Both designs are fundamentally anchored in the arena‑snapshot contract.  
+- `docs/language/0014-memory-primitive.md` states: “Memory entries are events on the per‑runtime hash‑chained `eventd` log … memory state is the fold over those events, resolving content **against the arena (#16)**.” A provisional store breaks the fold‑verifiability and rewind‑to‑byte‑exact‑state guarantees.  
+- Issue #20 (control plane replay/rewind/jump/step) explicitly lists the eventd log + arena snapshots as its substrate; without arena‑anchored snapshots the “rewind preserves concurrent siblings (#16 structural sharing)” property cannot hold.  
+- The `eventd` hardening backlog (#35) identifies snapshot/compaction as critical for boot‑time chain verification; delivering it now unblocks both dependents and removes a known design risk.
+
+**Risks:**  
+- Delays `memoryd` and the control plane until the arena snapshot API is complete. The 0014 grammar and emitter are already landed (see 0014 §Lowering), so the agent‑side declaration surface is defined and the implementation gap is purely runtime.  
+- Unforeseen complexity in `eventd`’s snapshot representation (checkpoint entry format, interaction with GC floor) may push the timeline. This is mitigated by explicit design guidance in #16 and #35, and the fact that `eventd`’s core append‑only log is implemented.
+
+**Next actions:**  
+1. Open a focused tracking issue: “Implement arena snapshot/checkpoint API for eventd (→ unblocks 0014 memoryd and #20 control plane).” Scope the representation (checkpoint‑entry folding a prefix, arena content‑hash, GC‑floor integration) per the snapshot/compaction item in #35, and tie it to the eventd design’s open question “rotation without breaking the chain” noted there.  
+2. Update epic #17 to reflect that 0014 (*runtime* phase) and #20 are gated on eventd arena snapshots.  
+3. After the snapshot API lands, proceed with `memoryd` as described in 0014’s runtime contract (mining daemon, recall server, `mem` capability enforcement), folding events directly against the arena.
+
+**Confidence:** high
+
