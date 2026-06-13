@@ -1,28 +1,35 @@
 name: merge-train
 
-# yardmaster — the merge-train conductor (tools/yardmaster/). Each run builds the
-# dependency DAG of the open PRs (catching stacked PRs), topologically orders the
-# train, and reports the planned action per car (merge / update-branch / wait /
-# block-conflict / hold-on-base).
+# yardmaster — the merge-train conductor (tools/yardmaster/), GRADUATED to act.
+# Each run builds the dependency DAG of the open PRs (catching stacked PRs),
+# topo-orders the train, performs ONE action on the head car (merge / update-branch
+# / wait / block-conflict / hold), and ALWAYS broadcasts the train as
+# `yardmaster:<repo>` to Mastodon (with a data-accurate infographic picture) and
+# Telegram (full emoji report).
 #
-# ADVISORY by default: this MVP runs `plan` only — it computes and publishes the
-# train, but performs NO merges, rebases, labels, or commits. Graduating it to act
-# (auto update-branch + merge opt-in `train:auto` PRs) is a follow-up that flips to
-# `tick --enable` and widens `permissions` to contents/pull-requests: write.
+# SAFETY: it only acts on OPT-IN PRs — those carrying the `train:auto` label or
+# from a fleet author (see tools/yardmaster/yardmaster.py FLEET_AUTHORS). Every
+# other PR is reported but never touched. To enrol a PR, add the `train:auto`
+# label. Conflicts (`dirty`) are flagged for a human, never auto-resolved.
 on:
   schedule:
-    - cron: "*/30 * * * *"       # every 30 min — re-plan the train
+    - cron: "0 * * * *"         # hourly — advance + broadcast the train
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch: {}
 
+# Acting on PRs needs write; ci_state() reads the check-runs API.
 permissions:
-  contents: read
-  pull-requests: read
-  checks: read            # ci_state() reads the check-runs API (omitted perms are denied → 403)
+  contents: write
+  pull-requests: write
+  checks: read
+
+concurrency:                     # never run two conductors at once (single-writer)
+  group: merge-train
+  cancel-in-progress: false
 
 jobs:
-  plan:
+  conduct:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: ci
@@ -35,23 +42,33 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Pure dry-run: prints the planned merge train for the current open PRs.
-      # Guards cleanly (exits 0) if GITHUB_TOKEN/repo are somehow unset.
-      - name: Plan the merge train (advisory — no writes)
+      # Rasterizer for the Mastodon infographic (SVG → PNG). Best-effort: a
+      # missing rasterizer degrades to a text-only toot, it does not fail the run.
+      - name: Install SVG rasterizer
+        run: sudo apt-get update -q && sudo apt-get install -y -q librsvg2-bin fonts-dejavu-core
+
+      - name: Conduct the train (act on opt-in PRs + always broadcast)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MASTODON_BASE_URL: ${{ secrets.MASTODON_BASE_URL }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          MASTODON_VISIBILITY: ${{ secrets.MASTODON_VISIBILITY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
         run: |
-          python3 tools/yardmaster/yardmaster.py plan \
-            --repo "${{ github.repository }}" | tee train.txt
+          python3 tools/yardmaster/yardmaster.py tick --enable \
+            --repo "${{ github.repository }}" | tee tick.json
 
-      - name: Publish the train to the step summary
+      - name: Publish the tick to the step summary
         if: always()
         run: |
-          echo "## merge-train (advisory plan)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat train.txt >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no plan produced)" >> "$GITHUB_STEP_SUMMARY"
+          echo "## merge-train (yardmaster · active)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat tick.json >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no output)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      # Backstop: yardmaster posts its own report each run; this only fires if the
+      # tick itself crashed before broadcasting.
       - name: Notify Telegram on failure
         if: failure()
         continue-on-error: true
@@ -59,4 +76,4 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_TO }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ merge-train (yardmaster) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          message: "❌ merge-train (yardmaster) crashed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

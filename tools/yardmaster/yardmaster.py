@@ -41,6 +41,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, REPO_ROOT)                       # eventd (root package)
 sys.path.insert(0, os.path.join(REPO_ROOT, "tools", "ralph"))   # ralphcore
+sys.path.insert(0, HERE)                            # report (sibling module)
 
 STATE_DIR = os.path.join(HERE, "state")
 LOG_PATH = os.path.join(STATE_DIR, "log.jsonl")
@@ -299,19 +300,35 @@ def _clear_step() -> None:
 # The tick.
 # --------------------------------------------------------------------------- #
 
+def _announce(repo: str, planned: list, mode: str, did: dict) -> dict:
+    """Always-on broadcast to Mastodon (with the infographic) + Telegram. Lazy
+    import + total exception guard: the broadcast must never fail the train, and
+    a run without secrets is a clean no-op. ``YARDMASTER_ANNOUNCE=0`` disables."""
+    if os.environ.get("YARDMASTER_ANNOUNCE", "1") == "0":
+        return {"skipped": True}
+    try:
+        import report
+        return report.announce(repo, planned, mode, did)
+    except Exception as e:                  # noqa: BLE001 — broadcast is optional
+        return {"error": str(e)}
+
+
 def run_tick(gh: GitHub, *, enable_merge: bool) -> dict:
-    """One train action. Returns a summary dict (also appended to the ledger).
-    Honors the control file (paused ⇒ no-op unless step)."""
+    """One train action, then ALWAYS announce the train. Returns a summary dict
+    (also appended to the ledger). Honors the control file (paused ⇒ no-op)."""
     ctrl = _read_control()
     if ctrl.paused and not ctrl.step:
         return {"action": "paused", "reason": "control.json paused"}
     if ctrl.step:
         _clear_step()                       # one-shot: consume it for this tick
 
+    mode = "ACTIVE (opt-in)" if enable_merge else "advisory (dry-run)"
     prs = fetch_prs(gh)
     if not prs:
         _ledger_append({"kind": "observed", "open_prs": 0})
-        return {"action": "idle", "reason": "no open PRs"}
+        did = {"action": "idle", "reason": "no open PRs"}
+        did["broadcast"] = _announce(gh.repo, [], mode, did)
+        return did
 
     planned = plan_train(prs, gh.default_branch())
     by_num = {p.number: p for p in prs}
@@ -319,34 +336,35 @@ def run_tick(gh: GitHub, *, enable_merge: bool) -> dict:
                     "train": [[n, a] for n, a, _ in planned]})
 
     # First actionable (non-terminal) car.
+    did = {"action": "settled", "reason": "no actionable car (all waiting/skipped)"}
     for n, action, reason in planned:
         if action in (SKIP, WAIT):
             continue
         pr = by_num[n]
-        summary = {"pr": n, "action": action, "reason": reason,
-                   "mergeable_state": pr.mergeable_state, "ci": pr.ci,
-                   "enabled": enable_merge}
+        did = {"pr": n, "action": action, "reason": reason,
+               "mergeable_state": pr.mergeable_state, "ci": pr.ci,
+               "enabled": enable_merge}
         if not enable_merge:
-            summary["note"] = "dry-run (set YARDMASTER_ENABLE_MERGE=1 to act)"
-            _ledger_append({"kind": "dry_run", **summary})
-            return summary
-        # live mode
-        if action == UPDATE_BRANCH:
+            did["note"] = "dry-run (set YARDMASTER_ENABLE_MERGE=1 to act)"
+            _ledger_append({"kind": "dry_run", **did})
+        elif action == UPDATE_BRANCH:
             gh.update_branch(n)
-            _ledger_append({"kind": "rebased", **summary})
+            _ledger_append({"kind": "rebased", **did})
         elif action == MERGE:
             gh.merge(n)
-            _ledger_append({"kind": "merged", **summary})
+            _ledger_append({"kind": "merged", **did})
         elif action == BLOCK_CONFLICT:
             gh.add_label(n, CONFLICT_LABEL)
             gh.comment(n, "🚂 yardmaster: this PR has a merge conflict the train "
                           "cannot auto-resolve (content merges need judgment). "
                           "Labeled `%s`; the train will skip it until resolved." % CONFLICT_LABEL)
-            _ledger_append({"kind": "blocked_conflict", **summary})
-        return summary
+            _ledger_append({"kind": "blocked_conflict", **did})
+        break
+    else:
+        _ledger_append({"kind": "settled", "open_prs": len(prs)})
 
-    _ledger_append({"kind": "settled", "open_prs": len(prs)})
-    return {"action": "settled", "reason": "no actionable car (all waiting/skipped)"}
+    did["broadcast"] = _announce(gh.repo, planned, mode, did)
+    return did
 
 
 # --------------------------------------------------------------------------- #

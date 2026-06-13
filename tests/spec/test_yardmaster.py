@@ -180,6 +180,43 @@ def _test_clear_step(lines):
     return ok
 
 
+def _test_report(lines):
+    import report
+    import xml.dom.minidom
+    ok = True
+    planned = [(90, "merge", "clean + CI green"), (112, "skip", "waiting on base"),
+               (118, "block_conflict", "needs human")]
+    repo = "peterlodri-sec/vaked-base"
+    text = report.build_text(repo, planned, "ACTIVE (opt-in)", {"pr": 90, "action": "merge"})
+    if "yardmaster:%s" % repo not in text or "#90" not in text or "#118" not in text:
+        ok = False
+        lines.append("  FAIL report: text missing header/cars")
+    cap = report.build_caption(repo, planned, "ACTIVE (opt-in)", None)
+    if len(cap) > report.MASTODON_MAX_CHARS or "yardmaster:%s" % repo not in cap:
+        ok = False
+        lines.append(f"  FAIL report: caption bad (len {len(cap)})")
+    svg = report.build_svg(repo, planned, "ACTIVE (opt-in)")
+    try:
+        xml.dom.minidom.parseString(svg)
+    except Exception as e:
+        ok = False
+        lines.append(f"  FAIL report: SVG not well-formed ({e})")
+    for n in (90, 112, 118):
+        if "#%d" % n not in svg:
+            ok = False
+            lines.append(f"  FAIL report: SVG missing car #{n}")
+    # render is best-effort: if a rasterizer is present it must produce a PNG.
+    png = report.render_png(svg)
+    if png is not None and not png.startswith(b"\x89PNG"):
+        ok = False
+        lines.append("  FAIL report: render_png returned non-PNG bytes")
+    raster = "PNG ok" if png else "no rasterizer here (text-only fallback)"
+    if ok:
+        lines.append(f"  PASS report: emoji text + ≤{report.MASTODON_MAX_CHARS}c caption + "
+                     f"well-formed SVG infographic ({raster})")
+    return ok
+
+
 def run():
     lines = []
     ok = True
@@ -189,6 +226,7 @@ def run():
         ("plan (stacked hold)", _test_plan_stacked),
         ("ledger (eventd round-trip)", _test_ledger),
         ("control (one-shot step)", _test_clear_step),
+        ("report (infographic + text)", _test_report),
     ]:
         lines.append(label + ":")
         ok &= fn(lines)

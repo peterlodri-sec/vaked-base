@@ -24,37 +24,58 @@ Each tick it:
    | stacked on an unmerged base | **hold** until the base merges |
 
 4. **Records** the action on the `eventd` hash-chained ledger (`state/log.jsonl`).
-5. **Notifies** (Telegram) on merge / blocked-conflict / failure.
+5. **Broadcasts** the train every run (see below).
 
-## Stance (advisory-first)
+## Broadcast (always-on)
 
-- **Dry-run by default.** `plan` prints the train; `tick` plans + ledgers but
-  **merges nothing** unless `--enable` / `YARDMASTER_ENABLE_MERGE=1`.
-- **Opt-in only.** Auto-merges a PR only with the `train:auto` label or a
-  fleet-author allowlist — never an arbitrary human PR.
+Every tick yardmaster announces as **`yardmaster:<repo>`** to **both** channels
+([`report.py`](report.py)):
+
+- **Mastodon** — a short emoji caption **plus an infographic picture**: a
+  deterministic SVG of the train (a locomotive + one colour-coded car per PR on a
+  track) rasterized to PNG. The image is *data-accurate*, not LLM-drawn; a missing
+  rasterizer degrades to a text-only toot.
+- **Telegram** — the full emoji status report (one line per car + tally).
+
+Best-effort + secret-guarded (a missing key is a clean no-op; a transport error
+never fails the run). Credentials live in the `ci` Environment: `MASTODON_BASE_URL`
+/ `MASTODON_ACCESS_TOKEN` / `MASTODON_VISIBILITY`, `TELEGRAM_TOKEN` / `TELEGRAM_TO`.
+`YARDMASTER_ANNOUNCE=0` silences it.
+
+## Stance (active, opt-in)
+
+- **Graduated to act.** In CI the train runs `tick --enable` — it performs one
+  real action per run (merge / update-branch / label). `plan` is the local
+  dry-run; `YARDMASTER_ENABLE_MERGE=1` enables acting outside `--enable`.
+- **Opt-in only.** Acts on a PR only with the `train:auto` label or a fleet-author
+  allowlist (`FLEET_AUTHORS`) — never an arbitrary PR. Enrol a PR by labelling it
+  `train:auto`.
 - **Conflicts are a human's call.** A content merge needs judgment (see the
   research-integrity union that resolved #112's paper conflict); the train
   *surfaces* `dirty` PRs immediately, it does not resolve them.
-- **One action per tick** — single-writer, auditable, rate-limit-friendly.
+- **Stacked-safe.** Holds a PR stacked on an unmerged base; refuses to merge an
+  orphaned stacked PR into a stale (non-default) base.
+- **One action per tick** — single-writer (workflow `concurrency`), auditable.
 - **Control.** `state/control.json` (the `ralphcore` shape): `{"paused": true}`
   halts the train, `{"step": true}` runs one action while paused.
 
 ## Run
 
 ```bash
-# dry-run: print the planned merge train for the current open PRs
+# dry-run: print the planned merge train for the current open PRs (no writes)
 GITHUB_TOKEN=… python3 tools/yardmaster/yardmaster.py plan --repo peterlodri-sec/vaked-base
 
-# one action (dry-run unless --enable / YARDMASTER_ENABLE_MERGE=1)
-python3 tools/yardmaster/yardmaster.py tick --repo peterlodri-sec/vaked-base
+# one action + broadcast (acts on opt-in PRs; dry-run unless --enable)
+python3 tools/yardmaster/yardmaster.py tick --enable --repo peterlodri-sec/vaked-base
 
 # verify the ledger chain
 python3 tools/yardmaster/yardmaster.py verify
 ```
 
-In CI it runs from `.github/workflows/merge-train.yml` (schedule + dispatch +
-`pull_request`), `environment: ci`, guarded on `GITHUB_TOKEN`, Telegram on
-failure.
+In CI it runs from `.github/workflows/merge-train.yml` (hourly + dispatch +
+`pull_request`), `environment: ci`, `concurrency: merge-train`, `contents`/
+`pull-requests: write` + `checks: read`, installs `librsvg2-bin` for the
+infographic, and runs `tick --enable`.
 
 ## Reuse (no new machinery)
 
