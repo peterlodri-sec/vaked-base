@@ -237,3 +237,48 @@ surface. Ranked:
    price `approvals`/human-in-the-loop steps.
 5. **Which x402 facilitator / wallet** (CDP AgentKit, Bankr, Sponge) — and self-hosted
    facilitator vs hosted.
+
+## Economics (pessimistic projection)
+
+Back-of-envelope, **not** a forecast — a floor under explicit assumptions: **no
+marketing, pure word-of-mouth in a niche** (web3 devs + the crabcc/Vaked circle).
+Grounded in this design's unit costs + Devin's public **$2.25/ACU** (~15 min of agent
+work) as the willingness-to-pay comparable.
+
+**Unit economics per job (not the constraint):**
+
+- **COGS/job:** DeepSeek inference (the `budget swe` ceiling of 2M tokens × ~$0.30/Mtok
+  = **$0.60 max**; a typical run $0.10–$1.50) + Base anchor ~$0.01–0.10 + x402
+  facilitator (free ≤1k tx/mo) ⇒ variable cost **$0.30–$1.50/job → ~85–95% gross
+  margin**.
+- **Fixed:** one VPS to host the agent field + domain/CDP ≈ **$100–150/mo**.
+- **Price/job** (undercut Devin, scale-tiered by `budget`): S-fix ~$3–5 · M-PR ~$10–20
+  · L ~$40–60. Pessimistic **blended ~$8–12/job** (word-of-mouth skews to small jobs).
+
+**Volume is the only real lever**, and the assumptions make it low:
+
+| Phase | jobs/mo | blended $/job | gross | − COGS+fixed | **net/mo** |
+|-------|---------|---------------|-------|--------------|------------|
+| Early (m1–3) | ~8 | $8 | ~$64 | ~$130 | **~−$65** (under fixed cost) |
+| Mid (m4–8) | ~30 | $10 | ~$300 | ~$150 | **~$150** |
+| Late (m9–12) | ~70 | $11 | ~$770 | ~$190 | **~$580** |
+
+**Headline (pessimistic):** run-rate ~break-even early → **~$100–$800/mo net by month
+12**; **year-1 cumulative net ~$1.5k–$3k** (back-half-loaded; a real chance of hovering
+near $0 if word-of-mouth barely catches). Hobby/ramen income, not a salary, under these
+assumptions.
+
+**Framing:**
+
+- **Demand is the whole game.** Margin is ~90%, so income ≈ volume × price; pessimistic
+  word-of-mouth ⇒ low volume ⇒ modest income.
+- **Near-zero downside:** ~$100–150/mo fixed, no ad spend, no inventory — cheap to run
+  and let word-of-mouth compound; worst case ~$1–2k/yr out of pocket.
+- **Asymmetric upside (excluded by "pessimistic"):** because `swe` is **agent-to-agent
+  composable** (any funded wallet/agent calls it via x402, no relationship), one
+  programmatic caller that loops `swe` can 10–100× volume overnight at the same ~90%
+  margin. The floor is low; the ceiling is not.
+
+**The two knobs to challenge:** the blended price/job ($8–12) and the 8→70 jobs/mo
+ramp. Halve the volume ⇒ break-even all year; target pros over tire-kickers (double the
+price) ⇒ ~$1.5k/mo by m12.
