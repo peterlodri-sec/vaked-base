@@ -1,0 +1,84 @@
+name: pr-review-build
+
+# "Bakes" the PR-review agent: compiles the release binary once and publishes it
+# as a rolling GitHub Release asset (tag `pr-review-bin`). The pr-review workflow
+# downloads this instead of compiling adk-rust on every PR, killing cold start.
+# Runs when the crate changes on main, or on demand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - vaked-agents/ci/pr-review/**
+      - .github/workflows/pr-review-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write # create/update the release + upload the asset
+
+concurrency:
+  group: pr-review-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/pr-review
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+      # Best-effort install wild + expose as `ld.wild`. Only used if the build-step
+      # probe finds that `cc -fuse-ld=wild` actually links (gcc rejects the name);
+      # otherwise the probe falls back to lld/mold.
+      - name: Set up wild linker (preferred)
+        continue-on-error: true
+        run: |
+          cargo install --locked wild-linker
+          mkdir -p "$HOME/.local/bin"
+          ln -sf "$(command -v wild)" "$HOME/.local/bin/ld.wild"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Build release binary
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          # Fastest linker that actually links with this cc, preferring wild > lld
+          # > mold. gcc validates the -fuse-ld= value (e.g. rejects 'wild' even when
+          # ld.wild is on PATH), so probe with a real test link instead of just
+          # checking PATH; fall back to the default linker (no -fuse-ld) if none work.
+          probe() { printf 'int main(){return 0;}' > "$RUNNER_TEMP/ld.c" && cc -fuse-ld="$1" "$RUNNER_TEMP/ld.c" -o "$RUNNER_TEMP/ld.out" 2>/dev/null; }
+          FUSE=""; for c in mold lld wild; do probe "$c" && FUSE="$c"; done
+          FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
+          if [ -n "$FUSE" ]; then
+            echo "::notice::linking with $FUSE"
+            FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+          else
+            echo "::notice::no fast linker accepted by cc — using default"
+          fi
+          export RUSTFLAGS="$FLAGS"
+          cargo build --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml
+          cp vaked-agents/ci/pr-review/target/release/vaked-pr-review \
+             vaked-pr-review-linux-x86_64
+
+      - name: Publish rolling release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure the rolling release exists, then clobber the asset in place.
+          gh release view pr-review-bin >/dev/null 2>&1 || \
+            gh release create pr-review-bin \
+              --title "PR-review agent (prebuilt)" \
+              --notes "Rolling prebuilt linux-x86_64 binary of vaked-agents/ci/pr-review. Auto-updated from main." \
+              --prerelease
+          gh release upload pr-review-bin vaked-pr-review-linux-x86_64 --clobber

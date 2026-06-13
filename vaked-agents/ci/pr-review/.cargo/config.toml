@@ -1,0 +1,9 @@
+# Portable build flags applied everywhere (local + CI). Tool- and CPU-independent
+# so the crate builds with any linker on any x86-64 host.
+#   - symbol-mangling-version=v0: cleaner backtraces / profiles (stable).
+# CPU/linker/icf tuning for the shipped binary lives in the CI build steps
+# (pr-review-build.yml / pr-review.yml), which select wild → lld → mold and add
+# -C target-cpu=x86-64-v3 + --icf=all. To use wild locally, it's auto-selected
+# when `ld.wild` is on PATH; otherwise set RUSTFLAGS yourself.
+[build]
+rustflags = ["-C", "symbol-mangling-version=v0"]

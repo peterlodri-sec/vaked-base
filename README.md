@@ -30,6 +30,7 @@ Vaked source → typed semantic graph → generated artifacts
 | `docs/runtime/` | **runtime** (stub) | Runtime architecture + daemon responsibilities |
 | `protocol/` | **protocol** (stub) | HCP / Litany wire protocol — `rfcs/`, daemon + tool roster |
 | `docs/protocol/` | **protocol** (stub) | HCP / Litany overview |
+| `vaked-agents/` | **agents** | The Vaked agent fleet — `ci/pr-review` (advisory CI reviewer); roadmap in [`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md) |
 | `tools/ralph/` | **tooling** | `ralph` — autonomous per-model decision loop over Vaked concept tracks (see [`tools/ralph/README.md`](tools/ralph/README.md)) |
 | `flake.nix` | infra | Dev shell (Zig, BEAM/OTP, Rust-to-build-CrabCC, tooling) |
 | `.mcp.json` | infra | Project MCP servers (github, context7, repowise, workspace-fs, playwright) |
