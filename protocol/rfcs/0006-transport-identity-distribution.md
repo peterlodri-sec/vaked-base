@@ -104,6 +104,71 @@ footer) are transported across hosts via JetStream KV / object store — so a
 remote consumer can fetch the proof a producer's GC floor references without a
 direct connection to the producer's `reliquaryd`.
 
+### 2.3 Event propagation & control action distribution (provisional)
+
+**Working decision — Litany Wire is control plane; NATS is fan-out:**
+
+The distinction between **identity-proven point-to-point frames** (Litany Wire)
+and **best-effort notifications** (NATS) is architectural:
+
+- **Point-to-point (Litany Wire, RFC 0003):** `DependencyRegistration` (RFC 0004
+  §3.1), `ConsumerCheckpoint` (RFC 0004 §4), `control_action` events (RFC 0005
+  §3), and control-plane requests (RFC 0005 §1) are **acknowledged Litany Wire
+  frames**. They carry identity (SPIFFE ID, mTLS), correlation ids, and are
+  logged to the local `eventd` (single source of truth). These are never lost
+  (Litany Wire guarantees delivery on a live connection) and never replayed
+  incorrectly.
+
+- **Best-effort notifications (NATS):** `RewindEvent` (RFC 0004 §3.3) is **also
+  published to NATS** on the `agent.<producer-id>.rewind` topic. This is a
+  **notification only** — the producer writes `RewindEvent` to its local eventd,
+  and simultaneously publishes the notification. Downstream consumers subscribe
+  `agent.*.rewind` and are notified asynchronously that a producer rewound;
+  they do not act on the notification alone, but use it as a prompt to run their
+  cold-start verification (RFC 0004 §6), which re-checks the eventd log and
+  proofs.
+
+**Rationale:** `RewindEvent` is broadcast (affects many consumers) and urgent
+(consumers should re-verify quickly), so NATS fan-out is lower-latency than
+waiting for each consumer to poll. But NATS is not authoritative (it may be
+stale, lost, or duplicated), so a consumer that never receives the notification
+is not corrupted — it learns of the rewind on next verification. This two-layer
+design (Litany for mutation, NATS for notification) keeps NATS safe as a
+secondary, non-critical channel.
+
+**Control actions are not published to NATS.** The `control_action` event (RFC
+0005 §3) is logged only to the executing runtime's eventd (write-ahead,
+before effect); it is **not** replicated to other nodes via NATS. Cross-host
+observers of a control action (e.g., a surface watching all control events) must
+poll the executor's eventd or request the event via a Litany Wire query — not
+via NATS.
+
+### 2.4 RewindEvent propagation across hosts (provisional)
+
+**Working decision — Producer initiates broadcast:**
+
+When a producer's history is rewound (RFC 0005 `RewindControl` applied):
+
+1. **Local write:** The producer's `agent-supervisord` appends `RewindEvent` to
+   its local eventd (write-ahead, before effect — RFC 0004 §3.1).
+2. **NATS publish:** Immediately after (or as close to atomic as OTP scheduling
+   allows), the supervisor publishes the `RewindEvent` to the NATS subject
+   `agent.<producer-uuid>.rewind`. The event is the same `RewindEvent` record
+   (fields: producer, rewind_to_step, rewind_to_hash, topology_epoch).
+3. **Consumer subscription:** Any consumer holding a dependency on the producer
+   subscribes `agent.*.rewind` (or `agent.<producer-uuid>.rewind` specifically).
+   On receiving the notification, the consumer does **not** take action
+   immediately; it schedules a state-verification run (RFC 0004 §6, cold-start
+   or on-demand) to check its own anchors.
+4. **Re-verification:** The consumer's verification reads its own checkpoints
+   and queries the producer's eventd/proofs to discover that the anchor is
+   stale. If stale, the consumer pauses itself (`stale_dependency`).
+
+**No two-phase acknowledge:** The producer does not wait for consumer acks. If
+a consumer never receives the NATS notification (network partitioned, NATS
+broker down, subscription not yet open), it will discover the stale anchor on
+its next scheduled verification or on next restart (cold-start always verifies).
+
 ## 3. The boundary (normative)
 
 > The fabric distributes **notifications and proofs only**. The per-runtime
@@ -137,6 +202,40 @@ arise for them.
   rewind or a dependency state, because every consumer re-verifies against the
   tamper-evident log + proof. This is the single most important security
   property of the design.
+
+## 4. Authority model across hosts (provisional)
+
+**Working decision — Local per-host authority with SPIFFE identity:**
+
+When a peer from host A (with SPIFFE ID `spiffe://domain/agent/X`) sends a frame
+to host B (targeting an agent Y on host B), host B's `preceptord` evaluates
+authority **locally per host** using the peer's SPIFFE ID and the target agent's
+properties. The principal (X's SPIFFE identity) is verified at TLS time (§1.2)
+and is then passed to `preceptord` for policy evaluation. Policies may reference:
+
+- **SPIFFE attributes:** trust domain, org, agent name, role
+- **Target:** agent Y's name, topology epoch
+- **Action:** verb (pause, rewind, etc.) or capability (read eventd, fetch
+  proofs)
+
+**Example:** Policy on host B might be: "any agent in domain `spiffe://domain` may
+pause an agent in the same domain," or "only `spiffe://domain/supervisor` may
+rewind," or "cross-domain pause is denied by default."
+
+**No global consensus:** If host A's preceptord allows a control action that host
+B's preceptord denies, the action is **not** performed on host B. The two hosts
+may diverge (one allows a rewind, the other doesn't); the log, not the wire, is
+authoritative (RFC 0004 single-writer per host). If both hosts have consumers on
+the same producer, the producer's rewind is visible to both; consumers on B that
+are denied the rewind by B's policy do not execute it (so B's eventd shows the
+rewind but B's workers did not pause for it). This is acceptable because
+dependency verification (RFC 0004 §6) is per-host and per-agent; a divergence is
+observable in B's eventd chain and the consumer's pause state.
+
+**Future:** Cross-host authority consensus (two-phase commit, voting, ZKP proofs)
+is a deployment-specific concern outside the scope of this RFC. Deployments that
+need consistency may enforce it at policy authoring time (synchronized preceptord
+configs) or via a policy oracle that responds to all hosts.
 
 ## Open questions
 

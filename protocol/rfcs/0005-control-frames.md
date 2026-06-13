@@ -133,6 +133,90 @@ schema hcp.control {
    `agent-supervisord`, per child (`agent` scope) or per tree (`runtime`
    scope). `step` on a non-paused target is refused `not_paused` and is
    **not** logged (§3 logs applied actions only).
+
+### 2.1 Pause semantics (provisional)
+
+**Working decision — Graceful pause:** When a PauseControl frame is applied,
+the target transitions to the **paused** scheduling state, meaning:
+
+- **In-flight requests complete.** Any request that has been dispatched to the
+  target (corr matching an outstanding call) completes its natural lifecycle
+  (execution, response). The supervisor does not interrupt a running request
+  mid-execution.
+- **New requests are queued.** Incoming requests on the target's channel are
+  buffered (up to buffering limits) and remain pending until the target resumes.
+- **State does not roll back.** Pause is scheduling-only; it does not undo
+  changes made by in-flight requests. Those changes are durable as of request
+  completion.
+- **Reason field is advisory.** The `reason` string is for operator/audit
+  purposes (e.g., "GC pause", "manual operator drain") and is logged; it does
+  not change the pause semantics.
+
+Alternative designs (forcible suspension, rollback) are higher-cost and add
+state-consistency complexity; graceful pause is proven in ralph and is
+sufficient for the timeline-control use cases this RFC supports.
+
+### 2.2 Step semantics & concurrent dependency updates (provisional)
+
+**Working decision — Non-transactional step:** When a StepControl frame is
+applied (target must be paused), the supervisor advances the target's scheduler
+by one tick, then returns the target to paused. During the step tick:
+
+- **One scheduler tick runs:** The OTP scheduler advances one tick for the
+  target. This may result in one message being delivered from the target's
+  mailbox, one work item completing, or a state update being processed.
+- **Dependencies may interleave.** If the target has pending dependencies
+  (RFC 0004 `DependencyRegistration` anchors), they may be resolved or
+  fetched during the step — the step is **not** a serializable transaction.
+  A producer's state may be written concurrently with the step.
+- **No atomicity across state-consumption boundaries.** The step advances the
+  target's *local* work, not a global consistent snapshot. If the target
+  consumes state from a producer, the producer may advance during or after the
+  step (producer and consumer are independent agents).
+- **Target returns to paused.** After one tick, the target **automatically
+  returns to paused** (no explicit resume needed). The operator must issue a
+  `StepControl` for each tick, or a `ResumeControl` to switch to normal
+  scheduling.
+
+This is consistent with the ralph `Control.step` model (single tick) and
+avoids the cost of transaction-level isolation across agents. Multi-step
+atomicity (if needed) is an application-layer concern, using higher-level
+synchronization (dependencies, acknowledgements, etc.).
+
+### 2.3 Authority scoping for control verbs (provisional)
+
+**Working decision — Per-target authority:** Authority for control frames is
+scoped **per (target, verb) pair**, enforced by `preceptord` at request time:
+
+- A principal (identified by SPIFFE ID from the Litany Wire connection, RFC 0006)
+  may have authority to pause agent X but not agent Y, or to pause X but not to
+  rewind it.
+- Authority is checked **before** the frame is logged; a denied frame returns a
+  `ControlAck{applied=false, reason=denied}` and does **not** create a
+  `control_action` entry (refused frames do not pollute the log).
+- **No service-level authority.** The five control verbs are not further
+  subdivided at the service level. Authority is evaluated per-verb per-target,
+  not per-verb globally or per-endpoint.
+- Policy is `preceptord`'s concern (§3 Security). The frame format carries no
+  built-in authority; it is purely a shape for expressing intent.
+
+**Future:** RFC 0006 may define cross-host authority (can principal A from host
+X control agent B on host Y?); that is a mesh/fabric concern, not a frame-level
+one.
+
+### 2.4 Targets and the epoch fence
+
+`target` is a *declared name* — a
+supervisor child id (which the `otp.supervision` lowering derives from
+decl names) or the runtime's name when `scope = runtime`. Names are
+unique within a topology epoch's graph, so the `(target,
+topology_epoch)` pair is unambiguous across agent churn/name reuse; a
+frame whose `topology_epoch` is not current is refused `stale_epoch`
+(epochs are supervisor-assigned, never caller-asserted — RFC 0004 §7),
+and an empty or non-resolving `target` is refused `unknown_target`.
+
+## 2. Rewind semantics
+
 2. **rewind** composes RFC 0004 machinery and nothing else: the supervisor
    (a) pauses every worker holding an anchor above `rewind_to_step`,
    (b) appends the `RewindEvent`, (c) restarts the producer's worker **and
@@ -140,19 +224,14 @@ schema hcp.control {
    verification (RFC 0004 §6) and either re-anchors (RUNNING) or parks as
    `PAUSED(stale_dependency)` with its `StaleDependency` record. No worker
    is left paused without a specified path forward.
+
+## 3. Idempotency & logging
+
 3. **Idempotency.** Frames are idempotent per correlation id: re-delivery of
    an applied frame re-acks with the original `logged_seq`; re-delivery of a
    refused frame re-acks the refusal. The corr→outcome map is rebuilt from
    the log on supervisor restart (the `control_action` payload carries
    `corr`, §3); its retention is the log's.
-4. **Targets and the epoch fence.** `target` is a *declared name* — a
-   supervisor child id (which the `otp.supervision` lowering derives from
-   decl names) or the runtime's name when `scope = runtime`. Names are
-   unique within a topology epoch's graph, so the `(target,
-   topology_epoch)` pair is unambiguous across agent churn/name reuse; a
-   frame whose `topology_epoch` is not current is refused `stale_epoch`
-   (epochs are supervisor-assigned, never caller-asserted — RFC 0004 §7),
-   and an empty or non-resolving `target` is refused `unknown_target`.
 
 ## 3. Visibility: applied control actions are events
 
