@@ -16,10 +16,12 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 src_dir="$repo_root/docs/assets/diagrams/src"
 out_dir="$repo_root/docs/assets/diagrams"
 
-# Pin layout + theme for reproducible output.
-export D2_LAYOUT="${D2_LAYOUT:-dagre}"
-export D2_THEME="${D2_THEME:-0}"
-export D2_PAD="${D2_PAD:-20}"
+# Pin layout + theme for reproducible output. These are readonly (not env
+# overridable) on purpose: --check relies on byte-identical SVGs regardless of
+# the caller's environment. Passed to d2 as explicit flags below.
+readonly D2_LAYOUT=dagre
+readonly D2_THEME=0
+readonly D2_PAD=20
 
 if ! command -v d2 >/dev/null 2>&1; then
   echo "render.sh: d2 not found. Run inside the dev shell (\`nix develop\`) or \`nix run nixpkgs#d2\`." >&2
