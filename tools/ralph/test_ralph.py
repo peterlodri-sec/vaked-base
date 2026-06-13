@@ -1085,7 +1085,7 @@ def test_issues_for_labels_union_dedup() -> None:
     def fake_run(args, *a, **k):
         # the label value follows the "--label" flag in the gh argv
         lab = args[args.index("--label") + 1]
-def test_issue_labels_default() -> None:
+        return per_label[lab]
 
     with mock.patch.object(ralph, "_run", side_effect=fake_run):
         issues, note = ralph._issues_for_labels(["language", "bug"])
