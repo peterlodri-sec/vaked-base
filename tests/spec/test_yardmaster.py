@@ -210,10 +210,19 @@ def _test_report(lines):
     if png is not None and not png.startswith(b"\x89PNG"):
         ok = False
         lines.append("  FAIL report: render_png returned non-PNG bytes")
+    # transport guards (regression for the empty-base-url raise): no token → False,
+    # and post_mastodon must never raise (returns bool) — verified offline here.
+    os.environ.pop("MASTODON_ACCESS_TOKEN", None)
+    if report.post_mastodon("x", None) is not False:
+        ok = False
+        lines.append("  FAIL report: post_mastodon without a token should be False")
+    if report.post_telegram("x") is not False:
+        ok = False
+        lines.append("  FAIL report: post_telegram without creds should be False")
     raster = "PNG ok" if png else "no rasterizer here (text-only fallback)"
     if ok:
         lines.append(f"  PASS report: emoji text + ≤{report.MASTODON_MAX_CHARS}c caption + "
-                     f"well-formed SVG infographic ({raster})")
+                     f"well-formed SVG infographic ({raster}); transports guarded")
     return ok
 
 

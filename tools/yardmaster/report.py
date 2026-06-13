@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import http.client
 import json
 import os
+import ssl
 import subprocess
 import tempfile
 import urllib.parse
@@ -28,7 +30,16 @@ import urllib.request
 import uuid
 from datetime import datetime, timezone
 
+# The fleet's self-hosted Mastodon — hardcoded default (override via MASTODON_BASE_URL).
 MASTODON_DEFAULT_BASE = "https://social.crabcc.app"
+# TLS public-key (SPKI) pin for the host above — base64(sha256(SubjectPublicKeyInfo)),
+# HPKP "pin-sha256" form. None ⇒ standard CA verification only. Set the real pin
+# here (or via MASTODON_SPKI_PIN) to pin the connection. Compute it on a normal
+# network (NOT inside a MITM'd CI sandbox):
+#   openssl s_client -connect social.crabcc.app:443 -servername social.crabcc.app </dev/null 2>/dev/null \
+#     | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der \
+#     | openssl dgst -sha256 -binary | openssl enc -base64
+_MASTODON_SPKI_PIN = None
 MASTODON_MAX_CHARS = 480
 
 # action → (emoji, short label, infographic fill colour)
@@ -376,35 +387,97 @@ def _multipart(files) -> "tuple[str, bytes]":
     return boundary, bytes(buf)
 
 
+def _spki_pin_b64(der_cert: bytes) -> "str | None":
+    """base64(sha256(SubjectPublicKeyInfo)) of a DER leaf cert (the HPKP
+    pin-sha256), via openssl. Survives cert renewal that reuses the key."""
+    pub = _run(["openssl", "x509", "-inform", "DER", "-pubkey", "-noout"], der_cert)
+    if not pub or pub.returncode != 0 or not pub.stdout:
+        return None
+    der = _run(["openssl", "pkey", "-pubin", "-outform", "DER"], pub.stdout)
+    if not der or der.returncode != 0 or not der.stdout:
+        return None
+    return base64.b64encode(hashlib.sha256(der.stdout).digest()).decode()
+
+
+def _mastodon_pin() -> "str | None":
+    return os.environ.get("MASTODON_SPKI_PIN") or _MASTODON_SPKI_PIN
+
+
+def _issuer_str(cert: dict) -> str:
+    return ", ".join("%s=%s" % (k, v) for rdn in cert.get("issuer", ()) for k, v in rdn)
+
+
+def _https(method: str, url: str, headers: dict, body: bytes,
+           timeout: int = 30) -> "tuple[int, bytes]":
+    """HTTPS with standard CA verification PLUS egress-aware SPKI pinning.
+
+    When a pin is configured, the peer's SubjectPublicKeyInfo must match — UNLESS
+    the (already CA-validated) peer is the trusted TLS-terminating egress gateway,
+    identified by its issuer marker (default ``"Egress Gateway"``; set
+    ``MASTODON_PIN_BYPASS_ISSUER``). You cannot pin *through* a terminating proxy
+    — you only ever see its cert — so on a direct connection the pin is enforced,
+    and behind the gateway it degrades to CA-trust-only (the gateway validates the
+    upstream cert itself). The bypass can't be forged remotely: it requires a
+    CA-valid cert from that issuer, whose CA is only in the sandbox trust store."""
+    u = urllib.parse.urlsplit(url)
+    conn = http.client.HTTPSConnection(u.hostname, u.port or 443,
+                                       context=ssl.create_default_context(),
+                                       timeout=timeout)
+    try:
+        conn.connect()
+        pin = _mastodon_pin()
+        if pin:
+            mark = os.environ.get("MASTODON_PIN_BYPASS_ISSUER", "Egress Gateway")
+            issuer = _issuer_str(conn.sock.getpeercert() or {})    # CA-validated dict
+            if mark and mark in issuer:
+                import sys as _sys
+                _sys.stderr.write("[report] SPKI pin bypassed behind trusted egress "
+                                  "gateway (%s); CA trust preserved upstream\n" % issuer)
+            else:
+                got = _spki_pin_b64(conn.sock.getpeercert(binary_form=True))
+                if got != pin:
+                    raise ssl.SSLError("TLS SPKI pin mismatch for %s (got %r, want %r)"
+                                       % (u.hostname, got, pin))
+        path = u.path + (("?" + u.query) if u.query else "")
+        conn.request(method, path, body=body, headers=headers)
+        r = conn.getresponse()
+        return r.status, r.read()
+    finally:
+        conn.close()
+
+
 def post_mastodon(text: str, png: "bytes | None") -> bool:
     token = os.environ.get("MASTODON_ACCESS_TOKEN")
     if not token:
         return False
-    base = os.environ.get("MASTODON_BASE_URL", MASTODON_DEFAULT_BASE).rstrip("/")
-    visibility = os.environ.get("MASTODON_VISIBILITY", "unlisted")
-    media_ids = []
-    if png:
-        try:
-            boundary, body = _multipart(
-                [("file", "train.png", png, "image/png")])
-            req = urllib.request.Request(base + "/api/v2/media", data=body)
-            req.add_header("Authorization", "Bearer " + token)
-            req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
-            with urllib.request.urlopen(req, timeout=30) as r:
-                mid = json.loads(r.read()).get("id")
-                if mid:
-                    media_ids.append(str(mid))
-        except Exception:
-            media_ids = []                    # degrade to text-only
-    fields = [("status", text), ("visibility", visibility)]
-    for mid in media_ids:
-        fields.append(("media_ids[]", mid))
-    body = urllib.parse.urlencode(fields).encode()
-    req = urllib.request.Request(base + "/api/v1/statuses", data=body)
-    req.add_header("Authorization", "Bearer " + token)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status in (200, 201)
+    # NB: `or`, not `.get(key, default)` — an unset secret arrives as an EMPTY
+    # string (present but blank), which would build a schemeless URL.
+    base = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
+    visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
+    auth = {"Authorization": "Bearer " + token}
+    try:                                      # whole body guarded — never raises
+        media_ids = []
+        if png:
+            try:
+                boundary, body = _multipart([("file", "train.png", png, "image/png")])
+                st, resp = _https("POST", base + "/api/v2/media",
+                                  dict(auth, **{"Content-Type":
+                                       "multipart/form-data; boundary=" + boundary}),
+                                  body)
+                if st in (200, 202):
+                    mid = json.loads(resp or b"{}").get("id")
+                    if mid:
+                        media_ids.append(str(mid))
+            except Exception:
+                media_ids = []                # degrade to text-only
+        fields = [("status", text), ("visibility", visibility)]
+        for mid in media_ids:
+            fields.append(("media_ids[]", mid))
+        body = urllib.parse.urlencode(fields).encode()
+        st, _resp = _https("POST", base + "/api/v1/statuses",
+                           dict(auth, **{"Content-Type":
+                                "application/x-www-form-urlencoded"}), body)
+        return st in (200, 201)
     except Exception:
         return False
 
