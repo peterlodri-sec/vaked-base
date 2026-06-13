@@ -31,6 +31,7 @@
             git
             jq
             just
+            d2                    # images as code — render docs/assets/diagrams/src/*.d2 → *.svg
           ];
           shellHook = ''
             echo "vaked-base · Vaked declares · Nix materializes · OTP supervises · Zig enforces · eBPF testifies · CrabCC indexes · Surfaces reveal"
