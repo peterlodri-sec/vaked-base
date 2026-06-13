@@ -377,9 +377,9 @@ Concrete steps:
 
 ## References
 
-- [RFC 0007](../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md) §4 — Post-quantum identity & attestation
-- [RFC 0006](../../protocol/rfcs/0006-transport-identity-distribution.md) — SPIFFE/SPIRE identity model
-- [`hosts/vakedos/configuration.nix`](../../hosts/vakedos/configuration.nix) — Target host
+- [RFC 0007](../../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md) §4 — Post-quantum identity & attestation
+- [RFC 0006](../../../protocol/rfcs/0006-transport-identity-distribution.md) — SPIFFE/SPIRE identity model
+- [`hosts/vakedos/configuration.nix`](../../../hosts/vakedos/configuration.nix) — Target host
 - [SPIRE Server Configuration Reference](https://spiffe.io/docs/latest/deploying/spire_server/) — `ca_key_type`, `require_pq_kem`
 - [marques-ma/SPIRE-PostQuantum-PoC](https://github.com/marques-ma/SPIRE-PostQuantum-PoC) — Community PoC
 - [open-quantum-safe/liboqs](https://github.com/open-quantum-safe/liboqs) — ML-DSA implementation
