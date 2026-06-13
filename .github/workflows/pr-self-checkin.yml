@@ -1,0 +1,40 @@
+name: pr-self-checkin
+
+# Dispatched by Claude Code when send_later is unavailable during PR babysitting.
+# Sleeps the requested delay, then posts a recognizable comment on the PR so the
+# existing subscribe_pr_activity webhook wakes the Claude session to re-check CI.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to comment on
+        required: true
+        type: number
+      delay_minutes:
+        description: Minutes to sleep before posting (default 50)
+        required: false
+        default: '50'
+      reason:
+        description: Reason string included in the comment
+        required: false
+        default: 'scheduled CI re-check'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Sleep
+        run: sleep $(( ${{ github.event.inputs.delay_minutes }} * 60 ))
+
+      - name: Post self-check-in comment
+        run: |
+          gh pr comment ${{ github.event.inputs.pr_number }} \
+            --repo "${{ github.repository }}" \
+            --body "<!-- claude-self-checkin -->
+          **Self-check-in** (${{ github.event.inputs.reason }}): re-verifying CI status and mergeability."
