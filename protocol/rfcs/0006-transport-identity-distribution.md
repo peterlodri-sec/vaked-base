@@ -75,16 +75,27 @@ mid-epoch is normal and must not invalidate in-flight epoch-valid frames.
 
 ### 2.1 Subject taxonomy
 
+The subject token for an agent is its **`uuid` handle** (RFC 0004), **not** the
+SPIFFE URI: NATS treats `.` as the subject-hierarchy separator and `*` as a
+*single-token* wildcard, so a dotted `spiffe://…/agent/coder` ID would expand
+into many tokens and defeat `agent.*.rewind`. The dot-free uuid is exactly one
+token; the SPIFFE ID authenticates the connection (§1.2), the uuid keys the
+subject.
+
 | Subject | Carries | Pattern |
 |---------|---------|---------|
-| `agent.<id>.rewind` | a `RewindEvent` notification (RFC 0004 §3.3) | publish per rewind |
-| `agent.<id>.step` | step-progress notifications (optional, for surfaces) | publish per step |
-| `runtime.<rt>.control` | RFC 0005 control frames addressed to a runtime | request-reply |
+| `agent.<uuid>.rewind` | a `RewindEvent` notification (RFC 0004 §3.3) | publish per rewind |
+| `agent.<uuid>.step` | step-progress notifications (optional, for surfaces) | publish per step |
 
-A supervisor subscribes `agent.*.rewind` — **wildcard interest gives near-constant
-matching with no per-peer cluster bookkeeping**: a cross-host consumer learns a producer
-rewound without polling the producer's log. Request/response Votive Frames
-(RFC 0002 classes) ride NATS **request-reply**; events ride **subjects**.
+A supervisor subscribes `agent.*.rewind` — **wildcard interest gives
+near-constant matching with no per-peer cluster bookkeeping**: a cross-host
+consumer learns a producer rewound without polling the producer's log.
+
+**The fabric carries events and proofs only — never privileged request/response.**
+Control frames (RFC 0005) and `DependencyRegistration` (RFC 0004) are
+identity-proven, acknowledged point-to-point frames: they ride mTLS Litany
+connections (§1), *not* NATS. This is the §3 boundary made concrete in the
+transport split — nothing that mutates state travels the best-effort fabric.
 
 ### 2.2 Retained accumulators over JetStream
 
@@ -106,7 +117,10 @@ on the notification alone. It re-verifies against its own folded state
 or duplicated NATS message can therefore never corrupt state — at worst it
 delays or redundantly triggers a re-verification that is idempotent. This is
 what makes NATS safe to use here despite at-most/at-least-once delivery: it is
-never load-bearing for correctness.
+never load-bearing for correctness. Privileged effects (control, dependency
+registration) never traverse the fabric at all — they are identity-proven,
+acknowledged Litany frames (§2.1), so "act on a fabric message alone" cannot
+arise for them.
 
 ## Security considerations
 
