@@ -47,6 +47,14 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
   summary-only. Prior suggestions (marked `<!-- vaked-autofix -->`) are deleted
   each run, so re-reviews don't pile up stale comments. On by default; disable with
   `PR_REVIEW_NO_AUTOFIX`.
+- **`@vaked-ci` interactive responder** — mention `@vaked-ci` in a PR comment and
+  the agent replies (in `--respond` mode, same binary): a free-form question about
+  the diff gets a caveman answer (with crabcc/`read_lines` to verify); `review` /
+  `re-review` triggers a fresh full review. Advisory only — it posts a comment,
+  never changes code. Driven by [`vaked-ci-respond.yml`](../../../.github/workflows/vaked-ci-respond.yml),
+  gated to comments from `OWNER`/`MEMBER`/`COLLABORATOR` (non-bot) to bound cost
+  and prevent loops; replies are marked `<!-- vaked-ci-reply -->` and form a thread
+  (never auto-deleted).
 - **Cost estimate** — the footer shows `cost ~$X` from token usage × a blended
   `$/Mtok` rate (`PR_REVIEW_USD_PER_MTOK`, default 0.5).
 - **Prompt caching** — a stable cache key + identical system-prompt prefix let
