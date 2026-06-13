@@ -171,23 +171,49 @@ follows:
   anchor via the `ConsumerCheckpoint` check (§6, step 3): if the anchored step
   hash is no longer in P's canonical history (it was rewound away), the check
   fails and the consumer pauses in `stale_dependency`.
-- **Cascade rule (provisional):** If consumer C depends on producer P, and C's
-  output is depended on by consumer D, is D affected by P's rewind? **Working
-  decision:** D is **not** directly paused by P's rewind. D only learns of the
-  problem if C itself pauses (`stale_dependency`) and D (on its next
-  verification) detects that C is paused or its checkpoint is stale. This is a
-  transitive, discovery-based cascade, not a direct broadcast cascade. The
-  rationale is avoiding cascading pauses across unrelated dependency trees; the
-  cost is that D's verification may need to retry if C is still recovering.
+- **Cascade rule (discovery-based, NOT broadcast-based):** If consumer C depends on
+  producer P, and C's output is depended on by consumer D, is D affected by P's
+  rewind? **Working decision:** D is **not** directly paused by P's rewind.
+  Instead, D discovers the problem transitively:
+  
+  1. P rewinds → C's anchor becomes stale
+  2. C runs cold-start or scheduled verification → detects stale anchor → pauses
+  3. D runs next verification → detects that C is paused or C's checkpoint is stale
+     (via `ConsumerCheckpoint` check in RFC 0004 §6) → D pauses (`stale_dependency`)
+  
+  **Safety argument:** This is safe because:
+  - Cold-start (§6) is **mandatory** on restart, so C will eventually pause.
+  - D's verification (§4.2.1) runs periodically, so D will eventually detect C's pause.
+  - The chain is verified end-to-end: if C's checkpoint anchors to P's rewind point,
+    and that point is now stale in P's eventd, D's verification detects it.
+  - No missed notifications: if D misses NATS notification of P's rewind, it still
+    discovers via C's pause state (observable in eventd or C's agent state).
+  
+  **Rationale:** Avoids cascading pause broadcasts across potentially unrelated
+  dependency trees; cost is bounded discovery latency (max one verification cycle).
 
-### 3.3.2 RewindEvent acknowledgement (provisional)
+### 3.3.2 RewindEvent acknowledgement & at-least-eventual-discovery (provisional)
 
-**Working decision:** RewindEvent is **fire-and-forget**, not acknowledged. A
-consumer receiving RewindEvent is responsible for eventually (on next
-verification or checkpoint) learning of the stale anchor. If a consumer crashes
-before reacting, its old checkpoint is marked stale on recovery. This is
-simpler than two-phase rewind but requires cold-start to be mandatory (which
-§6 already mandates).
+**Working decision:** RewindEvent is **fire-and-forget** (no acknowledgment).
+A consumer receiving RewindEvent notification (via NATS) schedules a verification
+run at its next cycle. However, if the notification is lost (broker unavailable,
+subscription not yet open), the consumer **MUST** discover the stale anchor
+within a bounded time via:
+
+1. **Cold-start verification (mandatory):** On agent restart, cold-start (§6)
+   checks all anchors against producer's current eventd state. Stale anchors
+   are detected immediately.
+2. **Scheduled verification cycle:** RFC 0004 §4.2.1 requires periodic verification
+   (default ~1000 steps). On each cycle, consumers verify their anchors.
+3. **Worst-case bounded delay:** A consumer that never receives NATS notification
+   will discover staleness no later than the next cold-start or next scheduled
+   verification cycle (maximum bounded delay = max(restart latency, verification
+   interval, ~1000 steps)).
+
+This is simpler than two-phase rewind with acknowledgment, and it is safe because
+the **eventd chain is authoritative**, not the notification layer. Notifications
+are best-effort optimization; cold-start and scheduled verification are the
+fail-safe mechanisms.
 
 ## 4. Invariant I — dependency-aware log GC
 
