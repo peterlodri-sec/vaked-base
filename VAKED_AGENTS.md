@@ -20,8 +20,8 @@ runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE
 | Agent | Kind | Trigger | Lives in | Model | Does |
 |-------|------|---------|----------|-------|------|
 | **ralph** | Python cron loop | cron 3h + 23:00 UTC, dispatch | `tools/ralph/` ([README](tools/ralph/README.md)) | per-track ([`tools/ralph/tracks.json`](tools/ralph/tracks.json)) | Surfaces the most important open decision per track into a hash-chained, human-ratified ledger; announces + daily recap to Mastodon. |
-| **pr-review** | adk-rust event | `pull_request` | `vaked-agents/ci/pr-review/` ([README](vaked-agents/ci/pr-review/README.md)) | `z-ai/glm-4.6` | Advisory diff review: 7-hat council, crabcc/MCP + RTK, structured findings, inline ```suggestion``` autofixes, cost + runtime footer; never fails the check. |
-| **@vaked-ci** | adk-rust event (same binary, `--respond`) | `issue_comment` mentioning `@vaked-ci` | `vaked-agents/ci/pr-review/` | `z-ai/glm-4.6` | Replies to maintainer comments: answer a question about the diff, or `review`/`re-review`. Gated to non-bot OWNER/MEMBER/COLLABORATOR. |
+| **pr-review** | adk-rust event | `pull_request` | `vaked-agents/ci/pr-review/` ([README](vaked-agents/ci/pr-review/README.md)) | `deepseek/deepseek-v4-flash` | Advisory diff review: 7-hat council, crabcc/MCP + RTK, structured findings, inline ```suggestion``` autofixes, cost + runtime footer; never fails the check. |
+| **@vaked-ci** | adk-rust event (same binary, `--respond`) | `issue_comment` mentioning `@vaked-ci` | `vaked-agents/ci/pr-review/` | `deepseek/deepseek-v4-flash` | Replies to maintainer comments: answer a question about the diff, or `review`/`re-review`. Gated to non-bot OWNER/MEMBER/COLLABORATOR. |
 | **doc-keeper** | Python checker | doc/protocol pushes, PRs, weekly cron | `tools/dockeeper/` ([README](tools/dockeeper/README.md)) | — (deterministic) | Gates doc/spec/RFC drift: RFC cross-refs resolve, backticked repo-path refs resolve, stub-README freshness. |
 
 Workflows: [`ralph-tracks.yml`](.github/workflows/ralph-tracks.yml) ·
