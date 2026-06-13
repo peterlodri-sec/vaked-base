@@ -691,9 +691,8 @@ def _expand_doc_globs(patterns: list[str]) -> list[str]:
 def _query_open_issues(extra: list[str]) -> "list[dict] | None":
     """One `gh issue list --state open` query. None ⇒ gh unavailable / error;
     [] ⇒ a successful but empty result."""
-    raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
-                "--limit", "40", "--json", "number,title,body"] + extra,
-               cwd=REPO_HOME)
+    '''One `gh issue list --state open` query. None ⇒ gh unavailable / error;
+    [] ⇒ a successful but empty result.'''
     if not raw:
         return None
     try:
