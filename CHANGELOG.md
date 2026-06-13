@@ -5,6 +5,42 @@
 - feat(agents): add vaked-label-tagger CI agent (#125)
 - feat(yardmaster): graduate to active + always-on Mastodon/Telegram broadcast (#123)
 - feat(yardmaster): merge-train conductor for the fan-out agent fleet (#121)
+- ci-agents: operator briefing, commit-signature provenance, versioned/Telegram footer (#135)
+
+### ci
+- ci(nix-check): add store cache, drop --all-systems, add path filters (#149)
+- chore(ci): run provost hourly + harden against the OTel batch-thread panic (#139)
+- fix(ci): fix YAML parse error in label-tagger.yml (#128)
+
+### compiler
+- fix(bin/vaked): Codex P2 — verify gate, webhook validation, path traversal (#126)
+- extend bin/vaked: lifecycle, gateway, webhook, mcp, verify, self-auth, man, docs (#124)
+
+### docs
+- docs(yardmaster): don't SPKI-pin behind Cloudflare/CDN (#136)
+
+### protocol
+- RFC 0007: post-quantum Litany & sealed image-as-code attestation + d2 render pipeline (#122)
+- hcp-litany: ratify Decision #2, add Decisions #3 and #4 (#132)
+
+### runtime
+- feat(telebot): deploy paths — host script + bounded GitHub Actions runtime (#137)
+- feat(telebot): interactive Telegram control surface for the agent fleet (#131)
+- feat: telegram-post workflow + agent posting protocol (#129)
+- hardening(telebot): unprivileged systemd unit + credential store (#134)
+- fix(yardmaster): mastodon broadcast empty-base default + egress-aware TLS pinning (#127)
+
+### tools
+- pr-review: fix Langfuse tracing, link traces↔PR, tune DeepSeek cache (#133)
+- fix(pr-review): panic=unwind so the OTel batch-thread panic doesn't abort the review (#140)
+
+## [unreleased] — 2026-06-13
+
+### agents
+- feat(agents): add vaked-provost product-owner / coordination agent (#138)
+- feat(agents): add vaked-label-tagger CI agent (#125)
+- feat(yardmaster): graduate to active + always-on Mastodon/Telegram broadcast (#123)
+- feat(yardmaster): merge-train conductor for the fan-out agent fleet (#121)
 - hardening(telebot): unprivileged systemd unit + credential store (#134)
 - feat(telebot): interactive Telegram control surface for the agent fleet (#131)
 - feat: telegram-post workflow + agent posting protocol (#129)
