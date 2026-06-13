@@ -229,7 +229,7 @@ and an empty or non-resolving `target` is refused `unknown_target`.
 
 ![Control Epoch Skew and Resolution](../../docs/assets/diagrams/06_control_epoch_skew.svg)
 
-### 2.5 Rewind semantics
+## 3 Rewind semantics
 
 **rewind** composes RFC 0004 machinery and nothing else: the supervisor
 (a) pauses every worker holding an anchor above `rewind_to_step`,
@@ -239,7 +239,7 @@ verification (RFC 0004 §6) and either re-anchors (RUNNING) or parks as
 `PAUSED(stale_dependency)` with its `StaleDependency` record. No worker
 is left paused without a specified path forward.
 
-## 3. Idempotency & logging
+## 4. Idempotency & logging
 
 3. **Idempotency.** Frames are idempotent per correlation id: re-delivery of
    an applied frame re-acks with the original `logged_seq`; re-delivery of a
@@ -247,7 +247,7 @@ is left paused without a specified path forward.
    the log on supervisor restart (the `control_action` payload carries
    `corr`, §3); its retention is the log's.
 
-## 4. Worked examples for each control verb
+## 5. Worked examples for each control verb
 
 ### 4.1 PauseControl example
 
@@ -405,7 +405,7 @@ Response (same corr <uuid-w>):
     }
 ```
 
-## 5. ControlRefusal reason taxonomy
+## 6. ControlRefusal reason taxonomy
 
 The `ControlRefusal` enum (defined in hcp.control schema) specifies why a control
 frame was refused. Common reasons:
@@ -425,7 +425,7 @@ All refusals result in `applied = false` and no `control_action` logged to event
 The refusal itself is not logged; only the operator's audit trail records that a
 command was denied. This keeps the `eventd` free of failed attempts.
 
-## 6. Epoch synchronization with control requests
+## 7. Epoch synchronization with control requests
 
 Control frames (`PauseControl`, `ResumeControl`, `SetIntervalControl`, `StepControl`,
 `RewindControl`) all carry a `topology_epoch` field. The supervisor validates that
@@ -441,7 +441,7 @@ A caller that receives `stale_epoch` must:
 This design closes the window where a topology change (agent removed/added, edge
 changed) is invisible to the control plane — the epoch acts as a fence.
 
-## 7. Visibility: applied control actions are events
+## 8. Visibility: applied control actions are events
 
 Every **applied** control frame is appended to the runtime's eventd log as a
 `control_action` payload —
@@ -478,7 +478,7 @@ load-bearing), attributing the rewind to its principal.
 - Tamper evidence of recorded actions is inherited from eventd (hash chain;
   boot-time hard verify).
 
-## 8. SetIntervalControl interaction with heartbeat (provisional)
+## 9. SetIntervalControl interaction with heartbeat (provisional)
 
 When a SetIntervalControl request changes an agent's tick interval:
 
@@ -491,7 +491,7 @@ When a SetIntervalControl request changes an agent's tick interval:
 - **Use case:** An operator may slow a worker (`interval_ms = 5000`) to reduce
   CPU churn during GC, without affecting the connection's liveness.
 
-## 9. RewindControl targeting & step identification (provisional)
+## 10. RewindControl targeting & step identification (provisional)
 
 A RewindControl request targets a producer by AgentId (UUID) and specifies a
 rewind point. The rewind point is identified by **both**:
