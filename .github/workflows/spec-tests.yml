@@ -135,20 +135,26 @@ jobs:
         id: sum
         run: |
           if [ -f nix-check.log ]; then
-            # strip markdown-active chars so the Telegram (markdown) body never breaks
-            tail -n 8 nix-check.log | tr -d '`*_[]' > tail.txt
+            # strip markdown/html-active chars so the Telegram body never breaks
+            tail -n 8 nix-check.log | tr -d '`*_[]~|<>' > tail.txt
           else
             echo "(no log produced)" > tail.txt
           fi
+          # random heredoc delimiter so a log line can never close it early
+          delim="NIXEOF_$(date +%s%N)"
           {
-            echo "tail<<NIXEOF"
+            echo "tail<<${delim}"
             cat tail.txt
-            echo "NIXEOF"
+            echo "${delim}"
           } >> "$GITHUB_OUTPUT"
 
       # VERBOSE report — fires on EVERY run (success and failure), per request.
+      # continue-on-error: the report is a best-effort side-channel; a delivery
+      # failure (e.g. a bad TELEGRAM_TO chat id) must NOT flip a green flake-check
+      # into a red job. It surfaces as a step warning instead.
       - name: Telegram report (verbose — always)
         if: always()
+        continue-on-error: true
         uses: appleboy/telegram-action@v1.0.1
         with:
           to: ${{ secrets.TELEGRAM_TO }}
