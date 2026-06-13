@@ -23,10 +23,9 @@ export function Sidebar() {
     <div style={{
       display: "flex",
       flexDirection: "column",
-      width: "280px",
-      minWidth: "220px",
+      width: "100%",
+      height: "100%",
       background: "#0d1117",
-      borderRight: "1px solid #1f2937",
       overflow: "hidden",
     }}>
       {/* Tab bar */}
