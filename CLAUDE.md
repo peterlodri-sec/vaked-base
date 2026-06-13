@@ -8,22 +8,28 @@ Foundation monorepo for the **Vaked** agentic-runtime ecosystem.
 
 Vaked is a flake-native **capability-graph language**. A Vaked declaration compiles to a typed semantic graph, then to artifacts: `flake.nix` / NixOS modules, Zig daemon configs, eBPF policy manifests, OTel config, CrabCC indexes, and docs. Those run on a NixOS host under an OTP supervision plane that orchestrates single-purpose Zig enforcement daemons, with eBPF as the evidence layer and operator surfaces on top.
 
-This repo is currently a **scaffold**: the language track is real design content; runtime and protocol are indexed stubs. See `README.md` for the full repo map and `docs/context/PROJECT_CONTEXT.md` for the canonical overview.
+Language + compiler are **done**. Protocol has 7 RFCs. Two runtime reference daemons exist. See `README.md` for the full repo map and `docs/context/PROJECT_CONTEXT.md` for the canonical overview.
 
 ## Structure
 
 | Path | Purpose |
 |------|---------|
 | `vaked/` | The language — `grammar/vaked-v0-plus.ebnf`, `schema/`, `examples/` |
-| `docs/language/` | Design series `0001…0010` + `references/` |
+| `vakedc/` | Python prototype front-end — parse → check → lower (stages 1–4) |
+| `vakedz/` | Zig production front-end — cache-native port of vakedc; min Zig 0.16 |
+| `docs/language/` | Design series `0001…0018` + `references/` |
 | `docs/context/` | `PROJECT_CONTEXT.md` (canonical overview) |
-| `docs/runtime/`, `daemons/` | Runtime daemon roster (OTP + Zig) — stub |
-| `docs/protocol/`, `protocol/` | HCP / Litany protocol + RFCs — stub |
+| `docs/runtime/`, `daemons/` | Runtime daemon roster (OTP + Zig) |
+| `docs/protocol/`, `protocol/` | HCP / Litany protocol + RFCs 0001–0007 |
+| `vaked-agents/` | Agent fleet — pr-review, swe_af, provost, ralph, docs-keeper, merge-train |
+| `tools/ralph/` | Autonomous track decision loop — commits ledger entry, announces |
+| `agent_guardd/` | Reference daemon — network/eBPF membrane (deny-by-default egress) |
+| `eventd/` | Reference daemon — append-only hash-chained event log |
 | `prompts/` | `dedicated-language-session.md` kickoff prompt |
 | `hosts/` | `vakedos` bare-metal NixOS host — the materialization target (EPYC 4345P); deploy guide in [`DEPLOY.md`](DEPLOY.md) |
 | `flake.nix` | Dev shell (Zig, BEAM/OTP, Rust for CrabCC, tooling) + `nixosConfigurations.vakedos` |
 | `.mcp.json` | Project MCP servers |
-| `.claude/skills/` | `vaked-language-author`, `hcp-rfc-author` |
+| `.claude/skills/` | `vaked-language-author`, `hcp-rfc-author`, `vaked-compiler-dev`, `vaked-engineer-onboarding`, `caveman`, `mastodon-poster` |
 
 ## Conventions
 
@@ -31,6 +37,38 @@ This repo is currently a **scaffold**: the language track is real design content
 - **Protocol decisions live in RFCs** under `protocol/rfcs/`, not in prose. Use the `hcp-rfc-author` skill.
 - **Each subsystem (language impl, each daemon, the wire protocol) gets its own design → plan → implementation cycle.** Don't implement a daemon inline; scaffold its spec first.
 - **Dev shell:** `nix develop` provides the toolchains. Zig/Erlang/Elixir are not assumed to be globally installed.
+
+## Status (2026-06-13)
+
+WP1 language ✅  WP2 vakedc ✅  WP3 wire-protocol ⏳ (start Jun 24)  WP4 daemons ⏳ (start Jun 24)
+
+- grammar v0.3 · 29 kinds
+- 100k workers verified (273ms avg, deterministic) · 1M projected
+- RFCs 0001–0007 (HCP · hcplang · Litany · multi-agent · control frames · transport · PQ-sealed image)
+- vakedz v0.1.0 (Zig 0.16) · vakedc (Python, stdlib-only)
+
+## vakedz — Zig front-end
+
+```
+zig build                    # → zig-out/bin/vakedz
+zig build run -- parse <file>
+zig build test
+```
+Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external deps.
+
+## CI agent fleet
+
+| Agent | Role |
+|-------|------|
+| `pr-review` | advisory diff review (never blocks merge) |
+| `@vaked-ci` | responds to maintainer `@vaked-ci` comments |
+| `ralph` | autonomous track decision loop — picks track, commits ledger |
+| `docs-keeper` | RFC/doc drift gate |
+| `merge-train` | advisory merge planner |
+| `swe_af` | SWE agent field — runs on GHA, uses OpenRouter |
+| `provost` | multi-step automation |
+| `social-post` | Mastodon dev-feed (Carcin persona) |
+| `label-tagger` | auto-labels PRs/issues |
 
 ## Security / Snyk
 
