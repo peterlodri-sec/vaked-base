@@ -217,6 +217,47 @@ def _test_report(lines):
     return ok
 
 
+_TINY_PNG = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+             "+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC")  # 1x1 transparent PNG
+
+
+def _test_sign(lines):
+    import base64
+    import shutil
+    import subprocess
+    import report
+    if not shutil.which("openssl"):
+        lines.append("  SKIP sign: openssl not available")
+        return True
+    ok = True
+    key = subprocess.run(["openssl", "genpkey", "-algorithm", "ed25519"],
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode()
+    os.environ["YARDMASTER_SIGNING_KEY"] = key
+    try:
+        img, m = report.finalize_image(base64.b64decode(_TINY_PNG),
+                                       "peterlodri-sec/vaked-base", "deadbeef00", "tally")
+        if not m.get("image_sha256"):
+            ok = False
+            lines.append("  FAIL sign: manifest missing image_sha256")
+        if m.get("alg") != "ed25519" or "sig" not in m or "pubkey" not in m:
+            ok = False
+            lines.append(f"  FAIL sign: not signed ({m.get('alg')})")
+        elif not report.verify_manifest(m):
+            ok = False
+            lines.append("  FAIL sign: valid signature did not verify")
+        else:
+            bad = dict(m, image_sha256="0" * 64)   # tamper the signed payload
+            if report.verify_manifest(bad):
+                ok = False
+                lines.append("  FAIL sign: tampered manifest verified")
+    finally:
+        os.environ.pop("YARDMASTER_SIGNING_KEY", None)
+    if ok:
+        lines.append("  PASS sign: ed25519 manifest over image_sha256 verifies; "
+                     "tamper rejected (compress+EXIF best-effort)")
+    return ok
+
+
 def run():
     lines = []
     ok = True
@@ -227,6 +268,7 @@ def run():
         ("ledger (eventd round-trip)", _test_ledger),
         ("control (one-shot step)", _test_clear_step),
         ("report (infographic + text)", _test_report),
+        ("image (compress + exif + sign)", _test_sign),
     ]:
         lines.append(label + ":")
         ok &= fn(lines)

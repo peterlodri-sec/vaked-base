@@ -33,14 +33,26 @@ Every tick yardmaster announces as **`yardmaster:<repo>`** to **both** channels
 
 - **Mastodon** — a short emoji caption **plus an infographic picture**: a
   deterministic SVG of the train (a locomotive + one colour-coded car per PR on a
-  track) rasterized to PNG. The image is *data-accurate*, not LLM-drawn; a missing
-  rasterizer degrades to a text-only toot.
+  track) rasterized to PNG, then **compressed** (pngquant, ~⅓ size),
+  **metadata/EXIF-tagged** (exiftool: title, description, artist, copyright,
+  software, datetime, source), and **Ed25519-signed**. The image is
+  *data-accurate*, not LLM-drawn; any missing tool degrades that stage only.
 - **Telegram** — the full emoji status report (one line per car + tally).
+
+**Provenance + signature.** `finalize_image` builds a manifest
+`{repo, commit, generated_at, image_sha256, sig, pubkey}`, signs it with
+`YARDMASTER_SIGNING_KEY` (an Ed25519 PEM in the `ci` Environment) via openssl,
+embeds it in the image (`UserComment` + a PNG `Comment` chunk), **and writes it to
+the `eventd` ledger** (`signed_image` event) as the durable copy. Verify: strip
+`UserComment`, `sha256` → `image_sha256`, then openssl-verify the signature over
+the unsigned manifest with the embedded pubkey. Without a key it degrades to a
+hash-only provenance manifest (still ledgered). Generate a key:
+`openssl genpkey -algorithm ed25519` → store the PEM as `YARDMASTER_SIGNING_KEY`.
 
 Best-effort + secret-guarded (a missing key is a clean no-op; a transport error
 never fails the run). Credentials live in the `ci` Environment: `MASTODON_BASE_URL`
-/ `MASTODON_ACCESS_TOKEN` / `MASTODON_VISIBILITY`, `TELEGRAM_TOKEN` / `TELEGRAM_TO`.
-`YARDMASTER_ANNOUNCE=0` silences it.
+/ `MASTODON_ACCESS_TOKEN` / `MASTODON_VISIBILITY`, `TELEGRAM_TOKEN` / `TELEGRAM_TO`,
+`YARDMASTER_SIGNING_KEY`. `YARDMASTER_ANNOUNCE=0` silences it.
 
 ## Stance (active, opt-in)
 
@@ -72,9 +84,11 @@ python3 tools/yardmaster/yardmaster.py tick --enable --repo peterlodri-sec/vaked
 python3 tools/yardmaster/yardmaster.py verify
 ```
 
-In CI it runs from `.github/workflows/merge-train.yml` (hourly + dispatch +
-`pull_request`), `environment: ci`, `concurrency: merge-train`, `contents`/
-`pull-requests: write` + `checks: read`, installs `librsvg2-bin` for the
+In CI it runs from `.github/workflows/merge-train.yml` on **trusted events only**
+(hourly `schedule` + `workflow_dispatch` — *not* `pull_request`, since the active
+job holds write perms + secrets and must never execute PR-supplied code),
+`environment: ci`, `concurrency: merge-train`, `contents`/`pull-requests: write` +
+`checks: read`, installs `librsvg2-bin` / `pngquant` / `exiftool` for the
 infographic, and runs `tick --enable`.
 
 ## Reuse (no new machinery)

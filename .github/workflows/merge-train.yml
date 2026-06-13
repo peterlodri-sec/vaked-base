@@ -3,19 +3,21 @@ name: merge-train
 # yardmaster — the merge-train conductor (tools/yardmaster/), GRADUATED to act.
 # Each run builds the dependency DAG of the open PRs (catching stacked PRs),
 # topo-orders the train, performs ONE action on the head car (merge / update-branch
-# / wait / block-conflict / hold), and ALWAYS broadcasts the train as
-# `yardmaster:<repo>` to Mastodon (with a data-accurate infographic picture) and
-# Telegram (full emoji report).
+# / block-conflict / hold), and ALWAYS broadcasts the train as `yardmaster:<repo>`
+# to Mastodon (compressed, EXIF-tagged, Ed25519-signed infographic) and Telegram.
 #
-# SAFETY: it only acts on OPT-IN PRs — those carrying the `train:auto` label or
-# from a fleet author (see tools/yardmaster/yardmaster.py FLEET_AUTHORS). Every
-# other PR is reported but never touched. To enrol a PR, add the `train:auto`
-# label. Conflicts (`dirty`) are flagged for a human, never auto-resolved.
+# SECURITY: the active conductor runs ONLY on TRUSTED events (schedule +
+# workflow_dispatch) — NEVER `pull_request`. A pull_request run checks out the
+# PR's code, and this job holds write permissions + social/signing secrets, so
+# executing PR-supplied code here would be a secret-exfil / arbitrary-merge hole
+# (the classic pwn-request). Hourly cron + manual dispatch cover the train.
+#
+# SAFETY: it only acts on OPT-IN PRs (the `train:auto` label or a fleet author —
+# tools/yardmaster/yardmaster.py FLEET_AUTHORS). Every other PR is reported but
+# never touched. Conflicts (`dirty`) are flagged for a human, never auto-resolved.
 on:
   schedule:
     - cron: "0 * * * *"         # hourly — advance + broadcast the train
-  pull_request:
-    types: [opened, synchronize, reopened]
   workflow_dispatch: {}
 
 # Acting on PRs needs write; ci_state() reads the check-runs API.
@@ -42,10 +44,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      # Rasterizer for the Mastodon infographic (SVG → PNG). Best-effort: a
-      # missing rasterizer degrades to a text-only toot, it does not fail the run.
-      - name: Install SVG rasterizer
-        run: sudo apt-get update -q && sudo apt-get install -y -q librsvg2-bin fonts-dejavu-core
+      # Image toolchain for the Mastodon infographic: rsvg (SVG→PNG), pngquant
+      # (compress), exiftool (metadata/EXIF). All best-effort — a missing tool
+      # degrades the picture (text-only / uncompressed / untagged), never fails.
+      - name: Install image toolchain
+        run: sudo apt-get update -q && sudo apt-get install -y -q librsvg2-bin pngquant libimage-exiftool-perl fonts-dejavu-core
 
       - name: Conduct the train (act on opt-in PRs + always broadcast)
         env:
@@ -55,6 +58,7 @@ jobs:
           MASTODON_VISIBILITY: ${{ secrets.MASTODON_VISIBILITY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
+          YARDMASTER_SIGNING_KEY: ${{ secrets.YARDMASTER_SIGNING_KEY }}
         run: |
           python3 tools/yardmaster/yardmaster.py tick --enable \
             --repo "${{ github.repository }}" | tee tick.json

@@ -17,9 +17,12 @@ GitHub Environment: ``MASTODON_BASE_URL`` / ``MASTODON_ACCESS_TOKEN`` /
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import os
 import subprocess
+import tempfile
 import urllib.parse
 import urllib.request
 import uuid
@@ -188,6 +191,161 @@ def render_png(svg_text: str) -> "bytes | None":
 
 
 # --------------------------------------------------------------------------- #
+# Finish the image before upload: compress → metadata/EXIF → Ed25519 signature.
+# Every stage is best-effort (a missing CLI tool degrades, never raises); the
+# manifest is the durable provenance (yardmaster also writes it to the eventd
+# ledger). Verify: strip the embedded `UserComment`, sha256 the bytes → equals
+# manifest.image_sha256, then openssl-verify the signature over the unsigned
+# manifest with the embedded pubkey.
+# --------------------------------------------------------------------------- #
+
+_SIGNED_FIELDS = ("alg", "repo", "commit", "generated_at", "image_sha256", "signer")
+
+
+def _run(cmd, inp=None):
+    try:
+        return subprocess.run(cmd, input=inp, stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL)
+    except FileNotFoundError:
+        return None
+
+
+def compress_png(png: bytes) -> bytes:
+    """Shrink the infographic before upload. pngquant (lossy palette — ideal for
+    a flat-colour graphic) → optipng → original. Strips metadata (re-added next)."""
+    r = _run(["pngquant", "--strip", "--quality=40-95", "-"], png)
+    if r is not None and r.returncode == 0 and r.stdout:
+        return r.stdout
+    return png
+
+
+def _canon(d: dict) -> bytes:
+    return json.dumps(d, separators=(",", ":"), sort_keys=True,
+                      ensure_ascii=False).encode("utf-8")
+
+
+def _ed25519_sign(message: bytes, key_pem: str) -> "tuple[str, str] | tuple[None, None]":
+    """Sign ``message`` with an Ed25519 private key (PEM) via openssl. Returns
+    ``(sig_b64, pubkey_der_b64)`` or ``(None, None)``."""
+    kp = mp = None
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".pem", delete=False) as kf:
+            kf.write(key_pem)
+            kp = kf.name
+        with tempfile.NamedTemporaryFile(delete=False) as mf:
+            mf.write(message)
+            mp = mf.name
+        sig = _run(["openssl", "pkeyutl", "-sign", "-inkey", kp, "-rawin", "-in", mp])
+        pub = _run(["openssl", "pkey", "-in", kp, "-pubout", "-outform", "DER"])
+        if sig and sig.returncode == 0 and sig.stdout and pub and pub.stdout:
+            return base64.b64encode(sig.stdout).decode(), base64.b64encode(pub.stdout).decode()
+    except Exception:
+        pass
+    finally:
+        for p in (kp, mp):
+            if p:
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+    return None, None
+
+
+def _exiftool_args(repo: str, tally: str, when_exif: str, year: str) -> list:
+    return [
+        "-Title=yardmaster: %s merge train" % repo,
+        "-Description=%s" % tally,
+        "-ImageDescription=%s" % tally,
+        "-Artist=yardmaster",
+        "-XMP-dc:Creator=yardmaster (vaked-base agent fleet)",
+        "-Copyright=%s peterlodri-sec/vaked-base — CC BY 4.0" % year,
+        "-Software=yardmaster/report.py",
+        "-DateTimeOriginal=%s" % when_exif,
+        "-CreateDate=%s" % when_exif,
+        "-XMP-dc:Source=https://github.com/%s" % repo,
+        "-XMP-dc:Subject=merge-train, vaked, yardmaster, fan-out",
+    ]
+
+
+def finalize_image(png: "bytes | None", repo: str, commit: str, tally: str
+                   ) -> "tuple[bytes | None, dict]":
+    """compress → embed metadata/EXIF → sign. Returns ``(bytes, manifest)``.
+    The manifest is always returned (with ``image_sha256``); ``sig``/``pubkey``
+    appear only when ``YARDMASTER_SIGNING_KEY`` (Ed25519 PEM) is set."""
+    if not png:
+        return png, {}
+    now = datetime.now(timezone.utc)
+    img = compress_png(png)
+    path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(img)
+            path = f.name
+        # metadata + EXIF (best-effort)
+        _run(["exiftool", "-q", "-overwrite_original"]
+             + _exiftool_args(repo, tally[:240], now.strftime("%Y:%m:%d %H:%M:%S"),
+                              now.strftime("%Y")) + [path])
+        img = open(path, "rb").read()
+        # provenance over the metadata-laden image
+        manifest = {
+            "alg": "sha256", "repo": repo, "commit": commit or "",
+            "generated_at": now.replace(microsecond=0).isoformat(),
+            "image_sha256": hashlib.sha256(img).hexdigest(), "signer": "yardmaster",
+        }
+        key = os.environ.get("YARDMASTER_SIGNING_KEY")
+        if key:
+            manifest["alg"] = "ed25519"
+            sig, pub = _ed25519_sign(_canon({k: manifest[k] for k in _SIGNED_FIELDS}), key)
+            if sig:
+                manifest["sig"], manifest["pubkey"] = sig, pub
+            else:
+                manifest["alg"] = "sha256"        # signing failed → hash-only
+        # embed the manifest (UserComment + a PNG Comment chunk)
+        mtxt = _canon(manifest).decode("utf-8")
+        _run(["exiftool", "-q", "-overwrite_original",
+              "-UserComment=" + mtxt, "-PNG:Comment=" + mtxt, path])
+        img = open(path, "rb").read()
+        return img, manifest
+    finally:
+        if path:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
+def verify_manifest(manifest: dict) -> bool:
+    """Verify the Ed25519 signature over the unsigned manifest with its embedded
+    pubkey (openssl). True for a valid ``ed25519`` manifest; False otherwise."""
+    if manifest.get("alg") != "ed25519" or "sig" not in manifest or "pubkey" not in manifest:
+        return False
+    msg = _canon({k: manifest[k] for k in _SIGNED_FIELDS})
+    pub = mp = sp = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".der", delete=False) as pf:
+            pf.write(base64.b64decode(manifest["pubkey"]))
+            pub = pf.name
+        with tempfile.NamedTemporaryFile(delete=False) as mf:
+            mf.write(msg)
+            mp = mf.name
+        with tempfile.NamedTemporaryFile(delete=False) as sf:
+            sf.write(base64.b64decode(manifest["sig"]))
+            sp = sf.name
+        r = _run(["openssl", "pkeyutl", "-verify", "-pubin", "-inkey", pub,
+                  "-keyform", "DER", "-rawin", "-in", mp, "-sigfile", sp])
+        return bool(r and r.returncode == 0)
+    except Exception:
+        return False
+    finally:
+        for p in (pub, mp, sp):
+            if p:
+                try:
+                    os.unlink(p)
+                except OSError:
+                    pass
+
+
+# --------------------------------------------------------------------------- #
 # Transports (best-effort; never raise).
 # --------------------------------------------------------------------------- #
 
@@ -253,14 +411,24 @@ def post_mastodon(text: str, png: "bytes | None") -> bool:
 
 # --------------------------------------------------------------------------- #
 
-def announce(repo: str, planned: list, mode: str, did: "dict | None" = None) -> dict:
-    """Build the report + infographic and broadcast to both channels. Returns
-    ``{telegram, mastodon, image}`` outcome flags. Never raises."""
+def announce(repo: str, planned: list, mode: str, did: "dict | None" = None,
+             commit: str = "") -> dict:
+    """Build the report + infographic, finish the image (compress → metadata/EXIF
+    → sign), and broadcast to both channels. Returns the outcome flags + the
+    provenance manifest (which the caller also writes to the eventd ledger).
+    Never raises."""
     text = build_text(repo, planned, mode, did)
     caption = build_caption(repo, planned, mode, did)
-    png = render_png(build_svg(repo, planned, mode))
+    c = _counts(planned)
+    tally = ("%d merge, %d update, %d wait, %d block, %d hold over %d PR(s)"
+             % (c["merge"], c["update_branch"], c["wait"], c["block_conflict"],
+                c["skip"], len(planned)))
+    img, manifest = finalize_image(render_png(build_svg(repo, planned, mode)),
+                                   repo, commit, tally)
     return {
         "telegram": post_telegram(text),
-        "mastodon": post_mastodon(caption, png),
-        "image": png is not None,
+        "mastodon": post_mastodon(caption, img),
+        "image_bytes": len(img) if img else 0,
+        "provenance": manifest,
+        "signed": manifest.get("alg") == "ed25519" and "sig" in manifest,
     }

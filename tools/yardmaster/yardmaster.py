@@ -52,6 +52,10 @@ FLEET_AUTHORS = {"ralph-loop", "github-actions[bot]"}
 OPT_IN_LABEL = "train:auto"
 CONFLICT_LABEL = "train:needs-human"
 
+# Check-run conclusions that count as GREEN for an auto-merge (allowlist — every
+# other completed conclusion, incl. action_required/stale/startup_failure, blocks).
+_CI_OK = {"success", "skipped", "neutral"}
+
 
 # --------------------------------------------------------------------------- #
 # Pure model — a PR as the train sees it (no network; unit-testable).
@@ -221,10 +225,12 @@ class GitHub:
             return "none"
         if any(c.get("status") != "completed" for c in items):
             return "pending"
-        if any(c.get("conclusion") in ("failure", "timed_out", "cancelled")
-               for c in items):
-            return "failure"
-        return "success"
+        # "success" requires EVERY completed check to be an accepted conclusion —
+        # allowlist, not denylist. action_required / stale / startup_failure /
+        # failure / timed_out / cancelled all block an auto-merge.
+        if all(c.get("conclusion") in _CI_OK for c in items):
+            return "success"
+        return "failure"
 
     def update_branch(self, n: int):
         return self._req("PUT", "/repos/%s/pulls/%d/update-branch" % (self.repo, n), {})
@@ -308,7 +314,16 @@ def _announce(repo: str, planned: list, mode: str, did: dict) -> dict:
         return {"skipped": True}
     try:
         import report
-        return report.announce(repo, planned, mode, did)
+        out = report.announce(repo, planned, mode, did,
+                              commit=os.environ.get("GITHUB_SHA", ""))
+        prov = out.pop("provenance", None)
+        if prov and prov.get("image_sha256"):
+            try:                            # the signed image's provenance → audit spine
+                _ledger_append({"kind": "signed_image", **prov})
+            except Exception:
+                pass
+            out["image_sha256"] = prov["image_sha256"]
+        return out
     except Exception as e:                  # noqa: BLE001 — broadcast is optional
         return {"error": str(e)}
 
