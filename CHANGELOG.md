@@ -2,6 +2,45 @@
 
 ### agents
 - feat(agents): add vaked-provost product-owner / coordination agent (#138)
+- feat(telebot): deploy paths — host script + bounded GitHub Actions runtime (#137)
+- feat(telebot): interactive Telegram control surface for the agent fleet (#131)
+- feat: telegram-post workflow + agent posting protocol (#129)
+- ci-agents: operator briefing, commit-signature provenance, versioned/Telegram footer (#135)
+- hardening(telebot): unprivileged systemd unit + credential store (#134)
+- pr-review: fix Langfuse tracing, link traces↔PR, tune DeepSeek cache (#133)
+- hcp-litany: ratify Decision #2, add Decisions #3 and #4 (#132)
+
+### ci
+- ci(nix-check): add store cache, drop --all-systems, add path filters (#149)
+- chore(ci): run provost hourly + harden against the OTel batch-thread panic (#139)
+- fix(ci): fix YAML parse error in label-tagger.yml (#128)
+
+### runtime
+- feat(runtime): sandboxd Python reference scaffold — process/filesystem membrane (#15 pattern) (#148)
+- feat(runtime): memoryd Python reference implementation (#15 pattern) (#147)
+
+### docs
+- docs(protocol): SPIRE PQC design — RFC 0007 Q3 research spike (#146)
+- docs(yardmaster): don't SPKI-pin behind Cloudflare/CDN (#136)
+
+### tools
+- feat(tools): sealed-image spike — provenance schema + sign/verify (RFC 0007 Q5) (#145)
+
+### chore
+- chore: gitignore .claude/worktrees/ (ephemeral agent isolation workspaces) (#143)
+
+### fix
+- fix(pr-review): panic=unwind so the OTel batch-thread panic doesn't abort the review (#140)
+- fix(yardmaster): mastodon broadcast empty-base default + egress-aware TLS pinning (#127)
+- fix(bin/vaked): Codex P2 — verify gate, webhook validation, path traversal (#126)
+
+### compiler
+- fix(bin/vaked): Codex P2 — verify gate, webhook validation, path traversal (#126)
+
+## [unreleased] — 2026-06-13
+
+### agents
+- feat(agents): add vaked-provost product-owner / coordination agent (#138)
 - feat(agents): add vaked-label-tagger CI agent (#125)
 - ci-agents: operator briefing, commit-signature provenance, versioned/Telegram footer (#135)
 
