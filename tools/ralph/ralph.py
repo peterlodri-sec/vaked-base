@@ -715,8 +715,9 @@ def _issues_for_labels(labels: list[str]) -> "tuple[list[dict], str]":
 
     union: dict[int, dict] = {}
     any_ok = False
-    for label in labels:
-        res = _query_open_issues(["--label", label])
+    if not any_ok:
+        # every label query failed → gh unusable → return empty with note
+        return [], " (no usable label filter; showing no issues)"
         if res is None:
             continue                     # this label query failed; try the others
         any_ok = True
