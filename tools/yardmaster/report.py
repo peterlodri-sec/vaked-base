@@ -34,10 +34,23 @@ from datetime import datetime, timezone
 # The fleet's self-hosted Mastodon — hardcoded default (override via MASTODON_BASE_URL).
 MASTODON_DEFAULT_BASE = "https://social.crabcc.app"
 # TLS public-key (SPKI) pin for the host above — base64(sha256(SubjectPublicKeyInfo)),
-# HPKP "pin-sha256" form. None ⇒ standard CA verification only. Set the real pin
-# here (or via MASTODON_SPKI_PIN) to pin the connection. Compute it on a normal
-# network (NOT inside a MITM'd CI sandbox):
-#   openssl s_client -connect social.crabcc.app:443 -servername social.crabcc.app </dev/null 2>/dev/null \
+# HPKP "pin-sha256" form. None ⇒ standard CA verification only (the right default).
+#
+# DON'T PIN BEHIND A CDN / TERMINATING PROXY. social.crabcc.app is fronted by
+# Cloudflare, so TLS terminates at Cloudflare's EDGE — the cert you'd see (and
+# pin) is Cloudflare's Universal-SSL leaf, which Cloudflare rotates automatically,
+# serves in several variants (ECDSA/RSA, many edge keys), and you don't control.
+# A pin would break on the next rotation. (A MITM'd CI sandbox is the same problem
+# for a different reason — you only ever see the proxy's cert.) So leave this None.
+# Authenticate at other layers instead: a WRITE-ONLY Mastodon token
+# (write:statuses + write:media) bounds a leak; Cloudflare mTLS / API Shield can
+# require a client cert so only the bot reaches the API; and the posted image is
+# already Ed25519-signed for end-to-end content authenticity.
+#
+# Set a pin (here or via MASTODON_SPKI_PIN) ONLY for a direct, self-controlled
+# endpoint with a stable key (e.g. certbot --reuse-key), computed on a normal
+# network — NOT inside a MITM'd CI sandbox:
+#   openssl s_client -connect HOST:443 -servername HOST </dev/null 2>/dev/null \
 #     | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der \
 #     | openssl dgst -sha256 -binary | openssl enc -base64
 _MASTODON_SPKI_PIN = None
