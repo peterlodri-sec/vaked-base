@@ -1021,6 +1021,23 @@ fn build_prompt(meta: &PrMeta, diff: &str, truncated: bool, addenda: &str) -> St
 
 /// Render the model's raw output (JSON or prose) to the final markdown review,
 /// returning (markdown, total_findings, blocking_findings). Falls back to raw
+/// Coerce a finding's `line` from string, integer, float, or null into a String.
+fn de_loc<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Loc {
+        S(String),
+        I(i64),
+        F(f64),
+    }
+    Ok(match Option::<Loc>::deserialize(d)? {
+        Some(Loc::S(s)) => s,
+        Some(Loc::I(i)) => i.to_string(),
+        Some(Loc::F(f)) => f.to_string(),
+        None => String::new(),
+    })
+}
+
 /// text if JSON parsing fails, so a non-conforming provider never breaks posting.
 #[derive(Deserialize, Default)]
 struct Finding {
@@ -1028,7 +1045,10 @@ struct Finding {
     severity: String,
     #[serde(default)]
     path: String,
-    #[serde(default)]
+    // Models emit `line` as a bare number (`"line": 414`) as often as a string;
+    // accept either (or null) so the whole structured review still parses instead
+    // of falling back to dumping raw JSON with a 0-findings count.
+    #[serde(default, deserialize_with = "de_loc")]
     line: String,
     #[serde(default)]
     problem: String,
@@ -1710,6 +1730,23 @@ fn truncate(s: &str, max: usize) -> (String, bool) {
     }
     let cut = s[..max].rfind('\n').unwrap_or(max);
     (s[..cut].to_string(), true)
+}
+
+#[cfg(test)]
+mod render_tests {
+    use super::*;
+
+    #[test]
+    fn numeric_line_still_parses_and_renders() {
+        // Model emits `line` as a bare number — must render markdown + count the
+        // finding, not fall back to dumping raw JSON with 0 findings.
+        let raw = r#"{"verdict":"Issues.","prose":"","findings":[{"severity":"Minor","path":"a.rs","line":414,"problem":"x","fix":"y"}],"exceptions":[]}"#;
+        let (body, total, blocking) = render_review(raw, 20);
+        assert_eq!(total, 1);
+        assert_eq!(blocking, 0);
+        assert!(!body.trim_start().starts_with('{'), "rendered, not raw JSON");
+        assert!(body.contains("`a.rs:414`"), "coerced numeric line: {body}");
+    }
 }
 
 #[cfg(test)]
