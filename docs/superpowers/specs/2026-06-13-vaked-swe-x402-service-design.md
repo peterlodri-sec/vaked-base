@@ -282,3 +282,8 @@ assumptions.
 **The two knobs to challenge:** the blended price/job ($8–12) and the 8→70 jobs/mo
 ramp. Halve the volume ⇒ break-even all year; target pros over tire-kickers (double the
 price) ⇒ ~$1.5k/mo by m12.
+
+> These are guesses. The [economic-research deployment](./2026-06-13-swe-economic-research-design.md)
+> replaces them with measured data — a dedicated cheap VM + a per-job economics ledger,
+> with hardware staged only after demand is proven (marginal fixed ≈ 0 there, since the
+> box is the experiment's own).
