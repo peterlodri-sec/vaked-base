@@ -44,17 +44,27 @@ if [ "$mode" = "check" ]; then
   trap 'rm -rf "$check_dir"' EXIT
 fi
 
+# Strip the embedded d2 build stamp so the committed SVGs (and the drift guard)
+# are reproducible across d2 patch versions — without a committed flake.lock the
+# dev shell could resolve a different d2 from nixos-unstable, and that version
+# string is the one byte that would otherwise change for unchanged sources.
+normalize() {
+  sed -i 's/ data-d2-version="[^"]*"//g' "$1"
+}
+
 drift=0
 for src in "${sources[@]}"; do
   name="$(basename "${src%.d2}")"
   if [ "$mode" = "check" ]; then
     d2 --layout "$D2_LAYOUT" --theme "$D2_THEME" --pad "$D2_PAD" "$src" "$check_dir/$name.svg" >/dev/null
+    normalize "$check_dir/$name.svg"
     if ! diff -q "$out_dir/$name.svg" "$check_dir/$name.svg" >/dev/null 2>&1; then
       echo "DRIFT: $name.svg is out of date — run \`task diagrams\`" >&2
       drift=1
     fi
   else
     d2 --layout "$D2_LAYOUT" --theme "$D2_THEME" --pad "$D2_PAD" "$src" "$out_dir/$name.svg" >/dev/null
+    normalize "$out_dir/$name.svg"
     echo "rendered $name.svg"
   fi
 done
