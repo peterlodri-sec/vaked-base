@@ -76,6 +76,7 @@ ANNOUNCE_MODEL = "openai/gpt-oss-120b"  # writes the toot (separate from decide)
 ANNOUNCE_LOOKBACK = 5                   # how far back to retry un-announced decisions
 TOOT_IMAGE_MODEL = "google/gemini-2.5-flash-image"  # generates the toot's media
 CRITIQUE_CONTEXT_CHARS = 32000          # cap grounding context for the stage-3 critique
+WRITER_MAX_TOKENS = 4000                # stage-2/3 entry budget (2200 truncated the critique)
 
 
 def read_purpose() -> str:
@@ -1174,7 +1175,7 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
     writer = os.environ.get("RALPH_WRITER_MODEL", "").strip() or stage2_model
     s2_msgs = C.build_stage2_messages(subject, full, chosen)
     s2, used2 = _writer_call(writer, stage2_model, s2_msgs, api_key=api_key,
-                             base_url=base_url, temperature=0.3, max_tokens=2200,
+                             base_url=base_url, temperature=0.3, max_tokens=WRITER_MAX_TOKENS,
                              span_name="ralph.deep-dive",
                              span_meta={**base_meta, "stage": 2})
     body = _message_content(s2) or _reasoning_text(s2)
@@ -1203,7 +1204,7 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
                         else full[:CRITIQUE_CONTEXT_CHARS] + "\n\n[context truncated for critique]")
             s3_msgs = C.build_critique_messages(subject, body, crit_ctx)
             s3, used3 = _writer_call(writer, stage2_model, s3_msgs, api_key=api_key,
-                                     base_url=base_url, temperature=0.2, max_tokens=2200,
+                                     base_url=base_url, temperature=0.2, max_tokens=WRITER_MAX_TOKENS,
                                      span_name="ralph.critique",
                                      span_meta={**base_meta, "stage": 3})
             cost += C.cost_usd(s3.get("usage", {}),
