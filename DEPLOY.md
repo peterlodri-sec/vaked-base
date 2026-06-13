@@ -19,7 +19,7 @@ Host-internal details: [`hosts/vakedos/README.md`](hosts/vakedos/README.md).
 
 Validated against the Vultr bare-metal **AMD EPYC 4345P** plan:
 
-| | |
+| Component | Spec |
 |---|---|
 | CPU | EPYC 4345P — Zen 5, 8 cores / 16 threads @ 3.8 GHz (AVX-512) |
 | RAM | 128 GB ECC |
@@ -89,7 +89,7 @@ lscpu | grep -E "Model name|scaling driver"   # EPYC 4345P + amd-pstate
 ras-mc-ctl --status           # ECC monitoring live
 systemctl status sshd irqbalance               # up
 bpftool version; wasmtime --version; nft list ruleset   # membrane substrate
-dmesg | grep -i "illegal instruction" || echo "no SIGILL — -march OK"
+dmesg | grep -qi "illegal instruction" && echo "SIGILL — wrong -march!" || echo "no SIGILL — -march OK"
 nix build nixpkgs#hello       # builder healthy (scratch on /build)
 sudo reboot                   # survives → BIOS/GRUB + mirror boot OK
 ```
@@ -163,6 +163,12 @@ zpool status rpool          # health; scrub runs weekly automatically
 nix-collect-garbage         # GC also runs weekly (--delete-older-than 30d)
 ras-mc-ctl --errors         # ECC error history
 ```
+
+**Rollback.** Every change here is reversible — NixOS keeps prior generations.
+Revert a bad tuning change with `nixos-rebuild switch --rollback` (or pick an
+earlier generation from the GRUB menu at boot). Kernel-param / `-march` changes
+only take effect after a rebuild+reboot, so validate them with `--vm-test`
+(above) before switching the live host.
 
 ---
 

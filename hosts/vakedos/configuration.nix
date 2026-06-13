@@ -85,7 +85,7 @@ in
   #   security membranes — speculative-exec defenses stay. (Revisit only if the
   #   box becomes single-tenant + trusted-only.)
   # - NUMA: the 4345P is a single CCD / single NUMA node, so there is nothing to
-  #   pin across nodes (unlike the briefing's multi-socket assumptions).
+  #   pin across nodes (multi-socket NUMA tuning does not apply here).
   # - Transparent huge pages stay at the kernel default (madvise): apps that want
   #   them opt in; we avoid the allocation-stall jitter of THP=always.
 
@@ -97,7 +97,9 @@ in
   zramSwap = {
     enable = true;
     algorithm = "zstd";
-    memoryPercent = 25; # up to ~32 GiB, only under memory pressure
+    # up to ~32 GiB, only under memory pressure; zstd compresses ~3-4× so the
+    # real RAM cost when full is far less. mkDefault so a host can override.
+    memoryPercent = lib.mkDefault 25;
   };
 
   # Bare metal: favor throughput/latency over power savings — interactive agent
