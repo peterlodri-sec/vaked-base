@@ -1,6 +1,6 @@
 [package]
 name = "vaked-pr-review"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.94"
 publish = false
@@ -38,6 +38,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 schemars = "1" # JSON schema for the read_lines tool parameters
 mimalloc = { version = "0.1", default-features = false } # faster global allocator
+# Build the Langfuse OTLP Basic-auth token from LANGFUSE_PUBLIC_KEY:LANGFUSE_SECRET_KEY
+# (already in the lockfile via rustls/reqwest; pinned here as a direct dep).
+base64 = "0.22"
 
 # crabcc symbol index, spoken to over MCP (stdio child process: `crabcc --mcp`).
 # Same rmcp line adk-tool uses, so the client types unify.
@@ -54,6 +57,10 @@ opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31", default-features = false, features = [
     "trace",
     "http-proto",
+    # reqwest-client selects the async HTTP client `with_http()` auto-detects (without
+    # it the exporter build fails: "no http client specified"); reqwest-rustls keeps TLS
+    # on rustls (reqwest is pulled default-features=false, so no system OpenSSL).
+    "reqwest-client",
     "reqwest-rustls",
 ] }
 

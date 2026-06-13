@@ -16,7 +16,8 @@ fork PRs (which get no secrets).
 | Secret | Used by | Optional? |
 |--------|---------|-----------|
 | `OPENROUTER_API_KEY` | pr-review, @vaked-ci, ralph | required for LLM runs |
-| `LANGFUSE_URL`, `LANGFUSE_API_KEY` (or `LANGFUSE_PUBLIC_KEY`/`SECRET_KEY`/`HOST`) | pr-review, ralph | optional (tracing) |
+| `LANGFUSE_HOST` (or `LANGFUSE_BASE_URL`), `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | pr-review, ralph | optional (tracing). pr-review builds the OTLP Basic token from the key pair; legacy `LANGFUSE_URL`/`LANGFUSE_API_KEY` still accepted |
+| `LANGFUSE_PROJECT_ID` | pr-review | optional (enables comment→trace deep-link) |
 | `MASTODON_ACCESS_TOKEN` | ralph announce/digest, social-post | optional |
 | `CRABCC_INSTALL_TOKEN` | pr-review, @vaked-ci | optional (private crabcc) |
 | `RALPH_API_KEY`, `RALPH_BASE_URL` | ralph | optional (self-hosted endpoint) |
