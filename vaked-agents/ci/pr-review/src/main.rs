@@ -156,7 +156,6 @@ async fn main() {
         match run_cleanup().await {
             Ok(()) => 0,
             Err(e) => {
-                warn!(error = %e, "cleanup failed (advisory — exiting 0)");
                 eprintln!("cleanup: {e:#}");
                 0
             }
@@ -165,7 +164,6 @@ async fn main() {
         match run_respond().await {
             Ok(()) => 0,
             Err(e) => {
-                warn!(error = %e, "vaked-ci respond failed (advisory — exiting 0)");
                 eprintln!("vaked-ci: {e:#}");
                 0
             }
@@ -174,7 +172,6 @@ async fn main() {
         match run_review().await {
             Ok(()) => 0,
             Err(e) => {
-                warn!(error = %e, "pr-review failed (advisory — exiting 0)");
                 eprintln!("pr-review: {e:#}");
                 0
             }
