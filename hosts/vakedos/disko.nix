@@ -90,7 +90,28 @@
           build = {
             type = "zfs_fs";
             mountpoint = "/build";
-            options."com.sun:auto-snapshot" = "false";
+            options = {
+              "com.sun:auto-snapshot" = "false";
+              recordsize = "1M"; # large, write-once build artifacts
+            };
+          };
+          # Runtime state plane for the membrane daemons (docs/runtime/README.md).
+          # eventd's append-only, hash-chained audit spine and memoryd's mined
+          # memory plane live here; ZFS checksums back the tamper-evidence story,
+          # and snapshots are kept (auto-snapshot on) for audit history.
+          "var/lib/vaked" = {
+            type = "zfs_fs";
+            mountpoint = "/var/lib/vaked";
+            options."com.sun:auto-snapshot" = "true";
+          };
+          # Unmounted reservation so the pool never reaches 100% (a full ZFS pool
+          # wedges writes). Sized as headroom, not for data.
+          reserved = {
+            type = "zfs_fs";
+            options = {
+              mountpoint = "none";
+              reservation = "10G";
+            };
           };
         };
       };

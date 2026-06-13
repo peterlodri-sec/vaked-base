@@ -22,6 +22,25 @@ Nix build host you can deploy and iterate on.
 
 Wired into the repo flake as `nixosConfigurations.vakedos`.
 
+## Tuned to the concept — the membrane substrate
+
+The host is more than a generic builder: it's the substrate the Vaked
+**membranes** (`PROJECT_CONTEXT.md`) materialize onto. The daemons that enforce
+them are still stubs, so nothing is *wired* — but every kernel/system facility
+each membrane needs is present and tuned, so the compiler-emitted
+`nixosModules.<runtime>` attaches cleanly later.
+
+| Membrane → daemon | Host facility provided here |
+|-------------------|------------------------------|
+| `ebpf` / `network` → **agent-guardd** | recent kernel (BPF + BTF/CO-RE), `nftables` backend (composes with cgroup/BPF egress), `bpftool`/`bpftrace`/`libbpf` |
+| `process` / `filesystem` → **sandboxd**, **fs-snapshotd** | user namespaces, cgroup-v2 delegation, `overlay` module, raised inotify/pid/fd limits, `wasmtime` (isolation backend, #50) |
+| supervision → **agent-supervisord** (OTP) | `DefaultLimitNOFILE` + `nofile` loginLimits, `kernel.pid_max`, `fs.file-max` for the BEAM control plane |
+| `ebpf` audit → **eventd**; `memory` → **memoryd** | `/var/lib/vaked` ZFS dataset (checksummed + snapshotted) for the hash-chained audit spine and mined memory plane |
+| `surface` / OTel → **otelcol**, surfaces | persistent journald, low-latency CPU governor, BBR/fq for stream + corpora data paths |
+
+ECC integrity is monitored host-wide via `rasdaemon`, and a ZFS pool reservation
+keeps the mirror from wedging at 100%.
+
 ## Hard constraint: Vultr bare metal is **Legacy BIOS only**
 
 Vultr bare metal does **not** support EFI. Everything here is GRUB + a 1 MiB
@@ -80,10 +99,17 @@ reboots into `vakedos` when done.
 ### 5. Verify (on the box)
 ```sh
 zpool status rpool            # mirror ONLINE, 0 errors
+zfs list                      # /nix /var /home /build /var/lib/vaked present
 free -g                       # ~196 GB
 nproc                         # full EPYC core count
 ras-mc-ctl --status           # ECC monitoring live (also: journalctl -u rasdaemon)
 systemctl status sshd         # up, key-only login works
+# membrane substrate
+bpftool version               # eBPF tooling present (agent-guardd evidence layer)
+wasmtime --version            # sandbox wasm isolation backend present
+nft list ruleset              # nftables backend active (network membrane)
+sysctl net.ipv4.tcp_congestion_control  # = bbr
+cat /proc/sys/user/max_user_namespaces  # > 0 (sandbox userns)
 nix build nixpkgs#hello       # Nix builder healthy (scratch on /build)
 sudo reboot                   # comes back up → BIOS/GRUB + mirror boot survive
 ```
