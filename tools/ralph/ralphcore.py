@@ -9,6 +9,24 @@ import os
 import re
 from dataclasses import dataclass
 
+try:                                  # optional fast JSON — falls back to stdlib
+    import orjson as _orjson
+except Exception:
+    _orjson = None
+
+_STD_JSON_LOADS = json.loads
+
+
+def _loads(data):
+    """Fast JSON parse (orjson when installed, stdlib otherwise); accepts str or
+    bytes. Deserialization only — the ledger's canonical serialization (`_canon`)
+    stays on stdlib json.dumps so committed hashes never shift."""
+    if _orjson is not None:
+        return _orjson.loads(data)
+    if isinstance(data, (bytes, bytearray)):
+        data = data.decode("utf-8")
+    return _STD_JSON_LOADS(data)
+
 
 # ---------------------------------------------------------------------------
 # Task 1 — Config loader
@@ -27,7 +45,7 @@ class Repo:
 def load_repos(config_path: str) -> list[Repo]:
     """Load repos from a JSON config file, expanding user paths to absolute."""
     with open(config_path, encoding="utf-8") as f:
-        data = json.load(f)
+        data = _loads(f.read())
     return [
         Repo(
             name=r["name"],
@@ -67,7 +85,7 @@ class Track:
 def load_tracks(config_path: str) -> list[Track]:
     """Load tracks from a JSON config file."""
     with open(config_path, encoding="utf-8") as f:
-        data = json.load(f)
+        data = _loads(f.read())
     out: list[Track] = []
     for t in data["tracks"]:
         c = t.get("context", {})
@@ -202,6 +220,9 @@ _CRITIQUE_SYS = (
 )
 
 
+_ENTRY_LEAD_RE = re.compile(r"^[\s>#*_`+-]+")    # leading markdown/quote/space
+
+
 def looks_like_entry(text: str) -> bool:
     """True if `text` reads like a finished decision entry (the structured,
     bold-labelled form) rather than the model's review notes / chain-of-thought.
@@ -216,7 +237,7 @@ def looks_like_entry(text: str) -> bool:
     # Drop any leading markdown emphasis/heading/quote so "**Decision …**" and
     # "## Decision" compare cleanly, then require the entry to LEAD with the
     # Decision label (review prose leads with "We"/"Let's"/"First"/etc.).
-    head = re.sub(r"^[\s>#*_`+-]+", "", text).lstrip().lower()
+    head = _ENTRY_LEAD_RE.sub("", text).lstrip().lower()
     if not head.startswith("decision"):
         return False
     low = text.lower()

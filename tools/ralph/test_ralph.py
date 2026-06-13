@@ -2014,6 +2014,106 @@ def test_cmd_announce_text_only_when_image_fails() -> None:
 
 
 # ---------------------------------------------------------------------------
+# orjson parse shim, image compression, richer/cache-friendly context
+# ---------------------------------------------------------------------------
+
+
+def test_loads_parses_str_and_bytes() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    import ralphcore as core
+    for loads in (ralph._loads, core._loads):
+        assert loads('{"a": 1, "b": [2, 3]}') == {"a": 1, "b": [2, 3]}
+        assert loads(b'{"a": 1}') == {"a": 1}
+
+
+def test_loads_raises_jsondecodeerror_on_garbage() -> None:
+    """Existing `except json.JSONDecodeError` handlers must still catch bad input
+    whether stdlib or orjson backs `_loads` (orjson subclasses it)."""
+    import importlib
+    import json
+    ralph = importlib.import_module("ralph")
+    try:
+        ralph._loads("{not json")
+        assert False, "should have raised"
+    except json.JSONDecodeError:
+        pass
+
+
+def test_compress_image_fallback_returns_raw_without_pillow() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    with mock.patch.object(ralph, "_PILImage", None):
+        out = ralph._compress_image(b"\x89PNG rawbytes", "image/png")
+    assert out == (b"\x89PNG rawbytes", "image/png")
+
+
+def test_compress_image_shrinks_when_pillow_present() -> None:
+    """If Pillow is installed, a big PNG is downscaled + re-encoded smaller JPEG."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    if ralph._PILImage is None:
+        return  # Pillow not installed in this env — fallback path covered above
+    import io
+    img = ralph._PILImage.new("RGB", (3000, 2000), (40, 30, 80))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    raw = buf.getvalue()
+    out, mime = ralph._compress_image(raw, "image/png")
+    assert mime == "image/jpeg" and len(out) < len(raw)
+    with ralph._PILImage.open(io.BytesIO(out)) as got:
+        assert max(got.size) <= ralph.TOOT_IMAGE_MAX_EDGE
+
+
+def test_repo_tree_groups_by_top_dir() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    listing = "README.md\ntools/a.py\ntools/b.py\ndocs/x.md\n"
+    with mock.patch.object(ralph, "_run", return_value=listing):
+        tree = ralph._repo_tree("/whatever")
+    assert "README.md" in tree            # top-level file, no slash/count
+    assert "tools/ (2)" in tree           # dir with count
+    assert "docs/ (1)" in tree
+
+
+def test_gather_context_is_rich_and_cache_friendly() -> None:
+    """Key files lead (stable prefix for prompt caching), git log trails, and the
+    output now includes the repo tree + open PRs."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    import ralphcore as core
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "README.md"), "w", encoding="utf-8") as f:
+            f.write("# Title\nthe readme body")
+
+        def fake_run(cmd, cwd, timeout=30):
+            if cmd[:2] == ["git", "rev-parse"]:
+                return "headsha\n"
+            if cmd[:2] == ["git", "ls-files"]:
+                return "README.md\ntools/a.py\ntools/b.py\n"
+            if cmd[:2] == ["git", "log"]:
+                return "headsha most recent commit\n"
+            if cmd[:1] == ["gh"] and "issue" in cmd:
+                return '[{"number":1,"title":"An issue","body":"x"}]'
+            if cmd[:1] == ["gh"] and "pr" in cmd:
+                return '[{"number":2,"title":"A PR"}]'
+            return ""
+
+        repo = core.Repo(name="r", path=d, gh="o/r")
+        with mock.patch.object(ralph, "_run", side_effect=fake_run):
+            out = ralph.gather_context(repo, 20, compact=False)
+    assert "the readme body" in out
+    assert "Repo layout" in out and "tools/ (2)" in out
+    assert "## Open pull requests\n#2 A PR" in out
+    assert "#1 An issue" in out
+    # stable (key files) before volatile (git log)
+    assert out.index("README.md") < out.index("## Git log")
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 

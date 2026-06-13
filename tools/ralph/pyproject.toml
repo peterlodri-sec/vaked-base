@@ -1,25 +1,31 @@
 # ralph — uv project metadata.
 #
-# The loop itself (ralph.py + ralphcore.py) is PURE PYTHON STDLIB and runs with
-# zero third-party deps. This file exists so the CI host can `uv run --project
-# tools/ralph …` and so optional observability can be layered on without
-# touching the stdlib core.
+# The loop's CORE (ralph.py + ralphcore.py decision logic) still runs on the
+# Python stdlib alone: every third-party import is guarded and falls back, so a
+# bare `python3 tools/ralph/ralph.py …` works with zero deps. The declared deps
+# below are accelerators/quality-of-life that the CI host installs via
+# `uv run --project tools/ralph …`:
+#   - orjson  : faster JSON parsing on the hot LLM/gh/HTTP paths (the hash-chained
+#               ledger keeps stdlib json.dumps, so committed hashes never shift).
 #
-# Langfuse tracing is an OPTIONAL extra (Phase 4): the loop imports it lazily
-# and no-ops when absent, so it is NOT a default dependency. Enable with:
-#   uv run --project tools/ralph --extra tracing tools/ralph/ralph.py …
+# Optional EXTRAS (installed only when requested):
+#   - tracing : Langfuse v3 observability (lazy import, no-ops when absent).
+#   - images  : Pillow, to compress the generated toot image before upload
+#               (the announce step adds `--extra images`; absent → raw upload).
 
 [project]
 name = "ralph"
 version = "0.1.0"
 description = "Budget MoE decision/strategy loop over Vaked concept tracks"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["orjson>=3"]
 
 [project.optional-dependencies]
 # v3+ — the loop uses the v3 tracing API (start_as_current_generation /
 # generation.update); a v2 wheel would silently no-op (AttributeError, caught).
 tracing = ["langfuse>=3"]
+# Pillow for toot-image compression; imported lazily, raw upload when absent.
+images = ["pillow>=10"]
 
 [tool.uv]
 # A script collection, not an installable package — don't try to build it.

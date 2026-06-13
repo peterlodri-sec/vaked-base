@@ -122,8 +122,9 @@ jobs:
           RALPH_TOOT_IMAGE: ${{ vars.RALPH_TOOT_IMAGE }}              # optional: 'off' disables the generated image
           RALPH_IMAGE_MODEL: ${{ vars.RALPH_IMAGE_MODEL }}            # optional: override the OpenRouter image model
         run: |
-          EXTRA=""
-          if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="--extra tracing"; fi
+          # --extra images installs Pillow so the toot image is compressed before upload.
+          EXTRA="--extra images"
+          if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="$EXTRA --extra tracing"; fi
           uv run --project tools/ralph $EXTRA tools/ralph/ralph.py announce
 
       # Best-effort once-daily RECAP toot: a funny summary of the last 24h of
