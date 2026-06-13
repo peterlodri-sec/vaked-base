@@ -74,10 +74,30 @@ jobs:
           if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="--extra tracing"; fi
           uv run --project tools/ralph $EXTRA tools/ralph/ralph.py decide --next-track
 
-      # Announce AFTER decide but BEFORE commit, so a successful toot's
-      # `announced` ledger event is committed too. This step is allowed to fail
-      # loudly (fail-fast + CI red + a deduped issue) — the commit below still
-      # runs via `always()`, so a Mastodon outage never drops the decision.
+      # Persist the decision to main BEFORE any external Mastodon post, so a
+      # published toot can never describe a decision that isn't durably on main.
+      - name: Commit the decision ledger
+        if: ${{ always() && steps.guard.outputs.run == 'true' }}
+        run: |
+          git config user.name  "ralph-loop"
+          git config user.email "ralph@vaked.local"
+          # Stage dirs (both exist via .gitkeep) so a missing events.jsonl /
+          # skipped decision can't make `git add` exit 128; diff-quiet is the
+          # real nothing-to-commit guard. status.json stays gitignored.
+          git add docs/decisions/ tools/ralph/state/
+          if git diff --cached --quiet; then
+            echo "no decision changes to commit"
+          else
+            git commit -m "ralph(tracks): decision tick [skip ci]"
+            git pull --rebase --autostash   # survive a concurrent human push
+            git push
+          fi
+
+      # Now that the decision is durable, announce it. Allowed to fail loudly
+      # (fail-fast + CI red + a deduped issue); the records commit below still
+      # runs via always(). A successful toot's `announced` event is committed by
+      # that later step (residual risk: if THAT push fails, the next tick may
+      # re-toot the same id once Mastodon's idempotency window lapses).
       - name: Announce the decision to Mastodon
         id: announce
         # Same gate as decide: nothing new to announce on the recap-only tick.
@@ -120,25 +140,19 @@ jobs:
           if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="--extra tracing"; fi
           uv run --project tools/ralph $EXTRA tools/ralph/ralph.py digest
 
-      - name: Commit the decision + event ledger
-        # always() so a failed announce never blocks the decision commit
+      # Persist the side-effect records (the `announced` / `digest` ledger
+      # events) appended after the decision was already committed above.
+      - name: Commit announce + digest records
         if: ${{ always() && steps.guard.outputs.run == 'true' }}
         run: |
           git config user.name  "ralph-loop"
           git config user.email "ralph@vaked.local"
-          # Stage the directories (both always exist via .gitkeep) rather than a
-          # specific file, so a missing events.jsonl / skipped decision can't make
-          # `git add` exit 128; the diff-quiet check below is the real
-          # nothing-to-commit guard. status.json stays gitignored.
           git add docs/decisions/ tools/ralph/state/
           if git diff --cached --quiet; then
-            echo "no changes to commit"
+            echo "no records to commit"
           else
-            # [skip ci] — a decision tick shouldn't re-trigger spec-tests.
-            git commit -m "ralph(tracks): decision tick [skip ci]"
-            # Cron is serialized by `concurrency`, but a human push could land
-            # between checkout and push — rebase onto it to avoid a rejected
-            # non-fast-forward.
+            # [skip ci] — a tick shouldn't re-trigger spec-tests.
+            git commit -m "ralph(tracks): announce/digest records [skip ci]"
             git pull --rebase --autostash
             git push
           fi
