@@ -216,6 +216,12 @@ not be redeclared by a frame body:
 | `seq` | `u64?` | Monotonic sequence number within a `stream` (chunking / ordering). |
 | `end` | `bool` | Set on the final frame of a `stream` (terminal chunk). |
 
+**Frame header encoding:** The wire-layer representation of header fields is
+normative in RFC 0003 §4. Briefly: `kind` is a varint enum (0–4), `corr` is a
+16-byte UUID (big-endian), `stream`/`seq` are optional varints, and `end` is a
+single byte (0x00/0x01). Authors need not know these details (the wire layer handles
+encoding/decoding); this RFC cites them for completeness.
+
 Because the header is reserved and implicit, **author-declared field tags begin
 at `@1`**; tag `@0` is reserved for the header/extension space and MUST NOT be
 used by a frame, record, or union declaration (§6.2).
@@ -241,6 +247,13 @@ service ToolBroker {
   The `request` must be of class `request`; the result must be of class
   `response` (an `error` frame may always terminate a call — it is implicit and
   need not be listed).
+
+**Authority scoping:** `preceptord` may scope authority by service name, frame class
+(request/response/event/control/error), or schema digest. **Method-level granularity**
+(i.e., denying some methods in a service while allowing others) is deferred (open
+question 8). Methods do not carry stable integer ids (unlike fields/union arms);
+adding method-level scoping would require such ids. Current authority scope is
+service-level (by name) or schema-digest-level.
 - `subscribe (Ctrl) yields Ev` binds a `control` frame (the subscription
   request) to a stream of `event` frames. The stream is terminated by an `event`
   with `end = true`, or by an `error`.
@@ -679,6 +692,23 @@ the length prefix an unknown `algo-id` would be unskippable and would corrupt th
 remainder of the frame. For a **known** `algo-id`, `len` MUST equal the registry
 digest length for that algorithm (a mismatch is a protocol error); the prefix is
 thus redundant-but-validating for known algorithms and load-bearing for unknown
+
+### 6.5.1 Hash algorithm registry and allocation
+
+The initial registry (above) assigns `0x01` (SHA-256) and `0x02` (BLAKE3-256).
+Future algorithm registrations follow these allocations:
+
+- **`0x01`–`0x10`**: Reserved for standard cryptographic hash algorithms (SHA-256,
+  BLAKE3-256, SHA-512, BLAKE2b, etc.). Allocation within this range requires
+  consensus (e.g., HCP maintainer decision or IANA-style registry).
+- **`0x11`–`0xFF`**: Available for user-defined or experimental algorithms. No
+  central registration needed; peers coordinate externally.
+
+A decoder encountering an unknown `algo-id` outside the known registry uses the
+`len` prefix to skip the digest and continues parsing, preserving the raw bytes for
+round-trip. This design allows safe protocol extension: newer peers can emit
+unknown algorithms without breaking older peers (the unknown digest survives as
+opaque bytes).
 ones. *(Which algorithm is the **default** for schema digests and the `eventd`
 chain remains Open question 4 — the working default is SHA-256 (`0x01`). This
 length-prefix fix is about wire skippability and is orthogonal to that choice.)*
@@ -706,10 +736,14 @@ union-value := varint(arm-tag)  varint(byte-len)  value-bytes[byte-len]
 
 A decoder that recognises `arm-tag` decodes `value-bytes` as that arm's declared
 type; for a **known** arm, `byte-len` MUST equal the actual encoded length of the
-value (a mismatch is a protocol error). A decoder that does **not** recognise
+value (a mismatch is a frame-level error, §6.8). A decoder that does **not** recognise
 `arm-tag` uses `byte-len` to skip the value, preserves those raw bytes, and
 surfaces the value as "unknown arm @N", re-emitting `varint(arm-tag)
 varint(byte-len) value-bytes` verbatim on round-trip (forward-compatible, §8).
+
+A byte-len mismatch for a known union arm is signaled as a frame-level error: the
+decoder MUST send an error frame (§4.2 frame header) with `error_kind = malformed_frame`.
+The frame is not appended to `eventd` and the connection survives (RFC 0003 §9.2).
 This is what makes unknown arms both skippable and preservable byte-for-byte —
 the earlier "no length on known arms, length on unknown arms" split was
 self-contradictory (a decoder cannot know an arm is unknown until it has already
@@ -914,10 +948,14 @@ block (§5.6) and by tag stability:
 - **Removing or retyping** a field, or changing a tag's meaning, is a **major**
   (breaking) change and MUST bump the major version.
 - A frame on the wire pins its schema via the **schema digest** (the `hash` of the
-  schema's `litanyfmt`-canonical normalised form). `oraclefd` resolves a digest
-  to a schema; `preceptord` may scope authority by digest (only frames matching an
-  approved schema are admitted). Version negotiation at connection setup is the
-  Litany Wire's job ([`0001-hcp.md`](./0001-hcp.md) §2).
+  schema's `litanyfmt`-canonical normalised form). **Digest computation:** A schema
+  digest is computed as `SHA-256(litanyfmt(schema))`, where `litanyfmt(schema)` is
+  the normalized `.hcplang` source (§3) and the output is encoded as a `hash` value
+  (§6.5, algo-id 0x01 for SHA-256). Two schemas that normalize identically produce
+  the same digest, enabling schema de-duplication and pinning. `oraclefd` resolves
+  a digest to a schema; `preceptord` may scope authority by digest (only frames
+  matching an approved schema are admitted). Version negotiation at connection setup
+  is the Litany Wire's job ([`0001-hcp.md`](./0001-hcp.md) §2).
 
 ## 9. Determinism, source-mapping & evidence
 
