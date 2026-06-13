@@ -137,7 +137,11 @@ This document **references, never redefines** the membrane grammar
 ([0008](../../language/0008-parallel-fibers-indexes-surfaces.md) for `fiber`,
 [0012](../../language/0012-lowering.md) for the lowering). The NixOS module installs
 `gen/zig/<fiber>.json` as the exact file the daemon reads — same bytes, no second
-source of truth (0012 §4.3).
+source of truth (0012 §4.3). **But the §4.3 worked example routes that file to
+`fs-snapshotd`** (the artifact-producing fiber `mediaCompress`), and no mapping
+yet points an agent-workload fiber's config at `sandboxd`. **Routing a fiber's
+config to `sandboxd` by its role/membrane** (which roster daemon consumes it) is
+therefore part of the same lowering/module dependency — tracked below.
 
 ## Relationship to the roster (delineation)
 
@@ -180,8 +184,9 @@ but wired.
   overlay it accounts over.
 - **No canonical hashing** — the eventd oracle owns bytes (the supervisord-design
   rule).
-- **oci / wasm / Firecracker / Bubblewrap backends** are *Open*, not specified
-  here.
+- **oci / wasm / Firecracker backends** are *Open*, not specified here
+  (Bubblewrap is *not* a backend — it is a `native-exec` implementation mechanism,
+  also *Open*).
 
 ## Verification posture
 
@@ -206,9 +211,11 @@ runnability is a **devshell gate**, and CI stays bytes/structure.
    lower `capability fs` / `capability process` grants into a concrete mount +
    namespace plan, and add a resource-limits source (new schema, or a
    `budget`/`runclass` extension) for cgroup `cpu`/`mem`/`io`/`pids`, with the
-   `gen/zig/<fiber>.json` field mapping ([0012 §5.2](../../language/0012-lowering.md)).
-   This is the language/lowering dependency surfaced in *Config contract*; it
-   needs its own issue.
+   `gen/zig/<fiber>.json` field mapping ([0012 §5.2](../../language/0012-lowering.md)),
+   **and** the NixOS-module routing that points an agent-workload fiber's config
+   at `sandboxd` (today §4.3 wires it only to `fs-snapshotd`). This is the
+   language/lowering dependency surfaced in *Config contract*; it needs its own
+   issue.
 1. *(impl PR 1)* `daemons/sandboxd/` skeleton (Zig) + `gen/zig/<fiber>.json`
    parse; native-exec boundary as a no-op/echo runner.
 2. *(impl PR 2)* native-exec for real: namespaces + cgroup-v2 delegation +
@@ -229,8 +236,10 @@ runnability is a **devshell gate**, and CI stays bytes/structure.
   mount/namespace plan + cgroup resource-limit fields native-exec enforces with
   are not yet sourced by `gen/zig/<fiber>.json` or the closed `budget` schema (see
   *Config contract*). How `capability fs`/`capability process` grants + a new
-  resource-limits field lower to the daemon config is *Plan step 0* and the gating
-  dependency for the native-exec impl PR.
+  resource-limits field lower to the daemon config — **and the NixOS-module routing
+  that points an agent-workload fiber's config at `sandboxd` (today §4.3 wires it
+  only to `fs-snapshotd`)** — is *Plan step 0* and the gating dependency for the
+  native-exec impl PR.
 - **fs-snapshotd ⇄ sandboxd overlay-ownership boundary** — who creates
   `upperdir`/`workdir`, who unmounts, how the write-budget enforcement point
   relates to the overlay mount. The one delineation to lock at the impl-PR phase.
