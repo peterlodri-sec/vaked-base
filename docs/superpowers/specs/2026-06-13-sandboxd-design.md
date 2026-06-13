@@ -60,10 +60,12 @@ port), one eventing path (eventd), and one config contract (`gen/zig/<fiber>.jso
 **v0 commits to `native-exec`.** It is the backend that runs an ordinary agent
 process — the common case for the operator runtime — and it needs nothing the
 host does not already provide (namespaces + cgroup-v2 + overlay). `oci`, `wasm`
-(#50, design already written), and the briefing's **Firecracker microVM** /
-**Bubblewrap** proposals (#86) are deferred to *Open / evaluate*; they are
-**additive** entries on this same axis, not contradictions, and they reuse this
-document's worker port and config contract unchanged.
+(#50, design already written), and a **Firecracker microVM** backend (#86) are
+deferred to *Open / evaluate* as **additive** entries on this same axis — not
+contradictions, and each reuses this document's worker port and config contract
+unchanged. (**Bubblewrap**, the briefing's other #86 proposal, is *not* a backend
+on this axis: it is a candidate *implementation mechanism* for `native-exec`
+itself — see *native-exec mechanics*.)
 
 ## native-exec mechanics (v0)
 
@@ -216,8 +218,10 @@ runnability is a **devshell gate**, and CI stays bytes/structure.
 4. *(later)* `oci` backend (distroless Nix OCI, [0016](../../language/0016-substrate-candidates.md)).
 5. *(later)* `wasm` backend per [#50](https://github.com/peterlodri-sec/vaked-base/issues/50)
    (design already written).
-6. *(evaluate)* Firecracker microVM / Bubblewrap per
-   [#86](https://github.com/peterlodri-sec/vaked-base/issues/86).
+6. *(evaluate)* Firecracker microVM **backend** per
+   [#86](https://github.com/peterlodri-sec/vaked-base/issues/86) (Bubblewrap is a
+   `native-exec` implementation option weighed within step 2, not a separate
+   backend).
 
 ## Open
 
