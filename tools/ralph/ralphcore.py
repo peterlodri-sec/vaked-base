@@ -329,6 +329,48 @@ def format_entry(
 
 
 # ---------------------------------------------------------------------------
+# Flat-cost windowing — the PURPOSE.md research bet ("near-flat cost while
+# history compounds"). Stage-1 already uses titles only; stage-2 must NOT inject
+# the whole ever-growing decision log, or cost/decision climbs linearly with
+# history. `window_log` keeps the last N full entries verbatim and collapses the
+# older prefix to a one-line marker, so the stage-2 prompt is O(1) in log size
+# past N. Maps nullclaw's compaction.zig keep_recent (issue #57).
+# ---------------------------------------------------------------------------
+
+_DECISION_HDR_RE = re.compile(
+    r"^##\s+(?P<date>\S+)\s+—\s+Decision\s+#(?P<n>\d+):", re.M)
+
+
+def window_log(text: str, keep_recent: int = 20) -> str:
+    """Bound a decision-log's text so its length is O(1) in history size.
+
+    Splits ``text`` into its leading preamble + one block per ``## … Decision
+    #N: …`` header (the format `format_entry` emits), keeps the last
+    ``keep_recent`` blocks verbatim, and replaces the older prefix with a single
+    summary line (count + the elided ``#lo–#hi`` span). A log with at most
+    ``keep_recent`` entries is returned unchanged. The kept blocks dominate the
+    output, so length stops growing with history once past the window."""
+    if not text or keep_recent < 0:
+        return text
+    # Split ONLY at real decision headers (not any `## ` — a body may contain
+    # markdown sub-headers), so blocks == decisions and the count is exact.
+    parts = re.split(r"(?m)^(?=##\s+\S+\s+—\s+Decision\s+#\d+:)", text)
+    head, blocks = parts[0], parts[1:]
+    if len(blocks) <= keep_recent:
+        return text
+    elided = blocks[:-keep_recent] if keep_recent else blocks
+    kept = blocks[-keep_recent:] if keep_recent else []
+    nums = [int(m.group("n")) for b in elided
+            for m in [_DECISION_HDR_RE.match(b)] if m]
+    span = (f" (#{min(nums)}–#{max(nums)})" if nums else "")
+    summary = (
+        f"## [{len(elided)} earlier decisions elided{span}]\n"
+        f"- Older full entries omitted to keep stage-2 prompt cost flat; "
+        f"their titles remain in the stage-1 context.\n\n")
+    return head + summary + "".join(kept)
+
+
+# ---------------------------------------------------------------------------
 # Task 6 — Dashboard rendering
 # ---------------------------------------------------------------------------
 
@@ -436,6 +478,22 @@ def verify_chain(entries: list[dict]) -> bool:
             return False
         prev = e["hash"]
     return True
+
+
+def longest_valid_prefix(entries: list[dict]) -> list[dict]:
+    """The longest contiguous, untampered chain prefix of already-parsed
+    ``entries`` — stops at the first entry whose seq/prev/hash breaks the chain.
+    The boot-recovery counterpart of ``verify_chain``: a torn-tail crash leaves
+    a valid prefix + an unverifiable suffix, and this returns the prefix."""
+    out: list[dict] = []
+    prev = GENESIS_HASH
+    for i, e in enumerate(entries):
+        if (e.get("seq") != i or e.get("prev") != prev
+                or e.get("hash") != chain_hash(prev, e.get("payload", {}))):
+            break
+        out.append(e)
+        prev = e["hash"]
+    return out
 
 
 @dataclass(frozen=True)

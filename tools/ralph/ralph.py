@@ -909,6 +909,14 @@ def _read_log(repo_name: str) -> str:
         return "(none)"
 
 
+def _prior_decisions_block(subject_name: str) -> str:
+    """The stage-2 "prior decisions" context block, WINDOWED (#57). Injecting
+    the whole ever-growing log made cost/decision climb linearly with history,
+    breaking PURPOSE.md's near-flat-cost bet; `window_log` keeps only the last N
+    full entries so this block — and the stage-2 prompt — is O(1) in log size."""
+    return "\n\n## Full prior decisions\n" + C.window_log(_read_log(subject_name))
+
+
 def _decision_block(track_name: str, n: int) -> str:
     """The text of the `## … Decision #n: …` block in a track's log (for
     sensitivity detection). Empty if not found."""
@@ -1132,7 +1140,7 @@ def _writer_call(writer: str, fallback: str, msgs, **kw):
 
 def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
                 stage2_model, api_key, base_url, seed, meta=None):
-    """Run both LLM stages and return ``(cost, body)`` or ``None`` to skip the
+    """Run both LLM stages and return ``(cost, body, writer_used)`` or ``None`` to skip the
     iteration. `subject` keys the stage-2 prompt; `full_context_builder()` is
     called only once stage 1 yields a candidate (so we don't gather the full
     context for a skipped iteration). `meta` tags the Langfuse spans (e.g. the
@@ -1222,7 +1230,7 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
 
     def full_ctx() -> str:
         return (gather_context(repo, args.git_log_window, compact=False)
-                + "\n\n## Full prior decisions\n" + _read_log(repo.name))
+                + _prior_decisions_block(repo.name))
 
     result = _run_stages(repo.name, s1_msgs, full_ctx, args.stage1_model,
                          args.stage2_model, api_key, base_url, args.seed,
@@ -1254,7 +1262,7 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
 
     def full_ctx() -> str:
         return (gather_track_context(track, args.git_log_window, compact=False)
-                + "\n\n## Full prior decisions\n" + _read_log(track.name))
+                + _prior_decisions_block(track.name))
 
     result = _run_stages(track.topic, s1_msgs, full_ctx, track.model,
                          track.model, api_key, base_url, args.seed,
@@ -1430,40 +1438,187 @@ def _clear_step() -> None:
         os.replace(tmp, CONTROL_PATH)
 
 
-def _events_tail_hash() -> str:
-    """Return the `hash` of the last entry in EVENTS_PATH, or GENESIS_HASH."""
-    try:
-        with open(EVENTS_PATH, encoding="utf-8") as f:
-            last = None
-            for line in f:
-                line = line.strip()
-                if line:
-                    last = line
-        if last is None:
-            return C.GENESIS_HASH
-        return _loads(last)["hash"]
-    except (FileNotFoundError, OSError, json.JSONDecodeError, KeyError):
-        return C.GENESIS_HASH
+# Single-writer head cache (#58): the eventd design mandates one writer per log,
+# so the next (prev_hash, seq) can be carried in memory instead of re-scanning
+# the whole file on every append — that scan made a run of N appends O(N^2). The
+# cache primes from a VERIFIED read (refusing a broken chain) and advances in
+# place; any change to EVENTS_PATH or its stat signature forces a re-prime, so an
+# append can never silently fork off a stale or torn tail.
+_WRITER = {"path": None, "tail": C.GENESIS_HASH, "seq": 0, "sig": None}
 
 
-def _events_count() -> int:
-    """Number of entries in EVENTS_PATH (= next seq)."""
+def _reset_writer_cache() -> None:
+    _WRITER["path"] = None
+    _WRITER["sig"] = None
+
+
+def _stat_sig() -> tuple:
+    """An O(1) change signature for EVENTS_PATH: (size, mtime_ns, inode). Any
+    append/rewrite bumps mtime (and an os.replace swaps the inode), so this
+    catches an external change the cache must re-prime against — unlike a
+    size-only check, which a same-size content swap would hide."""
     try:
-        with open(EVENTS_PATH, encoding="utf-8") as f:
-            return sum(1 for line in f if line.strip())
-    except (FileNotFoundError, OSError):
-        return 0
+        st = os.stat(EVENTS_PATH)
+    except OSError:
+        return (0, 0, 0)
+    return (st.st_size, st.st_mtime_ns, st.st_ino)
+
+
+def _verified_entries_for_prime() -> list[dict]:
+    """Parse EVENTS_PATH and return its entries ONLY if it is a fully-verified
+    chain; a torn/unparseable line or a chain that fails verification raises
+    EventLogTamper. The single writer must never chain onto an unverified tail
+    (mirrors eventd's verify-on-open). cmd_run repairs a torn tail via
+    _boot_recover_events before appending, so its appends prime clean; a stray
+    append onto a broken log fails loudly instead of corrupting it silently."""
+    raw = _event_byte_lines()
+    entries: list[dict] = []
+    for n, bl in enumerate(raw, 1):
+        try:
+            e = _loads(bl)
+        except (json.JSONDecodeError, UnicodeDecodeError) as ex:
+            raise EventLogTamper(
+                f"{EVENTS_PATH}:{n}: unparseable log line — run `ralph run` to "
+                f"boot-repair a torn tail before appending") from ex
+        if not isinstance(e, dict):
+            raise EventLogTamper(f"{EVENTS_PATH}:{n}: non-object log line")
+        entries.append(e)
+    if not C.verify_chain(entries):
+        raise EventLogTamper(
+            f"{EVENTS_PATH}: chain does not verify — refusing to append onto a "
+            f"tampered/torn spine")
+    return entries
+
+
+def _writer_head() -> "tuple[str, int]":
+    """The (prev_hash, next_seq) for the next append — O(1) from the warm cache,
+    re-primed from a VERIFIED read whenever EVENTS_PATH or its stat signature
+    changed. Priming refuses a broken chain (EventLogTamper)."""
+    sig = _stat_sig()
+    if _WRITER["path"] != EVENTS_PATH or _WRITER["sig"] != sig:
+        entries = _verified_entries_for_prime()
+        _WRITER["path"] = EVENTS_PATH
+        _WRITER["tail"] = entries[-1]["hash"] if entries else C.GENESIS_HASH
+        _WRITER["seq"] = len(entries)
+        _WRITER["sig"] = sig
+    return _WRITER["tail"], _WRITER["seq"]
 
 
 def append_event(payload: dict) -> dict:
-    """Build and append one hash-chained entry to EVENTS_PATH. Return the entry."""
-    prev = _events_tail_hash()
-    seq = _events_count()
-    entry = C.make_entry(prev, seq, payload)
+    """Build and append one hash-chained entry to EVENTS_PATH, fsync, return it.
+
+    O(1) amortized: the (prev_hash, seq) come from the single-writer head cache,
+    re-primed (and re-verified) only when the file changed under us — not a full
+    re-scan per call (#58; a run of N appends was O(N^2)). fsync-on-append, plus
+    a one-time directory fsync when the first entry creates the file, makes the
+    write durable; a crash leaves at worst a torn FINAL line, which
+    _boot_recover_events truncates."""
     os.makedirs(STATE_DIR, exist_ok=True)
+    prev, seq = _writer_head()
+    entry = C.make_entry(prev, seq, payload)
+    line = json.dumps(entry) + "\n"
+    created = seq == 0
     with open(EVENTS_PATH, "a", encoding="utf-8") as f:
-        f.write(json.dumps(entry) + "\n")
+        f.write(line)
+        f.flush()
+        os.fsync(f.fileno())
+    if created:                  # the first append created the file — fsync dir
+        _fsync_dir(os.path.dirname(EVENTS_PATH) or ".")
+    _WRITER["path"] = EVENTS_PATH
+    _WRITER["tail"] = entry["hash"]
+    _WRITER["seq"] = seq + 1
+    _WRITER["sig"] = _stat_sig()   # exact post-write signature (one O(1) stat)
     return entry
+
+
+KIND_REPAIR = "log_repair"
+
+
+def _fsync_dir(path: str) -> None:
+    """fsync a directory so a newly-created/renamed file's dir entry is durable."""
+    dfd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(dfd)
+    finally:
+        os.close(dfd)
+
+
+class EventLogTamper(RuntimeError):
+    """The event log's chain is broken in a way that is not a recoverable
+    torn tail (a parseable entry that fails the hash chain = tamper/corruption).
+    The driver refuses to chain new entries onto it."""
+
+
+def _event_byte_lines() -> list[bytes]:
+    """Non-empty raw byte lines of EVENTS_PATH (empty if missing). Byte-oriented
+    so a crash that tore the final line mid-multibyte is handled as an
+    unparseable suffix line, not a UnicodeDecodeError traceback."""
+    try:
+        with open(EVENTS_PATH, "rb") as f:
+            return [ln for ln in f.read().split(b"\n") if ln.strip()]
+    except FileNotFoundError:
+        return []
+
+
+def _boot_recover_events() -> None:
+    """Boot-time integrity gate for the driver (#58), mirroring the eventd
+    daemon's discipline. cmd_run must verify the chain BEFORE appending, or it
+    chains onto a torn/tampered log:
+
+      * a fully-verifying chain (or an empty/missing log) → no-op;
+      * a torn TAIL (a crash left a trailing line that fails to PARSE) →
+        truncate the unverifiable suffix to the longest valid prefix and append
+        a `log_repair` event (the truncation is itself audited), crash-atomically;
+      * a TAMPER (the first broken line PARSES as an entry but fails the chain —
+        an edited field, a deleted middle entry) → raise EventLogTamper. A
+        deliberate edit is not silently healed."""
+    raw = _event_byte_lines()
+    if not raw:
+        _reset_writer_cache()
+        return
+    prefix: list[dict] = []
+    prev = C.GENESIS_HASH
+    broke_at = None
+    bad_was_parseable = False
+    for idx, bl in enumerate(raw):
+        try:
+            e = _loads(bl)
+            parseable = isinstance(e, dict)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            e, parseable = None, False
+        if (not parseable or e.get("seq") != len(prefix) or e.get("prev") != prev
+                or e.get("hash") != C.chain_hash(prev, e.get("payload", {}))):
+            broke_at, bad_was_parseable = idx, parseable
+            break
+        prefix.append(e)
+        prev = e["hash"]
+    if broke_at is None:
+        return                              # whole log verifies
+    if bad_was_parseable:
+        raise EventLogTamper(
+            f"{EVENTS_PATH}: chain broken at line {broke_at + 1} by a "
+            f"well-formed entry — tamper/corruption, refusing to run")
+    _rewrite_events_with_repair(prefix, dropped=len(raw) - len(prefix))
+
+
+def _rewrite_events_with_repair(prefix: list[dict], dropped: int) -> None:
+    """Crash-atomically rewrite EVENTS_PATH to ``prefix`` + a ``log_repair``
+    entry recording ``dropped`` (temp → fsync → os.replace → dir fsync), then
+    invalidate the writer cache so the next append chains off the repaired tail."""
+    prev = prefix[-1]["hash"] if prefix else C.GENESIS_HASH
+    repair = C.make_entry(prev, len(prefix),
+                          {"event": KIND_REPAIR, "dropped": dropped})
+    os.makedirs(STATE_DIR, exist_ok=True)
+    tmp = EVENTS_PATH + ".repair.tmp"
+    with open(tmp, "w", encoding="utf-8") as w:
+        for e in prefix:
+            w.write(json.dumps(e) + "\n")
+        w.write(json.dumps(repair) + "\n")
+        w.flush()
+        os.fsync(w.fileno())
+    os.replace(tmp, EVENTS_PATH)
+    _fsync_dir(os.path.dirname(EVENTS_PATH) or ".")
+    _reset_writer_cache()
 
 
 def _supervised_decide(args, repo: C.Repo, status: dict) -> None:
@@ -1501,6 +1656,7 @@ def _apply_state_dir(d: str) -> None:
     STATUS_PATH = os.path.join(d, "status.json")
     CONTROL_PATH = os.path.join(d, "control.json")
     EVENTS_PATH = os.path.join(d, "events.jsonl")
+    _reset_writer_cache()   # different log ⇒ the head cache must re-prime
 
 
 def _supervised_decide_track(args, track: C.Track, status: dict) -> None:
@@ -1536,6 +1692,13 @@ def _supervised_decide_track(args, track: C.Track, status: dict) -> None:
 def cmd_run(args) -> int:
     if getattr(args, "state_dir", None):
         _apply_state_dir(args.state_dir)
+    # Boot integrity gate (#58): verify (and torn-tail-repair) the chain before
+    # appending. A tamper is a hard error — never chain onto a tampered spine.
+    try:
+        _boot_recover_events()
+    except EventLogTamper as e:
+        print(f"ralph: refusing to run — {e}", file=sys.stderr)
+        return 4
     if getattr(args, "repo_mode", False):
         return _run_repos(args)
     return _run_tracks(args)
