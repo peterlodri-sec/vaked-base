@@ -76,9 +76,7 @@ ANNOUNCE_MODEL = "openai/gpt-oss-120b"  # writes the toot (separate from decide)
 ANNOUNCE_LOOKBACK = 5                   # how far back to retry un-announced decisions
 TOOT_IMAGE_MODEL = "google/gemini-2.5-flash-image"  # generates the toot's media
 CRITIQUE_CONTEXT_CHARS = 32000          # cap grounding context for the stage-3 critique
-WRITER_MAX_TOKENS = 4000                # stage-2/3 output budget — 2200 truncated the
-                                        # critique mid-entry (finish=length), so its
-                                        # rewrite never passed the entry-structure gate
+WRITER_MAX_TOKENS = 4000                # stage-2/3 entry budget (2200 truncated the critique)
 
 
 def read_purpose() -> str:
