@@ -336,7 +336,7 @@ worth investigating. CI now compiles the binary (the `zig-build` job in
 `spec-tests.yml`), so a broken `zig build` can no longer pass unnoticed.
 
 Parity roadmap toward replacing the Python front-end on the hot path (the v1.0
-native-rewrite line in `docs/compiler/OPTIMIZATION_ROADMAP.md`, which lands with
+native-rewrite line in docs/compiler/OPTIMIZATION_ROADMAP.md, which lands with
 the optimization-pass PR #112):
 
 1. **Differential-oracle CI:** assert `vakedc-zig parse` and `python3 -m vakedc

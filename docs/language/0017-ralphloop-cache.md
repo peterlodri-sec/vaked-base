@@ -3,7 +3,7 @@
 Status: **design proposal (v0.x), not yet implemented in vakedc** · Series:
 language design notes · Relates to: `tools/ralph/PURPOSE.md`,
 `.github/workflows/ralph-tracks.yml`, `docs/superpowers/plans/2026-06-11-ralph.md`,
-`docs/compiler/OPTIMIZATION_ROADMAP.md`
+docs/compiler/OPTIMIZATION_ROADMAP.md (lands in PR #112)
 
 > **Relationship to the rest of this PR.** This note proposes a dedicated
 > `ralphloop` *language kind*. The shipped Zig compiler ([0018](./0018-zig-compiler-design.md))
@@ -231,7 +231,7 @@ This is where `ralphloop` pays for itself: **Vaked uses `ralphloop` to drive its
 own optimization and evaluation passes** — the system improving itself, declared in
 itself.
 
-Concretely, tie it to `docs/compiler/OPTIMIZATION_ROADMAP.md` and
+Concretely, tie it to docs/compiler/OPTIMIZATION_ROADMAP.md (PR #112) and
 `examples/evaluation/`:
 
 - **The eval loop as a `ralphloop`.** The roadmap's benchmark suite
