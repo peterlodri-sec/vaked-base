@@ -1,0 +1,41 @@
+# LiteLLM proxy config — llmproxy.crabcc.app (PROPOSAL scaffold).
+# Default route is deepseek/deepseek-v4-flash via OpenRouter; OpenRouter + DeepSeek
+# stay the primary path. The proxy adds routing/cache/budget/tracing control.
+
+model_list:
+  # The logical name the fleet asks for (matches PR_REVIEW_MODEL) → OpenRouter/DeepSeek.
+  - model_name: deepseek/deepseek-v4-flash
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-flash
+      api_key: os.environ/OPENROUTER_API_KEY
+      # Pass agent-set OpenRouter knobs straight through (pass-through mode):
+      # provider pin, usage.include, prompt_cache_key travel in the request body.
+  # A cheap step-up the router can fall back to.
+  - model_name: deepseek/deepseek-v4-flash
+    litellm_params:
+      model: openrouter/z-ai/glm-5
+      api_key: os.environ/OPENROUTER_API_KEY
+
+router_settings:
+  routing_strategy: simple-shuffle
+  num_retries: 2
+  cooldown_time: 30
+  # If the primary deployment errors, fall through to the next model_list entry.
+  fallbacks:
+    - deepseek/deepseek-v4-flash: ["deepseek/deepseek-v4-flash"]
+
+litellm_settings:
+  # Redis response cache — the extra cache layer above OpenRouter's prefix cache.
+  cache: true
+  cache_params:
+    type: redis
+    ttl: 3600
+  drop_params: false # keep OpenRouter-specific params (pass-through)
+  # Centralised tracing at the gateway → Langfuse.
+  success_callback: ["langfuse"]
+  failure_callback: ["langfuse"]
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  # Virtual keys are minted via /key/generate against the master key (see README).

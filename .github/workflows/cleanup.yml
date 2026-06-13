@@ -1,0 +1,74 @@
+name: cleanup
+
+# Comment-cleanup subroutine: sweeps bot noise (Codex/usage/rate-limit notices) and
+# collapses duplicate review/update comments to ONE-per-bot across open PRs. Runs the
+# same vaked-pr-review binary in `--cleanup` mode (no model call — just `gh` API). The
+# pr-review workflow also runs this inline per review; this scheduled job catches PRs
+# that aren't being actively reviewed. Advisory: never fails anything it can't clean.
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily, 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Single PR number to clean (blank = all open PRs)
+        required: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: ci
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Reuse the rolling prebuilt agent; fall back to a source build if missing.
+      - name: Download prebuilt agent
+        id: prebuilt
+        continue-on-error: true
+        run: |
+          gh release download pr-review-bin \
+            --pattern vaked-pr-review-linux-x86_64 \
+            --output ./vaked-pr-review
+          chmod +x ./vaked-pr-review
+      - name: Install Rust toolchain
+        if: steps.prebuilt.outcome == 'failure'
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo build
+        if: steps.prebuilt.outcome == 'failure'
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/pr-review
+
+      - name: Run comment cleanup
+        run: |
+          PR="${{ github.event.inputs.pr }}"
+          if [ -x ./vaked-pr-review ]; then
+            BIN="./vaked-pr-review"
+          else
+            BIN="cargo run --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml --"
+          fi
+          if [ -n "$PR" ]; then
+            $BIN --cleanup --repo "${GITHUB_REPOSITORY}" --pr "$PR"
+          else
+            $BIN --cleanup --repo "${GITHUB_REPOSITORY}"
+          fi
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ cleanup failed on ${{ github.repository }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

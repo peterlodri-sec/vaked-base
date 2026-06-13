@@ -57,6 +57,9 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
   (never auto-deleted).
 - **Cost estimate** — the footer shows `cost ~$X` from token usage × a blended
   `$/Mtok` rate (`PR_REVIEW_USD_PER_MTOK`, default 0.3).
+- **Versioned, contactable footer** — every posted comment (review + `@vaked-ci`
+  reply) always stamps the agent version (`vaked-pr-review vX.Y.Z`) and an
+  [open Telegram](https://t.me/G0PH3R) contact link.
 - **Prompt caching (DeepSeek-tuned)** — a byte-identical system-prompt prefix (no
   per-PR values baked in) lets the provider cache the prefix; the big win is the
   map-reduce path, where every per-file pass re-sends the same prefix and DeepSeek's
@@ -89,11 +92,26 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
 - **Replace, don't stack** — each run deletes its prior `<!-- vaked-pr-review -->`
   comment and posts one fresh review; an **advisory commit status** carries the
   finding count (never fails the check).
+- **Comment-cleanup subroutine** — before each review (and on a daily schedule via
+  [`cleanup.yml`](../../../.github/workflows/cleanup.yml), `--cleanup` mode) the agent
+  sweeps **bot noise** (usage/rate-limit/quota notices, e.g. Codex) and **collapses
+  duplicate bot review/update comments** to the newest-per-bot. Comments only — never
+  touches issues. Skips its own comments and `github-actions[bot]` (extend the keep-list
+  with `PR_REVIEW_CLEANUP_KEEP`); disable with `PR_REVIEW_NO_CLEANUP`.
 - **Langfuse tracing (linked both ways)** — one OTLP/HTTP trace per run, named
   `pr-review {repo}#{pr}` and keyed to a per-PR session, with `mode`, token totals, and
   `findings` as filterable `langfuse.trace.metadata.*`. Each trace links **out** to the
   PR and the exact review comment (`pr_url` / `comment_url`); the comment footer links
   **back** to the trace when `LANGFUSE_PROJECT_ID` is set.
+- **Operator briefing** — a static, byte-stable context header
+  ([`prompts/ci-agent-briefing.md`](../../../prompts/ci-agent-briefing.md)) is prepended
+  to every CI-agent system prompt: who the agent is, its env/tools, the repo, the sibling
+  fleet, and the maintainer's signing keys. Static-by-design so it stays in the cached
+  prompt prefix (it *lengthens* the cache hit rather than breaking it).
+- **Provenance round** — a best-effort commit-signature check using GitHub's server-side
+  verification, summarised in the footer (`🔏 provenance: N/N commits signature-verified`).
+  Commits authored by the maintainer that aren't verified are flagged against the known
+  signing keys. Advisory only; disable with `PR_REVIEW_NO_PROVENANCE`.
 - **Eval harness** — `--eval <dir>` scores the reviewer against `*.diff`/`*.expect`
   fixtures (see `evals/`).
 - **Resilience** — OpenRouter provider fallback (`allow_fallbacks`), bounded tool
@@ -155,6 +173,9 @@ The keys are read with the standard Langfuse SDK names (same trio ralph uses), s
 | `PR_REVIEW_EVAL_TOLERANCE` | `0.0` | `--eval` regression tolerance: fail if `baseline − current > tolerance` on any case |
 | `PR_REVIEW_NO_AUTOFIX` | — | set to disable inline ```suggestion``` comments for Nit/Minor findings |
 | `PR_REVIEW_USD_PER_MTOK` | `0.3` | blended $/million-token rate for the footer cost estimate |
+| `PR_REVIEW_NO_PROVENANCE` | — | set to disable the commit-signature provenance round |
+| `PR_REVIEW_NO_CLEANUP` | — | set to disable the inline comment-cleanup sweep |
+| `PR_REVIEW_CLEANUP_KEEP` | `github-actions[bot]` | comma-separated bot logins never collapsed by cleanup |
 
 ### Model choice
 Default is **`deepseek/deepseek-v4-flash`** — cheap, 1M context, strong on code, and
