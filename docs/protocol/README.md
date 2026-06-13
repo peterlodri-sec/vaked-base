@@ -46,6 +46,17 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 | Edge kind | `state_dependency` (must be a DAG) vs `observation` / `control_signal` / `metrics` (cycles tolerated) |
 | `stale_dependency` | Paused lifecycle state entered when cold-start anchor verification fails |
 
+### Post-quantum & image-as-code ([RFC 0007](../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md))
+
+| Term | Meaning |
+|------|---------|
+| Hybrid handshake | X25519 + ML-KEM-768 key exchange baked into the wire; confidential if either half holds (defeats harvest-now-decrypt-later) |
+| PQC SVID | A SPIFFE SVID signed hybrid Ed25519+ML-DSA (migration) or ML-DSA-65 (PQC-only); root signed SLH-DSA |
+| Sealed image | Content-addressed materialized artifact (NixOS closure / OCI / unikernel), deny-by-default by construction |
+| Image-as-code | The only mutation path to a running system is a re-derived, re-signed code change — no out-of-band mutation |
+| Votive seal | A PQC (ML-DSA) signature over a sealed image's measurement + provenance, recorded to `eventd` — the image's analogue of an SVID |
+| Attestation quote | Load-time evidence (ML-DSA over `{measurement, nonce, epoch}`) that a measured image matches its signed provenance; replaces "eBPF testifies" for sealed unikernels |
+
 ## Daemons (proposed — roles to be fixed in RFCs)
 
 | Daemon | Proposed role |

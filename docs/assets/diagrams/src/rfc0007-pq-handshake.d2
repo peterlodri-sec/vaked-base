@@ -1,0 +1,34 @@
+# RFC 0007 · Fig 1 — Post-quantum hybrid handshake on the Litany Wire.
+# Source of truth: edit this .d2, then `task diagrams` to regenerate the .svg.
+# Do NOT hand-edit the rendered SVG.
+direction: right
+
+classes: {
+  pq: {
+    style: {fill: "#16324f"; stroke: "#0a1b2e"; font-color: "#ffffff"; border-radius: 10}
+  }
+  classic: {
+    style: {fill: "#3a3a3a"; stroke: "#1a1a1a"; font-color: "#d8d8d8"; stroke-dash: 4; border-radius: 10}
+  }
+  secret: {
+    style: {fill: "#1f6f3d"; stroke: "#0c3d20"; font-color: "#ffffff"; border-radius: 10}
+  }
+}
+
+initiator: "Initiator (agent)\nSVID signed ML-DSA-65" {class: pq}
+responder: "Responder (daemon)\nSVID signed ML-DSA-65" {class: pq}
+
+handshake: "Hybrid handshake (baked in)" {
+  kem: "KEM: X25519 + ML-KEM-768\nhybrid shared secret" {class: secret}
+  aead: "AEAD session\nChaCha20-Poly1305" {class: secret}
+  kem -> aead: derive keys
+}
+
+frames: "Votive Frames over Litany Wire\n(confidential + integrity by construction)" {class: pq}
+
+initiator -> handshake.kem: "1. ClientHello + hybrid pubkeys"
+responder -> handshake.kem: "2. ServerHello + ML-DSA sig over transcript"
+handshake.aead -> frames: "3. encrypted frames"
+
+today: "RFC 0003 today: wire 'adds no crypto of its own';\nconfidentiality delegated to the substrate (quantum-vulnerable)" {class: classic}
+today -> frames: "superseded by" {style.stroke-dash: 4}
