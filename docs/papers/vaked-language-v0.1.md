@@ -2,7 +2,7 @@
 
 ## Abstract
 
-Agentic software systems are becoming more common, but they are complex and error-prone: agents require multiple capabilities (file I/O, network, process control), and misconfiguring authority (granting too much or too little) can lead to security breaches or operational failures. We present **Vaked**, a typed, declarative language for expressing agentic systems as **capability graphs** — topologies of principals with explicit authority relationships. Vaked combines **structural typing** (from configuration languages like Nickel and CUE) with **capability attenuation as a typing rule** (inspired by object-capability literature) and **deterministic multi-target code generation** (lowering to Nix, Zig, and observability artifacts). The type system enforces the Principle of Least Privilege (POLA) at compile time: no principal can exercise authority it was not granted. We implement vakedc, a Python compiler that parses, type-checks, and lowers Vaked declarations to reproducible infrastructure artifacts. Evaluation on four case studies shows that Vaked can express realistic multi-principal systems (up to 1024 fibers, 15+ nodes in the main examples) with deterministic, fast compilation (< 100ms for typical declarations), and zero POLA violations in the generated topology. All valid examples (18/19) produce byte-identical artifacts across 100+ iterations. The approach bridges the gap between formal capability models and practical infrastructure-as-code, enabling auditable, statically-verified agentic deployments.
+Agentic software systems are becoming more common, but they are complex and error-prone: agents require multiple capabilities (file I/O, network, process control), and misconfiguring authority (granting too much or too little) can lead to security breaches or operational failures. We present **Vaked**, a typed, declarative language for expressing agentic systems as **capability graphs** — topologies of principals with explicit authority relationships. Vaked combines **structural typing** (from configuration languages like Nickel and CUE) with **capability attenuation as a typing rule** (inspired by object-capability literature) and **deterministic multi-target code generation** (lowering to Nix, Zig, and observability artifacts). The type system enforces the Principle of Least Privilege (POLA) at compile time: no principal can exercise authority it was not granted. We implement vakedc, a Python compiler that parses, type-checks, and lowers Vaked declarations to reproducible infrastructure artifacts. Evaluation on four case studies shows that Vaked can express realistic multi-principal systems (up to 1024 fibers, 15+ nodes in the main examples) with deterministic, fast compilation (< 100ms for typical declarations), and zero POLA violations in the generated topology. Valid examples produce byte-identical artifacts across repeated runs (20-iteration determinism oracle in `baseline.json`). The approach bridges the gap between formal capability models and practical infrastructure-as-code, enabling auditable, statically-verified agentic deployments.
 
 **Keywords:** capabilities, type systems, infrastructure-as-code, least privilege, agentic systems, deterministic compilation
 
@@ -60,11 +60,11 @@ We introduce **Vaked**, a typed declarative language for capability graphs. Vake
 
 ### 2.1 Structural Type Systems
 
-**Nickel** (Duboc et al.) and **CUE** (Locke) provide structural record typing with contract/refinement support. Vaked borrows the structural typing idea but diverges:
+**Nickel** (Tweag) and **CUE** (Marcel van Lohuizen) provide structural record typing with contract/refinement support. Vaked borrows the structural typing idea but diverges:
 - Nickel and CUE allow **open predicates** (user-defined checking logic), making conformance potentially non-terminating. Vaked **closes the constraint set** to guarantee decidability.
 - Both are **expression languages** (support computation, imports, function application). Vaked is a **declaration language** (pure data, no expressions).
 
-**Dhall** (D'Amour and Vilar) emphasizes **totality** (all evaluation terminates). Vaked shares this principle but adds capability-attenuation semantics, which Dhall does not have.
+**Dhall** (Gabriel Gonzalez) emphasizes **totality** (all evaluation terminates). Vaked shares this principle but adds capability-attenuation semantics, which Dhall does not have.
 
 ### 2.2 Capability & Authorization Systems
 
@@ -353,8 +353,8 @@ We measure compilation performance on three case studies.
 - Artifact sizes are compact (8–18 KB for typical examples).
 
 **Determinism:**
-- 18/19 valid examples produce byte-identical artifacts on repeated runs.
-- 100 iterations per example, 0 hash divergences. (One example, `types/rejected.vaked`, is a negative test case and produces errors by design.)
+- Valid examples produce byte-identical artifacts on repeated runs.
+- 20 iterations per example in the committed `baseline.json`, 0 hash divergences among valid examples. (`types/rejected.vaked` is a negative test case and produces errors by design; `types/schema-constraints.vaked` has a recorded `check=null`.) Re-run `bench.py --iterations 100` to strengthen this claim before submission.
 
 ### 5.2 Case Studies
 
@@ -422,9 +422,9 @@ We demonstrate Vaked on four examples, each highlighting different aspects:
 
 2. **Type Safety:** The compiler catches POLA violations (attempting to use or delegate more authority than granted) at type-check time. Zero violations in all evaluated examples.
 
-3. **Performance:** Compilation is fast (< 100ms for typical 1500-line declarations; 350ms for 1024 fibers), suitable for interactive development. Scales linearly up to 1K workers; limits emerge around 10K fibers (timeout threshold identified honestly for future optimization).
+3. **Performance:** Compilation is fast for typical declarations (sub-100ms, though small examples are dominated by a ~50ms interpreter-startup floor). Measured end-to-end compile times: ~1.6s at 1024 fibers and ~25s at 10,000 fibers (parse 4.2s / check 4.3s / lower 16.3s, ~300MB peak RSS). Growth is **super-linear in the `lower` stage** rather than linear, which identifies `lower` as the primary optimization target (see `examples/evaluation/METHODOLOGY.md` for the measured-vs-projected ledger). An earlier draft reported a ">120s timeout at 10K fibers"; that was an artifact of a generator bug (now fixed) and has been retracted.
 
-4. **Determinism:** All valid examples (18/19) compile to byte-identical artifacts on repeated runs (100+ iterations), enabling reproducibility and auditing. (Invalid examples are negative test cases by design.)
+4. **Determinism:** Valid examples compile to byte-identical artifacts on repeated runs, enabling reproducibility and auditing. The committed determinism oracle (`baseline.json`) records 20 iterations per example over 19 example rows (one, `types/schema-constraints.vaked`, is a known prior failure; `types/rejected.vaked` is a negative test by design). Earlier "100 iterations / 1900 total" figures are not what the committed data shows and should be re-run before citing.
 
 5. **Extensibility:** New capability domains (like eBPF) can be added without modifying the type system core.
 
@@ -448,7 +448,7 @@ We introduce **Vaked**, a language for declaring agentic systems as capability g
 - **Reduce type-checking complexity from O(n) to O(n log n):** Currently, the POLA use-check iterates all used capabilities against all granted capabilities (worst-case O(n²) with n principals). Optimization: build a sorted capability-domain index and use binary search; pre-compute capability partial orders at schema load time; cache attenuation checks across edges.
 - **Implement incremental type checking:** Only re-check fibers whose declarations changed; cached POLA verdicts for unchanged subgraphs.
 - **Parallel lowering:** Emitters for independent fibers (zig configs, catalogs) can run in parallel; potential 4–8× speedup on multi-core systems.
-- **Expected result:** 10K-worker example drops from >120s to ~5–10s; 1K example under 100ms total.
+- **Expected result:** the 10K-worker example (currently ~25s end-to-end, dominated by the ~16s `lower` stage) drops to a few seconds; the 1K example (currently ~1.6s) drops under ~500ms. (The prior ">120s" baseline was a generator-bug artifact and has been retracted — see `examples/evaluation/METHODOLOGY.md`.)
 
 **Runtime & Protocol (v0.2–v0.3, Q3–Q4 2026):**
 - Implement Zig daemons (sandboxd, agent-guardd, eventd) to realize runtime enforcement of the declared POLA topology.
@@ -518,10 +518,12 @@ constraint = "required" | "optional" | "in" range | …
 ### B. Determinism Verification Results
 
 ```
-Determinism Oracle: 19/19 examples (100 iterations each)
-Total iterations: 1900
-Hash divergences: 0
-Conclusion: ✅ Deterministic
+Determinism Oracle: 18/19 valid example rows byte-identical (baseline.json)
+Iterations per example: 20 (as recorded in baseline.json; not 100)
+Note: types/schema-constraints.vaked has check=null (a known prior failure);
+      types/rejected.vaked is a negative test (errors by design).
+Hash divergences among valid examples: 0
+Conclusion: ✅ Deterministic (re-run bench.py --iterations 100 to strengthen)
 ```
 
 ### C. Case Study Checklist
