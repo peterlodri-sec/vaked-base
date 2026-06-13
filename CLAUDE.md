@@ -40,6 +40,24 @@ This repo is currently a **scaffold**: the language track is real design content
 
 `crabcc` (symbol index), `github`, `context7` (Nix/Zig/eBPF/MCP docs), `repowise` (codebase graph — consult before refactors), `workspace-fs` (sandboxed repo FS only), `playwright`. Changes to `.mcp.json` require a Claude Code reload to take effect.
 
+## Social posting (Mastodon + Telegram)
+
+Both channels work the same way: write the message to a staging file, commit it, push — CI picks it up and sends it. The bot token / access token never leaves the runner.
+
+| Channel | Staging file | Workflow | Secret(s) needed |
+|---------|-------------|----------|-----------------|
+| Mastodon | `.github/social/toot.txt` | `social-post.yml` | `MASTODON_ACCESS_TOKEN` (in `ci` env) |
+| Telegram | `.github/social/telegram.txt` | `telegram-post.yml` | `TELEGRAM_TOKEN` + `TELEGRAM_TO` (in `ci` env) |
+
+**Protocol for agent sessions:**
+1. Write the message to the staging file (plain text; Telegram hard-caps at **4096 characters** — keep posts under that or split across commits).
+2. Commit and push — the workflow fires automatically on any branch.
+3. After CI confirms the post, clear the file in a follow-up commit so re-pushes don't re-post.
+
+Empty staging files are a no-op (the workflow skips with a notice). Use the `mastodon-poster` skill for Mastodon; for Telegram write directly to `.github/social/telegram.txt`.
+
+**One-time setup (owner):** Add `TELEGRAM_TOKEN` and `TELEGRAM_TO` as secrets in GitHub → Settings → Environments → `ci`. Get `TELEGRAM_TO` by sending a message to your bot and calling `https://api.telegram.org/bot<TOKEN>/getUpdates`, or by forwarding a message to `@userinfobot`.
+
 ## PR self-check-in fallback
 
 When babysitting a PR and `send_later` is **not** available:
