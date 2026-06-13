@@ -785,6 +785,26 @@ def _test_hardening(lines):
             ok = False
             lines.append(f"  FAIL repair: torn UTF-8 tail not repaired: {r3}")
 
+        # non-object tail (valid JSON, not an entry dict): TamperError on boot
+        # (not AttributeError), repairable
+        p4 = os.path.join(tmp, "h4.jsonl")
+        with EventLog(p4, writer=True) as log:
+            log.append({"agent": "a", "n": 0})
+        n4 = len(EventLog(p4))
+        with open(p4, "a", encoding="utf-8") as f:
+            f.write("null\n")            # valid JSON, not an object
+        try:
+            EventLog(p4)
+            ok = False
+            lines.append("  FAIL repair: non-object tail did not refuse")
+        except TamperError:
+            pass
+        r4 = repair_truncate_tail(p4)
+        if not (r4["repaired"] and r4["dropped"] == 1
+                and len(EventLog(p4)) == n4 + 1):
+            ok = False
+            lines.append(f"  FAIL repair: non-object tail not repaired: {r4}")
+
         if ok:
             lines.append("  hardening: floor --explain pinners, prune_evicted "
                          "reclaims without changing floor, repair drops torn "

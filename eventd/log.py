@@ -57,10 +57,14 @@ def load_entries(path: str) -> list[dict]:
     entries = []
     for n, line in enumerate(raw, 1):
         try:
-            entries.append(json.loads(line.decode("utf-8")))
+            obj = json.loads(line.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             raise TamperError(
                 f"{path}:{n}: malformed log line — broken audit spine") from e
+        if not isinstance(obj, dict):   # valid JSON but not an entry object
+            raise TamperError(
+                f"{path}:{n}: non-object log line — broken audit spine")
+        entries.append(obj)
     return entries
 
 
@@ -79,6 +83,8 @@ def _longest_valid_prefix(path: str) -> list[dict]:
             e = json.loads(line.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             break   # torn/undecodable line ⇒ start of the unverifiable suffix
+        if not isinstance(e, dict):
+            break   # valid JSON but not an entry object ⇒ suffix terminator
         if (e.get("seq") != len(prefix) or e.get("prev") != prev
                 or e.get("hash") != chain_hash(prev, e.get("payload", {}))):
             break
