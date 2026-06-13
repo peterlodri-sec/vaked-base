@@ -8,6 +8,7 @@ Reference tooling over a JSONL eventd log (issue #18, RFC 0004):
     python3 -m eventd state     <log> [--at N]
     python3 -m eventd floor     <log> <producer-agent> [--explain]
     python3 -m eventd coldstart <log> <consumer-agent>
+    python3 -m eventd runs      <log>
     python3 -m eventd repair    <log> --truncate-tail
 
 ``state`` is the Track D jump/replay verb (control-plane design 2026-06-12):
@@ -34,6 +35,7 @@ from dataclasses import asdict
 
 from .log import EventLog, TamperError, WriterLockError, repair_truncate_tail
 from .statedep import DependencyIndex
+from .runtime import RuntimeState
 
 EXIT_OK = 0
 EXIT_USAGE = 2
@@ -112,6 +114,20 @@ def main(argv: list[str]) -> int:
                       f"(epoch {rw['topology_epoch']})")
         if idx.evicted:
             print(f"  evicted: {', '.join(sorted(idx.evicted))}")
+        runs = RuntimeState.fold(entries).summary()
+        if runs["total_runs"]:
+            print(f"  runs: {runs['total_runs']}")
+        return EXIT_OK
+
+    if cmd == "runs":
+        log = _open_ro(path)
+        s = RuntimeState.fold(log.entries).summary()
+        print(f"eventd: {path} — {s['total_runs']} run(s)")
+        for rid in s["runs"]:
+            r = s["runs"][rid]
+            hist = " ".join(f"{k}={v}" for k, v in sorted(r["by_status"].items()))
+            print(f"  {rid} [{r['workflow'] or '?'}] {r['status']} — "
+                  f"{r['steps']} step(s){(': ' + hist) if hist else ''}")
         return EXIT_OK
 
     if cmd == "floor":
