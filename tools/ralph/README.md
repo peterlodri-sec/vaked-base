@@ -117,12 +117,26 @@ for approval — clear those rules for the loop to run unattended.
 
 ## Announcements (optional Mastodon)
 
-When `MASTODON_ACCESS_TOKEN` is set, each decision posts a short summary (track,
-title, model, ~cost — **not** the full body) to a Mastodon instance, defaulting
-to the private, self-hosted `https://social.crabcc.app` (override with
-`MASTODON_BASE_URL`; visibility via `MASTODON_VISIBILITY`, default `unlisted`).
-An `Idempotency-Key` of `ralph-<track>-<N>` makes re-runs safe. No-op without the
-token; posting failures are swallowed and never break the loop.
+`ralph announce` posts the latest decision to a Mastodon instance (default: the
+private, self-hosted `https://social.crabcc.app`). It runs as its **own CI step
+after the decision is committed**, so it can fail loudly without ever dropping a
+decision.
+
+- **Content:** a short **caveman-style** toot written by `openai/gpt-oss-120b`
+  (falls back to a deterministic template if generation fails), capped at **470
+  chars**, with code-controlled hashtags (`#vaked #ralph #<track>`). Only a
+  summary (track, title, model, cost) — **never the full decision body**.
+- **Idempotent:** one toot per decision id (`Idempotency-Key` + an `announced`
+  event in the ledger), so re-runs/retries don't double-post.
+- **Fail fast + loud:** a posting failure prints PII-safe debug (host, id, char
+  count, visibility — never the token) **before and after**, emits a CI
+  `::error::` annotation, **opens one deduped GitHub issue** (`ralph: Mastodon
+  announce failing` — at most one open per repo), and exits non-zero (red CI).
+  The decision is already committed, and the announcement retries each tick until
+  it succeeds (then close the issue).
+- **No-op** without `MASTODON_ACCESS_TOKEN`. Config: `MASTODON_BASE_URL`
+  (instance), `MASTODON_VISIBILITY` (env *variable*, default `unlisted`).
+  Generation uses the same OpenRouter/`--base-url` endpoint as `decide`.
 
 ## Observability (optional Langfuse tracing)
 

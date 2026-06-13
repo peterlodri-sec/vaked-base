@@ -12,6 +12,7 @@ import datetime
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -40,6 +41,8 @@ DEFAULT_S1 = "qwen/qwen3-235b-a22b-thinking-2507"
 DEFAULT_S2 = "deepseek/deepseek-v4-flash"
 HOME_GH = "peterlodri-sec/vaked-base"   # tracks read issues from the home repo
 MASTODON_DEFAULT_BASE = "https://social.crabcc.app"   # private, self-hosted
+MASTODON_MAX_CHARS = 470                # safety margin under Mastodon's 500
+ANNOUNCE_MODEL = "openai/gpt-oss-120b"  # writes the toot (separate from decide)
 
 
 def read_purpose() -> str:
@@ -97,43 +100,127 @@ def _flush_langfuse() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Optional Mastodon announcements — post a short decision summary to a private,
-# self-hosted instance. No-op unless MASTODON_ACCESS_TOKEN is set; all errors
-# swallowed (announcing must never break or fail the decision loop). Only a
-# summary (track + title + model + cost) is posted, never the full decision body.
+# Mastodon announcements (the `announce` subcommand). Posts a caveman-style,
+# hashtagged, <=470-char toot for the latest decision to a private, self-hosted
+# instance. Runs AFTER the decision is committed, so it can FAIL FAST and LOUD
+# (CI red + a deduped GitHub issue) without ever dropping a decision. No-op when
+# MASTODON_ACCESS_TOKEN is unset. Idempotent: one toot per decision id.
 # ---------------------------------------------------------------------------
 
+# Caveman-style post generator prompt (distilled from .claude/skills/caveman).
+_TOOT_SYS = (
+    "You write ONE short social post (a Mastodon 'toot') announcing a single "
+    "design decision from the 'ralph' autonomous loop. Write in TERSE CAVEMAN "
+    "STYLE: drop articles (a/an/the) and filler (just/really/basically); "
+    "fragments OK; short punchy words. Pattern: '[thing] [action] [reason]. "
+    "[next].'. Keep technical terms, names and identifiers EXACT. No emoji, no "
+    "@mentions, no URLs, no hashtags (added later). Never mention you are a "
+    "caveman or a model. Output ONLY the post text, at most {limit} characters."
+)
 
-def _announce_mastodon(track_name: str, n: int, title: str, model: str,
-                       cost: float) -> None:
-    token = os.environ.get("MASTODON_ACCESS_TOKEN")
-    if not token:
-        return
-    # Everything below is best-effort — including request CONSTRUCTION, which can
-    # raise (e.g. a malformed MASTODON_BASE_URL with no scheme). Wrapping it all
-    # keeps a bad announce from ever propagating out of _decide_track and failing
-    # the CI tick / blocking the decision commit.
+
+def _toot_hashtags(track_name: str) -> list[str]:
+    tag = re.sub(r"[^a-z0-9]", "", track_name.lower())
+    return ["#vaked", "#ralph"] + (["#" + tag] if tag else [])
+
+
+def _truncate(text: str, limit: int) -> str:
+    text = " ".join(text.split())          # collapse whitespace/newlines
+    if len(text) <= limit:
+        return text
+    cut = text[: max(0, limit - 1)]
+    if " " in cut:
+        cut = cut[: cut.rfind(" ")]
+    return cut.rstrip() + "…"
+
+
+def _generate_toot(track_name: str, n: int, title: str, model: str, cost: float,
+                   api_key: str, base_url: "str | None") -> str:
+    """Build the toot: a caveman body (gpt-oss when a key is set, else a
+    deterministic fallback) truncated to fit, plus code-controlled hashtags so
+    the post is ALWAYS valid and <= MASTODON_MAX_CHARS."""
+    suffix = "\n\n" + " ".join(_toot_hashtags(track_name))
+    budget = MASTODON_MAX_CHARS - len(suffix)
+    body = ""
+    if api_key:
+        try:
+            resp = openrouter_call(
+                ANNOUNCE_MODEL,
+                [{"role": "system", "content": _TOOT_SYS.format(limit=budget)},
+                 {"role": "user", "content":
+                     "decision #%d · track '%s'\ntitle: %s\nmodel: %s · cost ~$%.4f\n"
+                     "advisory — human must ratify." % (n, track_name, title, model, cost)}],
+                api_key=api_key, temperature=0.7, max_tokens=200, base_url=base_url,
+                span_name="ralph.toot",
+                span_meta={"track": track_name, "id": f"{track_name}#{n}"})
+            body = (_message_content(resp) or "").strip()
+        except Exception as e:   # noqa: BLE001 — gen is best-effort; fall back
+            print("[announce] toot generation failed (%s) — using fallback"
+                  % type(e).__name__, file=sys.stderr)
+    if not body:
+        body = "ralph pick top decision %s. #%d %s. human say yes-or-no." % (
+            track_name, n, title)
+    return _truncate(body, budget) + suffix
+
+
+def _post_toot(host: str, token: str, text: str, visibility: str,
+               idem_key: str) -> dict:
+    """POST one status; raise on any non-2xx / network error (fail fast)."""
+    data = urllib.parse.urlencode({"status": text, "visibility": visibility}).encode()
+    req = urllib.request.Request(
+        host + "/api/v1/statuses", data=data, method="POST",
+        headers={"Authorization": "Bearer " + token,
+                 "Content-Type": "application/x-www-form-urlencoded",
+                 "Idempotency-Key": "ralph-" + idem_key})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def _short_err(exc: Exception) -> str:
+    code = getattr(exc, "code", None)
+    reason = getattr(exc, "reason", None)
+    s = ("%s %s" % (code, reason)) if code else str(exc)
+    return s[:200]
+
+
+def _open_announce_failure_issue(host: str, did: str, exc: Exception) -> None:
+    """Open ONE tracking issue per repo when announcing fails (deduped by title,
+    so repeated failures don't spam)."""
+    title = "ralph: Mastodon announce failing"
+    raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
+                "--limit", "100", "--json", "title"], cwd=REPO_HOME)
     try:
-        base = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
-        # `or` (not a .get default) so an empty env value — what CI passes when the
-        # var is unset — still falls back instead of posting an empty visibility.
-        visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
-        status = (
-            f"🪢 ralph · {track_name} — Decision #{n}\n"
-            f"{title}\n"
-            f"model {model} · ~${cost:.4f} · advisory (awaiting ratification)"
-        )
-        data = urllib.parse.urlencode({"status": status, "visibility": visibility}).encode()
-        req = urllib.request.Request(
-            base + "/api/v1/statuses", data=data, method="POST",
-            headers={"Authorization": "Bearer " + token,
-                     "Content-Type": "application/x-www-form-urlencoded",
-                     # one toot per decision id — safe against tick re-runs
-                     "Idempotency-Key": f"ralph-{track_name}-{n}"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            resp.read()
-    except Exception as e:   # noqa: BLE001 — announcing is best-effort
-        print("mastodon announce failed (non-fatal): %s" % e, file=sys.stderr)
+        if raw and any(i.get("title") == title for i in json.loads(raw)):
+            print("[announce] failure issue already open — not duplicating")
+            return
+    except (json.JSONDecodeError, TypeError):
+        pass
+    body = (
+        "The ralph Mastodon announcer is failing.\n\n"
+        f"- host: `{host}`\n- decision: `{did}`\n"
+        f"- error: `{type(exc).__name__}: {_short_err(exc)}`\n\n"
+        "The decision itself was still committed — announcing is a separate, "
+        "post-commit step. Fix the endpoint/token, then close this issue; ralph "
+        "retries the announcement each tick (idempotent).")
+    out = _run(["gh", "issue", "create", "--repo", HOME_GH, "--title", title,
+                "--body", body], cwd=REPO_HOME)
+    print("[announce] opened failure issue: %s" % (out.strip() or "(gh)"))
+
+
+def _close_announce_failure_issue() -> None:
+    """Auto-close the failure issue once announcing recovers (keeps the tracker
+    clean). Best-effort — failures here are ignored."""
+    title = "ralph: Mastodon announce failing"
+    raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
+                "--limit", "100", "--json", "number,title"], cwd=REPO_HOME)
+    try:
+        for i in json.loads(raw or "[]"):
+            if i.get("title") == title:
+                _run(["gh", "issue", "close", str(i["number"]), "--repo", HOME_GH,
+                      "--comment", "ralph announce recovered — closing."], cwd=REPO_HOME)
+                print("[announce] closed recovered failure issue #%s" % i["number"])
+    except (json.JSONDecodeError, TypeError):
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -640,9 +727,6 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
     # `events --replay` reconstructs total spend across stateless CI runs.
     append_event({"event": "decide", "track": track.name, "iteration": n,
                   "cost": cost, "total_cost": _events_total_cost() + cost})
-    # title = the text after "Decision #N: " on the entry's header line
-    title = entry.splitlines()[0].split(": ", 1)[-1]
-    _announce_mastodon(track.name, n, title, track.model, cost)
     print("decided #%d for %s (cost $%.4f): %s" % (n, track.name, cost,
                                                    entry.splitlines()[0]))
     return cost
@@ -1135,6 +1219,83 @@ def cmd_ratify(args) -> int:
     return 0
 
 
+def _track_model(args, track_name: str) -> str:
+    try:
+        for t in C.load_tracks(getattr(args, "tracks", os.path.join(HERE, "tracks.json"))):
+            if t.name == track_name:
+                return t.model
+    except Exception:
+        pass
+    return "?"
+
+
+def cmd_announce(args) -> int:
+    """Post a toot for the latest decision (the `announce` step, run AFTER the
+    decision commit). No-op without MASTODON_ACCESS_TOKEN. Idempotent (one toot
+    per decision id). On a posting failure: PII-safe debug + a CI ::error::
+    annotation + a deduped GitHub issue + exit 1 (fail fast / report)."""
+    if getattr(args, "state_dir", None):
+        _apply_state_dir(args.state_dir)
+    if os.environ.get("MASTODON_ANNOUNCE", "").strip().lower() in ("0", "off", "false", "no"):
+        print("[announce] disabled via MASTODON_ANNOUNCE — skipping")
+        return 0
+    token = os.environ.get("MASTODON_ACCESS_TOKEN")
+    if not token and not getattr(args, "dry_run", False):
+        print("[announce] no MASTODON_ACCESS_TOKEN set — nothing to announce")
+        return 0
+
+    events = load_events()
+    last = next((e["payload"] for e in reversed(events)
+                 if e.get("payload", {}).get("event") == "decide"
+                 and e["payload"].get("track")), None)
+    if not last:
+        print("[announce] no decision in the ledger — nothing to announce")
+        return 0
+    track = last["track"]
+    n = int(last.get("iteration", 0))
+    cost = float(last.get("total_cost", last.get("cost", 0.0)) or 0.0)
+    did = f"{track}#{n}"
+    if any(e.get("payload", {}).get("event") == "announced"
+           and e["payload"].get("id") == did for e in events):
+        print(f"[announce] {did} already announced — skip")
+        return 0
+
+    titles = _prior_titles(track)
+    title = titles[-1] if titles else "(decision)"
+    model = _track_model(args, track)
+    toot = _generate_toot(track, n, title, model, cost,
+                          _resolve_api_key(), getattr(args, "base_url", None))
+    host = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
+    visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
+
+    # PII-safe debug BEFORE (no token; the body is what gets broadcast anyway).
+    print("[announce] -> host=%s id=%s chars=%d/%d visibility=%s"
+          % (host, did, len(toot), MASTODON_MAX_CHARS, visibility))
+    print("[announce] body |%s|" % toot)
+
+    if getattr(args, "dry_run", False):
+        print("[announce] --dry-run: not posting")
+        return 0
+
+    try:
+        resp = _post_toot(host, token, toot, visibility, did)
+    except Exception as exc:   # noqa: BLE001 — report loudly, fail the step
+        print("[announce] AFTER: FAILED %s: %s"
+              % (type(exc).__name__, _short_err(exc)), file=sys.stderr)
+        print("::error title=ralph announce failed::%s posting %s to %s"
+              % (type(exc).__name__, did, host))
+        _open_announce_failure_issue(host, did, exc)
+        return 1
+
+    status_id = (resp or {}).get("id")
+    url = (resp or {}).get("url")
+    print("[announce] AFTER: OK status_id=%s url=%s" % (status_id, url))
+    append_event({"event": "announced", "id": did, "track": track,
+                  "iteration": n, "status_id": status_id})
+    _close_announce_failure_issue()   # recovered — clear any open failure issue
+    return 0
+
+
 def cmd_watch(args) -> int:
     try:
         while True:
@@ -1206,6 +1367,15 @@ def main(argv: list[str] | None = None) -> int:
     p_ratify = sub.add_parser("ratify", help="summarize human ratify status per track")
     p_ratify.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
     p_ratify.set_defaults(func=cmd_ratify)
+
+    p_announce = sub.add_parser("announce", parents=[common],
+                                help="post the latest decision to Mastodon (post-commit)")
+    p_announce.add_argument("--tracks", default=os.path.join(HERE, "tracks.json"))
+    p_announce.add_argument("--state-dir", default=None,
+                            help="override state directory (default: tools/ralph/state/)")
+    p_announce.add_argument("--dry-run", action="store_true",
+                            help="build + print the toot without posting")
+    p_announce.set_defaults(func=cmd_announce)
 
     args = parser.parse_args(argv)
     try:

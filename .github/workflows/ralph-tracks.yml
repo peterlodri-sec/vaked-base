@@ -64,17 +64,38 @@ jobs:
           LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}   # optional: enables tracing
           LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
           LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
-          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}   # optional: announces to social.crabcc.app
-          MASTODON_BASE_URL: ${{ secrets.MASTODON_BASE_URL }}          # optional: override instance URL
-          MASTODON_VISIBILITY: ${{ vars.MASTODON_VISIBILITY }}        # optional env VARIABLE (non-secret); default unlisted
         run: |
           # Only pull the (heavy) langfuse extra when tracing is actually configured.
           EXTRA=""
           if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="--extra tracing"; fi
           uv run --project tools/ralph $EXTRA tools/ralph/ralph.py decide --next-track
 
-      - name: Commit the decision + event ledger
+      # Announce AFTER decide but BEFORE commit, so a successful toot's
+      # `announced` ledger event is committed too. This step is allowed to fail
+      # loudly (fail-fast + CI red + a deduped issue) — the commit below still
+      # runs via `always()`, so a Mastodon outage never drops the decision.
+      - name: Announce the decision to Mastodon
+        id: announce
         if: steps.guard.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}                       # gh issue create (failure issue) + gh
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}   # gpt-oss-120b writes the toot
+          RALPH_API_KEY: ${{ secrets.RALPH_API_KEY }}
+          RALPH_BASE_URL: ${{ secrets.RALPH_BASE_URL }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          MASTODON_ACCESS_TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}   # unset → step no-ops
+          MASTODON_BASE_URL: ${{ secrets.MASTODON_BASE_URL }}          # optional: override instance URL
+          MASTODON_VISIBILITY: ${{ vars.MASTODON_VISIBILITY }}        # optional env VARIABLE; default unlisted
+        run: |
+          EXTRA=""
+          if [ -n "$LANGFUSE_PUBLIC_KEY" ]; then EXTRA="--extra tracing"; fi
+          uv run --project tools/ralph $EXTRA tools/ralph/ralph.py announce
+
+      - name: Commit the decision + event ledger
+        # always() so a failed announce never blocks the decision commit
+        if: ${{ always() && steps.guard.outputs.run == 'true' }}
         run: |
           git config user.name  "ralph-loop"
           git config user.email "ralph@vaked.local"

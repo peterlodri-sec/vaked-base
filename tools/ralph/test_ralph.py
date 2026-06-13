@@ -782,9 +782,7 @@ def test_decide_track_uses_track_model_both_stages() -> None:
         ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
         ralph.STATE_DIR = tmpdir
         try:
-            # mock the announcer so a token in the env can't fire a live toot
-            with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call), \
-                 mock.patch.object(ralph, "_announce_mastodon"):
+            with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
                 cost = ralph._decide_track(args, track, "key")
             # the decide event must be logged so --next-track can rotate
             last = ralph._last_decided_track()
@@ -1104,71 +1102,163 @@ def test_cmd_ratify_summary() -> None:
         assert "100%" in out   # 1 ratify / (1 ratify + 0 override)
 
 
-def test_announce_mastodon_noop_without_token() -> None:
-    """No MASTODON_ACCESS_TOKEN → no HTTP call, no exception (zero-config no-op)."""
+def test_generate_toot_fallback_limit_and_hashtags() -> None:
+    """Without an API key, the toot uses the deterministic fallback, always
+    carries hashtags, and is <= MASTODON_MAX_CHARS even for a long title."""
+    import importlib
+    ralph = importlib.import_module("ralph")
+    long_title = "Adopt " + "Zoekt " * 200  # way over the limit
+    toot = ralph._generate_toot("graph-concept", 7, long_title, "deepseek/x",
+                                0.004, api_key="", base_url=None)
+    assert len(toot) <= ralph.MASTODON_MAX_CHARS, len(toot)
+    assert toot.rstrip().endswith("#graphconcept")
+    assert "#vaked" in toot and "#ralph" in toot
+
+
+def test_generate_toot_uses_gpt_oss_model() -> None:
+    """With a key, the generator calls the gpt-oss model and wraps its body."""
     import importlib
     import unittest.mock as mock
     ralph = importlib.import_module("ralph")
+    seen = {}
+
+    def fake_call(model, messages, **kw):
+        seen["model"] = model
+        return {"choices": [{"message": {"content": "graph split good. ship it."}}],
+                "usage": {}}
+
+    with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
+        toot = ralph._generate_toot("graph-concept", 3, "Split LPG", "deepseek/x",
+                                    0.004, api_key="k", base_url=None)
+    assert seen["model"] == ralph.ANNOUNCE_MODEL
+    assert "graph split good" in toot and "#graphconcept" in toot
+    assert len(toot) <= ralph.MASTODON_MAX_CHARS
+
+
+def test_cmd_announce_noop_without_token() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
     orig = os.environ.pop("MASTODON_ACCESS_TOKEN", None)
     try:
-        with mock.patch.object(ralph.urllib.request, "urlopen") as uo:
-            ralph._announce_mastodon("graph-concept", 1, "Split the LPG", "x/y", 0.004)
-            uo.assert_not_called()
+        args = types.SimpleNamespace(state_dir=None,
+                                     tracks=os.path.join(os.path.dirname(
+                                         os.path.abspath(__file__)), "tracks.json"))
+        assert ralph.cmd_announce(args) == 0
     finally:
         if orig is not None:
             os.environ["MASTODON_ACCESS_TOKEN"] = orig
 
 
-def test_announce_mastodon_posts_with_token() -> None:
-    """With a token set, POSTs to <base>/api/v1/statuses with a Bearer header and
-    a summary status; an HTTP failure is swallowed (never raises)."""
+def _announce_args(tmpdir):
+    here = os.path.dirname(os.path.abspath(__file__))
+    return types.SimpleNamespace(state_dir=tmpdir, base_url=None,
+                                 tracks=os.path.join(here, "tracks.json"))
+
+
+def test_cmd_announce_posts_and_logs_event() -> None:
+    """A fresh decision → generate + post + an `announced` event appended."""
     import importlib
     import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
     ralph = importlib.import_module("ralph")
-    env = {"MASTODON_ACCESS_TOKEN": "tok", "MASTODON_BASE_URL": "https://m.example"}
-    captured = {}
 
-    class _Resp:
-        def __enter__(self): return self
-        def __exit__(self, *a): return False
-        def read(self): return b"{}"
+    with tempfile.TemporaryDirectory() as tmpdir:
+        e = make_entry(GENESIS_HASH, 0, {"event": "decide", "track": "graph-concept",
+                                         "iteration": 1, "cost": 0.01, "total_cost": 0.01})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        orig_dec = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        with open(os.path.join(tmpdir, "graph-concept.ralph-log.md"), "w",
+                  encoding="utf-8") as f:
+            f.write("## 2026-06-13 — Decision #1: Split the LPG\nbody\n")
+        try:
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+                 mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
+                 mock.patch.object(ralph, "_run", return_value="[]"), \
+                 mock.patch.object(ralph, "_post_toot",
+                                   return_value={"id": "99", "url": "https://m/99"}):
+                rc = ralph.cmd_announce(_announce_args(tmpdir))
+            events = ralph.load_events()
+        finally:
+            ralph.DECISIONS_DIR = orig_dec
+        assert rc == 0
+        assert any(e["payload"].get("event") == "announced"
+                   and e["payload"].get("id") == "graph-concept#1" for e in events)
 
-    def fake_urlopen(req, timeout=None):
-        captured["url"] = req.full_url
-        captured["auth"] = req.headers.get("Authorization")
-        captured["body"] = req.data.decode()
-        return _Resp()
 
-    with mock.patch.dict(os.environ, env), \
-         mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake_urlopen):
-        ralph._announce_mastodon("graph-concept", 7, "Adopt Zoekt", "deepseek/x", 0.004)
+def test_cmd_announce_dry_run_does_not_post() -> None:
+    import importlib
+    import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        e = make_entry(GENESIS_HASH, 0, {"event": "decide", "track": "graph-concept",
+                                         "iteration": 1, "cost": 0.01, "total_cost": 0.01})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        args = _announce_args(tmpdir)
+        args.dry_run = True
+        orig_dec = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        try:
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+                 mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
+                 mock.patch.object(ralph, "_post_toot") as post:
+                rc = ralph.cmd_announce(args)
+        finally:
+            ralph.DECISIONS_DIR = orig_dec
+        assert rc == 0
+        post.assert_not_called()
 
-    assert captured["url"] == "https://m.example/api/v1/statuses"
-    assert captured["auth"] == "Bearer tok"
-    assert "graph-concept" in captured["body"] and "Decision" in captured["body"]
-    assert "Adopt+Zoekt" in captured["body"] or "Adopt%20Zoekt" in captured["body"]
-    # default visibility when unset
-    assert "visibility=unlisted" in captured["body"]
 
-    # an EMPTY MASTODON_VISIBILITY (what CI passes when the var is unset) must
-    # still fall back to unlisted, not post an empty visibility
-    with mock.patch.dict(os.environ, {**env, "MASTODON_VISIBILITY": ""}), \
-         mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake_urlopen):
-        ralph._announce_mastodon("t", 1, "x", "m", 0.0)
-    assert "visibility=unlisted" in captured["body"]
+def test_cmd_announce_dedup_skips_when_already_announced() -> None:
+    import importlib
+    import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        prev = GENESIS_HASH
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            for i, p in enumerate([
+                {"event": "decide", "track": "graph-concept", "iteration": 1,
+                 "cost": 0.01, "total_cost": 0.01},
+                {"event": "announced", "id": "graph-concept#1", "track": "graph-concept",
+                 "iteration": 1, "status_id": "1"}]):
+                en = make_entry(prev, i, p)
+                f.write(json.dumps(en) + "\n")
+                prev = en["hash"]
+        with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+             mock.patch.object(ralph, "_post_toot") as post:
+            rc = ralph.cmd_announce(_announce_args(tmpdir))
+        assert rc == 0
+        post.assert_not_called()
 
-    # an HTTP error must be swallowed, not raised
-    with mock.patch.dict(os.environ, env), \
-         mock.patch.object(ralph.urllib.request, "urlopen",
-                           side_effect=RuntimeError("boom")):
-        ralph._announce_mastodon("t", 1, "x", "m", 0.0)   # must not raise
 
-    # a request-CONSTRUCTION error (e.g. malformed base URL) must also be
-    # swallowed — it happens before urlopen, so the try must wrap it too
-    with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
-         mock.patch.object(ralph.urllib.request, "Request",
-                           side_effect=ValueError("unknown url type")):
-        ralph._announce_mastodon("t", 1, "x", "m", 0.0)   # must not raise
+def test_cmd_announce_failure_reports_and_opens_issue() -> None:
+    """A post failure → exit 1 and a (deduped) `gh issue create` attempt."""
+    import importlib
+    import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        e = make_entry(GENESIS_HASH, 0, {"event": "decide", "track": "graph-concept",
+                                         "iteration": 1, "cost": 0.01, "total_cost": 0.01})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        gh_calls = []
+
+        def fake_run(cmd, cwd=None, timeout=30):
+            gh_calls.append(cmd)
+            return "[]" if "list" in cmd else ""   # no existing issue → create
+
+        with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+             mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
+             mock.patch.object(ralph, "_post_toot", side_effect=RuntimeError("503")), \
+             mock.patch.object(ralph, "_run", side_effect=fake_run):
+            rc = ralph.cmd_announce(_announce_args(tmpdir))
+        assert rc == 1
+        assert any("create" in c for c in gh_calls), gh_calls
 
 
 def test_every_track_model_has_price() -> None:
