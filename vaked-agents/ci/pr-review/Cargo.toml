@@ -1,6 +1,6 @@
 [package]
 name = "vaked-pr-review"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.94"
 publish = false
@@ -19,9 +19,17 @@ adk-rust = { version = "1.0.0", default-features = false, features = [
     "sessions",
     "openrouter",
     "mcp",
+    "eval",      # adk eval framework (the --eval harness)
+    "personas",  # persona-based eval scoring
 ] }
 adk-core = { version = "1.0.0", features = ["rustls"] }
 adk-model = { version = "1.0.0", features = ["openrouter"] }
+# Direct deps purely to flip feature flags adk-rust doesn't re-expose (cargo unifies
+# them onto the same crate instances adk-rust pulls):
+#   adk-agent/guardrails  → LlmAgentBuilder::{input,output}_guardrails attach point
+#   adk-runner/context-compaction → Runner::builder().context_compaction(..)
+adk-agent = { version = "1.0.0", default-features = false, features = ["guardrails"] }
+adk-runner = { version = "1.0.0", default-features = false, features = ["context-compaction"] }
 
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"

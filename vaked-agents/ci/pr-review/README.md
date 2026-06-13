@@ -30,7 +30,9 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
 - **Map-reduce for large PRs (parallel)** — above `PR_REVIEW_MAPREDUCE_LINES`
   (default 600) changed lines, each file is reviewed independently —
   `PR_REVIEW_CONCURRENCY` (default 6) at a time — then a synthesis pass dedupes
-  and groups into the final review.
+  and groups into the final review. Set `PR_REVIEW_PARALLEL_AGENT` to instead use
+  the adk `ParallelAgent`/`SequentialAgent` pipeline (opt-in until validated live;
+  falls back to map-reduce on error).
 - **Tiered reasoning** — per-file passes run at `effort: medium` (mechanical),
   the final/synthesis pass at `high` — large-PR speed without losing the deep pass.
 - **Structured output + caveman prose** — the final pass returns strict JSON
@@ -103,6 +105,25 @@ diff-only review.
 | `PR_REVIEW_CONCURRENCY` | `6` | parallel per-file passes (map-reduce) + tool concurrency |
 | `PR_REVIEW_NO_STRUCTURED` | — | set to disable structured JSON output |
 | `PR_REVIEW_TRACE_PAYLOADS` | — | set to record prompt/response payloads into Langfuse spans |
+| `PR_REVIEW_PARALLEL_AGENT` | — | set to use the adk `ParallelAgent`/`SequentialAgent` pipeline for large PRs instead of the default map-reduce (opt-in until validated live; falls back to map-reduce on error) |
+| `PR_REVIEW_EVAL_TOLERANCE` | `0.0` | `--eval` regression tolerance: fail if `baseline − current > tolerance` on any case |
+
+## Security guardrails
+
+The diff is **untrusted input**, so the reviewer agent runs adk guardrails
+([`src/guardrails.rs`](src/guardrails.rs)):
+
+- **Input** — secret redaction + prompt-injection defang on every agent turn
+  (the system prompt also hardens against in-diff instructions).
+- **Output** — a findings cap to `PR_REVIEW_MAX_FINDINGS`.
+
+All guardrails `Transform`/`Pass` (never `Fail`), so they can't suppress the
+advisory review. The parallel pipeline passes per-file diffs + PR metadata to
+agents via **session state** (referenced by a single `{placeholder}` in the
+instruction) — guardrails don't see instructions/state, so that text is
+pre-sanitized with the same redaction/defang; routing it through state (a
+single-pass, non-rescanned injection) also stops the diff's own `{...}` from being
+re-templated.
 
 ## Eval
 
@@ -111,6 +132,12 @@ OPENROUTER_API_KEY=sk-or-... \
   cargo run --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
   --eval vaked-agents/ci/pr-review/evals
 ```
+
+Scoring uses adk-eval's `ResponseScorer` (Contains) and writes a
+`.baseline.json` in the eval dir via adk-eval's `BaselineStore`; subsequent runs
+**gate on regressions** (any case dropping more than `PR_REVIEW_EVAL_TOLERANCE`
+below baseline fails). The baseline ratchets up only on a fully-passing,
+non-regressing run.
 
 ## Local dry-run (prints the review, posts nothing)
 
