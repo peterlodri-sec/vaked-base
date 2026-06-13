@@ -75,10 +75,13 @@ facilities (`hosts/vakedos` provides each). The sequence, per worker:
    namespace (private mount propagation), and a **pid** namespace (the worker is
    pid 1 of its tree, so a kill of pid 1 reaps the whole subtree). The **network**
    namespace is owned jointly with agent-guardd — see *Open*.
-2. **cgroup-v2** — join a **delegated** cgroup-v2 subtree and write the budget
-   into its controllers: `memory.max`, `pids.max`, `cpu.max`, `io.max`. The bound
-   is enforced by the kernel (OOM-kill / clone refusal), not estimated — the same
-   "mathematical bound, not policy" stance the wasm backend takes with fuel.
+2. **cgroup-v2** — join a **delegated** cgroup-v2 subtree and write the worker's
+   resource limits into its controllers: `memory.max`, `pids.max`, `cpu.max`,
+   `io.max`. The bound is enforced by the kernel (OOM-kill / clone refusal), not
+   estimated — the same "mathematical bound, not policy" stance the wasm backend
+   takes with fuel. (These limit values are a config-contract dependency — see
+   *Config contract*: the closed `budget` schema does not carry an OS-resource
+   axis today.)
 3. **rootfs via overlay** — mount an `overlayfs` with a read-only base
    (`lowerdir`) and a writable layer (`upperdir` + `workdir`) on the write area
    fs-snapshotd owns; the worker sees a unified rootfs but every write lands on
@@ -102,18 +105,37 @@ A `fiber` (with its `engine`) lowers to `gen/zig/<fiber>.json`
 parses (deterministic key order = schema order; absent optionals omitted;
 leading `"_generated"` header — see
 [`gen/zig/mediaCompress.json`](../../../vaked/examples/lowering/gen/zig/mediaCompress.json)).
-sandboxd consumes the **process + filesystem membrane** projection of that
-config: the namespace set, the cgroup limits (from `budget`), the explicit
-mounts, the overlay/write area, and the exec command (from `engine` /
-`engine_package`).
+sandboxd reads the **process + filesystem membrane** projection of that config:
+the namespace set, the mount/overlay mapping, the cgroup resource limits, and the
+exec command (from `engine` / `engine_package`).
 
-The membrane and budget **grammar lives in the language docs**
+**What exists today vs. what this design depends on.** The membrane *authority*
+is already in the language: `capability fs`
+(`none < repo_ro < repo_rw < host_rw`, `repo_ro < host_ro`) and
+`capability process` (`none < spawn_sandboxed < spawn < exec_host`) declare the
+qualitative grant, and `runclass` carries scheduling/priority. But the
+**operational inputs native-exec enforces with** — the concrete namespace set,
+the mount/overlay mapping, and the cgroup resource limits (`cpu`/`mem`/`io`/`pids`)
+— are **not sourced yet**: [0012 §5.2](../../language/0012-lowering.md) lowers only
+`engine`/`input`/`output`/`policy`/`budget`/`observe`, and the `budget` schema is
+**closed** to `tokens`/`wallClock`/`toolCalls`/`approvals`/`fuel` (no OS-resource
+axis).
+
+Defining that projection — lowering the `fs`/`process` capability grants into a
+concrete mount + namespace plan, plus a resource-limits field (a new schema, or a
+`budget`/`runclass` extension) for cgroup `cpu`/`mem`/`io`/`pids` — is therefore a
+**design dependency of this daemon, not a settled contract**. It is exactly the
+"richer … membranes [that] arrives with the daemon designs" the `host` schema
+comment anticipates; because it adds language surface it **is** subject to the
+grammar-first/issue gate. Tracked in *Plan* (step 0) and *Open*. (An earlier draft
+claimed native-exec needs no language change — that was wrong: the *authority*
+exists, the *operational lowering* does not.)
+
+This document **references, never redefines** the membrane grammar
 ([0008](../../language/0008-parallel-fibers-indexes-surfaces.md) for `fiber`,
-[0012](../../language/0012-lowering.md) for the lowering). This document
-**references, never redefines** that grammar: native-exec consumes the existing
-lowering, so it introduces **no new `.vaked` field** (and therefore no
-grammar-first/issue gate). The NixOS module installs `gen/zig/<fiber>.json` as the
-exact file the daemon reads — same bytes, no second source of truth (0012 §4.3).
+[0012](../../language/0012-lowering.md) for the lowering). The NixOS module installs
+`gen/zig/<fiber>.json` as the exact file the daemon reads — same bytes, no second
+source of truth (0012 §4.3).
 
 ## Relationship to the roster (delineation)
 
@@ -178,6 +200,13 @@ runnability is a **devshell gate**, and CI stays bytes/structure.
 
 ## Plan
 
+0. *(grammar-first, gated — blocks PR 2)* Define the sandbox config projection:
+   lower `capability fs` / `capability process` grants into a concrete mount +
+   namespace plan, and add a resource-limits source (new schema, or a
+   `budget`/`runclass` extension) for cgroup `cpu`/`mem`/`io`/`pids`, with the
+   `gen/zig/<fiber>.json` field mapping ([0012 §5.2](../../language/0012-lowering.md)).
+   This is the language/lowering dependency surfaced in *Config contract*; it
+   needs its own issue.
 1. *(impl PR 1)* `daemons/sandboxd/` skeleton (Zig) + `gen/zig/<fiber>.json`
    parse; native-exec boundary as a no-op/echo runner.
 2. *(impl PR 2)* native-exec for real: namespaces + cgroup-v2 delegation +
@@ -192,6 +221,12 @@ runnability is a **devshell gate**, and CI stays bytes/structure.
 
 ## Open
 
+- **Sandbox config projection (the language/lowering dependency)** — the concrete
+  mount/namespace plan + cgroup resource-limit fields native-exec enforces with
+  are not yet sourced by `gen/zig/<fiber>.json` or the closed `budget` schema (see
+  *Config contract*). How `capability fs`/`capability process` grants + a new
+  resource-limits field lower to the daemon config is *Plan step 0* and the gating
+  dependency for the native-exec impl PR.
 - **fs-snapshotd ⇄ sandboxd overlay-ownership boundary** — who creates
   `upperdir`/`workdir`, who unmounts, how the write-budget enforcement point
   relates to the overlay mount. The one delineation to lock at the impl-PR phase.
