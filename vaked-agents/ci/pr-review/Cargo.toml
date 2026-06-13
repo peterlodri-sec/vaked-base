@@ -67,10 +67,19 @@ opentelemetry-otlp = { version = "0.31", default-features = false, features = [
 ] }
 
 # Faster startup + smaller baked binary (compile cost lands on the baker, which
-# we don't wait on). panic=abort is fine for a CLI that signals via exit codes.
+# we don't wait on).
+#
+# panic = "unwind" (NOT "abort"): the OTLP/HTTP batch span processor exports on a
+# dedicated background thread that has no Tokio reactor, so its async reqwest
+# client panics ("there is no reactor running") on a scheduled flush during a
+# slow review. Under panic=abort that background-thread panic SIGABRTs the whole
+# process (exit 134) AFTER the review already ran — failing the `review` check on
+# every slow PR. With unwind, the panic unwinds that one thread; the review still
+# posts and the process exits 0. (Root-cause follow-up: give the OTLP exporter a
+# blocking HTTP client so the batch thread never needs a reactor.)
 [profile.release]
 lto = "fat"
 codegen-units = 1
 strip = true
-panic = "abort"
+panic = "unwind"
 
