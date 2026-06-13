@@ -87,15 +87,17 @@ def generate_loadtest(num_workers: int, output_path: Path) -> None:
         f'  parallel "worker-pool-{num_workers}" {{',
     ])
 
-    # Format as a list, line-wrapped for readability
+    # Format as a list, one worker per line. Every element gets a trailing
+    # comma EXCEPT the last one — the Vaked grammar rejects a trailing comma
+    # before the closing ']'. The previous version checked "(i+1) % 10 == 0"
+    # before the last-element check, so when num_workers was a multiple of 10
+    # the final worker also got a comma and the file failed to parse
+    # (e.g. the 10000-worker file). Keep this branch dead simple.
+    last = len(worker_list_items) - 1
     lines.append('    fibers = [')
     for i, worker in enumerate(worker_list_items):
-        if (i + 1) % 10 == 0:
-            lines.append(f'      {worker},')
-        elif i == len(worker_list_items) - 1:
-            lines.append(f'      {worker}')
-        else:
-            lines.append(f'      {worker},')
+        comma = '' if i == last else ','
+        lines.append(f'      {worker}{comma}')
     lines.append('    ]')
     lines.extend([
         '    strategy = "concurrent"',
