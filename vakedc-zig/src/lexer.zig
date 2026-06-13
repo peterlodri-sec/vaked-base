@@ -208,10 +208,19 @@ pub const Lexer = struct {
         }
 
         // EOF
-        try self.emitToken(TokenKind.EOF, "");
+        const eof_token = Token{
+            .kind = TokenKind.EOF,
+            .value = try self.allocator.dupe(u8, ""),
+            .byteStart = @intCast(self.pos),
+            .byteEnd = @intCast(self.pos),
+            .line = self.line,
+            .col = self.col,
+        };
+        try self.tokens.append(eof_token);
     }
 
     fn lexNewline(self: *Lexer) !void {
+        const start = self.pos;
         if (self.source[self.pos] == '\r' and self.pos + 1 < self.source.len and self.source[self.pos + 1] == '\n') {
             self.pos += 2;
         } else {
@@ -223,7 +232,15 @@ pub const Lexer = struct {
 
         // Only emit NEWLINE if depth == 0 (not inside grouping)
         if (self.depth == 0) {
-            try self.emitToken(TokenKind.NEWLINE, "\n");
+            const token = Token{
+                .kind = TokenKind.NEWLINE,
+                .value = try self.allocator.dupe(u8, "\n"),
+                .byteStart = @intCast(start),
+                .byteEnd = @intCast(self.pos),
+                .line = self.line - 1,
+                .col = 1,
+            };
+            try self.tokens.append(token);
         }
     }
 
@@ -265,6 +282,7 @@ pub const Lexer = struct {
 
     fn lexNumber(self: *Lexer) !void {
         const start = self.pos;
+        const start_col = self.col;
 
         // Read digits, tracking whether we've seen a dot
         var has_dot = false;
@@ -288,11 +306,20 @@ pub const Lexer = struct {
         const suffix = self.source[num_end..self.pos];
         const kind = if (suffix.len == 0) TokenKind.NUMBER else if (isDurationSuffix(suffix)) TokenKind.DURATION else if (isBytesSuffix(suffix)) TokenKind.BYTES else TokenKind.ERROR;
 
-        try self.emitToken(kind, value);
+        const token = Token{
+            .kind = kind,
+            .value = try self.allocator.dupe(u8, value),
+            .byteStart = @intCast(start),
+            .byteEnd = @intCast(self.pos),
+            .line = self.line,
+            .col = @intCast(start_col),
+        };
+        try self.tokens.append(token);
     }
 
     fn lexIdent(self: *Lexer) !void {
         const start = self.pos;
+        const start_col = self.col;
 
         while (self.pos < self.source.len and (std.ascii.isAlphaNumeric(self.source[self.pos]) or self.source[self.pos] == '_' or self.source[self.pos] == '-')) {
             self.pos += 1;
@@ -300,7 +327,15 @@ pub const Lexer = struct {
         }
 
         const value = self.source[start..self.pos];
-        try self.emitToken(TokenKind.IDENT, value);
+        const token = Token{
+            .kind = TokenKind.IDENT,
+            .value = try self.allocator.dupe(u8, value),
+            .byteStart = @intCast(start),
+            .byteEnd = @intCast(self.pos),
+            .line = self.line,
+            .col = @intCast(start_col),
+        };
+        try self.tokens.append(token);
     }
 
     fn skipComment(self: *Lexer) void {
