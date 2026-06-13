@@ -714,6 +714,59 @@ def _message_content(resp: dict) -> "str | None":
         return None
 
 
+def _reasoning_text(resp: dict) -> "str | None":
+    """A thinking model's reasoning text (OpenRouter puts it in
+    message.reasoning / reasoning_content). Used as a fallback when `content` is
+    null but the JSON answer ended up inside the reasoning."""
+    try:
+        msg = (resp.get("choices") or [{}])[0].get("message", {})
+        return msg.get("reasoning") or msg.get("reasoning_content")
+    except (AttributeError, IndexError, KeyError, TypeError):
+        return None
+
+
+def _finish_reason(resp: dict) -> "str | None":
+    try:
+        return (resp.get("choices") or [{}])[0].get("finish_reason")
+    except (AttributeError, IndexError, KeyError, TypeError):
+        return None
+
+
+def _strip_fences(text: str) -> str:
+    t = text.strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", t)
+        t = re.sub(r"\n?```\s*$", "", t)
+    return t.strip()
+
+
+_JSON_OBJ_RE = re.compile(r"\{.*\}", re.S)
+
+
+def _parse_candidates(text: "str | None") -> list:
+    """Extract the `candidates` list from a stage-1 response that may be raw
+    JSON, fenced JSON (```json …```), or JSON embedded in prose/reasoning.
+    Returns [] if nothing usable."""
+    if not text:
+        return []
+    for chunk in (text, _strip_fences(text)):
+        try:
+            c = json.loads(chunk).get("candidates")
+            if isinstance(c, list):
+                return c
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    m = _JSON_OBJ_RE.search(text)
+    if m:
+        try:
+            c = json.loads(m.group(0)).get("candidates")
+            if isinstance(c, list):
+                return c
+        except (json.JSONDecodeError, AttributeError):
+            pass
+    return []
+
+
 def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
                 stage2_model, api_key, base_url, seed, meta=None):
     """Run both LLM stages and return ``(cost, body)`` or ``None`` to skip the
@@ -722,20 +775,23 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
     context for a skipped iteration). `meta` tags the Langfuse spans (e.g. the
     track name). Shared by repo and track decide paths."""
     base_meta = meta or {}
+    # max_tokens is generous: thinking models (e.g. qwen3-thinking) spend tokens
+    # on reasoning before the JSON answer — too small a budget truncates the
+    # answer (finish_reason=length) and yields no candidates.
     s1 = openrouter_call(stage1_model, s1_msgs, api_key=api_key,
-                         temperature=0.4, max_tokens=2000,
-                         reasoning={"enabled": True, "effort": "medium"},
+                         temperature=0.4, max_tokens=6000,
+                         reasoning={"enabled": True, "effort": "low"},
                          response_format=_STAGE1_SCHEMA, seed=seed,
                          base_url=base_url, span_name="ralph.rank",
                          span_meta={**base_meta, "stage": 1})
+    # Tolerant: content may be raw/fenced/embedded JSON; fall back to the
+    # reasoning field for thinking models that return content=null.
     s1_text = _message_content(s1)
-    try:
-        cands = json.loads(s1_text).get("candidates", []) if s1_text else []
-    except json.JSONDecodeError:
-        cands = []
+    cands = _parse_candidates(s1_text) or _parse_candidates(_reasoning_text(s1))
     if not cands:
-        print("stage-1 returned no usable candidates; skipping iteration",
-              file=sys.stderr)
+        print("stage-1 returned no usable candidates "
+              "(finish=%s, content_chars=%d); skipping iteration"
+              % (_finish_reason(s1), len(s1_text or "")), file=sys.stderr)
         return None
     chosen = C.select_candidate(cands)
     if chosen is None:
