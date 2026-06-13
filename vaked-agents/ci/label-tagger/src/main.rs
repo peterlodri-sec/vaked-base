@@ -728,8 +728,16 @@ fn parse_output(raw: &str) -> TaggerOutput {
 // Orchestration
 // ---------------------------------------------------------------------------
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_SHA: &str = env!("GIT_SHA");
+
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("vaked-label-tagger {VERSION}+{GIT_SHA}");
+        return;
+    }
+
     let tracer_provider = setup_tracing();
 
     let code = match run().await {

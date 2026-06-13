@@ -976,8 +976,16 @@ fn deterministic_plan(rfcs: &[RfcMeta]) -> ProvostOutput {
 // Orchestration
 // ---------------------------------------------------------------------------
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_SHA: &str = env!("GIT_SHA");
+
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("vaked-provost {VERSION}+{GIT_SHA}");
+        return;
+    }
+
     let tracer_provider = setup_tracing();
 
     let code = match run().await {
