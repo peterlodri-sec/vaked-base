@@ -2,8 +2,9 @@ pub mod commands;
 pub mod error;
 pub mod lsp;
 pub mod session;
+pub mod terminal;
 
-use commands::{graph::*, lsp::*, session::*, surface::*};
+use commands::{graph::*, lsp::*, session::*, surface::*, terminal::*};
 use commands::lsp::LspState;
 use session::SessionState;
 
@@ -34,6 +35,13 @@ pub fn run() {
             // surface commands
             register_surface_launcher,
             open_surface_view,
+            // terminal commands (embedded libghostty / external fallback)
+            terminal_available,
+            terminal_open,
+            terminal_set_bounds,
+            terminal_set_focus,
+            terminal_close,
+            terminal_open_external,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vaked-ide");

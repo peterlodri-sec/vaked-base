@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Layout/Sidebar";
 import { GraphCanvas } from "@/components/GraphCanvas";
 import { Editor } from "@/components/Editor";
 import { SessionPanel } from "@/components/SessionPanel";
+import { Terminal } from "@/components/Terminal";
 import { useUIStore, useGraphStore } from "@/store";
 import { useLsp } from "@/hooks/useLsp";
 import { useSession } from "@/hooks/useSession";
@@ -15,7 +16,7 @@ export function App() {
   useLsp();
   useSession();
 
-  const { sidebarOpen, sessionPanelOpen, graphPaneHeight, editorPaneWidth } = useUIStore();
+  const { sidebarOpen, sessionPanelOpen, terminalOpen, terminalHeight, graphPaneHeight, editorPaneWidth } = useUIStore();
   const filePath = useGraphStore((s) => s.filePath);
 
   return (
@@ -55,6 +56,16 @@ export function App() {
           <div style={{ flex: 1, overflow: "hidden", minHeight: "100px" }}>
             <Editor filePath={filePath ?? undefined} />
           </div>
+
+          {/* Embedded terminal (libghostty on macOS, external fallback elsewhere) */}
+          {terminalOpen && (
+            <>
+              <div style={{ height: "4px", background: "#1f2937", cursor: "row-resize", flexShrink: 0 }} />
+              <div style={{ height: `${terminalHeight}px`, minHeight: "120px", overflow: "hidden", flexShrink: 0 }}>
+                <Terminal />
+              </div>
+            </>
+          )}
         </div>
 
         {/* Right: AI session panel */}
