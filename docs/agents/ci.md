@@ -36,6 +36,7 @@ agent's README.
 | [`vaked-ci-respond.yml`](../../.github/workflows/vaked-ci-respond.yml) | `issue_comment` w/ `@vaked-ci` | LLM | answer maintainer questions / `re-review` |
 | [`pr-review-build.yml`](../../.github/workflows/pr-review-build.yml) | push to `main` (agent crate) | CI | compile + publish the rolling `pr-review-bin` release |
 | [`pr-review-audit.yml`](../../.github/workflows/pr-review-audit.yml) | agent version bump | CI | `cargo-deny` + `cargo-audit` |
+| [`cleanup.yml`](../../.github/workflows/cleanup.yml) | daily cron, dispatch | bot | sweep bot-noise + duplicate review comments across open PRs (`--cleanup`) |
 | [`docs-keeper.yml`](../../.github/workflows/docs-keeper.yml) | doc/protocol push, PR, weekly cron | checker | doc/spec/RFC drift gate |
 | [`spec-tests.yml`](../../.github/workflows/spec-tests.yml) | push/tag/PR | CI | grammar/examples/lowering harness + nix-parse |
 | [`social-post.yml`](../../.github/workflows/social-post.yml) | `.github/social/toot.txt` change | — | post a toot to Mastodon |

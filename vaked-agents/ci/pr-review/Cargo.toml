@@ -1,6 +1,6 @@
 [package]
 name = "vaked-pr-review"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.94"
 publish = false
@@ -57,18 +57,29 @@ opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.31", default-features = false, features = [
     "trace",
     "http-proto",
-    # reqwest-client selects the async HTTP client `with_http()` auto-detects (without
-    # it the exporter build fails: "no http client specified"); reqwest-rustls keeps TLS
-    # on rustls (reqwest is pulled default-features=false, so no system OpenSSL).
-    "reqwest-client",
+    # The batch span processor exports on its OWN dedicated OS thread (no Tokio
+    # reactor), so an async reqwest client panics there ("no reactor running" →
+    # SIGABRT under panic=abort). Use the BLOCKING reqwest client, which `with_http()`
+    # auto-detects and which runs fine on that thread; reqwest-rustls keeps TLS on
+    # rustls (reqwest is pulled default-features=false, so no system OpenSSL).
+    "reqwest-blocking-client",
     "reqwest-rustls",
 ] }
 
 # Faster startup + smaller baked binary (compile cost lands on the baker, which
-# we don't wait on). panic=abort is fine for a CLI that signals via exit codes.
+# we don't wait on).
+#
+# panic = "unwind" (NOT "abort"): the OTLP/HTTP batch span processor exports on a
+# dedicated background thread that has no Tokio reactor, so its async reqwest
+# client panics ("there is no reactor running") on a scheduled flush during a
+# slow review. Under panic=abort that background-thread panic SIGABRTs the whole
+# process (exit 134) AFTER the review already ran — failing the `review` check on
+# every slow PR. With unwind, the panic unwinds that one thread; the review still
+# posts and the process exits 0. (Root-cause follow-up: give the OTLP exporter a
+# blocking HTTP client so the batch thread never needs a reactor.)
 [profile.release]
 lto = "fat"
 codegen-units = 1
 strip = true
-panic = "abort"
+panic = "unwind"
 

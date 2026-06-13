@@ -1,0 +1,57 @@
+# llmproxy.crabcc.app — LiteLLM gateway (PROPOSAL scaffold; not yet deployed).
+# See ./README.md and ../../docs/agents/llmproxy-proposal.md.
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    ports:
+      - "127.0.0.1:4000:4000" # bind to localhost; expose via the tunnel, not directly
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      # The ONE real upstream key — lives only here, never in GitHub `ci`.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set in .env}
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?set in .env}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY:?set in .env}
+      DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD:?}@postgres:5432/litellm
+      REDIS_URL: redis://redis:6379
+      # Gateway-level tracing → self-hosted Langfuse (same project the agents trace to).
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: litellm
+    volumes:
+      - litellm-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+
+  # Optional: outbound-only Cloudflare Tunnel → llmproxy.crabcc.app (no inbound port).
+  # cloudflared:
+  #   image: cloudflare/cloudflared:latest
+  #   command: tunnel run
+  #   environment:
+  #     TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+  #   depends_on: [litellm]
+  #   restart: unless-stopped
+
+volumes:
+  litellm-pg:
