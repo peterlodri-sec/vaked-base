@@ -309,7 +309,7 @@ The frame header is a record encoded under `hcpbin` canonicality (§4.2 of
 - `corr`: 16 raw bytes (RFC 4122 UUID in big-endian byte order); not length-prefixed.
 - `stream`: if present, encoded as LEB128 varint.
 - `seq`: if present, encoded as LEB128 varint.
-- `end`: bool field; if true (non-default), encoded as single byte `0x01`; if false (default), omitted entirely per RFC 0002 §6.2 default omission rule. No varint encoding; bools are always 0x00 or 0x01 per hcpbin canonicality.
+- `end`: bool field; if true (non-default), encoded as single byte `0x01`; if false (default), omitted entirely per RFC 0002 §6.2 default omission rule. No varint encoding; bools are always 0x00 or 0x01 per hcpbin canonicality when present.
 - Optional fields (`stream`, `seq`, `end`) are **omitted** (not encoded at all) if absent or false.
 
 **Wire layer guarantees (§4.2 of [`0002-hcplang.md`](./0002-hcplang.md)):**
@@ -1505,6 +1505,7 @@ schema hcp.wire {
     max_frame:       u32        @2   # Max frame size receiver will accept (bytes); ≥ 65536
     schema_digests:  vec<hash>  @3   # Hashes of supported schemas (not including hcp.wire)
     capabilities:    vec<string>@4   # Optional feature flags: ["credit", "stream-pause", …]
+    trust_domain:    string     @5   # SPIFFE trust domain (extracted from TLS SAN certificate)
   }
 
   /// Responder → initiator: ack with negotiated values.
@@ -1513,6 +1514,7 @@ schema hcp.wire {
     max_frame:       u32        @2   # Responder's max frame size (sender will use min of both)
     schema_digests:  vec<hash>  @3   # Responder's supported schemas
     capabilities:    vec<string>@4   # Intersection of initiator + responder capabilities
+    trust_domain:    string     @5   # SPIFFE trust domain (extracted from TLS SAN certificate)
   }
 
   /// Responder → initiator: negotiation failure (preamble).

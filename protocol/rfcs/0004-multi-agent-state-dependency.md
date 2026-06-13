@@ -192,23 +192,18 @@ follows:
   **Rationale:** Avoids cascading pause broadcasts across potentially unrelated
   dependency trees; cost is bounded discovery latency (max one verification cycle).
 
-### 3.3.2 RewindEvent acknowledgement & at-least-eventual-discovery (provisional)
+### 3.3.2 RewindEvent acknowledgement (provisional)
 
 **Working decision:** RewindEvent is **fire-and-forget** (no acknowledgment).
 A consumer receiving RewindEvent notification (via NATS) schedules a verification
 run at its next cycle. However, if the notification is lost (broker unavailable,
 subscription not yet open), the consumer **MUST** discover the stale anchor
-within a bounded time via:
+via cold-start verification (mandatory) and scheduled verification cycles.
 
-1. **Cold-start verification (mandatory):** On agent restart, cold-start (§6)
-   checks all anchors against producer's current eventd state. Stale anchors
-   are detected immediately.
-2. **Scheduled verification cycle:** RFC 0004 §4.2.1 requires periodic verification
-   (default ~1000 steps). On each cycle, consumers verify their anchors.
-3. **Worst-case bounded delay:** A consumer that never receives NATS notification
-   will discover staleness no later than the next cold-start or next scheduled
-   verification cycle (maximum bounded delay = max(restart latency, verification
-   interval, ~1000 steps)).
+Discovery is guaranteed by:
+- **Cold-start verification (mandatory):** On agent restart, cold-start (§6) checks all anchors against producer's current eventd state. Stale anchors are detected immediately.
+- **Scheduled verification cycle:** RFC 0004 §4.2.1 requires periodic verification (default ~1000 steps). On each cycle, consumers verify their anchors.
+- **Bounded discovery delay:** Maximum bounded delay = max(restart latency, verification interval, ~1000 steps).
 
 This is simpler than two-phase rewind with acknowledgment, and it is safe because
 the **eventd chain is authoritative**, not the notification layer. Notifications
@@ -413,8 +408,12 @@ Algorithm: compute_gc_floor(producer_uuid)
 
 **Implementation notes:**
 - **Pagination:** For deployments with many downstream consumers (>1000), split
-  the fetch into pages (e.g., 100 checkpoints/page) to avoid loading all
-  checkpoints into memory at once. Maintain a running minimum across pages.
+  the fetch into pages to avoid loading all checkpoints into memory at once.
+  Configuration (from producer config or agent-supervisord policy):
+  - **Default page size:** 100 checkpoints per page (tunable)
+  - **Threshold:** Pagination triggered when active checkpoints > 1000
+  - **Source:** Configured per-producer or per-supervisor via agent-supervisord config
+  - **Maintain a running minimum** across all pages to compute GC floor
 - **Staleness:** The set of active checkpoints may change during the fetch
   (new consumers anchor, old ones checkpoint deeper, leases expire). The GC
   floor computed is a **snapshot** valid at computation time; it is safe to
