@@ -3,6 +3,48 @@
 ### agents
 - feat(agents): add vaked-provost product-owner / coordination agent (#138)
 - feat(agents): add vaked-label-tagger CI agent (#125)
+- ci-agents: operator briefing, commit-signature provenance, versioned/Telegram footer (#135)
+
+### ci
+- ci(nix-check): add store cache, drop --all-systems, add path filters (#149)
+- chore(ci): run provost hourly + harden against the OTel batch-thread panic (#139)
+- fix(ci): fix YAML parse error in label-tagger.yml (#128)
+
+### chore
+- chore: gitignore .claude/worktrees/ (ephemeral agent isolation workspaces) (#143)
+
+### compiler
+- fix(bin/vaked): Codex P2 — verify gate, webhook validation, path traversal (#126)
+- extend bin/vaked: lifecycle, gateway, webhook, mcp, verify, self-auth, man, docs (#124)
+
+### docs
+- docs(yardmaster): don't SPKI-pin behind Cloudflare/CDN (#136)
+
+### fix
+- fix(pr-review): panic=unwind so the OTel batch-thread panic doesn't abort the review (#140)
+- pr-review: fix Langfuse tracing, link traces↔PR, tune DeepSeek cache (#133)
+- fix(yardmaster): mastodon broadcast empty-base default + egress-aware TLS pinning (#127)
+
+### protocol
+- hcp-litany: ratify Decision #2, add Decisions #3 and #4 (#132)
+
+### runtime
+- hardening(telebot): unprivileged systemd unit + credential store (#134)
+- feat(telebot): deploy paths — host script + bounded GitHub Actions runtime (#137)
+- feat(telebot): interactive Telegram control surface for the agent fleet (#131)
+
+### tools
+- feat(tools): sealed-image spike — provenance schema + sign/verify (RFC 0007 Q5) (#145)
+
+### feat
+- feat: telegram-post workflow + agent posting protocol (#129)
+- feat(yardmaster): graduate to active + always-on Mastodon/Telegram broadcast (#123)
+
+## [unreleased] — 2026-06-13
+
+### agents
+- feat(agents): add vaked-provost product-owner / coordination agent (#138)
+- feat(agents): add vaked-label-tagger CI agent (#125)
 - feat(yardmaster): graduate to active + always-on Mastodon/Telegram broadcast (#123)
 - feat(yardmaster): merge-train conductor for the fan-out agent fleet (#121)
 - ci-agents: operator briefing, commit-signature provenance, versioned/Telegram footer (#135)
