@@ -45,6 +45,7 @@
       # `nix build .#vakedc-zig` produces the binary at result/bin/vakedc-zig.
       # No external Zig package deps — builds hermetically from zig/vakedc/.
       packages = forAllSystems (pkgs: {
+        # Debug-info-retaining release build (default, ReleaseSafe).
         vakedc-zig = pkgs.stdenv.mkDerivation {
           pname = "vakedc-zig";
           version = "0.1.0";
@@ -52,7 +53,7 @@
           nativeBuildInputs = [ pkgs.zig ];
           buildPhase = ''
             export HOME=$TMPDIR
-            zig build -Doptimize=ReleaseSafe
+            zig build -Doptimize=ReleaseSafe -Dversion=0.1.0
           '';
           installPhase = ''
             mkdir -p $out/bin
@@ -64,6 +65,23 @@
             zig build test
           '';
           meta.description = "vakedc-zig — Zig-native Vaked compiler-parser (parse stage, v0.1.0)";
+        };
+
+        # Stripped static binary (ReleaseSmall + musl) for deployment.
+        # Cross-compiles on any host; Zig bundles musl libc internally.
+        # `nix build .#vakedc-zig-static` → result/bin/vakedc-zig (~200 KB, no glibc dep)
+        vakedc-zig-static = pkgs.stdenv.mkDerivation {
+          pname = "vakedc-zig-static";
+          version = "0.1.0";
+          src = ./zig/vakedc;
+          nativeBuildInputs = [ pkgs.zig ];
+          buildPhase = ''
+            export HOME=$TMPDIR
+            zig build -Doptimize=ReleaseSmall -Dstrip=true \
+              -Dtarget=x86_64-linux-musl -Dversion=0.1.0 --prefix $out
+          '';
+          dontInstall = true;
+          meta.description = "vakedc-zig — static musl binary (ReleaseSmall, stripped)";
         };
       });
 

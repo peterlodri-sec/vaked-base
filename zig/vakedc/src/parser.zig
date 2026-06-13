@@ -7,22 +7,27 @@ const Span = ast.Span;
 
 // ---- Kind set ---------------------------------------------------------------
 // Must match KINDS in the Python parser exactly.
-const KINDS = [_][]const u8{
-    "runtime", "engine",  "host",
-    "network", "filesystem", "mcp", "ebpf",
-    "budget",  "observability", "runclass", "workflow",
-    "index",   "catalog", "stream", "fiber",
-    "surface", "mesh",    "device", "mediaPipeline",
-    "parallel","schema",  "capability",
-    "service", "secret",  "hostResource", "ingress", "container",
-    "memory",
-};
+// StaticStringMap gives O(1) comptime-built perfect-hash lookup vs O(N) scan.
+const KIND_MAP = std.StaticStringMap(void).initComptime(.{
+    .{ "runtime", {} },      .{ "engine", {} },      .{ "host", {} },
+    .{ "network", {} },      .{ "filesystem", {} },  .{ "mcp", {} },
+    .{ "ebpf", {} },         .{ "budget", {} },       .{ "observability", {} },
+    .{ "runclass", {} },     .{ "workflow", {} },     .{ "index", {} },
+    .{ "catalog", {} },      .{ "stream", {} },       .{ "fiber", {} },
+    .{ "surface", {} },      .{ "mesh", {} },         .{ "device", {} },
+    .{ "mediaPipeline", {} },.{ "parallel", {} },     .{ "schema", {} },
+    .{ "capability", {} },   .{ "service", {} },      .{ "secret", {} },
+    .{ "hostResource", {} }, .{ "ingress", {} },      .{ "container", {} },
+    .{ "memory", {} },
+});
+
+// Comptime sanity: exactly 28 kinds, matching the Python parser.
+comptime {
+    std.debug.assert(KIND_MAP.kvs.len == 28);
+}
 
 fn isKind(s: []const u8) bool {
-    for (KINDS) |k| {
-        if (std.mem.eql(u8, s, k)) return true;
-    }
-    return false;
+    return KIND_MAP.has(s);
 }
 
 // ---- Error ------------------------------------------------------------------

@@ -3,6 +3,7 @@ const ast = @import("ast.zig");
 const lexer = @import("lexer.zig");
 const parser = @import("parser.zig");
 const cache_mod = @import("cache.zig");
+const build_options = @import("build_options");
 
 const Sha256 = std.crypto.hash.sha2.Sha256;
 
@@ -19,7 +20,8 @@ pub fn main() !void {
     const alloc = arena.allocator();
 
     const stderr = std.io.getStdErr().writer();
-    const stdout = std.io.getStdOut().writer();
+    var bw = std.io.bufferedWriter(std.io.getStdOut().writer());
+    const stdout = bw.writer();
 
     var args_iter = try std.process.argsWithAllocator(alloc);
     defer args_iter.deinit();
@@ -30,6 +32,11 @@ pub fn main() !void {
         try printUsage(stderr);
         std.process.exit(2);
     };
+    if (std.mem.eql(u8, subcmd, "--version")) {
+        try stdout.print("vakedc-zig {s}\n", .{build_options.version});
+        try bw.flush();
+        return;
+    }
     if (!std.mem.eql(u8, subcmd, "parse")) {
         try stderr.print("vakedc-zig: unknown subcommand '{s}'\n", .{subcmd});
         try printUsage(stderr);
@@ -90,6 +97,7 @@ pub fn main() !void {
         defer c.deinit();
         if (c.get(src_digest) catch null) |cached_bytes| {
             try stdout.writeAll(cached_bytes);
+            try bw.flush();
             return;
         }
     }
@@ -124,8 +132,9 @@ pub fn main() !void {
         };
     }
 
-    // 9. Write JSON to stdout.
+    // 9. Write JSON to stdout (buffered).
     try stdout.writeAll(json_bytes);
+    try bw.flush();
 }
 
 test "main module imports" {
