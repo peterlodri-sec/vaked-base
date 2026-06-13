@@ -37,6 +37,21 @@ Vaked source → typed semantic graph → generated artifacts
 | `.mcp.json` | infra | Project MCP servers (github, context7, repowise, workspace-fs, playwright) |
 | `.claude/skills/` | infra | Project skills: `vaked-language-author`, `hcp-rfc-author` |
 
+## Developer Notes
+
+> **This is a research and experimental project. Do not use in production.**
+
+- **Bare-metal target only.** Vaked deploys to a bare-metal NixOS host. See [`DEPLOY.md`](DEPLOY.md) for hardware requirements and the deployment procedure.
+- **No conventional OS support.** Vaked cannot be installed on macOS, standard Linux distributions, Windows, or WSL. The runtime requires direct kernel and eBPF access available only on a properly provisioned NixOS host.
+- **Project scope.** This project encompasses three interrelated tracks: a capability-graph language (Vaked), a purpose-built operating system (vakedos — NixOS + OTP + Zig + eBPF), and a set of reference designs (daemons, wire protocol, agent fleet, tooling). They are designed as a cohesive whole; components are not independently installable.
+- **No stability guarantees.** The language grammar, type system, compiler IR, and wire protocol are under active design. Breaking changes happen without notice.
+- **Prototype compiler.** `vakedc` is a design-stage prototype. It may refuse valid programs, change its output format, or emit incorrect artifacts at any time.
+- **Runtime is a stub.** The OTP supervision plane, Zig daemons, and eBPF policy layer are indexed stubs. Nothing deploys end-to-end yet beyond the dev shell and language tooling.
+- **Nix is required.** The dev shell requires Nix with flakes enabled. The runtime target requires NixOS. There is no non-Nix install path.
+- **eBPF kernel requirements.** eBPF policy enforcement requires a Linux kernel with BTF and CO-RE support (≥ 5.15). This is satisfied by the vakedos config but must be verified on any other host.
+- **No package-manager install.** There is no `pip install`, `cargo install`, or `npm install` path. All tooling is consumed through `nix develop`.
+- **Unsupported / research-only.** This is a personal research project with no SLA, support channels, or stability commitments.
+
 ## Start here
 
 ```text
