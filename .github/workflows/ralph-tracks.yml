@@ -30,6 +30,7 @@ permissions:
 jobs:
   decide:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Secrets (OPENROUTER_API_KEY, MASTODON_ACCESS_TOKEN, LANGFUSE_*, …) live in
     # the `ci` GitHub Environment — the job MUST reference it or `secrets.*`
     # resolves empty and the guard below skips every run.
@@ -58,7 +59,7 @@ jobs:
 
       - name: Install uv
         if: steps.guard.outputs.run == 'true'
-        run: pipx install uv
+        uses: astral-sh/setup-uv@v8.2.0
 
       - name: Decide one track (rotation from the event ledger)
         # Skip on the 23:00 recap-only trigger so it doesn't add a 9th decision.
@@ -163,3 +164,11 @@ jobs:
             git pull --rebase --autostash
             git push
           fi
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ ralph-tracks failed (tick: ${{ github.event.schedule || 'manual' }})\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
