@@ -324,12 +324,15 @@ Because the wire layer prepends the header (never the application), the wire MUS
 A decoder reading the header from `frame-bytes` MUST:
 1. Read and validate `kind` is in range 0–4; out-of-range is a framing violation (§4.5).
 2. Read 16-byte `corr` UUID.
-3. If next tag is @2, read `stream` (u64); otherwise stream is absent (None).
+3. If next tag is @2, read `stream` (u64); otherwise stream is absent (default None).
 4. If next tag is @3, read `seq` (u64 varint); @3 is only valid if @2 is present. If @2 is absent and @3 appears, it is a framing violation.
-5. If next tag is @4, read `end` (bool: 0x00 or 0x01). **Normative rule:** @4 is valid if
-   and only if **both @2 AND @3 are present** (i.e., streaming frames only).
-   Single-shot frames (@2 absent) MUST NOT include @4. Out-of-order tags (@4 before
-   @2/@3), missing @3 when @2 is present, or multiple @4 tags are framing violations.
+5. If next tag is @4, read `end` (bool: 0x00 or 0x01). **Normative rule:** @4 is valid if:
+   - (a) Both @2 AND @3 are present (streaming frames with end flag), OR
+   - (b) @2 is absent (single-shot frames may include @4 for future extensibility).
+   
+   @4 is INVALID if @2 is present but @3 is absent (partial streaming state is
+   inconsistent). Out-of-order tags (@4 before @2/@3) or multiple @4 tags are
+   framing violations.
 6. Any tag > @4 begins the frame body (@1+ tags), not the header. Decoder has finished the header.
 7. Default values: if @2, @3, or @4 are absent, use stream=None, seq=None, end=false respectively (per RFC 0002 §6.2 default omission).
 
@@ -517,9 +520,13 @@ validation). Every implementation MUST:
 deployed v1 implementations yet. Trust domain validation is a **mandatory
 security feature** of wire_version=1. Any hypothetical older v1 draft
 implementations that predate trust domain support are not conformant to this
-final RFC 0003 specification and MUST be updated. The `trust_domain` field
-is not optional (a peer MUST NOT omit @5 under the default-field-omission rule,
-because @5 is a required field for security purposes, not just wire compatibility).
+final RFC 0003 specification and MUST be updated.
+
+**Schema exception:** Although @5 appears as the fifth field in HELLO/HELLO-ACK,
+it is **exempt from RFC 0002 §6.2 default-field-omission rule**. A peer MUST
+always encode trust_domain (@5), even if the value equals a default. This
+exception exists because trust domain validation is a critical security property
+that must be present to prevent downgrade attacks.
 
 ### 5.5.1 Version negotiation
 

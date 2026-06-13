@@ -246,12 +246,12 @@ provides **at-most-once semantics**:
   before — does not re-execute the eviction). The duplicate frame is safely
   absorbed.
 - **Nonce storage:** The supervisor keeps a time-bounded cache of accepted
-  nonces with a TTL matching the checkpoint lease duration (RFC 0004 §4.2.2).
-  **Default TTL: 24 hours** (same as default checkpoint lease), ensuring nonces
-  remain valid while their corresponding checkpoints are still pinning history.
-  Configurable per deployment (range: 1 hour to 30 days), but **MUST match or
-  exceed the configured checkpoint lease duration** to prevent nonce reuse while
-  checkpoints still exist. Configuration source: agent-supervisord policy or
+  nonces with a TTL **shorter than** the checkpoint lease duration (RFC 0004
+  §4.2.2) to prevent replay after lease expiry. **Default TTL: 12 hours** (half
+  of the default 24-hour checkpoint lease), ensuring nonces expire while
+  checkpoints still exist, preventing eviction replay. Configurable per
+  deployment (range: 1 hour to 7 days), but **MUST be less than the configured
+  checkpoint lease duration**. Configuration source: agent-supervisord policy or
   per-producer config.
   
   Nonces older than the TTL cache window may be re-accepted if the operator
