@@ -104,5 +104,5 @@ framework: persona-based scoring, a larger corpus, regression gating on agent PR
 - Severity-gated / blocking mode (opt-in; default stays advisory).
 - Per-PR cost guard — estimate/trim/track spend, surface in the status.
 - In-repo `.vaked-review.toml` config (per-repo model/thresholds/excludes).
-- `@vaked-ci` interactive replies (comment-triggered workflow).
+- ~~`@vaked-ci` interactive replies (comment-triggered workflow).~~ **DONE** — `--respond` mode + `vaked-ci-respond.yml` (answers questions / `re-review`; advisory; author-association gated).
 - Expand the eval corpus (nix/zig/security/large-diff) — ties to item 11.
