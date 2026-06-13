@@ -562,6 +562,53 @@ is always followed by an **orderly** close (§6.4, §9.1a), never an abort. Afte
 successful `HELLO`/`HELLO-ACK`, the connection is **open** and chapters may be
 created (§6).
 
+### 5.8 Worked handshake example (success case)
+
+Two peers open a connection and exchange a service-level schema. Initiator
+supports wire v1, max frame 1 MiB, and schema digest X (a tool-call schema);
+responder supports the same. The handshake succeeds; frame exchange begins.
+
+```text
+Initiator                             Responder
+─────────────                         ─────────
+                    [transport open]
+48 43 50 00   ──────────────────────→  [magic bytes: "HCP\0"]
+              ← magic verified, now expecting frame record
+<len=54>      ──────────────────────→  [frame length: HELLO is 54 bytes]
+01 01         ──────────────────────→  [tag @0: kind=1 (control)]
+01 xxxxxxxx...──────────────────────→  [tag @1: corr (UUID)]
+              (rest of HELLO hcpbin:   [tag @2: wire_version=1]
+              wire_version=1,          [tag @3: max_frame=1048576]
+              max_frame=1048576,       [tag @4: schema_digests=[hash(X)]]
+              schema_digests=[X],      [tag @5: capabilities=["credit"]]
+              capabilities=["credit"]  [no more tags > @5]
+              )
+                                      [Responder decodes HELLO]
+                                      [Responder's config: also v1, max 1 MiB,
+                                       supports X, capabilities: ["credit"]]
+              ←<len=54>                [frame length: HELLO-ACK is 54 bytes]
+              ←01 01                   [tag @0: kind=1 (control)]
+              ←01 yyyyyyyy...          [tag @1: corr (same UUID, echoed)]
+              ← (rest of HELLO-ACK:    [tag @2: wire_version=1]
+              wire_version=1,          [tag @3: max_frame=1048576]
+              max_frame=1048576,       [tag @4: schema_digests=[hash(X)]]
+              schema_digests=[X],      [tag @5: capabilities=["credit"]]
+              capabilities=["credit"]  [no more tags]
+              )
+              [Initiator verifies HELLO-ACK corr matches HELLO corr]
+              [Connection established; chapters/streams may now open]
+```
+
+**Key points:**
+- Magic is **raw 4 bytes** (not a frame record).
+- HELLO/HELLO-ACK are Votive Frames with frame header and body (both encoded
+  as `hcpbin` against `hcp.wire`).
+- Correlation id (`corr`) is echoed by the responder in HELLO-ACK to let the
+  initiator match the response (idempotency, RFC 0003 §6.3).
+- Both peers advertise identical capabilities → negotiated set is `["credit"]`.
+- Schema digest intersection is `{X}` (nonempty, success).
+- After HELLO-ACK, the wire layer is ready to carry service-level frames.
+
 ## 6. Session lifecycle
 
 `chapterd` owns sessions and segments — **chapters** — over a connection
@@ -719,6 +766,25 @@ a negotiated or responder-side value. This is a provisional choice — see Open
 question 6.) A **drain deadline** bounds graceful close (§6.4): after `bye`, a peer
 waits at most the drain deadline for outstanding exchanges before abortively
 closing. No timer is allowed to block forward progress of control frames (§7.2).
+
+### 7.5 Heartbeat interaction with control-plane pause (RFC 0005 integration)
+
+When a target agent is paused via a `PauseControl` frame (RFC 0005 §2.1), the
+pause affects **scheduling state only** — it does not pause the underlying
+network connection or the `candled` liveness layer. Concretely:
+
+- **Idle timer continues.** The connection's idle timer (§7.3) is **not** reset or
+  suspended by a pause at the agent level. If no frame (data or control) arrives
+  on the connection for the idle interval, `candled` still sends a `ping`.
+- **Pause does not suppress heartbeat.** A paused agent continues to respond to
+  `ping` frames with `pong`; the connection remains demonstrably live.
+- **Heartbeat does not resume a paused agent.** Conversely, the arrival of a
+  `ping`/`pong` does not wake a paused agent. Pause/resume are agent-level
+  control (RFC 0005), not connection-level; they are orthogonal to liveness.
+
+This separation ensures that pause/resume and liveness are independent concerns:
+a paused agent is not mistaken for a dead peer, and liveness probes never
+inadvertently resume an agent.
 
 ## 8. Flow control / backpressure
 
@@ -1006,6 +1072,29 @@ it would let two distinct byte-strings stand for one logical frame and defeat th
 escalate **repeated** non-canonical frames from a partner to connection teardown
 as a local policy (a peer that cannot produce canonical `hcpbin` is buggy or
 hostile), but a single non-canonical frame does not by itself end the connection.
+
+### 9.2.1 Frame-level error taxonomy
+
+When a frame-level error is generated, the `error` Votive Frame carries an
+**`error_kind`** field (defined in `hcp.wire` schema, Appendix A) that categorizes
+the failure. Common error kinds (provisional; the normative set is in the
+`hcp.wire` schema):
+
+| Error kind | Meaning | Recovery |
+|------------|---------|----------|
+| `malformed_frame` | Header parsed, body failed `hcpbin` decode or is non-canonical per RFC 0002 §6.8 | Caller may retry with corrected frame |
+| `schema_digest_mismatch` | Frame's schema digest (pinned in header) not in agreed set from handshake (§5.4) | Caller must use a schema in the agreed set |
+| `unknown_service` | Frame's service name (inferred from schema digest) is not registered | Caller must use a service name this runtime supports |
+| `unknown_method` | Frame targets a service that exists, but method name is unknown | Caller must use a method name in this service |
+| `authority_denied` | `preceptord` policy denied the principal authority for this action | Caller's principal (SPIFFE ID) lacks the capability; check policy |
+| `seq_gap` | Multi-frame stream received out-of-order (a `seq` number was skipped) or duplicated | Sender must retransmit the entire stream starting from the gap |
+| `chapter_closed` | Frame targets a chapter that has already closed | Caller must open a new chapter or use an existing open one |
+| `stream_reset` | Frame targets a stream that was previously terminated with `end=true` (§6.3) | Caller must open a new stream for further exchanges |
+| `invalid_correlation` | Frame references a correlation id that has no outstanding request on this connection | This is usually benign (late response after local timeout); ignore |
+
+An `error` frame echoes the offending frame's `corr` and (if the cause is
+clear) its `error_kind`. The offending frame is **not** admitted to `eventd`
+(§10). The connection survives; other exchanges proceed normally.
 
 ### 9.3 Decision rule
 

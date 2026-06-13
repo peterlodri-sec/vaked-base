@@ -71,7 +71,72 @@ the epoch is per dependency graph. A frame carries both — its SVID proves the
 sender, its `topology_epoch` fences which graph authorized the edge. Rotation
 mid-epoch is normal and must not invalidate in-flight epoch-valid frames.
 
-## 2. Distribution (NATS)
+### 1.5 SPIFFE credential refresh & SVID rotation (provisional)
+
+**Working decision — Automatic SVID rotation via Workload API:**
+
+Each workload (agent, daemon) obtains an SVID from a local SPIRE agent via the
+Workload API. SVIDs have a finite lifetime (typically 1 hour, but configurable
+per SPIRE deployment). When an SVID is about to expire:
+
+- **Rotation trigger:** The workload (Litany Wire implementation) monitors SVID
+  expiry and proactively fetches a new SVID from the Workload API before the
+  current one expires. No explicit operator action needed — rotation is automatic.
+
+- **Connection impact:** When a Litany Wire connection is established, the
+  current SVID is used for mTLS handshake (TLS layer, before frame parse). If
+  the SVID expires mid-connection:
+  - **On outbound:** A peer wishing to send a new frame fetches a fresh SVID
+    and, if the current certificate is expiring within a window (e.g., < 5 min
+    to expiry), closes the connection and reconnects with the new SVID.
+  - **On inbound:** The peer's current SVID is already used for the connection;
+    the connection is unaffected by the peer's internal rotation. No renegotiation
+    happens mid-connection.
+
+- **Chapter continuity:** A chapter (session, RFC 0003 §6.1) is scoped to a
+  connection; if a connection closes due to SVID rotation, the chapter ends.
+  Whether chapters can be resumed across a new connection is RFC 0003 §6.5
+  (working decision: no resumption in v1).
+
+- **Identity consistency:** A rotated SVID carries the same SPIFFE ID (same
+  topology place, e.g. `spiffe://domain/runtime/rt/agent/coder`), so the
+  identity is stable across rotations — peers on the other side see no change
+  except a brief connection drop. Re-connection with the new SVID restores
+  service. In a high-latency or flaky network, multiple rotations (each
+  closing a connection) might occur; this is normal and safe.
+
+### 1.6 Trust domain validation at handshake (provisional)
+
+**Working decision — Trust domain verified at TLS layer, optional handshake exchange:**
+
+The SPIFFE trust domain (the root of the identity URI, e.g. `spiffe://agentfield.example`)
+is embedded in the SVID's X.509 certificate. The TLS handshake validates the
+certificate; the SPIFFE ID (including the trust domain) is extracted from the
+certificate and made available to the frame layer.
+
+- **TLS-layer validation:** Before any Litany Wire frame is parsed (§1.2), the
+  peer's SVID certificate is validated:
+  - Certificate is signed by a trusted SPIRE server.
+  - Certificate is not expired.
+  - Subject Alt Name (SAN) contains the SPIFFE ID URI.
+
+- **Frame-layer assumption:** The frame layer assumes the TLS peer is
+  authentically identified by the SPIFFE ID from the SAN. No additional
+  trust-domain exchange in the `HELLO` frame is required; the `HELLO` simply
+  carries the initiator's self-identified SPIFFE ID as advisory (for audit),
+  but the **authoritative identity is the TLS peer identity**.
+
+- **Mismatched trust domain:** If a peer's SPIFFE ID trust domain is not in
+  the expected set (e.g., a connection from `spiffe://untrusted.example` when
+  only `spiffe://agentfield.example` is trusted), the connection is aborted at
+  the TLS layer — the HELLO frame never arrives, and the protocol falls back to
+  transport fault handling (RFC 0003 §9.1). This is not a frame-level `REFUSE`;
+  it is a lower-layer rejection.
+
+- **Trust domain gossip (optional, for audit):** If desired, `HELLO` may carry
+  an optional `trust_domain` field (not currently in the schema, but could be
+  added as a P2 extension) for operator visibility. This is purely advisory; the
+  TLS layer is the authority.
 
 ### 2.1 Subject taxonomy
 
@@ -236,6 +301,83 @@ observable in B's eventd chain and the consumer's pause state.
 is a deployment-specific concern outside the scope of this RFC. Deployments that
 need consistency may enforce it at policy authoring time (synchronized preceptord
 configs) or via a policy oracle that responds to all hosts.
+
+## 5. Worked example: cross-host DependencyRegistration
+
+A consumer C on host A depends on producer P on host B. C registers the
+dependency and folds P's output into its state.
+
+```
+Host A                                Host B
+───────────────────────────────────────────────
+Consumer C (SPIFFE ID:
+  spiffe://domain/runtime/rtA/agent/C)
+
+[C decides to consume P's step 100]
+
+1. [C opens Litany connection to host B / oraclefd lookup]
+   [oraclefd resolves P's hostname/IP]
+   
+2. [TLS handshake with P's host]
+   [C's cert: spiffe://domain/runtime/rtA/agent/C]
+   [P's host validates C's cert (trust domain match)]
+   [Connection open; chapters may be created]
+   
+3. [C sends DependencyRegistration request (RFC 0004 §3)]
+   DependencyRegistration {
+     consumer: C_uuid,
+     producer: P_uuid,
+     producer_step: 100,
+     producer_step_hash: <H(step-100)>,
+     topology_epoch: 5
+   }
+   ────────────────────────────→
+                               [P's host receives frame]
+                               [preceptord checks: does C have
+                                permission to consume P?]
+                               if ALLOWED:
+                                 [P's agent-supervisord logs
+                                  DependencyRegistration to eventd]
+                                 [Responds with ControlAck{applied:true}]
+                               if DENIED:
+                                 [Responds: ControlAck{applied:false,
+                                  reason:authority_denied}]
+   
+   ←──────────────────────────
+   ControlAck {
+     applied: true,
+     logged_seq: 9876
+   }
+   
+4. [C fetches P's step 100 output]
+   [If step 100 is retained (not compacted):
+    C reads output, folds into state, emits ConsumerCheckpoint]
+   
+5. [Later: P rewinds to step 50 (via operator RewindControl on host B)]
+   [P emits RewindEvent to eventd]
+   [P publishes RewindEvent to NATS: agent.<P_uuid>.rewind]
+   
+6. [C subscribes to NATS agent.*.rewind (receives notifications)]
+   [C receives RewindEvent notification]
+   [C schedules state verification (RFC 0004 §6)]
+   
+7. [On next verification, C queries P's eventd (via host B connection)]
+   [C verifies step 100 hash against P's current state]
+   [Step 100 is no longer in history (compacted/rewound)]
+   [C discovers stale anchor, pauses itself: stale_dependency]
+   [C signals operator or awaits re-anchoring]
+```
+
+**Key points:**
+- Identity is verified at TLS layer before any frame is parsed.
+- DependencyRegistration is an identity-proven, acknowledged Litany Wire frame.
+- Authority is checked by preceptord on the producer's host.
+- RewindEvent notification arrives via NATS (best-effort; not authoritative).
+- Consumer discovers stale anchor via verification, not by trusting the
+  notification alone.
+- If C and P are on different hosts, the mechanism is unchanged — only the
+  transport and topology details differ. RFC 0006 assumes single-host RFCs
+  0003–0005 and adds the multi-host layer.
 
 ## Open questions
 

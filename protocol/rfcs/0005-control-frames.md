@@ -233,6 +233,174 @@ and an empty or non-resolving `target` is refused `unknown_target`.
    the log on supervisor restart (the `control_action` payload carries
    `corr`, §3); its retention is the log's.
 
+## 3. Worked examples for each control verb
+
+### 3.1 PauseControl example
+
+An operator pauses agent "worker-1" during the current topology epoch (N = 5).
+
+```
+Request (correlation uuid = <uuid-x>):
+  PauseControl {
+    scope: agent,
+    target: "worker-1",
+    topology_epoch: 5,
+    reason: "GC drain"
+  }
+
+Response (same corr <uuid-x>):
+  if epoch 5 is current AND target "worker-1" exists AND preceptord allows:
+    ControlAck {
+      applied: true,
+      reason: unspecified,
+      logged_seq: 12345   # eventd entry number
+    }
+    [worker-1 is now paused; in-flight requests drain, new ones queue]
+    
+  if epoch 5 is stale (current is 6):
+    ControlAck {
+      applied: false,
+      reason: stale_epoch,
+      logged_seq: none    # not logged
+    }
+    [Operator must retry with topology_epoch: 6]
+    
+  if "worker-1" does not exist:
+    ControlAck {
+      applied: false,
+      reason: unknown_target,
+      logged_seq: none
+    }
+```
+
+### 3.2 StepControl example
+
+Operator steps a paused agent once.
+
+```
+Request (correlation uuid = <uuid-y>):
+  StepControl {
+    scope: agent,
+    target: "worker-1",
+    topology_epoch: 5
+  }
+
+Response (same corr <uuid-y>):
+  if worker-1 is paused:
+    [supervisor advances one OTP tick]
+    [worker-1 completes one message or task]
+    [worker-1 returns to paused]
+    ControlAck {
+      applied: true,
+      reason: unspecified,
+      logged_seq: 12346
+    }
+    
+  if worker-1 is NOT paused:
+    ControlAck {
+      applied: false,
+      reason: not_paused,
+      logged_seq: none    # not logged
+    }
+```
+
+### 3.3 SetIntervalControl example
+
+Operator slows a worker to one tick per 5 seconds.
+
+```
+Request (correlation uuid = <uuid-z>):
+  SetIntervalControl {
+    scope: agent,
+    target: "worker-2",
+    topology_epoch: 5,
+    interval_ms: 5000
+  }
+
+Response (same corr <uuid-z>):
+  if interval_ms > 0:
+    ControlAck {
+      applied: true,
+      reason: unspecified,
+      logged_seq: 12347
+    }
+    [worker-2 scheduler is reconfigured; it ticks every 5 seconds]
+    
+  if interval_ms == 0 (the default-omitted value):
+    ControlAck {
+      applied: false,
+      reason: invalid_interval,
+      logged_seq: none
+    }
+```
+
+### 3.4 RewindControl example
+
+Operator rewinds a producer to a known step hash after verification.
+
+```
+Request (correlation uuid = <uuid-w>):
+  RewindControl {
+    producer: <producer-uuid>,
+    rewind_to_step: 50,
+    rewind_to_hash: <SHA256-of-step-50>,
+    topology_epoch: 5
+  }
+
+Response (same corr <uuid-w>):
+  if producer exists AND hash matches step 50 AND epoch 5 is current:
+    [supervisor applies rewind per RFC 0004 §3.3]
+    [RewindEvent is appended + published]
+    [dependent consumers are paused, then restarted for verification]
+    ControlAck {
+      applied: true,
+      reason: unspecified,
+      logged_seq: 12348  # control_action entry
+    }
+    
+  if hash does NOT match step 50:
+    ControlAck {
+      applied: false,
+      reason: invalid_rewind,  # not standard, but example
+      logged_seq: none,
+      detail: "hash mismatch; step 50 has different hash"
+    }
+```
+
+## 4. ControlRefusal reason taxonomy
+
+The `ControlRefusal` enum (defined in hcp.control schema) specifies why a control
+frame was refused. Common reasons:
+
+| Reason | Meaning | Recovery |
+|--------|---------|----------|
+| `denied` | `preceptord` policy denied the principal authority for this action | Check policy; request may need elevated principal |
+| `unknown_target` | Target name does not resolve in the current topology | Use a valid target name from the current topology |
+| `stale_epoch` | `topology_epoch` field is not the current epoch | Retry with the current epoch from oraclefd or eventd |
+| `not_paused` | StepControl requested, but target is not in paused state | Pause the target first, or use ResumeControl to return to normal scheduling |
+| `invalid_interval` | SetIntervalControl with `interval_ms = 0` (the omitted default) | Provide a non-zero interval_ms |
+| `invalid_rewind` | RewindControl hash does not match the specified producer step | Verify the rewind target via oraclefd or eventd before retrying |
+
+All refusals result in `applied = false` and no `control_action` logged to eventd.
+The refusal itself is not logged; only the operator's audit trail records that a
+command was denied. This keeps the `eventd` free of failed attempts.
+
+## 5. Epoch synchronization with control requests
+
+Control frames (`PauseControl`, `ResumeControl`, `SetIntervalControl`, `StepControl`,
+`RewindControl`) all carry a `topology_epoch` field. The supervisor validates that
+the epoch matches the **current epoch** before applying the frame. If the epoch is
+stale, the frame is refused with `stale_epoch` (not logged). This prevents a
+replayed or out-of-date frame from controlling an agent under a different topology.
+
+A caller that receives `stale_epoch` must:
+
+1. Query oraclefd or read eventd to learn the current `topology_epoch`.
+2. Re-send the frame with the updated epoch.
+
+This design closes the window where a topology change (agent removed/added, edge
+changed) is invisible to the control plane — the epoch acts as a fence.
+
 ## 3. Visibility: applied control actions are events
 
 Every **applied** control frame is appended to the runtime's eventd log as a

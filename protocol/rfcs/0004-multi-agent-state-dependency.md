@@ -273,6 +273,80 @@ After eviction, if the consumer later restarts:
 may adjust via `agent-supervisord` policy (shorter for aggressive GC, longer for
 conservative anchoring). The constant is global, not per-edge.
 
+## 5. Checkpoint & rewind worked example
+
+A producer P evolves from step 100 to step 120, with a downstream consumer C anchored
+at step 95 (which C has already folded into its committed state). The sequence shows:
+
+```text
+Producer P                          Consumer C                  eventd (chain)
+──────────                          ──────────                  ──────────
+step: 100
+  [step 95 hash in history] ✓
+                                  DependencyRegistration ──→  DependencyRegistration
+                                  {consumer: C, producer: P,   (write-ahead before
+                                   producer_step: 95}          consumption)
+                                  [C reads step 95 output]
+                                  [C folds into state]
+
+[C has now consumed P-95]
+
+                                  ConsumerCheckpoint ────→    ConsumerCheckpoint
+                                  {min_required_step: 95,      (C committed past 95)
+                                   consumer_checkpoint_step: 200}
+[P advances]
+step: 101, 102, ..., 120
+
+[P decides to compact]
+[P computes GC floor = min(all downstream checkpoints)]
+[GC floor ≥ 95 (from C), so P may truncate history < 95]
+[GC floor < 95 would mean P cannot compact]
+
+[Later: operator or supervisor decides to rewind P to step 50]
+                              
+RewindControl requested ────→  [applied by supervisor]
+{producer: P, rewind_to_step: 50, topology_epoch: N}
+
+RewindEvent emitted ────────→  RewindEvent
+{producer: P, rewind_to_step: 50, {producer: P,
+ rewind_to_hash: H(50),          rewind_to_step: 50,
+ topology_epoch: N}              rewind_to_hash: H(50),
+                                 topology_epoch: N}
+                                 [NATS pub: agent.P.rewind]
+
+[P is now at step 50; history 51-120 is gone]
+[C's checkpoint {min_required_step: 95} is now stale
+ (95 > 50: it's above the rewind point)]
+
+[C receives RewindEvent notification (async, via NATS)]
+                                  [C schedules state verification]
+                                  [On next verification cycle,
+                                   C reads its checkpoint
+                                   {min_required_step: 95}]
+                                  [C tries to fetch P's step 95]
+                                  [Step 95 does not exist
+                                   (compacted/rewound away)]
+                                  [Verification fails]
+                                  [C pauses: stale_dependency]
+                                  [C waits for operator action
+                                   or re-anchoring]
+
+[Operator manually re-anchors C to step 50 (P's new tip)]
+
+ConsumerCheckpoint update ─→     ConsumerCheckpoint update
+{min_required_step: 50,          {min_required_step: 50,
+ consumer_checkpoint_step: 300}  consumer_checkpoint_step: 300}
+
+[C resumes from paused state]
+```
+
+**Key insights:**
+- Write-ahead logging (DependencyRegistration before consumption) ensures recovery is auditable.
+- GC floor computation prevents compaction from orphaning live anchors.
+- RewindEvent is published via NATS (best-effort notification).
+- Consumer discovers stale anchor via cold-start verification, not by trusting the notification.
+- No automatic recovery; operator/supervisor must explicitly re-anchor or clear the pause.
+
 ## 5. Invariant II — the state-dependency subgraph is a DAG
 
 > Dependency edges used for **state consumption** MUST form a DAG per
@@ -330,6 +404,46 @@ A paused agent resumes only through explicit recovery (re-anchor, rewind
 fold, or operator action) — never by timeout. This closes the "cluster wakes
 up and sprints into corrupt history" failure mode.
 
+### 6.1 Cold-start verification algorithm (provisional)
+
+**For each direct producer dependency:**
+
+```
+Algorithm: verify_anchor(consumer, producer_uuid, anchored_step_hash, topology_epoch)
+
+1. Fetch ConsumerCheckpoint for this (producer, consumer) pair
+   from consumer's durable log (eventd)
+   if not found: PAUSED(stale_dependency) — never checkpointed
+   
+2. Extract min_required_step from checkpoint
+
+3. Fetch producer's canonical tip
+   via oraclefd or direct eventd query
+   if producer unreachable: PAUSED(stale_dependency) — producer down
+   
+4. Verify topology_epoch is current
+   if epoch < current_epoch: PAUSED(stale_dependency) — stale graph
+   
+5. Verify anchored_step_hash exists in producer's history
+   check retained proofs (snapshot, accumulator, segment footer)
+   OR scan producer's eventd up to min_required_step
+   if hash not found: PAUSED(stale_dependency) — anchor lost to compaction
+   if hash found but divergent (collision): PAUSED(stale_dependency) — fork
+   
+6. Return: VERIFIED
+
+Aggregate result:
+  if ANY dependency fails → consumer enters PAUSED(stale_dependency)
+  if ALL dependencies verify → consumer enters RUNNING
+```
+
+**Rationale:** Verification is idempotent and discovery-based (consumer
+learns the truth from the producer's log, not from implicit state). Failed
+verification is not an error; it's a safe, auditable pause that operator
+must explicitly resolve. The cost is verification latency on restart (O(n)
+dependencies, O(1) per dependency if proofs are cached); the safety gain is
+that a consumer never sprints into corrupt state.
+
 ## 7. Topology epochs
 
 Every dependency artifact (`DependencyRegistration`, `ConsumerCheckpoint`,
@@ -342,6 +456,41 @@ dependency legal under the topology that existed when it was created?"* —
 remains answerable after arbitrary graph evolution. Cross-epoch anchors are
 not implicitly valid: a consumer resuming under a newer epoch re-verifies (§6)
 against the edge set of the **current** epoch.
+
+### 7.1 Epoch synchronization (provisional)
+
+**Working decision — Epoch is supervisor-assigned, never caller-asserted:**
+
+- **Epoch management:** `agent-supervisord` owns the topology epoch counter.
+  The epoch is **immutable per connection** — it is set at chapter open
+  (`open` frame, RFC 0005 §2.1) and is valid for the lifetime of that chapter.
+- **Epoch bumps:** The supervisor increments the epoch on any change to the
+  state-dependency graph:
+  - Agent added or removed
+  - DependencyRegistration edge added
+  - Edge kind changed (state_dependency ↔ observation, etc.)
+  - Policy/authority changes affecting edge validity
+  
+  The bump is **logged to eventd before effect** (write-ahead discipline);
+  the new epoch is then announced to all peers (via NATS pub/sub or direct
+  notification).
+
+- **Stale epoch handling:** A frame carrying a `topology_epoch` that is not
+  the current epoch is **refused as `stale_epoch`** (control frames) or
+  triggers verification against the old epoch's graph (state-dependency frames).
+  The frame itself is not executed; the caller must re-send with the current
+  epoch. This prevents a replayed or stale frame from creating a dependency
+  under an invalidated topology.
+
+- **Cross-node epoch synchronization:** In a multi-node fabric (RFC 0006),
+  each node has its own `agent-supervisord` with an independent epoch
+  counter. Epoch synchronization is **eventual** — nodes may diverge briefly
+  when topology changes are announced. A remote consumer sending a dependency
+  frame with an old epoch is refused; it retries with the latest epoch it
+  learned (via gossip or oraclefd query). This is eventual consistency, not
+  strong consistency.
+
+---
 
 ## 8. Implementation order
 
