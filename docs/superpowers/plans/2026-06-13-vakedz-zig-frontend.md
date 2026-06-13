@@ -8,7 +8,7 @@ for the goldens it adds. Gaps found while dogfooding become GitHub issues — th
 stream is the live backlog.
 
 ## Phase 0 — scaffold + parity harness ✅ (this PR)
-- [x] `vakedz/` package (`build.zig`, `build.zig.zon`, Zig 0.14 floor).
+- [x] `vakedz/` package (`build.zig`, `build.zig.zon`, Zig 0.16 floor).
 - [x] `json.zig` canonical writer (fixed-order wrappers + `sortRecursive` props).
 - [x] `lexer.zig`, `parser.zig`, `graph.zig` — parse → LPG → canonical JSON.
 - [x] `cache.zig` — the ralphloop-cache (content-addressed, hash-chained).

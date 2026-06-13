@@ -115,7 +115,7 @@ goldens (the natural way to grow coverage).
 ## Risks / open questions
 
 - **Zig version drift.** The devshell's Zig is unpinned (nixpkgs unstable);
-  `vakedz` targets the `build.zig.zon` floor (0.14) and CI pins it. If the
+  `vakedz` targets the `build.zig.zon` floor (0.16) and CI pins it. If the
   devshell moves ahead and the std API shifts, the build breaks loudly — bump
   the floor and adapt (tracked). Pinning Zig in the flake is a recommended
   follow-up.
