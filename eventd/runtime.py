@@ -46,20 +46,25 @@ RUNTIME_V = 1
 _RUN_STATUS = ("completed", "failed", "aborted")
 
 
-def _require_int(name: str, value):
+def _require_attempt(value):
+    """``attempt`` is a 1-based int: reject bool/non-int (TypeError) and
+    non-positive (ValueError) at construction."""
     if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(f"{name} must be an int")
+        raise TypeError("attempt must be an int")
+    if value < 1:
+        raise ValueError(f"attempt must be >= 1 (1-based): {value}")
     return value
 
 
 def _attempt_of(payload: dict) -> int:
-    """Read ``attempt`` from a RAW log payload without laundering: a clean int
-    (not bool) is kept; anything else (float drift, bool, missing, string from
-    a foreign/hand-written writer) folds to 1. The constructors already reject
-    bad attempts; the fold is the cross-runtime boundary the BEAM/Zig ports
-    reproduce, so it must not silently ``int()``-coerce ``2.9`` to ``2``."""
+    """Read ``attempt`` from a RAW log payload without laundering: a clean
+    POSITIVE int (not bool) is kept; anything else (float drift, bool, missing,
+    non-positive, string from a foreign/hand-written writer) folds to 1. The
+    constructors already reject bad attempts; the fold is the cross-runtime
+    boundary the BEAM/Zig ports reproduce, so it must not silently
+    ``int()``-coerce ``2.9`` to ``2`` nor accept a 1-based ``0``."""
     a = payload.get("attempt", 1)
-    return a if (isinstance(a, int) and not isinstance(a, bool)) else 1
+    return a if (isinstance(a, int) and not isinstance(a, bool) and a >= 1) else 1
 
 
 # --------------------------------------------------------------------------- #
@@ -74,7 +79,7 @@ def run_started(run: str, workflow: str) -> dict:
 def step_started(run: str, step: str, agent: str, attempt: int = 1) -> dict:
     return {"kind": KIND_STEP_STARTED, "v": RUNTIME_V, "run": run,
             "step": step, "agent": agent,
-            "attempt": _require_int("attempt", attempt)}
+            "attempt": _require_attempt(attempt)}
 
 
 def step_finished(run: str, step: str) -> dict:
@@ -84,7 +89,7 @@ def step_finished(run: str, step: str) -> dict:
 
 def step_failed(run: str, step: str, attempt: int) -> dict:
     return {"kind": KIND_STEP_FAILED, "v": RUNTIME_V, "run": run,
-            "step": step, "attempt": _require_int("attempt", attempt)}
+            "step": step, "attempt": _require_attempt(attempt)}
 
 
 def run_finished(run: str, status: str) -> dict:

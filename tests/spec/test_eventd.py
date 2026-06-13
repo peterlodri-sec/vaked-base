@@ -895,6 +895,23 @@ def _test_runtime_fold(lines):
             lines.append(f"  FAIL runtime: junk status not folded to failed "
                          f"({rs.runs['rr'].status})")
 
+        # attempt is 1-based: constructor rejects 0/negative; raw fold of a
+        # non-positive attempt folds to 1 (never a 0-attempt running step)
+        for bad in (0, -3):
+            try:
+                step_started("r", "s", "a", bad)
+                ok = False
+                lines.append(f"  FAIL runtime: attempt={bad} accepted")
+            except ValueError:
+                pass
+        z = RuntimeState.fold([{"payload": {"kind": "step_started",
+                                            "v": RUNTIME_V, "run": "z",
+                                            "step": "s", "agent": "a",
+                                            "attempt": 0}}])
+        if z.runs["z"].steps["s"].attempts != 1:
+            ok = False
+            lines.append("  FAIL runtime: raw attempt=0 not coerced to 1")
+
         # resurrection: run_started after run_finished resets to running
         # (documented last-event-wins / id-reuse semantics)
         resur = RuntimeState.fold([
