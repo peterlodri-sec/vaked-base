@@ -136,9 +136,13 @@ certificate and made available to the frame layer.
 
 - **Mismatched trust domain:** If a peer's `HELLO` trust domain does not match
   the TLS-authenticated SVID trust domain, the responder sends a frame-level
-  `REFUSE{trust-domain-mismatch}` and closes the chapter. This is a frame-level
-  error, not a transport-layer rejection, to ensure observability and audit
-  trails. The connection may remain open for other chapters if policy permits.
+  `REFUSE{trust-domain-mismatch}` (§5.7, RFC 0003 §9.1a) and performs a graceful
+  close. This closes the entire connection (not just a chapter, since the chapter
+  has not yet been created at preamble time). To ensure observability and audit
+  trails, the `REFUSE` is recorded to `eventd` as a connection-end event. Trust
+  domain validation is not a transport-layer rejection (that would be a TLS
+  failure) — it is a preamble negotiation refusal that occurs after successful
+  TLS mutual authentication but before frame layer framing begins.
 
 ![Cross-Host Trust Boundary with SPIFFE](../../docs/assets/diagrams/07_cross_host_trust.svg)
 

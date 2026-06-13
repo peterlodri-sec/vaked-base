@@ -425,12 +425,28 @@ Algorithm: compute_gc_floor(producer_uuid)
   lower than the previously computed floor, the compaction range is reduced
   accordingly. This ensures no history pinned by a newly-discovered checkpoint
   is truncated.
+  
+  **Atomic fence requirement (P1 architectural):** Recomputation and truncation
+  MUST be fenced against new consumer registrations. The producer MUST either:
+  1. **Freeze the registration set:** Hold a read-only lock on the active consumer
+     registry during recompute+truncate (single atomic operation), or
+  2. **Epoch-fence the floor:** Assign a monotonic registration epoch to each
+     consumer; compute GC floor using only epochs ≤ frozen_epoch; truncate only
+     entries whose GC floor was computed at that frozen_epoch (rejecting
+     registrations at higher epochs until truncate completes).
+  
+  Without this fence, a concurrent registration can race between recompute and
+  truncate, allowing history to be deleted that a newly-registered consumer
+  depends on. This is a **silent data loss hazard** and MUST be prevented.
+
 - **Frequency:** Compaction should be infrequent (e.g., daily) to reduce
   recomputation overhead and allow checkpoint batching. The pattern is:
   1. Compute GC floor (may take time if many checkpoints)
   2. Plan compaction range (based on computed floor)
-  3. Immediately before truncation, recompute floor (fast second-pass)
-  4. Truncate strictly below min(originally-computed, recomputed floor)
+  3. Acquire exclusive fence on registration set (or freeze epoch)
+  4. Immediately before truncation, recompute floor (fast second-pass using frozen set)
+  5. Truncate strictly below min(originally-computed, recomputed floor)
+  6. Release fence (resume accepting new registrations)
 
 ---
 
@@ -545,10 +561,12 @@ up and sprints into corrupt history" failure mode.
 
 ### 6.1 Cold-start verification algorithm (provisional)
 
-**For each direct producer dependency:**
+**For each direct producer dependency, perform two verification passes:**
 
 ```
-Algorithm: verify_anchor(consumer, producer_uuid, anchored_step_hash, topology_epoch)
+Algorithm: verify_anchor_with_transitive(consumer, producer_uuid, anchored_step_hash, topology_epoch)
+
+PASS 1 — Direct anchor verification:
 
 1. Fetch ConsumerCheckpoint for this (producer, consumer) pair
    from consumer's durable log (eventd)
@@ -568,13 +586,26 @@ Algorithm: verify_anchor(consumer, producer_uuid, anchored_step_hash, topology_e
    OR scan producer's eventd up to min_required_step
    if hash not found: PAUSED(stale_dependency) — anchor lost to compaction
    if hash found but divergent (collision): PAUSED(stale_dependency) — fork
+
+PASS 2 — Transitive verification (cascade rule):
+
+6. For each of *producer*'s own direct dependencies (if producer is itself a consumer):
+   (This implements the cascade rule: if C depends on P, and P depends on X,
+    then C's validity transitively depends on P's validity.)
    
-6. Return: VERIFIED
+   Recursively call verify_anchor_with_transitive(producer, X, …) for each X
+   if ANY recursive call returns PAUSED(stale_dependency):
+      → return PAUSED(stale_dependency)  [transitive pause]
+   
+7. Return: VERIFIED
 
 Aggregate result:
-  if ANY dependency fails → consumer enters PAUSED(stale_dependency)
+  if ANY dependency (direct or transitive) fails → consumer enters PAUSED(stale_dependency)
   if ALL dependencies verify → consumer enters RUNNING
 ```
+
+**Rationale for transitive verification (§3.3.1 cascade safety):**
+When producer P rewinds, consumer C detects the stale anchor (PASS 1). A downstream consumer D that depends on C must verify not only its direct anchor to C (PASS 1), but also whether C itself is in a valid state (PASS 2). By recursively verifying C's dependencies, D ensures that the entire transitive chain C→P→... remains valid. If any upstream link becomes invalid, D discovers it and pauses (`stale_dependency`). This closes the cascade gap: P's rewind → C's pause → D's transitive discovery → D's pause (even if D never directly depended on P).
 
 **Rationale:** Verification is idempotent and discovery-based (consumer
 learns the truth from the producer's log, not from implicit state). Failed

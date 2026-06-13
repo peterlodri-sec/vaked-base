@@ -498,7 +498,27 @@ and `preceptord` may scope authority by digest. On the wire:
   intersection above govern only **service-level** schemas; digest-equality for
   the control schema is satisfied by construction against the §5.6 pinned value.
 
-### 5.5 Version negotiation
+### 5.5 Preamble field requirements and compatibility (CRITICAL)
+
+**MANDATORY fields in HELLO and HELLO-ACK:**
+
+The `trust_domain` field (@5) in HELLO and HELLO-ACK is **REQUIRED** for RFC 0003 v1
+conformance (see RFC 0006 §1.6 for the security rationale: SPIFFE trust domain
+validation). Every implementation MUST:
+1. Populate `trust_domain` with the SPIFFE ID trust domain extracted from the
+   TLS peer certificate SAN.
+2. Validate the responder's `trust_domain` against the TLS-authenticated peer
+   identity, rejecting mismatches with `REFUSE{trust-domain-mismatch}`.
+
+**Compatibility note:** This RFC 0003 is still in development; there are no
+deployed v1 implementations yet. Trust domain validation is a **mandatory
+security feature** of wire_version=1. Any hypothetical older v1 draft
+implementations that predate trust domain support are not conformant to this
+final RFC 0003 specification and MUST be updated. The `trust_domain` field
+is not optional (a peer MUST NOT omit @5 under the default-field-omission rule,
+because @5 is a required field for security purposes, not just wire compatibility).
+
+### 5.5.1 Version negotiation
 
 `wire_version` is a single semver-major integer for the *framing/handshake*
 protocol (this RFC = `1`); it is **distinct** from any `.hcplang` schema version
@@ -554,6 +574,7 @@ of Open question 1 — but it is normative either way.)
 | `wire_version` major mismatch | `REFUSE{wire-version, supported}`, graceful close. | Negotiation refusal (§9.1a) |
 | Empty schema-digest intersection | `REFUSE{no-common-schema}`, graceful close. | Negotiation refusal (§9.1a) |
 | `max_frame` below floor | `REFUSE{bad-max-frame}`, graceful close. | Negotiation refusal (§9.1a) |
+| HELLO `trust_domain` does not match TLS peer identity (RFC 0006 §1.2) | `REFUSE{trust-domain-mismatch}`, graceful close. | Negotiation refusal (§9.1a) |
 
 The first three are **faults** (the byte-stream is not trustworthy Litany Wire);
 the last three are **orderly negotiation refusals** — the stream is well-formed,
@@ -1505,7 +1526,7 @@ schema hcp.wire {
     max_frame:       u32        @2   # Max frame size receiver will accept (bytes); ≥ 65536
     schema_digests:  vec<hash>  @3   # Hashes of supported schemas (not including hcp.wire)
     capabilities:    vec<string>@4   # Optional feature flags: ["credit", "stream-pause", …]
-    trust_domain:    string     @5   # SPIFFE trust domain (extracted from TLS SAN certificate)
+    trust_domain:    string     @5   # REQUIRED: SPIFFE trust domain (extracted from TLS SAN cert); MUST be present and validated by responder
   }
 
   /// Responder → initiator: ack with negotiated values.
@@ -1514,7 +1535,7 @@ schema hcp.wire {
     max_frame:       u32        @2   # Responder's max frame size (sender will use min of both)
     schema_digests:  vec<hash>  @3   # Responder's supported schemas
     capabilities:    vec<string>@4   # Intersection of initiator + responder capabilities
-    trust_domain:    string     @5   # SPIFFE trust domain (extracted from TLS SAN certificate)
+    trust_domain:    string     @5   # REQUIRED: SPIFFE trust domain (extracted from TLS SAN cert); responder echoes initiator's validated trust domain
   }
 
   /// Responder → initiator: negotiation failure (preamble).
