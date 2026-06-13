@@ -1066,6 +1066,65 @@ def test_track_issues_empty_scope_no_fallback() -> None:
     assert len(issues) == 1 and "all open" in note, (issues, note)
 
 
+def test_issues_for_labels_union_dedup() -> None:
+    """The OR-union scope queries each label and unions by issue number: a
+    deduped set, newest-first, with no all-open fallback while any label query
+    succeeds."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+
+    # `language` → #24, #10 ; `bug` → #25, #10 (overlap on #10) → union {24,25,10}
+    per_label = {
+        "language": json.dumps([{"number": 24, "title": "memory"},
+                                {"number": 10, "title": "shared"}]),
+        "bug": json.dumps([{"number": 25, "title": "name-collision"},
+                           {"number": 10, "title": "shared"}]),
+    }
+
+    def fake_run(args, *a, **k):
+        # the label value follows the "--label" flag in the gh argv
+        lab = args[args.index("--label") + 1]
+        return per_label[lab]
+
+    with mock.patch.object(ralph, "_run", side_effect=fake_run):
+        issues, note = ralph._issues_for_labels(["language", "bug"])
+    nums = [i["number"] for i in issues]
+    assert nums == [25, 24, 10], nums          # deduped + sorted newest-first
+    assert note == "", note                    # scoped, no fallback
+
+    # every label query fails (gh unusable) → fall back to all-open with a note
+    seq = iter(["", "", json.dumps([{"number": 1, "title": "X"}])])
+    with mock.patch.object(ralph, "_run", side_effect=lambda *a, **k: next(seq)):
+        issues, note = ralph._issues_for_labels(["language", "bug"])
+    assert [i["number"] for i in issues] == [1] and "all open" in note, (issues, note)
+
+
+def test_load_tracks_issue_labels_default() -> None:
+    """`issue_labels` is read from config; when omitted it defaults to [label]
+    so older single-label configs keep scoping."""
+    import importlib
+    import tempfile
+    import os
+    ralphcore = importlib.import_module("ralphcore")
+    cfg = {
+        "tracks": [
+            {"name": "a", "topic": "A", "model": "m", "label": "track:x",
+             "issue_labels": ["language", "bug"], "context": {}},
+            {"name": "b", "topic": "B", "model": "m", "label": "track:y",
+             "context": {}},
+        ]
+    }
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "tracks.json")
+        with open(p, "w") as f:
+            json.dump(cfg, f)
+        tracks = ralphcore.load_tracks(p)
+    by = {t.name: t for t in tracks}
+    assert by["a"].issue_labels == ["language", "bug"], by["a"].issue_labels
+    assert by["b"].issue_labels == ["track:y"], by["b"].issue_labels  # default to [label]
+
+
 def test_track_skip_advances_rotation() -> None:
     """A track whose model returns no usable candidates still logs a skip event,
     so --next-track moves on instead of re-selecting the same failing track."""
