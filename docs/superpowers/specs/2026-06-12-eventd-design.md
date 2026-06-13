@@ -85,8 +85,13 @@ not fracture another. This is exactly what Track D (control) consumes.
    lowering output (`eventd.config` → `gen/eventd.json`, presence-gated on
    memory/workflow decls). Remaining for this phase: the Zig daemon port
    (#15 pattern, Python as oracle).
-3. runtime fold: reconstruct the typed semantic graph from the log (state =
-   fold), over the arena.
+3. **(operational fold done)** runtime fold: state = fold over the log.
+   `eventd.runtime` reconstructs the runtime-OPERATIONAL state — workflow
+   runs + step lifecycle (the events the supervisord `workflow_engine`
+   emits) — into a deterministic `RuntimeState` (`eventd runs` / folded into
+   `eventd state`). The arena-backed reconstruction of typed graph-node
+   *content* stays gated on the #16 arena; this folds event metadata, not node
+   content.
 4. (Track D) rewind/jump: fold 0..N; arena snapshots for O(1) checkpoints.
 
 ## Verification

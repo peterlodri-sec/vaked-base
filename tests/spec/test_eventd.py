@@ -36,9 +36,10 @@ sys.path.insert(0, os.path.join(REPO, "tools", "ralph"))
 
 import ralphcore  # noqa: E402  (tools/ralph — the proven format reference)
 from eventd import (  # noqa: E402
-    DependencyIndex, EventLog, TamperError, WriterLockError,
+    DependencyIndex, EventLog, RuntimeState, TamperError, WriterLockError,
     consumer_checkpoint, consumer_evicted, dependency_registration,
-    repair_truncate_tail, rewind_event, verify_chain,
+    repair_truncate_tail, rewind_event, run_finished, run_started,
+    step_failed, step_finished, step_started, verify_chain,
 )
 from eventd.core import canonical_json, make_entry  # noqa: E402
 
@@ -814,11 +815,120 @@ def _test_hardening(lines):
     return ok
 
 
+def _test_runtime_fold(lines):
+    """Phase-3 runtime-operational fold: workflow-run + step lifecycle events
+    fold deterministically into run/step state (latest-event-wins, retry bumps
+    attempts, run status from run_finished); a verified-log-fold reproduces it
+    and the `runs` summary is stable."""
+    ok = True
+    tmp = tempfile.mkdtemp(prefix="eventd-spec-")
+    try:
+        path = os.path.join(tmp, "run.jsonl")
+        with EventLog(path, writer=True) as log:
+            log.append(run_started("run1", "swe_af"))
+            log.append(step_started("run1", "plan", "field.planner", 1))
+            log.append(step_finished("run1", "plan"))
+            log.append(step_started("run1", "code", "field.coder", 1))
+            log.append(step_failed("run1", "code", 1))     # retry path
+            log.append(step_started("run1", "code", "field.coder", 2))
+            log.append(step_finished("run1", "code"))
+            log.append(run_finished("run1", "completed"))
+
+        st = RuntimeState.fold(EventLog(path).entries)
+        r = st.runs.get("run1")
+        if r is None or r.status != "completed" or r.workflow != "swe_af":
+            ok = False
+            lines.append(f"  FAIL runtime: run1 state wrong: {r}")
+        else:
+            code = r.steps["code"]
+            if code.status != "done" or code.attempts != 2:
+                ok = False
+                lines.append(f"  FAIL runtime: code step {code} "
+                             f"(want done/attempts=2)")
+            if r.steps["plan"].status != "done":
+                ok = False
+                lines.append("  FAIL runtime: plan should be done")
+
+        # determinism: fold twice → identical summary
+        s1 = RuntimeState.fold(EventLog(path).entries).summary()
+        s2 = RuntimeState.fold(EventLog(path).entries).summary()
+        if s1 != s2 or s1["total_runs"] != 1:
+            ok = False
+            lines.append(f"  FAIL runtime: summary not stable: {s1} {s2}")
+
+        # tolerate a step event before its run_started (lazy run creation)
+        path2 = os.path.join(tmp, "lazy.jsonl")
+        with EventLog(path2, writer=True) as log:
+            log.append(step_started("orphan", "s", "a", 1))   # no run_started
+        st2 = RuntimeState.fold(EventLog(path2).entries)
+        if "orphan" not in st2.runs or st2.runs["orphan"].status != "running":
+            ok = False
+            lines.append("  FAIL runtime: orphan step did not lazily create run")
+
+        # bad run_finished status rejected at construction
+        try:
+            run_finished("r", "nope")
+            ok = False
+            lines.append("  FAIL runtime: bad run status accepted")
+        except ValueError:
+            pass
+
+        # raw-fold robustness (port-parity boundary): hand-built entries with
+        # a float attempt and a junk terminal status must not launder/leak —
+        # float attempt → 1, unknown status → "failed"
+        from eventd.runtime import RUNTIME_V
+        raw = [
+            {"payload": {"kind": "run_started", "v": RUNTIME_V,
+                         "run": "rr", "workflow": "w"}},
+            {"payload": {"kind": "step_started", "v": RUNTIME_V, "run": "rr",
+                         "step": "s", "agent": "a", "attempt": 2.9}},
+            {"payload": {"kind": "run_finished", "v": RUNTIME_V,
+                         "run": "rr", "status": "banana"}},
+        ]
+        rs = RuntimeState.fold(raw)
+        if rs.runs["rr"].steps["s"].attempts != 1:
+            ok = False
+            lines.append(f"  FAIL runtime: float attempt laundered "
+                         f"({rs.runs['rr'].steps['s'].attempts})")
+        if rs.runs["rr"].status != "failed":
+            ok = False
+            lines.append(f"  FAIL runtime: junk status not folded to failed "
+                         f"({rs.runs['rr'].status})")
+
+        # resurrection: run_started after run_finished resets to running
+        # (documented last-event-wins / id-reuse semantics)
+        resur = RuntimeState.fold([
+            {"payload": run_finished("x", "completed")},
+            {"payload": run_started("x", "w")},
+        ])
+        if resur.runs["x"].status != "running":
+            ok = False
+            lines.append("  FAIL runtime: run_started after finish should "
+                         "resurrect to running")
+
+        # multi-run summary is sorted regardless of append order
+        multi = RuntimeState.fold([
+            {"payload": run_started("zeta", "w")},
+            {"payload": run_started("alpha", "w")},
+        ])
+        if list(multi.summary()["runs"]) != ["alpha", "zeta"]:
+            ok = False
+            lines.append("  FAIL runtime: summary runs not sorted")
+
+        if ok:
+            lines.append("  runtime-fold: run/step lifecycle folds "
+                         "deterministically (retry→attempts=2, run completed, "
+                         "lazy run, bad status rejected)")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return ok
+
+
 def run():
     lines = []
     ok = True
     for fn in (_test_format_parity, _test_log_discipline, _test_determinism,
-               _test_statedep, _test_hardening, _test_cli,
+               _test_statedep, _test_hardening, _test_runtime_fold, _test_cli,
                _test_lowering_wiring):
         try:
             ok = fn(lines) and ok

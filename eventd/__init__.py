@@ -25,6 +25,14 @@ from .statedep import (
     dependency_registration,
     rewind_event,
 )
+from .runtime import (
+    RuntimeState,
+    run_finished,
+    run_started,
+    step_failed,
+    step_finished,
+    step_started,
+)
 
 __all__ = [
     "GENESIS_HASH", "canonical_json", "chain_hash", "make_entry", "verify_chain",
@@ -32,4 +40,6 @@ __all__ = [
     "DependencyIndex", "StaleDependency",
     "dependency_registration", "consumer_checkpoint", "rewind_event",
     "consumer_evicted",
+    "RuntimeState", "run_started", "step_started", "step_finished",
+    "step_failed", "run_finished",
 ]
