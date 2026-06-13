@@ -53,7 +53,7 @@ flowchart TD
     end
 
     subgraph RT["Runtime — daemons/ (stub)"]
-        SBX["sandboxd<br/>(design cycle open)"]:::wip
+        SBX["sandboxd<br/>(design cycle open)"]:::inprogress
         GUARD["agent-guardd · eventd · memoryd<br/>mcp-brokerd · fs-snapshotd"]:::stub
         OTP["agent-supervisord (OTP plane)"]:::stub
     end
@@ -77,7 +77,7 @@ flowchart TD
     OTP --> SBX
 
     classDef done fill:#1f6f3d,stroke:#0c3d20,color:#ffffff;
-    classDef wip fill:#b8860b,stroke:#6b4e00,color:#ffffff;
+    classDef inprogress fill:#b8860b,stroke:#6b4e00,color:#ffffff;
     classDef stub fill:#2b4f81,stroke:#15294a,color:#ffffff;
     classDef planned fill:#3a3a3a,stroke:#1a1a1a,color:#cfcfcf,stroke-dasharray:4 3;
 ```
