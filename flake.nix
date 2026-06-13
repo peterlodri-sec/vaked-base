@@ -3,9 +3,14 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    # Declarative disk partitioning for the materialization target(s).
+    # Drives hosts/vakedos/disko.nix; consumed by nixos-anywhere at install time.
+    disko.url = "github:nix-community/disko";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, disko }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f (import nixpkgs { inherit system; }));
@@ -35,5 +40,20 @@
       });
 
       formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
+
+      # Nix materializes. `vakedos` is the bare-metal materialization target — the
+      # NixOS substrate a Vaked runtime's emitted nixosModules.<runtime> will later
+      # be layered onto (docs/language/0012-lowering.md §4.3). Today it is a clean,
+      # EPYC/ECC-tuned Nix build host; no runtime daemons are wired (they are stubs,
+      # see docs/runtime/README.md). See hosts/vakedos/README.md for the Vultr
+      # bare-metal install runbook.
+      # No `system` here: the host pins its platform (and the global -march) via
+      # nixpkgs.hostPlatform inside configuration.nix, so it owns that one option.
+      nixosConfigurations.vakedos = nixpkgs.lib.nixosSystem {
+        modules = [
+          disko.nixosModules.disko
+          ./hosts/vakedos/configuration.nix
+        ];
+      };
     };
 }
