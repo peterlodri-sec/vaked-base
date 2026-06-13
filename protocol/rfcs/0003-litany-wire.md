@@ -1523,9 +1523,10 @@ schema hcp.wire {
       wire-version   @1
       no-common-schema @2
       bad-max-frame  @3
+      trust-domain-mismatch @4  # HELLO trust_domain does not match TLS peer identity
     } @1
     supported_wire_version: u8? @2  # If reason=wire-version, highest version responder supports
-    message:         string?     @3  # Optional diagnostic
+    message:         string?     @3  # Optional diagnostic (e.g., expected trust domain)
   }
 
   /// Chapter lifecycle: open a session/segment within this connection.
