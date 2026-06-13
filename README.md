@@ -41,6 +41,8 @@ Vaked source → typed semantic graph → generated artifacts
 
 > **This is a research and experimental project. Do not use in production.**
 
+**Latest development:** This codebase is actively developed by a distributed team. Latest commits may not be from the repository owner (@peterlodri-sec); pull requests and contributions are welcomed. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [recruitment issue](https://github.com/peterlodri-sec/vaked-base/issues/141) (WP3 + WP4 engineers, June 24 start).
+
 - **Bare-metal target only.** Vaked deploys to a bare-metal NixOS host. See [`DEPLOY.md`](DEPLOY.md) for hardware requirements and the deployment procedure.
 - **No conventional OS support.** Vaked cannot be installed on macOS, standard Linux distributions, Windows, or WSL. The runtime requires direct kernel and eBPF access available only on a properly provisioned NixOS host.
 - **Project scope.** This project encompasses three interrelated tracks: a capability-graph language (Vaked), a purpose-built operating system (vakedos — NixOS + OTP + Zig + eBPF), and a set of reference designs (daemons, wire protocol, agent fleet, tooling). They are designed as a cohesive whole; components are not independently installable.
@@ -66,6 +68,10 @@ prompts/dedicated-language-session.md
 [![spec-tests](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml/badge.svg)](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml)
 
 Verification dashboard: `python3 tools/specdash/build.py --serve`
+
+**Latest:** ✅ 100k worker scalability verified (100 iterations, 273ms avg, deterministic)  
+**Verification:** `scripts/benchmark-100k-scalability.py` ([docs/language/0014-verification-scaffold.md](docs/language/0014-verification-scaffold.md))  
+**Paper:** Language + evaluation ready for arxiv (PR #103, ~2–3 weeks to submission)
 
 Current state at a glance — what's real, in flight, and ahead — as a graph: [`docs/context/TIMELINE.md`](docs/context/TIMELINE.md).
 
