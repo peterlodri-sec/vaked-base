@@ -19,16 +19,28 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import http.client
 import json
 import os
+import ssl
 import subprocess
+import sys
 import tempfile
 import urllib.parse
 import urllib.request
 import uuid
 from datetime import datetime, timezone
 
+# The fleet's self-hosted Mastodon — hardcoded default (override via MASTODON_BASE_URL).
 MASTODON_DEFAULT_BASE = "https://social.crabcc.app"
+# TLS public-key (SPKI) pin for the host above — base64(sha256(SubjectPublicKeyInfo)),
+# HPKP "pin-sha256" form. None ⇒ standard CA verification only. Set the real pin
+# here (or via MASTODON_SPKI_PIN) to pin the connection. Compute it on a normal
+# network (NOT inside a MITM'd CI sandbox):
+#   openssl s_client -connect social.crabcc.app:443 -servername social.crabcc.app </dev/null 2>/dev/null \
+#     | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der \
+#     | openssl dgst -sha256 -binary | openssl enc -base64
+_MASTODON_SPKI_PIN = None
 MASTODON_MAX_CHARS = 480
 
 # action → (emoji, short label, infographic fill colour)
@@ -376,35 +388,135 @@ def _multipart(files) -> "tuple[str, bytes]":
     return boundary, bytes(buf)
 
 
+def _der_tlv(buf: bytes, i: int) -> "tuple[int, int, int]":
+    """Parse one DER TLV at offset ``i`` → ``(tag, value_start, value_len)``."""
+    tag = buf[i]
+    i += 1
+    length = buf[i]
+    i += 1
+    if length & 0x80:
+        nb = length & 0x7F
+        length = int.from_bytes(buf[i:i + nb], "big")
+        i += nb
+    return tag, i, length
+
+
+def _extract_spki(der_cert: bytes) -> "bytes | None":
+    """The SubjectPublicKeyInfo DER bytes from a DER X.509 cert — pure-Python
+    ASN.1 walk (no openssl). Certificate ::= SEQ { tbsCertificate SEQ {...} ...};
+    tbsCertificate fields are [version?] serial sigAlg issuer validity subject
+    SPKI …, so the SPKI is child 6 when an explicit [0] version is present, else
+    child 5."""
+    try:
+        tag, vs, _vl = _der_tlv(der_cert, 0)            # Certificate SEQUENCE
+        if tag != 0x30:
+            return None
+        tag, ts, tl = _der_tlv(der_cert, vs)            # tbsCertificate SEQUENCE
+        if tag != 0x30:
+            return None
+        children = []
+        i, end = ts, ts + tl
+        while i < end:
+            ct, cvs, cvl = _der_tlv(der_cert, i)
+            children.append((ct, i, cvs + cvl))         # (tag, tlv_start, tlv_end)
+            i = cvs + cvl
+        idx = 6 if children and children[0][0] == 0xA0 else 5
+        if idx >= len(children):
+            return None
+        _t, s, e = children[idx]
+        return der_cert[s:e]
+    except (IndexError, ValueError):
+        return None
+
+
+def _spki_pin_b64(der_cert: bytes) -> "str | None":
+    """base64(sha256(SubjectPublicKeyInfo)) of a DER leaf cert — the HPKP
+    pin-sha256. Pure stdlib (no per-connection openssl subprocess); survives cert
+    renewal that reuses the key."""
+    spki = _extract_spki(der_cert)
+    if not spki:
+        return None
+    return base64.b64encode(hashlib.sha256(spki).digest()).decode()
+
+
+def _mastodon_pin() -> "str | None":
+    return os.environ.get("MASTODON_SPKI_PIN") or _MASTODON_SPKI_PIN
+
+
+def _issuer_str(cert: dict) -> str:
+    return ", ".join("%s=%s" % (k, v) for rdn in cert.get("issuer", ()) for k, v in rdn)
+
+
+def _https(method: str, url: str, headers: dict, body: bytes,
+           timeout: int = 30) -> "tuple[int, bytes]":
+    """HTTPS with standard CA verification PLUS egress-aware SPKI pinning.
+
+    When a pin is configured, the peer's SubjectPublicKeyInfo must match — UNLESS
+    the (already CA-validated) peer is the trusted TLS-terminating egress gateway,
+    identified by its issuer marker (default ``"Egress Gateway"``; set
+    ``MASTODON_PIN_BYPASS_ISSUER``). You cannot pin *through* a terminating proxy
+    — you only ever see its cert — so on a direct connection the pin is enforced,
+    and behind the gateway it degrades to CA-trust-only (the gateway validates the
+    upstream cert itself). The bypass can't be forged remotely: it requires a
+    CA-valid cert from that issuer, whose CA is only in the sandbox trust store."""
+    u = urllib.parse.urlsplit(url)
+    conn = http.client.HTTPSConnection(u.hostname, u.port or 443,
+                                       context=ssl.create_default_context(),
+                                       timeout=timeout)
+    try:
+        conn.connect()
+        pin = _mastodon_pin()
+        if pin:
+            mark = os.environ.get("MASTODON_PIN_BYPASS_ISSUER", "Egress Gateway")
+            issuer = _issuer_str(conn.sock.getpeercert() or {})    # CA-validated dict
+            if mark and mark in issuer:
+                sys.stderr.write("[report] SPKI pin bypassed behind trusted egress "
+                                 "gateway (%s); CA trust preserved upstream\n" % issuer)
+            else:
+                got = _spki_pin_b64(conn.sock.getpeercert(binary_form=True))
+                if got != pin:
+                    raise ssl.SSLError("TLS SPKI pin mismatch for %s (got %r, want %r)"
+                                       % (u.hostname, got, pin))
+        path = u.path + (("?" + u.query) if u.query else "")
+        conn.request(method, path, body=body, headers=headers)
+        r = conn.getresponse()
+        return r.status, r.read()
+    finally:
+        conn.close()
+
+
 def post_mastodon(text: str, png: "bytes | None") -> bool:
     token = os.environ.get("MASTODON_ACCESS_TOKEN")
     if not token:
         return False
-    base = os.environ.get("MASTODON_BASE_URL", MASTODON_DEFAULT_BASE).rstrip("/")
-    visibility = os.environ.get("MASTODON_VISIBILITY", "unlisted")
-    media_ids = []
-    if png:
-        try:
-            boundary, body = _multipart(
-                [("file", "train.png", png, "image/png")])
-            req = urllib.request.Request(base + "/api/v2/media", data=body)
-            req.add_header("Authorization", "Bearer " + token)
-            req.add_header("Content-Type", "multipart/form-data; boundary=" + boundary)
-            with urllib.request.urlopen(req, timeout=30) as r:
-                mid = json.loads(r.read()).get("id")
-                if mid:
-                    media_ids.append(str(mid))
-        except Exception:
-            media_ids = []                    # degrade to text-only
-    fields = [("status", text), ("visibility", visibility)]
-    for mid in media_ids:
-        fields.append(("media_ids[]", mid))
-    body = urllib.parse.urlencode(fields).encode()
-    req = urllib.request.Request(base + "/api/v1/statuses", data=body)
-    req.add_header("Authorization", "Bearer " + token)
-    try:
-        with urllib.request.urlopen(req, timeout=30) as r:
-            return r.status in (200, 201)
+    # NB: `or`, not `.get(key, default)` — an unset secret arrives as an EMPTY
+    # string (present but blank), which would build a schemeless URL.
+    base = (os.environ.get("MASTODON_BASE_URL") or MASTODON_DEFAULT_BASE).rstrip("/")
+    visibility = os.environ.get("MASTODON_VISIBILITY") or "unlisted"
+    auth = {"Authorization": "Bearer " + token}
+    try:                                      # whole body guarded — never raises
+        media_ids = []
+        if png:
+            try:
+                boundary, body = _multipart([("file", "train.png", png, "image/png")])
+                st, resp = _https("POST", base + "/api/v2/media",
+                                  dict(auth, **{"Content-Type":
+                                       "multipart/form-data; boundary=" + boundary}),
+                                  body)
+                if st in (200, 202):
+                    mid = json.loads(resp or b"{}").get("id")
+                    if mid:
+                        media_ids.append(str(mid))
+            except Exception:
+                media_ids = []                # degrade to text-only
+        fields = [("status", text), ("visibility", visibility)]
+        for mid in media_ids:
+            fields.append(("media_ids[]", mid))
+        body = urllib.parse.urlencode(fields).encode()
+        st, _resp = _https("POST", base + "/api/v1/statuses",
+                           dict(auth, **{"Content-Type":
+                                "application/x-www-form-urlencoded"}), body)
+        return st in (200, 201)
     except Exception:
         return False
 
