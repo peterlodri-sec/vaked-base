@@ -1,9 +1,12 @@
 # vaked-telebot — interactive Telegram control surface for the Vaked agent fleet.
 # Long-poll daemon for the self-hosted crabcc.app plane.
 #
+#   sudo install -m 600 /dev/stdin /etc/vaked-telebot.env   # paste the secrets (KEY=VALUE)
 #   sudo cp tools/telebot/vaked-telebot.service /etc/systemd/system/
-#   sudoedit /etc/vaked-telebot.env        # secrets, chmod 600 (see README)
 #   sudo systemctl enable --now vaked-telebot
+#
+# On NixOS, prefer a systemd.services.vaked-telebot module (the store python +
+# sops/agenix for the credential) — this generic unit is for a stock systemd host.
 [Unit]
 Description=vaked-telebot — interactive Telegram control surface for the agent fleet
 After=network-online.target
@@ -11,20 +14,39 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# Secrets (TELEGRAM_TOKEN/TELEGRAM_TO/TELEGRAM_ADMIN_IDS, GITHUB_TOKEN/REPOSITORY,
-# OPENROUTER_API_KEY, optional TELEBOT_MODEL) — keep this file chmod 600.
-EnvironmentFile=/etc/vaked-telebot.env
+# Run as an ephemeral, unprivileged user (NOT root) with a private state dir.
+DynamicUser=yes
+StateDirectory=vaked-telebot
+Environment=TELEBOT_STATE_DIR=%S/vaked-telebot
 WorkingDirectory=/opt/vaked-base
-ExecStart=/usr/bin/python3 tools/telebot/telebot.py
+# Secrets as a systemd credential (tmpfs, 0400, owned by the unit) — never in the
+# process environment and never shown by `systemctl show`. The file is plain
+# KEY=VALUE: TELEGRAM_TOKEN, TELEGRAM_TO, TELEGRAM_ADMIN_IDS, GITHUB_TOKEN,
+# GITHUB_REPOSITORY, OPENROUTER_API_KEY (or TELEBOT_API_KEY), optional TELEBOT_MODEL.
+LoadCredential=telebot.env:/etc/vaked-telebot.env
+# `env` lookup, so this works whether python3 is at /usr/bin or in a Nix profile.
+ExecStart=/usr/bin/env python3 tools/telebot/telebot.py
 Restart=on-failure
 RestartSec=5
 
-# Hardening — the daemon only needs to read the repo and write its own state dir.
-NoNewPrivileges=true
+# Sandboxing — a network daemon holding API tokens gets the full hardening set.
+NoNewPrivileges=yes
 ProtectSystem=strict
-ProtectHome=true
-PrivateTmp=true
-ReadWritePaths=/opt/vaked-base/tools/telebot/state
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
 
 [Install]
 WantedBy=multi-user.target
