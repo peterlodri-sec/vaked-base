@@ -25,6 +25,8 @@ runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE
 | **doc-keeper** | Python checker | doc/protocol pushes, PRs, weekly cron | `tools/dockeeper/` ([README](tools/dockeeper/README.md)) | — (deterministic) | Gates doc/spec/RFC drift: RFC cross-refs resolve, backticked repo-path refs resolve, stub-README freshness. |
 | **yardmaster** | Python cron loop | cron hourly, PRs, dispatch | `tools/yardmaster/` ([README](tools/yardmaster/README.md)) | — (deterministic) | Merge-train conductor for the fan-out fleet: builds the open-PR dependency DAG (catches stacked PRs), topo-orders the train, and **acts** (merge / update-branch / block-conflict / hold) on opt-in `train:auto` PRs onto an `eventd` ledger — never auto-resolving conflicts. Broadcasts every run as `yardmaster:<repo>` to Mastodon (infographic picture) + Telegram (emoji report). |
 | **vaked-telebot** | Python long-poll daemon | Telegram getUpdates (crabcc.app) | `tools/telebot/` ([README](tools/telebot/README.md)) | `deepseek/deepseek-v4-flash` (free-form ask) | Interactive control surface in the `vaked` group: a `/menu` of scenarios (merge train · CI & PRs · trigger workflow · fleet & decisions) plus natural-language ask. Acting (workflow dispatch) gated to `TELEGRAM_ADMIN_IDS`; actions ledgered to `eventd`. |
+| **label-tagger** | adk-rust event | `pull_request`, `issues`, push to main, dispatch | [`vaked-agents/ci/label-tagger/`](vaked-agents/ci/label-tagger/) | `deepseek/deepseek-v4-flash` | Doc-grounded triage: labels PRs/issues from the live `.github/labels.yml` taxonomy, syncs GitHub milestones to GOALS.md phases, generates Keep-a-Changelog entries on push-to-main, optionally tags. Opt-out `no-auto-label`. |
+| **provost** | adk-rust scheduled | cron daily 06:00 UTC, dispatch | `vaked-agents/ci/provost/` ([README](vaked-agents/ci/provost/README.md)) | `deepseek/deepseek-v4-flash` | Product-owner / coordination: reconciles the project graph — derives epics from GOALS.md + specs and links child issues (native sub-issues), keeps the RFC index honest, backfills labels, assigns existing milestones. Advisory + safe-sync; new epics/issues/RFC stubs land in ONE coordination issue + PR. Opt-out `no-auto-coordinate`. |
 
 Workflows: [`ralph-tracks.yml`](.github/workflows/ralph-tracks.yml) ·
 [`merge-train.yml`](.github/workflows/merge-train.yml) ·
@@ -33,7 +35,11 @@ Workflows: [`ralph-tracks.yml`](.github/workflows/ralph-tracks.yml) ·
 [`pr-review-audit.yml`](.github/workflows/pr-review-audit.yml) ·
 [`vaked-ci-respond.yml`](.github/workflows/vaked-ci-respond.yml) ·
 [`docs-keeper.yml`](.github/workflows/docs-keeper.yml) ·
-[`social-post.yml`](.github/workflows/social-post.yml)
+[`social-post.yml`](.github/workflows/social-post.yml) ·
+[`label-tagger.yml`](.github/workflows/label-tagger.yml) ·
+[`label-tagger-build.yml`](.github/workflows/label-tagger-build.yml) ·
+[`provost.yml`](.github/workflows/provost.yml) ·
+[`provost-build.yml`](.github/workflows/provost-build.yml)
 
 ## Proposed agents (roadmap)
 
