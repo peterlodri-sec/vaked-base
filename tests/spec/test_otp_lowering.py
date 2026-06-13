@@ -147,7 +147,7 @@ def _test_duplicate_members(lines):
     try:
         src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
                '  engine e { package = nix.derivation }\n'
-               '  stream s { source = agentpipe.s  type = Agent.T }\n'
+               '  stream s { source = agentpipe.transcripts  type = Agent.T }\n'
                '  fiber f { engine = e  input = stream.s  output = artifacts.x }\n'
                '  parallel "p" {\n    fibers = [f, f]\n'
                '    strategy = "supervised-dag"\n    supervisor = otp\n  }\n'
@@ -179,7 +179,7 @@ def _test_gating(lines):
     try:
         src = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
                '  engine e { package = nix.derivation }\n'
-               '  stream s { source = agentpipe.s  type = Agent.T }\n'
+               '  stream s { source = agentpipe.transcripts  type = Agent.T }\n'
                '  fiber f { engine = e  input = stream.s  output = artifacts.x }\n'
                '  parallel "p" {\n    fibers = [f]\n'
                '    strategy = "supervised-dag"\n    supervisor = beam2\n  }\n}\n')

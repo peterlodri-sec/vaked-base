@@ -88,6 +88,25 @@ tasks:
     desc: Recompile the Amber runner (host `amber`, not the devshell).
     cmds: ['amber build tools/vaked-run.ab tools/vaked-run.sh']
 
+  loadtests:
+    desc: 'Regenerate the large load-test fixtures (1k + 10k workers; gitignored, not committed).'
+    cmds:
+      - '{{.RUN}} python3 examples/evaluation/generate_loadtest.py --workers 1024 --out vaked/examples/swe-swarm-1k-workers.vaked'
+      - '{{.RUN}} python3 examples/evaluation/generate_loadtest.py --workers 10000 --out vaked/examples/swe-swarm-10k-workers.vaked'
+
+  loadtests-smoke:
+    desc: 'Regenerate the load-test fixtures and parse them — regression guard for the generator trailing-comma class of bug.'
+    deps: [loadtests]
+    cmds:
+      - '{{.RUN}} python3 -m vakedc parse vaked/examples/swe-swarm-1k-workers.vaked'
+      - '{{.RUN}} python3 -m vakedc parse vaked/examples/swe-swarm-10k-workers.vaked'
+      - 'echo "smoke OK: both load-test fixtures parse"'
+
+  loadtests-clean:
+    desc: 'Remove the generated load-test fixtures.'
+    cmds:
+      - rm -f vaked/examples/swe-swarm-1k-workers.vaked vaked/examples/swe-swarm-10k-workers.vaked
+
   test:
     desc: Run the spec tests.
     cmds: ['{{.RUN}} python3 -m pytest tests -q']
@@ -114,6 +133,13 @@ tasks:
     desc: 'Parse a .vaked file with the Zig front-end.  Usage: task parse-zig -- file.vaked'
     deps: [vakedz-build]
     cmds: ['{{.RUN}} bash -c "vakedz/zig-out/bin/vakedz parse {{.CLI_ARGS}} --print"']
+
+  # --- swe_af: the lowered workflow, run on GitHub Actions ---------------------
+  swe-af:
+    desc: 'Build + unit-test the swe_af agent (plan/code nodes). Hermetic — no model, no GitHub writes.'
+    cmds:
+      - '{{.RUN}} cargo test  --manifest-path vaked-agents/ci/swe-af/Cargo.toml'
+      - '{{.RUN}} cargo build --release --manifest-path vaked-agents/ci/swe-af/Cargo.toml'
 
   diagrams:
     desc: 'Images as code — render docs/assets/diagrams/src/*.d2 → committed *.svg (d2).'

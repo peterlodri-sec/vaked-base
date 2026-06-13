@@ -1,0 +1,286 @@
+name: swe_af
+
+# Runs the lowered `workflow swe_af` (vaked/examples/agentfield-swe.vaked →
+# gen/workflow/swe_af.json) as a GitHub-Actions-native pipeline. Trigger matches
+# the lowered spec exactly: `on = "github.issue.labeled:agent"`.
+#
+# DAG: plan → code → review → publish, each node testified to an eventd hash chain.
+# POLA: the swe-af agent binary holds NO GH_TOKEN (plan/code are read-only authors);
+# the workflow shell applies side effects, and only the broker step (`gh pr create`)
+# writes to GitHub — mirroring the mesh where only `broker` holds mcp.github_write.
+#
+# Advisory + bounded: the PR is NEVER auto-merged; it is opened for human +
+# pr-review-agent review. Design: docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: "Issue number to run swe_af against"
+        required: true
+
+permissions:
+  contents: write        # push the swe-af/issue-<n> branch
+  pull-requests: write   # open the PR (broker / publish node)
+  issues: write          # post the run summary back on the issue
+
+concurrency:
+  group: swe-af-${{ github.event.issue.number || github.event.inputs.issue }}
+  cancel-in-progress: false   # never cancel a half-applied code run mid-commit
+
+jobs:
+  swe_af:
+    runs-on: ubuntu-latest
+    environment: ci
+    timeout-minutes: 60   # budget.swe wallClock is 2h; v0 caps tighter
+    # Safety gate: only the `agent` label, applied by the repo owner, triggers an
+    # autonomous code+PR run. Dispatch is owner-only by GitHub default.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.label.name == 'agent' &&
+       github.event.sender.login == github.repository_owner)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number || github.event.inputs.issue }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Guard — require OpenRouter key
+        id: guard
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::notice::no OPENROUTER_API_KEY (fork/secretless) — swe_af disabled, no-op"
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The lowered artifact is the source of truth for the DAG. Read its eventd
+      # log path + maxDepth so the run is driven by what Vaked emitted.
+      - name: Load lowered swe_af spec
+        if: steps.guard.outputs.enabled == 'true'
+        id: spec
+        run: |
+          SPEC=vaked/examples/lowering-agentfield/gen/workflow/swe_af.json
+          LOG=$(jq -r '.log // "var/lib/agent-field/eventd/log.jsonl"' "$SPEC")
+          DEPTH=$(jq -r '.maxDepth // 6' "$SPEC")
+          STEPS=$(jq -r '[.steps[].name] | join(" → ")' "$SPEC")
+          echo "log=$LOG" >> "$GITHUB_OUTPUT"
+          echo "depth=$DEPTH" >> "$GITHUB_OUTPUT"
+          echo "::notice::swe_af DAG: $STEPS (maxDepth $DEPTH) → eventd $LOG"
+          mkdir -p "$(dirname "$LOG")"
+
+      # Fast path: prebuilt swe-af + pr-review binaries from rolling releases.
+      - name: Download prebuilt agents
+        if: steps.guard.outputs.enabled == 'true'
+        continue-on-error: true
+        run: |
+          gh release download swe-af-bin --pattern vaked-swe-af-linux-x86_64 \
+            --output ./vaked-swe-af && chmod +x ./vaked-swe-af || echo "swe-af prebuilt missing"
+          gh release download pr-review-bin --pattern vaked-pr-review-linux-x86_64 \
+            --output ./vaked-pr-review && chmod +x ./vaked-pr-review || echo "pr-review prebuilt missing"
+
+      # Fallback: compile swe-af from source if the prebuilt is unavailable.
+      - name: Install Rust toolchain
+        if: steps.guard.outputs.enabled == 'true' && hashFiles('vaked-swe-af') == ''
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo build
+        if: steps.guard.outputs.enabled == 'true' && hashFiles('vaked-swe-af') == ''
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/swe-af
+      - name: Build swe-af from source (fallback)
+        if: steps.guard.outputs.enabled == 'true' && hashFiles('vaked-swe-af') == ''
+        run: |
+          cargo build --release --manifest-path vaked-agents/ci/swe-af/Cargo.toml
+          cp vaked-agents/ci/swe-af/target/release/vaked-swe-af ./vaked-swe-af
+
+      # eventd helper: append a JSON event to the hash chain (the audit spine).
+      - name: eventd — run started
+        if: steps.guard.outputs.enabled == 'true'
+        run: |
+          python3 -m eventd append "${{ steps.spec.outputs.log }}" \
+            "$(jq -nc --arg issue "$ISSUE" \
+               '{kind:"swe_af.run_started", producer:"swe_af", issue:($issue|tonumber)}')"
+
+      # ----------------------------------------------------------------- plan
+      - name: Node — plan
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          MODE: plan
+          ISSUE_NUMBER: ${{ env.ISSUE }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LANGFUSE_URL: ${{ secrets.LANGFUSE_URL }}
+          LANGFUSE_API_KEY: ${{ secrets.LANGFUSE_API_KEY }}
+        run: |
+          # All agent I/O lands in $RUNNER_TEMP so it never pollutes the git tree.
+          W="$RUNNER_TEMP/swe-af"; mkdir -p "$W"
+          echo "WORK=$W" >> "$GITHUB_ENV"
+          ./vaked-swe-af > "$W/plan.json"
+          jq -r '.plan'    "$W/plan.json" > "$W/plan.md"
+          jq -r '.summary' "$W/plan.json" > "$W/summary.txt"
+          echo "--- plan ---"; cat "$W/plan.md"
+          python3 -m eventd append "${{ steps.spec.outputs.log }}" \
+            "$(jq -nc --arg issue "$ISSUE" --argjson n "$(jq '.target_files|length' "$W/plan.json")" \
+               '{kind:"swe_af.plan", producer:"swe_af", issue:($issue|tonumber), target_files:$n}')"
+
+      # ----------------------------------------------------------------- code
+      - name: Node — code (author full-file writes)
+        if: steps.guard.outputs.enabled == 'true'
+        id: code
+        env:
+          MODE: code
+          ISSUE_NUMBER: ${{ env.ISSUE }}
+          PLAN_FILE: ${{ env.WORK }}/plan.md
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LANGFUSE_URL: ${{ secrets.LANGFUSE_URL }}
+          LANGFUSE_API_KEY: ${{ secrets.LANGFUSE_API_KEY }}
+        run: |
+          W="$WORK"
+          ./vaked-swe-af > "$W/code.json"
+          N=$(jq '.files | length' "$W/code.json")
+          echo "files=$N" >> "$GITHUB_OUTPUT"
+          echo "::notice::code node produced $N file(s)"
+          : > "$W/changed.txt"
+          if [ "$N" -eq 0 ]; then
+            echo "no_files=true" >> "$GITHUB_OUTPUT"
+          else
+            # Write each full-content file verbatim (the shell is the fs.repo_rw actor).
+            # Record exact paths so the commit stages ONLY agent-authored files.
+            jq -c '.files[]' "$W/code.json" | while IFS= read -r f; do
+              P=$(printf '%s' "$f" | jq -r '.path')
+              mkdir -p "$(dirname "$P")"
+              printf '%s' "$f" | jq -r '.content' > "$P"
+              printf '%s\n' "$P" >> "$W/changed.txt"
+              echo "  wrote $P"
+            done
+          fi
+          python3 -m eventd append "${{ steps.spec.outputs.log }}" \
+            "$(jq -nc --arg issue "$ISSUE" --argjson n "$N" \
+               '{kind:"swe_af.code", producer:"swe_af", issue:($issue|tonumber), files:$n}')"
+
+      # Graceful degradation: nothing to commit → comment on the issue and stop.
+      - name: No changes — explain and stop
+        if: steps.guard.outputs.enabled == 'true' && steps.code.outputs.no_files == 'true'
+        run: |
+          BODY="$RUNNER_TEMP/none.md"
+          { echo "<!-- swe_af -->"
+            echo "### swe_af: no change produced"
+            echo
+            echo "The \`code\` node returned no files for this issue. Plan below — refine the issue and re-label \`agent\` to retry."
+            echo
+            echo "<details><summary>Plan</summary>"; echo; cat "$WORK/plan.md"; echo; echo "</details>"
+          } > "$BODY"
+          gh issue comment "$ISSUE" --repo "$REPO" --body-file "$BODY" || true
+
+      - name: Commit + push branch
+        if: steps.guard.outputs.enabled == 'true' && steps.code.outputs.no_files != 'true'
+        id: branch
+        run: |
+          BRANCH="swe-af/issue-${ISSUE}"
+          git config user.name  "vaked-swe-af[bot]"
+          git config user.email "swe-af@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          # Stage ONLY the files the code node authored (never the scratch dir or
+          # the downloaded agent binaries) — keeps the commit POLA-tight.
+          while IFS= read -r P; do
+            [ -n "$P" ] && git add -- "$P"
+          done < "$WORK/changed.txt"
+          if git diff --cached --quiet; then
+            echo "::notice::no net diff after write — stopping"
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          MSG=$(jq -r '.commit_message' "$WORK/code.json")
+          git commit -m "$MSG" -m "swe_af run for #${ISSUE}"
+          git push -u origin "$BRANCH" --force-with-lease
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      # -------------------------------------------------- publish (broker) + review
+      # The broker (the ONLY mcp.github_write holder) opens the PR as the substrate
+      # for review. It opens DRAFT first; the publish node marks it ready last.
+      - name: Broker — open draft PR
+        if: steps.guard.outputs.enabled == 'true' && steps.branch.outputs.committed == 'true'
+        id: pr
+        run: |
+          TITLE="swe_af: $(cat "$WORK/summary.txt")"
+          [ "$TITLE" = "swe_af: " ] && TITLE="swe_af: resolve #${ISSUE}"
+          BODY="$RUNNER_TEMP/pr.md"
+          { echo "<!-- swe_af -->"
+            echo "Autonomous \`swe_af\` run for #${ISSUE} (plan → code → review → publish)."
+            echo "**Advisory — not auto-merged.** Review before merging."
+            echo; echo "Closes #${ISSUE}"; echo
+            echo "## Plan"; echo; cat "$WORK/plan.md"; echo
+            echo "## Coder notes"; echo; jq -r '.notes // "—"' "$WORK/code.json"
+            echo; echo "---"; echo "<sub>vaked-swe-af · ${{ steps.spec.outputs.log }} testifies this run</sub>"
+          } > "$BODY"
+          URL=$(gh pr create --repo "$REPO" --draft \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --title "$TITLE" --body-file "$BODY")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          PRNUM=$(gh pr view "$URL" --repo "$REPO" --json number --jq '.number')
+          echo "number=$PRNUM" >> "$GITHUB_OUTPUT"
+          python3 -m eventd append "${{ steps.spec.outputs.log }}" \
+            "$(jq -nc --arg issue "$ISSUE" --argjson pr "$PRNUM" \
+               '{kind:"swe_af.publish_draft", producer:"swe_af", issue:($issue|tonumber), pr:$pr}')"
+
+      - name: Node — review (reuse pr-review agent)
+        if: steps.guard.outputs.enabled == 'true' && steps.pr.outputs.number != ''
+        continue-on-error: true
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: |
+          if [ -x ./vaked-pr-review ]; then
+            ./vaked-pr-review --repo "$REPO" --pr "$PR_NUMBER" || echo "::warning::pr-review failed (non-blocking)"
+          else
+            echo "::notice::pr-review binary unavailable — skipping the review node"
+          fi
+          python3 -m eventd append "${{ steps.spec.outputs.log }}" \
+            "$(jq -nc --arg issue "$ISSUE" --argjson pr "$PR_NUMBER" \
+               '{kind:"swe_af.review", producer:"swe_af", issue:($issue|tonumber), pr:$pr}')"
+
+      - name: Publish — mark PR ready + close the loop
+        if: steps.guard.outputs.enabled == 'true' && steps.pr.outputs.number != ''
+        run: |
+          gh pr ready "${{ steps.pr.outputs.number }}" --repo "$REPO" || echo "::warning::pr ready failed"
+          gh issue comment "$ISSUE" --repo "$REPO" \
+            --body "🤖 swe_af opened ${{ steps.pr.outputs.url }} (plan→code→review→publish). Advisory — review before merge." || true
+          python3 -m eventd append "${{ steps.spec.outputs.log }}" \
+            "$(jq -nc --arg issue "$ISSUE" --argjson pr "${{ steps.pr.outputs.number }}" \
+               '{kind:"swe_af.publish", producer:"swe_af", issue:($issue|tonumber), pr:$pr}')"
+
+      # The eBPF/loop "testifies" leg: verify the chain held over the whole run.
+      - name: eventd — verify chain + upload
+        if: steps.guard.outputs.enabled == 'true'
+        run: |
+          python3 -m eventd verify "${{ steps.spec.outputs.log }}"
+          python3 -m eventd replay "${{ steps.spec.outputs.log }}" || true
+      - name: Upload eventd log
+        if: steps.guard.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: swe-af-eventd-${{ env.ISSUE }}
+          path: ${{ steps.spec.outputs.log }}
+          if-no-files-found: ignore
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to:      ${{ secrets.TELEGRAM_TO }}
+          token:   ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ swe_af failed for issue #${{ env.ISSUE }}
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
