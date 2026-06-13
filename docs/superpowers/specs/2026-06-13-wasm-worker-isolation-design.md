@@ -116,7 +116,9 @@ CI has no Wasmtime; like the OTP tree, runnability is a devshell gate:
 
 1. *(now)* `budget.fuel` schema slice (this round).
 2. `sandboxd` daemon spec gains the isolation-backend axis + the wasm backend
-   contract (with the daemon roster work).
+   contract (with the daemon roster work). *The axis is now opened in the
+   [sandboxd design](./2026-06-13-sandboxd-design.md) (v0 commits `native-exec`;
+   this wasm backend is its deferred-but-specified entry).*
 3. WIT ↔ gen-config decision + the wasm worker port (with the Zig-port era).
 4. Arena-paged snapshots (with #16).
 
