@@ -614,7 +614,9 @@ def _is_sensitive(text: str) -> bool:
         return False
     if _SENSITIVE_RE.search(text):
         return True
-    return bool(re.search(r"confidence[:\s*]*\**\s*low", text, re.I))
+    # Bounded gap (no unbounded adjacent quantifiers) — avoids O(N²) backtracking
+    # on long whitespace runs in the decision block.
+    return bool(re.search(r"confidence[:\s*\"']{0,8}low", text, re.I))
 
 
 def _ratify_log_path(name: str) -> str:

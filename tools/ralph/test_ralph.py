@@ -1279,6 +1279,11 @@ def test_is_sensitive() -> None:
     assert ralph._is_sensitive("Recommendation: ...\n- **Confidence:** low")
     assert not ralph._is_sensitive("Adopt Zoekt. Confidence: high")
     assert not ralph._is_sensitive("")
+    # ReDoS guard: a long whitespace run after "confidence" must resolve fast
+    import time as _t
+    t0 = _t.time()
+    assert not ralph._is_sensitive("confidence" + " " * 60000)
+    assert _t.time() - t0 < 1.0, "ReDoS: _is_sensitive too slow"
 
 
 def test_post_toot_language_and_spoiler() -> None:
