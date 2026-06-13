@@ -52,6 +52,18 @@ tasks:
           colmena apply --config "$out/gen/colmena/hive.nix"
         ' deploy {{.CLI_ARGS}}
 
+  slice:
+    desc: 'Run the network-membrane vertical slice end to end (lower → load eBPF → enforce → testify → verify).  Usage: task slice [-- file.vaked]'
+    cmds:
+      - |
+        {{.RUN}} bash -c '
+          set -euo pipefail
+          src="${1:-vaked/examples/membrane/agent-egress.vaked}"
+          out=$(mktemp -d)
+          python3 -m vakedc lower "$src" --out "$out"
+          python3 -m agent_guardd demo "$out/gen/ebpf.policy.json" --out "$out"
+        ' slice {{.CLI_ARGS}}
+
   otp-smoke:
     desc: 'Compile + boot the lowered OTP tree (#19 acceptance demo).  Usage: task otp-smoke -- file.vaked'
     cmds:
