@@ -10,7 +10,7 @@ The runtime is the **enforcement and supervision plane** that a Vaked declaratio
 |--------|----------|-------------|----------------|
 | `agent-supervisord` | Erlang/OTP | process | Control plane: supervision trees, lifecycle, restart strategy, orchestration of the Zig daemons |
 | `agent-guardd` | Zig | ebpf, network | eBPF program loader, policy compilation, audit; the testimony layer |
-| `sandboxd` | Zig | process, filesystem | Namespaces, cgroups, mounts, supervised `exec` of agent workloads |
+| `sandboxd` | Zig | process, filesystem | Namespaces, cgroups, mounts, supervised `exec` of agent workloads; isolation-backend axis (native-exec \| oci \| **wasm** — Wasmtime, #50 design) |
 | `mcp-brokerd` | Zig | mcp | Brokered MCP tool calls — policy, budgets, approvals, structured errors |
 | `fs-snapshotd` | Zig | filesystem | Overlays, diffs, write budgets, artifact capture |
 | `eventd` | Zig | — | Append-only, hash-chained event log (tamper-evident audit spine) |
