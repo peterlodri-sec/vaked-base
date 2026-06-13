@@ -110,8 +110,11 @@ fn value_span(line: &str, vs: usize) -> (usize, usize, usize) {
         let q = b[vs];
         let mut j = vs + 1;
         while j < b.len() && b[j] != q {
-            j += 1;
+            // Skip an escaped char (`\"`, `\\`) so an embedded quote doesn't end
+            // the value early and leave the rest of the secret unredacted.
+            j += if b[j] == b'\\' { 2 } else { 1 };
         }
+        let j = j.min(b.len()); // a trailing `\` could overshoot
         let inner = j.saturating_sub(vs + 1);
         let end = if j < b.len() { j + 1 } else { j };
         (vs, end, inner)
@@ -425,6 +428,10 @@ mod tests {
         assert!(yaml.contains("«redacted-secret»"));
         assert!(!yaml.contains("hunter2hunter"));
         assert!(yaml.contains("database"));
+        // Escaped quote inside the value must not end it early (Codex P2).
+        let esc = redact_secrets("+ {\"password\":\"abc\\\"defghijkl\"}");
+        assert!(esc.contains("«redacted-secret»"));
+        assert!(!esc.contains("defghijkl"));
     }
 
     #[test]
