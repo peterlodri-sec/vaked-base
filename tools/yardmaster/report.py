@@ -24,6 +24,7 @@ import json
 import os
 import ssl
 import subprocess
+import sys
 import tempfile
 import urllib.parse
 import urllib.request
@@ -387,16 +388,55 @@ def _multipart(files) -> "tuple[str, bytes]":
     return boundary, bytes(buf)
 
 
+def _der_tlv(buf: bytes, i: int) -> "tuple[int, int, int]":
+    """Parse one DER TLV at offset ``i`` → ``(tag, value_start, value_len)``."""
+    tag = buf[i]
+    i += 1
+    length = buf[i]
+    i += 1
+    if length & 0x80:
+        nb = length & 0x7F
+        length = int.from_bytes(buf[i:i + nb], "big")
+        i += nb
+    return tag, i, length
+
+
+def _extract_spki(der_cert: bytes) -> "bytes | None":
+    """The SubjectPublicKeyInfo DER bytes from a DER X.509 cert — pure-Python
+    ASN.1 walk (no openssl). Certificate ::= SEQ { tbsCertificate SEQ {...} ...};
+    tbsCertificate fields are [version?] serial sigAlg issuer validity subject
+    SPKI …, so the SPKI is child 6 when an explicit [0] version is present, else
+    child 5."""
+    try:
+        tag, vs, _vl = _der_tlv(der_cert, 0)            # Certificate SEQUENCE
+        if tag != 0x30:
+            return None
+        tag, ts, tl = _der_tlv(der_cert, vs)            # tbsCertificate SEQUENCE
+        if tag != 0x30:
+            return None
+        children = []
+        i, end = ts, ts + tl
+        while i < end:
+            ct, cvs, cvl = _der_tlv(der_cert, i)
+            children.append((ct, i, cvs + cvl))         # (tag, tlv_start, tlv_end)
+            i = cvs + cvl
+        idx = 6 if children and children[0][0] == 0xA0 else 5
+        if idx >= len(children):
+            return None
+        _t, s, e = children[idx]
+        return der_cert[s:e]
+    except (IndexError, ValueError):
+        return None
+
+
 def _spki_pin_b64(der_cert: bytes) -> "str | None":
-    """base64(sha256(SubjectPublicKeyInfo)) of a DER leaf cert (the HPKP
-    pin-sha256), via openssl. Survives cert renewal that reuses the key."""
-    pub = _run(["openssl", "x509", "-inform", "DER", "-pubkey", "-noout"], der_cert)
-    if not pub or pub.returncode != 0 or not pub.stdout:
+    """base64(sha256(SubjectPublicKeyInfo)) of a DER leaf cert — the HPKP
+    pin-sha256. Pure stdlib (no per-connection openssl subprocess); survives cert
+    renewal that reuses the key."""
+    spki = _extract_spki(der_cert)
+    if not spki:
         return None
-    der = _run(["openssl", "pkey", "-pubin", "-outform", "DER"], pub.stdout)
-    if not der or der.returncode != 0 or not der.stdout:
-        return None
-    return base64.b64encode(hashlib.sha256(der.stdout).digest()).decode()
+    return base64.b64encode(hashlib.sha256(spki).digest()).decode()
 
 
 def _mastodon_pin() -> "str | None":
@@ -430,9 +470,8 @@ def _https(method: str, url: str, headers: dict, body: bytes,
             mark = os.environ.get("MASTODON_PIN_BYPASS_ISSUER", "Egress Gateway")
             issuer = _issuer_str(conn.sock.getpeercert() or {})    # CA-validated dict
             if mark and mark in issuer:
-                import sys as _sys
-                _sys.stderr.write("[report] SPKI pin bypassed behind trusted egress "
-                                  "gateway (%s); CA trust preserved upstream\n" % issuer)
+                sys.stderr.write("[report] SPKI pin bypassed behind trusted egress "
+                                 "gateway (%s); CA trust preserved upstream\n" % issuer)
             else:
                 got = _spki_pin_b64(conn.sock.getpeercert(binary_form=True))
                 if got != pin:
