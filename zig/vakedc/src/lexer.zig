@@ -17,6 +17,20 @@ pub const TokenKind = enum {
     eof,
 };
 
+// EnumArray gives exhaustiveness: every new TokenKind must get a name here.
+pub const TOKEN_KIND_NAMES = std.enums.EnumArray(TokenKind, []const u8).init(.{
+    .ident    = "IDENT",
+    .string   = "STRING",
+    .number   = "NUMBER",
+    .duration = "DURATION",
+    .bytes    = "BYTES",
+    .path     = "PATH",
+    .regex    = "REGEX",
+    .op       = "OP",
+    .newline  = "NEWLINE",
+    .eof      = "EOF",
+});
+
 // ---- Token ------------------------------------------------------------------
 
 pub const Token = struct {
@@ -466,6 +480,14 @@ test "lex simple ident" {
     try std.testing.expectEqual(@as(usize, 3), toks.len); // hello, world, EOF
     try std.testing.expectEqual(TokenKind.ident, toks[0].kind);
     try std.testing.expectEqualStrings("hello", toks[0].value);
+}
+
+test "TOKEN_KIND_NAMES covers all kinds" {
+    try std.testing.expectEqualStrings("IDENT", TOKEN_KIND_NAMES.get(.ident));
+    try std.testing.expectEqualStrings("EOF", TOKEN_KIND_NAMES.get(.eof));
+    try std.testing.expectEqualStrings("NEWLINE", TOKEN_KIND_NAMES.get(.newline));
+    // EnumArray.len is comptime; assert it equals the number of enum fields.
+    comptime std.debug.assert(TOKEN_KIND_NAMES.len == std.meta.fields(TokenKind).len);
 }
 
 test "lex number and duration" {

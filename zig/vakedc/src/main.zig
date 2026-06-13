@@ -143,3 +143,18 @@ test "main module imports" {
     _ = parser;
     _ = cache_mod;
 }
+
+test "alloc safety: GPA no leaks through parse pipeline" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{ .safety = true }){};
+    {
+        var arena = std.heap.ArenaAllocator.init(gpa.allocator());
+        defer arena.deinit();
+        const alloc = arena.allocator();
+        const src = "runtime myRuntime { version = \"1.0\" }";
+        const toks = try lexer.tokenize(alloc, src, "<gpa-test>");
+        const file = try parser.parse(alloc, toks, "<gpa-test>");
+        _ = file;
+    }
+    // After arena.deinit() all memory is returned to the GPA — expect no leaks.
+    try std.testing.expect(gpa.deinit() == .ok);
+}

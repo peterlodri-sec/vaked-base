@@ -30,6 +30,9 @@ fn isKind(s: []const u8) bool {
     return KIND_MAP.has(s);
 }
 
+// Maximum depth of a dotted reference (a.b.c…). Guards against pathological input.
+pub const MAX_REF_PARTS: usize = 64;
+
 // ---- Error ------------------------------------------------------------------
 pub const ParseError = error{
     UnexpectedToken,
@@ -726,6 +729,7 @@ pub const Parser = struct {
         var end = t;
         self.pos += 1;
         while (self.isOp(".") and self.peek(1).kind == .ident) {
+            if (parts.items.len >= MAX_REF_PARTS) return ParseError.UnexpectedToken;
             self.pos += 1; // "."
             const nt = self.cur();
             try parts.append(nt.value);

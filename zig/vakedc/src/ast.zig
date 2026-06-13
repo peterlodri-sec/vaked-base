@@ -7,6 +7,10 @@ pub const Span = struct {
     byte_end: u32,
     line: u32,
     col: u32,
+
+    pub fn valid(self: Span) bool {
+        return self.byte_end >= self.byte_start;
+    }
 };
 
 // ---- Literal ---------------------------------------------------------------
@@ -209,6 +213,38 @@ pub const File = struct {
     source_file: []const u8,
 };
 
+// ---- Comptime layout and exhaustiveness checks -----------------------------
+
+comptime {
+    // Span must be exactly 4 × u32 with no padding.
+    std.debug.assert(@sizeOf(Span) == 16);
+    // Each tagged union must have exactly as many payload fields as its tag enum.
+    std.debug.assert(std.meta.fields(Expr).len == std.meta.fields(ExprTag).len);
+    std.debug.assert(std.meta.fields(Refinement).len == std.meta.fields(RefinementTag).len);
+    std.debug.assert(std.meta.fields(Stmt).len == std.meta.fields(StmtTag).len);
+    std.debug.assert(std.meta.fields(Item).len == std.meta.fields(ItemTag).len);
+    std.debug.assert(std.meta.fields(RecordEntry).len == 2); // assignment | inherit
+}
+
+// ---- Comptime string tables (EnumArray ensures exhaustiveness) -------------
+
+const LITERAL_KIND_STRS = std.enums.EnumArray(LiteralKind, []const u8).init(.{
+    .string   = "string",
+    .number   = "number",
+    .bool_lit = "bool",
+    .path     = "path",
+    .duration = "duration",
+    .bytes    = "bytes",
+    .null_lit = "null",
+});
+
+const CMP_OP_STRS = std.enums.EnumArray(CmpOp, []const u8).init(.{
+    .lte = "<=",
+    .gte = ">=",
+    .lt  = "<",
+    .gt  = ">",
+});
+
 // ---- JSON serialization ----------------------------------------------------
 
 pub fn writeJson(file: File, writer: anytype, alloc: std.mem.Allocator) !void {
@@ -363,12 +399,7 @@ fn writeJsonRefinement(writer: anytype, r: Refinement) anyerror!void {
             try writer.writeAll("]}");
         },
         .cmp => |c| {
-            const op_str: []const u8 = switch (c.op) {
-                .lte => "<=",
-                .gte => ">=",
-                .lt => "<",
-                .gt => ">",
-            };
+            const op_str = CMP_OP_STRS.get(c.op);
             try writer.writeAll("{\"_type\":\"cmp\",\"op\":");
             try writeJsonString(writer, op_str);
             try writer.writeAll(",\"number\":");
@@ -502,15 +533,7 @@ fn writeJsonExpr(writer: anytype, expr: Expr) anyerror!void {
 }
 
 fn writeJsonLiteral(writer: anytype, lit: Literal) anyerror!void {
-    const kind_str: []const u8 = switch (lit.kind) {
-        .string => "string",
-        .number => "number",
-        .bool_lit => "bool",
-        .path => "path",
-        .duration => "duration",
-        .bytes => "bytes",
-        .null_lit => "null",
-    };
+    const kind_str = LITERAL_KIND_STRS.get(lit.kind);
     try writer.writeAll("{\"_type\":\"literal\",\"kind\":");
     try writeJsonString(writer, kind_str);
     try writer.writeAll(",\"value\":");
@@ -545,6 +568,30 @@ fn writeJsonSpan(writer: anytype, span: Span) anyerror!void {
         span.line,
         span.col,
     });
+}
+
+// ---- Tests -----------------------------------------------------------------
+
+test "Span.valid monotonicity" {
+    const good = Span{ .byte_start = 0, .byte_end = 10, .line = 1, .col = 1 };
+    const zero = Span{ .byte_start = 5, .byte_end = 5, .line = 1, .col = 5 };
+    const bad  = Span{ .byte_start = 10, .byte_end = 0, .line = 1, .col = 1 };
+    try std.testing.expect(good.valid());
+    try std.testing.expect(zero.valid()); // empty span (point) is valid
+    try std.testing.expect(!bad.valid());
+}
+
+test "LITERAL_KIND_STRS covers all LiteralKind variants" {
+    comptime std.debug.assert(LITERAL_KIND_STRS.len == std.meta.fields(LiteralKind).len);
+    try std.testing.expectEqualStrings("string", LITERAL_KIND_STRS.get(.string));
+    try std.testing.expectEqualStrings("bool",   LITERAL_KIND_STRS.get(.bool_lit));
+    try std.testing.expectEqualStrings("null",   LITERAL_KIND_STRS.get(.null_lit));
+}
+
+test "CMP_OP_STRS covers all CmpOp variants" {
+    comptime std.debug.assert(CMP_OP_STRS.len == std.meta.fields(CmpOp).len);
+    try std.testing.expectEqualStrings("<=", CMP_OP_STRS.get(.lte));
+    try std.testing.expectEqualStrings(">",  CMP_OP_STRS.get(.gt));
 }
 
 // Write a JSON-escaped string with surrounding quotes.
