@@ -1,0 +1,54 @@
+# ralphloop-cache pattern — isolated example (0018 §3)
+#
+# Demonstrates the immutable, append-only, hash-chained parse cache pattern
+# used by vakedc-zig. The pattern is drawn directly from the ralph-loop event
+# log (tools/ralph/state/events.jsonl): each cache entry chains to the previous
+# via a prev hash, forming a tamper-evident ledger.
+#
+# Cache layout on disk:
+#   .vaked/cache/objects/<sha256>       — content-addressed AST blobs
+#   .vaked/cache/parse.index.jsonl      — hash-chained index ledger
+#
+# Each ledger entry: { seq, prev, key, artifact, ref, ts_iso, hash }
+#   seq      — monotone integer (genesis = 0)
+#   prev     — sha256 of previous entry (genesis prev = 0...0)
+#   key      — sha256 of source bytes (the cache key)
+#   artifact — format id ("vakedc-zig/ast/v1")
+#   ref      — sha256 of AST bytes, names objects/<ref>
+#   ts_iso   — ISO 8601 timestamp (log-only; does not affect semantics)
+#   hash     — sha256 of entry excluding the hash field (chains the ledger)
+#
+# Provenance chain:
+#   source bytes → sha256(source) = key
+#     → parse(source) = AST bytes → sha256(AST) = ref
+#       → ledger entry { seq, prev, key, artifact, ref, ts_iso, hash }
+#         → sha256(entry) = next entry's prev
+
+# The input stream of .vaked source files feeding the cache.
+stream sourceFiles {
+  source = vakedc.inputFiles
+  type = Vaked.SourceFile
+  retention = 1d
+}
+
+# gap: memory is designed for runtime accumulation (0014). Build-time caching
+# needs either a scope = "build" variant (modifying 0014) or a separate cache
+# kind. The grammar currently has neither. This declaration uses memory with
+# scope = "session" as the nearest available approximation. See 0018 §4 gap A.
+memory parseCache {
+  source = stream.sourceFiles
+  mine = vakedc-zig.parse
+  scope = "session"
+  retention = 365d
+  emit = [catalog.jsonl]
+}
+
+# Capability domain controlling access to the parse cache.
+# none < recall < append < admin (per 0014 §mem).
+#   recall — read cached ASTs (any consumer of parse output)
+#   append — write new cache entries (vakedc-zig parse stage only)
+#   admin  — clear / administer the cache (build orchestrator)
+capability mem {
+  grant none recall append admin
+  order none < recall < append < admin
+}

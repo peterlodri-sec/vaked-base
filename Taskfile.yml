@@ -88,6 +88,22 @@ tasks:
     desc: Recompile the Amber runner (host `amber`, not the devshell).
     cmds: ['amber build tools/vaked-run.ab tools/vaked-run.sh']
 
+  zig-build:
+    desc: 'Build the Zig compiler (vakedc-zig v0.1.0).  Outputs binary to zig/vakedc/zig-out/bin/.'
+    dir: zig/vakedc
+    cmds: ['{{.RUN}} zig build -Doptimize=ReleaseSafe']
+
+  zig-test:
+    desc: 'Run vakedc-zig unit tests.'
+    dir: zig/vakedc
+    cmds: ['{{.RUN}} zig build test']
+
+  zig-parse:
+    desc: 'Parse a .vaked file with the Zig compiler.  Usage: task zig-parse -- file.vaked [--no-cache]'
+    dir: zig/vakedc
+    cmds:
+      - '{{.RUN}} bash -c "zig build run -- parse {{.CLI_ARGS}}"'
+
   test:
     desc: Run the spec tests.
     cmds: ['{{.RUN}} python3 -m pytest tests -q']

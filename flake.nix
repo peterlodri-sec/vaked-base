@@ -41,6 +41,24 @@
 
       formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
 
+      # vakedc-zig: the Zig-native compiler-parser (v0.1.0, 0018).
+      # `nix build .#vakedc-zig` produces the binary at result/bin/vakedc-zig.
+      # No external Zig package deps — builds hermetically from zig/vakedc/.
+      packages = forAllSystems (pkgs: {
+        vakedc-zig = pkgs.stdenv.mkDerivation {
+          pname = "vakedc-zig";
+          version = "0.1.0";
+          src = ./zig/vakedc;
+          nativeBuildInputs = [ pkgs.zig ];
+          buildPhase = ''
+            export HOME=$TMPDIR
+            zig build -Doptimize=ReleaseSafe --prefix $out
+          '';
+          dontInstall = true;
+          meta.description = "vakedc-zig — Zig-native Vaked compiler-parser (parse stage, v0.1.0)";
+        };
+      });
+
       # Nix materializes. `vakedos` is the bare-metal materialization target — the
       # NixOS substrate a Vaked runtime's emitted nixosModules.<runtime> will later
       # be layered onto (docs/language/0012-lowering.md §4.3). Today it is a clean,

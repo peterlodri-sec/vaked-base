@@ -1,0 +1,104 @@
+# dogfeed: vakedc-zig compiler pipeline described in Vaked. Gaps are noted as # gap: comments.
+#
+# This file describes the vakedc-zig compiler (zig/vakedc/) as a Vaked capability
+# graph. It is the primary dogfeed for 0018. Two language gaps surfaced during
+# authoring — each is marked # gap: and filed as a GitHub issue.
+#
+# Pipeline: sourceFiles → parse (Zig) → astOutput → check (Python, stub) → lower (Python, stub)
+# Cache:    parseCache (memory, build-time — see gap A below)
+
+# The input stream of .vaked source files.
+stream sourceFiles {
+  source = vakedc.inputFiles
+  type = Vaked.SourceFile
+  retention = 1d
+}
+
+# The handoff stream between parse and check stages.
+stream astOutput {
+  source = fiber.parse
+  type = Vaked.AST
+  retention = 1d
+}
+
+# gap: memory is designed for runtime accumulation (0014). The parse cache is
+# semantically identical but operates at build time: source is a set of files,
+# mine is a pure parse function, the store is a content-addressed directory.
+# The grammar has no build-time scope variant or separate cache kind. Using
+# memory here with scope = "session" as the nearest available approximation;
+# see 0018 §4 gap A and the issue "memory/cache: build-time scope variant or
+# separate cache kind?"
+memory parseCache {
+  source = stream.sourceFiles
+  mine = vakedc-zig.parse
+  scope = "session"
+  retention = 365d
+  emit = [catalog.jsonl]
+}
+
+capability mem {
+  grant none recall append admin
+  order none < recall < append < admin
+}
+
+# Parse stage: tokenize + recursive-descent parse → JSON AST with spans.
+# Cache-aware: on hit, returns stored AST; on miss, parses and appends to cache.
+# Output: astOutput stream (JSON AST, compatible with Python vakedc parse).
+# Implemented in v0.1.0.
+fiber parse {
+  engine = vakedc-zig
+  input = stream.sourceFiles
+  output = stream.astOutput
+
+  policy {
+    cache = memory.parseCache
+    no_cache = false
+    cache_dir = ".vaked/cache"
+  }
+}
+
+# Check stage: type system, schema validation, capability flow (0011).
+# Consumes astOutput from the parse stage via the Python vakedc checker.
+# NOT implemented in v0.1.0 — stub only.
+fiber check {
+  engine = vakedc-python
+  input = stream.astOutput
+  output = artifacts.checkedGraph
+
+  policy {
+    stub = true
+    version = "v0.1.0-not-implemented"
+  }
+}
+
+# Lower stage: validated graph → artifacts (0012).
+# Consumes the checked graph from the check stage via the Python vakedc lowerer.
+# NOT implemented in v0.1.0 — stub only.
+fiber lower {
+  engine = vakedc-python
+  input = artifacts.checkedGraph
+  output = artifacts.loweredOutput
+
+  policy {
+    stub = true
+    version = "v0.1.0-not-implemented"
+  }
+}
+
+# gap: parallel with strategy = "supervised-dag" is designed for parallel
+# runtime fibers under OTP supervision. The compiler pipeline is a sequential
+# stage chain (parse → check → lower) with no steady-state parallelism.
+# supervised-dag stretches the semantics here. A strategy = "sequential"
+# variant or a first-class pipeline kind would be the correct primitive.
+# See 0018 §4 gap B and the issue "parallel: sequential strategy variant for
+# ordered build pipelines?"
+parallel "vakedc-pipeline" {
+  fibers = [
+    parse,
+    check,
+    lower
+  ]
+
+  strategy = "supervised-dag"
+  supervisor = otp
+}
