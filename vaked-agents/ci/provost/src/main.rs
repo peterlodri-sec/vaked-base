@@ -799,19 +799,22 @@ struct IssueLite {
 fn fetch_gh_state(cfg: &Config) -> GhState {
     let mut state = GhState::default();
 
-    // Open issues with labels + milestone.
+    // Open issues — jq-projected to only the fields we use, so the wire payload
+    // is ~90% smaller than fetching full issue JSON.
     let limit = MAX_ISSUES.to_string();
+    let jq = r#"[.[] | {number, title, labels: [.labels[].name], milestone: .milestone.title}]"#;
     if let Ok(raw) = gh(&[
         "issue", "list", "--repo", &cfg.repo, "--state", "open",
         "--limit", &limit, "--json", "number,title,labels,milestone",
+        "--jq", jq,
     ]) {
         if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(&raw) {
             for v in arr {
                 let labels: Vec<String> = v["labels"]
                     .as_array()
-                    .map(|a| a.iter().filter_map(|l| l["name"].as_str().map(String::from)).collect())
+                    .map(|a| a.iter().filter_map(|l| l.as_str().map(String::from)).collect())
                     .unwrap_or_default();
-                let milestone = v["milestone"]["title"].as_str().map(String::from);
+                let milestone = v["milestone"].as_str().map(String::from);
                 let is_epic = labels.iter().any(|l| l == EPIC_LABEL);
                 state.issues.push(IssueLite {
                     number: v["number"].as_u64().unwrap_or(0),
@@ -823,7 +826,7 @@ fn fetch_gh_state(cfg: &Config) -> GhState {
             }
         }
     } else {
-        warn!("could not list issues (no GH_TOKEN?) — proceeding with empty issue set");
+        eprintln!("provost: could not list issues (no GH_TOKEN?) — proceeding with empty issue set");
     }
 
     // Milestone titles.
@@ -980,8 +983,7 @@ async fn main() {
     let code = match run().await {
         Ok(()) => 0,
         Err(e) => {
-            warn!(error = %e, "provost failed (advisory — exiting 0)");
-            eprintln!("provost: {e:#}");
+                eprintln!("provost: {e:#}");
             println!("{}", noop_json());
             0
         }
@@ -1001,21 +1003,11 @@ async fn run() -> Result<()> {
     let rfcs = scan_rfcs();
     let specs = scan_specs();
     let gh_state = fetch_gh_state(&cfg);
-    info!(
-        rfcs = rfcs.len(),
-        specs = specs.len(),
-        issues = gh_state.issues.len(),
-        milestones = gh_state.milestones.len(),
-        mode = cfg.mode.as_str(),
-        "scanned project graph"
-    );
-
     let output = match cfg.api_key.as_deref() {
         Some(api_key) => {
             let prompt = build_reconcile_prompt(&cfg, &rfcs, &specs, &gh_state);
             let runner = build_runner(&cfg, api_key)?;
             let raw = ask(&runner, prompt).await?;
-            info!(response_chars = raw.len(), "agent response received");
             parse_output(&raw)
         }
         None => {
