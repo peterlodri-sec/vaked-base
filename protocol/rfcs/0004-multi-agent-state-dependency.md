@@ -453,11 +453,15 @@ Algorithm: compute_gc_floor(producer_uuid)
   add **explicit timeout** (default 5 seconds, range 1s–30s) for epoch release.
   If truncate does not complete within timeout:
   - Log [WARN] "epoch fence timeout during truncation"
-  - Fall back to lock-based approach (release epoch, acquire read-only lock with backoff)
-  - Complete truncation under lock
+  - Fall back to lock-based approach: Release epoch, acquire read-only lock with backoff
+  - **CRITICAL: Recompute GC floor under lock** before truncating (new registrations may have arrived during epoch release)
+  - Truncate strictly below recomputed floor
   - Retry GC on next cycle if lock timeout also expires
   
-  This prevents indefinite registration backlog while preserving correctness.
+  The recomputation is essential: releasing the epoch before acquiring the lock
+  creates a window where new consumers can register at lower steps. Proceeding with
+  the stale floor would cause data loss. Lock-based truncation without recomputation
+  reopens the race this fence is designed to close.
   
   **Alternative approach (implementation choice):** Implementations MAY use
   read-only locks instead of epoch fences. Lock-based approach: Hold a read-only
