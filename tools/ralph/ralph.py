@@ -48,6 +48,7 @@ MASTODON_MAX_CHARS = 470                # safety margin under Mastodon's 500
 ANNOUNCE_MODEL = "openai/gpt-oss-120b"  # writes the toot (separate from decide)
 ANNOUNCE_LOOKBACK = 5                   # how far back to retry un-announced decisions
 TOOT_IMAGE_MODEL = "google/gemini-2.5-flash-image"  # generates the toot's media
+CRITIQUE_CONTEXT_CHARS = 16000          # cap grounding context for the stage-3 critique
 
 
 def read_purpose() -> str:
@@ -1075,13 +1076,18 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
 
     # Stage 3 — self-critique → rewrite for sharper, better-grounded entries.
     # Best-effort over a USABLE stage-2 draft: a critique failure (transient 5xx,
-    # both writer + fallback down) or an unusable rewrite must NEVER lose the
-    # decision, so any error keeps the stage-2 body. Cost for the call is counted
-    # whenever it was actually made, including the keep-draft path, so the ledger
-    # never under-reports spend.
+    # both writer + fallback down) or a rewrite that doesn't read like a finished
+    # entry must NEVER lose the decision, so we keep the stage-2 body in those
+    # cases. Cost for the call is counted whenever it was actually made, including
+    # the keep-draft path, so the ledger never under-reports spend.
     if _critique_on():
         try:
-            s3_msgs = C.build_critique_messages(subject, body, full)
+            # Cap the grounding context for the critique: it already has the full
+            # draft, so the entire (doubled) prior-decisions log isn't needed —
+            # this halves the stage-3 token bill on a large ledger.
+            crit_ctx = (full if len(full) <= CRITIQUE_CONTEXT_CHARS
+                        else full[:CRITIQUE_CONTEXT_CHARS] + "\n\n[context truncated for critique]")
+            s3_msgs = C.build_critique_messages(subject, body, crit_ctx)
             s3, used3 = _writer_call(writer, stage2_model, s3_msgs, api_key=api_key,
                                      base_url=base_url, temperature=0.2, max_tokens=2200,
                                      span_name="ralph.critique",
@@ -1089,15 +1095,19 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
             cost += C.cost_usd(s3.get("usage", {}),
                                C.FALLBACK_PRICES.get(used3, C.Price(0.10, 0.20)))
             improved = (_message_content(s3) or _reasoning_text(s3) or "").strip()
-            if len(improved) >= 40:      # a real rewrite, not an empty/garbage reply
+            # Only accept a rewrite that actually reads like a decision entry — a
+            # reasoning/preview model can return its review notes instead of the
+            # rewritten entry; that must not overwrite a clean stage-2 draft.
+            if len(improved) >= 40 and C.looks_like_entry(improved):
                 body = improved
             else:
-                print("[decide] critique produced nothing usable (finish=%s) — keeping draft"
-                      % _finish_reason(s3), file=sys.stderr)
+                print("[decide] critique output isn't a clean entry (finish=%s, "
+                      "chars=%d) — keeping stage-2 draft"
+                      % (_finish_reason(s3), len(improved)), file=sys.stderr)
         except Exception as e:           # noqa: BLE001 — never drop a good draft
             print("[decide] critique pass failed (%s) — keeping stage-2 draft"
                   % type(e).__name__, file=sys.stderr)
-    return cost, body.strip()
+    return cost, body.strip(), used2
 
 
 def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float:
@@ -1113,13 +1123,13 @@ def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float
                          meta={"repo": repo.name})
     if result is None:
         return 0.0
-    cost, body = result
+    cost, body, writer_used = result
     head = _run(["git", "rev-parse", "--short", "HEAD"], repo.path).strip() or "?"
     n = len(_prior_titles(repo.name)) + 1
     entry = C.format_entry(n=n, date=_today(), repo=repo.name, head=head,
                            open_issues=_open_issue_count(repo), body=body,
                            s1=args.stage1_model.split("/")[-1],
-                           s2=args.stage2_model.split("/")[-1])
+                           s2=writer_used.split("/")[-1])
     _append_log(repo.name, entry)
     print("decided #%d for %s (cost $%.4f): %s" % (n, repo.name, cost,
                                                     entry.splitlines()[0]))
@@ -1148,13 +1158,13 @@ def _decide_track(args, track: C.Track, api_key: str) -> float:
         # pointer with a skip event, or one flaky track would starve the rest.
         append_event({"event": "skip", "track": track.name})
         return 0.0
-    cost, body = result
+    cost, body, writer_used = result
     head = _run(["git", "rev-parse", "--short", "HEAD"], REPO_HOME).strip() or "?"
     n = len(_prior_titles(track.name)) + 1
-    model_short = track.model.split("/")[-1]
     entry = C.format_entry(n=n, date=_today(), repo=track.name, head=head,
                            open_issues=_open_track_issue_count(track), body=body,
-                           s1=model_short, s2=model_short, subject_label="Track")
+                           s1=track.model.split("/")[-1],
+                           s2=writer_used.split("/")[-1], subject_label="Track")
     _append_log(track.name, entry)
     # Emit the rotation event so --next-track advances and CI persists it.
     # The track decision-maker logs its own decide event (unlike repo-mode,

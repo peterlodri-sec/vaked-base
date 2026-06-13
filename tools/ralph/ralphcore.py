@@ -196,8 +196,31 @@ _STAGE2_SYS = (
 _CRITIQUE_SYS = (
     "You are a rigorous reviewer improving a DRAFT strategic decision entry for {subject}. "
     "Rewrite it to be sharper and better grounded: every claim must cite the actual file or issue it relies on (from the context); cut hand-waving and hedging; make the Recommendation concrete and the Next actions a specific PR/issue. Remove any claim not supported by the context. "
-    "Keep the SAME bold-labelled structure (Decision / question, Options, Recommendation, Risks, Next actions, Confidence). Output ONLY the improved entry body — no preamble, no meta-commentary about your changes."
+    "Keep the SAME bold-labelled structure (Decision / question, Options, Recommendation, Risks, Next actions, Confidence). "
+    "Output the rewritten ENTRY and NOTHING else. Do NOT restate the draft, do NOT list or explain your changes, do NOT think out loud, do NOT use first person or review language ('we', 'let's', 'I', 'the draft', 'we'll keep'). "
+    "Begin your output IMMEDIATELY with the line `**Decision / question:**` — no preamble before it."
 )
+
+
+def looks_like_entry(text: str) -> bool:
+    """True if `text` reads like a finished decision entry (the structured,
+    bold-labelled form) rather than the model's review notes / chain-of-thought.
+
+    The stage-3 self-critique sometimes returns its *analysis* of the draft
+    ("We need to improve... Let's first identify the issues...") instead of the
+    rewritten entry; accepting that would replace a good draft with working
+    notes. A real entry leads with the `Decision / question` label and carries
+    the core structural labels, so we gate on both."""
+    if not text:
+        return False
+    # Drop any leading markdown emphasis/heading/quote so "**Decision …**" and
+    # "## Decision" compare cleanly, then require the entry to LEAD with the
+    # Decision label (review prose leads with "We"/"Let's"/"First"/etc.).
+    head = re.sub(r"^[\s>#*_`+-]+", "", text).lstrip().lower()
+    if not head.startswith("decision"):
+        return False
+    low = text.lower()
+    return "recommendation" in low and "next action" in low
 
 
 def build_stage1_messages(
