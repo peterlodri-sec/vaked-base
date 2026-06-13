@@ -263,7 +263,8 @@ def test_decide_live_returns_cost() -> None:
         ralph.gather_context = lambda repo, window, compact: "FAKE CONTEXT"
 
         try:
-            with mock.patch.object(ralph, "openrouter_call", side_effect=lambda *a, **kw: next(calls)):
+            with mock.patch.dict(os.environ, {"RALPH_CRITIQUE": "off"}), \
+                 mock.patch.object(ralph, "openrouter_call", side_effect=lambda *a, **kw: next(calls)):
                 s1_msgs = [{"role": "user", "content": "stub"}]
                 cost = ralph._decide_live(args, repo, s1_msgs, "fake-key")
         finally:
@@ -782,7 +783,8 @@ def test_decide_track_uses_track_model_both_stages() -> None:
         ralph.EVENTS_PATH = os.path.join(tmpdir, "events.jsonl")
         ralph.STATE_DIR = tmpdir
         try:
-            with mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
+            with mock.patch.dict(os.environ, {"RALPH_CRITIQUE": "off"}), \
+                 mock.patch.object(ralph, "openrouter_call", side_effect=fake_call):
                 cost = ralph._decide_track(args, track, "key")
             # the decide event must be logged so --next-track can rotate
             last = ralph._last_decided_track()
@@ -1580,13 +1582,67 @@ def test_run_stages_falls_back_to_reasoning() -> None:
     s2 = {"choices": [{"message": {"content": "**Decision / question:** X"}}],
           "usage": {}}
     calls = iter([s1, s2])
-    with mock.patch.object(ralph, "openrouter_call",
+    with mock.patch.dict(os.environ, {"RALPH_CRITIQUE": "off"}), \
+         mock.patch.object(ralph, "openrouter_call",
                            side_effect=lambda *a, **k: next(calls)):
         res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
                                 lambda: "CTX", "m1", "m2", "key", None, 42)
     assert res is not None
     _, body = res
     assert "Decision" in body
+
+
+def test_run_stages_critique_and_writer_override() -> None:
+    """RALPH_WRITER_MODEL drives stage-2 + stage-3; critique rewrite replaces the
+    draft; cost sums all three calls."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    s1 = {"choices": [{"message": {"content":
+            '{"candidates":[{"title":"X","why_now":"n","urgency":5,"addressed":false}]}'}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    s2 = {"choices": [{"message": {"content": "**Decision / question:** draft"}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    s3 = {"choices": [{"message": {"content":
+            "**Decision / question:** improved & grounded entry per docs/0011"}}],
+          "usage": {"prompt_tokens": 100, "completion_tokens": 50}}
+    seen = []
+
+    def fake(model, *a, **k):
+        seen.append(model)
+        return {0: s1, 1: s2, 2: s3}[len(seen) - 1]
+
+    with mock.patch.dict(os.environ, {"RALPH_WRITER_MODEL": "vendor/writer",
+                                      "RALPH_CRITIQUE": "on"}), \
+         mock.patch.object(ralph, "openrouter_call", side_effect=fake):
+        res = ralph._run_stages("subj", [{"role": "user", "content": "x"}],
+                                lambda: "CTX", "m1/rank", "m2/track", "key", None, 42)
+    assert res is not None
+    cost, body = res
+    assert seen == ["m1/rank", "vendor/writer", "vendor/writer"], seen   # stage1 rank, then writer x2
+    assert "improved" in body and "draft" not in body                    # critique rewrite won
+    assert cost > 0
+
+
+def test_writer_call_falls_back_to_track_model() -> None:
+    """A failing writer model degrades to the track model (no crash)."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    ok = {"choices": [{"message": {"content": "ok"}}], "usage": {}}
+
+    def fake(model, *a, **k):
+        if model == "bad/writer":
+            raise RuntimeError("no such model")
+        return ok
+
+    with mock.patch.object(ralph, "openrouter_call", side_effect=fake):
+        resp, used = ralph._writer_call("bad/writer", "good/track",
+                                        [{"role": "user", "content": "x"}],
+                                        api_key="k", base_url=None,
+                                        temperature=0.3, max_tokens=100,
+                                        span_name="x", span_meta={})
+    assert used == "good/track" and ralph._message_content(resp) == "ok"
 
 
 def test_every_track_model_has_price() -> None:

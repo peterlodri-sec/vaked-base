@@ -814,6 +814,27 @@ def _parse_json_obj(text: "str | None") -> dict:
     return {}
 
 
+def _critique_on() -> bool:
+    """Stage-3 self-critique is on by default; RALPH_CRITIQUE=off disables it."""
+    return os.environ.get("RALPH_CRITIQUE", "").strip().lower() not in ("0", "off", "false", "no")
+
+
+def _writer_call(writer: str, fallback: str, msgs, **kw):
+    """Call the writer model; if it errors (e.g. a bad/unavailable slug), retry
+    once with the track's fallback model. Returns (response, model_used)."""
+    meta = dict(kw.pop("span_meta", {}) or {})
+    try:
+        return openrouter_call(writer, msgs, span_meta={**meta, "model": writer}, **kw), writer
+    except Exception as e:   # noqa: BLE001 — degrade to the track model
+        if writer == fallback:
+            raise
+        print("[decide] writer model %s failed (%s) — falling back to %s"
+              % (writer, type(e).__name__, fallback), file=sys.stderr)
+        return openrouter_call(fallback, msgs,
+                               span_meta={**meta, "model": fallback, "writer_fallback": True},
+                               **kw), fallback
+
+
 def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
                 stage2_model, api_key, base_url, seed, meta=None):
     """Run both LLM stages and return ``(cost, body)`` or ``None`` to skip the
@@ -845,20 +866,41 @@ def _run_stages(subject, s1_msgs, full_context_builder, stage1_model,
         print("no candidates; skipping", file=sys.stderr)
         return None
     full = full_context_builder()
+    # Stage 2 — deep-dive written by the configured strong WRITER model (falls
+    # back to the track model if the writer call fails), grounded in `full`.
+    writer = os.environ.get("RALPH_WRITER_MODEL", "").strip() or stage2_model
     s2_msgs = C.build_stage2_messages(subject, full, chosen)
-    s2 = openrouter_call(stage2_model, s2_msgs, api_key=api_key,
-                         temperature=0.3, max_tokens=1800, base_url=base_url,
-                         span_name="ralph.deep-dive",
-                         span_meta={**base_meta, "stage": 2})
-    body = _message_content(s2)
+    s2, used2 = _writer_call(writer, stage2_model, s2_msgs, api_key=api_key,
+                             base_url=base_url, temperature=0.3, max_tokens=2200,
+                             span_name="ralph.deep-dive",
+                             span_meta={**base_meta, "stage": 2})
+    body = _message_content(s2) or _reasoning_text(s2)
     if not body:
-        print("stage-2 returned no usable content; skipping iteration",
-              file=sys.stderr)
+        print("stage-2 returned no usable content (finish=%s); skipping iteration"
+              % _finish_reason(s2), file=sys.stderr)
         return None
-    p1 = C.FALLBACK_PRICES.get(stage1_model, C.Price(0.10, 0.10))
-    p2 = C.FALLBACK_PRICES.get(stage2_model, C.Price(0.10, 0.20))
-    cost = C.cost_usd(s1.get("usage", {}), p1) + C.cost_usd(s2.get("usage", {}), p2)
-    return cost, body
+
+    cost = (C.cost_usd(s1.get("usage", {}),
+                       C.FALLBACK_PRICES.get(stage1_model, C.Price(0.10, 0.10)))
+            + C.cost_usd(s2.get("usage", {}),
+                         C.FALLBACK_PRICES.get(used2, C.Price(0.10, 0.20))))
+
+    # Stage 3 — self-critique → rewrite for sharper, better-grounded entries.
+    if _critique_on():
+        s3_msgs = C.build_critique_messages(subject, body, full)
+        s3, used3 = _writer_call(writer, stage2_model, s3_msgs, api_key=api_key,
+                                 base_url=base_url, temperature=0.2, max_tokens=2200,
+                                 span_name="ralph.critique",
+                                 span_meta={**base_meta, "stage": 3})
+        improved = (_message_content(s3) or _reasoning_text(s3) or "").strip()
+        if len(improved) >= 40:          # a real rewrite, not an empty/garbage reply
+            body = improved
+            cost += C.cost_usd(s3.get("usage", {}),
+                               C.FALLBACK_PRICES.get(used3, C.Price(0.10, 0.20)))
+        else:
+            print("[decide] critique produced nothing usable (finish=%s) — keeping draft"
+                  % _finish_reason(s3), file=sys.stderr)
+    return cost, body.strip()
 
 
 def _decide_live(args, repo: C.Repo, s1_msgs: list[dict], api_key: str) -> float:
