@@ -1,7 +1,7 @@
 //! Vaked CI PR-review agent.
 //!
 //! Advisory PR reviewer on adk-rust. Reads a PR's diff (RTK-condensed, noise
-//! filtered), reviews it with a non-frontier OpenRouter model (GLM-4.6) — with the
+//! filtered), reviews it with a non-frontier OpenRouter model (DeepSeek V4 Flash) — with the
 //! repo's `crabcc` symbol index + a `read_lines` tool as MCP / native tools — and
 //! posts ONE structured review comment (replacing its prior one). The untrusted
 //! diff is secret-redacted, injection-defanged, and findings-capped by adk
@@ -24,8 +24,9 @@
 //!   PR_REVIEW_CONCURRENCY · PR_REVIEW_NO_STRUCTURED · PR_REVIEW_NO_RTK
 //!   PR_REVIEW_PARALLEL_AGENT · PR_REVIEW_EVAL_TOLERANCE · PR_REVIEW_TRACE_PAYLOADS
 //!   PR_REVIEW_NO_AUTOFIX (disable inline suggestions) · PR_REVIEW_USD_PER_MTOK (cost rate)
-//!   GH_TOKEN | GITHUB_TOKEN · GITHUB_REPOSITORY · GITHUB_EVENT_PATH
-//!   LANGFUSE_URL · LANGFUSE_API_KEY · CRABCC_BIN · RTK_BIN · BASE_SHA · HEAD_SHA
+//!   GH_TOKEN | GITHUB_TOKEN · GITHUB_REPOSITORY · GITHUB_EVENT_PATH · GITHUB_SERVER_URL
+//!   LANGFUSE_HOST | LANGFUSE_BASE_URL | LANGFUSE_URL · LANGFUSE_PUBLIC_KEY + LANGFUSE_SECRET_KEY
+//!   | LANGFUSE_API_KEY · LANGFUSE_PROJECT_ID · CRABCC_BIN · RTK_BIN · BASE_SHA · HEAD_SHA
 //!
 //! Args: --repo <owner/name> --pr <N> --model <id> --dry-run
 //!       --eval <dir>   score the reviewer against local *.diff/*.expect fixtures
@@ -46,9 +47,11 @@ use adk_runner::compaction::{CompactionConfig, TruncationCompaction};
 use adk_rust::eval::criteria::{ResponseMatchConfig, SimilarityAlgorithm};
 use adk_rust::eval::{BaselineStore, ResponseScorer};
 use anyhow::{Context, Result, anyhow};
+use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use futures::StreamExt;
 use futures::stream;
-use opentelemetry::trace::TracerProvider as _;
+use opentelemetry::trace::{TraceContextExt as _, TracerProvider as _};
 use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use rmcp::ServiceExt;
@@ -58,6 +61,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio::process::Command as TokioCommand;
 use tracing::{Instrument, field, info, info_span, warn};
+use tracing_opentelemetry::OpenTelemetrySpanExt as _;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -142,10 +146,16 @@ async fn main() {
         }
     };
 
-    if let Some(provider) = tracer_provider
-        && let Err(e) = provider.shutdown()
-    {
-        eprintln!("pr-review: telemetry flush failed: {e}");
+    if let Some(provider) = tracer_provider {
+        // Short-lived process: force_flush drains the batch span processor before
+        // shutdown, so the run's trace reliably reaches Langfuse instead of being
+        // dropped on exit.
+        if let Err(e) = provider.force_flush() {
+            eprintln!("pr-review: telemetry force_flush failed: {e}");
+        }
+        if let Err(e) = provider.shutdown() {
+            eprintln!("pr-review: telemetry shutdown failed: {e}");
+        }
     }
     std::process::exit(code);
 }
@@ -153,12 +163,22 @@ async fn main() {
 /// Wires the OTLP/HTTP exporter to self-hosted Langfuse; returns the provider so
 /// the caller can flush spans before this short-lived process exits.
 fn setup_tracing() -> Option<SdkTracerProvider> {
-    let base = std::env::var("LANGFUSE_URL")
-        .ok()
-        .filter(|s| !s.is_empty())?;
-    let token = std::env::var("LANGFUSE_API_KEY")
-        .ok()
-        .filter(|s| !s.is_empty());
+    // Base URL: prefer the Langfuse-SDK-standard LANGFUSE_HOST (matches ralph + the
+    // `ci` environment secrets), then LANGFUSE_BASE_URL, then the legacy LANGFUSE_URL.
+    let base = env_first(&["LANGFUSE_HOST", "LANGFUSE_BASE_URL", "LANGFUSE_URL"])?;
+
+    // Auth: the legacy LANGFUSE_API_KEY is the ready-made Basic token (base64 of
+    // `public:secret`); otherwise build it from the standard public/secret key pair
+    // (the keys that actually live in the `ci` environment).
+    let token = env_first(&["LANGFUSE_API_KEY"]).or_else(|| {
+        match (
+            env_first(&["LANGFUSE_PUBLIC_KEY"]),
+            env_first(&["LANGFUSE_SECRET_KEY"]),
+        ) {
+            (Some(pk), Some(sk)) => Some(BASE64.encode(format!("{pk}:{sk}"))),
+            _ => None,
+        }
+    });
 
     let endpoint = format!("{}/api/public/otel/v1/traces", base.trim_end_matches('/'));
     let mut headers = HashMap::new();
@@ -366,9 +386,50 @@ fn is_doc_file(path: &str) -> bool {
 // Review orchestration
 // ---------------------------------------------------------------------------
 
+/// Canonical PR web URL (honours `GITHUB_SERVER_URL` for GHE), used as the
+/// `langfuse.trace.metadata.pr_url` link back from a trace to the pull request.
+fn pr_html_url(repo: &str, pr: u64) -> String {
+    let server = env_first(&["GITHUB_SERVER_URL"]).unwrap_or_else(|| "https://github.com".into());
+    format!("{}/{}/pull/{}", server.trim_end_matches('/'), repo, pr)
+}
+
+/// Record the review `mode` both as a plain span field (readable CI logs) and as
+/// filterable Langfuse trace metadata.
+fn record_mode(span: &tracing::Span, mode: &str) {
+    span.record("mode", mode);
+    span.record("langfuse.trace.metadata.mode", mode);
+}
+
+/// Build the `{host}/project/{id}/traces/{trace_id}` deep-link for the current span,
+/// so the posted review comment can link back to its Langfuse trace. `None` unless
+/// `LANGFUSE_PROJECT_ID` and a Langfuse base URL are both set and tracing is active.
+fn langfuse_trace_url(span: &tracing::Span) -> Option<String> {
+    let base = env_first(&["LANGFUSE_HOST", "LANGFUSE_BASE_URL", "LANGFUSE_URL"])?;
+    let project = env_first(&["LANGFUSE_PROJECT_ID"])?;
+    let ctx = span.context();
+    let sc = ctx.span().span_context().clone();
+    if !sc.is_valid() {
+        return None;
+    }
+    Some(format!(
+        "{}/project/{}/traces/{}",
+        base.trim_end_matches('/'),
+        project,
+        sc.trace_id()
+    ))
+}
+
 async fn run_review() -> Result<()> {
     let started = std::time::Instant::now();
     let cfg = Config::from_env_and_args()?;
+    // Link the Langfuse trace back to the PR (deterministic URL) and, once posted,
+    // to the exact review comment. `langfuse.trace.*` / `langfuse.session.*` are the
+    // attribute keys Langfuse maps off OTLP spans (tracing-opentelemetry exports span
+    // field names verbatim); re-reviews of the same PR share one session.
+    let pr_url = pr_html_url(&cfg.repo, cfg.pr);
+    let session_id = format!("{}#{}", cfg.repo, cfg.pr);
+    let trace_name = format!("pr-review {}#{}", cfg.repo, cfg.pr);
+    let trace_tags = serde_json::to_string(&["pr-review", cfg.model.as_str()]).unwrap_or_default();
     let span = info_span!(
         "pr_review",
         repo = %cfg.repo,
@@ -380,6 +441,19 @@ async fn run_review() -> Result<()> {
         thinking_tokens = field::Empty,
         cached_tokens = field::Empty,
         findings = field::Empty,
+        // Langfuse trace identity + filterable metadata (+ links to the PR / comment).
+        "langfuse.trace.name" = %trace_name,
+        "langfuse.session.id" = %session_id,
+        "langfuse.trace.tags" = %trace_tags,
+        "langfuse.trace.metadata.repo" = %cfg.repo,
+        "langfuse.trace.metadata.pr" = cfg.pr,
+        "langfuse.trace.metadata.model" = %cfg.model,
+        "langfuse.trace.metadata.pr_url" = %pr_url,
+        "langfuse.trace.metadata.mode" = field::Empty,
+        "langfuse.trace.metadata.total_tokens" = field::Empty,
+        "langfuse.trace.metadata.cached_tokens" = field::Empty,
+        "langfuse.trace.metadata.findings" = field::Empty,
+        "langfuse.trace.metadata.comment_url" = field::Empty,
     );
     async move {
         let meta = fetch_pr_meta(&cfg)?;
@@ -437,7 +511,7 @@ async fn run_review() -> Result<()> {
                 // opt-in until validated live — its runtime behaviour (multi-agent
                 // context propagation) can't be exercised in CI without a model key —
                 // and it falls back to the proven map-reduce if it errors.
-                span.record("mode", "parallel-agent");
+                record_mode(&span, "parallel-agent");
                 info!(changed, threshold = cfg.mapreduce_lines, "large PR — parallel-agent pipeline");
                 match parallel_agent_review(
                     &cfg, &api_key, &meta, &diff, &addenda, crabcc.clone(), &mut usage,
@@ -447,7 +521,7 @@ async fn run_review() -> Result<()> {
                     Ok(r) => r,
                     Err(e) => {
                         warn!(error = %e, "parallel-agent path failed — falling back to map-reduce");
-                        span.record("mode", "map-reduce-fallback");
+                        record_mode(&span, "map-reduce-fallback");
                         let med = build_runner_with(
                             &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
                             system_prompt(cfg.max_findings, cfg.crabcc_budget, false),
@@ -457,7 +531,7 @@ async fn run_review() -> Result<()> {
                     }
                 }
             } else {
-                span.record("mode", "map-reduce");
+                record_mode(&span, "map-reduce");
                 info!(changed, threshold = cfg.mapreduce_lines, "large PR — map-reduce");
                 let med = build_runner_with(
                     &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
@@ -466,7 +540,7 @@ async fn run_review() -> Result<()> {
                 map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage).await?
             }
         } else {
-            span.record("mode", if docs_only { "docs-single-pass" } else { "single-pass" });
+            record_mode(&span, if docs_only { "docs-single-pass" } else { "single-pass" });
             let body = rtk_condensed(&cfg)
                 .map(|c| filter_unified(&c))
                 .filter(|c| !c.trim().is_empty())
@@ -491,12 +565,20 @@ async fn run_review() -> Result<()> {
         span.record("thinking_tokens", usage.thinking);
         span.record("cached_tokens", usage.cached);
         span.record("findings", n_findings);
+        // Mirror the run totals into filterable Langfuse trace metadata.
+        span.record("langfuse.trace.metadata.total_tokens", usage.total);
+        span.record("langfuse.trace.metadata.cached_tokens", usage.cached);
+        span.record("langfuse.trace.metadata.findings", n_findings);
         info!(total = usage.total, cached = usage.cached, findings = n_findings, blocking = n_blocking, "review ready");
 
         let cost = estimate_cost_usd(usage.total, cfg.usd_per_mtok);
+        // GitHub→Langfuse: link the comment to its own trace when a project id is set.
+        let trace_link = langfuse_trace_url(&span)
+            .map(|u| format!(" · [trace]({u})"))
+            .unwrap_or_default();
         let body = format!(
-            "{COMMENT_MARKER}\n{review}\n\n---\n<sub>🦴 vaked-ci-reviewer · {} · {} findings · {} tok ({} cached) · pr-review runtime: {:.1}s · cost ~${:.4} · OpenRouter · automated, advisory</sub>",
-            cfg.model, n_findings, usage.total, usage.cached, started.elapsed().as_secs_f64(), cost
+            "{COMMENT_MARKER}\n{review}\n\n---\n<sub>🦴 vaked-ci-reviewer · {} · {} findings · {} tok ({} cached) · pr-review runtime: {:.1}s · cost ~${:.4} · OpenRouter{} · automated, advisory</sub>",
+            cfg.model, n_findings, usage.total, usage.cached, started.elapsed().as_secs_f64(), cost, trace_link
         );
 
         if cfg.dry_run {
@@ -505,7 +587,10 @@ async fn run_review() -> Result<()> {
                 print_dry_run_suggestions(&findings, &right_lines);
             }
         } else {
-            post_review(&cfg, &body)?;
+            // Langfuse→GitHub: record the posted comment's URL on the trace.
+            if let Some(url) = post_review(&cfg, &body)? {
+                span.record("langfuse.trace.metadata.comment_url", url.as_str());
+            }
             let desc = format!("{n_findings} findings ({n_blocking} blocking) · {} tok", usage.total);
             set_advisory_status(&cfg, &desc);
             info!("posted advisory review + status");
@@ -601,7 +686,7 @@ fn build_runner_with(
     instruction: String,
 ) -> Result<ReviewRunner> {
     let model = build_or_model(cfg, api_key)?;
-    let gen_cfg = gen_config(effort, max_out, structured)?;
+    let gen_cfg = gen_config(&cfg.model, effort, max_out, structured)?;
 
     // Bounded retries so a flaky tool call retries instead of failing the turn.
     let retry = || RetryBudget {
@@ -675,7 +760,12 @@ fn build_or_model(cfg: &Config, api_key: &str) -> Result<OpenRouterClient> {
 /// Generation config: low-temp/fixed-seed + reasoning effort, a stable prompt-cache
 /// key (OpenRouter caches the static system-prompt prefix), provider fallbacks, and
 /// the structured-output schema when `structured`.
-fn gen_config(effort: &str, max_out: i32, structured: bool) -> Result<GenerateContentConfig> {
+fn gen_config(
+    model: &str,
+    effort: &str,
+    max_out: i32,
+    structured: bool,
+) -> Result<GenerateContentConfig> {
     let mut gen_cfg = GenerateContentConfig {
         temperature: Some(0.1),
         top_p: Some(0.9),
@@ -686,7 +776,23 @@ fn gen_config(effort: &str, max_out: i32, structured: bool) -> Result<GenerateCo
     if structured {
         gen_cfg.response_schema = Some(findings_schema());
     }
-    OpenRouterRequestOptions::default()
+    // Provider pinning for cache hits: OpenRouter's prefix cache is per-provider, so
+    // letting it route the map-reduce per-file passes to different DeepSeek hosts cold-
+    // starts the cache each time. Pin the first-party DeepSeek provider first (keeping
+    // `allow_fallbacks` for resilience) so the byte-stable system-prompt prefix stays
+    // warm across passes. Only pin for deepseek/* models; override via
+    // PR_REVIEW_PROVIDER_ORDER (comma-separated provider slugs).
+    let order = env_first(&["PR_REVIEW_PROVIDER_ORDER"])
+        .map(|s| {
+            s.split(',')
+                .map(|p| p.trim().to_string())
+                .filter(|p| !p.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .or_else(|| model.starts_with("deepseek/").then(|| vec!["DeepSeek".to_string()]))
+        .filter(|v| !v.is_empty());
+
+    let mut opts = OpenRouterRequestOptions::default()
         .with_reasoning(OpenRouterReasoningConfig {
             effort: Some(effort.to_string()),
             enabled: Some(true),
@@ -695,9 +801,14 @@ fn gen_config(effort: &str, max_out: i32, structured: bool) -> Result<GenerateCo
         .with_prompt_cache_key(CACHE_KEY)
         .with_provider_preferences(OpenRouterProviderPreferences {
             allow_fallbacks: Some(true),
+            order,
             ..Default::default()
-        })
-        .insert_into_config(&mut gen_cfg)
+        });
+    // Usage accounting: without `usage.include`, OpenRouter omits prompt_tokens_details,
+    // so cached-token counts (DeepSeek prefix-cache reads) never surface in the trace.
+    opts.extra
+        .insert("usage".to_string(), json!({ "include": true }));
+    opts.insert_into_config(&mut gen_cfg)
         .map_err(|e| anyhow!("openrouter options: {e}"))?;
     Ok(gen_cfg)
 }
@@ -735,7 +846,7 @@ fn build_pipeline_agent(
     output_guardrail: bool,
     isolate_history: bool,
 ) -> Result<LlmAgent> {
-    let gen_cfg = gen_config(effort, max_out, structured)?;
+    let gen_cfg = gen_config(&cfg.model, effort, max_out, structured)?;
     let retry = || RetryBudget {
         max_retries: 2,
         delay: Duration::from_millis(250),
@@ -1733,13 +1844,15 @@ fn estimate_cost_usd(total_tokens: i64, usd_per_mtok: f64) -> f64 {
     (total_tokens.max(0) as f64 / 1_000_000.0) * usd_per_mtok
 }
 
-fn post_review(cfg: &Config, body: &str) -> Result<()> {
+/// Posts the review comment, returning the created comment's web URL (`gh pr comment`
+/// prints it to stdout) so the caller can link it from the Langfuse trace.
+fn post_review(cfg: &Config, body: &str) -> Result<Option<String>> {
     delete_prior_comments(cfg);
     let mut path = std::env::temp_dir();
     path.push(format!("vaked-pr-review-{}.md", cfg.pr));
     std::fs::write(&path, body).context("writing review body")?;
     let path_str = path.to_string_lossy().into_owned();
-    gh(&[
+    let out = gh(&[
         "pr",
         "comment",
         &cfg.pr.to_string(),
@@ -1749,7 +1862,14 @@ fn post_review(cfg: &Config, body: &str) -> Result<()> {
         &path_str,
     ])?;
     let _ = std::fs::remove_file(&path);
-    Ok(())
+    // gh prints the new comment URL (last non-empty line) on success.
+    let url = out
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|l| l.starts_with("http"))
+        .map(String::from);
+    Ok(url)
 }
 
 fn delete_prior_comments(cfg: &Config) {

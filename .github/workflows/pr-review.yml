@@ -1,7 +1,7 @@
 name: pr-review
 
 # Advisory PR reviewer: an adk-rust agent (vaked-agents/ci/pr-review) that runs a
-# non-frontier OpenRouter model (GLM-4.6) over the diff, with the repo's own crabcc
+# non-frontier OpenRouter model (DeepSeek V4 Flash) over the diff, with the repo's own crabcc
 # symbol index wired in over MCP, RTK condensing the diff to save tokens, and
 # tracing every run to self-hosted Langfuse. It posts ONE COMMENT review and never
 # fails the check (fork PRs get no secrets, which just disables the network calls).
@@ -121,8 +121,14 @@ jobs:
       - name: Run PR reviewer
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          LANGFUSE_URL: ${{ secrets.LANGFUSE_URL }}
-          LANGFUSE_API_KEY: ${{ secrets.LANGFUSE_API_KEY }}
+          # Self-hosted Langfuse. Agent prefers LANGFUSE_HOST and builds the OTLP Basic
+          # token from the public/secret key pair (legacy LANGFUSE_URL/API_KEY still work).
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_BASE_URL: ${{ secrets.LANGFUSE_BASE_URL }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          LANGFUSE_PROJECT_ID: ${{ secrets.LANGFUSE_PROJECT_ID }} # optional: enables the comment→trace deep-link
+          GITHUB_SERVER_URL: ${{ github.server_url }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
