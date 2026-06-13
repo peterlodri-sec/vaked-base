@@ -301,6 +301,9 @@ def build_critique_messages(
     ]
 
 
+_TITLE_MD_RE = re.compile(r"[*_`]+")     # markdown emphasis/code markers in a title line
+
+
 def format_entry(
     n: int,
     date: str,
@@ -316,10 +319,14 @@ def format_entry(
     subject name (a repo in repo mode, a track name in track mode);
     `subject_label` is the bold label for it ("Repo" or "Track")."""
     first = next(
-        (ln.strip(" #*-") for ln in body.splitlines() if ln.strip()),
+        (ln for ln in body.splitlines() if ln.strip()),
         "untitled",
     )
-    title = first[:80]
+    # Strip markdown emphasis/code markers anywhere in the line (not just the
+    # edges) so a bold label like "**Decision / question:**" doesn't leave a
+    # stray "**" mid-title, then trim leading heading/list punctuation.
+    first = _TITLE_MD_RE.sub("", first).strip(" #*-")
+    title = " ".join(first.split())[:80] or "untitled"
     return (
         f"## {date} — Decision #{n}: {title}\n"
         f"- **{subject_label}:** {repo} · **Models:** stage1 {s1} · stage2 {s2}\n"
