@@ -326,7 +326,14 @@ A decoder reading the header from `frame-bytes` MUST:
 2. Read 16-byte `corr` UUID.
 3. If next tag is @2, read `stream` (u64); otherwise stream is absent (None).
 4. If next tag is @3, read `seq` (u64 varint); @3 is only valid if @2 is present. If @2 is absent and @3 appears, it is a framing violation.
-5. If next tag is @4, read `end` (bool: 0x00 or 0x01); @4 is valid only if: (a) both @2 and @3 are present, or (b) @2 is absent (implying no @3). If @4 appears in any other position (e.g., after @2 but before @3), it is a framing violation.
+5. If next tag is @4, read `end` (bool: 0x00 or 0x01); @4 is valid ONLY if one of:
+   - (a) Both @2 AND @3 are present (stream and seq both set), OR
+   - (b) @2 is absent (implying @3 is also absent — no streaming).
+   
+   Invalid @4 cases (framing violations):
+   - @4 appears after @2 but before @3 (stream set, seq not set, end set)
+   - @2 is present but @3 is absent AND @4 is present (contradicts single-shot invariant)
+   - Multiple @4 tags in same frame
 6. Any tag > @4 begins the frame body (@1+ tags), not the header. Decoder has finished the header.
 7. Default values: if @2, @3, or @4 are absent, use stream=None, seq=None, end=false respectively (per RFC 0002 §6.2 default omission).
 
