@@ -8,8 +8,15 @@ the optimization changes.
 - **Base reference:** https://github.com/peterlodri-sec/vaked-base/pull/103#issuecomment-4699219497
 - **Follow-ups:** #116 (implement `ralphloop`), #117 (grow vakedc-zig to parity)
 - **Net effect:** de-soups #103 from ~104,711 to ~5,400 reviewable lines, fixes a
-  blocking parse bug, grounds the research claims in measured data, and starts two
-  new design-first subsystems.
+  blocking parse bug, and grounds the research claims in measured data.
+
+> **Reconciliation with #118.** A parallel PR (#118) shipped a fuller
+> `vakedc-zig` v0.1.0 (full parser + JSON AST + a working ralphloop-cache). Per
+> the owner's decision, the Zig front-end and the `ralphloop` design notes that
+> commits 6–7 started here were **folded into #118 and removed from this PR**
+> (commit 8), so #112 is now the pure optimization + research pass. (While
+> reviewing #118 I also found and fixed a blocking bug there — its binary didn't
+> compile — and added the missing zig-build CI job.)
 
 ## 1. Commit-by-commit
 
@@ -20,8 +27,9 @@ the optimization changes.
 | 3 | `refactor(eval): de-soup` `ca6295a` | B | Untrack the 1k/10k `.vaked` fixtures (−99k lines), `.gitignore` + regen task + smoke guard; repoint docs. |
 | 4 | `docs(research): claims ledger` `361c3e4` | C, A | Add `METHODOLOGY.md`; retract unsupported "120s timeout" / "O(n) linear" / "1900-iteration" claims; fix fabricated citations. |
 | 5 | `round 2: Taskfile + fixes` `ba93a77` | B, C | Replace Makefile with `Taskfile.yml` tasks; fix BENCHMARK.md 10× discrepancy; mop up remaining `>120s` stragglers. |
-| 6 | `design(language): 0017 ralphloop` `c382093` | design | Grammar-first proposal for the `ralphloop` cached dogfooding primitive (+ marked example). Grammar NOT modified. |
-| 7 | `feat(zig): vakedc-zig v0.0.1` `6d57d33` | design | Runnable Zig lexer+parser subset + `setup-zig.sh` + design note. |
+| 6 | `design(language): 0017 ralphloop` `c382093` | design | Grammar-first proposal for the `ralphloop` primitive. **Folded into #118, removed in commit 8.** |
+| 7 | `feat(zig): vakedc-zig v0.0.1` `6d57d33` | design | Runnable Zig lexer+parser subset + `setup-zig.sh`. **Folded into #118, removed in commit 8.** |
+| 8 | `fix(ci)` + `chore: hand off to #118` | — | Relocate the design example out of the conformance glob (CI fix); then remove the zig front-end + ralphloop design (now in #118), leaving #112 as the pure optimization/research pass. |
 
 ## 2. Agent lanes (the fan-out)
 
@@ -66,18 +74,15 @@ placeholders instead); implementing the O(n log n) optimizations now
 | `--workers 1024` output vs old committed file | **byte-identical** (no regression) |
 | `task loadtests-smoke` (regenerate + parse both) | smoke OK, exit 0 |
 | baseline.json cross-check (operator-field, rejected, schema-constraints) | matches measured ~60ms; real data |
-| `bash -n scripts/setup-zig.sh` | syntax OK |
-| `zig build test` (vakedc-zig) | **not run — no Zig in container**; gate in #117 |
+| `python3 tests/spec/run_all.py` (after the commit-8 CI fix) | **11/11 ALL GREEN** |
+| zig front-end build/test | moved to #118 (built there with real Zig 0.13.0: `zig build` + `zig build test` rc=0) |
 
 ## 5. Remaining risks
 
-1. **vakedc-zig is unvalidated-in-container** (no Zig toolchain). The code is
-   conservative and unit-tested by construction, but the compile/test gate is
-   #117. Clearly marked everywhere.
+1. **The zig front-end + `ralphloop` design moved to #118** (commit 8). They are
+   validated there (real Zig build/test green); this PR no longer carries them.
 2. **10k numbers are single-run** (not median); treat as order-of-magnitude.
    `bench.py` numbers are machine-specific (dev container) — see METHODOLOGY §1.
-3. **`ralphloop` is design-only**; the example does not parse under `vakedc` yet
-   (marked in-file). Implementation is #116.
 4. **Stacked PR:** base is #103's branch, so this should merge after/with #103
    (it auto-retargets to `main` when #103 merges).
 
