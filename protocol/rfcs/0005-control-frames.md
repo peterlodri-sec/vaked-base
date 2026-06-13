@@ -247,12 +247,12 @@ provides **at-most-once semantics**:
   absorbed.
 - **Nonce storage:** The supervisor keeps a time-bounded cache of accepted
   nonces with a TTL **shorter than** the checkpoint lease duration (RFC 0004
-  §4.2.2) to prevent replay after lease expiry. **Default TTL: 12 hours** (half
-  of the default 24-hour checkpoint lease), ensuring nonces expire while
-  checkpoints still exist, preventing eviction replay. Configurable per
-  deployment (range: 1 hour to 7 days), but **MUST be less than the configured
-  checkpoint lease duration**. Configuration source: agent-supervisord policy or
-  per-producer config.
+  §4.2.2) to prevent replay after lease expiry. **Default TTL: 18 hours** (75% of
+  the default 24-hour checkpoint lease), ensuring nonces expire while checkpoints
+  still exist, preventing eviction replay. Configurable per deployment (range: 1
+  hour to 7 days), but **MUST satisfy: nonce_cache_ttl < checkpoint_lease_duration**
+  (validated at configuration time, non-conforming deployments MUST be rejected).
+  Configuration source: agent-supervisord policy or per-producer config.
   
   Nonces older than the TTL cache window may be re-accepted if the operator
   retries very late (acceptable trade-off: old evictions are already reflected

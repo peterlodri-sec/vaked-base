@@ -436,12 +436,13 @@ Algorithm: compute_gc_floor(producer_uuid)
   MUST be fenced against new consumer registrations using **epoch-based freezing**
   (the normative approach). Assign a monotonic registration epoch to each consumer
   (increment on each new registration, persisted in producer durable state). During
-  GC floor recomputation:
-  1. Capture current_epoch from producer's epoch counter
-  2. Compute GC floor using only checkpoints with epoch ≤ current_epoch
-  3. Increment producer's epoch counter (blocks new registrations at higher epochs)
-  4. Truncate entries strictly below GC floor
-  5. Release the epoch lock (resume accepting new registrations at higher epochs)
+  GC floor recomputation, the following steps MUST execute as a single atomic
+  transaction (no registrations allowed between recompute and truncate):
+  1. Capture current_epoch from producer's epoch counter.
+  2. Compute GC floor using only checkpoints with epoch ≤ current_epoch.
+  3. Increment producer's epoch counter (blocks new registrations at higher epochs).
+  4. Truncate entries strictly below GC floor.
+  5. Release the epoch lock (resume accepting new registrations at higher epochs).
   
   Epochs are strictly ordered: epoch_N+1 may not be assigned until truncate for
   epoch_N completes. Registration backlog queues at epoch boundary until truncate
@@ -449,7 +450,7 @@ Algorithm: compute_gc_floor(producer_uuid)
   
   **Deadlock prevention:** Although epoch fence is deterministic, failures (disk
   errors, stalled truncation) can deadlock registrations. Implementations MUST
-  add **explicit timeout** (default 5 seconds, range 1s–30s) for epoch release.
+  add **explicit timeout** (default 5 seconds, range 1s–10s) for epoch release.
   If truncate does not complete within timeout:
   - Log [WARN] "epoch fence timeout during truncation"
   - Fall back to lock-based approach (release epoch, acquire read-only lock with backoff)
