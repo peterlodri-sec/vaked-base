@@ -52,9 +52,17 @@
           nativeBuildInputs = [ pkgs.zig ];
           buildPhase = ''
             export HOME=$TMPDIR
-            zig build -Doptimize=ReleaseSafe --prefix $out
+            zig build -Doptimize=ReleaseSafe
           '';
-          dontInstall = true;
+          installPhase = ''
+            mkdir -p $out/bin
+            cp zig-out/bin/vakedc-zig $out/bin/
+          '';
+          doCheck = true;
+          checkPhase = ''
+            export HOME=$TMPDIR
+            zig build test
+          '';
           meta.description = "vakedc-zig — Zig-native Vaked compiler-parser (parse stage, v0.1.0)";
         };
       });
