@@ -101,12 +101,20 @@ jobs:
           restore-keys: crabcc-index-
 
       # crabcc is a private (crabcc-labs) tool — install only with a PAT.
-      - name: Install crabcc (optional)
-        if: ${{ env.CRABCC_INSTALL_TOKEN != '' }}
+      # Binary is cached per version to avoid recompiling on every run.
+      - name: Cache crabcc binary (v6.5.1)
+        id: crabcc-bin-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cargo/bin/crabcc
+          key: crabcc-bin-v6.5.1-${{ runner.os }}
+
+      - name: Install crabcc v6.5.1 (optional)
+        if: ${{ env.CRABCC_INSTALL_TOKEN != '' && steps.crabcc-bin-cache.outputs.cache-hit != 'true' }}
         run: |
           git config --global url."https://x-access-token:${CRABCC_INSTALL_TOKEN}@github.com/".insteadOf "https://github.com/"
           CARGO_NET_GIT_FETCH_WITH_CLI=true \
-            cargo install --git https://github.com/crabcc-labs/crabcc crabcc-cli --force || \
+            cargo install --git https://github.com/crabcc-labs/crabcc --tag v6.5.1 crabcc-cli --force || \
             echo "crabcc install failed — agent will review diff-only"
 
       - name: Run PR reviewer
@@ -138,3 +146,11 @@ jobs:
             cargo run --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
               --repo "${GITHUB_REPOSITORY}" --pr "${PR_NUMBER}"
           fi
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ pr-review failed for PR #${{ github.event.pull_request.number || github.event.inputs.pr }} on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

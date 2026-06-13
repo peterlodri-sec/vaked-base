@@ -17,22 +17,35 @@ jobs:
     environment: ci   # MASTODON_ACCESS_TOKEN lives in the `ci` GitHub Environment
     steps:
       - uses: actions/checkout@v6
-      - name: Post toot
+
+      - name: Read and validate toot
+        id: toot
         env:
           TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
-          INSTANCE: https://social.crabcc.app
-          # Override by setting repo/env var MASTODON_VISIBILITY (public|unlisted|private|direct).
-          VIS: ${{ vars.MASTODON_VISIBILITY || 'unlisted' }}
         run: |
           [ -n "$TOKEN" ] || { echo "::error::MASTODON_ACCESS_TOKEN secret unset"; exit 1; }
           f=.github/social/toot.txt
-          [ -s "$f" ] || { echo "::notice::toot.txt empty — nothing to post"; exit 0; }
-          resp=$(curl -sS -w '\n%{http_code}' -X POST "$INSTANCE/api/v1/statuses" \
-            -H "Authorization: Bearer $TOKEN" \
-            --data-urlencode "status@$f" \
-            --data-urlencode "visibility=$VIS")
-          code=$(printf '%s' "$resp" | tail -n1)
-          body=$(printf '%s' "$resp" | sed '$d')
-          echo "HTTP $code"
-          [ "$code" = "200" ] || { echo "::error::post failed: $(printf '%s' "$body" | head -c 300)"; exit 1; }
-          printf '%s' "$body" | jq -r '"posted: " + (.url // .uri // "ok")'
+          [ -s "$f" ] || { echo "::notice::toot.txt empty — nothing to post"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          {
+            echo "content<<TOOT_EOF"
+            cat "$f"
+            echo "TOOT_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Post toot
+        if: steps.toot.outputs.skip != 'true'
+        uses: cbrgm/mastodon-github-action@v2.2.1
+        with:
+          access-token: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          url: https://social.crabcc.app
+          message: ${{ steps.toot.outputs.content }}
+          visibility: ${{ vars.MASTODON_VISIBILITY || 'unlisted' }}
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ social-post (Mastodon) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

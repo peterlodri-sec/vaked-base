@@ -3,6 +3,10 @@ name: spec-tests
 # Runs the executable spec-test harness (tests/spec/) that builds recognizers from
 # the on-disk EBNF grammars and checks every example derives, plus the lowering
 # fixtures and doc links. Primary trigger: every version/tag bump (push of a v* tag).
+#
+# The two jobs run in parallel for faster feedback:
+#   python-spec  — the Python stdlib harness (grammar/examples/lowering/doc-links)
+#   nix-parse    — parse-only check of flake.nix fixtures (no build, no network)
 on:
   push:
     tags:
@@ -13,8 +17,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  spec:
+  python-spec:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -39,6 +44,21 @@ jobs:
           cat spec-out.txt >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ spec-tests (python-spec) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  nix-parse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
       # Parse-only Nix check of the flake fixtures. nix-instantiate --parse never
       # builds or fetches, so the fixtures' placeholder revs are never resolved.
       - name: Install Nix
@@ -48,3 +68,11 @@ jobs:
         run: |
           nix-instantiate --parse flake.nix
           nix-instantiate --parse vaked/examples/lowering/flake.nix
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ spec-tests (nix-parse) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
