@@ -221,6 +221,7 @@ When a producer's history is rewound (RFC 0005 `RewindControl` applied):
 1. **Local write (durable):** The producer's `agent-supervisord` appends `RewindEvent` to
    its local eventd (write-ahead, before effect — RFC 0004 §3.1). This write is
    **durable** and **irrevocable**; the rewind is now part of the canonical history.
+
 2. **NATS publish (conditional):** Only **after** the eventd write completes
    successfully, the supervisor publishes the `RewindEvent` to NATS subject
    `agent.<producer-uuid>.rewind`. The event is the same `RewindEvent` record
