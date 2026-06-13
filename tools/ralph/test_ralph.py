@@ -1175,7 +1175,8 @@ def test_cmd_announce_posts_and_logs_event() -> None:
                   encoding="utf-8") as f:
             f.write("## 2026-06-13 — Decision #1: Split the LPG\nbody\n")
         try:
-            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "RALPH_TOOT_IMAGE": "off"}), \
                  mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
                  mock.patch.object(ralph, "_run", return_value="[]"), \
                  mock.patch.object(ralph, "_post_toot",
@@ -1204,7 +1205,8 @@ def test_cmd_announce_dry_run_does_not_post() -> None:
         orig_dec = ralph.DECISIONS_DIR
         ralph.DECISIONS_DIR = tmpdir
         try:
-            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "RALPH_TOOT_IMAGE": "off"}), \
                  mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
                  mock.patch.object(ralph, "_post_toot") as post:
                 rc = ralph.cmd_announce(args)
@@ -1230,7 +1232,8 @@ def test_cmd_announce_dedup_skips_when_already_announced() -> None:
                 en = make_entry(prev, i, p)
                 f.write(json.dumps(en) + "\n")
                 prev = en["hash"]
-        with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+        with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "RALPH_TOOT_IMAGE": "off"}), \
              mock.patch.object(ralph, "_post_toot") as post:
             rc = ralph.cmd_announce(_announce_args(tmpdir))
         assert rc == 0
@@ -1254,7 +1257,8 @@ def test_cmd_announce_failure_reports_and_opens_issue() -> None:
             gh_calls.append(cmd)
             return "[]" if "list" in cmd else ""   # no existing issue → create
 
-        with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+        with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "RALPH_TOOT_IMAGE": "off"}), \
              mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
              mock.patch.object(ralph, "_post_toot", side_effect=RuntimeError("503")), \
              mock.patch.object(ralph, "_run", side_effect=fake_run):
@@ -1423,7 +1427,8 @@ def test_cmd_announce_retry_older_unannounced() -> None:
         orig = ralph.DECISIONS_DIR
         ralph.DECISIONS_DIR = tmpdir
         try:
-            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "RALPH_TOOT_IMAGE": "off"}), \
                  mock.patch.object(ralph, "_generate_toot", return_value="t #ralph"), \
                  mock.patch.object(ralph, "_run", return_value="[]"), \
                  mock.patch.object(ralph, "_post_toot", return_value={"id": "1"}):
@@ -1460,7 +1465,8 @@ def test_cmd_announce_spoiler_for_sensitive_decision() -> None:
         orig = ralph.DECISIONS_DIR
         ralph.DECISIONS_DIR = tmpdir
         try:
-            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok"}), \
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "RALPH_TOOT_IMAGE": "off"}), \
                  mock.patch.object(ralph, "_generate_toot", return_value="t #ralph"), \
                  mock.patch.object(ralph, "_run", return_value="[]"), \
                  mock.patch.object(ralph, "_post_toot", side_effect=fake_post):
@@ -1689,6 +1695,242 @@ def test_every_track_model_has_price() -> None:
     for t in tracks:
         price = FALLBACK_PRICES.get(t.model)
         assert isinstance(price, Price), f"add a FALLBACK_PRICES entry for {t.model}"
+
+
+# ---------------------------------------------------------------------------
+# Toot image (OpenRouter image gen → Mastodon media)
+# ---------------------------------------------------------------------------
+
+
+def test_toot_image_on_default_and_kill_switch() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    with mock.patch.dict(os.environ, {}, clear=False):
+        os.environ.pop("RALPH_TOOT_IMAGE", None)
+        assert ralph._toot_image_on() is True
+    for off in ("off", "0", "false", "no", "OFF"):
+        with mock.patch.dict(os.environ, {"RALPH_TOOT_IMAGE": off}):
+            assert ralph._toot_image_on() is False
+
+
+def test_first_image_url_extracts_documented_path() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    resp = {"choices": [{"message": {"images": [
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAB"}}]}}]}
+    assert ralph._first_image_url(resp) == "data:image/png;base64,AAAB"
+    assert ralph._first_image_url({"choices": [{"message": {}}]}) is None
+    assert ralph._first_image_url({}) is None
+
+
+def test_decode_data_url_roundtrip_and_reject() -> None:
+    import base64
+    import importlib
+    ralph = importlib.import_module("ralph")
+    raw = b"\x89PNG\r\n\x1a\nhello-bytes"
+    url = "data:image/png;base64," + base64.b64encode(raw).decode()
+    decoded = ralph._decode_data_url(url)
+    assert decoded == (raw, "image/png")
+    assert ralph._decode_data_url("https://example.com/x.png") is None
+    assert ralph._decode_data_url("data:image/png;base64,") is None
+
+
+def test_multipart_body_shape() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    body, ctype = ralph._multipart({"description": "alt text"}, "file",
+                                   "ralph.png", "image/png", b"\x00\x01\x02")
+    assert ctype.startswith("multipart/form-data; boundary=----ralph")
+    boundary = ctype.split("boundary=", 1)[1]
+    assert boundary.encode() in body
+    assert b'name="description"' in body and b"alt text" in body
+    assert b'name="file"; filename="ralph.png"' in body
+    assert b"Content-Type: image/png" in body
+    assert b"\x00\x01\x02" in body
+
+
+def test_generate_image_none_without_key() -> None:
+    import importlib
+    ralph = importlib.import_module("ralph")
+    assert ralph._generate_image("title", "vendor/img", "", None) is None
+
+
+def test_generate_image_decodes_model_output() -> None:
+    import base64
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    raw = b"PNGDATA"
+    url = "data:image/png;base64," + base64.b64encode(raw).decode()
+    resp = {"choices": [{"message": {"images": [
+        {"type": "image_url", "image_url": {"url": url}}]}}]}
+    with mock.patch.object(ralph, "openrouter_call", return_value=resp) as call:
+        out = ralph._generate_image("Adopt Zoekt", "vendor/img", "key", None)
+    assert out == (raw, "image/png")
+    # image generation must request the image modality
+    assert call.call_args.kwargs.get("modalities") == ["image", "text"]
+
+
+def test_generate_image_swallows_errors() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    with mock.patch.object(ralph, "openrouter_call", side_effect=RuntimeError("503")):
+        assert ralph._generate_image("t", "vendor/img", "key", None) is None
+
+
+def test_upload_media_returns_id_sync() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+
+    class _Resp:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b'{"id":"42","url":"https://m/media/42"}'
+
+    captured = {}
+
+    def fake(req, timeout=None):
+        captured["url"] = req.full_url
+        captured["ctype"] = req.headers.get("Content-type")
+        return _Resp()
+
+    with mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake):
+        mid = ralph._upload_media("https://m", "tok", b"\x00img", "image/png", "alt")
+    assert mid == "42"
+    assert captured["url"].endswith("/api/v2/media")
+    assert captured["ctype"].startswith("multipart/form-data")
+
+
+def test_upload_media_polls_when_processing() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+
+    class _Post:
+        status = 202
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b'{"id":"7"}'
+
+    class _Ready:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b'{"id":"7","url":"https://m/7"}'
+
+    seq = [_Post(), _Ready()]
+    state = {"i": 0}
+
+    def fake(req, timeout=None):
+        v = seq[state["i"]]
+        state["i"] += 1
+        return v
+
+    with mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake), \
+         mock.patch.object(ralph.time, "sleep"):
+        mid = ralph._upload_media("https://m", "tok", b"img", "image/png", "alt")
+    assert mid == "7" and state["i"] == 2
+
+
+def test_upload_media_none_on_error() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    with mock.patch.object(ralph.urllib.request, "urlopen",
+                           side_effect=RuntimeError("boom")):
+        assert ralph._upload_media("https://m", "tok", b"img", "image/png", "a") is None
+
+
+def test_post_toot_includes_media_ids() -> None:
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+    captured = {}
+
+    class _Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b'{"id":"1"}'
+
+    def fake(req, timeout=None):
+        captured["body"] = req.data.decode()
+        return _Resp()
+
+    with mock.patch.object(ralph.urllib.request, "urlopen", side_effect=fake):
+        ralph._post_toot("https://m", "tok", "hi", "unlisted", "x",
+                         media_ids=["11", "22"])
+    assert "media_ids%5B%5D=11" in captured["body"]   # media_ids[]=11 url-encoded
+    assert "media_ids%5B%5D=22" in captured["body"]
+
+
+def test_cmd_announce_attaches_generated_image() -> None:
+    """End-to-end: a generated image is uploaded and its id is passed to the post."""
+    import importlib
+    import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        e = make_entry(GENESIS_HASH, 0, {"event": "decide", "track": "graph-concept",
+                                         "iteration": 1, "cost": 0.01, "total_cost": 0.01})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        with open(os.path.join(tmpdir, "graph-concept.ralph-log.md"), "w",
+                  encoding="utf-8") as f:
+            f.write("## 2026-06-13 — Decision #1: Split the LPG\nbody\n")
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        captured = {}
+        try:
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "OPENROUTER_API_KEY": "key"}), \
+                 mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
+                 mock.patch.object(ralph, "_run", return_value="[]"), \
+                 mock.patch.object(ralph, "_generate_image",
+                                   return_value=(b"img", "image/png")), \
+                 mock.patch.object(ralph, "_upload_media", return_value="55"), \
+                 mock.patch.object(ralph, "_post_toot",
+                                   side_effect=lambda *a, **k: captured.update(k) or {"id": "9"}):
+                rc = ralph.cmd_announce(_announce_args(tmpdir))
+        finally:
+            ralph.DECISIONS_DIR = orig
+        assert rc == 0
+        assert captured.get("media_ids") == ["55"]
+
+
+def test_cmd_announce_text_only_when_image_fails() -> None:
+    """If image generation yields nothing, the toot still posts (no media_ids)."""
+    import importlib
+    import unittest.mock as mock
+    from ralphcore import make_entry, GENESIS_HASH
+    ralph = importlib.import_module("ralph")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        e = make_entry(GENESIS_HASH, 0, {"event": "decide", "track": "graph-concept",
+                                         "iteration": 1, "cost": 0.01, "total_cost": 0.01})
+        with open(os.path.join(tmpdir, "events.jsonl"), "w", encoding="utf-8") as f:
+            f.write(json.dumps(e) + "\n")
+        with open(os.path.join(tmpdir, "graph-concept.ralph-log.md"), "w",
+                  encoding="utf-8") as f:
+            f.write("## 2026-06-13 — Decision #1: Split the LPG\nbody\n")
+        orig = ralph.DECISIONS_DIR
+        ralph.DECISIONS_DIR = tmpdir
+        captured = {}
+        try:
+            with mock.patch.dict(os.environ, {"MASTODON_ACCESS_TOKEN": "tok",
+                                              "OPENROUTER_API_KEY": "key"}), \
+                 mock.patch.object(ralph, "_generate_toot", return_value="toot #ralph"), \
+                 mock.patch.object(ralph, "_run", return_value="[]"), \
+                 mock.patch.object(ralph, "_generate_image", return_value=None), \
+                 mock.patch.object(ralph, "_post_toot",
+                                   side_effect=lambda *a, **k: captured.update(k) or {"id": "9"}):
+                rc = ralph.cmd_announce(_announce_args(tmpdir))
+        finally:
+            ralph.DECISIONS_DIR = orig
+        assert rc == 0
+        assert captured.get("media_ids") in (None, [])
 
 
 # ---------------------------------------------------------------------------
