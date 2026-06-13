@@ -1,0 +1,58 @@
+# VAKED_AGENTS — the Vaked agent fleet
+
+Index of the automated agents that run *on* this repo. Two archetypes:
+
+- **Python cron loop** (`tools/<name>/`, stdlib-first) — scheduled, append-only
+  ledgers, self-pacing. Prototype: **ralph**.
+- **adk-rust event agent** (`vaked-agents/ci/<name>/`) — PR/comment/webhook
+  triggered, MCP tools, guardrails, prebuilt rolling release. Prototype:
+  **pr-review**.
+
+Shared conventions: all credentials live in the **`ci` GitHub Environment**
+(`environment: ci`); agents **guard on secrets** and no-op cleanly when unset; they
+are **advisory / never block** a merge; failures route to **Telegram**; LLM-driven
+runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE.md`).
+**CI details:** [`docs/agents/ci.md`](docs/agents/ci.md). **Fleet backlog:**
+[`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md).
+
+## Active agents
+
+| Agent | Kind | Trigger | Lives in | Model | Does |
+|-------|------|---------|----------|-------|------|
+| **ralph** | Python cron loop | cron 3h + 23:00 UTC, dispatch | `tools/ralph/` ([README](tools/ralph/README.md)) | per-track ([`tools/ralph/tracks.json`](tools/ralph/tracks.json)) | Surfaces the most important open decision per track into a hash-chained, human-ratified ledger; announces + daily recap to Mastodon. |
+| **pr-review** | adk-rust event | `pull_request` | `vaked-agents/ci/pr-review/` ([README](vaked-agents/ci/pr-review/README.md)) | `z-ai/glm-4.6` | Advisory diff review: 7-hat council, crabcc/MCP + RTK, structured findings, inline ```suggestion``` autofixes, cost + runtime footer; never fails the check. |
+| **@vaked-ci** | adk-rust event (same binary, `--respond`) | `issue_comment` mentioning `@vaked-ci` | `vaked-agents/ci/pr-review/` | `z-ai/glm-4.6` | Replies to maintainer comments: answer a question about the diff, or `review`/`re-review`. Gated to non-bot OWNER/MEMBER/COLLABORATOR. |
+| **doc-keeper** | Python checker | doc/protocol pushes, PRs, weekly cron | `tools/dockeeper/` ([README](tools/dockeeper/README.md)) | — (deterministic) | Gates doc/spec/RFC drift: RFC cross-refs resolve, backticked repo-path refs resolve, stub-README freshness. |
+
+Workflows: [`ralph-tracks.yml`](.github/workflows/ralph-tracks.yml) ·
+[`pr-review.yml`](.github/workflows/pr-review.yml) ·
+[`pr-review-build.yml`](.github/workflows/pr-review-build.yml) ·
+[`pr-review-audit.yml`](.github/workflows/pr-review-audit.yml) ·
+[`vaked-ci-respond.yml`](.github/workflows/vaked-ci-respond.yml) ·
+[`docs-keeper.yml`](.github/workflows/docs-keeper.yml) ·
+[`social-post.yml`](.github/workflows/social-post.yml)
+
+## Proposed agents (roadmap)
+
+Higher-leverage first; each graduates to a dated `docs/superpowers/specs/` design
++ a `plans/` checklist before code (see `vaked-agents/BACKLOG.md`).
+
+| Agent | Kind | Purpose | Effort |
+|-------|------|---------|--------|
+| **evalsmith** | Python cron + adk-eval | Mine recent `main` diffs per language, run pr-review, curate `*.diff`/`*.expect` + baselines → PR. Auto-grows the reviewer's regression suite. | L |
+| **ledger-steward** | Python cron | ralph's complement: track decided items vs issues (open/closed/deferred/unratified), nudge ratification, weekly state-of-decisions digest. | M |
+| **nixwarden** | CI + cron | `nix flake check` + build `nixosConfigurations.vakedos` toplevel; LLM summarizes breakage + likely fix → issue/PR. | S→L |
+| **daemonsmith** | event | On a new `docs/superpowers/specs/*daemon*` design, scaffold `daemons/<name>/` (stub + plan + Zig config schema from the lowering spec) → PR. | M |
+| **release-herald** | event (tag/release) | Summarize merged PRs + ratified decisions into release notes / CHANGELOG + a Carcin toot. | M |
+| **triage-bot** | event (`issues`) | Auto-label/triage new issues — classify the track, link related decisions/RFCs. | S |
+| **security-sentinel** | cron | Extend supply-chain hygiene beyond Rust (`cargo-deny`/`cargo-audit`): `pip-audit` for Python tooling; eBPF policy review when policy manifests land. | M |
+| **lowering-completeness** | CI check | ralph-decided #1: every grammar `kind` has an emitter / is documented meta / explicitly deferred — fail CI on drift. | S |
+| **memoryd-miner** | Python/Rust | Feed the runtime `memoryd`: mine sources into capability-bound, recallable memory (BACKLOG item 6 / #24). | L |
+| **CTO copilot** | adk-rust realtime | Personal voice/avatar agent: watches CI, researches, brainstorms (BACKLOG item 9 ⭐). Own spec + plan first. | XL |
+
+## Adding an agent
+1. Pick the archetype; scaffold under `tools/<name>/` or `vaked-agents/ci/<name>/`.
+2. Add its workflow with `environment: ci`, a secrets-guard no-op, a Telegram
+   failure-notify, and a `concurrency` group. See [`docs/agents/ci.md`](docs/agents/ci.md).
+3. Keep it advisory (exit 0); trace to Langfuse if it calls a model.
+4. Update this index + `vaked-agents/BACKLOG.md`.
