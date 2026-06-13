@@ -27,6 +27,8 @@ Vaked source → typed semantic graph → generated artifacts
 | `docs/context/` | **context** | `PROJECT_CONTEXT.md` — the canonical overview |
 | `prompts/` | **context** | `dedicated-language-session.md` — kickoff prompt for the language-only session |
 | `daemons/` | **runtime** (stub) | Roster of the OTP + Zig runtime daemons; per-daemon dirs land later |
+| `eventd/` | **runtime** | Python reference impl of the append-only, hash-chained event log (the audit spine) |
+| `agent_guardd/` | **runtime** | Python reference impl of `agent-guardd` — the `network`/`ebpf` membrane. Closes the first **end-to-end vertical slice**; see [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md) |
 | `docs/runtime/` | **runtime** (stub) | Runtime architecture + daemon responsibilities |
 | `protocol/` | **protocol** (stub) | HCP / Litany wire protocol — `rfcs/`, daemon + tool roster |
 | `docs/protocol/` | **protocol** (stub) | HCP / Litany overview |
@@ -69,7 +71,9 @@ Verification dashboard: `python3 tools/specdash/build.py --serve`
 
 Current state at a glance — what's real, in flight, and ahead — as a graph: [`docs/context/TIMELINE.md`](docs/context/TIMELINE.md).
 
-This is a **scaffold**. The language track (`vaked/`, `docs/language/`) carries real design content. The runtime (`daemons/`) and protocol (`protocol/`) subtrees are **indexed stubs** — each subsystem gets its own design → plan → implementation cycle. Nothing here is implemented yet beyond the dev shell and the language design docs.
+This is a **scaffold**. The language track (`vaked/`, `docs/language/`) carries real design content. The runtime (`daemons/`) and protocol (`protocol/`) subtrees are mostly **indexed stubs** — each subsystem gets its own design → plan → implementation cycle.
+
+One **end-to-end vertical slice** is now closed, though: a `network` egress membrane declared in Vaked ([`vaked/examples/membrane/agent-egress.vaked`](vaked/examples/membrane/agent-egress.vaked)) is **lowered** to a policy (`gen/ebpf.policy.json`, the realized 0012 §7 `ebpf.policy` emitter), **enforced** by the `agent-guardd` reference impl ([`agent_guardd/`](agent_guardd) — which compiles + loads a real `cgroup/skb` eBPF program and enforces deny-by-default egress), **testified** onto the [`eventd`](eventd) hash chain, and **verified** to have held. Run it with `task slice`; details in [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md).
 
 See [`docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md`](docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md) for the scaffold's design record, and [`CLAUDE.md`](CLAUDE.md) for working conventions (including the environment **patch-doctor** runbook).
 

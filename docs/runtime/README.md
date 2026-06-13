@@ -9,7 +9,7 @@ The runtime is the **enforcement and supervision plane** that a Vaked declaratio
 | Daemon | Language | Membrane(s) | Responsibility |
 |--------|----------|-------------|----------------|
 | `agent-supervisord` | Erlang/OTP | process | Control plane: supervision trees, lifecycle, restart strategy, orchestration of the Zig daemons |
-| `agent-guardd` | Zig | ebpf, network | eBPF program loader, policy compilation, audit; the testimony layer |
+| `agent-guardd` | Zig | ebpf, network | eBPF program loader, policy compilation, audit; the testimony layer. **Python reference impl: [`agent_guardd/`](../../agent_guardd) — closes the first end-to-end vertical slice ([writeup](agent-guardd.md))** |
 | `sandboxd` | Zig | process, filesystem | Namespaces, cgroups, mounts, supervised `exec` of agent workloads; isolation-backend axis (native-exec \| oci \| **wasm** — Wasmtime, #50 design) |
 | `mcp-brokerd` | Zig | mcp | Brokered MCP tool calls — policy, budgets, approvals, structured errors |
 | `fs-snapshotd` | Zig | filesystem | Overlays, diffs, write budgets, artifact capture |
@@ -31,4 +31,4 @@ ebpf       → agent-guardd (kernel evidence for network/process/file events) + 
 
 ## Status
 
-Stub. No daemon is implemented. The roster and membrane mapping are the contract that the Vaked compiler targets and that each daemon's eventual spec must satisfy.
+Mostly stub. The roster and membrane mapping are the contract that the Vaked compiler targets and that each daemon's eventual spec must satisfy. Two reference implementations exist at the repo root: [`eventd/`](../../eventd) (the audit spine) and [`agent_guardd/`](../../agent_guardd) (the `network`/`ebpf` membrane), which together close the first **end-to-end vertical slice** — a `network` membrane declared in Vaked, lowered to a policy, enforced, testified onto the hash chain, and verified to have held. See [`agent-guardd.md`](agent-guardd.md).
