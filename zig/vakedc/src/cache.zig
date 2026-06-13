@@ -40,6 +40,7 @@ pub const Cache = struct {
             if (err == error.FileNotFound) return null;
             return err;
         };
+        defer self.alloc.free(index_data);
 
         // Scan lines from END to START (newest first) to find the newest hit.
         // best_ref_owned is an allocated copy so it survives after index_data is freed.
@@ -60,15 +61,13 @@ pub const Cache = struct {
                 const key_val = jsonFieldStr(line, "key") orelse continue;
                 if (!std.mem.eql(u8, key_val, &source_hex)) continue;
                 const ref_val = jsonFieldStr(line, "ref") orelse continue;
-                // dupe while index_data is still valid
-                best_ref_owned = self.alloc.dupe(u8, ref_val) catch {
-                    self.alloc.free(index_data);
-                    return error.OutOfMemory;
-                };
+                // dupe while index_data is still valid (defer above keeps it alive here)
+                best_ref_owned = try self.alloc.dupe(u8, ref_val);
                 break;
             }
         }
-        self.alloc.free(index_data); // safe to free now; best_ref_owned is a copy
+        // Note: index_data is freed by the defer above when this function returns.
+        // best_ref_owned is a separate allocation that is valid after index_data is freed.
 
         if (best_ref_owned == null) return null;
         defer self.alloc.free(best_ref_owned.?);
