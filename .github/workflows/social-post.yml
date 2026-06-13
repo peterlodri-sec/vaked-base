@@ -1,0 +1,35 @@
+name: social-post
+# Posts .github/social/toot.txt to the self-hosted Mastodon (social.crabcc.app)
+# whenever that file changes. Lets agents publish updates by committing toot text
+# (the CI secret never leaves the runner). workflow_dispatch can't fire from a
+# feature branch, so this is push+paths triggered instead.
+on:
+  push:
+    branches: ["**"]
+    paths: [".github/social/toot.txt"]
+permissions:
+  contents: read
+jobs:
+  toot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post toot
+        env:
+          TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          INSTANCE: https://social.crabcc.app
+          # Override by setting repo/env var MASTODON_VISIBILITY (public|unlisted|private|direct).
+          VIS: ${{ vars.MASTODON_VISIBILITY || 'unlisted' }}
+        run: |
+          [ -n "$TOKEN" ] || { echo "::error::MASTODON_ACCESS_TOKEN secret unset"; exit 1; }
+          f=.github/social/toot.txt
+          [ -s "$f" ] || { echo "::notice::toot.txt empty — nothing to post"; exit 0; }
+          resp=$(curl -sS -w '\n%{http_code}' -X POST "$INSTANCE/api/v1/statuses" \
+            -H "Authorization: Bearer $TOKEN" \
+            --data-urlencode "status@$f" \
+            --data-urlencode "visibility=$VIS")
+          code=$(printf '%s' "$resp" | tail -n1)
+          body=$(printf '%s' "$resp" | sed '$d')
+          echo "HTTP $code"
+          [ "$code" = "200" ] || { echo "::error::post failed: $(printf '%s' "$body" | head -c 300)"; exit 1; }
+          printf '%s' "$body" | jq -r '"posted: " + (.url // .uri // "ok")'
