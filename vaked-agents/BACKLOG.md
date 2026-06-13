@@ -16,6 +16,13 @@ implementation. Protocol work lands as RFCs under
 **Legend.** Scope: `reviewer` (extends `ci/pr-review`) · `fleet` (shared infra) ·
 `new-agent` · `protocol`. Effort: S / M / L / XL. ⭐ = user-flagged priority.
 
+**Shipped.** **yardmaster** (`new-agent` · merge-train conductor) — sequences the
+fan-out fleet's *integration*: builds the open-PR dependency DAG (catches stacked
+PRs like #112-on-#103), topo-orders the train, and plans merge / update-branch /
+wait / block-conflict / hold-on-base onto an `eventd` ledger. Advisory dry-run,
+opt-in `train:auto`, never auto-resolves conflicts. See
+[`tools/yardmaster/`](../tools/yardmaster/README.md).
+
 ---
 
 ## A. Reviewer upgrades — extend `ci/pr-review`
