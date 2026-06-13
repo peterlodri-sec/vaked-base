@@ -38,12 +38,12 @@ in
     enable = true;
     efiSupport = false;
     copyKernels = true;
-    # Install to both mirror disks so the box still boots if one disk dies.
-    # Must match the by-id devices in disko.nix.
-    devices = [
-      "/dev/disk/by-id/REPLACE-WITH-DISK-1-ID"
-      "/dev/disk/by-id/REPLACE-WITH-DISK-2-ID"
-    ];
+    # NB: do NOT set `devices` here. disko adds every disk carrying an EF02
+    # BIOS-boot partition (both mirror members — see disko.nix) to
+    # boot.loader.grub.devices automatically, so GRUB is still installed to both
+    # MBRs (the box boots if one disk dies). Setting `devices` again duplicates
+    # each device and trips the grub "duplicated devices in mirroredBoots"
+    # assertion (nix flake check caught exactly this).
   };
 
   # Kernel: stay on the NixOS default (a recent LTS) — it is guaranteed
@@ -169,10 +169,11 @@ in
   };
 
   # BEAM/OTP and many-fiber workloads exhaust the default fd ceiling; raise the
-  # systemd-managed and login limits to match the sysctl above.
-  systemd.extraConfig = ''
-    DefaultLimitNOFILE=1048576
-  '';
+  # systemd-managed and login limits to match the sysctl above. (systemd.extraConfig
+  # was retired on current nixpkgs — the [Manager] section is now systemd.settings.Manager.)
+  systemd.settings.Manager = {
+    DefaultLimitNOFILE = 1048576;
+  };
   security.pam.loginLimits = [
     { domain = "*"; type = "soft"; item = "nofile"; value = "1048576"; }
     { domain = "*"; type = "hard"; item = "nofile"; value = "1048576"; }
