@@ -64,6 +64,7 @@ schema hcp.control {
     stale_epoch      = 3,   # topology_epoch is not the current epoch
     not_paused       = 4,   # step on a non-paused target (no-op)
     invalid_interval = 5,   # interval_ms = 0 (the omitted-field default)
+    invalid_rewind   = 6,   # RewindControl hash does not match producer step
   }
 
   /// Pause scheduling for the target (workers keep state; no ticks run).
@@ -217,15 +218,15 @@ and an empty or non-resolving `target` is refused `unknown_target`.
 
 ![Control Epoch Skew and Resolution](../../docs/assets/diagrams/06_control_epoch_skew.svg)
 
-## 2. Rewind semantics
+### 2.5 Rewind semantics
 
-2. **rewind** composes RFC 0004 machinery and nothing else: the supervisor
-   (a) pauses every worker holding an anchor above `rewind_to_step`,
-   (b) appends the `RewindEvent`, (c) restarts the producer's worker **and
-   every worker paused in (a)** — each restarted worker runs cold-start
-   verification (RFC 0004 §6) and either re-anchors (RUNNING) or parks as
-   `PAUSED(stale_dependency)` with its `StaleDependency` record. No worker
-   is left paused without a specified path forward.
+**rewind** composes RFC 0004 machinery and nothing else: the supervisor
+(a) pauses every worker holding an anchor above `rewind_to_step`,
+(b) appends the `RewindEvent`, (c) restarts the producer's worker **and
+every worker paused in (a)** — each restarted worker runs cold-start
+verification (RFC 0004 §6) and either re-anchors (RUNNING) or parks as
+`PAUSED(stale_dependency)` with its `StaleDependency` record. No worker
+is left paused without a specified path forward.
 
 ## 3. Idempotency & logging
 
@@ -235,9 +236,9 @@ and an empty or non-resolving `target` is refused `unknown_target`.
    the log on supervisor restart (the `control_action` payload carries
    `corr`, §3); its retention is the log's.
 
-## 3. Worked examples for each control verb
+## 4. Worked examples for each control verb
 
-### 3.1 PauseControl example
+### 4.1 PauseControl example
 
 An operator pauses agent "worker-1" during the current topology epoch (N = 5).
 
@@ -275,7 +276,7 @@ Response (same corr <uuid-x>):
     }
 ```
 
-### 3.2 StepControl example
+### 4.2 StepControl example
 
 Operator steps a paused agent once.
 
@@ -306,7 +307,7 @@ Response (same corr <uuid-y>):
     }
 ```
 
-### 3.3 SetIntervalControl example
+### 4.3 SetIntervalControl example
 
 Operator slows a worker to one tick per 5 seconds.
 
@@ -336,7 +337,7 @@ Response (same corr <uuid-z>):
     }
 ```
 
-### 3.4 RewindControl example
+### 4.4 RewindControl example
 
 Operator rewinds a producer to a known step hash after verification.
 
@@ -363,13 +364,13 @@ Response (same corr <uuid-w>):
   if hash does NOT match step 50:
     ControlAck {
       applied: false,
-      reason: invalid_rewind,  # not standard, but example
+      reason: invalid_rewind,
       logged_seq: none,
       detail: "hash mismatch; step 50 has different hash"
     }
 ```
 
-## 4. ControlRefusal reason taxonomy
+## 5. ControlRefusal reason taxonomy
 
 The `ControlRefusal` enum (defined in hcp.control schema) specifies why a control
 frame was refused. Common reasons:
@@ -389,7 +390,7 @@ All refusals result in `applied = false` and no `control_action` logged to event
 The refusal itself is not logged; only the operator's audit trail records that a
 command was denied. This keeps the `eventd` free of failed attempts.
 
-## 5. Epoch synchronization with control requests
+## 6. Epoch synchronization with control requests
 
 Control frames (`PauseControl`, `ResumeControl`, `SetIntervalControl`, `StepControl`,
 `RewindControl`) all carry a `topology_epoch` field. The supervisor validates that
@@ -405,7 +406,7 @@ A caller that receives `stale_epoch` must:
 This design closes the window where a topology change (agent removed/added, edge
 changed) is invisible to the control plane — the epoch acts as a fence.
 
-## 3. Visibility: applied control actions are events
+## 7. Visibility: applied control actions are events
 
 Every **applied** control frame is appended to the runtime's eventd log as a
 `control_action` payload —
@@ -442,7 +443,7 @@ load-bearing), attributing the rewind to its principal.
 - Tamper evidence of recorded actions is inherited from eventd (hash chain;
   boot-time hard verify).
 
-## 6. SetIntervalControl interaction with heartbeat (provisional)
+## 8. SetIntervalControl interaction with heartbeat (provisional)
 
 When a SetIntervalControl request changes an agent's tick interval:
 
@@ -455,7 +456,7 @@ When a SetIntervalControl request changes an agent's tick interval:
 - **Use case:** An operator may slow a worker (`interval_ms = 5000`) to reduce
   CPU churn during GC, without affecting the connection's liveness.
 
-## 7. RewindControl targeting & step identification (provisional)
+## 9. RewindControl targeting & step identification (provisional)
 
 A RewindControl request targets a producer by AgentId (UUID) and specifies a
 rewind point. The rewind point is identified by **both**:
