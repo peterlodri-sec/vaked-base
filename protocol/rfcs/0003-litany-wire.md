@@ -309,7 +309,7 @@ The frame header is a record encoded under `hcpbin` canonicality (§4.2 of
 - `corr`: 16 raw bytes (RFC 4122 UUID in big-endian byte order); not length-prefixed.
 - `stream`: if present, encoded as LEB128 varint.
 - `seq`: if present, encoded as LEB128 varint.
-- `end`: if true (non-default), encoded as `0x01` (single byte, no varint encoding per `hcpbin` bool rule).
+- `end`: bool field; if true (non-default), encoded as single byte `0x01`; if false (default), omitted entirely per RFC 0002 §6.2 default omission rule. No varint encoding; bools are always 0x00 or 0x01 per hcpbin canonicality.
 - Optional fields (`stream`, `seq`, `end`) are **omitted** (not encoded at all) if absent or false.
 
 **Wire layer guarantees (§4.2 of [`0002-hcplang.md`](./0002-hcplang.md)):**
@@ -324,10 +324,11 @@ Because the wire layer prepends the header (never the application), the wire MUS
 A decoder reading the header from `frame-bytes` MUST:
 1. Read and validate `kind` is in range 0–4; out-of-range is a framing violation (§4.5).
 2. Read 16-byte `corr` UUID.
-3. If next tag is @2, read `stream` (u64); otherwise use absent (default None).
-4. If next tag is @3 (only valid after @2), read `seq` (u64); otherwise use absent.
-5. If next tag is @4 (only valid after @2 and @3 or with @2 absent), check for `end` bool; otherwise end=false.
-6. Any tag > @4 begins the frame body (@1+ tags), not the header — the decoder has finished the header.
+3. If next tag is @2, read `stream` (u64 varint); otherwise stream is absent (None).
+4. If next tag is @3, read `seq` (u64 varint); @3 is only valid if @2 is present. If @2 is absent and @3 appears, it is a framing violation.
+5. If next tag is @4, read `end` (bool: 0x00 or 0x01); @4 is valid only if: (a) both @2 and @3 are present, or (b) @2 is absent (implying no @3). If @4 appears in any other position (e.g., after @2 but before @3), it is a framing violation.
+6. Any tag > @4 begins the frame body (@1+ tags), not the header. Decoder has finished the header.
+7. Default values: if @2, @3, or @4 are absent, use stream=None, seq=None, end=false respectively (per RFC 0002 §6.2 default omission).
 
 **Example: single-shot request** (no stream/seq/end fields):
 ```text
