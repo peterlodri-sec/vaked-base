@@ -161,12 +161,6 @@ pub const Lexer = struct {
                     try self.emit(TokenKind.GTE, 2);
                     continue;
                 }
-                if (ch == '=' and next == '?') {
-                    self.advance();
-                    self.advance();
-                    try self.emitToken(TokenKind.QASSIGN, "=?");
-                    continue;
-                }
                 if (ch == '?' and next == '=') {
                     try self.emit(TokenKind.QASSIGN, 2);
                     continue;
@@ -218,7 +212,6 @@ pub const Lexer = struct {
     }
 
     fn lexNewline(self: *Lexer) !void {
-        const start = self.pos;
         if (self.source[self.pos] == '\r' and self.pos + 1 < self.source.len and self.source[self.pos + 1] == '\n') {
             self.pos += 2;
         } else {
@@ -272,10 +265,14 @@ pub const Lexer = struct {
 
     fn lexNumber(self: *Lexer) !void {
         const start = self.pos;
-        const start_col = self.col;
 
-        // Read digits (with optional dot for floats)
+        // Read digits, tracking whether we've seen a dot
+        var has_dot = false;
         while (self.pos < self.source.len and (std.ascii.isDigit(self.source[self.pos]) or self.source[self.pos] == '.')) {
+            if (self.source[self.pos] == '.') {
+                if (has_dot) break; // reject multiple dots
+                has_dot = true;
+            }
             self.pos += 1;
             self.col += 1;
         }
@@ -288,14 +285,14 @@ pub const Lexer = struct {
         }
 
         const value = self.source[start..self.pos];
-        const kind = if (num_end == self.pos) TokenKind.NUMBER else if (isDurationSuffix(value)) TokenKind.DURATION else if (isBytesSuffix(value)) TokenKind.BYTES else TokenKind.ERROR;
+        const suffix = self.source[num_end..self.pos];
+        const kind = if (suffix.len == 0) TokenKind.NUMBER else if (isDurationSuffix(suffix)) TokenKind.DURATION else if (isBytesSuffix(suffix)) TokenKind.BYTES else TokenKind.ERROR;
 
         try self.emitToken(kind, value);
     }
 
     fn lexIdent(self: *Lexer) !void {
         const start = self.pos;
-        const start_col = self.col;
 
         while (self.pos < self.source.len and (std.ascii.isAlphaNumeric(self.source[self.pos]) or self.source[self.pos] == '_' or self.source[self.pos] == '-')) {
             self.pos += 1;
@@ -339,20 +336,20 @@ pub const Lexer = struct {
     }
 };
 
-fn isDurationSuffix(value: []const u8) bool {
+fn isDurationSuffix(suffix: []const u8) bool {
     const suffixes = [_][]const u8{ "ns", "us", "ms", "s", "m", "h", "d" };
     for (suffixes) |suf| {
-        if (std.mem.endsWith(u8, value, suf)) {
+        if (std.mem.eql(u8, suffix, suf)) {
             return true;
         }
     }
     return false;
 }
 
-fn isBytesSuffix(value: []const u8) bool {
+fn isBytesSuffix(suffix: []const u8) bool {
     const suffixes = [_][]const u8{ "B", "KB", "MB", "GB", "TB" };
     for (suffixes) |suf| {
-        if (std.mem.endsWith(u8, value, suf)) {
+        if (std.mem.eql(u8, suffix, suf)) {
             return true;
         }
     }

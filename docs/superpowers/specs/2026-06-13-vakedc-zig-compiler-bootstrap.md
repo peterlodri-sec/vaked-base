@@ -51,7 +51,7 @@ Input: UTF-8 source file
 - **Group tracking**: `(`, `[`, `{` increment depth; `)`, `]`, `}` decrement; NEWLINE emitted only at depth 0.
 - **Regex mode**: Lexer state-machine accepts `/regex/` only immediately after `matches` keyword; elsewhere `/` is an error (parse error, not lex error, to preserve recovery).
 - **Interpolation**: `${ref}` inside STRING tracked separately; `ref` must be a valid dotted ident.
-- **Comments**: `#` to EOL stripped before tokenization.
+- **Comments**: `#` to EOL skipped during tokenization (not pre-stripped); preserves byte offsets for provenance.
 
 ---
 
@@ -150,11 +150,22 @@ pub const GraphNode = struct {
 };
 
 pub const GraphEdge = struct {
-    source: []const u8,         // from node id
-    target: []const u8,         // to node id
+    source: []const u8,         // from node id (JSON field: "from")
+    target: []const u8,         // to node id (JSON field: "to")
     label: []const u8,          // "contains", "imports", "depends_on", ...
     props: StringMap,
 };
+```
+
+**Canonical JSON mapping** (emit.zig):
+```json
+{
+  "from": "<node-id>",    // source field
+  "to": "<node-id>",      // target field
+  "label": "contains",
+  "props": {}
+}
+```
 
 pub const Provenance = struct {
     file: []const u8,           // source filename
@@ -237,9 +248,9 @@ Input: LPG (nodes + edges)
 
 ---
 
-## 3. `-ralphloop-cache` as a Native Primitive
+## 3. Future Extensions (Post-Phase 3, RFC Pending)
 
-**Motivation**: The ralph decision loop (tools/ralph) iterates through design tracks, recording decisions to an immutable log. A compiled Vaked declaration should be able to declare "cache ralph loop output as a memory primitive."
+**Ralph loop integration** (speculative): Once Phase 2 lowering is complete, a future RFC will specify how the compiler can expose ralph decision loop output as a queryable memory primitive.
 
 **Syntax** (grammar extension, filed as issue #NNN):
 
