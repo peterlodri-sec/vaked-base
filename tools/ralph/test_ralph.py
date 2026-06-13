@@ -1294,6 +1294,15 @@ def test_generate_toot_strips_markdown() -> None:
     assert "Decision / question" not in toot
     assert len(toot) <= ralph.MASTODON_MAX_CHARS
 
+    # model-content path: markdown in the gpt-oss output is also stripped
+    import unittest.mock as mock
+    resp = {"choices": [{"message": {"content": "**graph** split `now`. ship it."}}]}
+    with mock.patch.object(ralph, "openrouter_call", return_value=resp):
+        toot2 = ralph._generate_toot("graph-concept", 1, md_title, "x", 0.0,
+                                     api_key="k", base_url=None)
+    assert "**" not in toot2 and "`" not in toot2
+    assert "graph split now" in toot2 and len(toot2) <= ralph.MASTODON_MAX_CHARS
+
 
 def test_parse_json_obj_tolerant() -> None:
     import importlib
