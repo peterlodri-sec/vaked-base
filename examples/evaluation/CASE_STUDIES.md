@@ -203,17 +203,104 @@ cat .vaked/lower/gen/zig/collector.json | jq '.capabilities'
 
 ---
 
+## Case Study 4: SWE-Swarm Load Test (Scalability & Fan-Out)
+
+**File:** `vaked/examples/swe-swarm-loadtest.vaked`  
+**Lines:** ~100 (generated)  
+**Focus:** Compiler scalability with large fan-out and parallel fibers  
+
+### Architecture
+
+```
+runtime swe-swarm
+  ├─ fiber coordinator      (authority: fs.repo_rw, network.github_rw, process.execute, mcp.codebase_full)
+  ├─ fiber worker_*[8]      (authority: fs.repo_ro, process.compile, mcp.codebase_read)
+  ├─ fiber aggregator       (authority: fs.repo_rw, process.read_results)
+  │
+  ├─ index codebase         (Index<Symbol>, source code)
+  ├─ catalog test_results   (Catalog<TestResult>, test runs)
+  │
+  └─ meshes:
+     ├─ coordinator → worker_* (8 edges, attenuation: full → read-only)
+     └─ worker_* → aggregator (8 edges, convergence)
+```
+
+### Key Features Demonstrated
+
+1. **Parallel Worker Pool:** 8 workers (easily scaled to 64, 256, etc.) all with identical capabilities. Tests compiler's ability to handle **repeated fiber declarations** with **consistent authority**.
+
+2. **Fan-Out Topology:** Coordinator delegates to all workers; each worker reports back to aggregator. Tests **many-to-one and one-to-many delegation patterns**.
+
+3. **Attenuation Check at Scale:** Every worker delegation edge must satisfy `granted(worker) ⊑ granted(coordinator)`:
+   - Coordinator: `[fs.repo_rw, network.github_rw, process.execute, mcp.codebase_full]`
+   - Worker: `[fs.repo_ro, process.compile, mcp.codebase_read]`
+   - Verification: `fs.repo_ro ≤ fs.repo_rw` ✓, `mcp.codebase_read ≤ mcp.codebase_full` ✓
+
+4. **Convergence Pattern:** All workers report to aggregator (many-to-one). Aggregator's authority is checked against each worker's authority.
+
+5. **Schema-Driven Data Flow:** Index and catalog declarations use schemas (`codeSymbols`, `testResult`). Tests compiler's handling of **schema references** in large graphs.
+
+### Why It Matters (Paper)
+
+This case study demonstrates:
+- **Compiler scalability:** Type checking should remain linear (or near-linear) in the number of fibers
+- **POLA at scale:** Even with 8+ delegation edges, authority attenuation is verified statically
+- **Practical patterns:** Fan-out and convergence are real distributed-system patterns (map-reduce, parallel processing)
+
+### Performance Expectations
+
+- **Graph size:** 1 coordinator + 8 workers + 1 aggregator + 2 data structures = 12 nodes, 16 edges
+- **Parse time:** ~20–30ms (simple structure, mostly repeated fiber declarations)
+- **Check time:** ~10–15ms (16 edges to check, straightforward attenuation rules)
+- **Lower time:** ~30–40ms (emit flake, 10 fiber configs, catalog)
+
+Can be **scaled up** by duplicating worker declarations (e.g., 64 workers = 128 edges to check):
+- Expected check time at 64 workers: ~50–80ms (roughly linear in edge count)
+- Determinism: All repeated runs should produce byte-identical output
+
+### Stress Test Variations
+
+For extreme-scale testing (if needed for paper):
+
+1. **Light:** 8 workers (current)
+2. **Medium:** 32 workers (copy-paste 4× more)
+3. **Heavy:** 64 workers (copy-paste 8× more)
+4. **Extreme:** 256 workers (copy-paste 32× more, for stress-testing memory/time)
+
+Expected timeline: Light < 50ms, Medium < 100ms, Heavy < 200ms, Extreme < 1s.
+
+### Verification Script
+
+```bash
+# Type-check the load test
+time python3 -m vakedc check vaked/examples/swe-swarm-loadtest.vaked
+
+# Lower to artifacts
+time python3 -m vakedc lower vaked/examples/swe-swarm-loadtest.vaked --out .vaked/lower
+
+# Inspect generated worker configs (should all be identical except for name)
+diff .vaked/lower/gen/zig/worker_001.json .vaked/lower/gen/zig/worker_002.json
+# Expected: identical (same engine binding, same capabilities)
+
+# Count total edges in provenance
+cat .vaked/lower/provenance.json | jq '.artifacts | map(.region) | map(select(contains("edge"))) | length'
+```
+
+**Expected output:** Clean (no errors), with 10 fiber configs + 1 aggregator config, all deterministic.
+
+---
+
 ## Cross-Study Comparison
 
-| Feature | Operator-Field | AgentField-SWE | Memory |
-|---------|---|---|---|
-| **Size** | Small (500L) | Large (1500L) | Medium (600L) |
-| **Fibers** | 2 | 8 | 2 |
-| **Capability domains** | 2 | 4 | 3 |
-| **Graphs cycles** | No | Yes | No |
-| **Generic types** | No | Yes (Index<T>) | Yes (Index<Symbol>, Stream<Event>) |
-| **Observability** | Simple routing | Complex delegation | Tracing/audit |
-| **Research angle** | POLA 101 | Scalability | Domain extension |
+| Feature | Operator-Field | AgentField-SWE | Memory | SWE-Swarm |
+|---------|---|---|---|---|
+| **Size** | Small (500L) | Large (1500L) | Medium (600L) | Small (100L) |
+| **Fibers** | 2 | 8 | 2 | 10 (1 coord + 8 workers + 1 agg) |
+| **Capability domains** | 2 | 4 | 3 | 5 (fs, network, process, mcp, custom) |
+| **Edges** | 1 | 10+ | 0 | 16 (fan-out + convergence) |
+| **Generic types** | No | Yes (Index<T>) | Yes (Index<Symbol>, Stream<Event>) | Yes (Index<Symbol>, Catalog<Result>) |
+| **Observability** | Simple routing | Complex delegation | Tracing/audit | Parallel work aggregation |
+| **Research angle** | POLA 101 | Scalability | Domain extension | **Compiler performance at scale** |
 
 ---
 
