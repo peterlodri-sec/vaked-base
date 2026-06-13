@@ -39,10 +39,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Set up Zig 0.16.0
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 0.16.0
+      # Download the official tagged release directly. mlugg/setup-zig fetches
+      # via a community mirror whose fallback (ziglang.org/builds) only serves
+      # dev builds, so a mirror outage 404s on a tagged release — flaky. The
+      # canonical /download/ tarball is stable.
+      - name: Install Zig 0.16.0
+        run: |
+          curl -fsSL --retry 3 --retry-delay 5 \
+            https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o /tmp/zig.tar.xz
+          mkdir -p /tmp/zig && tar -xJf /tmp/zig.tar.xz -C /tmp/zig --strip-components=1
+          echo "/tmp/zig" >> "$GITHUB_PATH"
+          /tmp/zig/zig version
 
       - name: Set up Python 3.12 (vakedc reference for the drift guard)
         uses: actions/setup-python@v6
