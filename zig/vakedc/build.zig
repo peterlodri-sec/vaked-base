@@ -10,14 +10,19 @@ pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     options.addOption([]const u8, "version", version);
 
-    const exe = b.addExecutable(.{
-        .name = "vakedc-zig",
-        .root = b.path("src/main.zig"),
+    // Zig 0.16: target/optimize/root_source_file belong to the Module, not the artifact.
+    const exe_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    exe.root_module.strip = do_strip;
-    exe.root_module.addOptions("build_options", options);
+    exe_mod.strip = do_strip;
+    exe_mod.addOptions("build_options", options);
+
+    const exe = b.addExecutable(.{
+        .name = "vakedc-zig",
+        .root_module = exe_mod,
+    });
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
@@ -26,12 +31,17 @@ pub fn build(b: *std.Build) void {
     const run_step = b.step("run", "Run vakedc-zig");
     run_step.dependOn(&run_cmd.step);
 
-    const unit_tests = b.addTest(.{
-        .root = b.path("src/main.zig"),
+    // Separate module for tests so strip doesn't affect test binaries.
+    const test_mod = b.createModule(.{
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    unit_tests.root_module.addOptions("build_options", options);
+    test_mod.addOptions("build_options", options);
+
+    const unit_tests = b.addTest(.{
+        .root_module = test_mod,
+    });
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
