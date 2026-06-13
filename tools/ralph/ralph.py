@@ -691,8 +691,9 @@ def _expand_doc_globs(patterns: list[str]) -> list[str]:
 def _query_open_issues(extra: list[str]) -> "list[dict] | None":
     """One `gh issue list --state open` query. None ⇒ gh unavailable / error;
     [] ⇒ a successful but empty result."""
-    '''One `gh issue list --state open` query. None ⇒ gh unavailable / error;
-    [] ⇒ a successful but empty result.'''
+    raw = _run(["gh", "issue", "list", "--repo", HOME_GH, "--state", "open",
+                "--limit", "40", "--json", "number,title,body"] + extra,
+               cwd=REPO_HOME)
     if not raw:
         return None
     try:
@@ -714,9 +715,8 @@ def _issues_for_labels(labels: list[str]) -> "tuple[list[dict], str]":
 
     union: dict[int, dict] = {}
     any_ok = False
-    if not any_ok:
-        # every label query failed → gh unusable → return empty with note
-        return [], " (no usable label filter; showing no issues)"
+    for label in labels:
+        res = _query_open_issues(["--label", label])
         if res is None:
             continue                     # this label query failed; try the others
         any_ok = True
@@ -737,8 +737,9 @@ def _track_issues(label: str) -> "tuple[list[dict], str]":
 def gather_track_context(track: C.Track, git_log_window: int, compact: bool) -> str:
     """Read-only project state scoped to a track, all inside REPO_HOME:
     label-filtered home-repo issues, the track's doc globs, and a path-scoped
-    """Count the issues actually shown to the track — the OR-union of its
-    `issue_labels` — so the `N open issues` header matches the scoped body."""
+    git log. compact=True trims for stage 1; full text for stage 2."""
+    parts: list[str] = []
+
     issues, note = _issues_for_labels(track.issue_labels)
     if issues:
         if compact:
