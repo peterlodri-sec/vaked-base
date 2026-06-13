@@ -92,6 +92,12 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
 - **Replace, don't stack** — each run deletes its prior `<!-- vaked-pr-review -->`
   comment and posts one fresh review; an **advisory commit status** carries the
   finding count (never fails the check).
+- **Comment-cleanup subroutine** — before each review (and on a daily schedule via
+  [`cleanup.yml`](../../../.github/workflows/cleanup.yml), `--cleanup` mode) the agent
+  sweeps **bot noise** (usage/rate-limit/quota notices, e.g. Codex) and **collapses
+  duplicate bot review/update comments** to the newest-per-bot. Comments only — never
+  touches issues. Skips its own comments and `github-actions[bot]` (extend the keep-list
+  with `PR_REVIEW_CLEANUP_KEEP`); disable with `PR_REVIEW_NO_CLEANUP`.
 - **Langfuse tracing (linked both ways)** — one OTLP/HTTP trace per run, named
   `pr-review {repo}#{pr}` and keyed to a per-PR session, with `mode`, token totals, and
   `findings` as filterable `langfuse.trace.metadata.*`. Each trace links **out** to the
@@ -168,6 +174,8 @@ The keys are read with the standard Langfuse SDK names (same trio ralph uses), s
 | `PR_REVIEW_NO_AUTOFIX` | — | set to disable inline ```suggestion``` comments for Nit/Minor findings |
 | `PR_REVIEW_USD_PER_MTOK` | `0.3` | blended $/million-token rate for the footer cost estimate |
 | `PR_REVIEW_NO_PROVENANCE` | — | set to disable the commit-signature provenance round |
+| `PR_REVIEW_NO_CLEANUP` | — | set to disable the inline comment-cleanup sweep |
+| `PR_REVIEW_CLEANUP_KEEP` | `github-actions[bot]` | comma-separated bot logins never collapsed by cleanup |
 
 ### Model choice
 Default is **`deepseek/deepseek-v4-flash`** — cheap, 1M context, strong on code, and
