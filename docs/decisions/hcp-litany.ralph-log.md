@@ -43,3 +43,33 @@ Let's analyze each claim in the draft:
 
 4. Risks: "The `hcpbin` spec (RFC 0002 §6) is detailed but may contain edge cases that only emerge during implementation (e.g., NFC normalization pinned to Unicode 15.1.0, strict varint rejection, default omission rules)." Those are risks. We can cite specific sub-sections: NFC normalization in §6.
 
+## 2026-06-13 — Decision #2: Decision / question:
+- **Track:** hcp-litany · **Models:** stage1 hy3-preview · stage2 deepseek-v4-pro
+- **Context snapshot:** HEAD 0a0a5ff, 8 open issues
+
+**Decision / question:**  
+Should the `hcpbin` canonical binary encoder/decoder for `.hcplang` types be the first code artifact implemented in the HCP/Litany stack?
+
+**Options**  
+- **A** — Implement `hcpbin` first, using `protocol/hcplang/examples/hcp-core.hcplang` as the conformance schema. This immediately unblocks Litany Wire framing (RFC 0003), daemon development, and interop testing.  
+- **B** — Implement Litany Wire framing first, delaying `hcpbin`. RFC 0003 framing bodies require `hcpbin`-encoded Votive Frames, so a temporary ad‑hoc encoding would be needed, breaking canonicality from the start.  
+- **C** — Implement the `.hcplang` compiler/codegen first, then `hcpbin`. The compiler produces types that `hcpbin` encodes, but without `hcpbin` the compiler’s output cannot be validated.  
+- **D** — Implement a daemon first using ad‑hoc serialization, then retrofit `hcpbin`. Non‑canonical frames would enter the `eventd` chain, undermining tamper‑evidence and replay guarantees.
+
+**Recommendation**  
+**Option A — Implement `hcpbin` first.**  
+`protocol/README.md` states the implementation is “Currently empty of code.” The HCP architecture defines `hcpbin` (RFC 0002) as the canonical binary encoding for all `.hcplang` types, and Litany Wire (RFC 0003) requires `hcpbin`‑encoded frame bodies. No wire‑level or daemon work can produce correct frames without it.  
+`hcp-core.hcplang` exercises all type constructs—records, unions, enums, optionals, maps, lists—providing a precise, bounded target for the encoder/decoder. Delivering `hcpbin` against this schema unlocks the entire downstream stack.
+
+**Risks**  
+- The `hcpbin` specification defines strict canonicalization rules; edge cases may surface during implementation. These can be resolved through conformance tests round‑tripping the `hcp-core` schema.  
+- Delaying `hcpbin` blocks all dependent work (framing, `mcp‑brokerd`, `eventd`) because every component must emit canonical frames to preserve the chain of trust.
+
+**Next actions**  
+1. Open issue “Implement hcpbin canonical binary encoder/decoder” referencing RFC 0002 and the `hcp-core.hcplang` schema.  
+2. Submit a PR to a new `protocol/hcpbin/` directory that implements the encoder/decoder targeting the types in `hcp-core.hcplang`, with unit tests verifying canonical round‑trips and rejection of non‑canonical inputs per the specification. Language choice: Zig (per RFC 0002’s daemon codegen mapping) or a portable C library with Zig bindings.  
+3. After `hcpbin` lands, implement Litany Wire framing (RFC 0003) on top of it, then the `hcp‑core` service frames.
+
+**Confidence**  
+**High** — the HCP architecture places `hcpbin` as the foundational encoding (RFC 0001, RFC 0002, RFC 0003). The `hcp-core.hcplang` schema exists and is ready to serve as the conformance target. No alternative can proceed without `hcpbin` while maintaining canonicality guarantees.
+
