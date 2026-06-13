@@ -17,7 +17,7 @@ This PR is **NOT implementation** — it's architecture, design decisions, and p
 ## Key Deliverables (Read in This Order)
 
 ### 1. Design Spec (Primary)
-📄 [`docs/superpowers/specs/2026-06-13-vakedc-zig-compiler-bootstrap.md`](../../docs/superpowers/specs/2026-06-13-vakedc-zig-compiler-bootstrap.md)
+📄 [`docs/superpowers/specs/2026-06-13-vakedc-zig-compiler-bootstrap.md`](../specs/2026-06-13-vakedc-zig-compiler-bootstrap.md)
 
 **What to assess**:
 - ✅ Is the 4-stage pipeline architecture (lexer → parser → graph → emit) clear?
@@ -34,7 +34,7 @@ This PR is **NOT implementation** — it's architecture, design decisions, and p
 - §6: Testing & verification (oracle test, determinism check)
 
 ### 2. Implementation Plan (Detailed)
-📄 [`docs/superpowers/plans/2026-06-13-vakedc-zig-phase-1.md`](../../docs/superpowers/plans/2026-06-13-vakedc-zig-phase-1.md)
+📄 [`docs/superpowers/plans/2026-06-13-vakedc-zig-phase-1.md`](../plans/2026-06-13-vakedc-zig-phase-1.md)
 
 **What to assess**:
 - ✅ Is the 15-hour time budget realistic?
@@ -51,7 +51,7 @@ This PR is **NOT implementation** — it's architecture, design decisions, and p
 - §7: Testing checklist (debugging guidance)
 
 ### 3. Research Summary (Context)
-📄 [`docs/superpowers/specs/2026-06-13-vakedc-zig-research-summary.md`](../../docs/superpowers/specs/2026-06-13-vakedc-zig-research-summary.md)
+📄 [`docs/superpowers/specs/2026-06-13-vakedc-zig-research-summary.md`](../specs/2026-06-13-vakedc-zig-research-summary.md)
 
 **What to assess**:
 - ✅ Is the fan-out research of vakedc (Python reference) accurate?
@@ -68,7 +68,7 @@ This PR is **NOT implementation** — it's architecture, design decisions, and p
 - §6: Dogfeeding loop (vakedos.vaked → compile → deploy → observe → feed back)
 
 ### 4. Zig Project Scaffold
-📁 [`vakedc-zig/`](../../vakedc-zig/)
+📁 [`vakedc-zig/`](../../../vakedc-zig)
 
 **What to assess**:
 - ✅ Is `build.zig` correct (stdlib-only, no external deps)?
