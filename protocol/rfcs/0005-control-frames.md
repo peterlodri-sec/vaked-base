@@ -117,6 +117,7 @@ schema hcp.control {
     min_required_step: u64 @3   # Step at which the checkpoint was pinning
     topology_epoch:  u64   @4   # Epoch fence (prevents replay across topology changes)
     reason:          string @5  # Operator-supplied reason for audit trail
+    request_nonce:   bytes  @6  # Unique nonce (e.g., uuid) to prevent duplicate evictions if frame is retried
   }
 
   /// Terminal reply to any control-plane frame, on the same correlation id.
@@ -229,6 +230,29 @@ frame whose `topology_epoch` is not current is refused `stale_epoch`
 and an empty or non-resolving `target` is refused `unknown_target`.
 
 ![Control Epoch Skew and Resolution](../../docs/assets/diagrams/06_control_epoch_skew.svg)
+
+### 2.5 ConsumerCheckpointEvicted idempotency and replay protection
+
+`ConsumerCheckpointEvicted` is an administrative command that explicitly evicts
+a consumer checkpoint from the GC floor computation (RFC 0004 §4.2). Since the
+frame is transmitted over a wire that may drop/retry, the `request_nonce` field
+provides **at-most-once semantics**:
+
+- **On first receipt:** Supervisor receives the frame, verifies the nonce is
+  new (not seen before), records the nonce in its eviction log, applies the
+  eviction, and returns `ControlAck{applied: true, logged_seq: N}`.
+- **On retry (same nonce):** Supervisor recognizes the nonce from its eviction
+  log, returns `ControlAck{applied: true, logged_seq: N}` (same response as
+  before — does not re-execute the eviction). The duplicate frame is safely
+  absorbed.
+- **Nonce storage:** The supervisor keeps a time-bounded cache of accepted
+  nonces (e.g., 24 hours, the default checkpoint lease window) to tolerate
+  late retries. Nonces older than the cache window may be re-accepted if
+  the operator retries very late (acceptable trade-off: old evictions are
+  already reflected in compacted history).
+
+This prevents the hazard of a network retry causing a second eviction and
+breaking a later revived checkpoint's anchoring.
 
 ## 3 Rewind semantics
 
