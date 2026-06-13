@@ -237,7 +237,7 @@ Review through these seven lenses, raising only what applies to the diff:
 
     if structured {
         format!(
-            "{lenses}{tools}{severity}{common}\n\nOUTPUT: respond ONLY with JSON matching the provided schema.\n- `verdict`: one short clause (\"No blocking issues.\" when clean).\n- `prose`: the full caveman markdown review body, starting with `**Verdict:** ...`, then findings grouped under `### Blocking/### Major/### Minor/### Nit` (omit empty groups). This is what humans read — keep it blunt.\n- `findings`: the same findings as structured records (severity/path/line/problem/fix/suggestion/end_line), for tooling. `line` is the new-file (RIGHT-side) line number from the diff.\n- `suggestion`: for Nit/Minor findings that are a single mechanical fix (typo, rename, missing `?`, formatting, obvious one-liner), set this to the EXACT verbatim replacement text for the cited line(s) — preserve the file's existing indentation and surrounding syntax, no diff markers, no code fences. For Major/Blocking, or anything needing judgment or multi-hunk edits, leave it an empty string. Set `end_line` (≥ line) only when the suggestion replaces a contiguous range; otherwise empty.\n- `exceptions`: list any place you deviated from the contract or could not comply (e.g. unknown line number, file not in diff), one short string each; empty array if none.\nIf the diff is clean: verdict \"No blocking issues.\", prose exactly `**Verdict:** No blocking issues.`, findings [], exceptions [].\nNever ask questions. You are advisory."
+            "{lenses}{tools}{severity}{common}\n\nOUTPUT: respond ONLY with JSON matching the provided schema.\n- `verdict`: one short clause (\"No blocking issues.\" when clean).\n- `prose`: the full caveman markdown review body, starting with `**Verdict:** ...`, then findings grouped under `### Blocking/### Major/### Minor/### Nit` (omit empty groups). This is what humans read — keep it blunt.\n- `findings`: the same findings as structured records (severity/path/line/problem/fix/suggestion/end_line), for tooling. `line` is the new-file (RIGHT-side) line number from the diff.\n- `suggestion`: for Nit/Minor findings that are a single mechanical fix (typo, rename, missing `?`, formatting, obvious one-liner), set this to the EXACT verbatim replacement text for the cited line(s) — preserve the file's existing indentation and surrounding syntax, no diff markers, no code fences. For Major/Blocking, or anything needing judgment or multi-hunk edits, leave it an empty string. Set `end_line` (≥ line) only when the suggestion replaces a contiguous range; otherwise empty.\n- `original`: when (and only when) you set `suggestion`, also set this to the EXACT verbatim CURRENT text of those same cited line(s) — the bytes you expect your `suggestion` to replace, copied character-for-character from the file (use `read_lines` to confirm). It is checked against the file before the suggestion is committed; if it does not match, the suggestion is dropped. Leave it empty whenever `suggestion` is empty.\n- `exceptions`: list any place you deviated from the contract or could not comply (e.g. unknown line number, file not in diff), one short string each; empty array if none.\nIf the diff is clean: verdict \"No blocking issues.\", prose exactly `**Verdict:** No blocking issues.`, findings [], exceptions [].\nNever ask questions. You are advisory."
         )
     } else {
         format!(
@@ -294,7 +294,7 @@ fn findings_schema() -> Value {
                     "additionalProperties": false,
                     // All fields required (emit "" when N/A) so the schema stays valid
                     // under strict structured-output providers, not just lenient ones.
-                    "required": ["severity", "path", "line", "problem", "fix", "suggestion", "end_line"],
+                    "required": ["severity", "path", "line", "problem", "fix", "suggestion", "end_line", "original"],
                     "properties": {
                         "severity": { "type": "string", "enum": ["Blocking", "Major", "Minor", "Nit"] },
                         "path": { "type": "string" },
@@ -302,7 +302,8 @@ fn findings_schema() -> Value {
                         "problem": { "type": "string" },
                         "fix": { "type": "string" },
                         "suggestion": { "type": "string" },
-                        "end_line": { "type": "string" }
+                        "end_line": { "type": "string" },
+                        "original": { "type": "string" }
                     }
                 }
             },
@@ -1095,6 +1096,12 @@ struct Finding {
     // Optional end of a multi-line suggestion range (≥ line); empty = single line.
     #[serde(default, deserialize_with = "de_loc")]
     end_line: String,
+    // Exact verbatim CURRENT text of the cited line(s) that `suggestion` replaces.
+    // A committable ```suggestion``` is posted ONLY when this byte-matches the file
+    // at [line, end_line] — so a drifted anchor can never replace the wrong lines
+    // (the failure mode that corrupted code when suggestions were applied blind).
+    #[serde(default)]
+    original: String,
 }
 
 #[derive(Deserialize, Default)]
@@ -1523,6 +1530,40 @@ fn select_suggestions<'a>(
     out
 }
 
+/// True when `original` byte-matches the file's current content at the inclusive
+/// 1-based range `[line, end_line]`. This is the anchor check that makes the
+/// autofix safe: GitHub applies a ```suggestion``` as a literal span replacement,
+/// so if the model's line number has drifted, replacing the wrong span corrupts
+/// the file. Requiring the model to echo the exact bytes it intends to replace —
+/// and verifying them against the file — means a drifted anchor simply fails to
+/// match and the suggestion is never posted as committable. Empty `original`
+/// never matches (fail-closed: no echo ⇒ no committable suggestion).
+fn anchor_text_matches(file_text: &str, line: u32, end_line: u32, original: &str) -> bool {
+    if original.trim().is_empty() || line == 0 || end_line < line {
+        return false;
+    }
+    let lines: Vec<&str> = file_text.lines().collect();
+    let (s, e) = (line as usize, end_line as usize);
+    if e > lines.len() {
+        return false; // anchor past EOF — stale/drifted
+    }
+    lines[s - 1..e].join("\n") == original.trim_end_matches('\n')
+}
+
+/// Read the cited file and verify the finding's `original` matches the anchored
+/// lines. Fail-closed: any parse/read error ⇒ false (no committable suggestion).
+/// Runs against the checked-out HEAD (the PR head the review is posted on).
+fn verify_anchor(f: &Finding) -> bool {
+    let Ok(line) = f.line.parse::<u32>() else {
+        return false;
+    };
+    let end = f.end_line.parse::<u32>().ok().filter(|&e| e >= line).unwrap_or(line);
+    match std::fs::read_to_string(&f.path) {
+        Ok(text) => anchor_text_matches(&text, line, end, &f.original),
+        Err(_) => false,
+    }
+}
+
 /// One GitHub review-comment object carrying a ```suggestion``` block.
 fn build_suggestion_comment(f: &Finding) -> Value {
     let body = format!(
@@ -1563,7 +1604,12 @@ fn post_inline_suggestions(
         return Ok(0);
     };
     delete_prior_suggestions(cfg);
-    let picks = select_suggestions(findings, right, MAX_INLINE_SUGGESTIONS);
+    // In-diff selection, then the anchor gate: only keep suggestions whose echoed
+    // `original` still matches the file, so a drifted anchor can't corrupt code.
+    let picks: Vec<&Finding> = select_suggestions(findings, right, MAX_INLINE_SUGGESTIONS)
+        .into_iter()
+        .filter(|f| verify_anchor(f))
+        .collect();
     if picks.is_empty() {
         return Ok(0);
     }
@@ -1619,7 +1665,8 @@ fn print_dry_run_suggestions(
         } else {
             format!("-{}", f.end_line)
         };
-        println!("[{}] {}:{}{}\n```suggestion\n{}\n```", f.severity, f.path, f.line, end, f.suggestion);
+        let anchor = if verify_anchor(f) { "anchor OK" } else { "anchor MISMATCH → dropped when posting" };
+        println!("[{}] {}:{}{} ({anchor})\n```suggestion\n{}\n```", f.severity, f.path, f.line, end, f.suggestion);
     }
 }
 
@@ -2016,6 +2063,7 @@ mod suggestion_tests {
             fix: "do x".into(),
             suggestion: sugg.into(),
             end_line: String::new(),
+            original: String::new(),
         }
     }
 
@@ -2082,6 +2130,54 @@ mod suggestion_tests {
         // 2_000_000 tokens at $0.5/Mtok = $1.00
         assert!((estimate_cost_usd(2_000_000, 0.5) - 1.0).abs() < 1e-9);
         assert_eq!(estimate_cost_usd(0, 0.5), 0.0);
+    }
+
+    #[test]
+    fn anchor_match_gates_committable_suggestions() {
+        let file = "alpha\nbeta\ngamma\n";
+        // Exact single-line and range echoes match → safe to commit.
+        assert!(anchor_text_matches(file, 2, 2, "beta"));
+        assert!(anchor_text_matches(file, 2, 3, "beta\ngamma"));
+        assert!(anchor_text_matches(file, 2, 3, "beta\ngamma\n")); // trailing NL tolerated
+        // A drifted anchor: the echoed `original` no longer matches the line → dropped.
+        assert!(!anchor_text_matches(file, 2, 2, "gamma"));
+        // No echo at all → never committable (fail-closed, the old corrupting path).
+        assert!(!anchor_text_matches(file, 2, 2, ""));
+        // Out-of-range / inverted ranges are rejected.
+        assert!(!anchor_text_matches(file, 9, 9, "beta"));
+        assert!(!anchor_text_matches(file, 0, 0, "alpha"));
+        assert!(!anchor_text_matches(file, 3, 2, "beta"));
+    }
+
+    #[test]
+    fn verify_anchor_reads_real_file() {
+        // Write a temp file and point a finding's path at it; verify_anchor reads
+        // it relative to CWD, so use an absolute path via a temp dir.
+        let dir = std::env::temp_dir().join(format!("vaked-anchor-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("sample.txt");
+        std::fs::write(&path, "one\ntwo\nthree\n").unwrap();
+        let p = path.to_string_lossy().into_owned();
+
+        let mut good = f("Nit", &p, "2", "TWO");
+        good.original = "two".into();
+        assert!(verify_anchor(&good), "matching original should verify");
+
+        let mut drifted = f("Nit", &p, "2", "TWO");
+        drifted.original = "three".into(); // wrong line content
+        assert!(!verify_anchor(&drifted), "mismatched original must be rejected");
+
+        let no_echo = f("Nit", &p, "2", "TWO"); // original empty
+        assert!(!verify_anchor(&no_echo), "absent original must be rejected");
+
+        let missing = {
+            let mut m = f("Nit", "no/such/file.txt", "1", "X");
+            m.original = "anything".into();
+            m
+        };
+        assert!(!verify_anchor(&missing), "unreadable file fails closed");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
