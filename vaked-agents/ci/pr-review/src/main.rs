@@ -639,16 +639,28 @@ fn build_pipeline_agent(
     output_key: &str,
     crabcc: Option<Arc<dyn Toolset>>,
     output_guardrail: bool,
+    isolate_history: bool,
 ) -> Result<LlmAgent> {
     let gen_cfg = gen_config(effort, max_out, structured)?;
     let retry = || RetryBudget {
         max_retries: 2,
         delay: Duration::from_millis(250),
     };
+    // Per-file reviewers run in later sequential batches after earlier batches have
+    // emitted findings into the shared session; `IncludeContents::None` keeps each
+    // reviewer on its own turn (instruction + trigger) so it can't see — and
+    // misattribute — another file's findings. The synthesis step keeps `Default`
+    // so it *does* see every per-file result.
+    let include = if isolate_history {
+        adk_core::IncludeContents::None
+    } else {
+        adk_core::IncludeContents::Default
+    };
     let mut builder = LlmAgentBuilder::new(name)
         .instruction(instruction)
         .model(model)
         .generate_content_config(gen_cfg)
+        .include_contents(include)
         .max_iterations(cfg.max_iters)
         .tool_timeout(Duration::from_secs(60))
         .tool_execution_strategy(ToolExecutionStrategy::Auto)
@@ -776,7 +788,8 @@ async fn parallel_agent_review(
             instruction,
             &format!("review_{i}"),
             crabcc.clone(),
-            false,
+            false, // output_guardrail
+            true,  // isolate_history — ignore other files' findings
         )?;
         reviewers.push(Arc::new(agent));
     }
@@ -825,7 +838,8 @@ async fn parallel_agent_review(
         synth_instruction,
         "final_review",
         None,
-        true,
+        true,  // output_guardrail — cap the final findings
+        false, // isolate_history — synthesis must see every per-file result
     )?;
     stages.push(Arc::new(synth));
 
