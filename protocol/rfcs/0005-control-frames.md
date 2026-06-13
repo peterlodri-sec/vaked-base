@@ -246,7 +246,7 @@ provides **at-most-once semantics**:
   before — does not re-execute the eviction). The duplicate frame is safely
   absorbed.
 - **Nonce storage:** The supervisor keeps a time-bounded cache of accepted
-  nonces with a TTL **at least equal to** the checkpoint lease duration (RFC 0004
+  nonces with a TTL **greater than or equal to** the checkpoint lease duration (RFC 0004
   §4.2.2) to guarantee at-most-once semantics. **Default TTL: 24 hours** (same as
   default checkpoint lease), ensuring nonces remain valid while checkpoints can
   still pin history. This prevents replay of evictions after checkpoints have been
