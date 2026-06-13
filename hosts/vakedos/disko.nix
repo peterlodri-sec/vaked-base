@@ -93,6 +93,10 @@
             options = {
               "com.sun:auto-snapshot" = "false";
               recordsize = "1M"; # large, write-once build artifacts
+              # Throwaway scratch: skip sync writes (a crash just re-runs the
+              # build) and use the cheaper compressor — big build-throughput win.
+              sync = "disabled";
+              compression = "lz4";
             };
           };
           # Runtime state plane for the membrane daemons (docs/runtime/README.md).

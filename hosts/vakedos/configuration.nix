@@ -79,6 +79,27 @@ in
   # paying for ECC). Inspect with `ras-mc-ctl --status` / `journalctl -u rasdaemon`.
   hardware.rasdaemon.enable = true;
 
+  # === Performance / SRE notes (deliberate non-choices) ======================
+  # - CPU mitigations are LEFT ON. `mitigations=off` would buy ~5–30% on
+  #   syscall-heavy workloads, but this host's whole reason for being is the
+  #   security membranes — speculative-exec defenses stay. (Revisit only if the
+  #   box becomes single-tenant + trusted-only.)
+  # - NUMA: the 4345P is a single CCD / single NUMA node, so there is nothing to
+  #   pin across nodes (unlike the briefing's multi-socket assumptions).
+  # - Transparent huge pages stay at the kernel default (madvise): apps that want
+  #   them opt in; we avoid the allocation-stall jitter of THP=always.
+
+  # Spread NVMe + 25 Gbps NIC IRQs across the 16 threads for throughput.
+  services.irqbalance.enable = true;
+
+  # Compressed-RAM swap as an OOM safety net for the from-source -march builds
+  # (the box has no disk swap; swap-on-zvol is deadlock-prone, so use zram).
+  zramSwap = {
+    enable = true;
+    algorithm = "zstd";
+    memoryPercent = 25; # up to ~32 GiB, only under memory pressure
+  };
+
   # Bare metal: favor throughput/latency over power savings — interactive agent
   # runclasses (e.g. runclass.interactive, agentfield-swe.vaked) want low latency.
   # amd_pstate=active drives the modern AMD EPYC (Zen 3+/Zen 5) P-states via the
@@ -130,9 +151,15 @@ in
     "fs.inotify.max_user_instances" = 8192;
     "kernel.pid_max" = 4194304;
     "user.max_user_namespaces" = 63920;
-    # index corpora pulls + surface streams over the fat pipe.
+    # index corpora pulls + surface streams over the fat pipe. BBR+fq, plus big
+    # socket buffers to fill the 25 Gbps link's bandwidth-delay product.
     "net.core.default_qdisc" = "fq";
     "net.ipv4.tcp_congestion_control" = "bbr";
+    "net.core.rmem_max" = 134217728; # 128 MiB
+    "net.core.wmem_max" = 134217728;
+    "net.ipv4.tcp_rmem" = "4096 131072 134217728";
+    "net.ipv4.tcp_wmem" = "4096 16384 134217728";
+    "net.core.netdev_max_backlog" = 32768;
     # Litany Wire / data-plane wants io_uring (+ O_DIRECT) for the daemons
     # (briefing §III storage). 0 = enabled (kernel ≥6.6; no-op on the default
     # kernel, but documents intent and guards against a hardened override).
@@ -208,6 +235,11 @@ in
     trusted-users = [ "root" "@wheel" ];
     http-connections = 50;
     substituters = [ "https://cache.nixos.org" ];
+    # Builder-friendly: keep build deps + outputs for fast incremental rebuilds,
+    # and hard-link-dedup the store (cheap with the global -march world rebuild).
+    keep-outputs = true;
+    keep-derivations = true;
+    auto-optimise-store = true;
   };
   nix.gc = {
     automatic = true;

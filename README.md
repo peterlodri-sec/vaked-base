@@ -32,7 +32,8 @@ Vaked source → typed semantic graph → generated artifacts
 | `docs/protocol/` | **protocol** (stub) | HCP / Litany overview |
 | `vaked-agents/` | **agents** | The Vaked agent fleet — `ci/pr-review` (advisory CI reviewer); roadmap in [`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md) |
 | `tools/ralph/` | **tooling** | `ralph` — autonomous per-model decision loop over Vaked concept tracks (see [`tools/ralph/README.md`](tools/ralph/README.md)) |
-| `flake.nix` | infra | Dev shell (Zig, BEAM/OTP, Rust-to-build-CrabCC, tooling) |
+| `hosts/` | infra | `vakedos` — the bare-metal NixOS **materialization target** (Vultr EPYC 4345P). Deploy guide: [`DEPLOY.md`](DEPLOY.md) |
+| `flake.nix` | infra | Dev shell (Zig, BEAM/OTP, Rust-to-build-CrabCC, tooling) + `nixosConfigurations.vakedos` |
 | `.mcp.json` | infra | Project MCP servers (github, context7, repowise, workspace-fs, playwright) |
 | `.claude/skills/` | infra | Project skills: `vaked-language-author`, `hcp-rfc-author` |
 
