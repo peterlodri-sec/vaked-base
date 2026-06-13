@@ -737,9 +737,8 @@ def _track_issues(label: str) -> "tuple[list[dict], str]":
 def gather_track_context(track: C.Track, git_log_window: int, compact: bool) -> str:
     """Read-only project state scoped to a track, all inside REPO_HOME:
     label-filtered home-repo issues, the track's doc globs, and a path-scoped
-    git log. compact=True trims for stage 1; full text for stage 2."""
-    parts: list[str] = []
-
+    """Count the issues actually shown to the track — the OR-union of its
+    `issue_labels` — so the `N open issues` header matches the scoped body."""
     issues, note = _issues_for_labels(track.issue_labels)
     if issues:
         if compact:
