@@ -174,23 +174,22 @@ follows:
 - **Cascade rule (discovery-based, NOT broadcast-based):** If consumer C depends on
   producer P, and C's output is depended on by consumer D, is D affected by P's
   rewind? **Working decision:** D is **not** directly paused by P's rewind.
-  Instead, D discovers the problem transitively:
+  Instead, D discovers the problem transitively via two complementary checks:
   
-  1. P rewinds → C's anchor becomes stale
-  2. C runs cold-start or scheduled verification → detects stale anchor → pauses
-  3. D runs next verification → detects that C is paused or C's checkpoint is stale
-     (via `ConsumerCheckpoint` check in RFC 0004 §6) → D pauses (`stale_dependency`)
+  **Transitive Discovery Path:**
+  1. P rewinds → C's anchor to P becomes stale
+  2. C runs periodic anchor verification (new requirement per this section) → detects stale anchor → pauses
+  3. D runs periodic anchor verification → checks C's checkpoint AND verifies C's pause state:
+     - If C is paused, D treats C as a stale producer and pauses itself (`stale_dependency`)
+     - If C is not paused but C's `ConsumerCheckpoint` step anchors to P's rewind point, D re-verifies C's checkpoint by checking C's anchor against P's eventd (transitive verification)
   
   **Safety argument:** This is safe because:
-  - Cold-start (§6) is **mandatory** on restart, so C will eventually pause.
-  - D's verification (§4.2.1) runs periodically, so D will eventually detect C's pause.
-  - The chain is verified end-to-end: if C's checkpoint anchors to P's rewind point,
-    and that point is now stale in P's eventd, D's verification detects it.
-  - No missed notifications: if D misses NATS notification of P's rewind, it still
-    discovers via C's pause state (observable in eventd or C's agent state).
+  - **Mandatory periodic verification:** Both C and D must run anchor verification at least every ~1000 steps (§4.2.1 and this section).
+  - **Pause detection:** If C pauses (stale_dependency), D will detect it on its next verification and pause itself.
+  - **Transitive checkpoint verification:** If C hasn't paused yet, D verifies C's checkpoint transitively: D checks whether C's anchor step (what C depends on in P) is still valid in P's eventd. If not, D pauses.
+  - **Bounded discovery:** Maximum delay = max(C's verification period to detect stale, D's next verification to detect C's pause) = ~2000 steps (two verification cycles).
   
-  **Rationale:** Avoids cascading pause broadcasts across potentially unrelated
-  dependency trees; cost is bounded discovery latency (max one verification cycle).
+  **Rationale:** Avoids expensive cascading pause broadcasts; uses transitive verification + pause detection instead. Cost is bounded discovery latency (max two verification cycles).
 
 ### 3.3.2 RewindEvent acknowledgement (provisional)
 
@@ -202,8 +201,8 @@ via cold-start verification (mandatory) and scheduled verification cycles.
 
 Discovery is guaranteed by:
 - **Cold-start verification (mandatory):** On agent restart, cold-start (§6) checks all anchors against producer's current eventd state. Stale anchors are detected immediately.
-- **Scheduled verification cycle:** RFC 0004 §4.2.1 requires periodic verification (default ~1000 steps). On each cycle, consumers verify their anchors.
-- **Bounded discovery delay:** Maximum bounded delay = max(restart latency, verification interval, ~1000 steps).
+- **Periodic anchor verification (mandatory):** In addition to checkpoint emission (§4.2.1), consumers MUST run the §6 anchor verification at least every N steps (default N=1000 steps, same period as checkpoint emission). This verification checks all direct producer anchors; if an anchor is stale, the consumer pauses itself (`stale_dependency`).
+- **Bounded discovery delay:** A running consumer that misses the NATS rewind notification will discover stale anchors no later than the next periodic verification cycle (maximum bounded delay = verification interval, ~1000 steps).
 
 This is simpler than two-phase rewind with acknowledgment, and it is safe because
 the **eventd chain is authoritative**, not the notification layer. Notifications
@@ -414,14 +413,21 @@ Algorithm: compute_gc_floor(producer_uuid)
   - **Threshold:** Pagination triggered when active checkpoints > 1000
   - **Source:** Configured per-producer or per-supervisor via agent-supervisord config
   - **Maintain a running minimum** across all pages to compute GC floor
-- **Staleness:** The set of active checkpoints may change during the fetch
-  (new consumers anchor, old ones checkpoint deeper, leases expire). The GC
-  floor computed is a **snapshot** valid at computation time; it is safe to
-  use for compaction even if checkpoints change afterward (the floor only
-  gets higher/more conservative as checkpoints advance or expire).
+- **Staleness and recomputation:** The set of active checkpoints may change during
+  the fetch (new consumers anchor, old ones checkpoint deeper, leases expire).
+  A **new consumer can register and checkpoint at an older step**, lowering the
+  GC floor below what was computed. To preserve Invariant I (no truncation below
+  active checkpoints), the producer **MUST recompute the GC floor immediately
+  before truncating** (not just at compute time). If the recomputed floor is
+  lower than the previously computed floor, the compaction range is reduced
+  accordingly. This ensures no history pinned by a newly-discovered checkpoint
+  is truncated.
 - **Frequency:** Compaction should be infrequent (e.g., daily) to reduce
-  recomputation overhead and allow checkpoint batching. A producer typically
-  computes the floor once and compacts a range, then waits before recomputing.
+  recomputation overhead and allow checkpoint batching. The pattern is:
+  1. Compute GC floor (may take time if many checkpoints)
+  2. Plan compaction range (based on computed floor)
+  3. Immediately before truncation, recompute floor (fast second-pass)
+  4. Truncate strictly below min(originally-computed, recomputed floor)
 
 ---
 
