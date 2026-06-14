@@ -38,6 +38,28 @@ Language + compiler are **done**. Protocol has 7 RFCs. Two runtime reference dae
 - **Each subsystem (language impl, each daemon, the wire protocol) gets its own design → plan → implementation cycle.** Don't implement a daemon inline; scaffold its spec first.
 - **Dev shell:** `nix develop` provides the toolchains. Zig/Erlang/Elixir are not assumed to be globally installed.
 
+## 🚫 NEVER BUILD ON DEVELOPER MACHINE
+
+**This is a project-wide rule. No build, compile, link, or package step is allowed on the developer machine (M1 MacBook).**
+
+A "build" includes any of: `cargo build`, `cargo test`, `cargo check --workspace`, `zig build`, `nix build`, `docker build`, `nix develop` (with build side-effects), `pip install -e`, `python setup.py`, `make`, or any `run_verifiers` invocation that triggers a compile/link/test cascade (e.g. `rust-fmt`, `rust-check`, `rust-metadata`, `rust-test`).
+
+**Allowed on the developer machine:** `nix develop` (shell entry only, no builds), `cargo fmt -- --check` (format-only, no compile), `cargo clippy` (lint-only, no compile), reading files, editing files, git operations, static analysis that doesn't compile.
+
+### 3-gate verify-confirm protocol
+
+Before any build command is issued, the agent MUST pass all three gates using **default native tools only** (no MCP, no external services):
+
+| Gate | Action | Tool / Check |
+|------|--------|--------------|
+| **Gate 1 — Target verification** | Confirm the build target is NOT the developer machine. Verify the target host is reachable, has the required toolchain, and has sufficient disk/memory. | `ssh <target> 'which <compiler> && df -h / && free -h'` |
+| **Gate 2 — Intent confirmation** | Present the exact build command(s) to the user, with target host, estimated duration, and risk. Require explicit user approval. | `request_user_input` or explicit approval prompt listing: command, target, duration estimate, risk level |
+| **Gate 3 — Pre-flight check** | On the target host, verify: repo is synced (`git status`, `git log -1`), no dirty working tree, toolchain version matches expected. Run a dry-run or `--check` equivalent if available. | `ssh <target> 'cd <path> && git status && <compiler> --version && <build-cmd> --dry-run 2>&1 \|\| <build-cmd> --check 2>&1'` |
+
+**All three gates must pass in sequence.** If any gate fails, the build is blocked. If the user explicitly overrides the rule (with a clear statement like "I understand the risk, build on my machine"), Gate 2 substitutes the user's explicit override as approval — Gates 1 and 3 still run, adapted to the local machine.
+
+**Preferred build target:** `dev-cx53` (Linux, Nix 2.34.7, 30GB RAM, Tailscale-accessible via `ssh dev-cx53`). Fallback: GitHub Actions via `mcp__github__actions_run_trigger`.
+
 ## Status (2026-06-13)
 
 WP1 language ✅  WP2 vakedc ✅  WP3 wire-protocol ⏳ (start Jun 24)  WP4 daemons ⏳ (start Jun 24)
@@ -73,6 +95,24 @@ Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external d
 ## Security / Snyk
 
 **Snyk is OFF for this project.** The global "Snyk at inception" directive does **not** apply here (explicit owner decision, 2026-06-08). Do **not** run `snyk_code_scan` in this repo. If that decision is reversed, remove this section.
+
+## Landing-Guru Agent
+
+Automated landing page maintenance loop. Ensures landing readiness via scheduled checks, cache freshness, and Slack alerting.
+
+| Item | Value |
+|------|-------|
+| **Purpose** | Maintain `.landing-cache/` coherence, validate landing page generation, alert on drift |
+| **Cache dir** | `.landing-cache/` (gitignored; local agent artifacts only) |
+| **Run** | `bash scripts/landing-guru.sh [--dry-run\|--full\|--test-slack]` |
+| **CI trigger** | `.github/workflows/landing-guru.yml` (cron every 3h) |
+| **Slack alerts** | Via `SLACK_WEBHOOK_LANDING` env var (set in GitHub → Settings → Environments → `ci`) |
+| **Generated files** | `docs/website/index.html`, `docs/website/examples.html`, `docs/website/docs.html` (gitignored) |
+
+**Flags:**
+- `--dry-run`: validate cache state, report issues, exit 0 (no modifications)
+- `--full`: regenerate all landing pages from `docs/website/landing/base.html` template
+- `--test-slack`: trigger a test alert to `SLACK_WEBHOOK_LANDING` (verify hook is live)
 
 ## MCP servers (`.mcp.json`)
 

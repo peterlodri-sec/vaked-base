@@ -1,3 +1,47 @@
+## [unreleased] — 2026-06-14
+
+### agents
+- feat(agents): embed GIT_SHA at build time + UPX binary compression (#156)
+- feat(agents): connect provost + label-tagger to Langfuse (shared vaked-telemetry crate) (#162)
+- refactor(agents): reduce stderr noise + trim gh issue list payload (#150)
+
+### ci
+- feat(ci): smart CI gate with size-based tier scaling (#160)
+- ci(nix-check): add store cache, drop --all-systems, add path filters (#149)
+- ci(diagrams): drift-guard CI workflow + fix noisy diff output (#142)
+
+### compiler
+- feat(vakedz): port check diagnostics + extend CI parity gate (#155)
+
+### docs
+- docs(CLAUDE.md): update to current repo state (#158)
+- docs(protocol): SPIRE PQC design — RFC 0007 Q3 research spike (#146)
+
+### language
+- feat(language): implement namespace checker — RFC 0017, v0.4 (#152)
+- feat(language): design note 0018 — crypto/seal capability domain (RFC 0007 Q4) (#144)
+
+### runtime
+- feat(runtime): sandboxd Python reference scaffold — process/filesystem membrane (#15 pattern) (#148)
+- feat(runtime): memoryd Python reference implementation (#15 pattern) (#147)
+
+### tools
+- feat(tools): sealed-image spike — provenance schema + sign/verify (RFC 0007 Q5) (#145)
+
+### chore
+- chore: NEVER BUILD ON DEVELOPER MACHINE — 3-gate verify-confirm protocol (#163)
+- chore: add Rust target/ to .gitignore (#161)
+- chore: gitignore .claude/worktrees/ (ephemeral agent isolation workspaces) (#143)
+
+### deploy
+- deploy/langfuse: scaffold .env.example for LLM-as-a-Judge via OpenRouter (#159)
+
+### refactor
+- refactor(pr-review): split 2.9k-line main.rs into focused modules (#154)
+
+### feat
+- feat(swe-af): run the lowered `workflow swe_af` for real on GitHub Actions (#151)
+
 # Changelog
 
 All notable changes to Vaked are documented here. This project adheres to [Semantic Versioning](https://semver.org/).

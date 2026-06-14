@@ -38,33 +38,22 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 schemars = "1" # JSON schema for the read_lines tool parameters
 mimalloc = { version = "0.1", default-features = false } # faster global allocator
-# Build the Langfuse OTLP Basic-auth token from LANGFUSE_PUBLIC_KEY:LANGFUSE_SECRET_KEY
-# (already in the lockfile via rustls/reqwest; pinned here as a direct dep).
-base64 = "0.22"
 
 # crabcc symbol index, spoken to over MCP (stdio child process: `crabcc --mcp`).
 # Same rmcp line adk-tool uses, so the client types unify.
 rmcp = { version = "1.7", features = ["client", "transport-child-process"] }
 
-# Tracing → self-hosted Langfuse over OTLP/HTTP. Pinned to adk's OTel 0.31 line so
-# the global tracer provider unifies with adk-rust's internal `tracing` spans.
-# rustls transport (no native-tls).
+# Tracing → self-hosted Langfuse, via the shared vaked-telemetry crate (single
+# source of truth for the OTLP exporter, blocking-client config + LANGFUSE_* env
+# resolution). Pinned to adk's OTel 0.31 line so the global tracer provider
+# unifies with adk-rust's internal `tracing` spans.
+vaked-telemetry = { path = "../telemetry" }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+# opentelemetry/_sdk + tracing-opentelemetry stay: the trace-link helpers below
+# read the active span's context, and SdkTracerProvider is the return type.
 tracing-opentelemetry = "0.32"
 opentelemetry = "0.31"
 opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
-opentelemetry-otlp = { version = "0.31", default-features = false, features = [
-    "trace",
-    "http-proto",
-    # The batch span processor exports on its OWN dedicated OS thread (no Tokio
-    # reactor), so an async reqwest client panics there ("no reactor running" →
-    # SIGABRT under panic=abort). Use the BLOCKING reqwest client, which `with_http()`
-    # auto-detects and which runs fine on that thread; reqwest-rustls keeps TLS on
-    # rustls (reqwest is pulled default-features=false, so no system OpenSSL).
-    "reqwest-blocking-client",
-    "reqwest-rustls",
-] }
 
 # Faster startup + smaller baked binary (compile cost lands on the baker, which
 # we don't wait on).

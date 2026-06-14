@@ -14,12 +14,14 @@ on:
       - "vakedz/**"
       - "vakedc/**"
       - "vaked/examples/**"
+      - "vaked/schema/**"
       - ".github/workflows/vakedz-ci.yml"
   pull_request:
     paths:
       - "vakedz/**"
       - "vakedc/**"
       - "vaked/examples/**"
+      - "vaked/schema/**"
       - ".github/workflows/vakedz-ci.yml"
   workflow_dispatch: {}
 
@@ -64,7 +66,10 @@ jobs:
         working-directory: vakedz
         run: zig build
 
-      - name: Cross-verify byte-parity with vakedc on the goldens
+      - name: Install vakedc (Python reference checker)
+        run: pip install --quiet -e .
+
+      - name: Cross-verify byte-parity with vakedc (parse + check)
         run: bash vakedz/test/crossverify.sh vakedz/zig-out/bin/vakedz | tee crossverify-out.txt
 
       - name: Cache integrity self-check (ralphloop-cache hash chain)
