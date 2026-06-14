@@ -56,7 +56,9 @@ mod guardrails;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-const DEFAULT_MODEL: &str = "deepseek/deepseek-v4-flash";
+// Cheap, tool-call-reliable Gemini-family default (the swe_af loop needs real
+// tool calls; deepseek/claude narrate instead). ~6x cheaper than gemini-3.5-flash.
+const DEFAULT_MODEL: &str = "google/gemini-3.1-flash-lite";
 const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const DEFAULT_MAX_ITERS: u32 = 12;
 const COMPACTION_BUDGET_TOKENS: usize = 120_000;
