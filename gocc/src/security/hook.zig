@@ -29,8 +29,14 @@ fn getPid() u32 {
     }
 }
 
-/// Replacement write() — intercepts all writes, scrubs detected secrets.
-export fn write(fd: c_int, buf: ?*const anyopaque, count: usize) callconv(.c) isize {
+// macOS syscall number for write (arm64 and x86_64).
+// Using a direct syscall avoids any libc interpose layer and breaks the
+// recursion risk that would arise if dlsym(RTLD_NEXT) returned our own hook
+// due to the __DATA,__interpose mechanism.
+const MACOS_SYS_WRITE: usize = 4;
+
+/// The hook implementation — used by both platforms.
+fn writeHook(fd: c_int, buf: ?*const anyopaque, count: usize) callconv(.c) isize {
     if (!g_initialized) initHook();
 
     if (buf == null or count == 0) return callOrigWrite(fd, buf, count);
@@ -71,8 +77,34 @@ export fn write(fd: c_int, buf: ?*const anyopaque, count: usize) callconv(.c) is
     return callOrigWrite(fd, buf, count);
 }
 
+// ── Platform export ───────────────────────────────────────────────────────────
+//
+// Linux: export writeHook as the symbol "write" — LD_PRELOAD intercepts it.
+//
+// macOS: export as "_gocc_write_hook" ONLY (not as "write").
+//   The __DATA,__interpose table in hook_interpose.c maps:
+//     replacee    = &write      (resolves to libSystem's write in that TU)
+//     replacement = &_gocc_write_hook
+//   Because this dylib does NOT export a symbol named "write", the C compiler's
+//   `&write` in hook_interpose.c resolves to the libSystem import stub —
+//   exactly what dyld needs in the replacee field to perform the substitution.
+//
+// On macOS, DYLD_INSERT_LIBRARIES without DYLD_FORCE_FLAT_NAMESPACE is the
+// supported invocation; the interpose section makes it work on macOS 14+.
+comptime {
+    if (builtin.os.tag == .linux) {
+        @export(&writeHook, .{ .name = "write" });
+    } else {
+        // macOS: only the internal hook symbol; interpose table handles routing.
+        @export(&writeHook, .{ .name = "_gocc_write_hook" });
+    }
+}
+
 fn callOrigWrite(fd: c_int, buf: ?*const anyopaque, count: usize) isize {
-    // Use a direct syscall on Linux to bypass ourselves (avoids infinite recursion).
+    // Use a direct kernel syscall on both platforms to bypass any libc
+    // interpose layer.  This is crucial on macOS where the __DATA,__interpose
+    // mechanism would cause dlsym(RTLD_NEXT, "write") to return our own hook,
+    // creating an infinite recursion.  A raw syscall bypasses libc entirely.
     if (builtin.os.tag == .linux) {
         return @intCast(std.os.linux.syscall3(
             std.os.linux.SYS.write,
@@ -81,8 +113,21 @@ fn callOrigWrite(fd: c_int, buf: ?*const anyopaque, count: usize) isize {
             count,
         ));
     }
-    // macOS: the real write() lives in libSystem; no recursion risk with a
-    // dylib preload. Return count to signal success — Phase 5 wires dlsym(RTLD_NEXT).
-    _ = .{ fd, buf };
+    // macOS arm64: issue SYS_write (syscall #4) directly.
+    // Darwin ABI: x16 = syscall number, x0/x1/x2 = args, "svc #0x80" traps.
+    // Using a raw syscall bypasses libc entirely and avoids re-entering our
+    // interpose hook.
+    if (builtin.os.tag == .macos) {
+        return asm volatile (
+            \\ svc #0x80
+            : [ret] "={x0}" (-> isize),
+            : [number] "{x16}" (MACOS_SYS_WRITE),
+              [fd] "{x0}" (@as(usize, @intCast(fd))),
+              [buf] "{x1}" (@intFromPtr(buf)),
+              [count] "{x2}" (count),
+            : .{ .memory = true }
+        );
+    }
+    // Fallback for other POSIX targets — should not be reached in practice.
     return @intCast(count);
 }

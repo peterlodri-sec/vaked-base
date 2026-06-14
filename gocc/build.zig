@@ -27,7 +27,7 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addImport("gocc-core", core_mod);
     b.installArtifact(exe);
 
-    // shared lib (libgocc.so) for LD_PRELOAD hook
+    // shared lib (libgocc.so / libgocc.dylib) for LD_PRELOAD / DYLD_INSERT_LIBRARIES hook
     const hook_lib = b.addLibrary(.{
         .name = "gocc",
         .linkage = .dynamic,
@@ -38,6 +38,17 @@ pub fn build(b: *std.Build) void {
             .link_libc = true,
         }),
     });
+    // macOS: include the C translation unit that provides the __DATA,__interpose
+    // table.  This is the reliable write()-interpose mechanism on macOS 14+ and
+    // requires a C file because Zig 0.16 cannot express runtime function
+    // addresses in comptime-required linksection variable initialisers.
+    // In Zig 0.16, C sources are added on the module, not the Compile step.
+    if (target.result.os.tag == .macos) {
+        hook_lib.root_module.addCSourceFile(.{
+            .file = b.path("src/security/hook_interpose.c"),
+            .flags = &.{},
+        });
+    }
     b.installArtifact(hook_lib);
 
     // tests — grammar.zig tests
