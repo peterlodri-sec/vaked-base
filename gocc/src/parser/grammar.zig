@@ -139,6 +139,10 @@ fn parseChain(alloc: std.mem.Allocator, lexer: *Lexer, graph: *types.ArpGraph) P
     }
 }
 
+/// Parse a gocc pipeline DSL string into an ARP graph.
+/// alloc should be an arena allocator — the graph and all its strings are
+/// freed together when the arena is deinitialized. Using a non-arena allocator
+/// requires manual cleanup via graph.deinit() for allocated strings in node IDs and props.
 pub fn parse(alloc: std.mem.Allocator, src: []const u8) ParseError!types.ArpGraph {
     var lexer = Lexer.init(src);
     var graph = types.ArpGraph.init(alloc);

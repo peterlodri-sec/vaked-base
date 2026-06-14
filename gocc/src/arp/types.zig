@@ -43,6 +43,8 @@ pub const ArpGraph = struct {
     }
 
     pub fn deinit(self: *ArpGraph) void {
+        // Must free each node's props map before deiniting the outer nodes map.
+        // StringArrayHashMapUnmanaged.deinit only frees backing storage, not stored values.
         var it = self.nodes.iterator();
         while (it.next()) |entry| entry.value_ptr.deinit(self.alloc);
         self.nodes.deinit(self.alloc);
