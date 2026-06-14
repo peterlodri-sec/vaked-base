@@ -114,7 +114,7 @@ non-normative sugar only** and are deliberately absent from the `op`
 production (§7.b).
 
 **Keep-exact.** `path` and `symbol` are first-class productions in the EBNF
-(not folded into `ident`), so file paths (`./parse.py`, `hosts/vakedos/deploy.sh`)
+(not folded into `ident`), so file paths (`./parse.py`, `hosts/vakedos/configuration.nix`)
 and code symbols (`foo.bar.baz`, `Module::func`, `Type#method`, `parse/2`)
 round-trip byte-for-byte through `[R:tool]`. `quoted` carries opaque payloads
 (error strings, fragments needing spaces) verbatim. This is the keep-exact half
