@@ -84,13 +84,19 @@ Stage-1 must produce identical results on the same topologies.
 
 ## Status
 
-**In Progress:**
-- [ ] Vaked dialect TableGen (ops, types, verifier rules) — **DONE**
-- [ ] Vaked dialect C++ skeleton — **DONE**
-- [ ] Verifier implementation — TODO
-- [ ] Pass 1 (topology analysis) — TODO
-- [ ] Pass 2 (WAL injection) — TODO
-- [ ] Pass 3 (AOT index generation) — TODO
+**Implementation Status:**
+- [x] Vaked dialect TableGen (ops, types) — **DONE**
+- [x] Vaked dialect C++ skeleton — **DONE**
+- [x] Verifier implementation (ops + types) — **DONE**
+  - AgentOp: region structure, symbol uniqueness, yield terminator, result matching
+  - YieldOp: parent check, operand type/count matching
+  - ExecuteStepOp: result type constraint
+  - ConsumeOp: producer reference resolution
+  - ExecuteWithDepOp: operand count, result type constraint
+  - StateType: schema validation
+- [ ] Pass 1 (topology analysis, cycle detection, critical-path) — TODO
+- [ ] Pass 2 (WAL injection lowering to hcp) — TODO
+- [ ] Pass 3 (AOT supervisor index generation) — TODO
 - [ ] HCP dialect TableGen — TODO
 - [ ] LLVM lowering — TODO
 - [ ] Unit tests — TODO

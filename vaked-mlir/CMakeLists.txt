@@ -22,6 +22,8 @@ include_directories(${VAKED_INCLUDE_DIR})
 # Vaked dialect library target
 add_mlir_dialect_library(VakedDialect
   lib/VakedDialect.cpp
+  lib/VakedOps.cpp
+  lib/VakedTypes.cpp
 
   DEPENDS
   VakedOpsIncGen

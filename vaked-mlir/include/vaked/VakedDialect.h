@@ -38,7 +38,13 @@ public:
 
 /// Include the auto-generated definitions for the operations and types.
 #include "vaked/VakedDialect.h.inc"
+
+// Declare operations
+#define GET_OP_CLASSES
 #include "vaked/VakedOps.h.inc"
+
+// Declare types
+#define GET_TYPEDEF_CLASSES
 #include "vaked/VakedTypes.h.inc"
 
 #endif // VAKED_DIALECT_H
