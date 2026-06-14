@@ -78,8 +78,11 @@ jobs:
           cp vaked-agents/ci/pr-review/target/release/vaked-pr-review \
              vaked-pr-review-linux-x86_64
 
-      - name: Compress binary with UPX
-        run: upx --best vaked-pr-review-linux-x86_64
+      - name: Compress binary with UPX (best-effort)
+        # UPX 4.2.2 can't pack mold's single-bucket .gnu.hash (CantPackException:
+        # bad DT_GNU_HASH n_bucket=0x1). Don't fail the build on it — ship the
+        # binary uncompressed when UPX can't pack it.
+        run: upx --best vaked-pr-review-linux-x86_64 || echo "::warning::UPX could not pack the binary; shipping uncompressed"
 
       - name: Publish rolling release asset
         env:
