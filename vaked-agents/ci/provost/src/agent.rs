@@ -18,6 +18,7 @@ use crate::consts::{CACHE_KEY, COMPACTION_BUDGET_TOKENS, COMPACTION_PRESERVE_REC
 use crate::guardrails;
 use crate::output::output_schema;
 use crate::prompts::system_prompt;
+use crate::ralph;
 
 pub(crate) struct ProvostRunner {
     pub(crate) runner: Runner,
@@ -66,6 +67,7 @@ pub(crate) fn build_runner(cfg: &Config, api_key: &str) -> Result<ProvostRunner>
             delay: Duration::from_millis(200),
         })
         .tool(read_file_tool())
+        .tool(ralph_decisions_tool())
         .input_guardrails(guardrails::input_guardrails())
         .build()
         .map_err(|e| anyhow!("agent build: {e}"))?;
@@ -144,6 +146,24 @@ fn read_file_tool() -> Arc<dyn Tool> {
                     Ok(t) => Ok(json!({"path": path, "content": t.chars().take(32_000).collect::<String>()})),
                     Err(e) => Ok(json!({"error": format!("read {path}: {e}")})),
                 }
+            },
+        )
+        .with_read_only(true)
+        .with_concurrency_safe(true),
+    )
+}
+
+fn ralph_decisions_tool() -> Arc<dyn Tool> {
+    Arc::new(
+        FunctionTool::new(
+            "get_ralph_decisions",
+            "Read the ralph autonomous track decision ledger \
+             (tools/ralph/state/events.jsonl) and return a summary of the most \
+             recent decided tracks. Call this before proposing epics to avoid \
+             duplicating tracks already active in the ralph loop.",
+            |_ctx: Arc<dyn ToolContext>, _args: Value| async move {
+                let summary = ralph::recent_decisions("tools/ralph/state/events.jsonl", 3);
+                Ok(json!({"decisions": summary}))
             },
         )
         .with_read_only(true)
