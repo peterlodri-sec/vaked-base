@@ -4,7 +4,11 @@
 
 Seed draft. Grammar: v0.4 (no grammar changes — the `capability` kind,
 `grant_decl`, `order_decl`, and `ref` productions already cover the constructs
-described here). vakedc checker: not yet started.
+described here). vakedc checker: partial — `check.py` already emits
+`E-CAP-UNKNOWN-DOMAIN`, `E-CAP-UNKNOWN-GRANT`, and `E-CAP-ATTENUATION` for mesh
+edge attenuation. Typed ref validation in fiber policy, surface, and parallel
+contexts, plus lowering outputs (`capabilities.json`, eBPF manifests,
+`RUNTIME.md` capability matrix): not yet started.
 
 ## §2 Summary
 
@@ -47,8 +51,10 @@ statement (`;`-separated) yield a partial order that is not necessarily total.
 `fs.repo_rw` is a `ref` of the form `domain.grant`. In a **checked context** —
 mesh node `capabilities`, fiber `policy` `capabilities`, surface `input` refs —
 these must resolve: `fs` must name a declared `capability` domain, and `repo_rw`
-must be one of its declared grants. Unresolvable refs are a hard checker error
-(`E-CAP-UNRESOLVED`).
+must be one of its declared grants. Unresolvable refs are hard checker errors:
+`E-CAP-UNKNOWN-DOMAIN` if the leading identifier does not name a declared
+`capability` domain; `E-CAP-UNKNOWN-GRANT` if the domain is found but the grant
+identifier is not among its declared grants.
 
 ### Traversable capability graph
 
@@ -107,7 +113,7 @@ What artifacts does the capability graph lower to?
 | **`capabilities.json`** | Generated JSON listing all capability domains, their grants, and the resolved capability set of each declared entity (fibers, mesh nodes, surfaces). One entry per entity with a `capability_set: ["domain.grant", ...]` field. |
 | **eBPF policy manifests** | Each fiber's resolved capability set becomes an allow-list in the generated eBPF program. The eBPF enforcement daemon verifies at runtime that the process does not exceed its declared capability set. |
 | **`RUNTIME.md`** | The generated runtime documentation includes a capability matrix (entity → capability set) per parallel group, human-readable and diff-stable. |
-| **Checker diagnostics** | `E-CAP-UNRESOLVED` — a ref names a domain or grant that is not declared. `E-CAP-ATTENUATION` — a delegation passes a grant that is strictly more powerful than what the delegating holder possesses (attenuation order violated). |
+| **Checker diagnostics** | `E-CAP-UNKNOWN-DOMAIN` — ref's domain not declared. `E-CAP-UNKNOWN-GRANT` — domain found but grant not declared. `E-CAP-ATTENUATION` — delegation violates attenuation order. All three already implemented in `check.py`. |
 
 ## §6 Determinism
 
@@ -120,9 +126,10 @@ the existing lowering determinism invariant (0012 §6).
 
 | Feature | v0 target | Notes |
 |---|---|---|
-| Ref resolution validation (`E-CAP-UNRESOLVED`) | yes | Checker validates every `domain.grant` ref against declared `capability` blocks |
-| Attenuation order validation (`E-CAP-ATTENUATION`) | yes | Per 0011 §4; checker walks the partial order |
-| `capabilities.json` output | yes | Emitted by the lowering pass alongside existing outputs |
-| Capability matrix in `RUNTIME.md` | yes | Appended per parallel group |
-| eBPF policy manifest generation | yes | Each fiber's resolved set becomes an eBPF allow-list |
+| Ref resolution (`E-CAP-UNKNOWN-DOMAIN`, `E-CAP-UNKNOWN-GRANT`) | **done** | Already implemented in `check.py` for mesh contexts |
+| Attenuation order (`E-CAP-ATTENUATION`) | **done** | Already implemented in `check.py` (0011 §4) |
+| Extend ref validation to fiber policy + surface contexts | **v0** | `check.py` does not yet validate caps outside mesh |
+| `capabilities.json` output | **post-v0** | 0012 emitter does not produce this; requires lowering pass extension |
+| Capability matrix in `RUNTIME.md` | **post-v0** | 0012 emitter does not append capability sections |
+| eBPF policy manifest generation | **post-v0** | Requires eBPF emitter design (see 0012 §7 deferred targets) |
 | Transitive graph traversal queries (`vaked explain graph capability`) | **post-v0** | CLI query interface deferred; the graph is built but not exposed as a query surface in v0 |
