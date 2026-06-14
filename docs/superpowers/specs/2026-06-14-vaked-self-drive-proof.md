@@ -8,15 +8,16 @@ Vaked is usually pitched as a declarative language for *infrastructure* — flak
 
 The proof is self-referential: the language compiled the very loop that drove this session's issue work.
 
-## What was built (three dogfooded topologies)
+## What was built (four dogfooded topologies)
 
-All three are real `.vaked` files under `vaked/examples/`, each passing `parse → check → lower` clean and emitting 9 artifacts (`flake.nix`, `gen/workflow/<wf>.json` with precomputed critical-path depth, `gen/otp/*_sup.erl` supervision tree, `gen/eventd.json` replay contract, per-fiber Zig config, catalog, provenance).
+All four are real `.vaked` files under `vaked/examples/`, each passing `parse → check → lower` clean and emitting 9 artifacts (`flake.nix`, `gen/workflow/<wf>.json` with precomputed critical-path depth, `gen/otp/*_sup.erl` supervision tree, `gen/eventd.json` replay contract, per-fiber Zig config, catalog, provenance).
 
 | File | Models | Workflow shape | Depth |
 |------|--------|----------------|-------|
 | `pr-multimodel-pipeline.vaked` | the multi-model loop that produced PR #219 | collect → implement → review → publish → checkin | 5 |
 | `issue-driver-team.vaked` | a multi-layer, multi-coder Team-Topologies fleet driving one issue to a green PR | triage → route → {3 coder lanes} ⤳ review → verify → integrate → publish | 7 |
 | `session-drive-loop.vaked` | **this session**: sweep all open issues, abstain-or-implement, then reflect | collect → triage → verifyExisting → {coder lanes} ⤳ review → reflect → integrate → publish | 8 |
+| `ralph-dogfood-loop.vaked` | the autonomous track-decision loop (`tools/ralph/`) on **self-hosted Ollama** (qwen3:8b); proposer tracks are loopback-only (can't egress/publish), recorder appends the immutable ledger, announcer egresses | rank → write → critique → record → announce | 5 |
 
 Model assignment is the cost/effort discipline the user asked for: cheap **no-reasoning** flash models (gemini-3-flash-lite, haiku-4-5) orchestrate / route / verify; the latest **top agentic** models via OpenRouter (claude-opus-4-8, gpt-5, gemini-3-pro) do the coding; only the integrator holds `mcp.github_write`.
 
@@ -56,7 +57,7 @@ The whole loop, as a single driver prompt (the "best one-shot" the session conve
 Verify locally:
 
 ```bash
-for f in pr-multimodel-pipeline issue-driver-team session-drive-loop; do
+for f in pr-multimodel-pipeline issue-driver-team session-drive-loop ralph-dogfood-loop; do
   python3 -m vakedc check  vaked/examples/$f.vaked
   python3 -m vakedc lower  vaked/examples/$f.vaked --out /tmp/$f
 done
@@ -64,7 +65,7 @@ done
 
 ## Artifacts this session landed
 
-- `vaked/examples/pr-multimodel-pipeline.vaked`, `issue-driver-team.vaked`, `session-drive-loop.vaked` (+ their lowerings)
+- `vaked/examples/pr-multimodel-pipeline.vaked`, `issue-driver-team.vaked`, `session-drive-loop.vaked`, `ralph-dogfood-loop.vaked` (+ their lowerings)
 - `open-issues.txt` — the swept backlog (36 open at session start)
 - Issues **#192**, **#58** closed with evidence
 - Issue **#25** fix in flight on branch `claude/issue-25-decl-collision`
