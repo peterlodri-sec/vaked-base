@@ -66,6 +66,16 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 | Votive seal | A PQC (ML-DSA) signature over a sealed image's measurement + provenance, recorded to `eventd` — the image's analogue of an SVID |
 | Attestation quote | Load-time evidence (ML-DSA over `{measurement, nonce, epoch}`) that a measured image matches its signed provenance; replaces "eBPF testifies" for sealed unikernels |
 
+### Agent register protocol ([RFC 0009](../../protocol/rfcs/0009-arp.md))
+
+ARP adds behavioral signals + per-model adapters layered on [AI-lish V1](../ailish/2026-06-14-ailish-v1-rfc.md) (the agent execution-graph IR + `ailish/` crate). It is in-context text only — no wire — carries no authority, and composes one level below HCP.
+
+| Term | Meaning |
+|------|---------|
+| ARP | Behavioral primitives + model adapters for AI-lish (this RFC) |
+| Stride / Tension / Valence / Branch | `[STRIDE: a → b]` (progress arc), `[T:N]` (goal-distance 0..100), `[+]/[-]/[!]` (result polarity), `[BRANCH: a \| b; condition: X]` (fork) |
+| AI-lish V1 | The execution-graph grammar/IR ARP rides on (the `ailish/` crate + `docs/ailish/` RFC) |
+
 ## Daemons (proposed — roles to be fixed in RFCs)
 
 | Daemon | Proposed role |
