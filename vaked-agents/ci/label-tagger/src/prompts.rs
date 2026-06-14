@@ -5,20 +5,44 @@ use std::process::Command as StdCommand;
 use crate::github::{IssueMeta, PrMeta};
 use crate::guardrails;
 
+/// Context files pre-loaded from disk and injected into each user prompt,
+/// eliminating tool-call round trips for the three always-needed files.
+pub(crate) struct RepoContext {
+    pub(crate) goals_md: String,
+    pub(crate) timeline_md: String,
+    pub(crate) labels_yml: String,
+}
+
+fn inject_context(ctx: &RepoContext) -> String {
+    let mut s = String::from("## Pre-loaded context files\n\n");
+    if !ctx.goals_md.is_empty() {
+        s.push_str("### GOALS.md\n");
+        s.push_str(&ctx.goals_md.chars().take(6_000).collect::<String>());
+        s.push_str("\n\n");
+    }
+    if !ctx.timeline_md.is_empty() {
+        s.push_str("### docs/context/TIMELINE.md\n");
+        s.push_str(&ctx.timeline_md.chars().take(4_000).collect::<String>());
+        s.push_str("\n\n");
+    }
+    if !ctx.labels_yml.is_empty() {
+        s.push_str("### .github/labels.yml\n");
+        s.push_str(&ctx.labels_yml.chars().take(8_000).collect::<String>());
+        s.push_str("\n\n");
+    }
+    s
+}
+
 pub(crate) fn system_prompt() -> String {
     r#"You are the Vaked CI label-tagger: a doc-grounded automation agent for the
 vaked-base monorepo. Your ONLY job is to classify a PR, issue, or set of merged
 commits and emit structured JSON. You are advisory — you NEVER block CI.
 
-## Tool you MUST call first
+## Context files (pre-loaded)
 
-`read_file(path)` — read a repo file. Before making ANY decision, call it for:
-1. `GOALS.md` — 6 phases (0–5). Each `### Phase N — Title` heading is a milestone.
-   Map the change to the most relevant phase.
-2. `docs/context/TIMELINE.md` — current project posture (✅ done / 🟡 in progress /
-   🟦 stub / ⬜ planned). Use this to judge which phase the change advances.
-3. `.github/labels.yml` — the COMPLETE label taxonomy. You MUST only emit labels
-   whose `name:` field appears verbatim in this file. DO NOT invent labels.
+`GOALS.md`, `docs/context/TIMELINE.md`, and `.github/labels.yml` are already
+provided in the user message — do NOT call `read_file` for these three files.
+`read_file(path)` is available for any other repo file you need to consult.
 
 ## Label selection rules (label mode)
 
@@ -77,9 +101,9 @@ On any uncertainty, omit the field (null) rather than guess.
 If `no-auto-label` is present on the PR/issue, set `labels: []` and return."#.to_string()
 }
 
-pub(crate) fn build_label_pr_prompt(meta: &PrMeta, diff: &str) -> String {
-    let mut s = String::new();
-    s.push_str("# Label this PR\n\n");
+pub(crate) fn build_label_pr_prompt(meta: &PrMeta, diff: &str, ctx: &RepoContext) -> String {
+    let mut s = inject_context(ctx);
+    s.push_str("---\n\n# Label this PR\n\n");
     s.push_str(&format!("PR #{}: {}\n", meta.number, guardrails::sanitize_untrusted(&meta.title)));
     if !meta.body.trim().is_empty() {
         s.push_str("\n## PR Description\n");
@@ -97,43 +121,44 @@ pub(crate) fn build_label_pr_prompt(meta: &PrMeta, diff: &str) -> String {
         s.push_str(diff);
         s.push_str("\n```\n");
     }
-    s.push_str("\nRead GOALS.md, docs/context/TIMELINE.md, and .github/labels.yml now.\nThen emit the JSON labels, milestone, and comment.");
+    s.push_str("\nEmit the JSON labels, milestone, and comment.");
     s
 }
 
-pub(crate) fn build_label_issue_prompt(meta: &IssueMeta) -> String {
-    let mut s = String::new();
-    s.push_str("# Label this issue\n\n");
+pub(crate) fn build_label_issue_prompt(meta: &IssueMeta, ctx: &RepoContext) -> String {
+    let mut s = inject_context(ctx);
+    s.push_str("---\n\n# Label this issue\n\n");
     s.push_str(&format!("Issue #{}: {}\n", meta.number, guardrails::sanitize_untrusted(&meta.title)));
     if !meta.body.trim().is_empty() {
         s.push_str("\n## Issue Body\n");
         s.push_str(&guardrails::sanitize_untrusted(meta.body.trim()));
         s.push('\n');
     }
-    s.push_str("\nRead GOALS.md, docs/context/TIMELINE.md, and .github/labels.yml now.\nThen emit the JSON labels, milestone, and comment.");
+    s.push_str("\nEmit the JSON labels, milestone, and comment.");
     s
 }
 
-pub(crate) fn build_changelog_prompt(commits: &str) -> String {
+pub(crate) fn build_changelog_prompt(commits: &str, ctx: &RepoContext) -> String {
     let today = chrono_today();
-    format!(
-        "# Generate changelog entry\n\n\
-         Today: {today}\n\n\
+    let mut s = inject_context(ctx);
+    s.push_str(&format!(
+        "---\n\n# Generate changelog entry\n\nToday: {today}\n\n\
          ## Recent activity\n{commits}\n\n\
-         Read GOALS.md, docs/context/TIMELINE.md, and .github/labels.yml now.\n\
-         Then generate a `changelog_entry` grouped by area. Decide if a `new_tag` \
+         Generate a `changelog_entry` grouped by area. Decide if a `new_tag` \
          is warranted (only for grammar/compiler/protocol version milestones). \
          Set `labels: []`, `comment: null`, `milestone: null`."
-    )
+    ));
+    s
 }
 
-pub(crate) fn build_milestone_sync_prompt() -> String {
-    "# Milestone sync\n\n\
-     Read GOALS.md now. Extract all 6 phase headings (Phase 0 through Phase 5).\n\
+pub(crate) fn build_milestone_sync_prompt(ctx: &RepoContext) -> String {
+    let mut s = inject_context(ctx);
+    s.push_str("---\n\n# Milestone sync\n\n\
+     Extract all 6 phase headings (Phase 0 through Phase 5) from the GOALS.md above.\n\
      Return a `milestones_to_upsert` array with title = exact phase heading text and \
      description = the first 2-3 bullet points from that phase.\n\
-     Set `labels: []`, `comment: null`, `milestone: null`, `changelog_entry: null`, `new_tag: null`."
-        .to_string()
+     Set `labels: []`, `comment: null`, `milestone: null`, `changelog_entry: null`, `new_tag: null`.");
+    s
 }
 
 fn chrono_today() -> String {

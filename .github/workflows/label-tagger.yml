@@ -75,6 +75,34 @@ jobs:
           # Full history so the changelog step can git-log back to the last tag.
           fetch-depth: 0
 
+      # Skip gate: hash diff + labels.yml; skip agent if fingerprint unchanged.
+      # Prevents redundant LLM calls on no-op rebase pushes.
+      - name: Fingerprint check
+        id: skip_gate
+        if: github.event_name == 'pull_request'
+        env:
+          REPO: ${{ github.repository }}
+          PR:   ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          DIFF_HASH=$(git diff "${BASE}..${HEAD}" 2>/dev/null | sha256sum | cut -d' ' -f1)
+          LABELS_HASH=$(sha256sum .github/labels.yml 2>/dev/null \
+            | cut -d' ' -f1 || echo "missing")
+          FP="${DIFF_HASH}:${LABELS_HASH}"
+          echo "fingerprint=${FP}" >> "$GITHUB_OUTPUT"
+
+          STORED=$(gh api --paginate "repos/${REPO}/issues/${PR}/comments" \
+            --jq '[.[] | select(.body | contains("<!-- vaked-label-tagger sha="))] | last | .body // ""' \
+            2>/dev/null | grep -o 'sha=[a-f0-9.:]*' | cut -d= -f2 || echo "")
+
+          if [ "$FP" = "$STORED" ] && [ -n "$STORED" ]; then
+            echo "::notice::Diff fingerprint unchanged (${FP}) — skipping agent"
+            echo "skip=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Dogfooding: if this event's diff touched the agent source, build from
       # source so the run uses the new code rather than a stale prebuilt.
       - name: Detect agent source changes
@@ -135,9 +163,11 @@ jobs:
           fi
 
       # Run the agent. Output goes to a temp file so later steps can inspect it.
+      # If the skip gate fired, write empty JSON and exit early (no LLM call).
       - name: Run label-tagger agent
         id: run
         env:
+          SKIP:             ${{ steps.skip_gate.outputs.skip }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           # Self-hosted Langfuse. The agent prefers LANGFUSE_HOST and builds the
           # OTLP Basic token from the public/secret key pair (the secrets that
@@ -154,6 +184,12 @@ jobs:
           GITHUB_REPOSITORY:  ${{ github.repository }}
         run: |
           OUTPUT_FILE="$RUNNER_TEMP/lt-output.json"
+          echo "output_file=$OUTPUT_FILE" >> "$GITHUB_OUTPUT"
+          if [ "$SKIP" = "true" ]; then
+            echo "::notice::Skip gate active — writing empty output"
+            echo '{}' > "$OUTPUT_FILE"
+            exit 0
+          fi
           if [ -x ./vaked-label-tagger ]; then
             echo "::notice::using prebuilt agent (no compile)"
             ./vaked-label-tagger > "$OUTPUT_FILE"
@@ -175,7 +211,6 @@ jobs:
               --manifest-path vaked-agents/ci/label-tagger/Cargo.toml \
               -- > "$OUTPUT_FILE"
           fi
-          echo "output_file=$OUTPUT_FILE" >> "$GITHUB_OUTPUT"
           echo "--- agent output ---"
           cat "$OUTPUT_FILE"
 
@@ -225,8 +260,11 @@ jobs:
             done
             # Build body in a temp file to avoid bare column-0 content in the YAML literal block.
             BODY_FILE="$RUNNER_TEMP/lt-comment.md"
-            printf '<!-- vaked-label-tagger -->\n%s\n\n---\n<sub>vaked-label-tagger · automated, advisory</sub>' \
-              "$COMMENT" > "$BODY_FILE"
+            FP="${{ steps.skip_gate.outputs.fingerprint }}"
+            FP_TAG=""
+            [ -n "$FP" ] && FP_TAG="<!-- vaked-label-tagger sha=${FP} -->"
+            printf '<!-- vaked-label-tagger -->\n%s\n\n---\n<sub>vaked-label-tagger · automated, advisory</sub>\n%s' \
+              "$COMMENT" "$FP_TAG" > "$BODY_FILE"
             gh pr comment "$PR" --repo "$REPO" --body-file "$BODY_FILE" \
               || echo "::warning::advisory comment failed (non-blocking)"
           fi
