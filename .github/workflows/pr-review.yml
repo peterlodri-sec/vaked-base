@@ -121,6 +121,10 @@ jobs:
       - name: Run PR reviewer
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # Model is config, not baked into the binary: override via the repo/env
+          # variable PR_REVIEW_MODEL; the default here wins over any stale default
+          # compiled into a prebuilt agent asset.
+          PR_REVIEW_MODEL: ${{ vars.PR_REVIEW_MODEL || 'deepseek/deepseek-v4-flash' }}
           # Self-hosted Langfuse. Agent prefers LANGFUSE_HOST and builds the OTLP Basic
           # token from the public/secret key pair (legacy LANGFUSE_URL/API_KEY still work).
           LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
