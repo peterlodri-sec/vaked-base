@@ -48,8 +48,13 @@ pub(crate) fn build_runner(cfg: &Config, api_key: &str) -> Result<TaggerRunner> 
         })
         .with_prompt_cache_key(CACHE_KEY)
         .with_provider_preferences(OpenRouterProviderPreferences {
-            allow_fallbacks: Some(false),
-            order: Some(vec!["OpenAI".to_string()]),
+            // Bias to one provider for KV-cache locality, but keep fallbacks ON so a
+            // single provider's outage can't hard-fail the agent. NOTE: "OpenAI" does
+            // not serve openai/gpt-oss-120b on OpenRouter — pinning to it with
+            // allow_fallbacks:false made every request fail. DeepInfra is the cheapest
+            // provider that actually serves this model ($0.039/$0.19 per Mtok).
+            allow_fallbacks: Some(true),
+            order: Some(vec!["DeepInfra".to_string()]),
             ..Default::default()
         })
         .insert_into_config(&mut gen_cfg)
