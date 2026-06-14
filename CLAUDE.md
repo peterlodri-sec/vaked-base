@@ -1,20 +1,20 @@
 # CLAUDE.md — vaked-base
 
-Foundation monorepo for the **Vaked** agentic-runtime ecosystem.
+Foundation monorepo for **Vaked** agentic-runtime ecosystem.
 
 > Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies. CrabCC indexes. Surfaces reveal.
 
 ## What this is
 
-Vaked is a flake-native **capability-graph language**. A Vaked declaration compiles to a typed semantic graph, then to artifacts: `flake.nix` / NixOS modules, Zig daemon configs, eBPF policy manifests, OTel config, CrabCC indexes, and docs. Those run on a NixOS host under an OTP supervision plane that orchestrates single-purpose Zig enforcement daemons, with eBPF as the evidence layer and operator surfaces on top.
+Vaked = flake-native **capability-graph language**. Vaked declaration compiles to typed semantic graph, then to artifacts: `flake.nix` / NixOS modules, Zig daemon configs, eBPF policy manifests, OTel config, CrabCC indexes, docs. Artifacts run on NixOS host under OTP supervision plane. Plane orchestrates single-purpose Zig enforcement daemons. eBPF = evidence layer. Operator surfaces on top.
 
-This repo is currently a **scaffold**: the language track is real design content; runtime and protocol are indexed stubs. See `README.md` for the full repo map and `docs/context/PROJECT_CONTEXT.md` for the canonical overview.
+Repo currently **scaffold**: language track = real design content. Runtime + protocol = indexed stubs. See `README.md` for full repo map, `docs/context/PROJECT_CONTEXT.md` for canonical overview.
 
 ## Structure
 
 | Path | Purpose |
 |------|---------|
-| `vaked/` | The language — `grammar/vaked-v0-plus.ebnf`, `schema/`, `examples/` |
+| `vaked/` | Language — `grammar/vaked-v0-plus.ebnf`, `schema/`, `examples/` |
 | `docs/language/` | Design series `0001…0010` + `references/` |
 | `docs/context/` | `PROJECT_CONTEXT.md` (canonical overview) |
 | `docs/runtime/`, `daemons/` | Runtime daemon roster (OTP + Zig) — stub |
@@ -26,34 +26,34 @@ This repo is currently a **scaffold**: the language track is real design content
 
 ## Conventions
 
-- **Grammar before code.** New Vaked constructs go in the EBNF + an example first. Use the `vaked-language-author` skill.
-- **Protocol decisions live in RFCs** under `protocol/rfcs/`, not in prose. Use the `hcp-rfc-author` skill.
-- **Each subsystem (language impl, each daemon, the wire protocol) gets its own design → plan → implementation cycle.** Don't implement a daemon inline; scaffold its spec first.
-- **Dev shell:** `nix develop` provides the toolchains. Zig/Erlang/Elixir are not assumed to be globally installed.
+- **Grammar before code.** New Vaked constructs go in EBNF + example first. Use `vaked-language-author` skill.
+- **Protocol decisions live in RFCs** under `protocol/rfcs/`, not in prose. Use `hcp-rfc-author` skill.
+- **Each subsystem (language impl, each daemon, wire protocol) gets own design → plan → implementation cycle.** Don't implement daemon inline; scaffold its spec first.
+- **Dev shell:** `nix develop` provides toolchains. Zig/Erlang/Elixir not assumed globally installed.
 
 ## Security / Snyk
 
-**Snyk is OFF for this project.** The global "Snyk at inception" directive does **not** apply here (explicit owner decision, 2026-06-08). Do **not** run `snyk_code_scan` in this repo. If that decision is reversed, remove this section.
+**Snyk OFF for this project.** Global "Snyk at inception" directive does **not** apply here (explicit owner decision, 2026-06-08). Do **not** run `snyk_code_scan` in this repo. If decision reversed, remove this section.
 
 ## MCP servers (`.mcp.json`)
 
-`crabcc` (symbol index), `github`, `context7` (Nix/Zig/eBPF/MCP docs), `repowise` (codebase graph — consult before refactors), `workspace-fs` (sandboxed repo FS only), `playwright`. Changes to `.mcp.json` require a Claude Code reload to take effect.
+`crabcc` (symbol index), `github`, `context7` (Nix/Zig/eBPF/MCP docs), `repowise` (codebase graph — consult before refactors), `workspace-fs` (sandboxed repo FS only), `playwright`. Changes to `.mcp.json` require Claude Code reload to take effect.
 
 ---
 
 ## 🩺 Patch-doctor — environment patches & drift recovery
 
-This session applied environment patches **outside this repo** that can **drift** (revert on tool/plugin update). If something below misbehaves, re-apply it.
+Session applied environment patches **outside this repo** that can **drift** (revert on tool/plugin update). If something below misbehaves, re-apply.
 
 ### 1. MemPalace async stop/precompact hooks
-- **What:** the MemPalace Stop + PreCompact hooks were rewritten to mine the session transcript **async in the background** and `exit 0` immediately (non-blocking), instead of emitting a model-directed reminder that blocked every turn (the `mempalace_*` MCP tools aren't connected).
+- **What:** MemPalace Stop + PreCompact hooks rewritten to mine session transcript **async in background** and `exit 0` immediately (non-blocking), instead of emitting model-directed reminder that blocked every turn (`mempalace_*` MCP tools not connected).
 - **Where:** `~/.claude-cabotage/plugins/cache/mempalace/mempalace/<VERSION>/hooks/mempal-stop-hook.sh` and `mempal-precompact-hook.sh` (patched at **3.3.6**).
-- **Drift signal:** the blocking `"AUTO-SAVE checkpoint (MemPalace)"` message reappears, **or** the `<VERSION>` dir changes after a plugin update.
-- **Fix:** re-apply the async wrappers — each: read stdin → extract `transcript_path` → `nohup mempalace mine "$(dirname "$transcript")" --mode convos --agent claude-code >>"$TMPDIR/mempalace-*.log" 2>&1 &` → `exit 0`. The Stop hook is throttled to 10 min via a `$TMPDIR/mempalace-stop.stamp` file.
-- **Verify:** `printf '{"transcript_path":"<a .jsonl>"}' | bash <stop-hook>` returns in <1s, exit 0, and `pgrep -fl "mempalace mine"` shows the detached process.
+- **Drift signal:** blocking `"AUTO-SAVE checkpoint (MemPalace)"` message reappears, **or** `<VERSION>` dir changes after plugin update.
+- **Fix:** re-apply async wrappers — each: read stdin → extract `transcript_path` → `nohup mempalace mine "$(dirname "$transcript")" --mode convos --agent claude-code >>"$TMPDIR/mempalace-*.log" 2>&1 &` → `exit 0`. Stop hook throttled to 10 min via `$TMPDIR/mempalace-stop.stamp` file.
+- **Verify:** `printf '{"transcript_path":"<a .jsonl>"}' | bash <stop-hook>` returns in <1s, exit 0, `pgrep -fl "mempalace mine"` shows detached process.
 
 ### 2. CrabCC (private tool)
-- **What:** `crabcc` (symbol index for AI agents) updated to the latest tag from the **private** repo `crabcc-labs/crabcc` (moved there from `peterlodri-sec/crabcc` on 2026-05-28; invite-only).
+- **What:** `crabcc` (symbol index for AI agents) updated to latest tag from **private** repo `crabcc-labs/crabcc` (moved from `peterlodri-sec/crabcc` on 2026-05-28; invite-only).
 - **Reinstall latest:**
   ```bash
   gh auth setup-git                       # private-repo clone auth via gh token
