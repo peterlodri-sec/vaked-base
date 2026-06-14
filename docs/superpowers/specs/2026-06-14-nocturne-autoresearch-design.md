@@ -1,0 +1,186 @@
+# nocturne — a nightly, GPU-rented auto-researcher loop (Karpathy `autoresearch` → Vaked fleet) (design)
+
+> Vaked declares the experiment. Vast.ai materializes the GPU. The ledger supervises.
+> The agent mutates. BPB testifies. Mastodon reveals.
+
+## Status
+
+Design / brainstorm (2026-06-14). **Tooling**, not the Vaked language — no grammar gate.
+Owner-directed: integrate [`karpathy/autoresearch`](https://github.com/karpathy/autoresearch)
+into the fleet, running **every night for ~6 hours** on a **rented Vast.ai GPU**. The Vaked
+reference port is the **private** [`peterlodri-sec/vast-autoresearcher`](https://github.com/peterlodri-sec/vast-autoresearcher)
+— **not yet readable from this session** (out of GitHub-tool scope; WebFetch 404 on private).
+**Several items below are OPEN pending that port's actual architecture** — they are flagged
+`⟨OPEN⟩` and must be reconciled before implementation.
+
+A **third sibling** to `ralph` (nightly decision loop) and `optitron` (nightly optimization
+crawl): same abstain-by-default rhythm, same hash-chained ledger, same `agent`-issue → swe_af
+hand-off, same staged-toot announce — but the "finding" is a **trained model improvement**
+(lower validation bits-per-byte) instead of a decision or a compiler tweak.
+
+## Why
+
+Karpathy's `autoresearch` is an **autonomous ML-experiment loop**, not a literature agent. One
+trial is: *"It modifies the code, trains for 5 minutes, checks if the result improved, keeps or
+discards, and repeats."* Three files: `prepare.py` (frozen harness: data + tokenizer + runtime),
+`train.py` (the **only** file the agent edits — nanoGPT-style model + optimizer + loop), and
+`program.md` (the human-written objective the agent reasons toward). ~100 five-minute trials fit
+in a night on a single H100; **6 hours ⇒ ~60–70 keep/discard trials/night.**
+
+Nothing in the fleet currently does **empirical** research — ralph reasons over structure,
+optitron crawls literature, fleet-introspect mines telemetry. nocturne closes the last loop:
+**run real experiments overnight, keep what measurably wins, and only escalate a confirmed
+improvement to a human/swe_af.** It also dogfoods Vaked's theses on a new axis — *immutable
+ledger of trials* (replayable experiment history) and *control* (stop/teardown at runtime, hard
+budget cap).
+
+The center of gravity is **GPU compute + an experiment ledger**, not search/synthesis. The GHA
+side never trains — it is only the *clock, the wallet, and the scribe*; this keeps nocturne
+trivially inside the project's `NEVER BUILD ON DEVELOPER MACHINE` rule (nothing compiles or
+trains locally — ever).
+
+## Constraints honoured (owner direction)
+
+- **Nightly, ~6 hours, Vast.ai rented GPU** — provision on demand, run, **always tear down**.
+- **Abstain by default** (the optitron move) — a night that beats nothing produces a
+  ledger entry + digest toot and **no issue**. Silence is success; a hallucinated "win" is worse.
+- **`agent`-labelled issue → swe_af** when (and only when) a trial genuinely beats the committed
+  baseline, **confirmed on an independent re-run seed**.
+- **Hash-chained ledger**, committed, replayable (`events --replay`) — the experiment memory and
+  cross-night novelty source, exactly like optitron/ralph.
+- **Double-confirmed manual dispatch** (typed `confirm: RUN` + a protected `nocturne-manual`
+  Environment reviewer) — same gate as optitron, because a manual run **spends real GPU money**.
+- **Non-bypassable cost caps** — max `$/hr` bid, mandatory teardown trap, monthly spend ceiling
+  that disables the cron. GPU dollars are the dominant risk here, unlike the API-only siblings.
+
+## The loop (`nocturne run` — one nightly run; abstain by default)
+
+GHA cron (~02:00 UTC) is a **thin orchestrator** with no GPU; the rented box runs the real loop.
+
+```
+┌─ 02:00 cron fires (GHA orchestrator — no GPU, just clock+wallet+scribe) ──┐
+│ 1. PROVISION  vastai search/create: cheapest GPU ≥ spec under $/hr cap;   │
+│               abort cleanly if none < cap (event: `none{reason:no-gpu}`)  │
+│ 2. SYNC       ssh: clone repo @ current baseline train.py + program.md    │
+│ 3. RUN ≤6h    ssh `timeout 6h <driver>` — Karpathy's mutate→train 5min→   │
+│               read val BPB→keep/discard, each trial → results.jsonl       │
+│ 4. HARVEST    scp results.jsonl + best train.py back to the runner        │
+│ 5. TEARDOWN   vastai destroy — ALWAYS (trap/finally); the cost lynchpin   │
+│ 6. LEDGER     append state/events.jsonl (hash-chained), commit            │
+│ 7. GATE       best_bpb < committed_baseline − ε  AND  confirmed re-run?   │
+│               ├─ yes → `agent` issue with the winning train.py diff       │
+│               └─ no  → abstain (ledger-only)                              │
+│ 8. ANNOUNCE   stage toot.txt + telegram.txt → push → social CI sends      │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### The strict gate (step 7 — every condition must hold; else abstain, post nothing)
+1. **Measured, not claimed.** The improvement comes from `results.jsonl` rows the harness wrote
+   from a real 5-minute training run — never from model prose. A trial with no metric is discarded.
+2. **Beats the committed baseline** by ≥ `min_bpb_delta` (e.g. 0.002 BPB), not just the night's
+   own running best.
+3. **Confirmed on an independent re-run** — the winning `train.py` re-trained on a *different
+   seed* still clears the baseline (kills lucky-seed noise; the empirical analogue of optitron's
+   "≥2 independent sources").
+4. **Novel** — the winning diff's `signature` isn't already in the ledger or the committed
+   baseline history (`git grep` + ledger dedupe), so we don't re-surface a known win.
+5. **Sane** — the run produced no NaN/divergence and stayed within the harness's fixed wall-clock
+   and token budget (no "won" by changing the rules).
+
+A survivor's `agent` issue body **is** the swe_af request: *"promote this `train.py` diff to the
+baseline"* — with the BPB delta, the diff, the re-run confirmation, and a link to the ledger event.
+
+## ⟨OPEN⟩ decisions — reconcile against `vast-autoresearcher` before implementing
+
+1. **What drives the mutation?** Karpathy hands `train.py` + `program.md` to *a coding agent*
+   (Claude/Codex) which proposes each edit. nocturne needs that agent **on the GPU box or in the
+   driver**. Candidates:
+   - **(recommended) Claude Code headless** (`claude -p`) on the GPU box — closest to Karpathy's
+     original, and the fleet already runs headless agents. Each loop iteration: agent reads
+     `program.md` + recent `results.jsonl`, edits `train.py`, the harness trains + scores, the
+     agent sees the metric and decides keep/discard.
+   - **OpenRouter-driven (Eino/Go), optitron-style** — a fixed pipeline proposes diffs via
+     `OPENROUTER_API_KEY`. More controllable/cheaper per call, less open-ended than a full agent.
+   - **Fixed search** — if the port replaced the LLM with a hyperparameter/architecture search,
+     there's no per-trial model spend at all.
+   The port answers this; it changes step 3's `<driver>` and the per-night cost model entirely.
+2. **Local GPU vs. API.** Confirm the port truly trains on the rented box (PyTorch local, the
+   Karpathy shape) vs. driving training through an API. Owner indicated **Vast.ai rented GPU**, so
+   assume local training on the box.
+3. **One objective or a rotating queue?** ralph picks a *track* each night (`tracks.json`).
+   nocturne could be pinned to a single `program.md` (steady SOTA-chasing on one dataset) or carry
+   an `objectives.json` queue (rotate datasets/objectives nightly). Recommend **single objective
+   first**, add rotation once the loop is proven.
+4. **Baseline persistence.** Each night must build on the prior night's best. Propose the winning
+   `train.py` baseline is **version-controlled** (committed under `tools/nocturne/baseline/` or
+   promoted via the swe_af PR), so "running best" survives the ephemeral GPU box.
+5. **GPU spec + bid.** H100 vs A100, exact `$/hr` cap, on-demand vs interruptible. Karpathy tested
+   H100; interruptible is cheaper but can be reclaimed mid-night (the harness must checkpoint
+   `results.jsonl` so a reclaim ⇒ partial-night ledger entry, not a lost night).
+
+## Files (proposed — mirrors the optitron module layout)
+
+- **`tools/nocturne/`** — the orchestrator + provisioning, sibling to `tools/optitron/`:
+  - `PURPOSE.md` — the abstain-by-default mission preamble (optitron/ralph pattern).
+  - `provision.sh` — `vastai` search/create/destroy with `$/hr` cap + **mandatory teardown trap**.
+  - `loop.py` (or the port's driver) — the on-GPU mutate→train→score→keep/discard loop writing
+    `results.jsonl`. ⟨OPEN⟩ — likely vendored/adapted from `vast-autoresearcher`.
+  - `program.md` — the research objective (human-edited, the only "knob" for direction).
+  - `gate.py` / gate module — deterministic: baseline delta, re-run confirmation, novelty, sanity.
+  - `ledger.*` — single-writer hash-chained appends (reuse optitron's `internal/ledger` shape if
+    Go, or a small Python port matching ralph's chain format).
+  - `state/events.jsonl` — append-only, hash-chained, committed. Events: `provision`, `trial`,
+    `kept`, `discarded`, `found{issue,bpb,delta}`, `none{reason}`, `teardown`, `error`.
+  - `state/baseline/train.py` — the current best (the running-best that survives the box).
+- **`.github/workflows/nocturne.yml`** — nightly `schedule` (~02:00 UTC) + double-confirmed
+  `workflow_dispatch` (`approve` job on the protected **`nocturne-manual`** Environment, then the
+  run in `ci` where secrets live). Holds the cost guardrails: `$/hr` cap input, monthly-ceiling
+  check that no-ops the cron when exceeded.
+- **Registry/docs**: `VAKED_AGENTS.md` (add `nocturne`), `docs/agents/ci.md`, this spec, a
+  `tools/nocturne/README.md`. Update root `CLAUDE.md` "CI agent fleet" + status tables.
+
+## Economy (the dominant risk — GPU dollars, not tokens)
+
+- **GPU:** ~6 h/night on a Vast.ai H100 ≈ **$6–18/night** (≈ **$180–540/month**) depending on
+  bid and on-demand vs interruptible. This is **1–2 orders of magnitude** above the API-only
+  siblings (optitron ~$1–3/day, fleet-introspect ~$0.20–0.45/run) — the cost design must be
+  proportionally stricter.
+- **Per-trial model spend** (only if the mutation driver is an LLM — ⟨OPEN⟩ #1): ~60–70
+  trials/night × a coding-agent turn each. Could rival or exceed the GPU cost depending on the
+  model; bound it with a per-night model budget cap like optitron's `--budget-total`.
+- **Hard controls:** `$/hr` bid cap (abort if no GPU under it) · mandatory teardown trap (no
+  orphaned instances) · monthly spend ceiling that disables the cron · per-night model-budget cap
+  · spend reported in every ledger event + digest toot + a Telegram alert on each night's total.
+
+## One-time owner setup
+
+- **Vast.ai:** account + `VAST_API_KEY` as a secret in the GitHub `ci` Environment; SSH key for
+  the rented box. (⟨OPEN⟩ — confirm the port's expected env var names.)
+- **GitHub** → Settings → Environments → create **`nocturne-manual`** → add yourself as a Required
+  reviewer (no secrets — purely the manual-run approval gate, like `optitron-manual`).
+- **Monthly ceiling:** set the spend cap value (workflow input/secret) the cron checks before
+  provisioning.
+- Social/issue plumbing is **already live** — reuses `social-post.yml` / `telegram-post.yml`
+  (staging files) and the `agent` label → `swe_af` trigger; no new setup.
+
+## Verification
+
+- `bash tools/nocturne/provision.sh --dry-run` — print the `vastai` search/create/destroy plan +
+  `$/hr` cap + estimated nightly cost, **no GPU rented, $0**.
+- `NOCTURNE_DRY_ACT=1 nocturne run --once` — full pipeline on a tiny CPU smoke config (or a
+  short-rented box), but issue/toot only **drafted**, not sent.
+- `nocturne events --replay` — verify the hash chain + list nights/findings.
+- Teardown safety drill: kill the orchestrator mid-run ⇒ confirm the `vastai destroy` trap fired
+  and no instance is left billing.
+- Dispatch `nocturne.yml` with `confirm=RUN` ⇒ pauses on the `nocturne-manual` approval **before**
+  any spend.
+
+## Build order (design → plan → implement, per project convention)
+
+1. Reconcile the ⟨OPEN⟩ items against `vast-autoresearcher` (add it to session scope or paste
+   `program.md` + the driver + env contract).
+2. Provisioning shell first (`provision.sh` + teardown trap + `nocturne.yml` dry-run) — prove
+   rent/teardown/cost-cap in isolation, no training, before any model or GPU spend.
+3. Port/adapt the on-GPU loop + `results.jsonl` contract.
+4. Gate + ledger (reuse optitron's hash-chain).
+5. Announce + `agent`-issue hand-off; register in the fleet docs.
