@@ -48,6 +48,15 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 | Edge kind | `state_dependency` (must be a DAG) vs `observation` / `control_signal` / `metrics` (cycles tolerated) |
 | `stale_dependency` | Paused lifecycle state entered when cold-start anchor verification fails |
 
+### Workflow orchestration lowering ([RFC 0008](../../protocol/rfcs/0008-workflow-orchestration-lowering.md))
+
+| Term | Meaning |
+|------|---------|
+| Workflow run | One end-to-end traversal of a lowered Vaked `workflow`, instantiated by `agent-supervisord` under a single topology epoch (the DAG is static; a run executes it once) |
+| Step activation | Admitting a step to `RUNNING` after its inbound `DependencyRegistration`s are logged and cold-start anchor verification passes; otherwise it parks `PAUSED(stale_dependency)` |
+| Lowering contract | The normative construct→frame correspondence (`workflow`/`mesh`/`budget`/`runclass` → RFC 0004/0005 frames) |
+| `DeadlineExpiry` | *Proposed* event frame marking a step's `budget.wallClock` exhausted — the missing wire dual of a declared wall-clock budget (today realized as a supervisor `PauseControl`) |
+
 ### Post-quantum & image-as-code ([RFC 0007](../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md))
 
 | Term | Meaning |

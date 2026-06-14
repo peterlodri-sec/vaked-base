@@ -1,0 +1,130 @@
+name: auto-rebase
+
+# Rebase all open PRs onto main whenever main advances.
+# Fail fast on conflicts — no auto-resolution, no LLM.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Single PR to rebase (empty = all open PRs targeting main)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-rebase
+  cancel-in-progress: true   # newer push to main supersedes in-flight run
+
+jobs:
+  rebase:
+    name: rebase open PRs onto main
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: rebase
+        env:
+          GH_TOKEN:  ${{ secrets.GITHUB_TOKEN }}
+          REPO:      ${{ github.repository }}
+          PR_FILTER: ${{ inputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          # ── collect PR list ────────────────────────────────────────────────
+          if [ -n "${PR_FILTER:-}" ]; then
+            pr_list="$PR_FILTER"
+          else
+            pr_list=$(gh pr list --repo "$REPO" --base main --state open \
+                        --json number --jq '.[].number' | tr '\n' ' ')
+          fi
+
+          if [ -z "${pr_list// }" ]; then
+            echo "No open PRs targeting main — nothing to do."
+            exit 0
+          fi
+
+          git fetch origin main
+          MAIN=$(git rev-parse origin/main)
+          echo "main @ $MAIN"
+
+          conflicts=0
+
+          for pr in $pr_list; do
+            # one gh call: name + fork flag
+            meta=$(gh pr view "$pr" --repo "$REPO" \
+                     --json headRefName,headRepository \
+                     --jq '[.headRefName, (.headRepository.isFork | tostring)] | @tsv')
+            ref=$(printf '%s' "$meta" | cut -f1)
+            fork=$(printf '%s' "$meta" | cut -f2)
+
+            echo ""
+            echo "=== PR #$pr  branch=$ref  fork=$fork ==="
+
+            if [ "$fork" = "true" ]; then
+              echo "  skip: fork PR — no push access"
+              continue
+            fi
+
+            # fetch branch; skip if it vanished
+            if ! git fetch origin "$ref" 2>/dev/null; then
+              echo "  skip: branch $ref no longer exists on origin"
+              continue
+            fi
+
+            # check staleness
+            base=$(git merge-base "origin/$ref" origin/main)
+            if [ "$base" = "$MAIN" ]; then
+              echo "  up to date — skip"
+              continue
+            fi
+
+            behind=$(git rev-list --count "$base"..origin/main)
+            echo "  behind main by $behind commit(s) — rebasing"
+
+            git checkout -B "$ref" "origin/$ref"
+
+            if git rebase --rebase-merges origin/main; then
+              git push origin "$ref" --force-with-lease
+              echo "  rebased and pushed"
+            else
+              git rebase --abort 2>/dev/null || true
+              # restore detached head so the next checkout -B works cleanly
+              git checkout --detach origin/main
+
+              gh pr comment "$pr" --repo "$REPO" --body \
+"⚠️ **Auto-rebase conflict** — \`$ref\` conflicts with \`main\` and needs manual resolution.
+
+\`\`\`bash
+git fetch origin
+git rebase origin/main   # resolve any conflict markers, then git rebase --continue
+git push --force-with-lease
+\`\`\`" \
+                2>/dev/null || true
+
+              echo "::error::PR #$pr ($ref) conflicts with main — manual resolution required"
+              conflicts=$((conflicts + 1))
+            fi
+          done
+
+          echo ""
+          if [ "$conflicts" -gt 0 ]; then
+            echo "::error::$conflicts PR(s) could not be auto-rebased"
+            exit 1
+          fi
+
+          echo "All PRs are up to date."

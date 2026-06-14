@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::consts::{DEFAULT_BASE_URL, DEFAULT_MAX_ITERS, DEFAULT_MODEL};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub(crate) enum Mode {
     Label,
     Changelog,
@@ -23,6 +23,7 @@ impl Mode {
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct Config {
     pub(crate) repo: String,
     pub(crate) mode: Mode,

@@ -30,7 +30,7 @@ Language + compiler are **done**. Protocol has 7 RFCs. Two runtime reference dae
 | `hosts/` | `vakedos` bare-metal NixOS host — the materialization target (EPYC 4345P); deploy guide in [`DEPLOY.md`](DEPLOY.md) |
 | `flake.nix` | Dev shell (Zig, BEAM/OTP, Rust for CrabCC, tooling) + `nixosConfigurations.vakedos` |
 | `.mcp.json` | Project MCP servers |
-| `.claude/skills/` | `vaked-language-author`, `hcp-rfc-author`, `vaked-compiler-dev`, `vaked-engineer-onboarding`, `caveman`, `mastodon-poster` |
+| `.claude/skills/` | `vaked-language-author`, `hcp-rfc-author`, `vaked-compiler-dev`, `vaked-engineer-onboarding`, `cuc`, `mastodon-poster` |
 
 ## Conventions
 

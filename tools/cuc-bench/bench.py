@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Benchmark: caveman wenyan-ultra vs normal (default) mode.
+Benchmark: CUC (caveman ultra chinese) wenyan-ultra vs normal (default) mode.
 
 Measures output token count and artifact English accuracy across 8 prompts.
 Writes results to report-<model>.md in the same directory.
@@ -11,10 +11,10 @@ Backends (priority order):
   - OpenAI API:      OPENAI_API_KEY env var, model gpt-4o-mini
 
 Usage:
-    ANTHROPIC_API_KEY=sk-ant-...    python3 tools/caveman-bench/bench.py
-    OPENAI_API_KEY=sk-...           python3 tools/caveman-bench/bench.py
+    ANTHROPIC_API_KEY=sk-ant-...    python3 tools/cuc-bench/bench.py
+    OPENAI_API_KEY=sk-...           python3 tools/cuc-bench/bench.py
     OPENROUTER_API_KEY=sk-or-...  \\
-      BENCH_MODEL=deepseek/deepseek-r1  python3 tools/caveman-bench/bench.py
+      BENCH_MODEL=deepseek/deepseek-r1  python3 tools/cuc-bench/bench.py
 """
 
 import json
@@ -69,6 +69,8 @@ CJK_RE = re.compile(r"[一-鿿㐀-䶿]")
 # Backend detection
 # ---------------------------------------------------------------------------
 def detect_backend():
+    if os.environ.get("OLLAMA_HOST"):
+        return "ollama", os.environ["OLLAMA_HOST"]
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic", os.environ["ANTHROPIC_API_KEY"]
     if os.environ.get("OPENROUTER_API_KEY"):
@@ -108,15 +110,23 @@ def call_anthropic(api_key: str, system: str, user: str) -> dict:
     }
 
 
+SINGLE_TURN_MODELS = {"morph/morph-v3-large", "morph/morph-v3"}
+
+
 def call_openrouter(api_key: str, system: str, user: str) -> dict:
     model = os.environ.get("BENCH_MODEL", "deepseek/deepseek-r1")
+    # Models that reject multi-turn / system messages — fold system into user.
+    if model in SINGLE_TURN_MODELS:
+        messages = [{"role": "user", "content": f"{system}\n\n---\n\n{user}"}]
+    else:
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
     payload = json.dumps({
         "model": model,
         "max_tokens": 2048,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        "messages": messages,
     }).encode()
     req = urllib.request.Request(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -125,7 +135,7 @@ def call_openrouter(api_key: str, system: str, user: str) -> dict:
             "Authorization": f"Bearer {api_key}",
             "content-type": "application/json",
             "HTTP-Referer": "https://github.com/peterlodri-sec/vaked-base",
-            "X-Title": "caveman-bench",
+            "X-Title": "cuc-bench",
         },
         method="POST",
     )
@@ -171,12 +181,48 @@ def call_openai(api_key: str, system: str, user: str) -> dict:
     }
 
 
-def call_api(backend: str, api_key: str, system: str, user: str) -> dict:
+def call_ollama(host_url: str, system: str, user: str) -> dict:
+    model = os.environ.get("BENCH_MODEL", "llama3.3:70b-instruct-q4_K_M")
+    payload = json.dumps({
+        "model": model,
+        "max_tokens": 2048,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }).encode()
+    req = urllib.request.Request(
+        f"{host_url.rstrip('/')}/v1/chat/completions",
+        data=payload,
+        headers={"content-type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Ollama unreachable at {host_url}: {exc}") from exc
+    choices = data.get("choices") or []
+    if not choices:
+        raise RuntimeError(f"Ollama returned no choices: {data}")
+    choice = choices[0]["message"]["content"]
+    usage = data.get("usage", {})
+    return {
+        "text": choice,
+        "input_tokens": usage.get("prompt_tokens", 0),
+        "output_tokens": usage.get("completion_tokens", len(choice.split())),
+        "model": data.get("model", model),
+    }
+
+
+def call_api(backend: str, api_key_or_url: str, system: str, user: str) -> dict:
+    if backend == "ollama":
+        return call_ollama(api_key_or_url, system, user)
     if backend == "anthropic":
-        return call_anthropic(api_key, system, user)
+        return call_anthropic(api_key_or_url, system, user)
     if backend == "openrouter":
-        return call_openrouter(api_key, system, user)
-    return call_openai(api_key, system, user)
+        return call_openrouter(api_key_or_url, system, user)
+    return call_openai(api_key_or_url, system, user)
 
 
 def has_cjk(text: str) -> bool:
@@ -186,7 +232,7 @@ def has_cjk(text: str) -> bool:
 # ---------------------------------------------------------------------------
 # Benchmark runner
 # ---------------------------------------------------------------------------
-def run_benchmark(backend: str, api_key: str) -> list:
+def run_benchmark(backend: str, api_key_or_url: str) -> list:
     results = []
     modes = [("normal", NORMAL_SYSTEM), ("wenyan-ultra", WENYAN_SYSTEM)]
     total = len(PROMPTS) * len(modes)
@@ -200,7 +246,7 @@ def run_benchmark(backend: str, api_key: str) -> list:
         for mode_name, system in modes:
             print(f"  [{done+1}/{total}] {prompt['id']} / {mode_name} ...", flush=True)
             try:
-                result = call_api(backend, api_key, system, prompt["text"])
+                result = call_api(backend, api_key_or_url, system, prompt["text"])
                 row[f"{mode_name}_input_tok"] = result["input_tokens"]
                 row[f"{mode_name}_output_tok"] = result["output_tokens"]
                 row[f"{mode_name}_chars"] = len(result["text"])
@@ -228,7 +274,7 @@ def run_benchmark(backend: str, api_key: str) -> list:
 def build_report(results: list, backend: str) -> str:
     model = results[0].get("model", "unknown") if results else "unknown"
     lines = [
-        "# Caveman Wenyan-Ultra vs Normal — Benchmark Report",
+        "# CUC (Caveman Ultra Chinese) — Wenyan-Ultra vs Normal Benchmark Report",
         "",
         f"**Backend:** {backend} | **Model:** `{model}` | **Prompts:** {len(results)}",
         "",
@@ -328,7 +374,7 @@ def build_report(results: list, backend: str) -> str:
 def main():
     backend, api_key = detect_backend()
     if not backend:
-        print("ERROR: set ANTHROPIC_API_KEY or OPENAI_API_KEY", file=sys.stderr)
+        print("ERROR: set OLLAMA_HOST, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY", file=sys.stderr)
         sys.exit(1)
 
     print(f"Backend: {backend}")
