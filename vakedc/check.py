@@ -1125,7 +1125,7 @@ def _decl_span(decl):
     return (decl.byteStart, decl.byteEnd, decl.line, decl.col)
 
 
-def _check_execution(items, smap, filename, diags):
+def _check_execution(items, registry, smap, filename, diags):
     """Check execution-semantics rules:
 
     E-EXEC-LIFECYCLE-CONTEXT — ``lifecycle`` block used in a non-parallel/fiber
@@ -1156,6 +1156,38 @@ def _check_execution(items, smap, filename, diags):
     for it in items:
         if isinstance(it, P.Decl):
             walk(it)
+
+    # E-CAP-UNKNOWN-DOMAIN / E-CAP-UNKNOWN-GRANT: validate capability refs in
+    # fiber `policy` and surface `input` contexts.
+    _CAP_CONTEXT_KINDS = frozenset(("fiber", "surface"))
+
+    def caps_in(decl):
+        found = []
+        def rec(body):
+            for st in body:
+                if isinstance(st, P.Assignment) and st.target == "capabilities" \
+                        and isinstance(st.value, P.ListLit):
+                    found.append(st.value)
+                elif isinstance(st, P.App) and st.record is not None:
+                    rec(st.record)
+                elif isinstance(st, P.NodeDecl):
+                    rec(st.body)
+                elif isinstance(st, P.Decl):
+                    rec(st.body)
+        rec(decl.body)
+        return found
+
+    for it in items:
+        if isinstance(it, P.Decl) and it.kind in _CAP_CONTEXT_KINDS:
+            for listlit in caps_in(it):
+                for item in listlit.items:
+                    # list items are P.App(ref=P.Ref,...), not bare P.Ref;
+                    # App has no span, so take the span from the inner Ref.
+                    ref = item.ref if isinstance(item, P.App) else item
+                    if isinstance(ref, P.Ref) and len(ref.parts) == 2:
+                        span = (ref.byteStart, ref.byteEnd, ref.line, ref.col)
+                        _check_capability_refs(ref.parts[0], ref.parts[1],
+                                               registry, filename, span, it, diags)
 
     # E-EXEC-CYCLE + E-EXEC-REWIND-NO-RETENTION: check each parallel group.
     from .schedule import fiber_ios, member_names, compute_schedule
@@ -1223,7 +1255,7 @@ def check_source(src, filename, builtins_path=None, builtins_cache=None):
         if isinstance(it, P.Decl):
             _check_decl_tree(it, registry, by_name_kind, smap, filename, diags)
 
-    _check_execution(items, smap, filename, diags)
+    _check_execution(items, registry, smap, filename, diags)
 
     diags.sort(key=lambda d: d.sort_key())
     return diags

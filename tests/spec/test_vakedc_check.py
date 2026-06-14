@@ -310,6 +310,22 @@ def _test_exec_rewind_no_retention(lines):
 
 
 # --------------------------------------------------------------------------- #
+# 8. Capability refs in fiber policy + surface input
+# --------------------------------------------------------------------------- #
+
+def _test_cap_fiber_policy(lines):
+    cache = _builtins_cache()
+    src = ('capability fs { grant repo_ro repo_rw\n  order repo_ro < repo_rw }\n'
+           'fiber f {\n  policy { capabilities = [fs.nope] }\n}\n')
+    codes = [d.code for d in vakedc.check_source(src, "x.vaked", builtins_cache=cache)]
+    if "E-CAP-UNKNOWN-GRANT" not in codes:
+        lines.append(f"  FAIL: expected E-CAP-UNKNOWN-GRANT, got {codes}")
+        return False
+    lines.append("  E-CAP-UNKNOWN-GRANT: raised for unknown grant in fiber policy")
+    return True
+
+
+# --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
 
@@ -319,7 +335,8 @@ def run():
     for fn in (_test_builtins, _test_coverage, _test_conformant, _test_rejected,
                _test_all_examples, _test_determinism,
                _test_exec_lifecycle_context, _test_exec_bad_transition,
-               _test_exec_cycle, _test_exec_rewind_no_retention):
+               _test_exec_cycle, _test_exec_rewind_no_retention,
+               _test_cap_fiber_policy):
         try:
             ok = fn(lines) and ok
         except Exception as e:
