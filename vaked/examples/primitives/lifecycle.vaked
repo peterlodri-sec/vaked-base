@@ -1,0 +1,33 @@
+# lifecycle.vaked — traversable execution tree (0013)
+# Demonstrates: lifecycle block with on pause, on resume, on stop.
+
+fiber mediaCompress {
+  engine = zigimg
+  input = stream.screenrec
+  output = artifacts.compressedMedia
+
+  policy {
+    strip_metadata = true
+    max_pixels = "4K"
+    formats = ["png", "webp"]
+  }
+
+  lifecycle {
+    on pause  { drain_timeout = "2s" }
+    on resume { }
+    on stop   { flush = true }
+  }
+}
+
+parallel "operator-runtime" {
+  fibers = [mediaCompress, ebpfIngest]
+
+  strategy = "supervised-dag"
+  supervisor = otp
+
+  lifecycle {
+    on pause  { drain_timeout = "5s"  notify = "ops-channel" }
+    on resume { }
+    on stop   { flush = true  emit_final = true }
+  }
+}

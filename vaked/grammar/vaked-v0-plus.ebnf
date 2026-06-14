@@ -1,4 +1,4 @@
-# vaked grammar — Vaked capability-graph language, v0.3
+# vaked grammar — Vaked capability-graph language, v0.4
 #
 # Notation:
 #   "literal"      terminal (keyword or punctuation, matched verbatim)
@@ -89,6 +89,31 @@
 #    `assignment`, while a bare `open` (not followed by an assign-op) parses as
 #    `open_decl`.  Thus no previously-legal v0.2 program changes meaning.
 #
+# ---- Design decisions (v0.4 — traversable execution tree) -------------------
+#
+# v0.4 adds the `lifecycle` block, which makes `parallel` and `fiber`
+# declarations *traversable*: each node in the OTP supervision tree is
+# addressable by path, and the runtime can deliver lifecycle events (pause,
+# resume, stop, rewind) to any node.  The design is normatively specified in
+# `docs/language/0013-traversable-execution.md`.
+#
+# 9. Lifecycle declarations.  A `lifecycle` block may appear inside `parallel`
+#    or `fiber` declarations.  It contains `on <event> { parameters }` clauses
+#    that declare control-point handlers.  `lifecycle` and `on` are SOFT keywords:
+#    `lifecycle` self-disambiguates because no existing stmt begins with
+#    `lifecycle`; `on` inside the lifecycle block self-disambiguates because the
+#    only other stmt forms that could start with `on` would require `on` followed
+#    by `=` (assignment) or an ident-chain (app/edge/decl), while `on <event>`
+#    is always followed by one of four named lifecycle-event terminals.
+#    `lifecycle_decl` is placed FIRST in the `stmt` alternatives so it is tried
+#    before `field_decl` and the rest; this is safe because `lifecycle` is a
+#    fresh leading token with no v0.3 or earlier clash.
+#    The checker validates that `lifecycle` appears only in `parallel` / `fiber`
+#    blocks (same pattern as `field_decl` meaningful only in `schema`).
+#    `rewind` requires the enclosing `fiber` or `parallel` to reference an input
+#    stream with `retention` set; the checker validates this and emits an error
+#    for `on rewind` in declarations that lack retention.
+#
 # ---- Minor conventions ------------------------------------------------------
 #
 # Comments     `#` begins a line comment that runs to end of line (eol).
@@ -143,7 +168,8 @@ kind        = "runtime" | "input"   | "engine"        | "host"
 # per-kind block grammars.
 
 block       = "{" { stmt } "}" ;
-stmt        = field_decl
+stmt        = lifecycle_decl
+            | field_decl
             | grant_decl
             | order_decl
             | assignment
@@ -200,6 +226,22 @@ range_ref   = "in" number ".." number ;
 grant_decl  = "grant" ident { ident } ;
 order_decl  = "order" order_chain { ";" order_chain } ;
 order_chain = ident "<" ident { "<" ident } ;
+
+# ---- Lifecycle declarations (v0.4 — traversable execution tree) -------------
+#
+# A `lifecycle` block may appear inside `parallel` or `fiber` declarations.
+# It declares control-point handlers for pause / resume / stop / rewind.
+# `lifecycle` is a soft keyword: self-disambiguating because no existing stmt
+# begins with `lifecycle`.  `on` inside the lifecycle block is likewise soft.
+# The `record` body (braces with assignments only) holds event parameters.
+#
+# `rewind` requires an input stream with `retention` set; checker validates
+# this.  `lifecycle` blocks are meaningful only in `parallel` / `fiber`; the
+# checker rejects them elsewhere (same pattern as field_decl in non-schema).
+
+lifecycle_decl  = "lifecycle" "{" { on_clause } "}" ;
+on_clause       = "on" lifecycle_event record ;
+lifecycle_event = "pause" | "resume" | "stop" | "rewind" ;
 
 # ---- Expressions ------------------------------------------------------------
 

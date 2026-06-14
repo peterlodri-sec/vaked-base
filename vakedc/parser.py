@@ -132,6 +132,24 @@ class OrderDecl(Node):
         self.chains = chains      # list of list[str]
 
 
+_LIFECYCLE_EVENTS = frozenset(("pause", "resume", "stop", "rewind"))
+
+
+class OnClause(Node):
+    __slots__ = ("event", "params")
+
+    def __init__(self, event, params):
+        self.event = event        # str: one of pause|resume|stop|rewind
+        self.params = params      # RecordLit (may be empty)
+
+
+class LifecycleDecl(Node):
+    __slots__ = ("clauses",)
+
+    def __init__(self, clauses):
+        self.clauses = clauses    # list of OnClause
+
+
 class InheritStmt(Node):
     __slots__ = ("names",)
 
@@ -404,6 +422,10 @@ class Parser:
         self._skip_nl()
         t = self.toks[self.i]
 
+        # lifecycle_decl — FIRST (v0.4 soft keyword, self-disambiguating).
+        if self._is_ident("lifecycle", t) and self._lookahead_lifecycle():
+            return self._lifecycle_decl()
+
         # field_decl / grant_decl / order_decl — BEFORE assignment.
         if self._is_ident("field", t) and self._lookahead_field():
             return self._field_decl()
@@ -476,6 +498,10 @@ class Parser:
             return False
         return self._is_op("<", self.toks[j + 1])
 
+    def _lookahead_lifecycle(self):
+        # `lifecycle` "{"
+        return self._is_op("{", self.toks[self.i + 1])
+
     def _lookahead_assign(self):
         # ident assign_op   (assignment target is a BARE ident, not dotted)
         return self.toks[self.i + 1].kind == "OP" and \
@@ -499,6 +525,35 @@ class Parser:
         return self._is_op("{", self.toks[k]) or self._is_op("(", self.toks[k])
 
     # --- statement forms ------------------------------------------------- #
+
+    def _lifecycle_decl(self):
+        """lifecycle_decl = "lifecycle" "{" { on_clause } "}"."""
+        self.i += 1                       # 'lifecycle'
+        self._skip_nl()
+        self._expect_op("{")
+        clauses = []
+        self._skip_nl()
+        while not self._is_op("}"):
+            if self._at_eof():
+                self._err("'}' to close lifecycle block")
+            clauses.append(self._on_clause())
+            self._skip_nl()
+        self.i += 1                       # '}'
+        return LifecycleDecl(clauses)
+
+    def _on_clause(self):
+        """on_clause = "on" lifecycle_event record."""
+        t = self.toks[self.i]
+        if not self._is_ident("on", t):
+            self._err("'on' in lifecycle block")
+        self.i += 1                       # 'on'
+        ev_tok = self.toks[self.i]
+        if ev_tok.kind != "IDENT" or ev_tok.value not in _LIFECYCLE_EVENTS:
+            self._err("a lifecycle event (pause, resume, stop, rewind)")
+        event = ev_tok.value
+        self.i += 1                       # event name
+        params = self._record()
+        return OnClause(event, params)
 
     def _field_decl(self):
         """field_decl = "field" ident ":" type [ "{" { refinement } "}" ]."""
