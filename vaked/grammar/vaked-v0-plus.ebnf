@@ -158,14 +158,15 @@ kind        = "runtime" | "input"   | "engine"        | "host"
 
 # ---- Block and statements ---------------------------------------------------
 #
-# `stmt` alternatives are ORDERED (first match wins).  The v0.3 type-layer
-# statements (`field_decl`, `open_decl`, `grant_decl`, `order_decl`) are listed
-# first because each begins with a reserved leading keyword (`field`, `open`,
-# `grant`, `order`) that does not start any v0.2 statement, so adding them
-# cannot change how a v0.2 block parses.  They are syntactically legal in any
-# block, but are MEANINGFUL only inside `schema` / `capability` declarations;
-# the checker (0011) rejects them elsewhere.  The grammar stays uniform: no
-# per-kind block grammars.
+# `stmt` alternatives are ORDERED (first match wins).  `lifecycle_decl` (v0.4)
+# is listed first: `lifecycle {` is a fresh token sequence that did not begin
+# any v0.2/v0.3 statement, so it cannot change how any prior file parses.  The
+# v0.3 type-layer statements (`field_decl`, `open_decl`, `grant_decl`,
+# `order_decl`) follow; each begins with a reserved leading keyword (`field`,
+# `open`, `grant`, `order`) that does not start any v0.2 statement.  All these
+# statements are syntactically legal in any block, but are MEANINGFUL only
+# inside their respective declaration kinds; the checker (0011) rejects them
+# elsewhere.  The grammar stays uniform: no per-kind block grammars.
 
 block       = "{" { stmt } "}" ;
 stmt        = lifecycle_decl
