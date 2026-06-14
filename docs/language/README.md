@@ -77,6 +77,22 @@ targets; provenance is preserved per-artifact (generated header) and in
 for `operator-field.vaked` are in
 [`vaked/examples/lowering/`](../../vaked/examples/lowering/).
 
+## Design series
+
+Numbered design notes in `docs/language/`. Each covers one decision or subsystem:
+
+| Doc | Title | Role |
+|-----|-------|------|
+| [0001](./0001-language-manifesto.md) | Language Manifesto | Founding principles |
+| [0003](./0003-reference-map.md) | Reference Map | Cross-reference of key terms and paths |
+| [0008](./0008-parallel-fibers-indexes-surfaces.md) | Parallel, Fibers, Indexes, Surfaces | Core primitive set |
+| [0009](./0009-kickoff-context-for-dedicated-session.md) | Kickoff Context | Session bootstrap reference |
+| [0010](./0010-mirageos-unikernel-surface.md) | MirageOS Unikernel Surface | vsock / unikernel surface design |
+| [0011](./0011-type-system.md) | Type System | Normative type spec (Goal 2) |
+| [0012](./0012-lowering.md) | Lowering | Normative lowering spec (Goal 3) |
+
+Gaps (0002, 0004–0007) are intentional — numbers are assigned at authoring time, not reserved in advance.
+
 ## Golden commands
 
 ```bash
