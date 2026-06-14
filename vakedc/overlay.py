@@ -75,6 +75,11 @@ def _walk(graph, body, chain, owner_id, owner, basename, provfile):
                     domain, grant = item.ref.parts
                     gid = node_id(basename, [domain, "grant:" + grant])
                     graph.add_edge(GraphEdge(owner_id, gid, "holds"))
+        elif isinstance(st, P.App) and st.record:
+            # `policy { ... }` (and similar) parse as a bare P.App with a record
+            # body; the App creates no graph node, so keep the enclosing
+            # owner_id/chain — fiber-policy `holds` edges originate from the fiber.
+            _walk(graph, st.record, chain, owner_id, owner, basename, provfile)
         elif isinstance(st, P.NodeDecl):
             child_chain = chain + [st.name]
             child_id = node_id(basename, child_chain)
