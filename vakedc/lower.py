@@ -203,10 +203,14 @@ def _engine_projection(engine_name: str) -> dict:
 
 def _children_of(graph, parent_id):
     """Direct ``contains`` children of a node, in source order (the resolver
-    appends edges in declaration order, and we never reorder)."""
+    appends edges in declaration order, and we never reorder).
+
+    Uses ``graph.edges_from`` (O(1) memoized adjacency lookup) rather than an
+    O(E) scan of every edge, so whole-graph lowering is O(N+E) instead of
+    O(N²). Order and membership are byte-identical to the old full scan."""
     out = []
-    for e in graph.edges:
-        if e.label == "contains" and e.source == parent_id:
+    for e in graph.edges_from(parent_id):
+        if e.label == "contains":
             child = graph.get_node(e.target)
             if child is not None:
                 out.append(child)

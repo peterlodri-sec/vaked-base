@@ -91,6 +91,10 @@ class Graph:
         self.source_file = source_file
         self._nodes: "dict[str, GraphNode]" = {}
         self._edges: "list[GraphEdge]" = []
+        # Lazy adjacency index source_id -> [edges], built once on first
+        # `edges_from` and invalidated on `add_edge`. Turns per-parent child
+        # lookups from O(E) full-scans into O(1) (see `edges_from`).
+        self._adj: "dict[str, list[GraphEdge]] | None" = None
 
     # --- nodes ----------------------------------------------------------- #
 
@@ -127,6 +131,24 @@ class Graph:
 
     def add_edge(self, edge: GraphEdge) -> None:
         self._edges.append(edge)
+        self._adj = None  # invalidate the lazy adjacency index
+
+    def edges_from(self, source_id: str) -> "list[GraphEdge]":
+        """All edges whose ``source`` is ``source_id``, in insertion order.
+
+        Backed by a memoized adjacency index built once in O(E) on first call;
+        each lookup is then O(1) (returns the precomputed bucket). Replaces the
+        old O(E)-per-call full scan over ``edges`` — turning per-parent child
+        traversal from O(N·E) into O(N+E). Insertion order is preserved, so
+        callers see edges in the same order a full scan produced (output bytes
+        unchanged). The list is shared, not copied — callers must not mutate it.
+        """
+        if self._adj is None:
+            idx: "dict[str, list[GraphEdge]]" = {}
+            for e in self._edges:
+                idx.setdefault(e.source, []).append(e)
+            self._adj = idx
+        return self._adj.get(source_id, [])
 
     # --- views ----------------------------------------------------------- #
 
