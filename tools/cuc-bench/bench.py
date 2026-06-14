@@ -232,7 +232,7 @@ def has_cjk(text: str) -> bool:
 # ---------------------------------------------------------------------------
 # Benchmark runner
 # ---------------------------------------------------------------------------
-def run_benchmark(backend: str, api_key: str) -> list:
+def run_benchmark(backend: str, api_key_or_url: str) -> list:
     results = []
     modes = [("normal", NORMAL_SYSTEM), ("wenyan-ultra", WENYAN_SYSTEM)]
     total = len(PROMPTS) * len(modes)
@@ -246,7 +246,7 @@ def run_benchmark(backend: str, api_key: str) -> list:
         for mode_name, system in modes:
             print(f"  [{done+1}/{total}] {prompt['id']} / {mode_name} ...", flush=True)
             try:
-                result = call_api(backend, api_key, system, prompt["text"])
+                result = call_api(backend, api_key_or_url, system, prompt["text"])
                 row[f"{mode_name}_input_tok"] = result["input_tokens"]
                 row[f"{mode_name}_output_tok"] = result["output_tokens"]
                 row[f"{mode_name}_chars"] = len(result["text"])
