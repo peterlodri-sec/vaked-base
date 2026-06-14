@@ -173,7 +173,7 @@ async def languages_expert(
     focus: str,
     model: str | None = None,
 ) -> dict:
-    formal_result, semantic_result = await asyncio.gather(
+    formal_result, semantic_result, mlir_result = await asyncio.gather(
         router.call(
             f"{NODE_ID}.formal_consistency_checker",
             corpus=corpus, focus=focus, model=model,
@@ -182,10 +182,15 @@ async def languages_expert(
             f"{NODE_ID}.semantic_completeness_checker",
             corpus=corpus, focus=focus, model=model,
         ),
+        router.call(
+            f"{NODE_ID}.mlir_dialect_checker",
+            corpus=corpus, focus=focus, model=model,
+        ),
     )
     findings = (
         _tag_specialist(formal_result.get("findings", []), "languages")
         + _tag_specialist(semantic_result.get("findings", []), "languages")
+        + _tag_specialist(mlir_result.get("findings", []), "languages")
     )
     findings += await _follow_cross_refs(findings, corpus, model)
     return {"findings": findings}
@@ -236,6 +241,46 @@ async def semantic_completeness_checker(
             "- Frame types whose fields are named but whose valid ranges or invariants are unstated\n"
             "Report the SINGLE most clear-cut finding. Quote the exact RFC text. "
             "Set confident=false if you find no real semantic completeness issue."
+        ),
+        user=f"Focus instructions: {focus}\n\nCorpus:\n{corpus}",
+        schema=CandidateFinding,
+        model=model,
+    )
+    return {"findings": [result.model_dump()] if result.confident else []}
+
+
+@router.reasoner()
+async def mlir_dialect_checker(
+    corpus: str,
+    focus: str,
+    model: str | None = None,
+) -> dict:
+    result = await router.ai(
+        system=(
+            "You are an MLIR dialect designer and compiler engineer reviewing the Vaked "
+            "MLIR specification set (docs 0013 umbrella + 0019-0024) for STRUCTURAL "
+            "COHERENCE:\n"
+            "- SSA well-formedness: every vaked.consume must have a producing value; "
+            "!vaked.state_hash must be used consistently as the dataflow token; use-def "
+            "chains must encode the dependency graph without dangling or untyped values\n"
+            "- Dialect op/type completeness: each op in 0019 (vaked.*) and 0020 (hcp.*) "
+            "must have operands, results, attributes, types, and verifier rules sufficient "
+            "to write its TableGen .td — flag any op whose shape is underspecified\n"
+            "- hcp <-> RFC 0004 mapping: every hcp.* op MUST correspond to a frame RFC 0004 "
+            "defines (DependencyRegistration, RewindEvent; §2/§3.1). Flag an hcp op that "
+            "references a frame RFC 0004 does not define, OR a runtime-only frame "
+            "(ConsumerCheckpoint, GC floor, StaleDependency) that wrongly acquired an hcp op\n"
+            "- Pass pre/postcondition coherence: Pass 1->2->3 (0021-0023) conditions must "
+            "chain (acyclic+depth before WAL injection before index emission) and match the "
+            "shipped Stage-0 semantics (E-WORKFLOW-CYCLE / E-WORKFLOW-DEPTH; the diagnostic "
+            "naming reconciled in 0021 §3 — flag any reintroduction of E-TOPO-* or "
+            "E-CYCLE-DETECTED as canonical)\n"
+            "- Write-ahead invariant: the token -> receipt -> data def-use chain (0020 §4, "
+            "0022) must be unbroken so a fetch can never precede its write-ahead log\n"
+            "Report the SINGLE most clear-cut incoherence. Quote the exact doc text. Set "
+            "rfc_id to the doc number (e.g. '0020'). Set needs_cross_ref=true and "
+            "cross_ref_target to a section header if verifying requires a section not in the "
+            "corpus. Set confident=false if you find no real structural incoherence."
         ),
         user=f"Focus instructions: {focus}\n\nCorpus:\n{corpus}",
         schema=CandidateFinding,

@@ -20,6 +20,19 @@ def ingest_rfcs() -> dict[str, str]:
             result["vocab-protocol"] = vocab_path.read_text(encoding="utf-8")
         except OSError:
             pass
+    # MLIR topology-compilation spec set (umbrella 0013 + parts 0019-0024,
+    # docs/language/0013-mlir-topology-compilation.md). Keyed with an `mlir-`
+    # prefix so build_full_corpus keeps the set in full (the hcp dialect <-> RFC
+    # 0004 surface is the highest-value coherence check).
+    mlir_dir = REPO_ROOT / "docs/language"
+    mlir_stems = ("0013", "0019", "0020", "0021", "0022", "0023", "0024")
+    if mlir_dir.exists():
+        for path in sorted(mlir_dir.glob("*.md")):
+            if path.name.split("-", 1)[0] in mlir_stems:
+                try:
+                    result[f"mlir-{path.stem}"] = path.read_text(encoding="utf-8")
+                except OSError:
+                    pass
     return result
 
 
@@ -33,10 +46,12 @@ def build_corpus_summary(rfc_texts: dict[str, str]) -> str:
 
 
 def build_full_corpus(rfc_texts: dict[str, str]) -> str:
-    """RFC 0004 in full; others excerpted to 150 lines to bound context."""
+    """RFC 0004 and the MLIR set in full; others excerpted to 150 lines to bound
+    context. The MLIR docs (`mlir-*`) are kept whole because the `hcp` dialect's
+    op<->frame mapping must be checked against RFC 0004 in full."""
     parts = []
     for name, text in rfc_texts.items():
-        if "0004" in name:
+        if "0004" in name or name.startswith("mlir-"):
             parts.append(f"=== {name} (full) ===\n{text}")
         else:
             lines = text.split("\n")[:150]

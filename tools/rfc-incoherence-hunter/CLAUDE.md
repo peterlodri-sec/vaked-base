@@ -2,14 +2,14 @@
 
 ## Mission
 
-Find logical incoherence in the Vaked protocol RFC series using three specialist personas (orchestration expert, kernel/eBPF contributor, TCS/languages prodigy) that analyze RFC 0004 and related RFCs in parallel, adversarially verify findings, and synthesize a coherence report.
+Find logical incoherence in the Vaked protocol RFC series **and the MLIR topology-compilation spec set** (docs 0013, 0019-0024) using three specialist personas (orchestration expert, kernel/eBPF contributor, TCS/languages prodigy) that analyze RFC 0004, related RFCs, and the MLIR dialect/pass docs in parallel, adversarially verify findings, and synthesize a coherence report.
 
 External callers should hit `rfc-incoherence-hunter.rfc_incoherence_hunter` first.
 
 ## Architecture at a glance
 
 - **Pattern(s):** Parallel Hunters + HUNT→PROVE + Dynamic Cross-Reference Following
-- **Topology:** one AgentField node (`rfc-incoherence-hunter`) with 14 reasoners
+- **Topology:** one AgentField node (`rfc-incoherence-hunter`) with 15 reasoners
 - **Entry reasoner:** `rfc_incoherence_hunter` — ingests RFCs, orchestrates all three specialists, verifies findings, composes report
 - **Internal reasoners:**
   - `section_classifier` (`.ai()`) — assigns RFC sections to each specialist dimension
@@ -19,9 +19,10 @@ External callers should hit `rfc-incoherence-hunter.rfc_incoherence_hunter` firs
   - `kernel_expert` (orchestrator) — parallelizes bpf_atomicity_checker + thread_model_checker
   - `bpf_atomicity_checker` (`.ai()`) — finds dual-writer BPF map risks, TID stability gaps
   - `thread_model_checker` (`.ai()`) — finds BEAM/OS TID mismatch, TID reuse hazards
-  - `languages_expert` (orchestrator) — parallelizes formal_consistency_checker + semantic_completeness_checker
+  - `languages_expert` (orchestrator) — parallelizes formal_consistency_checker + semantic_completeness_checker + mlir_dialect_checker
   - `formal_consistency_checker` (`.ai()`) — finds circular definitions, contradictory MUSTs, temporal violations
   - `semantic_completeness_checker` (`.ai()`) — finds undefined normative terms, unnamed reachable states
+  - `mlir_dialect_checker` (`.ai()`) — finds MLIR-set incoherence: SSA well-formedness, vaked/hcp op+type completeness (TableGen-readiness), pass pre/postconditions, and the hcp op ↔ RFC 0004 frame mapping (docs 0013, 0019-0024)
   - `cross_ref_follower` (`.ai()`) — conditionally called by any specialist for major/critical cross-references
   - `finding_verifier` (`.ai()`) — adversarial verifier: tries to REFUTE each non-minor finding
   - `coherence_report_composer` (`.ai()`) — synthesizes into a structured coherence report
@@ -33,7 +34,7 @@ The three specialist dimensions (protocol correctness, kernel behavior, formal s
 
 ## Primitive selection rules (binding)
 
-- `.ai()` is used ONLY at gates and leaf checkers: `section_classifier`, `protocol_contract_checker`, `lifecycle_checker`, `bpf_atomicity_checker`, `thread_model_checker`, `formal_consistency_checker`, `semantic_completeness_checker`, `cross_ref_follower`, `finding_verifier`, `coherence_report_composer`. Every `.ai()` schema here has a `confident` field and a fallback.
+- `.ai()` is used ONLY at gates and leaf checkers: `section_classifier`, `protocol_contract_checker`, `lifecycle_checker`, `bpf_atomicity_checker`, `thread_model_checker`, `formal_consistency_checker`, `semantic_completeness_checker`, `mlir_dialect_checker`, `cross_ref_follower`, `finding_verifier`, `coherence_report_composer`. Every `.ai()` schema here has a `confident` field and a fallback.
 - Orchestrator reasoners (`orchestration_expert`, `kernel_expert`, `languages_expert`, `rfc_incoherence_hunter`) contain only Python orchestration logic (asyncio.gather, filtering, rendering) — no `.ai()` calls directly.
 - `@app.skill()` is not used — all deterministic transforms (corpus building, finding rendering, deduplication) are plain Python helpers in `reasoners/helpers.py`.
 - New leaf checkers default to `.ai()` with a `CandidateFinding` schema and `confident=false` fallback.
@@ -43,7 +44,7 @@ The three specialist dimensions (protocol correctness, kernel behavior, formal s
 - RFC corpus is built by `helpers.py` functions (plain Python) and passed as strings to reasoners.
 - Findings cross reasoner boundaries as plain dicts (cross-boundary serialization drops Pydantic type identity). Reconstruct with `Model(**dict)` only when branching on the result type.
 - LLM-to-LLM handoffs use rendered prose (`render_finding`, `render_verified_findings`) — not raw JSON dicts.
-- The corpus is truncated for non-RFC-0004 files (first 150 lines) to keep specialist context bounded.
+- The corpus is truncated for non-RFC-0004 files (first 150 lines) to keep specialist context bounded. Exception: RFC 0004 **and** the MLIR set (`mlir-*`) are kept in full — the `hcp` op ↔ RFC 0004 frame mapping has to be checked against both whole.
 
 ## Model selection
 
@@ -56,7 +57,7 @@ The three specialist dimensions (protocol correctness, kernel behavior, formal s
 - Local runtime: `docker-compose.yml` in this directory.
 - Two containers: `agentfield/control-plane:latest` (port 8080) + this Python agent (port 8001).
 - The vaked-base repo is mounted read-only at `/rfcs` inside the agent container. Set `VAKED_REPO_PATH` in `.env` to override the default path.
-- RFC files are read from `/rfcs/protocol/rfcs/*.md`. The vocabulary doc is read from `/rfcs/docs/protocol/README.md`.
+- RFC files are read from `/rfcs/protocol/rfcs/*.md`. The vocabulary doc is read from `/rfcs/docs/protocol/README.md`. The MLIR topology-compilation spec set (umbrella `0013` + parts `0019-0024`) is read from `/rfcs/docs/language/*.md` (keyed `mlir-*` in the corpus).
 
 ## Delivery contract — every change must preserve
 
@@ -81,7 +82,7 @@ OPENROUTER_API_KEY=sk-or-v1-FAKE docker compose config > /dev/null
 - Calling `app.ai()` directly inside an orchestrator reasoner body (orchestrators contain only Python + `app.call`).
 - Hardcoding `node_id` in `app.call`. Always use `f"{app.node_id}.X"` in `main.py` or `f"{NODE_ID}.X"` in router files.
 - Removing the `confident` field from any `.ai()` schema without replacing the fallback.
-- Passing the full corpus of all four RFCs to all calls — RFC 0003 is 1200+ lines. Only RFC 0004 is passed in full; others are truncated in `build_full_corpus`.
+- Passing the full corpus of all four RFCs to all calls — RFC 0003 is 1200+ lines. Only RFC 0004 and the MLIR set (`mlir-*`) are passed in full; others are truncated in `build_full_corpus`.
 
 ## Extension points
 
