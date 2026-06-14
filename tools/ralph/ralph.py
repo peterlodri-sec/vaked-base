@@ -2228,6 +2228,324 @@ def cmd_watch(args) -> int:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# introspect — the daily fleet self-improvement loop. Mines the fleet's OWN
+# Langfuse telemetry (+ ledgers + CI) over the last ≤2 days, auto-detects the
+# most salient finding, ideates ONE novel solution, REVIEWS it (always), and
+# hands a survivor to swe_af via an `agent`-labelled issue. Abstain by default.
+# Reuses openrouter_call (Langfuse-traced), append_event (the shared hash chain),
+# the cost cap, and gh — the delta is a Langfuse *query* client + the digest.
+# ---------------------------------------------------------------------------
+
+import introspectcore as I  # noqa: E402
+
+INTROSPECT_PURPOSE_PATH = os.path.join(HERE, "introspect_purpose.md")
+SOCIAL_TOOT_PATH = os.path.join(REPO_HOME, ".github", "social", "toot.txt")
+SOCIAL_TG_PATH = os.path.join(REPO_HOME, ".github", "social", "telegram.txt")
+OPTITRON_EVENTS_PATH = os.path.join(REPO_HOME, "tools", "optitron", "state", "events.jsonl")
+
+INTROSPECT_DETECT_MODEL = os.environ.get("RALPH_INTROSPECT_DETECT_MODEL", "deepseek/deepseek-v4-flash")
+INTROSPECT_IDEATE_MODEL = os.environ.get("RALPH_INTROSPECT_IDEATE_MODEL", "anthropic/claude-opus-4.8")
+INTROSPECT_REVIEW_MODEL = os.environ.get("RALPH_INTROSPECT_REVIEW_MODEL", "anthropic/claude-opus-4.8")
+
+
+def _introspect_prices() -> "dict[str, C.Price]":
+    """ralph's fallback prices + the introspect-default frontier models."""
+    p = dict(C.FALLBACK_PRICES)
+    p.setdefault("anthropic/claude-opus-4.8", C.Price(5.0, 25.0))
+    p.setdefault("anthropic/claude-fable-5", C.Price(10.0, 50.0))
+    p.setdefault("openai/gpt-5.5", C.Price(1.25, 10.0))
+    return p
+
+
+def _introspect_cost(model: str, usage: dict) -> float:
+    prices = _introspect_prices()
+    price = prices.get(model) or prices.get(model.split(":")[0]) or C.Price(0.5, 1.0)
+    return C.cost_usd(usage or {}, price)
+
+
+def _langfuse_query(path: str, params: dict, max_pages: int = 20) -> list:
+    """Paged GET against the Langfuse public API (HTTP Basic from the key pair).
+    Returns [] when keys are absent or a query fails — the loop degrades to
+    ledgers+CI, never crashing."""
+    host = os.environ.get("LANGFUSE_HOST") or os.environ.get("LANGFUSE_BASE_URL")
+    pk = os.environ.get("LANGFUSE_PUBLIC_KEY")
+    sk = os.environ.get("LANGFUSE_SECRET_KEY")
+    if not (host and pk and sk):
+        return []
+    token = base64.b64encode(f"{pk}:{sk}".encode("utf-8")).decode("ascii")
+    headers = {"Authorization": f"Basic {token}"}
+    out: list = []
+    for page in range(1, max_pages + 1):
+        q = dict(params, page=page, limit=100)
+        url = f"{host.rstrip('/')}{path}?{urllib.parse.urlencode(q)}"
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                data = _loads(resp.read().decode("utf-8"))
+        except Exception as exc:                       # noqa: BLE001
+            print(f"[introspect] langfuse {path} query failed: {_short_err(exc)}")
+            break
+        items = data.get("data") or []
+        out.extend(items)
+        meta = data.get("meta") or {}
+        if page >= int(meta.get("totalPages") or 1) or not items:
+            break
+    return out
+
+
+def _ledger_stats() -> dict:
+    """Compact stats from the hash-chained ledgers (ralph + optitron)."""
+    stats: dict = {}
+    try:
+        events = load_events()
+        kinds: dict[str, int] = {}
+        for e in events:
+            k = e.get("payload", {}).get("event", "?")
+            kinds[k] = kinds.get(k, 0) + 1
+        stats["ralph"] = {"events": len(events), "by_kind": kinds,
+                          "total_cost": round(_events_total_cost(), 4)}
+    except Exception as exc:                            # noqa: BLE001
+        stats["ralph"] = {"error": _short_err(exc)}
+    try:
+        opt = [_loads(ln) for ln in _read_lines(OPTITRON_EVENTS_PATH) if ln.strip()]
+        okinds: dict[str, int] = {}
+        for e in opt:
+            k = e.get("payload", {}).get("event", "?")
+            okinds[k] = okinds.get(k, 0) + 1
+        stats["optitron"] = {"events": len(opt), "by_kind": okinds}
+    except Exception:                                  # noqa: BLE001
+        pass
+    return stats
+
+
+def _read_lines(path: str) -> list:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.readlines()
+    except OSError:
+        return []
+
+
+def _ci_stats(window_days: float) -> dict:
+    """Recent GitHub Actions conclusions, grouped — a coarse failure signal."""
+    runs = _gh_json(["gh", "run", "list", "--repo", HOME_GH, "--limit", "60",
+                     "--json", "name,conclusion"], cwd=REPO_HOME)
+    by: dict[str, dict] = {}
+    for r in runs:
+        name = r.get("name", "?")
+        concl = r.get("conclusion") or "running"
+        d = by.setdefault(name, {})
+        d[concl] = d.get(concl, 0) + 1
+    failing = {n: c for n, c in by.items() if c.get("failure")}
+    return {"failing_workflows": failing} if failing else {}
+
+
+def _introspect_digest(window_days: float) -> "tuple[str, dict, dict]":
+    """Build the telemetry digest. Returns (digest_md, economy, by_bot)."""
+    frm, to = I.iso_window(window_days)
+    obs = _langfuse_query("/api/public/observations",
+                          {"type": "GENERATION", "fromStartTime": frm, "toStartTime": to})
+    cost_fn = lambda m, pin, pout: _introspect_cost(  # noqa: E731
+        m, {"prompt_tokens": pin, "completion_tokens": pout})
+    by_model = I.aggregate_observations(obs, cost_fn=cost_fn)
+    spans = I.span_counts(obs)
+    digest, econ = I.build_digest(by_model, spans, _ledger_stats(), _ci_stats(window_days), window_days)
+    return digest, econ, by_model
+
+
+def _known_in_repo(signature: str) -> bool:
+    sig = (signature or "").strip()
+    if len(sig) < 4:
+        return False
+    try:
+        r = subprocess.run(["git", "-C", REPO_HOME, "grep", "-qiF", sig],
+                           capture_output=True, timeout=30)
+        return r.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
+def _introspect_summary(md: str) -> None:
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not path:
+        return
+    try:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(md + "\n")
+    except OSError:
+        pass
+
+
+def _introspect_issue_body(finding: dict, idea: dict, review: dict, econ: dict) -> str:
+    targets = "\n".join(f"- `{t}`" for t in idea.get("target_files", []) if t) or "- (none named)"
+    return (
+        f"**Fleet self-improvement idea (ralph-introspect):** {idea.get('title')}\n\n"
+        f"**Finding** (`{finding.get('bot')}` · severity {finding.get('severity')}): "
+        f"{finding.get('finding')}\n\n"
+        f"> evidence: {finding.get('evidence')}\n\n"
+        f"## Mechanism\n{idea.get('mechanism')}\n\n"
+        f"## Why it's novel\n{idea.get('novelty_rationale')}\n\n"
+        f"## Expected effect\n{idea.get('expected_effect')}\n\n"
+        f"## Grounding (telemetry)\n{idea.get('evidence')}\n\n"
+        f"## Target files\n{targets}\n\n"
+        f"## Review\napproved={review.get('approved')} · novel={review.get('novel')} · "
+        f"grounded={review.get('grounded')} · confidence={review.get('confidence')}\n\n"
+        f"> {review.get('critique')}\n\n"
+        f"## Fleet economy (normal, non-optimistic; from the last {econ.get('window_days')}d)\n"
+        f"measured ${econ.get('window_cost'):.4f} → **/day ${econ.get('per_day'):.4f} · "
+        f"/week ${econ.get('per_week'):.2f} · /month ${econ.get('per_month'):.2f}**\n\n"
+        f"_Filed by ralph-introspect. Labelled `agent` to hand off to swe_af "
+        f"(plan → code → review → publish). Re-verify before implementing._\n"
+    )
+
+
+def _stage_announce(idea: dict, econ: dict, issue_url: str) -> None:
+    """Stage a Carcin-voice toot + Telegram message (the push fires the workflows)."""
+    toot = (f"ralph-introspect filed a fleet improvement: {idea.get('title')}. "
+            f"Grounded in 2 days of our own Langfuse traces. Fleet spend ~${econ.get('per_month'):.0f}/mo. "
+            f"Handed to swe_af. {issue_url}")[:I.__dict__.get('MAX', 480) if False else 480]
+    tg = (f"🔬 ralph-introspect: {idea.get('title')}\n"
+          f"grounded in fleet telemetry · ~${econ.get('per_month'):.0f}/mo spend · handed to swe_af\n{issue_url}")
+    for path, text in ((SOCIAL_TOOT_PATH, toot), (SOCIAL_TG_PATH, tg)):
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text + "\n")
+        except OSError as exc:                          # noqa: BLE001
+            print(f"[introspect] staging {path} failed: {_short_err(exc)}")
+
+
+def cmd_introspect(args) -> int:
+    purpose = _read_file_or(INTROSPECT_PURPOSE_PATH,
+                            "You are ralph-introspect. Surface ONE novel, grounded fleet "
+                            "improvement from our own telemetry, or nothing.")
+    window = float(args.window_days)
+    budget = float(args.budget_total)
+    focus = args.focus or ""
+    dry_act = bool(os.environ.get("RALPH_INTROSPECT_DRY_ACT"))
+
+    digest, econ, by_bot = _introspect_digest(window)
+
+    if args.dry_run:
+        print("=== ralph-introspect dry-run ===")
+        print(f"detect: {INTROSPECT_DETECT_MODEL}\nideate: {INTROSPECT_IDEATE_MODEL}\n"
+              f"review: {INTROSPECT_REVIEW_MODEL}")
+        est = sum(_introspect_cost(m, {"prompt_tokens": 12000, "completion_tokens": 3000})
+                  for m in (INTROSPECT_DETECT_MODEL, INTROSPECT_IDEATE_MODEL, INTROSPECT_REVIEW_MODEL))
+        print(f"per-run est ~${est:.3f}; daily hard cap ${budget:.2f}")
+        print(f"economy (measured ${econ['window_cost']:.4f}/{window:g}d): "
+              f"/day ${econ['per_day']:.4f} · /week ${econ['per_week']:.2f} · /month ${econ['per_month']:.2f}")
+        print("--- digest (system = introspect_purpose.md) ---")
+        print(digest[:1600])
+        return 0
+
+    api_key = _resolve_api_key()
+    if not api_key:
+        print("[introspect] no API key (OPENROUTER_API_KEY/RALPH_API_KEY) — skipping")
+        return 0
+
+    spent = 0.0
+    base_url = _resolve_base_url(getattr(args, "base_url", None))
+
+    def call(model, messages, schema, span, effort=None, max_tokens=1800):
+        nonlocal spent
+        reasoning = {"enabled": True, "effort": effort} if effort else None
+        resp = openrouter_call(model, messages, api_key=api_key, temperature=0.2,
+                               max_tokens=max_tokens, response_format=schema,
+                               reasoning=reasoning, base_url=base_url, span_name=span,
+                               span_meta={"window_days": window})
+        spent += _introspect_cost(model, resp.get("usage", {}) or {})
+        return _parse_json_obj(_message_content(resp) or _reasoning_text(resp))
+
+    # 1. detect the single most salient finding
+    try:
+        finding = call(INTROSPECT_DETECT_MODEL,
+                       I.build_detect_messages(purpose, digest, focus),
+                       I.DETECT_SCHEMA, "ralph.introspect.detect", max_tokens=1200)
+    except Exception as exc:                            # noqa: BLE001
+        print(f"[introspect] detect failed: {_short_err(exc)}")
+        append_event({"event": "introspect_error", "stage": "detect", "msg": _short_err(exc)})
+        return 0
+    if not finding.get("finding"):
+        append_event({"event": "introspect_none", "reason": "no-finding", "cost": round(spent, 5),
+                      "economy": econ})
+        print("[introspect] no finding surfaced — abstaining")
+        _introspect_summary(_intro_summary_md(econ, finding=None, found=False, spent=spent))
+        return 0
+
+    # 2. ideate ONE novel solution
+    idea = call(INTROSPECT_IDEATE_MODEL, I.build_ideate_messages(purpose, finding, digest),
+                I.IDEATE_SCHEMA, "ralph.introspect.ideate", effort="medium", max_tokens=2500)
+    title = idea.get("title", "")
+
+    # deterministic novelty before spending on review
+    prior = I.prior_introspect_titles(load_events())
+    if not title:
+        append_event({"event": "introspect_none", "reason": "no-idea", "cost": round(spent, 5)})
+        return 0
+    if title in prior:
+        append_event({"event": "introspect_rejected", "title": title, "reason": "already-filed"})
+        print(f"[introspect] rejected '{title}': already filed")
+        return 0
+    if idea.get("signature") and _known_in_repo(idea["signature"]):
+        append_event({"event": "introspect_rejected", "title": title, "reason": "known-in-repo"})
+        print(f"[introspect] rejected '{title}': signature already in repo")
+        return 0
+    if spent >= budget:
+        append_event({"event": "introspect_none", "reason": "budget", "cost": round(spent, 5)})
+        return 0
+
+    # 3. always review (skeptical, fail-closed gate)
+    review = call(INTROSPECT_REVIEW_MODEL, I.build_review_messages(purpose, finding, idea, digest),
+                  I.REVIEW_SCHEMA, "ralph.introspect.review", effort="medium", max_tokens=1500)
+    passed, reason = I.passes_gate(review, min_confidence=0.75)
+    if not passed:
+        append_event({"event": "introspect_rejected", "title": title, "reason": reason,
+                      "confidence": review.get("confidence")})
+        print(f"[introspect] rejected '{title}': {reason}")
+        _introspect_summary(_intro_summary_md(econ, finding, found=False, spent=spent))
+        return 0
+
+    # 4. act — hand off to swe_af + announce (gated behind the passing review)
+    issue_url = "(dry-act)"
+    if not dry_act:
+        body = _introspect_issue_body(finding, idea, review, econ)
+        with open(os.path.join(STATE_DIR, ".introspect-issue.md"), "w", encoding="utf-8") as fh:
+            fh.write(body)
+        out = _run(["gh", "issue", "create", "--repo", HOME_GH, "--title", f"[introspect] {title}",
+                    "--body-file", os.path.join(STATE_DIR, ".introspect-issue.md"),
+                    "--label", "agent"], cwd=REPO_HOME)
+        issue_url = out.strip() or "(issue-create-failed)"
+        _stage_announce(idea, econ, issue_url)
+    append_event({"event": "introspect_found", "title": title, "bot": finding.get("bot"),
+                  "confidence": review.get("confidence"), "issue": issue_url,
+                  "cost": round(spent, 5), "economy": econ})
+    print(f"[introspect] FOUND '{title}' → {issue_url} (conf {review.get('confidence')})")
+    _introspect_summary(_intro_summary_md(econ, finding, found=True, spent=spent, title=title, url=issue_url))
+    return 0
+
+
+def _intro_summary_md(econ: dict, finding, found: bool, spent: float,
+                      title: str = "", url: str = "") -> str:
+    head = f"## ralph-introspect\n\nfound: **{'yes' if found else 'no (abstained)'}**"
+    if found:
+        head += f" — [{title}]({url})" if url.startswith("http") else f" — {title}"
+    fin = f"\n\nfinding: {finding.get('finding')}" if finding else "\n\nfinding: (none)"
+    eco = (f"\n\neconomy (normal, from last {econ.get('window_days')}d): "
+           f"/day ${econ.get('per_day'):.4f} · /week ${econ.get('per_week'):.2f} · "
+           f"/month ${econ.get('per_month'):.2f}")
+    return head + fin + eco + f"\n\nspend this run: ${spent:.4f}"
+
+
+def _read_file_or(path: str, default: str) -> str:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return default
+
+
 def main(argv: list[str] | None = None) -> int:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--repos", default=os.path.join(HERE, "repos.json"))
@@ -2298,6 +2616,19 @@ def main(argv: list[str] | None = None) -> int:
     p_digest.add_argument("--dry-run", action="store_true",
                           help="build + print the digest without posting")
     p_digest.set_defaults(func=cmd_digest)
+
+    p_intro = sub.add_parser("introspect", parents=[common],
+                             help="daily fleet self-improvement loop over Langfuse telemetry")
+    p_intro.add_argument("--once", action="store_true", help="single cycle (default)")
+    p_intro.add_argument("--dry-run", action="store_true",
+                         help="build the digest + prompts + cost/economy estimate; no model calls")
+    p_intro.add_argument("--window-days", type=float, default=2.0,
+                         help="telemetry lookback window in days (default 2)")
+    p_intro.add_argument("--focus", default="",
+                         help="optional operator finding to prioritise (else auto-detect)")
+    p_intro.add_argument("--budget-total", type=float, default=3.00,
+                         help="USD hard cap per run (checked before each model call)")
+    p_intro.set_defaults(func=cmd_introspect)
 
     args = parser.parse_args(argv)
     try:

@@ -73,6 +73,12 @@ python3 tools/ralph/ralph.py events --replay
 
 # Human ratify status: per-track decisions, verdicts, ratify-rate, backlog
 python3 tools/ralph/ralph.py ratify
+
+# Fleet self-improvement loop (introspect): mine the fleet's OWN Langfuse traces
+# (+ ledgers + CI) over the last ≤2 days, surface ONE novel improvement, review it,
+# hand a survivor to swe_af, and report the fleet economy. --dry-run = no model calls.
+python3 tools/ralph/ralph.py introspect --dry-run
+python3 tools/ralph/ralph.py introspect --once --budget-total 3.0 [--focus "..."]
 ```
 
 `run` is track-mode by default; `--repo-mode` selects the deprecated whole-repo

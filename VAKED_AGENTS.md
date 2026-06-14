@@ -20,6 +20,7 @@ runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE
 | Agent | Kind | Trigger | Lives in | Model | Does |
 |-------|------|---------|----------|-------|------|
 | **ralph** | Python cron loop | cron 3h + 23:00 UTC, dispatch | `tools/ralph/` ([README](tools/ralph/README.md)) | per-track ([`tools/ralph/tracks.json`](tools/ralph/tracks.json)) | Surfaces the most important open decision per track into a hash-chained, human-ratified ledger; announces + daily recap to Mastodon. |
+| **ralph-introspect** | Python loop (ralph mode) | cron daily 06:00 UTC; `workflow_dispatch` (double-confirm) | `tools/ralph/` (`introspect`) ([README](tools/ralph/README.md)) | `deepseek-v4-flash` (detect) · `claude-opus-4.8` (ideate/review) | Fleet self-improvement loop: reads the fleet's OWN Langfuse traces (+ ledgers + CI) over the last ≤2 days, auto-detects the most salient finding, ideates **one** novel solution, **always reviews** it (fail-closed gate), and hands a survivor to swe_af via an `agent`-labelled issue. Reports the fleet economy (real spend → normal day/week/month projection). Abstains by default; $3/run cap; manual runs gated behind a required-reviewer Environment approval. |
 | **pr-review** | adk-rust event | `pull_request` | `vaked-agents/ci/pr-review/` ([README](vaked-agents/ci/pr-review/README.md)) | `deepseek/deepseek-v4-flash` | Advisory diff review: 7-hat council, crabcc/MCP + RTK, structured findings, inline ```suggestion``` autofixes, cost + runtime footer; never fails the check. |
 | **@vaked-ci** | adk-rust event (same binary, `--respond`) | `issue_comment` mentioning `@vaked-ci` | `vaked-agents/ci/pr-review/` | `deepseek/deepseek-v4-flash` | Replies to maintainer comments: answer a question about the diff, or `review`/`re-review`. Gated to non-bot OWNER/MEMBER/COLLABORATOR. |
 | **doc-keeper** | Python checker | doc/protocol pushes, PRs, weekly cron | `tools/dockeeper/` ([README](tools/dockeeper/README.md)) | — (deterministic) | Gates doc/spec/RFC drift: RFC cross-refs resolve, backticked repo-path refs resolve, stub-README freshness. |
@@ -30,6 +31,7 @@ runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE
 | **swe-af** | adk-rust event | `issues` labeled `agent` (owner-gated), dispatch | [`vaked-agents/ci/swe-af/`](vaked-agents/ci/swe-af/README.md) | `deepseek/deepseek-v4-flash` (`SWE_AF_CODE_MODEL` overridable) | Runs the lowered `workflow swe_af` (plan→code→review→publish) on GitHub Actions: the agent authors a plan + full-file changes (read-only, no GH token), the shell commits a `swe-af/issue-<n>` branch, the **pr-review** agent reviews, and the broker opens an advisory PR. Every node testified to an `eventd` hash chain. **Never auto-merges.** |
 
 Workflows: [`ralph-tracks.yml`](.github/workflows/ralph-tracks.yml) ·
+[`ralph-introspect.yml`](.github/workflows/ralph-introspect.yml) ·
 [`merge-train.yml`](.github/workflows/merge-train.yml) ·
 [`pr-review.yml`](.github/workflows/pr-review.yml) ·
 [`pr-review-build.yml`](.github/workflows/pr-review-build.yml) ·
