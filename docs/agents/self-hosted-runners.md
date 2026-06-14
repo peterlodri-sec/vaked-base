@@ -6,6 +6,14 @@ self-hosted GitHub Actions runners** for the agent/build jobs, with **GCP Cloud
 Build** as a separate path for cached Nix builds. A few light/external jobs stay
 on GitHub-hosted runners.
 
+## Status
+
+> **Not yet enabled.** The agent/build workflows currently run on
+> `ubuntu-latest`. They were flipped to `[self-hosted, linux, hetzner]` once but
+> the jobs sat queued with no runner picking them up, so they were reverted.
+> Flip them back to the fleet label below once a Hetzner runner is confirmed
+> online and registered for `vaked-base`.
+
 ## Runner label convention (fleet standard)
 
 Agent and build jobs target the fleet-standard label array:
