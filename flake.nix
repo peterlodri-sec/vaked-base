@@ -28,6 +28,8 @@
             elixir
             rustc                 # CrabCC indexes — toolchain to build crabcc-labs/crabcc
             cargo
+            go                    # vaked-optitron — the Go/Eino optimization-crawler agent (tools/optitron/)
+            gopls
             git
             jq
             just

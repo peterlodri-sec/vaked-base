@@ -1,0 +1,122 @@
+name: fleet-introspect
+
+# fleet-introspect: the daily fleet self-improvement loop — a second binary in the
+# optitron Go module (reuses internal/ledger + internal/llm). It reads the fleet's
+# OWN Langfuse telemetry (+ the hash-chained ledgers; ralph's is READ-ONLY — a live
+# agent we never modify) over the last ≤2 days, auto-detects the most salient
+# finding, ideates ONE novel solution, REVIEWS it (always), and hands a survivor to
+# swe_af via an `agent`-labelled issue. It also reports the fleet economy (real
+# spend → normal day/week/month projection). Advisory: guards on the API key.
+#
+# Triggers:
+#   • schedule  — automated daily run (trusted; no approval).
+#   • dispatch  — DOUBLE-CONFIRMED manual run:
+#       (1) type `confirm: RUN` when dispatching, and
+#       (2) grant the `introspect-manual` Environment's required-reviewer approval
+#           (a second human click) before any spend. See the README for setup.
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily, 06:00 UTC (clear of optitron 05:33 + ralph's 3h ticks)
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type RUN to confirm a manual run (first of two confirmations)"
+        type: string
+        required: true
+        default: ""
+      focus:
+        description: "Optional finding to prioritise (else auto-detect from telemetry)"
+        type: string
+        required: false
+        default: ""
+      dry_run:
+        description: "build the digest + prompts + cost/economy estimate only (no model calls)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # commit the introspect ledger + social staging files
+  issues: write # open the `agent`-labelled swe_af hand-off issue
+
+concurrency:
+  group: fleet-introspect
+  cancel-in-progress: false # serialize: single writer to the append-only ledger
+
+jobs:
+  # Confirmation #2 for manual runs: targets the protected `introspect-manual`
+  # Environment, so GitHub pauses for a required-reviewer approval before the loop
+  # (which needs it) runs. Skipped for scheduled runs and for manual runs whose
+  # typed confirmation (#1) is not exactly RUN.
+  approve:
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN'
+    runs-on: ubuntu-latest
+    environment: introspect-manual
+    timeout-minutes: 60
+    steps:
+      - run: echo "::notice::fleet-introspect manual run confirmed (RUN) and approved — actor=${{ github.actor }}"
+
+  introspect:
+    needs: [approve]
+    if: >-
+      always() &&
+      ( github.event_name == 'schedule'
+        || (github.event_name == 'workflow_dispatch' && needs.approve.result == 'success') )
+    runs-on: ubuntu-latest
+    environment: ci # OPENROUTER_API_KEY / LANGFUSE_* live in the `ci` Environment
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # full tree so the `git grep` novelty check sees everything
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: tools/optitron/go.sum
+
+      - name: Build introspect
+        run: cd tools/optitron && go build -o "$RUNNER_TEMP/introspect" ./cmd/introspect
+
+      - name: Ensure `agent` label exists
+        run: |
+          gh label create agent --color FBCA04 \
+            --description "hand-off to the swe_af workflow" 2>/dev/null || true
+
+      - name: Run fleet introspect
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          RALPH_API_KEY: ${{ secrets.RALPH_API_KEY }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          DRY=""; [ "${{ github.event.inputs.dry_run }}" = "true" ] && DRY="--dry-run"
+          FOCUS="${{ github.event.inputs.focus }}"
+          "$RUNNER_TEMP/introspect" run --once --budget-total 3.0 ${FOCUS:+--focus "$FOCUS"} $DRY
+
+      - name: Commit ledger + any staged announcements
+        if: always()
+        run: |
+          git config user.name "fleet-introspect"
+          git config user.email "introspect@users.noreply.github.com"
+          git add tools/optitron/state/introspect.jsonl .github/social/toot.txt .github/social/telegram.txt 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "::notice::no ledger/announcement changes to commit"
+          else
+            git commit -m "fleet-introspect: tick [skip ci]"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
+            git push origin "HEAD:${GITHUB_REF_NAME}" || echo "::warning::push failed"
+          fi
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ fleet-introspect failed\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
