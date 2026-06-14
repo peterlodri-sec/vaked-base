@@ -1114,6 +1114,47 @@ def check_file(path, builtins_path=None, builtins_cache=None):
                         builtins_cache=builtins_cache)
 
 
+# --------------------------------------------------------------------------- #
+# Execution semantics checks (Stage 4e)
+# --------------------------------------------------------------------------- #
+
+_LIFECYCLE_KINDS = frozenset(("parallel", "fiber"))
+
+
+def _decl_span(decl):
+    return (decl.byteStart, decl.byteEnd, decl.line, decl.col)
+
+
+def _check_execution(items, smap, filename, diags):
+    """Check execution-semantics rules:
+
+    E-EXEC-LIFECYCLE-CONTEXT — ``lifecycle`` block used in a non-parallel/fiber
+        declaration kind.
+    E-EXEC-BAD-TRANSITION — duplicate ``on <event>`` clause within a lifecycle
+        block.
+    """
+    def walk(decl):
+        for st in decl.body:
+            if isinstance(st, P.LifecycleDecl):
+                if decl.kind not in _LIFECYCLE_KINDS:
+                    _emit(diags, "E-EXEC-LIFECYCLE-CONTEXT", filename,
+                          _decl_span(decl), decl,
+                          f"`lifecycle` is only valid in `parallel`/`fiber`, "
+                          f"not `{decl.kind}`")
+                seen = set()
+                for cl in st.clauses:
+                    if cl.event in seen:
+                        _emit(diags, "E-EXEC-BAD-TRANSITION", filename,
+                              _decl_span(decl), decl,
+                              f"duplicate `on {cl.event}` in lifecycle block")
+                    seen.add(cl.event)
+            elif isinstance(st, P.Decl):
+                walk(st)
+    for it in items:
+        if isinstance(it, P.Decl):
+            walk(it)
+
+
 def check_source(src, filename, builtins_path=None, builtins_cache=None):
     """Check Vaked ``src`` and return a sorted list of :class:`Diagnostic`.
 
@@ -1158,6 +1199,8 @@ def check_source(src, filename, builtins_path=None, builtins_cache=None):
     for it in items:
         if isinstance(it, P.Decl):
             _check_decl_tree(it, registry, by_name_kind, smap, filename, diags)
+
+    _check_execution(items, smap, filename, diags)
 
     diags.sort(key=lambda d: d.sort_key())
     return diags

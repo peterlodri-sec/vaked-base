@@ -257,6 +257,34 @@ def _test_determinism(lines):
 
 
 # --------------------------------------------------------------------------- #
+# 7. Execution semantics — lifecycle context + transition checks
+# --------------------------------------------------------------------------- #
+
+def _test_exec_lifecycle_context(lines):
+    cache = _builtins_cache()
+    src = 'index foo {\n  lifecycle { on pause { } }\n}\n'
+    diags = vakedc.check_source(src, "x.vaked", builtins_cache=cache)
+    codes = [d.code for d in diags]
+    if "E-EXEC-LIFECYCLE-CONTEXT" not in codes:
+        lines.append(f"  FAIL: expected E-EXEC-LIFECYCLE-CONTEXT, got {codes}")
+        return False
+    lines.append("  E-EXEC-LIFECYCLE-CONTEXT: raised for lifecycle in index")
+    return True
+
+
+def _test_exec_bad_transition(lines):
+    cache = _builtins_cache()
+    src = 'fiber f {\n  lifecycle { on pause { } on pause { } }\n}\n'
+    diags = vakedc.check_source(src, "x.vaked", builtins_cache=cache)
+    codes = [d.code for d in diags]
+    if "E-EXEC-BAD-TRANSITION" not in codes:
+        lines.append(f"  FAIL: expected E-EXEC-BAD-TRANSITION, got {codes}")
+        return False
+    lines.append("  E-EXEC-BAD-TRANSITION: raised for duplicate on pause in fiber")
+    return True
+
+
+# --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
 
@@ -264,7 +292,8 @@ def run():
     lines = []
     ok = True
     for fn in (_test_builtins, _test_coverage, _test_conformant, _test_rejected,
-               _test_all_examples, _test_determinism):
+               _test_all_examples, _test_determinism,
+               _test_exec_lifecycle_context, _test_exec_bad_transition):
         try:
             ok = fn(lines) and ok
         except Exception as e:
