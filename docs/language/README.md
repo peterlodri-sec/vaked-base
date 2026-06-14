@@ -94,6 +94,8 @@ Numbered design notes in this directory. Each note is either a seed draft
 | [0013](./0013-traversable-execution.md) | Traversable Execution Tree | `lifecycle` block for `parallel`/`fiber`: pause/resume/stop/rewind |
 | [0014](./0014-typed-capability-graph.md) | Typed Capability Graph | Zero-proof containment; typed `domain.grant` refs |
 | [0015](./0015-inline-arp-compiled-execution.md) | Inline ARP: Compiled-Parallelized Execution | IR exec overlay + wavefront schedule + dual-projection contract + verification |
+| [0016](./0016-runtime-enforcement.md) | Runtime Enforcement | From compile-time POLA proof to kernel-enforced egress: `ebpf.policy` manifest + `agent-guardd` |
+| [0017](./0017-pola-formalization.md) | POLA Formalization (deferred) | Deferred mechanization scaffold for the 0011 §4.5 soundness argument (Lean 4 / Coq) |
 
 ## Golden commands
 
