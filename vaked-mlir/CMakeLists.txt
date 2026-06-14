@@ -24,11 +24,13 @@ add_mlir_dialect_library(VakedDialect
   lib/VakedDialect.cpp
   lib/VakedOps.cpp
   lib/VakedTypes.cpp
+  lib/Pass1TopologyAnalysis.cpp
 
   DEPENDS
   VakedOpsIncGen
   VakedTypesIncGen
   VakedDialectIncGen
+  VakedPassesIncGen
 )
 
 target_include_directories(VakedDialect
@@ -60,12 +62,21 @@ add_mlir_tablegen(VakedDialectIncGen
   TARGET VakedDialectIncGen
 )
 
+# TableGen target for Vaked passes
+add_mlir_tablegen(VakedPassesIncGen
+  VakedPasses.td
+  -gen-pass-defs
+  SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/include/vaked/VakedPasses.td
+  TARGET VakedPassesIncGen
+)
+
 # Link against MLIR libraries
 target_link_libraries(VakedDialect
   PUBLIC
   MLIRIR
   MLIRInferTypeOpInterface
   MLIRSideEffectInterfaces
+  MLIRPass
 )
 
 # Optional: add tests if present
