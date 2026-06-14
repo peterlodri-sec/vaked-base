@@ -49,11 +49,31 @@ def _emit_lifecycle(graph, life, chain, owner_id, owner, basename, provfile):
         graph.add_edge(GraphEdge(tid, state_id[to], "results-in"))
 
 
+def _emit_grants(graph, cap_decl, basename, provfile):
+    """capability domain decl -> one `grant` node per declared grant."""
+    prov = _prov(cap_decl, provfile)
+    for st in cap_decl.body:
+        if isinstance(st, P.GrantDecl):
+            for gname in st.names:
+                gid = node_id(basename, [cap_decl.name, "grant:" + gname])
+                graph.add_node(GraphNode(id=gid, kind="grant", name=gname,
+                                         labels=["grant"], props={}, provenance=prov))
+
+
 def _walk(graph, body, chain, owner_id, owner, basename, provfile):
     """Recurse a decl/nodedecl body, dispatching overlay handlers."""
     for st in body:
         if isinstance(st, P.LifecycleDecl):
             _emit_lifecycle(graph, st, chain, owner_id, owner, basename, provfile)
+        elif isinstance(st, P.Assignment) and st.target == "capabilities" \
+                and isinstance(st.value, P.ListLit):
+            for item in st.value.items:
+                # parser wraps `domain.grant` as P.App(ref=P.Ref([domain, grant]))
+                if isinstance(item, P.App) and item.ref is not None \
+                        and isinstance(item.ref, P.Ref) and len(item.ref.parts) == 2:
+                    domain, grant = item.ref.parts
+                    gid = node_id(basename, [domain, "grant:" + grant])
+                    graph.add_edge(GraphEdge(owner_id, gid, "holds"))
         elif isinstance(st, P.NodeDecl):
             child_chain = chain + [st.name]
             child_id = node_id(basename, child_chain)
@@ -65,6 +85,9 @@ def _walk(graph, body, chain, owner_id, owner, basename, provfile):
 
 
 def apply_execution_overlay(graph, items, basename, provfile):
+    for it in items:
+        if isinstance(it, P.Decl) and it.kind == "capability":
+            _emit_grants(graph, it, basename, provfile)
     for it in items:
         if isinstance(it, P.Decl):
             chain = [it.name]

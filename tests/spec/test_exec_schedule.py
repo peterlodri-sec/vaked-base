@@ -78,6 +78,32 @@ def _t_overlay_lifecycle(lines):
     return ok
 
 
+_CAP_SRC = """capability fs {
+  grant repo_ro repo_rw
+  order repo_ro < repo_rw
+}
+
+mesh agentfield {
+  node codex {
+    capabilities = [fs.repo_rw]
+  }
+}
+"""
+
+
+def _t_overlay_caps(lines):
+    ok = True
+    g = build_graph(parse_source(_CAP_SRC, "c.vaked"), "c.vaked")
+    ids = {n.id for n in g.nodes}
+    if "c.vaked#fs/grant:repo_rw" not in ids:
+        ok = False; lines.append("  FAIL: missing grant node")
+    edges = {(e.source, e.label, e.target) for e in g.edges}
+    want = ("c.vaked#agentfield/codex", "holds", "c.vaked#fs/grant:repo_rw")
+    if want not in edges:
+        ok = False; lines.append(f"  FAIL: missing holds edge; edges={sorted(edges)}")
+    return ok
+
+
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
@@ -85,7 +111,7 @@ def _t_overlay_lifecycle(lines):
 def run():
     lines = []
     ok = True
-    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle):
+    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle, _t_overlay_caps):
         try:
             ok = fn(lines) and ok
         except Exception as e:
