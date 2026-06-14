@@ -212,14 +212,14 @@ def call_ollama(host_url: str, system: str, user: str) -> dict:
     }
 
 
-def call_api(backend: str, api_key: str, system: str, user: str) -> dict:
+def call_api(backend: str, api_key_or_url: str, system: str, user: str) -> dict:
     if backend == "ollama":
-        return call_ollama(api_key, system, user)  # api_key holds the OLLAMA_HOST URL
+        return call_ollama(api_key_or_url, system, user)
     if backend == "anthropic":
-        return call_anthropic(api_key, system, user)
+        return call_anthropic(api_key_or_url, system, user)
     if backend == "openrouter":
-        return call_openrouter(api_key, system, user)
-    return call_openai(api_key, system, user)
+        return call_openrouter(api_key_or_url, system, user)
+    return call_openai(api_key_or_url, system, user)
 
 
 def has_cjk(text: str) -> bool:
