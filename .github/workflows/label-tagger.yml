@@ -162,6 +162,71 @@ jobs:
             echo "mode=label" >> "$GITHUB_OUTPUT"
           fi
 
+      # Angle I: if PR title follows conventional commit prefix, assign the
+      # type/* label directly in shell — no LLM call needed for that field.
+      # SKIP_AGENT=true only when the title prefix is unambiguous AND the PR
+      # touches ≤5 files in a single top-level directory (low complexity).
+      - name: Pre-filter conventional title
+        id: prefilter
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BASE:  ${{ github.event.pull_request.base.sha }}
+          HEAD:  ${{ github.event.pull_request.head.sha }}
+          REPO:  ${{ github.repository }}
+          PR:    ${{ github.event.pull_request.number }}
+        run: |
+          # Detect conventional commit prefix.
+          TYPE_LABEL=""
+          case "$TITLE" in
+            feat:*|feat\(*\):*)   TYPE_LABEL="type/feature" ;;
+            fix:*|fix\(*\):*)     TYPE_LABEL="type/bug" ;;
+            docs:*|docs\(*\):*)   TYPE_LABEL="type/documentation" ;;
+            chore:*|chore\(*\):*) TYPE_LABEL="type/chore" ;;
+            test:*|test\(*\):*)   TYPE_LABEL="type/test" ;;
+            perf:*|perf\(*\):*)   TYPE_LABEL="type/performance" ;;
+            ci:*|ci\(*\):*|build:*|build\(*\):*) TYPE_LABEL="type/ci" ;;
+          esac
+          echo "type_label=${TYPE_LABEL}" >> "$GITHUB_OUTPUT"
+
+          # Check complexity: number of changed files and top-level dirs.
+          FILE_COUNT=$(git diff --name-only "${BASE}..${HEAD}" 2>/dev/null | wc -l || echo 99)
+          TOP_DIRS=$(git diff --name-only "${BASE}..${HEAD}" 2>/dev/null \
+            | awk -F/ '{print $1}' | sort -u | wc -l || echo 99)
+
+          # Skip agent if: unambiguous type label AND low complexity (≤5 files, ≤2 dirs).
+          if [ -n "$TYPE_LABEL" ] && [ "$FILE_COUNT" -le 5 ] && [ "$TOP_DIRS" -le 2 ]; then
+            echo "skip_agent=true" >> "$GITHUB_OUTPUT"
+            gh pr edit "$PR" --repo "$REPO" --add-label "$TYPE_LABEL" 2>/dev/null \
+              || echo "::warning::pre-filter label apply failed (non-blocking)"
+            echo "::notice::Pre-filter: assigned ${TYPE_LABEL} (${FILE_COUNT} files, ${TOP_DIRS} dirs) — skipping agent"
+          else
+            echo "skip_agent=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Angle G: set AGENT_EXTRA_CONTEXT based on which repo areas are touched.
+      # Injected into the system prompt prefix so the agent gets area-specific hints.
+      - name: Inject skill context
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "${BASE}..${HEAD}" 2>/dev/null || true)
+          EXTRA=""
+          echo "$CHANGED" | grep -q "^protocol/rfcs/" && \
+            EXTRA="${EXTRA}RFC: use four-digit number (NNNN-title.md), status must be Draft|Active|Ratified.\n"
+          echo "$CHANGED" | grep -q "^vaked/grammar/" && \
+            EXTRA="${EXTRA}Grammar change: add EBNF rule + a .vaked example file in vaked/examples/.\n"
+          echo "$CHANGED" | grep -q "^vaked-agents/" && \
+            EXTRA="${EXTRA}Agent change: label-tagger main.rs must stay ≤81 lines (agent-structure-guard enforces this).\n"
+          echo "$CHANGED" | grep -q "^\.github/labels\.yml" && \
+            EXTRA="${EXTRA}Label change: new labels must have name, color, and description fields in labels.yml.\n"
+          if [ -n "$EXTRA" ]; then
+            printf 'AGENT_EXTRA_CONTEXT=%s' "$EXTRA" >> "$GITHUB_ENV"
+            echo "::notice::Injected skill context hints"
+          fi
+
       # Route to a cheaper model for low-complexity modes.
       # changelog / milestone-sync = commit summarisation / GOALS.md parsing —
       # no code understanding needed; flash-class model is sufficient.
@@ -195,10 +260,11 @@ jobs:
           BASE_SHA:           ${{ github.event.pull_request.base.sha }}
           HEAD_SHA:           ${{ github.event.pull_request.head.sha || github.sha }}
           GITHUB_REPOSITORY:  ${{ github.repository }}
+          AGENT_EXTRA_CONTEXT: ${{ env.AGENT_EXTRA_CONTEXT }}
         run: |
           OUTPUT_FILE="$RUNNER_TEMP/lt-output.json"
           echo "output_file=$OUTPUT_FILE" >> "$GITHUB_OUTPUT"
-          if [ "$SKIP" = "true" ]; then
+          if [ "$SKIP" = "true" ] || [ "${{ steps.prefilter.outputs.skip_agent }}" = "true" ]; then
             echo "::notice::Skip gate active — writing empty output"
             echo '{}' > "$OUTPUT_FILE"
             exit 0
