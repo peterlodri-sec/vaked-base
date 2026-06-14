@@ -35,29 +35,41 @@ base_show() { git show "$BASE:$1" 2>/dev/null; }
 for a in "${AGENTS[@]}"; do
     dir="vaked-agents/ci/$a"
     main="$dir/src/main.rs"
-    [ -f "$main" ] || continue
-
-    # 1) Re-monolithization: a thin base main.rs must stay thin.
     base_main="$(base_show "$main")"
-    base_lines=$(printf '%s' "$base_main" | grep -c '' || true)
-    head_lines=$(grep -c '' "$main" || true)
-    if [ "$base_lines" -gt 0 ] && [ "$base_lines" -lt "$THIN_CAP" ] && [ "$head_lines" -ge "$THIN_CAP" ]; then
-        echo "::error file=$main::$a/src/main.rs is a thin dispatcher on $BASE ($base_lines lines) but this PR balloons it to $head_lines. That re-monolithizes the crate and reverts its module split — rebase on $BASE and re-apply your change on top of the modules."
+
+    # If the crate had a main.rs on base but it's gone now, the entry point was
+    # deleted (whole-`src` removal / stale-branch revert). Flag it — and crucially
+    # do NOT skip the crate, or the module-deletion scan (3) below never runs and a
+    # PR that drops the entire src tree slips past the gate.
+    if [ -n "$base_main" ] && [ ! -f "$main" ]; then
+        echo "::error file=$main::$a/src/main.rs exists on $BASE but is gone in this PR — the crate's entry point was deleted (whole-src removal or stale-branch revert)."
         fail=1
     fi
 
-    # 2) Telemetry re-inlining: if base delegates to the shared crate, the head must
-    #    still delegate. (main keeps a thin `fn setup_tracing` wrapper that CALLS
-    #    vaked_telemetry::setup_tracing, so the signal is the call being removed —
-    #    i.e. re-inlined back to the old OTLP builder — not the function's presence.)
-    if printf '%s' "$base_main" | grep -q 'vaked_telemetry::setup_tracing'; then
-        if ! grep -qs 'vaked_telemetry::setup_tracing' "$main"; then
-            echo "::error file=$main::$a delegates tracing to vaked_telemetry::setup_tracing on $BASE, but this PR drops that call (re-inlining the old OTLP setup). That reverts the shared-telemetry refactor — keep calling vaked_telemetry::setup_tracing."
+    # 1) Re-monolithization: a thin base main.rs must stay thin. (Needs the head
+    #    main.rs present; a deleted main.rs is handled by the checks above/below.)
+    if [ -f "$main" ]; then
+        base_lines=$(printf '%s' "$base_main" | grep -c '' || true)
+        head_lines=$(grep -c '' "$main" || true)
+        if [ "$base_lines" -gt 0 ] && [ "$base_lines" -lt "$THIN_CAP" ] && [ "$head_lines" -ge "$THIN_CAP" ]; then
+            echo "::error file=$main::$a/src/main.rs is a thin dispatcher on $BASE ($base_lines lines) but this PR balloons it to $head_lines. That re-monolithizes the crate and reverts its module split — rebase on $BASE and re-apply your change on top of the modules."
             fail=1
+        fi
+
+        # 2) Telemetry re-inlining: if base delegates to the shared crate, the head
+        #    must still delegate. (main keeps a thin `fn setup_tracing` wrapper that
+        #    CALLS vaked_telemetry::setup_tracing, so the signal is the call being
+        #    removed — i.e. re-inlined to the old OTLP builder — not the fn's presence.)
+        if printf '%s' "$base_main" | grep -q 'vaked_telemetry::setup_tracing'; then
+            if ! grep -qs 'vaked_telemetry::setup_tracing' "$main"; then
+                echo "::error file=$main::$a delegates tracing to vaked_telemetry::setup_tracing on $BASE, but this PR drops that call (re-inlining the old OTLP setup). That reverts the shared-telemetry refactor — keep calling vaked_telemetry::setup_tracing."
+                fail=1
+            fi
         fi
     fi
 
-    # 3) Module-file deletion: existing src/*.rs modules must not be removed.
+    # 3) Module-file deletion (runs regardless of main.rs presence): existing
+    #    src/*.rs modules must not be removed.
     deleted=$(git diff --diff-filter=D --name-only "$BASE" -- "$dir/src" 2>/dev/null | grep '\.rs$' || true)
     if [ -n "$deleted" ]; then
         while IFS= read -r f; do
