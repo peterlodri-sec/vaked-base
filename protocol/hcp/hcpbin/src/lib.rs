@@ -17,6 +17,10 @@
 //! - §6.4  `string` (NFC-normalised against pinned Unicode 15.1.0, length-prefixed UTF-8)
 //! - §6.4  `f32` / `f64` (little-endian IEEE-754, NaN/signed-zero canonicalised)
 //! - §5.1  `uuid` (16 raw bytes), `timestamp` (`i64`-ns zig-zag varint)
+//! - §6.2  records/frames (ascending unique tags; nested-record byte-len framing)
+//! - §6.6  lists (count + elems) and maps (count + sorted-by-encoded-key pairs)
+//! - §6.7  unions (`varint(arm-tag) varint(byte-len) value`; unknown arm preserved)
+//! - §5.4  enums (`varint(value)`; unknown case preserved as `unknown(N)`)
 //!
 //! ### String normalisation pin (§6.4)
 //! `string` encoding NFC-normalises against **Unicode 15.1.0**, which is pinned
@@ -27,9 +31,19 @@
 //! bytes round-trip as received (encode-time normalisation, §11 Open-Q7).
 //!
 //! Out of scope (left as TODO, owned by later sprints):
-//! - records / frames / unions / maps / enums (§6.2, §6.6, §6.7).
 //! - the frame header (kind/corr/stream/seq/end) — that lives in the WIRE
 //!   layer (RFC 0003), explicitly NOT in hcpbin (RFC 0002 §4.2, §6 scope note).
+//!
+//! ## Aggregate API note (§6.2 / §6.6 / §6.7)
+//! `.hcplang` types are not code-generated in this crate, so the aggregate layer
+//! is a low-level builder/cursor surface rather than per-type structs:
+//! `RecordWriter`/`RecordReader` for tagged-field sets, and `put_*`/`get_*`
+//! (plus `encode_*`/`decode_*` free fns) for lists/maps/unions/enums. List and
+//! map *decode* take a per-element read closure because, on the wire, a record
+//! field is just `varint(tag) value-bytes` with no type-agnostic way to delimit
+//! a scalar element — the element type is supplied by the caller. Union decode
+//! returns `(arm-tag, raw-value-bytes)`; unknown arms preserve byte-for-byte
+//! because the caller already holds the raw bytes (§6.7).
 //!
 //! ## API note (change from the stub)
 //! The previous stub exposed frame-level `encode(&[u8]) -> Vec<u8>` /
@@ -70,6 +84,16 @@ pub enum DecodeError {
     TrailingBytes,
     /// A `string`'s length-prefixed bytes were not valid UTF-8 (§6.4).
     InvalidUtf8,
+    /// A record field's tag was not strictly greater than the previous tag
+    /// (§6.2: present fields MUST appear in strictly ascending tag order).
+    NonAscendingTag { previous: u64, found: u64 },
+    /// A record field tag was repeated (§6.2: duplicate tags are rejected).
+    DuplicateTag(u64),
+    /// A map's keys were not in strictly ascending encoded-key byte order
+    /// (§6.6: entries MUST be sorted by canonical encoded-key bytes).
+    UnsortedMapKey,
+    /// A map repeated a key (§6.6: duplicate keys are a protocol error).
+    DuplicateMapKey,
 }
 
 impl fmt::Display for DecodeError {
@@ -87,6 +111,13 @@ impl fmt::Display for DecodeError {
             DecodeError::LengthOverflow => write!(f, "length prefix exceeds usize"),
             DecodeError::TrailingBytes => write!(f, "trailing bytes after value"),
             DecodeError::InvalidUtf8 => write!(f, "string is not valid UTF-8"),
+            DecodeError::NonAscendingTag { previous, found } => write!(
+                f,
+                "record field tag {found} is not greater than previous tag {previous}"
+            ),
+            DecodeError::DuplicateTag(t) => write!(f, "duplicate record field tag {t}"),
+            DecodeError::UnsortedMapKey => write!(f, "map keys not in ascending encoded-key order"),
+            DecodeError::DuplicateMapKey => write!(f, "duplicate map key"),
         }
     }
 }
@@ -245,6 +276,82 @@ impl Writer {
     /// varint (§5.1, `k=64`).
     pub fn put_timestamp(&mut self, nanos: i64) {
         self.put_i64(nanos);
+    }
+
+    /// Encode a length-prefixed sub-value: run `f` against a fresh `Writer`, then
+    /// emit `varint(byte-len)` followed by the produced bytes (§6.2 nested-record
+    /// framing, §6.7 union-arm framing). This is what makes a nested record or
+    /// union arm self-delimiting and therefore skippable by a decoder.
+    pub fn put_framed<F: FnOnce(&mut Writer)>(&mut self, f: F) {
+        let mut inner = Writer::new();
+        f(&mut inner);
+        let body = inner.into_bytes();
+        self.put_uvarint(body.len() as u64);
+        self.buf.extend_from_slice(&body);
+    }
+
+    /// Encode a `list`: `varint(count)` followed by each element in list order
+    /// (§6.6). `write_elem` encodes one element; it is called once per item.
+    pub fn put_list<T, F>(&mut self, items: &[T], mut write_elem: F)
+    where
+        F: FnMut(&mut Writer, &T),
+    {
+        self.put_uvarint(items.len() as u64);
+        for item in items {
+            write_elem(self, item);
+        }
+    }
+
+    /// Encode a `map`: `varint(count)` followed by `key value` pairs **sorted by
+    /// the canonical byte ordering of the encoded key** (§6.6). Each pair's key
+    /// and value are encoded into scratch buffers, the pairs are sorted by
+    /// encoded-key bytes, then emitted; this makes the output independent of the
+    /// caller's iteration order.
+    pub fn put_map<K, V, FK, FV>(
+        &mut self,
+        entries: &[(K, V)],
+        mut write_key: FK,
+        mut write_val: FV,
+    ) where
+        FK: FnMut(&mut Writer, &K),
+        FV: FnMut(&mut Writer, &V),
+    {
+        let mut pairs: Vec<(Vec<u8>, Vec<u8>)> = Vec::with_capacity(entries.len());
+        for (k, v) in entries {
+            let mut kw = Writer::new();
+            write_key(&mut kw, k);
+            let mut vw = Writer::new();
+            write_val(&mut vw, v);
+            pairs.push((kw.into_bytes(), vw.into_bytes()));
+        }
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
+        self.put_uvarint(pairs.len() as u64);
+        for (kb, vb) in pairs {
+            self.buf.extend_from_slice(&kb);
+            self.buf.extend_from_slice(&vb);
+        }
+    }
+
+    /// Encode a `union`: `varint(arm-tag) varint(byte-len) value` (§6.7). `f`
+    /// encodes the arm value, which is length-prefixed so every arm (known or
+    /// unknown) is self-delimiting.
+    pub fn put_union<F: FnOnce(&mut Writer)>(&mut self, arm_tag: u64, f: F) {
+        self.put_uvarint(arm_tag);
+        self.put_framed(f);
+    }
+
+    /// Encode a raw, already-encoded union arm value verbatim (§6.7). Used to
+    /// re-emit an unknown arm byte-for-byte: `varint(arm-tag) varint(len) bytes`.
+    pub fn put_union_raw(&mut self, arm_tag: u64, value_bytes: &[u8]) {
+        self.put_uvarint(arm_tag);
+        self.put_uvarint(value_bytes.len() as u64);
+        self.buf.extend_from_slice(value_bytes);
+    }
+
+    /// Encode an `enum` as `varint(value)` (§5.4). An unknown case is simply its
+    /// integer value, so `unknown(N)` round-trips as `varint(N)`.
+    pub fn put_enum(&mut self, value: u64) {
+        self.put_uvarint(value);
     }
 }
 
@@ -460,6 +567,183 @@ impl<'a> Reader<'a> {
     pub fn get_timestamp(&mut self) -> Result<i64, DecodeError> {
         self.get_i64()
     }
+
+    /// Read a length-prefixed framed sub-value: `varint(byte-len)` then exactly
+    /// `len` raw bytes, returned as a borrowed slice (§6.2 / §6.7). The caller
+    /// decodes the slice with a fresh `Reader` (e.g. a nested `RecordReader`).
+    pub fn get_framed(&mut self) -> Result<&'a [u8], DecodeError> {
+        let len = self.get_uvarint()?;
+        let len = usize::try_from(len).map_err(|_| DecodeError::LengthOverflow)?;
+        self.get_raw(len)
+    }
+
+    /// Decode a `list`: `varint(count)` then `count` elements, each read by
+    /// `read_elem` in list order (§6.6).
+    pub fn get_list<T, F>(&mut self, mut read_elem: F) -> Result<Vec<T>, DecodeError>
+    where
+        F: FnMut(&mut Reader<'a>) -> Result<T, DecodeError>,
+    {
+        let count = self.get_uvarint()?;
+        let count = usize::try_from(count).map_err(|_| DecodeError::LengthOverflow)?;
+        let mut out = Vec::with_capacity(count);
+        for _ in 0..count {
+            out.push(read_elem(self)?);
+        }
+        Ok(out)
+    }
+
+    /// Decode a `map`: `varint(count)` then `count` `key value` pairs (§6.6).
+    /// Keys MUST appear in strictly ascending encoded-key byte order; an
+    /// out-of-order key is [`DecodeError::UnsortedMapKey`] and an equal key is
+    /// [`DecodeError::DuplicateMapKey`]. The ordering is checked over the raw
+    /// encoded bytes of each key (the bytes `read_key` consumed), per §6.6.
+    pub fn get_map<K, V, FK, FV>(
+        &mut self,
+        mut read_key: FK,
+        mut read_val: FV,
+    ) -> Result<Vec<(K, V)>, DecodeError>
+    where
+        FK: FnMut(&mut Reader<'a>) -> Result<K, DecodeError>,
+        FV: FnMut(&mut Reader<'a>) -> Result<V, DecodeError>,
+    {
+        let count = self.get_uvarint()?;
+        let count = usize::try_from(count).map_err(|_| DecodeError::LengthOverflow)?;
+        let mut out = Vec::with_capacity(count);
+        let mut prev_key: Option<&'a [u8]> = None;
+        for _ in 0..count {
+            let key_start = self.pos;
+            let key = read_key(self)?;
+            let key_bytes = &self.buf[key_start..self.pos];
+            if let Some(prev) = prev_key {
+                match prev.cmp(key_bytes) {
+                    core::cmp::Ordering::Less => {}
+                    core::cmp::Ordering::Equal => return Err(DecodeError::DuplicateMapKey),
+                    core::cmp::Ordering::Greater => return Err(DecodeError::UnsortedMapKey),
+                }
+            }
+            prev_key = Some(key_bytes);
+            let val = read_val(self)?;
+            out.push((key, val));
+        }
+        Ok(out)
+    }
+
+    /// Decode a `union`: `varint(arm-tag) varint(byte-len) value` (§6.7),
+    /// returning `(arm_tag, value_bytes)` where `value_bytes` is the borrowed
+    /// arm-value slice. A known arm is decoded by running a fresh `Reader` over
+    /// `value_bytes`; an unknown arm is preserved by re-emitting the returned
+    /// bytes verbatim (see [`Writer::put_union_raw`]).
+    pub fn get_union(&mut self) -> Result<(u64, &'a [u8]), DecodeError> {
+        let arm_tag = self.get_uvarint()?;
+        let value_bytes = self.get_framed()?;
+        Ok((arm_tag, value_bytes))
+    }
+
+    /// Decode an `enum` as `varint(value)` (§5.4). An unrecognised value is
+    /// returned as-is so the caller can surface it as `unknown(N)` and re-emit it.
+    pub fn get_enum(&mut self) -> Result<u64, DecodeError> {
+        self.get_uvarint()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Record builder / cursor (§6.2).
+//
+// A record value is a sequence of present fields in strictly ascending tag
+// order, each `varint(tag) value-bytes`. There is no record terminator: a
+// top-level record runs to end-of-input, and a nested record is byte-len framed
+// (§6.2) so the caller slices its body with `Reader::get_framed` and runs a
+// sub-`RecordReader` over a fresh `Reader` of that slice.
+// ---------------------------------------------------------------------------
+
+/// Builds a record's tagged-field set, enforcing strictly ascending unique tags
+/// (§6.2). Borrows a `Writer`; each `field*` call emits `varint(tag)` and then
+/// the caller writes the value through the returned `&mut Writer`.
+#[derive(Debug)]
+pub struct RecordWriter<'w> {
+    writer: &'w mut Writer,
+    last_tag: Option<u64>,
+}
+
+impl<'w> RecordWriter<'w> {
+    /// Start a record into `writer`.
+    pub fn new(writer: &'w mut Writer) -> Self {
+        RecordWriter { writer, last_tag: None }
+    }
+
+    /// Emit `varint(tag)` for a field and return the writer to encode the value
+    /// directly. Tags MUST be supplied in strictly ascending order; a tag that
+    /// is not greater than the previous one panics (an encoder bug — the caller
+    /// controls field order, unlike a decoder which sees attacker input).
+    pub fn field(&mut self, tag: u64) -> &mut Writer {
+        if let Some(prev) = self.last_tag {
+            assert!(
+                tag > prev,
+                "record fields must be emitted in strictly ascending tag order (got {tag} after {prev})"
+            );
+        }
+        self.last_tag = Some(tag);
+        self.writer.put_uvarint(tag);
+        self.writer
+    }
+
+    /// Emit a nested-record field: `varint(tag) varint(byte-len) body`, where
+    /// `body` is built by `f` against its own `RecordWriter` (§6.2 framing).
+    pub fn field_record<F>(&mut self, tag: u64, f: F)
+    where
+        F: FnOnce(&mut RecordWriter<'_>),
+    {
+        self.field(tag).put_framed(|inner| {
+            let mut rw = RecordWriter::new(inner);
+            f(&mut rw);
+        });
+    }
+}
+
+/// Cursor over a record's tagged-field set, rejecting out-of-order and duplicate
+/// tags (§6.2). Reads against a bounded `Reader`: [`RecordReader::next_field`]
+/// returns the next field tag, or `None` at end of (sub)buffer. After a tag the
+/// caller decodes the value with the matching `Reader::get_*`.
+#[derive(Debug)]
+pub struct RecordReader<'a, 'r> {
+    reader: &'r mut Reader<'a>,
+    last_tag: Option<u64>,
+}
+
+impl<'a, 'r> RecordReader<'a, 'r> {
+    /// Start reading a record from `reader`. The reader must be positioned at the
+    /// first field tag and bounded to the record's bytes (the whole input for a
+    /// top-level record, or a `get_framed` slice for a nested record).
+    pub fn new(reader: &'r mut Reader<'a>) -> Self {
+        RecordReader { reader, last_tag: None }
+    }
+
+    /// Read the next field's tag, advancing past the tag varint. Returns `None`
+    /// when the bounded buffer is exhausted. Rejects a tag that is not strictly
+    /// greater than the previous one: equal is [`DecodeError::DuplicateTag`],
+    /// smaller is [`DecodeError::NonAscendingTag`] (§6.2).
+    pub fn next_field(&mut self) -> Result<Option<u64>, DecodeError> {
+        if self.reader.is_empty() {
+            return Ok(None);
+        }
+        let tag = self.reader.get_uvarint()?;
+        if let Some(prev) = self.last_tag {
+            match tag.cmp(&prev) {
+                core::cmp::Ordering::Greater => {}
+                core::cmp::Ordering::Equal => return Err(DecodeError::DuplicateTag(tag)),
+                core::cmp::Ordering::Less => {
+                    return Err(DecodeError::NonAscendingTag { previous: prev, found: tag })
+                }
+            }
+        }
+        self.last_tag = Some(tag);
+        Ok(Some(tag))
+    }
+
+    /// Borrow the underlying reader to decode the current field's value.
+    pub fn reader(&mut self) -> &mut Reader<'a> {
+        self.reader
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -644,9 +928,77 @@ pub fn decode_timestamp(bytes: &[u8]) -> Result<i64, DecodeError> {
     decode_all(bytes, |r| r.get_timestamp())
 }
 
-// TODO: records/frames (§6.2), defaults/optionals (§6.3), lists/maps (§6.6),
-// unions/enums (§6.7).
-//
+/// Encode a `list` to a standalone byte string: `varint(count)` + elements
+/// (§6.6). `write_elem` encodes one element.
+pub fn encode_list<T, F>(items: &[T], write_elem: F) -> Vec<u8>
+where
+    F: FnMut(&mut Writer, &T),
+{
+    let mut w = Writer::new();
+    w.put_list(items, write_elem);
+    w.into_bytes()
+}
+
+/// Decode a whole-value `list` (§6.6), rejecting trailing bytes.
+pub fn decode_list<T, F>(bytes: &[u8], mut read_elem: F) -> Result<Vec<T>, DecodeError>
+where
+    F: FnMut(&mut Reader<'_>) -> Result<T, DecodeError>,
+{
+    decode_all(bytes, |r| r.get_list(&mut read_elem))
+}
+
+/// Encode a `map` to a standalone byte string: `varint(count)` + key/value pairs
+/// sorted by encoded-key bytes (§6.6).
+pub fn encode_map<K, V, FK, FV>(entries: &[(K, V)], write_key: FK, write_val: FV) -> Vec<u8>
+where
+    FK: FnMut(&mut Writer, &K),
+    FV: FnMut(&mut Writer, &V),
+{
+    let mut w = Writer::new();
+    w.put_map(entries, write_key, write_val);
+    w.into_bytes()
+}
+
+/// Decode a whole-value `map` (§6.6), rejecting unsorted/duplicate keys and any
+/// trailing bytes.
+pub fn decode_map<K, V, FK, FV>(
+    bytes: &[u8],
+    mut read_key: FK,
+    mut read_val: FV,
+) -> Result<Vec<(K, V)>, DecodeError>
+where
+    FK: FnMut(&mut Reader<'_>) -> Result<K, DecodeError>,
+    FV: FnMut(&mut Reader<'_>) -> Result<V, DecodeError>,
+{
+    decode_all(bytes, |r| r.get_map(&mut read_key, &mut read_val))
+}
+
+/// Encode a `union` to a standalone byte string: `varint(arm-tag) varint(len)
+/// value` (§6.7). `f` encodes the arm value.
+pub fn encode_union<F: FnOnce(&mut Writer)>(arm_tag: u64, f: F) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.put_union(arm_tag, f);
+    w.into_bytes()
+}
+
+/// Decode a whole-value `union` (§6.7) into `(arm_tag, value_bytes)`, rejecting
+/// trailing bytes after the arm value.
+pub fn decode_union(bytes: &[u8]) -> Result<(u64, Vec<u8>), DecodeError> {
+    decode_all(bytes, |r| r.get_union().map(|(t, v)| (t, v.to_vec())))
+}
+
+/// Encode an `enum` value as `varint(value)` (§5.4).
+pub fn encode_enum(value: u64) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.put_enum(value);
+    w.into_bytes()
+}
+
+/// Decode an `enum` value (§5.4); an unknown value is returned as-is.
+pub fn decode_enum(bytes: &[u8]) -> Result<u64, DecodeError> {
+    decode_all(bytes, |r| r.get_enum())
+}
+
 // TODO: the frame header (kind/corr/stream/seq/end) is the WIRE layer's
 // concern (RFC 0003), NOT hcpbin (RFC 0002 §4.2 / §6 scope note).
 
@@ -983,5 +1335,50 @@ mod tests {
         let id = [7u8; 16];
         assert_eq!(decode_uuid(&encode_uuid(&id)).unwrap(), id);
         assert_eq!(decode_timestamp(&encode_timestamp(42)).unwrap(), 42);
+    }
+
+    // ---- §6.2 records ----
+
+    #[test]
+    fn record_ascending_tags_golden() {
+        // §10: ToolCallRequest{ tool="fs.read", args=0x6b6579 }.
+        let mut w = Writer::new();
+        let mut rec = RecordWriter::new(&mut w);
+        rec.field(1).put_string("fs.read");
+        rec.field(2).put_bytes(&[0x6b, 0x65, 0x79]);
+        let bytes = w.into_bytes();
+        assert_eq!(
+            bytes,
+            vec![0x01, 0x07, 0x66, 0x73, 0x2e, 0x72, 0x65, 0x61, 0x64, 0x02, 0x03, 0x6b, 0x65, 0x79]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "strictly ascending")]
+    fn record_writer_rejects_out_of_order() {
+        let mut w = Writer::new();
+        let mut rec = RecordWriter::new(&mut w);
+        rec.field(2).put_bool(true);
+        rec.field(1).put_bool(false); // tag 1 after tag 2 -> panic
+    }
+
+    #[test]
+    fn record_reader_rejects_out_of_order_and_duplicate() {
+        // tag 2 then tag 1 -> out of order.
+        let mut r = Reader::new(&[0x02, 0x01, 0x01, 0x01]);
+        let mut rr = RecordReader::new(&mut r);
+        assert_eq!(rr.next_field().unwrap(), Some(2));
+        let _ = rr.reader().get_bool().unwrap();
+        assert_eq!(
+            rr.next_field(),
+            Err(DecodeError::NonAscendingTag { previous: 2, found: 1 })
+        );
+
+        // tag 1 then tag 1 -> duplicate.
+        let mut r = Reader::new(&[0x01, 0x01, 0x01, 0x00]);
+        let mut rr = RecordReader::new(&mut r);
+        assert_eq!(rr.next_field().unwrap(), Some(1));
+        let _ = rr.reader().get_bool().unwrap();
+        assert_eq!(rr.next_field(), Err(DecodeError::DuplicateTag(1)));
     }
 }
