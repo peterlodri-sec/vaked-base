@@ -51,7 +51,7 @@ pub const NullclawClient = struct {
         _ = self;
         _ = prompt;
         _ = task_id;
-        return "stub-task-id";
+        return try self.alloc.dupe(u8, "stub-task-id");
     }
 
     /// Step 4: Poll tasks/get until task reaches terminal state.
@@ -59,7 +59,7 @@ pub const NullclawClient = struct {
         // TODO Phase 2 integration: requires running nullclaw server. See GOCC.md §Integration Testing.
         _ = self;
         _ = task_id;
-        return .{ .status = .complete, .output = "" };
+        return .{ .status = .complete, .output = try self.alloc.dupe(u8, "") };
     }
 };
 
@@ -83,5 +83,6 @@ pub fn agentEndpoint(alloc: std.mem.Allocator, capability: []const u8, index: us
     const sock_path = try std.fmt.allocPrint(alloc, "{s}/.nullclaw/sockets/{s}-{d}.sock", .{ home, capability, index });
     // UDS HTTP not yet supported via std.http.Client; return TCP fallback.
     alloc.free(sock_path);
-    return std.fmt.allocPrint(alloc, "http://localhost:{d}", .{3000 + index});
+    const capped_index = @min(index, 999); // cap at 999 (max 1000 agents, ports 3000-3999)
+    return std.fmt.allocPrint(alloc, "http://localhost:{d}", .{ 3000 + capped_index });
 }

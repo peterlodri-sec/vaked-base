@@ -27,8 +27,8 @@ pub fn computeWaves(alloc: std.mem.Allocator, graph: *const types.ArpGraph) !Sch
     var in_degree = std.StringHashMap(usize).init(alloc);
     defer in_degree.deinit();
 
-    // Successor lists: each value is an ArrayList of node IDs (Zig 0.16 style: no stored alloc).
-    var successors = std.StringHashMap(std.ArrayList([]const u8)).init(alloc);
+    // Successor lists: each value is an ArrayListUnmanaged of node IDs (Zig 0.16 style: no stored alloc).
+    var successors = std.StringHashMap(std.ArrayListUnmanaged([]const u8)).init(alloc);
     defer {
         var it = successors.valueIterator();
         while (it.next()) |list| list.deinit(alloc);
@@ -54,7 +54,7 @@ pub fn computeWaves(alloc: std.mem.Allocator, graph: *const types.ArpGraph) !Sch
     }
 
     // Collect the initial wave: all nodes with in-degree 0.
-    var current_queue: std.ArrayList([]const u8) = .empty;
+    var current_queue: std.ArrayListUnmanaged([]const u8) = .empty;
     defer current_queue.deinit(alloc);
 
     {
@@ -69,7 +69,8 @@ pub fn computeWaves(alloc: std.mem.Allocator, graph: *const types.ArpGraph) !Sch
     // Sort for determinism.
     std.sort.block([]const u8, current_queue.items, {}, lessThanStr);
 
-    var waves_list: std.ArrayList(Wave) = .empty;
+    var waves_list: std.ArrayListUnmanaged(Wave) = .empty;
+    errdefer for (waves_list.items) |w| alloc.free(w.nodes);
     defer waves_list.deinit(alloc);
 
     var processed: usize = 0;
@@ -79,7 +80,7 @@ pub fn computeWaves(alloc: std.mem.Allocator, graph: *const types.ArpGraph) !Sch
         const wave_nodes = try alloc.dupe([]const u8, current_queue.items);
         try waves_list.append(alloc, .{ .nodes = wave_nodes });
 
-        var next_queue: std.ArrayList([]const u8) = .empty;
+        var next_queue: std.ArrayListUnmanaged([]const u8) = .empty;
         defer next_queue.deinit(alloc);
 
         for (current_queue.items) |node_id| {
