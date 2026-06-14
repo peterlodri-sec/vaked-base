@@ -385,8 +385,13 @@ async fn build_runner(cfg: &Config, api_key: &str) -> Result<AgentRunner> {
         })
         .tool(read_file_tool())
         .tool(list_dir_tool())
-        .tool(search_repo_tool())
-        .input_guardrails(guardrails::input_guardrails());
+        .tool(search_repo_tool());
+    // NOTE: we deliberately do NOT attach adk input_guardrails here. They would redact/defang
+    // the ENTIRE user prompt, including the trusted repo files seeded by `context_pack` — so a
+    // coder rewriting a file that legitimately contains secret-shaped fixtures (e.g. the
+    // guardrails tests' `sk-or-…` strings) would emit a redacted placeholder and corrupt it.
+    // Untrusted input (issue title/body/plan) is already defanged at prompt-build time via
+    // `guardrails::sanitize_untrusted`; trusted repo contents are passed through verbatim.
     match explorer {
         Ok(ts) => {
             info!("exploration via vaked→crabcc symbol index (+ native read for full files)");
