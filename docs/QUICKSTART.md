@@ -10,4 +10,4 @@ Create a `.vaked` file in the `vaked/examples/` directory with a simple capabili
 
 ## Next Steps
 
-Once your declaration is valid, run `vakedc lower <file>` to generate output artifacts: a typed capability graph, NixOS module stubs, and documentation. Consult `docs/context/PROJECT_CONTEXT.md` for the canonical project overview, `docs/language/0001-primer.md` for language design principles, and `vaked/examples/` for reference declarations. For protocol details, see `docs/protocol/` and the RFCs in `protocol/rfcs/`. To contribute language changes, use the `vaked-language-author` skill and follow the grammar-first convention.
+Once your declaration is valid, run `vakedc lower <file>` to generate output artifacts: a typed capability graph, NixOS module stubs, and documentation. Consult `docs/context/PROJECT_CONTEXT.md` for the canonical project overview, `docs/language/0001-language-manifesto.md` for language design principles, and `vaked/examples/` for reference declarations. For protocol details, see `docs/protocol/` and the RFCs in `protocol/rfcs/`. To contribute language changes, use the `vaked-language-author` skill and follow the grammar-first convention.
