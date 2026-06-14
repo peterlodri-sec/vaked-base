@@ -2001,6 +2001,18 @@ def test_run_stages_critique_and_writer_override() -> None:
     assert cost > 0
 
 
+def test_arp_artifact_gate_in_writer_prompts() -> None:
+    """ARP (RFC 0009): the committed decision body is gated (no CJK, no [R:*] frames);
+    stage-1 reasoning MAY use register frames since its prose is parser-ignored."""
+    import importlib
+    C = importlib.import_module("ralphcore")
+    for sysprompt in (C._STAGE2_SYS, C._CRITIQUE_SYS):
+        assert "no CJK" in sysprompt
+        assert "[R:*]" in sysprompt
+        assert "ARP" in sysprompt
+    assert "[R:*]" in C._STAGE1_SYS          # register reasoning allowed before the JSON
+
+
 def test_run_stages_critique_failure_keeps_draft() -> None:
     """A critique-call failure (after a usable stage-2 draft) must NOT abort the
     tick — it keeps the stage-2 body and still returns the stage-1+2 cost."""
