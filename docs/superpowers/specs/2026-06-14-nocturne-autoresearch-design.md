@@ -136,12 +136,28 @@ agent runtime. Mechanics per iteration, on the rented box:
    the API call).
 3. It reads back val BPB from `results.jsonl`, keeps or discards, and loops.
 
-Implications: the driver is most naturally a **Go binary in/alongside the optitron module**
-(reusing `internal/llm` + `internal/ledger`) that shells out to the Python training harness on the
-box — or a thin Python driver that calls OpenRouter directly if co-locating with PyTorch is
-simpler on the rented image. ⟨OPEN, minor⟩ pick Go-reuse vs Python-local once the port's harness
-interface is known. Models: env-overridable like optitron (a capable codegen model for the
-mutation, e.g. an `anthropic/claude-fable-5` / `deepseek-v4` tier).
+Implications — two viable shapes (⟨OPEN, minor⟩ pick once the port's harness interface is known):
+- **Go-reuse — must live INSIDE the optitron module.** Go `internal/` packages are only importable
+  by code rooted under `tools/optitron/`, so to reuse `internal/llm` + `internal/ledger` the driver
+  must be a **new binary in the optitron module** (`tools/optitron/cmd/nocturne` +
+  `tools/optitron/internal/nocturne`) — **exactly** how `cmd/introspect` (fleet-introspect) reuses
+  the same core. It would still shell out to the Python training harness on the box. A sibling
+  `tools/nocturne/` tree could **not** import those `internal/` packages.
+- **Python-local.** A thin Python driver co-located with PyTorch on the rented image that calls
+  OpenRouter directly (own small ledger matching ralph's chain format). Simpler on the box; no Go
+  module-boundary constraint; doesn't reuse optitron's wrapper.
+
+Either way, the orchestration shell (`provision.sh`, `nocturne.yml`, `program.md`, ledger state)
+can live under `tools/nocturne/`; only the **Go** driver, if chosen, must sit in the optitron
+module. Models: env-overridable like optitron (a capable codegen model for the mutation, e.g. an
+`anthropic/claude-fable-5` / `deepseek-v4` tier).
+
+**Secret forwarding (both shapes).** The driver runs **on the rented box**, where the `ci`
+environment's `OPENROUTER_API_KEY` (and optional `LANGFUSE_*`) do **not** exist by default — a
+naive flow would provision the GPU then fail on the first mutation call. The orchestrator must
+inject them into the remote command: either `ssh box OPENROUTER_API_KEY=… <driver>` (env on the
+remote command, not via `~/.ssh` config), or write a **short-lived env file** to the box
+(`chmod 600`, deleted on teardown). Never bake the key into the image.
 
 ## ⟨OPEN⟩ decisions — reconcile against `vast-autoresearcher` before implementing
 
@@ -165,10 +181,12 @@ mutation, e.g. an `anthropic/claude-fable-5` / `deepseek-v4` tier).
 - **`tools/nocturne/`** — the orchestrator + provisioning, sibling to `tools/optitron/`:
   - `PURPOSE.md` — the abstain-by-default mission preamble (optitron/ralph pattern).
   - `provision.sh` — `vastai` search/create/destroy with `$/hr` cap + **mandatory teardown trap**.
-  - the **driver** — proposes each mutation via an OpenRouter call (reusing optitron's
-    `internal/llm` if Go, or a thin Python client co-located with PyTorch), applies the patch, and
-    invokes the training harness; the on-GPU mutate→train→score→keep/discard loop writes
-    `results.jsonl`. ⟨OPEN, minor⟩ Go-reuse vs Python-local; harness likely adapted from the port.
+  - the **driver** — proposes each mutation via an OpenRouter call, applies the patch, invokes the
+    training harness; the on-GPU mutate→train→score→keep/discard loop writes `results.jsonl`.
+    **If Go-reuse:** it is NOT a file here — it lives as `tools/optitron/cmd/nocturne` +
+    `tools/optitron/internal/nocturne` (Go `internal/` can't be imported by a sibling tree), like
+    `cmd/introspect`. **If Python-local:** `tools/nocturne/driver.py` co-located with PyTorch.
+    ⟨OPEN, minor⟩ pick once the port's harness interface is known.
   - `program.md` — the research objective (human-edited, the only "knob" for direction).
   - `gate.py` / gate module — **pure** deterministic check over harvested `results.jsonl`:
     baseline delta, confirm-seed rows hold, novelty, sanity (never trains).
@@ -205,6 +223,10 @@ mutation, e.g. an `anthropic/claude-fable-5` / `deepseek-v4` tier).
 
 - **Vast.ai:** account + `VAST_API_KEY` as a secret in the GitHub `ci` Environment; SSH key for
   the rented box. (⟨OPEN⟩ — confirm the port's expected env var names.)
+- **Driver secrets forwarded to the box:** `OPENROUTER_API_KEY` (+ optional `LANGFUSE_*`) already
+  live in the `ci` Environment for the siblings — no new secret, but the orchestrator must
+  **inject** them into the remote SSH command / a short-lived env file (see the mutation-driver
+  section); they are not on the rented box otherwise.
 - **GitHub** → Settings → Environments → create **`nocturne-manual`** → add yourself as a Required
   reviewer (no secrets — purely the manual-run approval gate, like `optitron-manual`).
 - **Monthly ceiling:** set the spend cap value (workflow input/secret) the cron checks before
