@@ -1,5 +1,47 @@
 ## [unreleased] — 2026-06-14
 
+### area/ci
+- fix(ci): drop -Wl,--icf=all so UPX can pack the agent binaries (#171)
+- feat(ci): smart CI gate with size-based tier scaling (#160)
+- ci(nix-check): add store cache, drop --all-systems, add path filters (#149)
+
+### area/agents
+- feat(agents): embed GIT_SHA at build time + UPX binary compression (#156)
+- fix(agents): connect provost + label-tagger to Langfuse (shared vaked-telemetry crate) (#162)
+- refactor(agents): reduce stderr noise + trim gh issue list payload (#150)
+- refactor(pr-review): split 2.9k-line main.rs into focused modules (#154)
+
+### area/language
+- feat(language): implement namespace checker — RFC 0017, v0.4 (#152)
+
+### area/compiler
+- feat(vakedz): port check diagnostics + extend CI parity gate (#155)
+
+### area/runtime
+- feat(runtime): sandboxd Python reference scaffold — process/filesystem membrane (#15 pattern) (#148)
+- feat(runtime): memoryd Python reference implementation (#15 pattern) (#147)
+
+### area/docs
+- docs(protocol): SPIRE PQC design — RFC 0007 Q3 research spike (#146)
+- docs(CLAUDE.md): update to current repo state (#158)
+
+### area/tools
+- feat(swe-af): run the lowered `workflow swe_af` for real on GitHub Actions (#151)
+
+### area/nix
+- chore: NEVER BUILD ON DEVELOPER MACHINE — 3-gate verify-confirm protocol (#163)
+- chore: add Rust target/ to .gitignore (#161)
+
+### area/protocol
+- deploy/langfuse: scaffold .env.example for LLM-as-a-Judge via OpenRouter (#159)
+
+### (unlabeled)
+- fleet-introspect: daily gated self-improvement loop reusing the optitron Go core (#170)
+- kickoff(wp3+wp4): Jun 24 start — planning docs + scaffolding (#164)
+- vaked-optitron: Go (Eino) concurrent crawler + gated manual trigger (#157)
+
+## [unreleased] — 2026-06-14
+
 ### agents
 - feat(agents): embed GIT_SHA at build time + UPX binary compression (#156)
 - fix(agents): connect provost + label-tagger to Langfuse (shared vaked-telemetry crate) (#162)
