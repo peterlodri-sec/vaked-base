@@ -70,7 +70,7 @@ pub const DragonflyClient = struct {
 pub fn encodeCommand(alloc: std.mem.Allocator, args: []const []const u8) ![]u8 {
     // Zig 0.16: use ArrayListUnmanaged with .print(alloc, ...) — managed ArrayList.init removed.
     var buf: std.ArrayListUnmanaged(u8) = .empty;
-    defer buf.deinit(alloc);
+    errdefer buf.deinit(alloc);
     try buf.print(alloc, "*{d}\r\n", .{args.len});
     for (args) |arg| {
         try buf.print(alloc, "${d}\r\n{s}\r\n", .{ arg.len, arg });

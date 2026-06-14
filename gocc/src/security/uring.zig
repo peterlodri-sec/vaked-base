@@ -42,13 +42,23 @@ pub const UringLogger = struct {
     // Declared as `void` on other platforms to avoid any compile-time cost.
     ring: if (builtin.os.tag == .linux) ?std.os.linux.IoUring else void,
 
-    /// Open (or create) a log file at `path` and return an initialised logger.
+    /// Open (or create) a log file at `path` relative to `dir`.
     /// Writes the 16-byte header if the file is new (size == 0).
-    pub fn open(io: std.Io, path: []const u8) !UringLogger {
-        const file = try std.Io.Dir.cwd().createFile(io, path, .{
+    pub fn openInDir(io: std.Io, dir: std.Io.Dir, path: []const u8) !UringLogger {
+        const file = try dir.createFile(io, path, .{
             .truncate = false,
             .read = true,
         });
+        return initFromFile(io, file);
+    }
+
+    /// Open (or create) a log file at `path` relative to cwd.
+    /// Writes the 16-byte header if the file is new (size == 0).
+    pub fn open(io: std.Io, path: []const u8) !UringLogger {
+        return openInDir(io, std.Io.Dir.cwd(), path);
+    }
+
+    fn initFromFile(io: std.Io, file: std.Io.File) !UringLogger {
         errdefer file.close(io);
 
         // Write header only for a freshly created (empty) file.
@@ -178,7 +188,7 @@ test "UringLogger — write 3 frames, file size = 16 + 3×128 = 400" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    var logger = try UringLogger.open(io, "gocc-test.log");
+    var logger = try UringLogger.openInDir(io, tmp.dir, "gocc-test.log");
     defer logger.close();
 
     const f1 = frame.init(io, .pipeline, 1, 2);
@@ -198,7 +208,7 @@ test "UringLogger — frame_count tracks appends" {
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    var logger = try UringLogger.open(io, "gocc-count.log");
+    var logger = try UringLogger.openInDir(io, tmp.dir, "gocc-count.log");
     defer logger.close();
 
     try std.testing.expectEqual(@as(u64, 0), logger.frame_count);
@@ -216,7 +226,7 @@ test "UringLogger benchmark — 1000 frames (informational, no hard gate on macO
     var tmp = std.testing.tmpDir(.{});
     defer tmp.cleanup();
 
-    var logger = try UringLogger.open(io, "gocc-bench.log");
+    var logger = try UringLogger.openInDir(io, tmp.dir, "gocc-bench.log");
     defer logger.close();
 
     const N = 1000;
