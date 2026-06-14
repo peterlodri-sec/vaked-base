@@ -70,7 +70,9 @@ jobs:
           FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
           if [ -n "$FUSE" ]; then
             echo "::notice::linking with $FUSE"
-            FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+            # No -Wl,--icf=all: identical-code-folding yields a GNU hash table
+            # UPX 4.2.2 can't pack (CantPackException: bad DT_GNU_HASH n_bucket=0x1).
+            FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE"
           else
             echo "::notice::no fast linker accepted by cc — using default"
           fi
