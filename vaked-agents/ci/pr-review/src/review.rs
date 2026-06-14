@@ -260,13 +260,25 @@ pub(crate) async fn run_review() -> Result<()> {
             .unwrap_or_default();
         // Bare model name (drop the `provider/` prefix) for a leaner footer.
         let model_short = cfg.model.rsplit('/').next().unwrap_or(&cfg.model);
-        let body = format!(
-            "{COMMENT_MARKER}\n{review}\n{provenance}\n\n---\n\
-             <sub>vaked-ci-reviewer · advisory · model={} · findings={} · tok={} (cached {}) · \
-             cost=${:.4} · runtime={:.1}s (slowest: {}){}{}{} · {}</sub>",
-            model_short, n_findings, usage.total, usage.cached, cost, total_s, slowest,
-            commit_link, run_link, trace_link, footer_signature()
-        );
+        // Shared footer renderer — one `<sub>` format across the agent fleet.
+        let metrics = [
+            ("model", model_short.to_string()),
+            ("findings", n_findings.to_string()),
+            ("tok", format!("{} (cached {})", usage.total, usage.cached)),
+            ("cost", format!("${cost:.4}")),
+        ];
+        let links = format!("{commit_link}{run_link}{trace_link}");
+        let sig = footer_signature();
+        let footer = vaked_agents_shared::footer::Footer {
+            agent: "vaked-ci-reviewer",
+            metrics: &metrics,
+            runtime_s: Some(total_s),
+            slowest: Some(&slowest),
+            links: &links,
+            signature: &sig,
+        }
+        .render();
+        let body = format!("{COMMENT_MARKER}\n{review}\n{provenance}\n\n---\n{footer}");
 
         if cfg.dry_run {
             println!("===== DRY RUN: review comment =====\n{body}");

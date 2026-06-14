@@ -476,13 +476,14 @@ schema runclass {
 - Conforms to `vaked/examples/agentfield-swe.vaked` (`runclass interactive {
   priority = "high"  interval = 5s }`, referenced from the `transcriptMiner`
   fiber).
-- The remaining schema-less kinds (`network`, `filesystem`, `mcp`, `ebpf`,
+- The remaining schema-less kinds (`filesystem`, `mcp`, `ebpf`,
   `observability`) stay open under #28's audit: each gets a schema or a removal
-  decision (`host` got its schema in slice 3, below; `input` was removed — #48).
-  The `ebpf` kind has no top-level `schema` (a `schema ebpf` would collide in
-  the kind-agnostic LPG with the existing `capability ebpf` domain — cf.
-  `mem`/`memory`), but its `hook` + `intent` fields are still typed by a
-  dedicated checker pass (#225, see below).
+  decision (`host` got its schema in slice 3, below; `network` got its schema in
+  the egress-membrane slice, below; `input` was removed — #48). The `ebpf` kind
+  has no top-level `schema` (a `schema ebpf` would collide in the kind-agnostic
+  LPG with the existing `capability ebpf` domain — cf. `mem`/`memory`), but its
+  `hook` + `intent` fields are still typed by a dedicated checker pass (#225,
+  see below).
 
 ---
 
@@ -507,9 +508,10 @@ schema host {
 - `deploy`'s format ("ssh://…" | "local") is documentation until the lowering
   follow-up enforces it; a `host.system` ∈ enclosing `runtime.systems`
   membership check is a follow-up checker rule tracked on #28.
-- Audit state (#28): `input` was removed (#48); `ebpf` field-typing landed via a
-  checker pass (#225, see "eBPF hook typing" below); `network` / `filesystem` /
-  `mcp` / `observability` get schemas with their daemons' policy formats.
+- Audit state (#28): `input` was removed (#48); `network` got its schema (the
+  egress-membrane slice, below); `ebpf` field-typing landed via a checker pass
+  (#225, see "eBPF hook typing" below); `filesystem` / `mcp` / `observability`
+  get schemas with their daemons' policy formats.
 
 ---
 
@@ -548,6 +550,47 @@ ebpf wrongGuard     { hook = "kprobe"          intent = "enforce" }   # E-EBPF-E
   curated `lsm` / cgroup enforcement tier where userspace mediation would be too
   slow or racy (the userspace-verdict TOCTOU gap). Prefer `override_return` /
   LSM-deny over `send_signal` (SIGKILL is not reliable prevention).
+
+---
+
+## Schema: `networkMembrane`
+
+`Network` (the kind) — a deny-by-default egress membrane for one principal
+(#28, audit slice). `network` is BOTH a built-in capability domain (the grant
+lattice `none < loopback < lan < egress`, in the Domain section below) AND a
+declarable kind: the domain is the principal's lattice grant; a `network` decl
+is one concrete membrane that **refines** that grant into a host:port allow-set.
+Compiles to `gen/ebpf.policy.json` (the `ebpf.policy` emitter, `vakedc/lower.py`)
+which agent-guardd loads as a `cgroup/skb` BPF program and enforces (0012 §7;
+`docs/runtime/agent-guardd.md`). **Closed.**
+
+The schema is named **`networkMembrane`**, not `network`: a top-level
+`schema network` would share a kind-agnostic LPG node id with `capability
+network` and collide (E-DECL-NAME-COLLISION) — the same constraint that named
+the memory domain `mem`, not `memory`. The checker conforms a `network` decl
+against this schema via a kind→schema alias (`_KIND_SCHEMA` in `vakedc/check.py`),
+mirroring the `fiber.policy`→`fiberPolicy` indirection.
+
+```vaked
+schema networkMembrane {
+  field principal : String { nonempty }                 # guarded mesh-node name
+  field default   : String { optional oneof ["deny", "allow"] default = "deny" }
+  field allow     : List<EgressRule> { optional nonempty }   # egress(host, port) rules
+  field observe   : Stream<T> { optional }              # eBPF testimony channel
+}
+```
+
+- Conforms to `vaked/examples/membrane/agent-egress.vaked` (`network agentEgress
+  { principal = "worker"  default = "deny"  allow = [egress("127.0.0.1", 9), …]
+  observe = stream.ebpfEvents }`).
+- `EgressRule` is the auxiliary type of an `egress(host, port)` app-call (the
+  allow-rule constructor `emit_ebpf_policy` reads); `default` is the
+  deny-by-default posture. The principal's lattice grant (`network.<grant>` on
+  the mesh node) is carried into the membrane at lowering, not on the decl.
+- The other capability-domain-shadowed kind (`mcp`) takes the same
+  `<kind>Membrane`/`_KIND_SCHEMA` route when its daemon policy format lands;
+  `ebpf` is field-typed via a checker pass (#225, above); `filesystem` /
+  `observability` are non-shadowed and schema with their daemons.
 
 ---
 

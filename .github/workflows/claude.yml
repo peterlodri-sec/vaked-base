@@ -1,0 +1,103 @@
+name: Claude Code
+
+# Responds to @claude mentions in issues and pull requests.
+#
+# Auth: Claude subscription OAuth token (no Anthropic API key / usage billing).
+#   1. Run `claude setup-token` locally on a machine signed in to your
+#      Claude Pro/Max account. It prints a long-lived OAuth token.
+#   2. Add that token as a repository secret named CLAUDE_CODE_OAUTH_TOKEN
+#      (GitHub -> Settings -> Secrets and variables -> Actions, "ci" environment).
+#
+# Security: this agent has write access (contents/PRs/issues) and runs from the
+# default branch with repository secrets regardless of who triggers it. The
+# author-association gate below is the key control: only the owner, org members,
+# and collaborators can invoke it, and never another bot. Without this gate any
+# stranger commenting "@claude" could drive a write-capable agent.
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude:
+    if: >-
+      (
+        github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        github.event.comment.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      ) || (
+        github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        github.event.comment.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      ) || (
+        github.event_name == 'pull_request_review' &&
+        contains(github.event.review.body, '@claude') &&
+        github.event.review.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+      ) || (
+        github.event_name == 'issues' &&
+        (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+        github.event.issue.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+      )
+    runs-on: ubuntu-latest
+    environment: ci
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # Pick the model by change size: Haiku for small, focused diffs (faster,
+      # cheaper) and Sonnet once a PR grows past the threshold. Non-PR triggers
+      # (plain issues) default to Haiku. Override the cutoff with the repo
+      # variable CLAUDE_HAIKU_MAX_LINES.
+      - name: Choose model by change size
+        id: model
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HAIKU_MAX_LINES: ${{ vars.CLAUDE_HAIKU_MAX_LINES || '120' }}
+        run: |
+          model="claude-haiku-4-5"   # default: small / focused
+          pr=""
+          case "${{ github.event_name }}" in
+            issue_comment)
+              [ -n "${{ github.event.issue.pull_request.url }}" ] && pr="${{ github.event.issue.number }}" ;;
+            pull_request_review|pull_request_review_comment)
+              pr="${{ github.event.pull_request.number }}" ;;
+          esac
+          size=""
+          if [ -n "$pr" ]; then
+            size=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" \
+              --json additions,deletions -q '.additions + .deletions' 2>/dev/null || echo 0)
+            if [ "${size:-0}" -gt "$HAIKU_MAX_LINES" ]; then model="claude-sonnet-4-6"; fi
+          fi
+          echo "model=$model" >> "$GITHUB_OUTPUT"
+          echo "::notice::claude model=$model (pr=${pr:-none} size=${size:-n/a} cutoff=$HAIKU_MAX_LINES)"
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          # Subscription OAuth token instead of anthropic_api_key.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          trigger_phrase: "@claude"
+          # Haiku for small/focused changes, Sonnet for larger PRs (see step
+          # above). In-repo skills under .claude/skills (including caveman) are
+          # auto-discovered and usable via /caveman.
+          claude_args: |
+            --model ${{ steps.model.outputs.model }}
