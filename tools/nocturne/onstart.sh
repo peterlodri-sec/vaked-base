@@ -9,6 +9,16 @@ log() { echo "[onstart] $*" >&2; }
 log "harness: $HARNESS_DIR"
 cd "$HARNESS_DIR"
 
+# C toolchain — torch.compile/inductor JIT-compiles CUDA kernels at runtime and needs a C
+# compiler, which the pytorch/pytorch:*-runtime image does NOT ship. Without this, train.py
+# dies with "InductorError: Failed to find C compiler" and never emits val_bpb.
+if ! command -v cc >/dev/null 2>&1; then
+  log "installing build-essential (C compiler for torch.compile)"
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq && apt-get install -y -qq build-essential >/dev/null
+fi
+export CC="${CC:-cc}" CXX="${CXX:-c++}"
+
 if ! command -v uv >/dev/null 2>&1; then
   log "installing uv"
   curl -LsSf https://astral.sh/uv/install.sh | sh
