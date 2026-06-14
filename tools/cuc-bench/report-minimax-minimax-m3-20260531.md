@@ -1,4 +1,4 @@
-# Caveman Wenyan-Ultra vs Normal — Benchmark Report
+# CUC (Caveman Ultra Chinese) — Wenyan-Ultra vs Normal Benchmark Report
 
 **Backend:** openrouter | **Model:** `minimax/minimax-m3-20260531` | **Prompts:** 8
 
