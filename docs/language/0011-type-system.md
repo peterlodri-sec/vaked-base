@@ -158,6 +158,11 @@ normalized values are equal (`1000ms = 1s`).
 
   These are the same names used in `parallel-types.md`. `Surface`, `Device`,
   `MediaPipeline`, `ParallelGroup`, `Engine`, `Capability` are non-generic.
+  `Device` represents a named hardware or protocol endpoint (e.g. Zigbee node,
+  USB peripheral) declared in the capability graph; `MediaPipeline` represents
+  a named composition of media-processing stages. Both have schemas in
+  `parallel-types.md` and are accepted by the checker; their lowering targets
+  are not yet specified (see `0012-lowering.md` §5.4).
 
 ### 2.4 Structural matching relation (`◁`)
 
