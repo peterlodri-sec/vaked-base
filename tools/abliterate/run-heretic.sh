@@ -20,6 +20,7 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODEL_KEY="${1:-llama}"
 DRY_RUN="${2:-}"
 
@@ -33,12 +34,12 @@ OUTPUT_DIR="tools/abliterate/output/$(echo "$MODEL_ID" | tr '/' '-')"
 mkdir -p "$OUTPUT_DIR"
 
 echo "Model:  $MODEL_ID"
-echo "Config: config.noslop.toml  (verbosity direction, not refusal)"
+echo "Config: $SCRIPT_DIR/config.noslop.toml  (verbosity direction, not refusal)"
 echo "Output: $OUTPUT_DIR"
 echo ""
 
 if [[ -n "$DRY_RUN" ]]; then
-  echo "[dry-run] Would run: heretic $MODEL_ID --config config.noslop.toml --save-dir $OUTPUT_DIR"
+  echo "[dry-run] Would run: heretic $MODEL_ID --config $SCRIPT_DIR/config.noslop.toml --save-dir $OUTPUT_DIR"
   exit 0
 fi
 
@@ -46,7 +47,7 @@ fi
 # --device mps  = Apple Metal (M-series GPU)
 # --save-dir    = write modified safetensors here (no interactive prompt)
 heretic "$MODEL_ID" \
-  --config config.noslop.toml \
+  --config "$SCRIPT_DIR/config.noslop.toml" \
   --device mps \
   --save-dir "$OUTPUT_DIR" \
   --plot-residuals

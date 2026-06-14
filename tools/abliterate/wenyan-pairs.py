@@ -109,6 +109,7 @@ def main():
             seen.add(p["text"])
             unique.append(p)
 
+    args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text("\n".join(json.dumps(p) for p in unique) + "\n")
     print(f"\nWrote {len(unique)} pairs → {args.out}")
     print("Next: bash tools/abliterate/finetune-mlx.sh llama")
