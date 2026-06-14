@@ -37,7 +37,7 @@ jobs:
     # Safety gate: only the `agent` label, applied by the repo owner, triggers an
     # autonomous code+PR run. Dispatch is owner-only by GitHub default.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
       (github.event.label.name == 'agent' &&
        github.event.sender.login == github.repository_owner)
     env:
@@ -138,6 +138,8 @@ jobs:
           cargo install --git https://github.com/crabcc-labs/crabcc --tag v6.2.0 \
             crabcc-cli --bin crabcc --locked --force \
             || echo "::warning::crabcc install failed — swe-af falls back to built-in explore tools"
+          # Remove the credential URL-rewrite so it doesn't leak to every git call in the job.
+          git config --global --unset url."https://x-access-token:${CRABCC_INSTALL_TOKEN}@github.com/crabcc-labs/".insteadOf || true
 
       # eventd helper: append a JSON event to the hash chain (the audit spine).
       - name: eventd — run started
@@ -154,8 +156,9 @@ jobs:
           MODE: plan
           ISSUE_NUMBER: ${{ env.ISSUE }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          LANGFUSE_URL: ${{ secrets.LANGFUSE_URL }}
-          LANGFUSE_API_KEY: ${{ secrets.LANGFUSE_API_KEY }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
         run: |
           # All agent I/O lands in $RUNNER_TEMP so it never pollutes the git tree.
           W="$RUNNER_TEMP/swe-af"; mkdir -p "$W"
@@ -177,8 +180,9 @@ jobs:
           ISSUE_NUMBER: ${{ env.ISSUE }}
           PLAN_FILE: ${{ env.WORK }}/plan.md
           GITHUB_REPOSITORY: ${{ github.repository }}
-          LANGFUSE_URL: ${{ secrets.LANGFUSE_URL }}
-          LANGFUSE_API_KEY: ${{ secrets.LANGFUSE_API_KEY }}
+          LANGFUSE_HOST: ${{ secrets.LANGFUSE_HOST }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
         run: |
           W="$WORK"
           ./vaked-swe-af > "$W/code.json"
@@ -193,6 +197,8 @@ jobs:
             # Record exact paths so the commit stages ONLY agent-authored files.
             jq -c '.files[]' "$W/code.json" | while IFS= read -r f; do
               P=$(printf '%s' "$f" | jq -r '.path')
+              # Re-validate path before writing: defence-in-depth against a compromised prebuilt.
+              case "$P" in /*|*../*|../*|"") echo "::error::unsafe path '$P' — skipping"; continue;; esac
               mkdir -p "$(dirname "$P")"
               printf '%s' "$f" | jq -r '.content' > "$P"
               printf '%s\n' "$P" >> "$W/changed.txt"

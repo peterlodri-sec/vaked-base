@@ -57,15 +57,29 @@ def provision_run_real(dry: bool) -> None:
         print("[nocturne] --dry-run: no GPU rented, $0", flush=True)
         return
 
-    forwarded_env = (
-        f'LLM_API_KEY="{os.environ.get("OPENROUTER_API_KEY","")}" '
-        f'LLM_BASE_URL="{os.environ.get("LLM_BASE_URL","https://openrouter.ai/api/v1")}" '
-        f'LLM_MODEL="{os.environ.get("LLM_MODEL","deepseek/deepseek-chat")}" '
-        f'NOCTURNE_HARNESS_DIR="{REMOTE}/harness" '
-        f'NOCTURNE_WALL_SECS="{os.environ.get("NOCTURNE_WALL_SECS","9000")}" '
-        f'NOCTURNE_MAX_TRIALS="{os.environ.get("NOCTURNE_MAX_TRIALS","60")}" '
-        f'NOCTURNE_CONFIRM_SEEDS="{os.environ.get("NOCTURNE_CONFIRM_SEEDS","2")}"'
-    )
+    if not os.environ.get("OPENROUTER_API_KEY"):
+        print("[nocturne] FATAL: OPENROUTER_API_KEY not set — refusing to rent a GPU",
+              file=sys.stderr, flush=True)
+        return
+
+    # The box env (incl. the OpenRouter key) goes in a 0600 file we scp up and `source` on the box —
+    # NEVER interpolated into a command string, so the key never lands in GHA logs or the remote
+    # process argv (`ps`). All values are urls/ids/ints/one key token (no spaces) → safe unquoted.
+    env_file = os.path.join(STATE, ".nocturne.env")
+    box_env = {
+        "LLM_API_KEY": os.environ.get("OPENROUTER_API_KEY", ""),
+        "LLM_BASE_URL": os.environ.get("LLM_BASE_URL", "https://openrouter.ai/api/v1"),
+        "LLM_MODEL": os.environ.get("LLM_MODEL", "deepseek/deepseek-chat"),
+        "NOCTURNE_HARNESS_DIR": f"{REMOTE}/harness",
+        "NOCTURNE_WALL_SECS": os.environ.get("NOCTURNE_WALL_SECS", "9000"),
+        "NOCTURNE_MAX_TRIALS": os.environ.get("NOCTURNE_MAX_TRIALS", "60"),
+        "NOCTURNE_CONFIRM_SEEDS": os.environ.get("NOCTURNE_CONFIRM_SEEDS", "2"),
+    }
+    os.makedirs(STATE, exist_ok=True)
+    with os.fdopen(os.open(env_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600),
+                   "w", encoding="utf-8") as fh:
+        for k, v in box_env.items():
+            fh.write(f"{k}={v}\n")
     try:
         sh("bash", PROVISION, "rent")
         ledger_mod.append(LEDGER, {"event": "provision", "ts": int(time.time())})
@@ -74,14 +88,21 @@ def provision_run_real(dry: bool) -> None:
         sh("bash", PROVISION, "put", os.path.join(HERE, "driver.py"), f"{REMOTE}/driver.py")
         sh("bash", PROVISION, "put", os.path.join(HERE, "program.md"), f"{REMOTE}/harness/program.md", check=False)
         sh("bash", PROVISION, "put", os.path.join(HERE, "onstart.sh"), f"{REMOTE}/onstart.sh")
+        sh("bash", PROVISION, "put", env_file, f"{REMOTE}/nocturne.env")  # scp logs the name, never the contents
         sh("bash", PROVISION, "ssh", f"NOCTURNE_HARNESS_DIR={REMOTE}/harness bash {REMOTE}/onstart.sh")
-        # the loop (driver runs in the harness dir; train.py invoked via `uv run`)
+        # the loop (driver runs in the harness dir; train.py invoked via `uv run`). Secrets are sourced
+        # from the env file, NOT passed on the command line — the OpenRouter key never hits logs/argv.
         sh("bash", PROVISION, "ssh",
-           f"cd {REMOTE}/harness && {forwarded_env} python3 {REMOTE}/driver.py", check=False)
+           f"set -a; . {REMOTE}/nocturne.env; set +a; cd {REMOTE}/harness && python3 {REMOTE}/driver.py",
+           check=False)
         sh("bash", PROVISION, "get", f"{REMOTE}/harness/results.jsonl", RESULTS)
         # harvest the winning train.py too (for the swe_af diff), best-effort
         sh("bash", PROVISION, "get", f"{REMOTE}/harness/train.py", os.path.join(STATE, "candidate-train.py"), check=False)
     finally:
+        try:
+            os.remove(env_file)  # never leave the key on the runner disk
+        except OSError:
+            pass
         sh("bash", PROVISION, "destroy", check=False)
         ledger_mod.append(LEDGER, {"event": "teardown", "ts": int(time.time())})
 

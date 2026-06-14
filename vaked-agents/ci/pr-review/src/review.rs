@@ -107,13 +107,20 @@ pub(crate) async fn run_review() -> Result<()> {
             anyhow!("no OpenRouter key — set OPENROUTER_API_KEY or PR_REVIEW_API_KEY")
         })?;
         let st = std::time::Instant::now();
-        let crabcc = connect_crabcc(&cfg).await.map_or_else(
-            |e| {
-                warn!(error = %e, "crabcc unavailable — reviewing without it");
-                None
-            },
-            |t| Some(Arc::new(t) as Arc<dyn Toolset>),
-        );
+        // No-tool single-pass is the default: skip the crabcc index build + MCP
+        // connection entirely unless the tool loop is explicitly enabled. The stage
+        // timer is kept (it reads ~0 when skipped).
+        let crabcc = if cfg.use_tools {
+            connect_crabcc(&cfg).await.map_or_else(
+                |e| {
+                    warn!(error = %e, "crabcc unavailable — reviewing without it");
+                    None
+                },
+                |t| Some(Arc::new(t) as Arc<dyn Toolset>),
+            )
+        } else {
+            None
+        };
         stages.push(("crabcc", st.elapsed().as_secs_f64()));
 
         let st = std::time::Instant::now();
@@ -124,17 +131,18 @@ pub(crate) async fn run_review() -> Result<()> {
         // — the 7-lens engineering council yields noise on a design doc.
         let docs_only = !meta.files.is_empty() && meta.files.iter().all(|f| is_doc_file(f));
 
-        // High-reasoning, structured final-output runner (single-pass + synthesis).
-        let high = build_runner_with(
-            &cfg, &api_key, &cfg.reasoning_effort, 4096, cfg.structured, crabcc.clone(),
-            if docs_only {
-                docs_review_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured)
-            } else {
-                system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured)
-            },
-        )?;
-
         let raw_review = if !docs_only && changed > cfg.mapreduce_lines {
+            // Large diff (map-reduce): per-file passes run the cheap coder (cfg.model);
+            // the synthesis pass runs the reasoner (cfg.reasoner_model).
+            let med = build_runner_with(
+                &cfg, &api_key, &cfg.model, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
+                system_prompt(cfg.max_findings, cfg.crabcc_budget, false, cfg.use_tools),
+            )?;
+            let synth = build_runner_with(
+                &cfg, &api_key, &cfg.reasoner_model, &cfg.reasoning_effort, 4096, cfg.structured,
+                crabcc.clone(),
+                system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured, cfg.use_tools),
+            )?;
             if cfg.parallel_agent {
                 // Opt-in adk workflow-agent pipeline (PR_REVIEW_PARALLEL_AGENT). Kept
                 // opt-in until validated live — its runtime behaviour (multi-agent
@@ -151,24 +159,26 @@ pub(crate) async fn run_review() -> Result<()> {
                     Err(e) => {
                         warn!(error = %e, "parallel-agent path failed — falling back to map-reduce");
                         record_mode(&span, "map-reduce-fallback");
-                        let med = build_runner_with(
-                            &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
-                            system_prompt(cfg.max_findings, cfg.crabcc_budget, false),
-                        )?;
-                        map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage)
+                        map_reduce_review(&med, &synth, &cfg, &meta, &diff, &addenda, &mut usage)
                             .await?
                     }
                 }
             } else {
                 record_mode(&span, "map-reduce");
                 info!(changed, threshold = cfg.mapreduce_lines, "large PR — map-reduce");
-                let med = build_runner_with(
-                    &cfg, &api_key, PERFILE_REASONING_EFFORT, 1024, false, crabcc.clone(),
-                    system_prompt(cfg.max_findings, cfg.crabcc_budget, false),
-                )?;
-                map_reduce_review(&med, &high, &cfg, &meta, &diff, &addenda, &mut usage).await?
+                map_reduce_review(&med, &synth, &cfg, &meta, &diff, &addenda, &mut usage).await?
             }
         } else {
+            // Small/medium diff: a single high-reasoning pass on the cheap coder.
+            let high = build_runner_with(
+                &cfg, &api_key, &cfg.model, &cfg.reasoning_effort, 4096, cfg.structured,
+                crabcc.clone(),
+                if docs_only {
+                    docs_review_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured, cfg.use_tools)
+                } else {
+                    system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured, cfg.use_tools)
+                },
+            )?;
             record_mode(&span, if docs_only { "docs-single-pass" } else { "single-pass" });
             let body = rtk_condensed(&cfg)
                 .map(|c| filter_unified(&c))
