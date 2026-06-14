@@ -29,7 +29,19 @@ jobs:
           chat_id = os.environ["TO"]
           raw_ids = os.environ["MSG_IDS"]
 
-          ids = [int(x.strip()) for x in raw_ids.split(",") if x.strip()]
+          ids = []
+          bad = []
+          for x in raw_ids.split(","):
+              x = x.strip()
+              if not x:
+                  continue
+              try:
+                  ids.append(int(x))
+              except ValueError:
+                  bad.append(x)
+          if bad:
+              print(f"::error::invalid message IDs (not integers): {bad}", file=sys.stderr)
+              sys.exit(1)
           if not ids:
               print("No message IDs provided — nothing to do.")
               sys.exit(0)
