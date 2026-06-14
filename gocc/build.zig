@@ -71,4 +71,14 @@ pub fn build(b: *std.Build) void {
     uring_test_mod.addImport("wire", wire_mod);
     const uring_tests = b.addTest(.{ .root_module = uring_test_mod });
     test_step.dependOn(&b.addRunArtifact(uring_tests).step);
+
+    // tests — vault.zig (secret scanning + PoL hash + in-memory vault)
+    const vault_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/security/vault.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(vault_tests).step);
 }
