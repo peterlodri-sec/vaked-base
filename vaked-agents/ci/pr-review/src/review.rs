@@ -25,7 +25,7 @@ use crate::prompts::{
 };
 use crate::provenance::fetch_provenance;
 use crate::render::{parse_structured, render_review};
-use crate::telemetry::{langfuse_trace_url, pr_html_url, record_mode};
+use crate::telemetry::{commit_html_url, langfuse_trace_url, pr_html_url, record_mode, run_html_url};
 use crate::agent::ReviewRunner;
 use crate::github::PrMeta;
 
@@ -66,6 +66,9 @@ pub(crate) async fn run_review() -> Result<()> {
         "langfuse.trace.metadata.comment_url" = field::Empty,
     );
     async move {
+        // Lightweight per-stage timers → the footer's "slowest" runtime breakdown.
+        let mut stages: Vec<(&str, f64)> = Vec::new();
+        let st = std::time::Instant::now();
         let meta = fetch_pr_meta(&cfg)?;
         if meta.labels.iter().any(|l| l == OPT_OUT_LABEL) {
             info!("'{OPT_OUT_LABEL}' label present — skipping");
@@ -80,7 +83,9 @@ pub(crate) async fn run_review() -> Result<()> {
                 info!(noise, dupes, "cleanup: swept PR comments before review");
             }
         }
+        stages.push(("meta", st.elapsed().as_secs_f64()));
 
+        let st = std::time::Instant::now();
         let raw = fetch_diff(&cfg)?;
         // Secret redaction now happens in the agent's input guardrail (uniformly,
         // at the model boundary), so it is no longer applied inline here.
@@ -96,10 +101,12 @@ pub(crate) async fn run_review() -> Result<()> {
         // moved into the size-routing block, used to drop stale/off-diff findings
         // when posting inline suggestions.
         let right_lines = diff_right_lines(&diff);
+        stages.push(("diff", st.elapsed().as_secs_f64()));
 
         let api_key = cfg.api_key.clone().ok_or_else(|| {
             anyhow!("no OpenRouter key — set OPENROUTER_API_KEY or PR_REVIEW_API_KEY")
         })?;
+        let st = std::time::Instant::now();
         let crabcc = connect_crabcc(&cfg).await.map_or_else(
             |e| {
                 warn!(error = %e, "crabcc unavailable — reviewing without it");
@@ -107,6 +114,9 @@ pub(crate) async fn run_review() -> Result<()> {
             },
             |t| Some(Arc::new(t) as Arc<dyn Toolset>),
         );
+        stages.push(("crabcc", st.elapsed().as_secs_f64()));
+
+        let st = std::time::Instant::now();
         let addenda = language_addenda(&meta.files);
         let mut usage = Usage::default();
 
@@ -170,6 +180,7 @@ pub(crate) async fn run_review() -> Result<()> {
             usage += u;
             text
         };
+        stages.push(("review", st.elapsed().as_secs_f64()));
 
         let (review, n_findings, n_blocking) = render_review(&raw_review, cfg.max_findings as usize);
         if review.is_empty() {
@@ -196,14 +207,35 @@ pub(crate) async fn run_review() -> Result<()> {
             .map(|u| format!(" · [trace]({u})"))
             .unwrap_or_default();
         // Provenance round: surface commit-signature status (best-effort, advisory).
+        let st = std::time::Instant::now();
         let provenance = if cfg.provenance {
             fetch_provenance(&cfg).map(|p| p.summary_line()).unwrap_or_default()
         } else {
             String::new()
         };
+        stages.push(("provenance", st.elapsed().as_secs_f64()));
+
+        // Compact, parse-friendly footer: ` · `-delimited `key=value` tokens + markdown
+        // links. `runtime` shows the total plus the 3 slowest of the timed stages, so a
+        // slow run is self-diagnosing without reading the trace.
+        let total_s = started.elapsed().as_secs_f64();
+        stages.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let slowest = stages.iter().take(3)
+            .map(|(name, s)| format!("{name} {s:.1}s"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let commit_link = cfg.head_sha.as_deref().map(|sha| {
+            format!(" · [commit {}]({})", &sha[..sha.len().min(7)], commit_html_url(&cfg.repo, sha))
+        }).unwrap_or_default();
+        let run_link = run_html_url(&cfg.repo)
+            .map(|u| format!(" · [run]({u})"))
+            .unwrap_or_default();
         let body = format!(
-            "{COMMENT_MARKER}\n{review}\n{provenance}\n\n---\n<sub>🦴 vaked-ci-reviewer · {} · {} findings · {} tok ({} cached) · pr-review runtime: {:.1}s · cost ~${:.4} · OpenRouter{} · {} · automated, advisory</sub>",
-            cfg.model, n_findings, usage.total, usage.cached, started.elapsed().as_secs_f64(), cost, trace_link, footer_signature()
+            "{COMMENT_MARKER}\n{review}\n{provenance}\n\n---\n\
+             <sub>🦴 vaked-ci-reviewer · advisory · model={} · findings={} · tok={} (cached {}) · \
+             cost=${:.4} · runtime={:.1}s (slowest: {}){}{}{} · {}</sub>",
+            cfg.model, n_findings, usage.total, usage.cached, cost, total_s, slowest,
+            commit_link, run_link, trace_link, footer_signature()
         );
 
         if cfg.dry_run {
