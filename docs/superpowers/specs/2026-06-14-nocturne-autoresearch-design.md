@@ -7,11 +7,21 @@
 
 Design / brainstorm (2026-06-14). **Tooling**, not the Vaked language — no grammar gate.
 Owner-directed: integrate [`karpathy/autoresearch`](https://github.com/karpathy/autoresearch)
-into the fleet, running **every night for ~6 hours** on a **rented Vast.ai GPU**. The Vaked
-reference port is the **private** [`peterlodri-sec/vast-autoresearcher`](https://github.com/peterlodri-sec/vast-autoresearcher)
-— **not yet readable from this session** (out of GitHub-tool scope; WebFetch 404 on private).
-**Several items below are OPEN pending that port's actual architecture** — they are flagged
-`⟨OPEN⟩` and must be reconciled before implementation.
+into the fleet, running **every night for ~6 hours** on a **rented Vast.ai GPU**.
+
+> **Reconciled against the reference port (2026-06-14).** The `⟨OPEN⟩`/`⟨VERIFY⟩` items below were
+> flagged when the private [`peterlodri-sec/vast-autoresearcher`](https://github.com/peterlodri-sec/vast-autoresearcher)
+> couldn't be read. It has since been read, and every marker is now resolved inline.
+> **One premise was wrong and is corrected throughout:** `vast-autoresearcher` is **not** a port of
+> the `autoresearch` BPB loop. It is a *separate, simpler* vast.ai box — a single-shot
+> `arXiv → LLM-designs-one-experiment → run → report → ntfy` pipeline (stdlib harness, one LLM pass,
+> **no `train.py`, no BPB, no baseline**). What it actually contributes is **proven scaffolding**:
+> on-demand vast rent + mandatory teardown (`watch-and-destroy`), OpenBao / credential-scrubbed-env
+> secret handling, and an **OpenRouter** driver (`LLM_API_KEY` + `LLM_BASE_URL=https://openrouter.ai/api/v1`,
+> default `deepseek/deepseek-chat`). The **BPB mutate→train→keep/discard loop itself comes from the
+> now-public [`karpathy/autoresearch`](https://github.com/karpathy/autoresearch)** (AI agents running
+> research on single-GPU nanochat training; metric `val_bpb`), which nocturne ports onto that
+> scaffolding.
 
 A **third sibling** to `ralph` (nightly decision loop) and `optitron` (nightly optimization
 crawl): same abstain-by-default rhythm, same hash-chained ledger, same `agent`-issue → swe_af
@@ -27,8 +37,9 @@ discards, and repeats."* Three files: `prepare.py` (frozen harness: data + token
 `program.md` (the human-written objective the agent reasons toward). ~100 five-minute trials fit
 in a night on a single H100; **6 hours ⇒ ~60–70 keep/discard trials/night.**
 
-Nothing in the fleet currently does **empirical** research — ralph reasons over structure,
-optitron crawls literature, fleet-introspect mines telemetry. nocturne closes the last loop:
+Nothing in the fleet currently does **empirical** research — ralph reasons over structure and
+optitron crawls literature (a planned `fleet-introspect` would mine telemetry, but is **not in the
+tree** yet). nocturne closes the last loop:
 **run real experiments overnight, keep what measurably wins, and only escalate a confirmed
 improvement to a human/swe_af.** It also dogfoods Vaked's theses on a new axis — *immutable
 ledger of trials* (replayable experiment history) and *control* (stop/teardown at runtime, hard
@@ -76,8 +87,8 @@ GHA cron (~02:00 UTC) is a **thin orchestrator** with no GPU; the rented box run
 │               best_bpb < committed_baseline − ε  AND  confirm seeds held?  │
 │               ├─ yes → dispatch swe_af with the winning train.py diff      │
 │               └─ no  → abstain (ledger-only)                              │
-│ 9. ANNOUNCE   stage toot.txt + telegram.txt → push → dispatch the social  │
-│               workflows (a GITHUB_TOKEN push alone won't trigger them)     │
+│ 9. ANNOUNCE   stage toot.txt + telegram.txt → post inline, or push with a │
+│               PAT (a GITHUB_TOKEN push alone won't trigger the social CI)  │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -104,21 +115,24 @@ GHA cron (~02:00 UTC) is a **thin orchestrator** with no GPU; the rented box run
 A survivor's swe_af request is *"promote this `train.py` diff to the baseline"* — with the BPB
 delta, the diff, the seed-confirmation rows, and a link to the ledger event.
 
-**swe_af hand-off — explicit dispatch, NOT a bare label.** `.github/workflows/swe-af.yml` gates
-its `agent`-label trigger on `github.event.sender.login == github.repository_owner` (`swe-af.yml`
-lines 39–42), so an `agent` label applied by a *scheduled* job (sender = `github-actions[bot]`)
-will **not** fire swe_af — the confirmed win would stall at an issue. nocturne must therefore use
-swe_af's owner-equivalent path. Two options:
-- **(recommended) `workflow_dispatch` swe-af.yml** with the issue number — the workflow explicitly
-  accepts `workflow_dispatch` with an `issue` input and bypasses the sender gate. nocturne opens
-  the issue (audit trail), then dispatches swe_af against it. Clean, no extra credential.
-- **Label with the owner credential** the other CI bots use (a PAT/app token whose
-  `sender.login` resolves to the owner), if nocturne is given that secret — matches however
-  optitron/fleet-introspect currently satisfy the same gate.
+**swe_af hand-off — `workflow_dispatch`, not a bare label (verified).**
+`.github/workflows/swe-af.yml` gates its `agent`-label trigger on
+`github.event.sender.login == github.repository_owner` (lines ~37–42) and otherwise only runs on an
+explicit `workflow_dispatch` whose single input is the `issue` number. **Verified against optitron
+(`origin/claude/vaked-optitron`):** optitron files a **bare `agent` label** via
+`gh issue create … --label agent` (`tools/optitron/internal/run/act.go`) using the default
+`GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}` (`optitron-crawl.yml`). That path does **not** auto-fire
+swe_af from a scheduled run — twice over: (a) the sender is `github-actions[bot]`, not the owner, so
+the gate fails; and (b) GitHub suppresses workflow triggers from events created with the default
+`GITHUB_TOKEN`. So optitron's scheduled finding lands a **labelled issue the owner then picks up**;
+it does not chain into swe_af automatically. (`fleet-introspect` is named in the fleet vision but is
+**not in the tree**, so there is no second precedent to mirror.)
 
-⟨VERIFY⟩ confirm which path optitron/fleet-introspect actually use today and mirror it, so the
-fleet stays consistent. The earlier "no new setup" claim was wrong for a scheduled trigger — this
-is the corrected hand-off.
+nocturne therefore **improves on the bare-label path deliberately**: it opens the issue (audit
+trail) and then **`workflow_dispatch`es `swe-af.yml`** against that issue number — the one path that
+actually clears both the sender gate and the `GITHUB_TOKEN` trigger-suppression. This is a justified
+divergence from optitron, not an inconsistency; mirroring optitron's bare label (and letting the
+owner hand-pick the issue) stays available if auto-chaining is unwanted.
 
 ## Mutation driver — DECIDED: OpenRouter-driven pipeline (fleet-native)
 
@@ -137,13 +151,16 @@ agent runtime. Mechanics per iteration, on the rented box:
    the API call).
 3. It reads back val BPB from `results.jsonl`, keeps or discards, and loops.
 
-Implications — two viable shapes (⟨OPEN, minor⟩ pick once the port's harness interface is known):
+Implications — two viable shapes (**resolved: the port's harness is stdlib Python with an
+OpenAI-compatible client, so Python-local is the natural fit**; Go-reuse stays available if optitron
+lands on `main` first and tighter wrapper reuse is wanted):
 - **Go-reuse — must live INSIDE the optitron module.** Go `internal/` packages are only importable
   by code rooted under `tools/optitron/`, so to reuse `internal/llm` + `internal/ledger` the driver
   must be a **new binary in the optitron module** (`tools/optitron/cmd/nocturne` +
-  `tools/optitron/internal/nocturne`) — **exactly** how `cmd/introspect` (fleet-introspect) reuses
-  the same core. It would still shell out to the Python training harness on the box. A sibling
-  `tools/nocturne/` tree could **not** import those `internal/` packages.
+  `tools/optitron/internal/nocturne`) — and optitron must land on `main` first (it currently lives
+  only on `origin/claude/vaked-optitron`; there is no `cmd/introspect` precedent in-tree). It would
+  still shell out to the Python training harness on the box. A sibling `tools/nocturne/` tree could
+  **not** import those `internal/` packages.
 - **Python-local.** A thin Python driver co-located with PyTorch on the rented image that calls
   OpenRouter directly (own small ledger matching ralph's chain format). Simpler on the box; no Go
   module-boundary constraint; doesn't reuse optitron's wrapper.
@@ -153,29 +170,43 @@ can live under `tools/nocturne/`; only the **Go** driver, if chosen, must sit in
 module. Models: env-overridable like optitron (a capable codegen model for the mutation, e.g. an
 `anthropic/claude-fable-5` / `deepseek-v4` tier).
 
-**Secret forwarding (both shapes).** The driver runs **on the rented box**, where the `ci`
-environment's `OPENROUTER_API_KEY` (and optional `LANGFUSE_*`) do **not** exist by default — a
-naive flow would provision the GPU then fail on the first mutation call. The orchestrator must
-inject them into the remote command: either `ssh box OPENROUTER_API_KEY=… <driver>` (env on the
-remote command, not via `~/.ssh` config), or write a **short-lived env file** to the box
-(`chmod 600`, deleted on teardown). Never bake the key into the image.
+**Secret forwarding (verified against the port's contract).** The driver runs **on the rented
+box**, where the `ci` environment's OpenRouter key does **not** exist by default — a naive flow
+would provision the GPU then fail on the first mutation call. The port already solves this two ways,
+and nocturne should reuse them rather than invent a third:
+- **Preferred — OpenBao (the port's default).** Stage the OpenRouter key in OpenBao and pass the box
+  only a **scoped, revocable `BAO_TOKEN`** (+ `BAO_ADDR` / `BAO_SECRET_PATH`); the harness pulls the
+  real key at startup into the pipeline process only, so the vast template never holds a raw key.
+- **Fallback — inject at dispatch.** `ssh box LLM_API_KEY=… LLM_BASE_URL=https://openrouter.ai/api/v1
+  <driver>` on the remote command (not via `~/.ssh`), or a **short-lived env file** (`chmod 600`,
+  deleted on teardown).
 
-## ⟨OPEN⟩ decisions — reconcile against `vast-autoresearcher` before implementing
+The port's var name is **`LLM_API_KEY`** (it holds the OpenRouter key), not `OPENROUTER_API_KEY` —
+mirror that on the box. The port additionally **scrubs every credential-looking var from the
+untrusted experiment's subprocess env** and can drop it to an unprivileged `EXPERIMENT_USER`; keep
+both, since the mutated `train.py` is model-written code. Never bake any key into the image.
 
-1. **Local GPU vs. API.** Confirm the port truly trains on the rented box (PyTorch local, the
-   Karpathy shape) vs. driving training through an API. Owner indicated **Vast.ai rented GPU**, so
-   assume local training on the box. (The *mutation* is now decided as an OpenRouter call; this
-   item is only about where *training* runs.)
-2. **One objective or a rotating queue?** ralph picks a *track* each night (`tracks.json`).
-   nocturne could be pinned to a single `program.md` (steady SOTA-chasing on one dataset) or carry
-   an `objectives.json` queue (rotate datasets/objectives nightly). Recommend **single objective
-   first**, add rotation once the loop is proven.
-3. **Baseline persistence.** Each night must build on the prior night's best. Propose the winning
-   `train.py` baseline is **version-controlled** (committed under `tools/nocturne/baseline/` or
-   promoted via the swe_af PR), so "running best" survives the ephemeral GPU box.
-4. **GPU spec + bid.** H100 vs A100, exact `$/hr` cap, on-demand vs interruptible. Karpathy tested
-   H100; interruptible is cheaper but can be reclaimed mid-night (the harness must checkpoint
-   `results.jsonl` so a reclaim ⇒ partial-night ledger entry, not a lost night).
+## Reconciled decisions (were `⟨OPEN⟩` — now resolved against `vast-autoresearcher`)
+
+1. **Local GPU vs. API — RESOLVED: local on the box.** The port runs its experiment on the rented
+   GPU (PyTorch image), confirming the local-training shape. **Caveat captured above:** the port
+   executes a *one-shot LLM-written experiment script*, not a persistent `train.py` BPB loop — so
+   nocturne's mutate→train→keep/discard loop is **ported from `karpathy/autoresearch`, not inherited
+   from the port.** The port only proves local-GPU execution + the rent/secrets/teardown scaffolding.
+2. **One objective or a rotating queue — RESOLVED: single `program.md` first.** The port already
+   supports batching (`RESEARCH_QUEUE_FILE`, newline-delimited, crash-skipped), so an
+   `objectives.json` rotation (ralph's `tracks.json` shape) is cheap to add later. Start pinned to
+   one objective; add rotation once the loop is proven.
+3. **Baseline persistence — RESOLVED: net-new, version-controlled.** The port keeps **no** baseline
+   (it is stateless — output is pulled off `/workspace/output`, then the box is destroyed). So
+   nocturne must **add** persistence: the winning `train.py` is committed under
+   `tools/nocturne/state/baseline/train.py` (promoted via the swe_af PR), so the running-best
+   survives the ephemeral GPU box. This is nocturne's own design, not inherited.
+4. **GPU spec + bid — DECIDED (owner): H100, karpathy-matched.** A single **H100** under a `$/hr`
+   bid cap, on-demand by default (~$6–18/night; the cost-guards below are sized for this tier). The
+   port's RTX 4090 @ `dph<0.4` is its own cheaper profile, not nocturne's target. **Interruptible**
+   stays a cheaper option **only with** the checkpoint rule: `results.jsonl` is flushed per-trial so
+   a mid-night reclaim yields a partial-night ledger entry, not a lost night.
 
 ## Files (proposed — mirrors the optitron module layout)
 
@@ -184,10 +215,11 @@ remote command, not via `~/.ssh` config), or write a **short-lived env file** to
   - `provision.sh` — `vastai` search/create/destroy with `$/hr` cap + **mandatory teardown trap**.
   - the **driver** — proposes each mutation via an OpenRouter call, applies the patch, invokes the
     training harness; the on-GPU mutate→train→score→keep/discard loop writes `results.jsonl`.
-    **If Go-reuse:** it is NOT a file here — it lives as `tools/optitron/cmd/nocturne` +
-    `tools/optitron/internal/nocturne` (Go `internal/` can't be imported by a sibling tree), like
-    `cmd/introspect`. **If Python-local:** `tools/nocturne/driver.py` co-located with PyTorch.
-    ⟨OPEN, minor⟩ pick once the port's harness interface is known.
+    **Resolved: Python-local** — `tools/nocturne/driver.py` co-located with PyTorch on the rented
+    image (matches the port's stdlib-Python harness; no Go module-boundary constraint). The
+    Go-reuse alternative (`tools/optitron/cmd/nocturne` + `tools/optitron/internal/nocturne`, since
+    Go `internal/` can't be imported by a sibling tree) stays open only if optitron merges to
+    `main` first and reusing its `internal/llm` + `internal/ledger` is preferred.
   - `program.md` — the research objective (human-edited, the only "knob" for direction).
   - `gate.py` / gate module — **pure** deterministic check over harvested `results.jsonl`:
     baseline delta, confirm-seed rows hold, novelty, sanity (never trains).
@@ -209,8 +241,7 @@ remote command, not via `~/.ssh` config), or write a **short-lived env file** to
 
 - **GPU:** ~6 h/night on a Vast.ai H100 ≈ **$6–18/night** (≈ **$180–540/month**) depending on
   bid and on-demand vs interruptible. This is **1–2 orders of magnitude** above the API-only
-  siblings (optitron ~$1–3/day, fleet-introspect ~$0.20–0.45/run) — the cost design must be
-  proportionally stricter.
+  sibling (optitron ~$1–3/day) — the cost design must be proportionally stricter.
 - **Per-trial model spend** (decided: OpenRouter pipeline): ~60–70 trials/night × **one
   structured mutation call** each (not a multi-turn agent), so far cheaper than a headless-agent
   driver — a single bounded codegen call per trial. Still bound it with a per-night
@@ -222,27 +253,39 @@ remote command, not via `~/.ssh` config), or write a **short-lived env file** to
 
 ## One-time owner setup
 
-- **Vast.ai:** account + `VAST_API_KEY` as a secret in the GitHub `ci` Environment; SSH key for
-  the rented box. (⟨OPEN⟩ — confirm the port's expected env var names.)
-- **Driver secrets forwarded to the box:** `OPENROUTER_API_KEY` (+ optional `LANGFUSE_*`) already
-  live in the `ci` Environment for the siblings — no new secret, but the orchestrator must
-  **inject** them into the remote SSH command / a short-lived env file (see the mutation-driver
-  section); they are not on the rented box otherwise.
+- **Vast.ai:** account + the vast API key as a secret in the GitHub `ci` Environment (the
+  orchestrator runs `vastai set api-key` from it — the port authenticates the CLI that way, not via
+  a box-side env var); SSH key for the rented box. **Box-side env contract (verified from the
+  port):** `LLM_API_KEY` (holds the OpenRouter key), `LLM_BASE_URL=https://openrouter.ai/api/v1`,
+  `LLM_MODEL`, `RESEARCH_*` / `OUTPUT_DIR` / `EXPERIMENT_USER`, and OpenBao
+  `BAO_ADDR` / `BAO_TOKEN` / `BAO_SECRET_PATH`.
+- **Driver secrets forwarded to the box:** the OpenRouter key already lives in the `ci` Environment
+  for the siblings — no new secret, but the orchestrator must get it onto the box as **`LLM_API_KEY`**
+  (the port's var), preferably via a scoped OpenBao `BAO_TOKEN`, else injected on the remote SSH
+  command / a short-lived env file (see the mutation-driver section). It is not on the rented box
+  otherwise.
 - **GitHub** → Settings → Environments → create **`nocturne-manual`** → add yourself as a Required
   reviewer (no secrets — purely the manual-run approval gate, like `optitron-manual`).
 - **Monthly ceiling:** set the spend cap value (workflow input/secret) the cron checks before
   provisioning.
-- Social plumbing **reuses** `social-post.yml` / `telegram-post.yml` (staging files) — but
-  ⚠️ both are `on: push`, and **a push made by a scheduled job's `GITHUB_TOKEN` does not trigger
-  another workflow** (GitHub's workflow-recursion prevention). So nocturne's staged digest would
-  be committed but never posted. nocturne must therefore **`workflow_dispatch` the social
-  workflows** after staging (add a `workflow_dispatch:` trigger to each if absent), or push the
-  staging commit with a PAT/App token. ⟨VERIFY⟩ mirror how ralph/optitron actually post today
-  (they hit the same constraint).
-- **swe_af hand-off:** the bare `agent` label does **not** trigger swe_af from a scheduled job
-  (owner-sender gate, `swe-af.yml` 39–42). nocturne `workflow_dispatch`es `swe-af.yml` instead —
-  so the only setup is granting the workflow `actions: write` (above). ⟨VERIFY⟩ mirror whatever
-  optitron/fleet-introspect do today.
+- **Social plumbing — verified, and it needs care.** nocturne reuses `social-post.yml` /
+  `telegram-post.yml`, but both are **`on: push` (paths-triggered)** by design — their headers note
+  `workflow_dispatch` *can't fire from a feature branch*, so adding a `workflow_dispatch:` trigger
+  would not help. The catch: **a push made by a scheduled job's `GITHUB_TOKEN` does not trigger
+  another workflow** (GitHub recursion prevention), so a staged-then-pushed digest is committed but
+  never posted. **How the siblings post today (verified):** ralph stages `toot.txt` and `git push`es,
+  relying on the push trigger; optitron stages + pushes for Mastodon **but posts Telegram inline** via
+  `appleboy/telegram-action` in its own job (`optitron-crawl.yml`), sidestepping the trigger. nocturne
+  should mirror that — **post inline** (Mastodon `cbrgm/mastodon-github-action` + Telegram
+  `appleboy/telegram-action`) from its own job, **or** push the staging commit with a **PAT/App
+  token** so the push trigger fires. (`workflow_dispatch`-ing the social workflows is not an option —
+  they carry no such trigger by design.)
+- **swe_af hand-off:** the bare `agent` label does **not** trigger swe_af from a scheduled job —
+  both the owner-sender gate (`swe-af.yml` ~37–42) and GitHub's `GITHUB_TOKEN` trigger-suppression
+  block it (verified: optitron files a bare `agent` label with the default `GITHUB_TOKEN`, so its
+  scheduled findings wait for the owner). nocturne instead opens the issue and `workflow_dispatch`es
+  `swe-af.yml` against it (it is on the default branch and accepts a `workflow_dispatch` `issue`
+  input) — so the only setup is granting the workflow `actions: write` (above).
 
 ## Verification
 
@@ -258,8 +301,10 @@ remote command, not via `~/.ssh` config), or write a **short-lived env file** to
 
 ## Build order (design → plan → implement, per project convention)
 
-1. Reconcile the ⟨OPEN⟩ items against `vast-autoresearcher` (add it to session scope or paste
-   `program.md` + the driver + env contract).
+1. ~~Reconcile the `⟨OPEN⟩` items against `vast-autoresearcher`~~ — **done (2026-06-14; see the
+   reconciliation note + resolved-decisions section above).** Adapt the port's proven scaffolding:
+   `onstart.sh` (box bootstrap), `watch-and-destroy` (teardown trap), the OpenBao / scrubbed-env
+   secret handling, and the `LLM_*` OpenRouter env contract.
 2. Provisioning shell first (`provision.sh` + teardown trap + `nocturne.yml` dry-run) — prove
    rent/teardown/cost-cap in isolation, no training, before any model or GPU spend.
 3. Port/adapt the on-GPU loop + `results.jsonl` contract.
