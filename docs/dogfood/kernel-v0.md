@@ -1,0 +1,133 @@
+# Dogfood verification kernel v0 — proposer/judge (M2)
+
+A local, zero-cloud kernel that makes one agent-proposed code transition
+**typed-by-policy, capability-scoped, recorded, and replay-stable** before it is
+accepted. The creative half (opencode + local Ollama) proposes; the deterministic
+half (this kernel) decides. It dogfoods Vaked's three theories — immutable
+(eventd WAL), control (accept/reject/rollback), and capability (POLA scope) —
+on the M1, with no Linux kernel features.
+
+Code: `tools/dogfood/` (see its README for the file map and CLI).
+
+## Why this shape
+
+The publication-credibility review flagged that trunk has **no implemented
+`used(p) ⊑ granted(p)` use-check** and **no negative-POLA test suite**
+(`E-CAP-USE`). This kernel implements that check at the file-path layer — the one
+layer that runs without eBPF — and ships the negative tests. It is not the
+runtime boundary (that is L2, eBPF/seccomp, on the daemon track); it is the
+runnable proof of the *principle*.
+
+## The transition (one WAL entry)
+
+A transition is captured as a deterministic function of `(base tree, post-image
+set)`. The payload (`transition.build_payload`):
+
+```
+kind=dogfood_transition, v=1
+intent, capability_scope[]
+input_tree_hash            # hash of in-scope tree before
+patch_hash                 # hash of the captured post-image set
+postimages {rel: sha}      # content-addressed exact bytes of changed files
+declared_effects {writes,deletes}
+actual_effects   {writes,deletes}   # filesystem reality
+observed_effects {writes,deletes}|null   # Frida (M3), else null
+capability_ok
+state_hash_after           # hash of in-scope tree after
+```
+
+## The pipeline (`kernel.judge`)
+
+```
+snapshot base → proposer mutates tree → detect actual delta →
+CAPABILITY (delta ⊆ scope) → DECLARED==ACTUAL → [OBSERVED ⊆ DECLARED] →
+capture post-images → REPLAY (base+post-images ⇒ state_hash_after) →
+accept ⇒ append to eventd WAL ; reject ⇒ roll tree back, record nothing
+```
+
+- **Change detection** is a before/after snapshot delta over the git file
+  universe (`git ls-files --cached --others --exclude-standard`), so a dirty
+  worktree's existing edits never masquerade as the proposal. Non-git roots
+  (tests) use a full content-snapshot delta.
+- **Replay** rebuilds the post-state in a throwaway dir from base + post-image
+  blobs and re-hashes. It catches incomplete capture, blob corruption, and
+  post-record drift. (Proposer-internal nondeterminism is *bounded* by capturing
+  exact bytes — the kernel records what happened, byte-for-byte.)
+- **Rollback** on reject: git worktree → restore in-scope from base blobs +
+  `git checkout`/remove the out-of-scope violations; non-git → total restore
+  from base.
+
+## Validation (2026-06-14)
+
+- `python3 tools/dogfood/test_kernel.py` → **11 passed, 0 failed**, covering all
+  four gates, WAL tamper detection, rollback, and the hashing primitives.
+- CLI in the live git worktree: in-scope edit **accepted** (seq 0, WAL appended);
+  out-of-scope write **rejected** by the capability gate and rolled back (no
+  stray file); `verify` confirms the chain; `log` lists the transition.
+
+## Capability scope lowered from Vaked (M2.5)
+
+The kernel's write-scope is no longer hand-typed — it is **lowered from a Vaked
+capability declaration** (`vaked/examples/dogfood-kernel.vaked`), so the declared
+POLA and the enforced scope cannot drift:
+
+```
+dogfood-kernel.vaked  --(vakedc|vakedz parse)-->  .vaked/graph.json
+                                                       |
+                              scope_from_vaked.py (reads the LPG)
+                                                       |
+                       kernel.py propose --from-vaked … --principal proposer
+```
+
+`scope_from_vaked.py` returns a principal's `writeScope` **only** if its `fs`
+grant is write-capable (`repo_rw`/`host_rw`); a read-only principal (`fs.repo_ro`,
+e.g. the judge) gets `[]` and the kernel refuses to propose as it. It reads the
+parsed **LPG artifact**, not the source, so it is engine-agnostic — it survives
+the planned `vakedc`(Python)→`vakedz`(Zig) cutover since both emit the LPG.
+
+**Known gap (follow-up):** `filesystem` is currently a *schema-less* kind — there
+is no path-allow-set membrane that *checks* the `writeScope` (the way
+`networkMembrane` refines a `network` grant into host:port rules). Until that
+membrane schema lands, `writeScope` rides as a descriptive open field on the
+(open) `meshNode` schema — carried, not yet checked. Add a real `filesystem`
+membrane kind so the path allow-set is a compile-time fact.
+
+## Hot-path complexity
+
+Per transition (N_scope = files in the granted scope; N_repo = repo files;
+N_changed = files this proposal touched; n = WAL length):
+
+| Step | Cost | Note |
+|------|------|------|
+| Change detection (git) | `O(N_tracked stats + N_changed·bytes)` | two `git status --porcelain` calls + a dict diff; git's index/mtime cache hashes only changed files. **Not** a full-tree content hash. |
+| Change detection (non-git, tests only) | `O(N_tree·bytes)` | full snapshot diff; acceptable only because non-git roots here are tiny. |
+| Post-images + state hash | `O(N_scope·bytes)` | bounded by the small granted scope, not the repo. |
+| Replay gate | `O(N_scope·bytes)` | rebuild scope in a temp dir + re-hash. |
+| Capability check | `O(N_changed · N_scope_prefixes)` | prefix match per changed path. |
+| WAL append (`eventd`) | `O(n)` per open | `EventLog` verifies the whole chain on open (the tamper guarantee), then append is `O(1)`. |
+
+A regression earlier content-hashed the whole git universe **twice** per
+transition (`O(N_repo·bytes)`); that is removed — detection is now linear in the
+*change*, not the repo.
+
+The one super-linear term is `eventd`'s boot-verify: a fresh `EventLog` open is
+`O(n)`, so a one-shot `propose` per process is `O(n)` and a loop of m one-shot
+proposes is `O(m·n)`. This is `eventd`'s frozen audit design, not the kernel's. A
+long-running supervisor should hold the log open once and append `O(1)` per
+transition; the CLI pays the `O(n)` verify per invocation deliberately (it
+re-checks the audit spine on every run).
+
+## Not in scope (deliberately)
+
+- **No AIL-0 / ARP parser** — neutral JSON records; the ARP IR is a separate
+  workstream. A seam exists to adopt it later.
+- **No enforcement** — capability here is advisory path-scoping, not a kernel
+  boundary. L2 (eBPF/seccomp) is the real boundary.
+
+## Next (M3)
+
+Wire `observe_frida.py` (Linux container) into the **observed** gate so
+declared-vs-observed is checked against real syscalls, not just the filesystem
+diff. See `l1-frida-evidence.md`. The kernel-side observed gate is already
+implemented and tested (via the stub); only the live Frida observation needs the
+Linux substrate.
