@@ -21,7 +21,7 @@
 //!
 //! Env vars:
 //!   OPENROUTER_API_KEY | SWE_AF_API_KEY   (required; absent ⇒ graceful no-op)
-//!   SWE_AF_MODEL                          (default: deepseek/deepseek-v4-flash)
+//!   SWE_AF_MODEL                          (default: google/gemini-3.5-flash)
 //!   SWE_AF_CODE_MODEL                     (code mode override; default: SWE_AF_MODEL)
 //!   OPENROUTER_BASE_URL                   (default: https://openrouter.ai/api/v1)
 //!   MODE                                  (plan|code)
@@ -268,15 +268,28 @@ struct AgentRunner {
 /// toolset, or an error if the index/binary isn't available (caller falls back).
 async fn connect_explorer() -> Result<McpToolset> {
     // Prefer the checked-out wrapper so CI works without PATH/env setup; VAKED_BIN overrides.
-    let bin = std::env::var("VAKED_BIN").unwrap_or_else(|_| {
-        if std::path::Path::new("./bin/vaked").exists() {
-            "./bin/vaked".to_string()
-        } else {
-            "vaked".to_string()
-        }
-    });
+    // VAKED_BIN must be an absolute path to prevent path-traversal via env injection.
+    let bin = std::env::var("VAKED_BIN")
+        .ok()
+        .filter(|b| std::path::Path::new(b).is_absolute())
+        .unwrap_or_else(|| {
+            if std::path::Path::new("./bin/vaked").exists() {
+                "./bin/vaked".to_string()
+            } else {
+                "vaked".to_string()
+            }
+        });
     let sub = if std::path::Path::new(".crabcc").is_dir() { "refresh" } else { "build" };
-    match StdCommand::new(&bin).args(["explore", "index", sub]).status() {
+    // spawn_blocking: StdCommand::status() is synchronous and would block the Tokio worker
+    // thread for the duration of the index build if run on the async executor directly.
+    let bin2 = bin.clone();
+    let sub_str = sub.to_string();
+    let status = tokio::task::spawn_blocking(move || {
+        StdCommand::new(&bin2).args(["explore", "index", &sub_str]).status()
+    })
+    .await
+    .map_err(|e| anyhow!("spawn_blocking: {e}"))?;
+    match status {
         Ok(s) if s.success() => info!(action = sub, "vaked→crabcc index ready"),
         Ok(s) => warn!(action = sub, code = ?s.code(), "vaked explore index step non-zero"),
         Err(e) => return Err(anyhow!("vaked not runnable ({bin}): {e}")),
@@ -308,7 +321,8 @@ async fn build_runner(cfg: &Config, api_key: &str) -> Result<AgentRunner> {
     };
     let max_out: i32 = std::env::var("SWE_AF_MAX_OUTPUT_TOKENS")
         .ok()
-        .and_then(|s| s.parse().ok())
+        .and_then(|s| s.parse::<i32>().ok())
+        .filter(|&v| v > 0 && v <= 131_072)
         .unwrap_or(default_out);
     let effort = std::env::var("SWE_AF_REASONING_EFFORT")
         .ok()
@@ -534,6 +548,17 @@ fn safe_rel_path(path: &str) -> bool {
     !path.is_empty() && !path.contains("..") && !path.starts_with('/')
 }
 
+/// Like `safe_rel_path`, but also canonicalizes to reject symlink escapes.
+/// For reads only — canonicalize requires the file to exist.
+fn safe_rel_path_for_read(path: &str) -> bool {
+    if !safe_rel_path(path) { return false; }
+    let Ok(cwd) = std::env::current_dir() else { return true; };
+    match std::fs::canonicalize(path) {
+        Ok(abs) => abs.starts_with(&cwd),
+        Err(_) => false,
+    }
+}
+
 // Tool parameter schemas. WITHOUT these the tool is advertised to the model with no
 // parameters, so the model can't construct a valid call and just narrates intent —
 // which is exactly why every model emitted 0 tool calls before. `with_parameters_schema`
@@ -561,11 +586,11 @@ fn read_file_tool() -> Arc<dyn Tool> {
              files you plan to change BEFORE emitting their new content.",
             |_ctx: Arc<dyn ToolContext>, args: Value| async move {
                 let path = args.get("path").and_then(Value::as_str).unwrap_or_default().to_string();
-                if !safe_rel_path(&path) {
+                if !safe_rel_path_for_read(&path) {
                     return Ok(json!({"error": "path must be repo-relative, no '..', no leading /"}));
                 }
                 match std::fs::read_to_string(&path) {
-                    Ok(t) => Ok(json!({"path": path, "content": t.chars().take(48_000).collect::<String>()})),
+                    Ok(t) => Ok(json!({"path": path, "content": t.chars().take(MAX_FILE_CHARS).collect::<String>()})),
                     Err(e) => Ok(json!({"error": format!("read {path}: {e}")})),
                 }
             },
