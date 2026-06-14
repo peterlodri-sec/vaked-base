@@ -28,6 +28,35 @@ process    → sandboxd (cgroups, namespaces, supervised execution)
 ebpf       → agent-guardd (kernel evidence for network/process/file events) + eventd
 ```
 
+## Language to Runtime Mapping
+
+Vaked primitives lower to two classes of artifact (see [`docs/language/0012-lowering.md`](../language/0012-lowering.md) for the normative spec):
+
+**Compiler-generated artifacts (`gen/`)** — produced by `vakedc lower`, checked into the repo:
+
+| Primitive | Artifact | Consuming daemon |
+|-----------|----------|-----------------|
+| `fiber` | `gen/zig/<name>.json` — Zig daemon config | `sandboxd` (process isolation), `agent-guardd` (eBPF policy) |
+| `index` | `gen/catalog/<name>/` — CrabCC derivation + manifest | CrabCC toolchain (offline) |
+| `catalog` | `gen/catalog/<name>.jsonl` — bundled catalog | CrabCC toolchain (offline) |
+| `ebpf` | `gen/ebpf/<name>.policy` — allow/deny rules | `agent-guardd` (kernel enforcement) |
+| `observability` | `gen/otel/<name>.yaml` — collector config | `otelcol` |
+| all | `gen/docs/` — generated reference docs | human operators / `surface` UIs |
+
+**Nix spine** — `flake.nix` + NixOS modules wiring the above into a deployable system (built by Nix, not `vakedc`).
+
+**Capability declarations** route to membrane daemons at runtime:
+
+| Capability | Daemon | Enforcement |
+|-----------|--------|-------------|
+| `network` | `agent-guardd` | eBPF cgroup egress maps, DNS oracle |
+| `filesystem` | `sandboxd` + `fs-snapshotd` | namespaces, mounts, write budgets |
+| `mcp` | `mcp-brokerd` | brokered tool calls, budgets, approvals |
+| `process` | `sandboxd` | cgroups, namespaced exec |
+| `ebpf` | `agent-guardd` | kernel-level evidence for all membrane events |
+
+`eventd` receives events from all membrane daemons and provides the tamper-evident audit spine that `surface` declarations can query.
+
 ## Status
 
 Stub. No daemon is implemented. The roster and membrane mapping are the contract that the Vaked compiler targets and that each daemon's eventual spec must satisfy.
