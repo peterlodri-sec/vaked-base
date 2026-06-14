@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """vakedc.parser — hand-written recursive-descent parser, PEG-ordered per the
-v0.3 grammar (vaked/grammar/vaked-v0-plus.ebnf), EXACTLY (no extensions).
+v0.4 grammar (vaked/grammar/vaked-v0-plus.ebnf), EXACTLY (no extensions).
 
 The grammar is a PEG: ``x | y`` is ordered choice (first match wins), ``{ x }``
 and ``[ x ]`` are greedy. This parser mirrors that with explicit backtracking
@@ -18,9 +18,10 @@ NEWLINE discipline (grammar header + tests/spec parse_support):
     suppressed them there, so none appear in argument lists / list literals.
 
 Soft-keyword dispatch (grammar §8), in ``stmt`` order:
-  field_decl / grant_decl / order_decl  (BEFORE assignment) — each self-
-  disambiguates on its required second token; ``open`` AFTER assignment, so
-  ``open = expr`` is an assignment and a bare ``open`` is ``open_decl``.
+  lifecycle_decl (v0.4, FIRST) / field_decl / grant_decl / order_decl
+  (BEFORE assignment) — each self-disambiguates on its required second token;
+  ``open`` AFTER assignment, so ``open = expr`` is an assignment and a bare
+  ``open`` is ``open_decl``.
 
 Produces declaration structures (decl/import/node/edge) carrying exact source
 spans; the graph builder turns these into LPG nodes/edges.
@@ -417,8 +418,8 @@ class Parser:
         return stmts, close
 
     def _stmt(self):
-        """stmt = field_decl | grant_decl | order_decl | assignment | open_decl
-                | inherit_stmt | edge | node_decl | decl | app   (ORDERED)."""
+        """stmt = lifecycle_decl | field_decl | grant_decl | order_decl | assignment
+                | open_decl | inherit_stmt | edge | node_decl | decl | app  (ORDERED)."""
         self._skip_nl()
         t = self.toks[self.i]
 
@@ -529,7 +530,6 @@ class Parser:
     def _lifecycle_decl(self):
         """lifecycle_decl = "lifecycle" "{" { on_clause } "}"."""
         self.i += 1                       # 'lifecycle'
-        self._skip_nl()
         self._expect_op("{")
         clauses = []
         self._skip_nl()

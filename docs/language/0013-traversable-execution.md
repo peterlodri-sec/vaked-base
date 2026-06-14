@@ -2,7 +2,8 @@
 
 ## §1 Status
 
-Seed draft. Grammar: v0.4. vakedc implementation: not yet started.
+Seed draft. Grammar: v0.4. vakedc parser: complete (`LifecycleDecl` / `OnClause`
+AST nodes + recursive-descent methods). Checker and emitter: not yet started.
 
 ## §2 Summary
 
