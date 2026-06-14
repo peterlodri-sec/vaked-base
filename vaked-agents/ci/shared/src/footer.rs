@@ -26,7 +26,8 @@ pub fn server_url() -> String {
 pub fn commit_link(repo: &str, sha: Option<&str>) -> String {
     match sha {
         Some(s) if !s.is_empty() => {
-            let short = &s[..s.len().min(7)];
+            // char-based, not byte-slice: never split a multi-byte sequence.
+            let short: String = s.chars().take(7).collect();
             format!(" · [commit {short}]({}/{repo}/commit/{s})", server_url())
         }
         _ => String::new(),
