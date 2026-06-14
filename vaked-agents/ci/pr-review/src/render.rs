@@ -182,4 +182,16 @@ mod render_tests {
         assert!(!body.trim_start().starts_with('{'), "rendered, not raw JSON");
         assert!(body.contains("`a.rs:414`"), "coerced numeric line: {body}");
     }
+
+    #[test]
+    fn narration_preamble_is_not_structured() {
+        // The live failure mode: the model narrates tool intent instead of emitting
+        // the structured JSON. parse_structured MUST return None so the review path
+        // flags it degenerate (visible no-op) rather than posting the preamble.
+        assert!(parse_structured("I'll start by reading the files to understand the changes.").is_none());
+        assert!(parse_structured("Let me read the diff first.").is_none());
+        // A genuine structured review still parses.
+        let real = r#"{"verdict":"No blocking issues.","prose":"Looks fine.","findings":[],"exceptions":[]}"#;
+        assert!(parse_structured(real).is_some());
+    }
 }
