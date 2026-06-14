@@ -94,18 +94,18 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // vakedc CLI executable.
+    // vakedc CLI executable. NOTE: libc + sqlite linking is added in Phase 2
+    // (when `parse --sqlite` lands), together with the nix linker-path fix —
+    // not at scaffold time, so the scaffold builds with zero system deps.
     const exe = b.addExecutable(.{
         .name = "vakedc",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/cli/main.zig"),
             .target = target,
             .optimize = optimize,
-            .link_libc = true, // needed for sqlite3 C interop
         }),
     });
     exe.root_module.addImport("vaked-core", core_mod);
-    exe.root_module.linkSystemLibrary("sqlite3", .{});
     b.installArtifact(exe);
 
     const run = b.addRunArtifact(exe);
@@ -383,10 +383,10 @@ Reference: `vakedc/lexer.py` (388 lines) is the behavioral spec — token kinds,
 **Files:**
 - Modify: `zig/build.zig.zon`, `zig/build.zig`
 
-- [ ] **Step 1: Determine Python's Unicode data version**
-
-Run: `nix --extra-experimental-features 'nix-command flakes' develop --command python3 -c 'import unicodedata; print(unicodedata.unidata_version)'`
-Expected: e.g. `15.1.0`. Record it — `zg` must ship NFC tables for the same Unicode version (or the closest that passes the corpus). Check `vakedc/lexer.py:PINNED_UNICODE` and reconcile.
+- [ ] **Step 1: Determine Python's Unicode data version** — RESOLVED during Phase 0:
+  - `unicodedata.unidata_version` (runtime, what `normalize('NFC')` actually uses) = **16.0.0**.
+  - `vakedc/lexer.py:PINNED_UNICODE` = **"15.1.0"** — a *declared* expectation that currently mismatches the runtime, so the lexer emits its version-mismatch warning to **stderr**.
+  - **Therefore pin `zg` to Unicode 16.0.0 tables** (match the runtime that drives Python's NFC), NOT 15.1.0. The Zig lexer must also reproduce the stderr warning bytes (warn when its Unicode-data version != `"15.1.0"`), but since the oracle diffs the **stdout** token dump, warning parity is checked separately (stderr compare) and does not affect the token-stream gate.
 
 - [ ] **Step 2: Fetch + pin `zg`**
 
