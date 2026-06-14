@@ -71,7 +71,7 @@ This would compress more than wenyan-ultra on technical content. It would compre
 
 The coincidence is almost too convenient. Vaked is already a grammar-first, formally-specified, domain-specific language with an EBNF grammar file, a type system document, a lowering spec, and a set of RFCs governing protocol evolution. The HCP protocol already has LFCs in the form of `protocol/rfcs/`. The caveman skill already lives in `.claude/skills/`. The infrastructure for defining, versioning, and evolving a language is sitting right here.
 
-An AI-lish V1 in this repo would look like this: a new EBNF grammar at `vaked/grammar/ailish-v0.ebnf`, a core morpheme table at `docs/language/0019-ailish-morphemes.md`, an LFC-0001 proposing the initial vocabulary, and a modified caveman skill that references the grammar instead of describing a style. The compression wouldn't be a convention — it would be a language.
+An AI-lish V1 in this repo would look like this: a new EBNF grammar at vaked/grammar/ailish-v0.ebnf (not yet created), a core morpheme table at docs/language/0019-ailish-morphemes.md (not yet created), an LFC-0001 proposing the initial vocabulary, and a modified caveman skill that references the grammar instead of describing a style. The compression wouldn't be a convention — it would be a language.
 
 The Artifact Gate would be a grammar production: `artifact-output ::= normal-english-text`. The internal monologue hook would emit AI-lish. The bench would measure compression against the grammar spec.
 
