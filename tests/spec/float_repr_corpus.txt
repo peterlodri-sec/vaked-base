@@ -1,0 +1,34 @@
+# float-repr conformance corpus — Task 0.5 of the vakedc Zig rewrite.
+#
+# Format: <f64-literal> <TAB> <expected python json.dumps repr>
+# Lines beginning with '#' and blank lines are ignored.
+#
+# WHY THIS EXISTS: the Zig canonical writer (json_canon.writeFloat) must
+# reproduce Python's `json.dumps(x, ensure_ascii=False)` byte-for-byte for any
+# float that lands in node/edge `props`. As of 2026-06-14 the entire
+# vaked/examples corpus produces ZERO floats in canonical output, so this is a
+# forward guard, not a live gate.
+#
+# SCOPE: realistic Vaked-magnitude values — integer-valued floats (rendered with
+# a trailing ".0") and ordinary decimals in Python's fixed-notation range
+# [1e-4, 1e16). Extreme-exponent floats (|x| < 1e-4 or |x| >= 1e16) render in
+# Python with a signed 2-digit exponent (e.g. 1e-05 -> "1e-05", 1e21 -> "1e+21")
+# and are intentionally OUT OF SCOPE until such a value actually appears in the
+# corpus; closing that gap is tracked in the plan (§4 fidelity risk).
+#
+# SYNC: the same pairs are inlined in json_canon.zig's float test. Keep both in
+# step; tests/spec/test_float_repr.py asserts each pair still matches the running
+# Python's json.dumps (guards Python-version drift).
+0.0	0.0
+1.0	1.0
+1.5	1.5
+0.1	0.1
+2.5	2.5
+30.0	30.0
+100.0	100.0
+0.5	0.5
+0.0001	0.0001
+3.14159	3.14159
+12345.678	12345.678
+-0.0	-0.0
+-2.5	-2.5

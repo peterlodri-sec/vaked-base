@@ -347,6 +347,35 @@ test "diagnostics mode is indent-2 with all keys sorted" {
     try std.testing.expectEqualStrings(expected, out);
 }
 
+test "writeFloat matches python json.dumps for the conformance corpus" {
+    // Mirrors tests/spec/float_repr_corpus.txt — keep in sync. Realistic
+    // Vaked-magnitude values only (see that file for the out-of-scope note).
+    const Pair = struct { v: f64, want: []const u8 };
+    const pairs = [_]Pair{
+        .{ .v = 0.0, .want = "0.0" },
+        .{ .v = 1.0, .want = "1.0" },
+        .{ .v = 1.5, .want = "1.5" },
+        .{ .v = 0.1, .want = "0.1" },
+        .{ .v = 2.5, .want = "2.5" },
+        .{ .v = 30.0, .want = "30.0" },
+        .{ .v = 100.0, .want = "100.0" },
+        .{ .v = 0.5, .want = "0.5" },
+        .{ .v = 0.0001, .want = "0.0001" },
+        .{ .v = 3.14159, .want = "3.14159" },
+        .{ .v = 12345.678, .want = "12345.678" },
+        .{ .v = -0.0, .want = "-0.0" },
+        .{ .v = -2.5, .want = "-2.5" },
+    };
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    for (pairs) |p| {
+        var buf: Buf = .empty;
+        try writeFloat(&buf, a, p.v);
+        try std.testing.expectEqualStrings(p.want, buf.items);
+    }
+}
+
 test "stablePropsKey is compact sorted-key json" {
     var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
     defer arena.deinit();
