@@ -586,6 +586,25 @@ the table's primary key / index:
 The catalog's `T` must equal the source index's `T` (0011 §5.1) — already
 checked, so the column set is unambiguous at lowering.
 
+### 5.4 Primitive-to-artifact reference
+
+All Vaked primitives in one table. Use this to answer "what does this lower to?" without reading the full doc.
+
+| Primitive | Direct artifact (`gen/`) | Nix spine output | See | Status |
+|-----------|--------------------------|-----------------|-----|--------|
+| `runtime` | `gen/RUNTIME.md` | flake module | §5.1 | active |
+| `fiber` | `gen/zig/<name>.json` | `packages.<system>.<name>-daemon-config` | §5.2 | active |
+| `index` | `gen/catalog/<name>/` + JSONL/SQLite | `packages.<system>.<name>-crabcc-index` | §5.3 | active |
+| `catalog` | `gen/catalog/<name>.jsonl` or `.sql` | (via source index) | §5.3 | active |
+| `stream` | none directly; feeds `fiber` input + docs §5.1 row 3 | — | §5.1, §7 | active; `otel.config` deferred |
+| `surface` | none (deferred stub app) | `apps.<system>.<name>` stub | §7 | deferred |
+| `parallel` | none directly; grouping for `systemd.units` | — | §5.1 row 6, §7 | deferred |
+| `mesh` | none directly; capability grants → `ebpf.policy` | — | §7 | deferred |
+| `device` | *not yet specified* | *not yet specified* | — | **unspecified** |
+| `mediaPipeline` | *not yet specified* | *not yet specified* | — | **unspecified** |
+
+`device` and `mediaPipeline` are defined in `vaked/schema/builtins.vaked` and accepted by the type checker, but no emitter or Nix spine mapping has been designed. Per the *output-first* principle (§0), this is a gap that requires a design note before implementation. Until then both are accepted by `vakedc check` and silently produce no artifacts — they are grammatically valid declarations whose lowering is unspecified.
+
 ---
 
 ## 6. Provenance
