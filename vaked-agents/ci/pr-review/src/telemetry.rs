@@ -21,6 +21,20 @@ pub(crate) fn pr_html_url(repo: &str, pr: u64) -> String {
     format!("{}/{}/pull/{}", server.trim_end_matches('/'), repo, pr)
 }
 
+/// Web URL for the exact commit the review ran against (the PR head SHA).
+pub(crate) fn commit_html_url(repo: &str, sha: &str) -> String {
+    let server = env_first(&["GITHUB_SERVER_URL"]).unwrap_or_else(|| "https://github.com".into());
+    format!("{}/{}/commit/{}", server.trim_end_matches('/'), repo, sha)
+}
+
+/// Web URL for the GitHub Actions run that produced this review. `None` outside a
+/// GHA run (no `GITHUB_RUN_ID`), e.g. local/dry-run invocations.
+pub(crate) fn run_html_url(repo: &str) -> Option<String> {
+    let run_id = env_first(&["GITHUB_RUN_ID"])?;
+    let server = env_first(&["GITHUB_SERVER_URL"]).unwrap_or_else(|| "https://github.com".into());
+    Some(format!("{}/{}/actions/runs/{}", server.trim_end_matches('/'), repo, run_id))
+}
+
 /// Record the review `mode` both as a plain span field (readable CI logs) and as
 /// filterable Langfuse trace metadata.
 pub(crate) fn record_mode(span: &tracing::Span, mode: &str) {

@@ -12,9 +12,9 @@ const MAINTAINER_LOGIN: &str = "peterlodri-sec";
 /// runtime check trusts GitHub's server-side `verified` flag, which already validates
 /// against these account-registered keys). Source: github.com/peterlodri-sec.gpg.
 const MAINTAINER_GPG_FPRS: &[&str] = &[
-    "72581F31DD0EE484B6714ACB2B2495E0AC50DAC7", // cabotage@pm.me
-    "25B2B8EA46DCC314187EF5F4B7FE23390470D65C", // peterlodri@gmail.com
-    "6A476414899DD9AA82445A7AA893B8B408AC3C8B", // peter.lodri@instructure.com
+    "72581F31DD0EE484B6714ACB2B2495E0AC50DAC7", // maintainer signing key (uid 1)
+    "25B2B8EA46DCC314187EF5F4B7FE23390470D65C", // maintainer signing key (uid 2)
+    "6A476414899DD9AA82445A7AA893B8B408AC3C8B", // maintainer signing key (uid 3)
 ];
 
 /// Commit-signature provenance for the PR's commits.

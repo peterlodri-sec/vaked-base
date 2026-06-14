@@ -44,6 +44,7 @@ pub(crate) const COMPACTION_PRESERVE_RECENT: usize = 8;
 /// Agent version (from Cargo.toml) — always stamped in the posted comment footer.
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub(crate) const GIT_SHA: &str = env!("GIT_SHA");
+/// Compact build stamp for the footer: `v<semver>+<short-sha>`. No PII.
 pub(crate) fn footer_signature() -> String {
-    format!("vaked-pr-review v{VERSION}+{GIT_SHA} · admin: cabotage@protonmail.com")
+    format!("v{VERSION}+{GIT_SHA}")
 }
