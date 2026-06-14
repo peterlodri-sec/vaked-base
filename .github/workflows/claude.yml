@@ -63,13 +63,41 @@ jobs:
         with:
           fetch-depth: 1
 
+      # Pick the model by change size: Haiku for small, focused diffs (faster,
+      # cheaper) and Sonnet once a PR grows past the threshold. Non-PR triggers
+      # (plain issues) default to Haiku. Override the cutoff with the repo
+      # variable CLAUDE_HAIKU_MAX_LINES.
+      - name: Choose model by change size
+        id: model
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HAIKU_MAX_LINES: ${{ vars.CLAUDE_HAIKU_MAX_LINES || '120' }}
+        run: |
+          model="claude-haiku-4-5"   # default: small / focused
+          pr=""
+          case "${{ github.event_name }}" in
+            issue_comment)
+              [ -n "${{ github.event.issue.pull_request.url }}" ] && pr="${{ github.event.issue.number }}" ;;
+            pull_request_review|pull_request_review_comment)
+              pr="${{ github.event.pull_request.number }}" ;;
+          esac
+          size=""
+          if [ -n "$pr" ]; then
+            size=$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" \
+              --json additions,deletions -q '.additions + .deletions' 2>/dev/null || echo 0)
+            if [ "${size:-0}" -gt "$HAIKU_MAX_LINES" ]; then model="claude-sonnet-4-6"; fi
+          fi
+          echo "model=$model" >> "$GITHUB_OUTPUT"
+          echo "::notice::claude model=$model (pr=${pr:-none} size=${size:-n/a} cutoff=$HAIKU_MAX_LINES)"
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
           # Subscription OAuth token instead of anthropic_api_key.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           trigger_phrase: "@claude"
-          # Sonnet only, by request. In-repo skills under .claude/skills
-          # (including caveman) are auto-discovered and usable via /caveman.
+          # Haiku for small/focused changes, Sonnet for larger PRs (see step
+          # above). In-repo skills under .claude/skills (including caveman) are
+          # auto-discovered and usable via /caveman.
           claude_args: |
-            --model claude-sonnet-4-6
+            --model ${{ steps.model.outputs.model }}
