@@ -171,3 +171,12 @@ The companion workflow `.claude/workflows/ailish-v1-drive.js` orchestrates A→B
 Not a general programming language (no loops, no arithmetic — `combine`/`join` are
 set ops, not math). Not a replacement for the host shell; it *describes* host
 effects and gates them. Not a transport (it is text emitted inline in a model turn).
+
+## Appendix A — workflow pattern library
+
+Ten worked one-shot ARP commands for complex multi-layer, multi-model workflows
+(judge panel, Graph-RAG, adversarial verify, map-reduce migration, debate, tiered
+pipeline, loop-until-dry, multi-modal sweep, cost-routed cascade, tournament
+bracket) live in [`examples/multi-model-workflows.arp.md`](examples/multi-model-workflows.arp.md).
+They exercise per-node model routing and the `[!P]→[!X]→[!V]→[!C]` layer convention,
+and double as parser conformance fixtures for the Phase-B `tools/ailish/` impl.
