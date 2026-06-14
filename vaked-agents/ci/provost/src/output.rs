@@ -168,7 +168,7 @@ pub(crate) fn output_schema() -> Value {
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["title", "body", "labels", "milestone", "children"],
+                    "required": ["title", "body", "labels", "children"],
                     "properties": {
                         "title": { "type": "string" },
                         "body": { "type": "string" },
@@ -184,7 +184,7 @@ pub(crate) fn output_schema() -> Value {
                 "items": {
                     "type": "object",
                     "additionalProperties": false,
-                    "required": ["title", "body", "labels", "epic"],
+                    "required": ["title", "body", "labels"],
                     "properties": {
                         "title": { "type": "string" },
                         "body": { "type": "string" },

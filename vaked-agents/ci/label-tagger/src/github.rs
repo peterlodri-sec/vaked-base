@@ -86,7 +86,7 @@ pub(crate) fn fetch_issue_meta(cfg: &Config, issue: u64) -> Result<IssueMeta> {
 pub(crate) fn fetch_pr_diff(cfg: &Config, pr: u64) -> String {
     // Try git diff over base..head first (fast, no network), fall back to gh.
     if let (Some(base), Some(head)) = (&cfg.base_sha, &cfg.head_sha) {
-        if let Ok(d) = git(&["diff", &format!("{base}...{head}")]) {
+        if let Ok(d) = git(&["diff", &format!("{base}..{head}")]) {
             if !d.trim().is_empty() {
                 let (truncated, _) = truncate(&d, MAX_DIFF_CHARS);
                 return truncated.to_string();

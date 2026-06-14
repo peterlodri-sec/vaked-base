@@ -1,10 +1,11 @@
 //! Shared constants.
 
+pub(crate) use vaked_agents_shared::{
+    COMPACTION_BUDGET_TOKENS, COMPACTION_PRESERVE_RECENT, DEFAULT_BASE_URL,
+};
+
 pub(crate) const DEFAULT_MODEL: &str = "deepseek/deepseek-v4-flash";
-pub(crate) const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub(crate) const DEFAULT_MAX_ITERS: u32 = 8;
-pub(crate) const COMPACTION_BUDGET_TOKENS: usize = 80_000;
-pub(crate) const COMPACTION_PRESERVE_RECENT: usize = 4;
 pub(crate) const CACHE_KEY: &str = "vaked-provost-v1";
 pub(crate) const EPIC_LABEL: &str = "type/epic";
 pub(crate) const RFC_DIR: &str = "protocol/rfcs";
