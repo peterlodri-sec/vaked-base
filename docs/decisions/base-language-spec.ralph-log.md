@@ -34,3 +34,37 @@ This test directly addresses the “without verified completeness” concern rai
 **Confidence**  
 High. The grammar’s `kind` list is unambiguous, the lowering registry in `0012-lowering.md` is manually maintained but well‑bounded, and the test is a straightforward cross‑reference that can be mapped directly to the documents we have. Recent lowering PRs (#38, #51, #33) all explicitly reference the registry, confirming that the mapping is already the touchstone.
 
+## 2026-06-13 — Decision #2: Decision / question
+- **Track:** base-language-spec · **Models:** stage1 qwen3-235b-a22b-thinking-2507 · stage2 deepseek-v4-pro
+- **Context snapshot:** HEAD f1a3820, 6 open issues
+
+**Decision / question**  
+Should we define catalog schemas for the remaining grammar kinds — `network`, `filesystem`, `mcp`, `ebpf`, `observability` — to eliminate the schema‑less gap identified in Issue #28, now that `budget`, `runclass`, and `host` have been handled (slices #28/#47/#49)?
+
+**Options**  
+- **A. Concrete schemas + open fallback.**  Define a concrete, closed schema for `network` (calibrated on `vaked/examples/membrane/agent-egress.vaked`) and **open** schemas for `filesystem`, `mcp`, `ebpf`, `observability` (like `device`/`mediaPipeline`). This immediately forbids arbitrary bodies while keeping the kind as a forward‑compatible placeholder for future policy/manifest declarations.  
+- **B. Leave schema‑less, defer to usage.**  Keep the five kinds without schemas, accepting anything, and wait until a concrete daily‑use example forces a design — the current `check` gap remains but no new constraints are added prematurely.  
+- **C. Remove the redundant kinds.**  Drop `filesystem`, `mcp`, `ebpf`, `observability` from the grammar’s `kind` list entirely (they already exist as capability domains; only `network` has an actual kind‑declaration example). This shrinks the language surface but risks breaking any future intent to declare membranes/policies of those domains.
+
+**Recommendation**  
+**Option A** — concrete schema for `network`, open schemas for the rest.  
+
+- The `network` membrane example (`agent-egress.vaked`) gives a clear body shape: `principal`, `default` (allow/deny), a list of egress rules, and an `observe` stream — exactly the shape a catalog schema should enforce (Issue #28 asks “each should either get a schema or be considered for removal”).  
+- For `filesystem`/`mcp`/`ebpf`/`observability` there is **no current usage as a top‑level declaration** in the codebase, so a concrete schema would be speculative.  An **open** schema (`open` keyword) is the lightweight middle ground: it marks the kind as *intended for future membrane/policy artifacts* while still rejecting arbitrary bodies (an `open` schema accepts unknown fields, which is precisely the forward‑compatible posture used for `device` and `mediaPipeline` in `vaked/schema/parallel-types.md`).  This aligns with the audit directive in Issue #28 — “audit the rest and decide schema‑vs‑remove per kind.”  
+
+Option B keeps Issue #28 open and violates the urgency (the gap is still “undermines the entire type system’s integrity”).  Option C removes the *grammar* keywords, but `network` already has a working membrane example; removing it would break the vertical slice landed in `395b0d6`.
+
+**Risks**  
+- The concrete `network` schema must match the existing membrane usage byte‑for‑byte; any mismatch (e.g., wrong field name) would cause the working `agent-egress.vaked` to fail `vakedc check`.  This is mitigated by deriving the schema directly from that example.  
+- Open schemas still admit unknown fields, so they do not enforce structure yet — they are a **holding pattern** documented as deferred.  That is acceptable: it’s the same pattern used for `device` and `mediaPipeline` (mentioned in `vaked/grammar/README.md` and `parallel-types.md`).  
+- Adding open schemas might falsely suggest that the kinds are “ready” for lowering; the fact that they carry `open` and belong to the deferred target list (0012-lowering.md §7) makes the status clear.
+
+**Next actions**  
+1. Open a PR that adds `schema network` (fields: `principal: String`, `default: String { oneof ["allow","deny"] }`, `allow: List<EgressRule> { optional nonempty }`, `observe: Stream<…>?`) to `vaked/schema/builtins.vaked` and `vaked/schema/parallel-types.md`, along with the necessary auxiliary types (`EgressRule` with `host`/`port`).  
+2. In the same PR, add **open** schemas for `filesystem`, `mcp`, `ebpf`, `observability` — a single `open` statement per schema, no fields.  
+3. Re‑run `vakedc check` against `agent-egress.vaked` to confirm the membrane example now conforms.  
+4. Update the completeness test from Decision #1 (PR #??) so the grammar‑vs‑registry cross‑check accounts for the new schema coverage.
+
+**Confidence**  
+**High**.  The `network` kind’s body shape is directly observable in the membrane vertical slice, and the open‑schema pattern is already established and tested for `device`/`mediaPipeline`.  Completing these five schemas closes the last major schema‑less audit item from Issue #28, removing a variance that allowed arbitrary validation behavior.
+

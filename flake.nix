@@ -31,6 +31,7 @@
             git
             jq
             just
+            d2                    # images as code — render docs/assets/diagrams/src/*.d2 → *.svg
           ];
           shellHook = ''
             echo "vaked-base · Vaked declares · Nix materializes · OTP supervises · Zig enforces · eBPF testifies · CrabCC indexes · Surfaces reveal"
@@ -40,6 +41,40 @@
       });
 
       formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
+
+      # vaked-telebot — the interactive Telegram control surface, as a Nix package
+      # (python3 + the repo's stdlib-only tools/eventd subtree; tiny closure).
+      #   nix build .#vaked-telebot  →  result/bin/vaked-telebot
+      packages = forAllSystems (pkgs: {
+        vaked-telebot = pkgs.stdenvNoCC.mkDerivation {
+          pname = "vaked-telebot";
+          version = "0.1.0";
+          src = self;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/lib/vaked
+            cp -r tools eventd $out/lib/vaked/
+            makeWrapper ${pkgs.python3}/bin/python3 $out/bin/vaked-telebot \
+              --add-flags $out/lib/vaked/tools/telebot/telebot.py
+            runHook postInstall
+          '';
+          meta = {
+            description = "Interactive Telegram control surface for the Vaked agent fleet";
+            mainProgram = "vaked-telebot";
+          };
+        };
+      });
+
+      # NixOS module: services.vaked-telebot.enable = true; (DynamicUser, secrets
+      # as a systemd credential, full sandbox). Defaults the package to the one above.
+      nixosModules.vaked-telebot = { pkgs, lib, ... }: {
+        imports = [ ./nix/vaked-telebot.nix ];
+        services.vaked-telebot.package =
+          lib.mkDefault self.packages.${pkgs.system}.vaked-telebot;
+      };
 
       # Nix materializes. `vakedos` is the bare-metal materialization target — the
       # NixOS substrate a Vaked runtime's emitted nixosModules.<runtime> will later

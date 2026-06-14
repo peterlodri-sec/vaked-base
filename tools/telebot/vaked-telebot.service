@@ -1,0 +1,52 @@
+# vaked-telebot — interactive Telegram control surface for the Vaked agent fleet.
+# Long-poll daemon for the self-hosted crabcc.app plane.
+#
+#   sudo install -m 600 /dev/stdin /etc/vaked-telebot.env   # paste the secrets (KEY=VALUE)
+#   sudo cp tools/telebot/vaked-telebot.service /etc/systemd/system/
+#   sudo systemctl enable --now vaked-telebot
+#
+# On NixOS, prefer a systemd.services.vaked-telebot module (the store python +
+# sops/agenix for the credential) — this generic unit is for a stock systemd host.
+[Unit]
+Description=vaked-telebot — interactive Telegram control surface for the agent fleet
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Run as an ephemeral, unprivileged user (NOT root) with a private state dir.
+DynamicUser=yes
+StateDirectory=vaked-telebot
+Environment=TELEBOT_STATE_DIR=%S/vaked-telebot
+WorkingDirectory=/opt/vaked-base
+# Secrets as a systemd credential (tmpfs, 0400, owned by the unit) — never in the
+# process environment and never shown by `systemctl show`. The file is plain
+# KEY=VALUE: TELEGRAM_TOKEN, TELEGRAM_TO, TELEGRAM_ADMIN_IDS, GITHUB_TOKEN,
+# GITHUB_REPOSITORY, OPENROUTER_API_KEY (or TELEBOT_API_KEY), optional TELEBOT_MODEL.
+LoadCredential=telebot.env:/etc/vaked-telebot.env
+# `env` lookup, so this works whether python3 is at /usr/bin or in a Nix profile.
+ExecStart=/usr/bin/env python3 tools/telebot/telebot.py
+Restart=on-failure
+RestartSec=5
+
+# Sandboxing — a network daemon holding API tokens gets the full hardening set.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vaked.dev/schemas/provenance/votive-seal/v1",
+  "title": "Votive Seal",
+  "description": "A PQC-signed provenance record attesting the identity of a materialized image (NixOS closure, OCI layer, or unikernel). The deploy plane (preceptord) only admits images whose closure measurement matches a valid votive seal. See RFC 0007 §5.",
+  "type": "object",
+  "required": [
+    "kind",
+    "version",
+    "closure_hash",
+    "topology_epoch",
+    "membrane",
+    "signed_at",
+    "signature"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "const": "votive-seal",
+      "description": "Discriminator constant. Always 'votive-seal'. Guards against applying the admission check to unrelated JSON documents."
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version of this seal document. Follows SemVer; the current generation is '1'.",
+      "examples": ["1"]
+    },
+    "closure_hash": {
+      "type": "string",
+      "description": "SHA-256 hex digest of the materialized NixOS closure (or OCI manifest digest, or unikernel measurement). 64 lowercase hex characters. Produced by 'nix path-info --hash', 'sha256sum', or an equivalent hermetic content-hash. The deploy plane compares this to the live store path hash before admitting the image.",
+      "pattern": "^[0-9a-f]{64}$",
+      "examples": ["a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4"]
+    },
+    "topology_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The topology epoch under which this seal was issued (RFC 0005 §2.4). The deploy plane rejects seals from a stale epoch. Epoch 0 is reserved for bootstrapping; production seals start at epoch 1."
+    },
+    "membrane": {
+      "type": "string",
+      "description": "The declared Vaked membrane path this closure implements, in 'kind/name' notation (e.g. 'network/agent-egress', 'filesystem/artifacts'). Matched against the deploy plane's membrane-to-closure allowlist.",
+      "examples": ["network/agent-egress", "filesystem/artifacts", "compute/worker"]
+    },
+    "signed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp (UTC, with 'Z' suffix) at which the seal was signed. Informational only — the deploy plane checks topology_epoch and closure_hash, not wall-clock time."
+    },
+    "signature": {
+      "type": "object",
+      "description": "Cryptographic signature over the canonical JSON of this document (with 'signature' excluded). In production this is ML-DSA-65 (FIPS 204 / CRYSTALS-Dilithium3 — the PQC lattice-based scheme mandated by RFC 0007 §3). During the spike, HMAC-SHA256 is used as a placeholder.",
+      "required": ["algorithm", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["ml-dsa-65", "hmac-sha256-placeholder"],
+          "description": "Signature algorithm identifier. 'ml-dsa-65' is FIPS 204 ML-DSA (Dilithium3) — requires liboqs or a Zig ML-DSA implementation. 'hmac-sha256-placeholder' is a spike-only stand-in that MUST NOT be used in production (see 'placeholder' field)."
+        },
+        "value": {
+          "type": "string",
+          "description": "Base64-encoded signature bytes. For 'ml-dsa-65': the full 3309-byte Dilithium3 signature. For 'hmac-sha256-placeholder': base64(HMAC-SHA256(key, canonical_payload)).",
+          "contentEncoding": "base64"
+        },
+        "public_key": {
+          "type": "string",
+          "description": "Optional base64-encoded public key material. For 'ml-dsa-65': the 1952-byte Dilithium3 public key (included so offline verifiers can check without a key store). For 'hmac-sha256-placeholder': omitted (symmetric key is not shipped in the seal).",
+          "contentEncoding": "base64"
+        },
+        "placeholder": {
+          "type": "boolean",
+          "const": true,
+          "description": "Present and true ONLY when algorithm is 'hmac-sha256-placeholder'. Signals to the admission controller that this is a spike seal and must not be used in a production trust policy. The real implementation requires liboqs (Python oqs bindings) or the Zig ML-DSA-65 implementation referenced in RFC 0007 §6."
+        }
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "signature": {
+        "properties": {
+          "algorithm": { "const": "hmac-sha256-placeholder" }
+        }
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "signature": {
+        "required": ["algorithm", "value", "placeholder"]
+      }
+    }
+  },
+  "examples": [
+    {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "kind": "votive-seal",
+      "version": "1",
+      "closure_hash": "a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4",
+      "topology_epoch": 1,
+      "membrane": "network/agent-egress",
+      "signed_at": "2026-06-13T00:00:00Z",
+      "signature": {
+        "algorithm": "hmac-sha256-placeholder",
+        "value": "ZXhhbXBsZXNpZ25hdHVyZWJhc2U2NA==",
+        "placeholder": true
+      }
+    }
+  ]
+}

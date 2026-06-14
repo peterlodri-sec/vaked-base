@@ -44,7 +44,7 @@ use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -728,15 +728,22 @@ fn parse_output(raw: &str) -> TaggerOutput {
 // Orchestration
 // ---------------------------------------------------------------------------
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_SHA: &str = env!("GIT_SHA");
+
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("vaked-label-tagger {VERSION}+{GIT_SHA}");
+        return;
+    }
+
     let tracer_provider = setup_tracing();
 
     let code = match run().await {
         Ok(()) => 0,
         Err(e) => {
-            warn!(error = %e, "label-tagger failed (advisory — exiting 0)");
-            eprintln!("label-tagger: {e:#}");
+                eprintln!("label-tagger: {e:#}");
             // Emit a safe no-op JSON so the shell wrapper never crashes on empty stdout.
             println!("{}", noop_json());
             0
@@ -795,14 +802,13 @@ async fn run_label(cfg: &Config) -> Result<()> {
     };
 
     if cfg.dry_run {
-        eprintln!("label-tagger: dry-run — would send prompt ({} chars)", prompt.len());
+        debug!("dry-run: would send label prompt ({} chars)", prompt.len());
         println!("{}", noop_json());
         return Ok(());
     }
 
     let runner = build_runner(cfg, api_key)?;
     let raw = ask(&runner, prompt).await?;
-    info!(response_chars = raw.len(), "agent response received");
     let output = parse_output(&raw);
     println!("{}", serde_json::to_string(&output)?);
     Ok(())
@@ -816,14 +822,13 @@ async fn run_changelog(cfg: &Config) -> Result<()> {
     let prompt = build_changelog_prompt(&commits);
 
     if cfg.dry_run {
-        eprintln!("label-tagger: dry-run changelog — would send prompt ({} chars)", prompt.len());
+        debug!("dry-run: would send changelog prompt ({} chars)", prompt.len());
         println!("{}", noop_json());
         return Ok(());
     }
 
     let runner = build_runner(cfg, api_key)?;
     let raw = ask(&runner, prompt).await?;
-    info!(response_chars = raw.len(), "agent response received");
     let output = parse_output(&raw);
     println!("{}", serde_json::to_string(&output)?);
     Ok(())

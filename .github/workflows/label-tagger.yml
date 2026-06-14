@@ -199,12 +199,11 @@ jobs:
             for ID in $OLD_IDS; do
               gh api -X DELETE "repos/$REPO/issues/comments/$ID" 2>/dev/null || true
             done
-            BODY="<!-- vaked-label-tagger -->
-$COMMENT
-
----
-<sub>vaked-label-tagger · automated, advisory</sub>"
-            printf '%s' "$BODY" | gh pr comment "$PR" --repo "$REPO" --body-file - \
+            # Build body in a temp file to avoid bare column-0 content in the YAML literal block.
+            BODY_FILE="$RUNNER_TEMP/lt-comment.md"
+            printf '<!-- vaked-label-tagger -->\n%s\n\n---\n<sub>vaked-label-tagger · automated, advisory</sub>' \
+              "$COMMENT" > "$BODY_FILE"
+            gh pr comment "$PR" --repo "$REPO" --body-file "$BODY_FILE" \
               || echo "::warning::advisory comment failed (non-blocking)"
           fi
 

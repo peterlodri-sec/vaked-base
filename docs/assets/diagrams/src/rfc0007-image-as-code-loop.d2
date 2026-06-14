@@ -1,0 +1,29 @@
+# RFC 0007 · Fig 2 — The image-as-code change loop.
+# Source of truth: edit this .d2, then `task diagrams` to regenerate the .svg.
+# Do NOT hand-edit the rendered SVG.
+direction: right
+
+classes: {
+  code: {
+    style: {fill: "#16324f"; stroke: "#0a1b2e"; font-color: "#ffffff"; border-radius: 10}
+  }
+  seal: {
+    style: {fill: "#1f6f3d"; stroke: "#0c3d20"; font-color: "#ffffff"; border-radius: 10}
+  }
+  deny: {
+    style: {fill: "#7a1f1f"; stroke: "#3d0c0c"; font-color: "#ffffff"; border-radius: 10}
+  }
+}
+
+src: ".vaked source\n(the only mutable surface)" {class: code}
+lower: "vakedc lower (0012)\npure · total · hermetic" {class: code}
+image: "content-addressed image\nNixOS closure / OCI / unikernel" {class: code}
+sign: "PQC-sign provenance.json\nML-DSA over the closure hash" {class: seal}
+attest: "sealed-image attestation\n(votive seal)" {class: seal}
+deploy: "deploy to vakedos / mesh node" {class: code}
+
+src -> lower -> image -> sign -> attest -> deploy
+deploy -> src: "next change = code change" {style.stroke-dash: 3}
+
+oob: "out-of-band mutation\n(ssh, hot-patch, registry push)" {class: deny}
+oob -> image: "REFUSED\nno path that isn't code" {class: deny; style.stroke-dash: 4}

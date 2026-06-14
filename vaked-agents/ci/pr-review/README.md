@@ -57,12 +57,19 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
   (never auto-deleted).
 - **Cost estimate** — the footer shows `cost ~$X` from token usage × a blended
   `$/Mtok` rate (`PR_REVIEW_USD_PER_MTOK`, default 0.3).
-- **Prompt caching** — a stable cache key + a byte-identical system-prompt prefix
-  (no per-PR values baked in) let the provider cache the prefix; cached tokens are
-  recorded in usage / Langfuse. The big win is the map-reduce path, where every
-  per-file pass re-sends the same prefix — DeepSeek's automatic prefix caching (and
-  Anthropic/Gemini explicit caching) reuses it. Cross-PR hits are rare (cache TTL),
-  so keep the prefix stable and prefer a caching-friendly model.
+- **Versioned, contactable footer** — every posted comment (review + `@vaked-ci`
+  reply) always stamps the agent version (`vaked-pr-review vX.Y.Z`) and an
+  [open Telegram](https://t.me/G0PH3R) contact link.
+- **Prompt caching (DeepSeek-tuned)** — a byte-identical system-prompt prefix (no
+  per-PR values baked in) lets the provider cache the prefix; the big win is the
+  map-reduce path, where every per-file pass re-sends the same prefix and DeepSeek's
+  automatic prefix caching reuses it. Because OpenRouter's prefix cache is
+  **per-provider**, the agent **pins the first-party DeepSeek provider** (`order`,
+  with `allow_fallbacks` kept on for resilience) so the per-file passes don't scatter
+  across hosts and cold-start the cache — override with `PR_REVIEW_PROVIDER_ORDER`.
+  OpenRouter **usage accounting** (`usage.include`) is enabled so cached-token reads
+  actually surface in the footer / Langfuse. Cross-PR hits are rare (cache TTL), so
+  keep the prefix stable and prefer a caching-friendly model.
 - **Docs-aware routing** — a docs/prose-only PR (all changed files `.md`/`.rst`/…)
   uses a lighter doc-reviewer persona and stays single-pass; the 7-lens engineering
   council only fires when there's actual code, so design docs don't draw code-shaped
@@ -85,8 +92,26 @@ fleet. `ci/` is the CI-bot subtree. **Backlog / roadmap:** [`../BACKLOG.md`](../
 - **Replace, don't stack** — each run deletes its prior `<!-- vaked-pr-review -->`
   comment and posts one fresh review; an **advisory commit status** carries the
   finding count (never fails the check).
-- **Langfuse tracing** — OTLP/HTTP spans per run, with `changed_lines`, `mode`,
-  `total_tokens`, `thinking_tokens`, and `findings` recorded as span attributes.
+- **Comment-cleanup subroutine** — before each review (and on a daily schedule via
+  [`cleanup.yml`](../../../.github/workflows/cleanup.yml), `--cleanup` mode) the agent
+  sweeps **bot noise** (usage/rate-limit/quota notices, e.g. Codex) and **collapses
+  duplicate bot review/update comments** to the newest-per-bot. Comments only — never
+  touches issues. Skips its own comments and `github-actions[bot]` (extend the keep-list
+  with `PR_REVIEW_CLEANUP_KEEP`); disable with `PR_REVIEW_NO_CLEANUP`.
+- **Langfuse tracing (linked both ways)** — one OTLP/HTTP trace per run, named
+  `pr-review {repo}#{pr}` and keyed to a per-PR session, with `mode`, token totals, and
+  `findings` as filterable `langfuse.trace.metadata.*`. Each trace links **out** to the
+  PR and the exact review comment (`pr_url` / `comment_url`); the comment footer links
+  **back** to the trace when `LANGFUSE_PROJECT_ID` is set.
+- **Operator briefing** — a static, byte-stable context header
+  ([`prompts/ci-agent-briefing.md`](../../../prompts/ci-agent-briefing.md)) is prepended
+  to every CI-agent system prompt: who the agent is, its env/tools, the repo, the sibling
+  fleet, and the maintainer's signing keys. Static-by-design so it stays in the cached
+  prompt prefix (it *lengthens* the cache hit rather than breaking it).
+- **Provenance round** — a best-effort commit-signature check using GitHub's server-side
+  verification, summarised in the footer (`🔏 provenance: N/N commits signature-verified`).
+  Commits authored by the maintainer that aren't verified are flagged against the known
+  signing keys. Advisory only; disable with `PR_REVIEW_NO_PROVENANCE`.
 - **Eval harness** — `--eval <dir>` scores the reviewer against `*.diff`/`*.expect`
   fixtures (see `evals/`).
 - **Resilience** — OpenRouter provider fallback (`allow_fallbacks`), bounded tool
@@ -111,12 +136,16 @@ keep the baked binary ~10 MB; the agent runs on the **mimalloc** global allocato
 | Secret | Required | Purpose |
 |--------|----------|---------|
 | `OPENROUTER_API_KEY` | yes | OpenRouter API key (the model call) |
-| `LANGFUSE_URL` | optional | Self-hosted Langfuse base, e.g. `https://langfuse.internal` |
-| `LANGFUSE_API_KEY` | optional | OTLP Basic token: **base64 of `<public_key>:<secret_key>`** |
+| `LANGFUSE_HOST` | optional | Self-hosted Langfuse base, e.g. `https://langfuse.internal` (alias: `LANGFUSE_BASE_URL`; legacy: `LANGFUSE_URL`) |
+| `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` | optional | Langfuse project keys — the agent builds the OTLP Basic token (`base64(public:secret)`) itself (legacy: a pre-encoded `LANGFUSE_API_KEY`) |
+| `LANGFUSE_PROJECT_ID` | optional | Langfuse project id — enables the `[trace]` deep-link in the review-comment footer (GitHub→Langfuse) |
 | `CRABCC_INSTALL_TOKEN` | optional | PAT with `crabcc-labs/crabcc` read access (CI installs crabcc) |
 
-Missing optional secrets degrade gracefully: no Langfuse ⇒ untraced; no crabcc ⇒
-diff-only review.
+Missing optional secrets degrade gracefully: no Langfuse base/keys ⇒ untraced; no
+`LANGFUSE_PROJECT_ID` ⇒ traced, but no comment→trace link; no crabcc ⇒ diff-only review.
+
+The keys are read with the standard Langfuse SDK names (same trio ralph uses), so the
+`ci` environment needs no review-specific Langfuse secrets.
 
 ## Env / overrides
 
@@ -132,7 +161,9 @@ diff-only review.
 | `BASE_SHA` / `HEAD_SHA` | — | PR base/head for the diff range (CI sets these) |
 | `PR_REVIEW_REASONING_EFFORT` | `high` | OpenRouter reasoning effort (`low`/`medium`/`high`) |
 | `PR_REVIEW_MAPREDUCE_LINES` | `600` | changed-line threshold to switch to map-reduce |
-| `PR_REVIEW_MAX_FINDINGS` | `20` | cap on findings in the final review |
+| `PR_REVIEW_MAX_FINDINGS` | `10` | cap on findings in the final review |
+| `PR_REVIEW_PROVIDER_ORDER` | `DeepSeek` for `deepseek/*` | comma-separated OpenRouter provider slugs to pin (cache locality); empty = open routing |
+| `LANGFUSE_PROJECT_ID` | — | enables the `[trace]` comment→Langfuse deep-link |
 | `PR_REVIEW_CRABCC_BUDGET` | `8` | max crabcc tool calls the model may make |
 | `PR_REVIEW_MAX_ITERS` | `12` | max agent tool-loop iterations |
 | `PR_REVIEW_CONCURRENCY` | `6` | parallel per-file passes (map-reduce) + tool concurrency |
@@ -142,6 +173,9 @@ diff-only review.
 | `PR_REVIEW_EVAL_TOLERANCE` | `0.0` | `--eval` regression tolerance: fail if `baseline − current > tolerance` on any case |
 | `PR_REVIEW_NO_AUTOFIX` | — | set to disable inline ```suggestion``` comments for Nit/Minor findings |
 | `PR_REVIEW_USD_PER_MTOK` | `0.3` | blended $/million-token rate for the footer cost estimate |
+| `PR_REVIEW_NO_PROVENANCE` | — | set to disable the commit-signature provenance round |
+| `PR_REVIEW_NO_CLEANUP` | — | set to disable the inline comment-cleanup sweep |
+| `PR_REVIEW_CLEANUP_KEEP` | `github-actions[bot]` | comma-separated bot logins never collapsed by cleanup |
 
 ### Model choice
 Default is **`deepseek/deepseek-v4-flash`** — cheap, 1M context, strong on code, and
@@ -195,8 +229,9 @@ cargo run --manifest-path vaked-agents/ci/pr-review/Cargo.toml -- \
   --repo peterlodri-sec/vaked-base --pr <N> --dry-run
 ```
 
-Add `LANGFUSE_URL` + `LANGFUSE_API_KEY` to verify a `vaked-ci-reviewer` trace
-appears in Langfuse. `gh` must be authenticated (`gh auth status`).
+Add `LANGFUSE_HOST` + `LANGFUSE_PUBLIC_KEY` + `LANGFUSE_SECRET_KEY` (optionally
+`LANGFUSE_PROJECT_ID`) to verify a `pr-review …` trace appears in Langfuse. `gh` must
+be authenticated (`gh auth status`).
 
 [adk-rust]: https://github.com/zavora-ai/adk-rust
 [crabcc-labs/crabcc]: https://github.com/crabcc-labs/crabcc

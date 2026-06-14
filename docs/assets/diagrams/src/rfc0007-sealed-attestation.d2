@@ -1,0 +1,37 @@
+# RFC 0007 · Fig 3 — Sealed-image attestation trust chain.
+# Answers 0010's open question: what replaces "eBPF testifies" for a sealed unikernel?
+# Source of truth: edit this .d2, then `task diagrams` to regenerate the .svg.
+# Do NOT hand-edit the rendered SVG.
+direction: down
+
+classes: {
+  measure: {
+    style: {fill: "#16324f"; stroke: "#0a1b2e"; font-color: "#ffffff"; border-radius: 10}
+  }
+  seal: {
+    style: {fill: "#1f6f3d"; stroke: "#0c3d20"; font-color: "#ffffff"; border-radius: 10}
+  }
+  verify: {
+    style: {fill: "#5a3d8a"; stroke: "#2c1d49"; font-color: "#ffffff"; border-radius: 10}
+  }
+}
+
+host: "host / hypervisor (vakedos)" {
+  measured: "measure sealed image\nclosure hash == provenance hash" {class: measure}
+}
+
+image: "sealed image (unikernel / closure)\ndeny-by-default by construction" {class: measure}
+
+quote: "PQC attestation quote\nML-DSA over {measurement, nonce, epoch}" {class: seal}
+
+eventd: "eventd\nhash-chained, tamper-evident log" {class: seal}
+
+verifier: "preceptord + operator surface" {
+  check: "verify quote + closure hash\nagainst signed provenance" {class: verify}
+}
+
+image -> host.measured: "loaded"
+host.measured -> quote: "emits"
+quote -> eventd: "recorded (write-ahead)"
+eventd -> verifier.check: "replayed"
+verifier.check -> image: "admit / refuse" {style.stroke-dash: 3}

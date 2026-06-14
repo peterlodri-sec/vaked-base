@@ -1,0 +1,49 @@
+name: telebot
+
+# Run the interactive Telegram control bot as a BOUNDED GitHub Actions session —
+# a bridge / live runtime when there's no persistent host. The bot long-polls for
+# the session window, then exits. For a real always-on deployment, run the daemon
+# on crabcc.app instead (tools/telebot/vaked-telebot.service / deploy.sh).
+#
+# ⚠️ ONE poller at a time: getUpdates is a single-consumer API. Do NOT run this
+# workflow while the crabcc.app daemon is up — they'd race for updates. The
+# `concurrency` group only stops two Actions runs from overlapping.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: how long to run (minutes; job hard cap is 55)
+        default: "50"
+
+permissions:
+  contents: read
+  actions: write            # the bot dispatches workflows (⚙️ scenario)
+
+concurrency:
+  group: telebot
+  cancel-in-progress: true
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    environment: ci
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Run the bot (bounded session)
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
+          TELEGRAM_ADMIN_IDS: ${{ secrets.TELEGRAM_ADMIN_IDS }}
+          # A PAT (TELEBOT_GH_TOKEN) makes dispatched workflows actually start;
+          # the default GITHUB_TOKEN can dispatch but may not trigger the run.
+          GITHUB_TOKEN: ${{ secrets.TELEBOT_GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TELEBOT_MODEL: ${{ secrets.TELEBOT_MODEL }}
+        run: |
+          mins="${{ github.event.inputs.minutes }}"; mins="${mins:-50}"
+          python3 tools/telebot/telebot.py --run-seconds "$(( mins * 60 ))"
