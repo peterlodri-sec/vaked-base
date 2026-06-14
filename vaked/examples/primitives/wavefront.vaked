@@ -1,0 +1,33 @@
+# wavefront.vaked — explicit fiber dependency chain (0015)
+# capture (L0) -> compress (L1) -> publish (L2): three wavefronts.
+
+fiber capture {
+  engine = zigcap
+  input  = device.camera
+  output = stream.raw
+}
+
+fiber compress {
+  engine = zigimg
+  input  = stream.raw
+  output = artifacts.compressed
+}
+
+fiber publish {
+  engine = zigpub
+  input  = artifacts.compressed
+  output = surface.feed
+}
+
+parallel "capture-pipeline" {
+  fibers = [capture, compress, publish]
+
+  strategy   = "supervised-dag"
+  supervisor = otp
+
+  lifecycle {
+    on pause  { drain_timeout = "2s" }
+    on resume { }
+    on stop   { flush = true }
+  }
+}

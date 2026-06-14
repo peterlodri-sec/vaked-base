@@ -25,12 +25,12 @@ REPO = ps.REPO
 
 # The 17 expected example files (explicit count, per spec).
 VAKED_EXAMPLE_GLOBS = [
-    "vaked/examples/primitives/*.vaked",   # 11
+    "vaked/examples/primitives/*.vaked",   # 12
     "vaked/examples/types/*.vaked",        # 4
     "vaked/examples/operator-field.vaked",  # 1
     "vaked/examples/engines/zig.vaked",     # 1
 ]
-EXPECTED_VAKED_COUNT = 17
+EXPECTED_VAKED_COUNT = 18
 
 HCP_EXAMPLE = "protocol/hcplang/examples/hcp-core.hcplang"
 
