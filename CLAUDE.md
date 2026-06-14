@@ -96,6 +96,24 @@ Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external d
 
 **Snyk is OFF for this project.** The global "Snyk at inception" directive does **not** apply here (explicit owner decision, 2026-06-08). Do **not** run `snyk_code_scan` in this repo. If that decision is reversed, remove this section.
 
+## Landing-Guru Agent
+
+Automated landing page maintenance loop. Ensures landing readiness via scheduled checks, cache freshness, and Slack alerting.
+
+| Item | Value |
+|------|-------|
+| **Purpose** | Maintain `.landing-cache/` coherence, validate landing page generation, alert on drift |
+| **Cache dir** | `.landing-cache/` (gitignored; local agent artifacts only) |
+| **Run** | `bash scripts/landing-guru.sh [--dry-run\|--full\|--test-slack]` |
+| **CI trigger** | `.github/workflows/landing-guru.yml` (cron every 3h) |
+| **Slack alerts** | Via `SLACK_WEBHOOK_LANDING` env var (set in GitHub → Settings → Environments → `ci`) |
+| **Generated files** | `docs/website/index.html`, `docs/website/examples.html`, `docs/website/docs.html` (gitignored) |
+
+**Flags:**
+- `--dry-run`: validate cache state, report issues, exit 0 (no modifications)
+- `--full`: regenerate all landing pages from `docs/website/landing/base.html` template
+- `--test-slack`: trigger a test alert to `SLACK_WEBHOOK_LANDING` (verify hook is live)
+
 ## MCP servers (`.mcp.json`)
 
 `crabcc` (symbol index), `github`, `context7` (Nix/Zig/eBPF/MCP docs), `repowise` (codebase graph — consult before refactors), `workspace-fs` (sandboxed repo FS only), `playwright`. Changes to `.mcp.json` require a Claude Code reload to take effect.
