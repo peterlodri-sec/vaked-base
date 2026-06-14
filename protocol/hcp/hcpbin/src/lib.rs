@@ -14,10 +14,19 @@
 //! - §6.1  `bytes` (varint length prefix + raw bytes)
 //! - §6.4  `bool` (0x00/0x01 only)
 //! - §6.5  `hash` (`varint(algo) varint(len) digest`, self-delimiting)
+//! - §6.4  `string` (NFC-normalised against pinned Unicode 15.1.0, length-prefixed UTF-8)
+//! - §6.4  `f32` / `f64` (little-endian IEEE-754, NaN/signed-zero canonicalised)
+//! - §5.1  `uuid` (16 raw bytes), `timestamp` (`i64`-ns zig-zag varint)
+//!
+//! ### String normalisation pin (§6.4)
+//! `string` encoding NFC-normalises against **Unicode 15.1.0**, which is pinned
+//! via the `unicode-normalization = "=0.1.23"` dependency — that crate version's
+//! `UNICODE_VERSION` constant is `(15, 1, 0)`. The pin is part of the canonical
+//! encoding (changing it is a protocol-version bump, §6.4). On decode, UTF-8 is
+//! validated but NOT re-normalised: per §6.4 a decoder MAY assume NFC, so the
+//! bytes round-trip as received (encode-time normalisation, §11 Open-Q7).
 //!
 //! Out of scope (left as TODO, owned by later sprints):
-//! - `string` / NFC normalisation — requires the Unicode 15.1.0 pin (§6.4); WP3-S2.
-//! - `f32` / `f64` canonicalisation (NaN / signed-zero, §6.4).
 //! - records / frames / unions / maps / enums (§6.2, §6.6, §6.7).
 //! - the frame header (kind/corr/stream/seq/end) — that lives in the WIRE
 //!   layer (RFC 0003), explicitly NOT in hcpbin (RFC 0002 §4.2, §6 scope note).
@@ -31,6 +40,8 @@
 //! `Reader`/`Writer` API and a structured `DecodeError` enum below.
 
 use core::fmt;
+
+use unicode_normalization::UnicodeNormalization;
 
 /// Maximum number of LEB128 groups in a 64-bit varint: ceil(64 / 7) = 10.
 const MAX_VARINT_LEN: usize = 10;
@@ -57,6 +68,8 @@ pub enum DecodeError {
     /// A whole-value decode left unconsumed bytes after the value (§6.8: a
     /// canonical value occupies exactly its bytes).
     TrailingBytes,
+    /// A `string`'s length-prefixed bytes were not valid UTF-8 (§6.4).
+    InvalidUtf8,
 }
 
 impl fmt::Display for DecodeError {
@@ -73,6 +86,7 @@ impl fmt::Display for DecodeError {
             ),
             DecodeError::LengthOverflow => write!(f, "length prefix exceeds usize"),
             DecodeError::TrailingBytes => write!(f, "trailing bytes after value"),
+            DecodeError::InvalidUtf8 => write!(f, "string is not valid UTF-8"),
         }
     }
 }
@@ -185,6 +199,52 @@ impl Writer {
         self.put_uvarint(hash.algo);
         self.put_uvarint(hash.digest.len() as u64);
         self.buf.extend_from_slice(&hash.digest);
+    }
+
+    /// Encode a `string`: NFC-normalise (pinned Unicode 15.1.0, §6.4), then emit
+    /// `varint(byte-len)` followed by the normalised UTF-8 bytes (§5.1, §6.1.1).
+    pub fn put_string(&mut self, value: &str) {
+        let normalised: String = value.nfc().collect();
+        self.put_uvarint(normalised.len() as u64);
+        self.buf.extend_from_slice(normalised.as_bytes());
+    }
+
+    /// Encode an `f32` as little-endian IEEE-754, canonicalising NaN to the quiet
+    /// pattern `0x7FC00000` and `-0.0` to `+0.0` (§6.4).
+    pub fn put_f32(&mut self, value: f32) {
+        let canonical = if value.is_nan() {
+            f32::from_bits(0x7FC0_0000)
+        } else if value == 0.0 {
+            // Collapses both +0.0 and -0.0 (they compare equal) to +0.0.
+            0.0
+        } else {
+            value
+        };
+        self.buf.extend_from_slice(&canonical.to_le_bytes());
+    }
+
+    /// Encode an `f64` as little-endian IEEE-754, canonicalising NaN to the quiet
+    /// pattern `0x7FF8000000000000` and `-0.0` to `+0.0` (§6.4).
+    pub fn put_f64(&mut self, value: f64) {
+        let canonical = if value.is_nan() {
+            f64::from_bits(0x7FF8_0000_0000_0000)
+        } else if value == 0.0 {
+            0.0
+        } else {
+            value
+        };
+        self.buf.extend_from_slice(&canonical.to_le_bytes());
+    }
+
+    /// Encode a `uuid` as 16 raw bytes, with no endianness applied (§5.1).
+    pub fn put_uuid(&mut self, value: &[u8; 16]) {
+        self.buf.extend_from_slice(value);
+    }
+
+    /// Encode a `timestamp` (`i64` nanoseconds since the Unix epoch) as a zig-zag
+    /// varint (§5.1, `k=64`).
+    pub fn put_timestamp(&mut self, nanos: i64) {
+        self.put_i64(nanos);
     }
 }
 
@@ -362,6 +422,44 @@ impl<'a> Reader<'a> {
         let digest = self.get_raw(len)?.to_vec();
         Ok(Hash { algo, digest })
     }
+
+    /// Decode a `string`: `varint(byte-len)` then `len` UTF-8 bytes (§5.1,
+    /// §6.1.1). UTF-8 is validated; invalid sequences are rejected. Per §6.4 the
+    /// decoder MAY assume NFC, so the bytes are returned as-is without
+    /// re-normalisation (see the module/`notes` posture statement).
+    pub fn get_string(&mut self) -> Result<String, DecodeError> {
+        let len = self.get_uvarint()?;
+        let len = usize::try_from(len).map_err(|_| DecodeError::LengthOverflow)?;
+        let bytes = self.get_raw(len)?;
+        core::str::from_utf8(bytes)
+            .map(str::to_owned)
+            .map_err(|_| DecodeError::InvalidUtf8)
+    }
+
+    /// Decode an `f32` from 4 little-endian IEEE-754 bytes (§5.1, §6.4). Bits are
+    /// read as-is; canonicalisation is an encode-time operation.
+    pub fn get_f32(&mut self) -> Result<f32, DecodeError> {
+        let bytes = self.get_raw(4)?;
+        Ok(f32::from_le_bytes(bytes.try_into().expect("get_raw(4) yields four bytes")))
+    }
+
+    /// Decode an `f64` from 8 little-endian IEEE-754 bytes (§5.1, §6.4). Bits are
+    /// read as-is; canonicalisation is an encode-time operation.
+    pub fn get_f64(&mut self) -> Result<f64, DecodeError> {
+        let bytes = self.get_raw(8)?;
+        Ok(f64::from_le_bytes(bytes.try_into().expect("get_raw(8) yields eight bytes")))
+    }
+
+    /// Decode a `uuid`: 16 raw bytes, no endianness applied (§5.1).
+    pub fn get_uuid(&mut self) -> Result<[u8; 16], DecodeError> {
+        let bytes = self.get_raw(16)?;
+        Ok(bytes.try_into().expect("get_raw(16) yields sixteen bytes"))
+    }
+
+    /// Decode a `timestamp` (`i64` nanoseconds) from a zig-zag varint (§5.1).
+    pub fn get_timestamp(&mut self) -> Result<i64, DecodeError> {
+        self.get_i64()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -485,12 +583,67 @@ pub fn decode_hash(bytes: &[u8]) -> Result<(u8, Vec<u8>), DecodeError> {
     Ok((algo, hash.digest))
 }
 
-// TODO(WP3-S2): `string` encode/decode with NFC normalisation pinned to
-// Unicode 15.1.0 (RFC 0002 §6.4). Requires a normalisation data table.
-//
-// TODO: `f32`/`f64` canonicalisation — NaN to the canonical quiet pattern and
-// `-0.0` to `+0.0` before little-endian IEEE-754 emission (RFC 0002 §6.4).
-//
+/// Encode a `string`: NFC-normalise to pinned Unicode 15.1.0, then
+/// `varint(byte-len)` + UTF-8 bytes (§5.1, §6.4).
+pub fn encode_string(value: &str) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.put_string(value);
+    w.into_bytes()
+}
+
+/// Decode a `string`: `varint(byte-len)` then validated UTF-8 (§5.1, §6.4).
+pub fn decode_string(bytes: &[u8]) -> Result<String, DecodeError> {
+    decode_all(bytes, |r| r.get_string())
+}
+
+/// Encode an `f32` as canonical little-endian IEEE-754 (§5.1, §6.4).
+pub fn encode_f32(value: f32) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.put_f32(value);
+    w.into_bytes()
+}
+
+/// Decode an `f32` from 4 little-endian IEEE-754 bytes (§5.1, §6.4).
+pub fn decode_f32(bytes: &[u8]) -> Result<f32, DecodeError> {
+    decode_all(bytes, |r| r.get_f32())
+}
+
+/// Encode an `f64` as canonical little-endian IEEE-754 (§5.1, §6.4).
+pub fn encode_f64(value: f64) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.put_f64(value);
+    w.into_bytes()
+}
+
+/// Decode an `f64` from 8 little-endian IEEE-754 bytes (§5.1, §6.4).
+pub fn decode_f64(bytes: &[u8]) -> Result<f64, DecodeError> {
+    decode_all(bytes, |r| r.get_f64())
+}
+
+/// Encode a `uuid` as 16 raw bytes, no endianness applied (§5.1).
+pub fn encode_uuid(value: &[u8; 16]) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.put_uuid(value);
+    w.into_bytes()
+}
+
+/// Decode a `uuid`: exactly 16 raw bytes (§5.1).
+pub fn decode_uuid(bytes: &[u8]) -> Result<[u8; 16], DecodeError> {
+    decode_all(bytes, |r| r.get_uuid())
+}
+
+/// Encode a `timestamp` (`i64` nanoseconds) as a zig-zag varint (§5.1).
+pub fn encode_timestamp(nanos: i64) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.put_timestamp(nanos);
+    w.into_bytes()
+}
+
+/// Decode a `timestamp` (`i64` nanoseconds) from a zig-zag varint (§5.1).
+pub fn decode_timestamp(bytes: &[u8]) -> Result<i64, DecodeError> {
+    decode_all(bytes, |r| r.get_timestamp())
+}
+
 // TODO: records/frames (§6.2), defaults/optionals (§6.3), lists/maps (§6.6),
 // unions/enums (§6.7).
 //
@@ -691,5 +844,144 @@ mod tests {
         assert_eq!(r.get_hash().unwrap().algo, 0x02);
         assert!(r.get_bool().unwrap());
         assert!(r.is_empty());
+    }
+
+    // ---- §6.1.1 / §6.4 string ----
+
+    #[test]
+    fn string_golden() {
+        assert_eq!(enc(|w| w.put_string("")), vec![0x00]);
+        assert_eq!(enc(|w| w.put_string("hi")), vec![0x02, 0x68, 0x69]);
+        // "café" precomposed é -> varint(5) + UTF-8 bytes.
+        assert_eq!(
+            enc(|w| w.put_string("caf\u{00e9}")),
+            vec![0x05, 0x63, 0x61, 0x66, 0xc3, 0xa9]
+        );
+    }
+
+    #[test]
+    fn string_nfc_normalises_on_encode() {
+        // Decomposed "cafe\u{0301}" (e + combining acute) must encode identically
+        // to precomposed "caf\u{00e9}" after NFC (§6.4, pinned Unicode 15.1.0).
+        let decomposed = enc(|w| w.put_string("cafe\u{0301}"));
+        let precomposed = enc(|w| w.put_string("caf\u{00e9}"));
+        assert_eq!(decomposed, precomposed);
+        assert_eq!(decomposed, vec![0x05, 0x63, 0x61, 0x66, 0xc3, 0xa9]);
+    }
+
+    #[test]
+    fn string_pinned_unicode_version_is_15_1_0() {
+        // The canonical encoding pins Unicode 15.1.0 (§6.4); the crate constant
+        // is the guard that the pin has not drifted.
+        assert_eq!(unicode_normalization::UNICODE_VERSION, (15, 1, 0));
+    }
+
+    #[test]
+    fn string_roundtrip_and_errors() {
+        let b = enc(|w| w.put_string("hello \u{1f600}")); // multi-byte content
+        assert_eq!(Reader::new(&b).get_string().unwrap(), "hello \u{1f600}");
+        // Declares len=3 but only 1 byte present.
+        assert_eq!(Reader::new(&[0x03, 0x61]).get_string(), Err(DecodeError::UnexpectedEof));
+        // len=1 then an invalid UTF-8 lead byte.
+        assert_eq!(Reader::new(&[0x01, 0xff]).get_string(), Err(DecodeError::InvalidUtf8));
+    }
+
+    // ---- §6.1.1 / §6.4 floats ----
+
+    #[test]
+    fn f32_golden() {
+        assert_eq!(enc(|w| w.put_f32(0.0)), vec![0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(enc(|w| w.put_f32(1.0)), vec![0x00, 0x00, 0x80, 0x3f]);
+        // Canonical quiet NaN, regardless of input NaN variant.
+        assert_eq!(enc(|w| w.put_f32(f32::NAN)), vec![0x00, 0x00, 0xc0, 0x7f]);
+        assert_eq!(
+            enc(|w| w.put_f32(f32::from_bits(0x7f80_0001))), // a signalling NaN
+            vec![0x00, 0x00, 0xc0, 0x7f]
+        );
+        // -0.0 canonicalises to +0.0.
+        assert_eq!(enc(|w| w.put_f32(-0.0)), vec![0x00, 0x00, 0x00, 0x00]);
+    }
+
+    #[test]
+    fn f64_golden() {
+        assert_eq!(enc(|w| w.put_f64(0.0)), vec![0; 8]);
+        assert_eq!(
+            enc(|w| w.put_f64(1.0)),
+            vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0x3f]
+        );
+        // Canonical quiet NaN 0x7FF8000000000000 little-endian.
+        assert_eq!(
+            enc(|w| w.put_f64(f64::NAN)),
+            vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8, 0x7f]
+        );
+        assert_eq!(enc(|w| w.put_f64(-0.0)), vec![0; 8]);
+    }
+
+    #[test]
+    fn float_roundtrip() {
+        for v in [0.0f32, 1.0, -1.0, f32::MIN, f32::MAX, 12.5] {
+            assert_eq!(Reader::new(&enc(|w| w.put_f32(v))).get_f32().unwrap(), v);
+        }
+        for v in [0.0f64, 1.0, -1.0, f64::MIN, f64::MAX, 1234.5] {
+            assert_eq!(Reader::new(&enc(|w| w.put_f64(v))).get_f64().unwrap(), v);
+        }
+        // Canonicalised NaN survives as a quiet-NaN bit pattern on decode.
+        let b = enc(|w| w.put_f32(f32::NAN));
+        assert_eq!(Reader::new(&b).get_f32().unwrap().to_bits(), 0x7fc0_0000);
+        // Truncated float.
+        assert_eq!(Reader::new(&[0x00, 0x00]).get_f32(), Err(DecodeError::UnexpectedEof));
+    }
+
+    // ---- §5.1 uuid ----
+
+    #[test]
+    fn uuid_raw_16_bytes_no_endianness() {
+        let id: [u8; 16] = [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54,
+            0x32, 0x10,
+        ];
+        let b = enc(|w| w.put_uuid(&id));
+        assert_eq!(b, id.to_vec()); // bytes emitted in field order, verbatim
+        assert_eq!(Reader::new(&b).get_uuid().unwrap(), id);
+        // 15 bytes is not a uuid.
+        assert_eq!(Reader::new(&id[..15]).get_uuid(), Err(DecodeError::UnexpectedEof));
+    }
+
+    // ---- §5.1 timestamp ----
+
+    #[test]
+    fn timestamp_zigzag_i64() {
+        // timestamp is an i64-ns zig-zag varint: matches put_i64 byte-for-byte.
+        let t: i64 = 1_718_284_800_000_000_000; // from §10 worked example
+        assert_eq!(enc(|w| w.put_timestamp(t)), enc(|w| w.put_i64(t)));
+        assert_eq!(Reader::new(&enc(|w| w.put_timestamp(t))).get_timestamp().unwrap(), t);
+        // Epoch and a negative (pre-epoch) instant round-trip.
+        for v in [0i64, -1, t, i64::MIN, i64::MAX] {
+            assert_eq!(Reader::new(&enc(|w| w.put_timestamp(v))).get_timestamp().unwrap(), v);
+        }
+    }
+
+    // ---- free-function whole-value decode (trailing-byte rejection) ----
+
+    #[test]
+    fn free_fns_reject_trailing_bytes() {
+        assert_eq!(decode_string(&[0x00, 0xaa]), Err(DecodeError::TrailingBytes));
+        assert_eq!(
+            decode_f32(&[0x00, 0x00, 0x00, 0x00, 0xaa]),
+            Err(DecodeError::TrailingBytes)
+        );
+        let mut uuid_plus = vec![0u8; 16];
+        uuid_plus.push(0xaa);
+        assert_eq!(decode_uuid(&uuid_plus), Err(DecodeError::TrailingBytes));
+    }
+
+    #[test]
+    fn free_fns_roundtrip() {
+        assert_eq!(decode_string(&encode_string("round trip")).unwrap(), "round trip");
+        assert_eq!(decode_f32(&encode_f32(2.5)).unwrap(), 2.5);
+        assert_eq!(decode_f64(&encode_f64(2.5)).unwrap(), 2.5);
+        let id = [7u8; 16];
+        assert_eq!(decode_uuid(&encode_uuid(&id)).unwrap(), id);
+        assert_eq!(decode_timestamp(&encode_timestamp(42)).unwrap(), 42);
     }
 }
