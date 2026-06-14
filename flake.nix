@@ -18,7 +18,8 @@
           name = "vaked-base";
           packages = with pkgs; [
             nixpkgs-fmt           # format this flake + future generated Nix
-            zig                   # Zig enforces — sandboxd, agent-guardd, eventd, …
+            zig_0_16              # Zig enforces — pinned 0.16.0 for the vakedc self-hosting port (also: sandboxd, agent-guardd, …)
+            sqlite                # libsqlite3 + headers — vakedc `parse --sqlite` parity (3.51.2 via the locked nixpkgs rev)
             erlang                # OTP supervises — agent-supervisord control plane
             elixir
             rustc                 # CrabCC indexes — toolchain to build crabcc-labs/crabcc
