@@ -1,0 +1,32 @@
+[package]
+name = "vaked-telemetry"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Shared Langfuse OTLP/HTTP tracing setup for the vaked CI agents."
+
+# Standalone, like the sibling agent crates — each is its own workspace root and
+# is built with `--manifest-path`. Path-deps reference this crate across roots.
+[workspace]
+
+[dependencies]
+# Build the Langfuse OTLP Basic-auth token from LANGFUSE_PUBLIC_KEY:LANGFUSE_SECRET_KEY.
+base64 = "0.22"
+
+# Tracing → self-hosted Langfuse over OTLP/HTTP. Pinned to adk's OTel 0.31 line so
+# the global tracer provider unifies with adk-rust's internal `tracing` spans.
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+tracing-opentelemetry = "0.32"
+opentelemetry = "0.31"
+opentelemetry_sdk = { version = "0.31", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.31", default-features = false, features = [
+    "trace",
+    "http-proto",
+    # The batch span processor exports on its OWN dedicated OS thread (no Tokio
+    # reactor), so an async reqwest client panics there. The BLOCKING reqwest
+    # client (auto-detected by `with_http()`) runs fine on that thread;
+    # reqwest-rustls keeps TLS on rustls (no system OpenSSL).
+    "reqwest-blocking-client",
+    "reqwest-rustls",
+] }

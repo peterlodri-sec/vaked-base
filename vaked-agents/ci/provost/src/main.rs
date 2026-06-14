@@ -44,14 +44,10 @@ use adk_rust::{RetryBudget, ToolExecutionStrategy};
 use adk_runner::compaction::{CompactionConfig, TruncationCompaction};
 use anyhow::{Context, Result, anyhow};
 use futures::StreamExt;
-use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tracing::{info, warn};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing::warn;
 
 mod guardrails;
 
@@ -361,48 +357,12 @@ fn noop_json() -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Tracing (identical pattern to label-tagger / pr-review)
+// Tracing → self-hosted Langfuse, via the shared `vaked-telemetry` crate
+// (single source of truth for the LANGFUSE_* env resolution).
 // ---------------------------------------------------------------------------
 
 fn setup_tracing() -> Option<SdkTracerProvider> {
-    let base = std::env::var("LANGFUSE_URL").ok().filter(|s| !s.is_empty())?;
-    let token = std::env::var("LANGFUSE_API_KEY").ok().filter(|s| !s.is_empty());
-    let endpoint = format!("{}/api/public/otel/v1/traces", base.trim_end_matches('/'));
-    let mut headers = HashMap::new();
-    if let Some(token) = token {
-        headers.insert("Authorization".to_string(), format!("Basic {token}"));
-    }
-    let exporter = match opentelemetry_otlp::SpanExporter::builder()
-        .with_http()
-        .with_endpoint(&endpoint)
-        .with_headers(headers)
-        .build()
-    {
-        Ok(e) => e,
-        Err(e) => {
-            eprintln!("provost: Langfuse exporter init failed: {e}");
-            return None;
-        }
-    };
-    let resource = opentelemetry_sdk::Resource::builder_empty()
-        .with_attributes([opentelemetry::KeyValue::new("service.name", "vaked-provost")])
-        .build();
-    let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
-        .with_resource(resource)
-        .build();
-    let tracer = provider.tracer("vaked-provost");
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
-        .with(tracing_opentelemetry::layer().with_tracer(tracer))
-        .try_init()
-        .ok();
-    opentelemetry::global::set_tracer_provider(provider.clone());
-    info!(langfuse.endpoint = %endpoint, "Langfuse tracing enabled");
-    Some(provider)
+    vaked_telemetry::setup_tracing("vaked-provost", "vaked-provost")
 }
 
 // ---------------------------------------------------------------------------
