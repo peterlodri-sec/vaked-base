@@ -70,8 +70,8 @@ pub fn computeWaves(alloc: std.mem.Allocator, graph: *const types.ArpGraph) !Sch
     std.sort.block([]const u8, current_queue.items, {}, lessThanStr);
 
     var waves_list: std.ArrayListUnmanaged(Wave) = .empty;
-    errdefer for (waves_list.items) |w| alloc.free(w.nodes);
     defer waves_list.deinit(alloc);
+    errdefer for (waves_list.items) |w| alloc.free(w.nodes);
 
     var processed: usize = 0;
 
