@@ -34,13 +34,67 @@ import json
 import os
 import sys
 
-from .lexer import VakedLexError
+from .lexer import VakedLexError, tokenize
 from .parser import VakedSyntaxError
 from .resolve import build_graph
 from .parser import parse_source
 from .emit import to_canonical_json, to_sqlite
 from .check import check_source, load_builtins, default_builtins_path
 from . import lower as lower_mod
+
+
+def _escape_token_text(s: str) -> str:
+    """Escape token source text with the SAME rules as the canonical-JSON string
+    escaper (json_canon): escape ``"`` ``\\`` and control chars < 0x20 (short
+    forms ``\\n \\r \\t \\b \\f``; ``\\u00xx`` lowercase for other controls);
+    bytes >= 0x80 pass through unchanged (UTF-8 passthrough). NOT wrapped in
+    quotes — the dump is TAB-separated, the text is the last field."""
+    out = []
+    for ch in s:
+        o = ord(ch)
+        if ch == '"':
+            out.append('\\"')
+        elif ch == "\\":
+            out.append("\\\\")
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif o == 0x08:
+            out.append("\\b")
+        elif o == 0x0c:
+            out.append("\\f")
+        elif o < 0x20:
+            out.append("\\u%04x" % o)
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _cmd_lex(args) -> int:
+    try:
+        with open(args.file, "r", encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError as e:
+        print(f"vakedc: cannot read {args.file}: {e}", file=sys.stderr)
+        return 1
+
+    try:
+        toks = tokenize(src, args.file)
+    except VakedLexError as e:
+        print(f"vakedc: {e}", file=sys.stderr)
+        return 1
+
+    out = []
+    for t in toks:
+        out.append(
+            f"{t.kind}\t{t.byteStart}\t{t.byteEnd}\t{t.line}\t{t.col}\t"
+            f"{_escape_token_text(t.value)}\n"
+        )
+    sys.stdout.write("".join(out))
+    return 0
 
 
 def _cmd_parse(args) -> int:
@@ -226,6 +280,8 @@ def main(argv=None) -> int:
                     "check .vaked against the 0011 type system.",
     )
     sub = ap.add_subparsers(dest="cmd", required=True)
+    lx = sub.add_parser("lex", help="tokenize a .vaked file (token dump to stdout)")
+    lx.add_argument("file", help="path to a .vaked source file")
     pp = sub.add_parser("parse", help="parse a .vaked file into the LPG")
     pp.add_argument("file", help="path to a .vaked source file")
     pp.add_argument("--json", metavar="PATH", default=None,
@@ -255,6 +311,8 @@ def main(argv=None) -> int:
 
     args = ap.parse_args(argv)
 
+    if args.cmd == "lex":
+        return _cmd_lex(args)
     if args.cmd == "parse":
         return _cmd_parse(args)
     if args.cmd == "check":

@@ -28,8 +28,13 @@ const Buf = std.ArrayList(u8);
 // strings + numbers
 // --------------------------------------------------------------------------- //
 
-fn writeString(buf: *Buf, alloc: std.mem.Allocator, s: []const u8) !void {
-    try buf.append(alloc, '"');
+/// Escape `s` with the canonical-JSON string rules but WITHOUT the surrounding
+/// quotes: escape `"` `\` and control chars < 0x20 (short forms `\n \r \t \b
+/// \f`; `\u00xx` lowercase for other controls); bytes >= 0x80 pass through
+/// unchanged (UTF-8 passthrough, `ensure_ascii=False`). Shared by `writeString`
+/// (quoted JSON values) and the lexer token dump (bare, TAB-separated field) so
+/// both escape identically. Mirrors `vakedc/__main__.py:_escape_token_text`.
+pub fn writeJsonStringRaw(buf: *Buf, alloc: std.mem.Allocator, s: []const u8) !void {
     for (s) |c| {
         switch (c) {
             '"' => try buf.appendSlice(alloc, "\\\""),
@@ -50,8 +55,16 @@ fn writeString(buf: *Buf, alloc: std.mem.Allocator, s: []const u8) !void {
             },
         }
     }
+}
+
+/// A JSON string value (quoted). Delegates the escaping to `writeJsonStringRaw`.
+pub fn writeJsonString(buf: *Buf, alloc: std.mem.Allocator, s: []const u8) !void {
+    try buf.append(alloc, '"');
+    try writeJsonStringRaw(buf, alloc, s);
     try buf.append(alloc, '"');
 }
+
+const writeString = writeJsonString;
 
 fn writeInt(buf: *Buf, alloc: std.mem.Allocator, n: i64) !void {
     var tmp: [24]u8 = undefined;

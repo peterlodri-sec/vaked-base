@@ -19,6 +19,9 @@ pub const graphToCanonical = json_canon.graphToCanonical;
 pub const valueDocToPretty = json_canon.valueDocToPretty;
 pub const stablePropsKey = json_canon.stablePropsKey;
 
+// The lexer (Phase 1) lives in the separate `vaked-lex` module (see build.zig)
+// to respect Zig 0.16 module boundaries. Consumers import `vaked-lex` directly.
+
 test {
     _ = @import("span.zig");
     _ = @import("provenance.zig");
