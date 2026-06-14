@@ -689,8 +689,14 @@ async fn main() {
     };
 
     if let Some(provider) = tracer_provider {
+        // Short-lived process: force_flush drains the batch span processor before
+        // shutdown, so the run's trace reliably reaches Langfuse instead of being
+        // dropped on exit.
+        if let Err(e) = provider.force_flush() {
+            eprintln!("swe-af: telemetry force_flush failed: {e}");
+        }
         if let Err(e) = provider.shutdown() {
-            eprintln!("swe-af: telemetry flush failed: {e}");
+            eprintln!("swe-af: telemetry shutdown failed: {e}");
         }
     }
     std::process::exit(code);
