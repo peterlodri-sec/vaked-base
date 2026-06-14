@@ -156,13 +156,15 @@ parser accepts both with one grammar.
 
 ## 6. Roadmap (drives this RFC to production)
 
-- **Phase A — codify (this doc):** grammar §2, register monads §3, atom typing,
+- **Phase A — codify (this doc) ✅:** grammar §2, register monads §3, atom typing,
   operator→function lowering §2.1.
-- **Phase B — runtime:** a `nom`-based Rust parser/validator that reads V1 frames
-  into a typed `Frame`/`Stmt` AST, plus a guardrail engine enforcing §3 (freeze on
-  live `gate(*:fail)` before `R:commit`).
-- **Phase C — optimize:** the §5 compaction map + `ailishfmt` idempotent formatter;
-  measure tokens-per-frame long vs compact.
+- **Phase B — runtime ✅ (`tools/ailish/`):** a `nom`-based Rust parser/validator that
+  reads V1 frames into a typed `Frame`/`Stmt` AST, plus a guardrail engine enforcing
+  §3 (freeze on live `gate(*:fail)` before `R:commit`; `R:commit` requires an upstream
+  `gate(ci:pass)`).
+- **Phase C — optimize ✅ (`tools/ailish/src/fmt.rs`):** the §5 compaction map +
+  `ailishfmt` idempotent formatter; `token_estimate` measures tokens-per-frame long vs
+  compact.
 
 The companion workflow `.claude/workflows/ailish-v1-drive.js` orchestrates A→B→C.
 
