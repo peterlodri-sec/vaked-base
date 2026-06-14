@@ -1315,6 +1315,58 @@ def test_clear_step_resets_flag() -> None:
         assert d["paused"] is True and d["interval"] == 5
 
 
+def test_run_step_one_shot_fires_once() -> None:
+    """End-to-end regression for the step one-shot bug (#59): with control
+    `paused:true, step:true`, the run loop must decide EXACTLY ONCE and then
+    stay paused — not fire a decide on every tick. Proven by running several
+    ticks and asserting only one decide happened and control.json was rewritten
+    with `step:false`. Without the `_clear_step` write-back, all ticks decide."""
+    import importlib
+    import unittest.mock as mock
+    ralph = importlib.import_module("ralph")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tracks_path = os.path.join(tmpdir, "tracks.json")
+        with open(tracks_path, "w", encoding="utf-8") as f:
+            json.dump({"tracks": [
+                {"name": "t1", "topic": "T1", "model": "vendor/m", "label": "l1"},
+                {"name": "t2", "topic": "T2", "model": "vendor/m", "label": "l2"},
+            ]}, f)
+        control_path = os.path.join(tmpdir, "control.json")
+        with open(control_path, "w", encoding="utf-8") as f:
+            json.dump({"paused": True, "step": True, "interval": 0}, f)
+
+        ralph._apply_state_dir(tmpdir)
+        decide_calls: list[str] = []
+
+        def fake_decide(args, track, status):
+            decide_calls.append(track.name)
+
+        args = types.SimpleNamespace(
+            tracks=tracks_path, budget_total=100.0, interval=0,
+            max_ticks=3, max_iters=0, repo_mode=False, state_dir=tmpdir,
+            git_log_window=5, seed=0)
+        try:
+            with mock.patch.object(ralph, "_supervised_decide_track",
+                                   side_effect=fake_decide), \
+                 mock.patch.object(ralph, "time") as fake_time:
+                fake_time.time.return_value = 0
+                fake_time.sleep.return_value = None
+                rc = ralph._run_tracks(args)
+            with open(control_path, encoding="utf-8") as f:
+                ctl = json.load(f)
+        finally:
+            ralph._apply_state_dir(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "state"))
+
+        assert rc == 0
+        # one-shot: exactly one decide across all ticks (not one per tick)
+        assert len(decide_calls) == 1, decide_calls
+        # the consumed step flag was written back as false
+        assert ctl["step"] is False, ctl
+        assert ctl["paused"] is True, ctl
+
+
 def test_langfuse_disabled_without_config() -> None:
     """The loop's Langfuse layer is a no-op unless LANGFUSE_PUBLIC_KEY is set —
     the zero-dep / zero-config invariant. _flush_langfuse must never raise."""
