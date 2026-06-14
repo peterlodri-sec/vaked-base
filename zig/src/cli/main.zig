@@ -2,6 +2,7 @@ const std = @import("std");
 const core = @import("vaked-core");
 const lex = @import("vaked-lex");
 const parse = @import("vaked-parse");
+const check = @import("vaked-check");
 const lexer = lex.lexer;
 const json_canon = core.json_canon;
 const Io = std.Io;
@@ -38,9 +39,121 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(try cmdParse(io, alloc, argv[2..]));
     }
 
-    // Other subcommands (check/lower) land in later phases.
+    if (std.mem.eql(u8, cmd, "check")) {
+        std.process.exit(try cmdCheck(io, alloc, argv[0], argv[2..]));
+    }
+
+    // Other subcommands (lower) land in later phases.
     try writeStderr(io, "vakedc: not yet implemented\n");
     std.process.exit(2);
+}
+
+/// `vakedc check <file> [--json] [--builtins PATH]`.
+///
+/// Mirrors `vakedc/__main__.py:_cmd_check` branch-for-branch. Exit codes:
+///   * 0  — no diagnostics
+///   * 1  — diagnostics present
+///   * 2  — usage / read / builtins / lex / parse error
+/// With `--json` the canonical diagnostics doc goes to stdout (the oracle gate).
+/// The non-`--json` human path writes only to stderr (stdout stays empty).
+fn cmdCheck(io: Io, alloc: std.mem.Allocator, prog: []const u8, args: []const [:0]const u8) !u8 {
+    var file: ?[]const u8 = null;
+    var json: bool = false;
+    var builtins_override: ?[]const u8 = null;
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const a = args[i];
+        if (std.mem.eql(u8, a, "--json")) {
+            json = true;
+        } else if (std.mem.eql(u8, a, "--builtins")) {
+            if (i + 1 >= args.len) {
+                try writeStderr(io, "usage: vakedc check <file> [--json] [--builtins PATH]\n");
+                return 2;
+            }
+            i += 1;
+            builtins_override = args[i];
+        } else if (a.len >= 1 and a[0] == '-') {
+            try writeStderrFmt(io, alloc, "vakedc: unknown option {s}\n", .{a});
+            return 2;
+        } else if (file == null) {
+            file = a;
+        } else {
+            try writeStderr(io, "usage: vakedc check <file> [--json] [--builtins PATH]\n");
+            return 2;
+        }
+    }
+    const path = file orelse {
+        try writeStderr(io, "usage: vakedc check <file> [--json] [--builtins PATH]\n");
+        return 2;
+    };
+
+    // 1) read the source under check. On read error: stderr message, exit 2
+    //    (Python: `except OSError: return 2`).
+    const src = Dir.cwd().readFileAlloc(io, path, alloc, .unlimited) catch {
+        try writeStderrFmt(io, alloc, "vakedc: cannot read {s}\n", .{path});
+        return 2;
+    };
+
+    // 2) resolve + read the builtins catalog. Read error: stderr, exit 2
+    //    (Python: `except OSError: return 2`).
+    const b_path = builtins_override orelse defaultBuiltinsPath(io, alloc, prog);
+    const b_src = Dir.cwd().readFileAlloc(io, b_path, alloc, .unlimited) catch {
+        try writeStderrFmt(io, alloc, "vakedc: cannot read builtins {s}\n", .{b_path});
+        return 2;
+    };
+
+    // 3) parse the builtins catalog. Parse failure: exit 2 (Python:
+    //    `except (VakedLexError, VakedSyntaxError): return 2`).
+    const builtins = check.loadBuiltins(alloc, b_src, b_path) catch |e| switch (e) {
+        error.OutOfMemory => return e,
+        error.ParseFailed => {
+            try writeStderr(io, "vakedc: builtins catalog failed to parse\n");
+            return 2;
+        },
+    };
+
+    // 4) check. A lex/parse error on the file under check: exit 2 (Python:
+    //    `except (VakedLexError, VakedSyntaxError): return 2`).
+    const diags = check.checkSource(alloc, src, path, builtins) catch |e| switch (e) {
+        error.OutOfMemory => return e,
+        error.ParseFailed => {
+            try writeStderrFmt(io, alloc, "vakedc: {s}: parse error\n", .{path});
+            return 2;
+        },
+    };
+
+    if (json) {
+        const out = try core.diagnosticsDocToCanonical(alloc, diags);
+        try File.stdout().writeStreamingAll(io, out);
+    } else {
+        // Human path: stderr only (stdout stays empty so it never pollutes the
+        // gated channel). Minimal per the task brief.
+        if (diags.len == 0) {
+            try writeStderrFmt(io, alloc, "vakedc: {s} — no diagnostics\n", .{path});
+        } else {
+            try writeStderrFmt(io, alloc, "vakedc: {d} diagnostic(s) in {s}\n", .{ diags.len, path });
+        }
+    }
+
+    return if (diags.len != 0) 1 else 0;
+}
+
+/// `default_builtins_path` — resolve the catalog. Prefer exe-relative
+/// (`<exe_dir>/../../../vaked/schema/builtins.vaked`, mirroring the layout
+/// `zig/zig-out/bin/vakedc` → repo root), falling back to CWD-relative
+/// `vaked/schema/builtins.vaked` (the oracle runs from repo root, so this
+/// fallback is what matches Python's package-relative resolution byte-for-byte).
+fn defaultBuiltinsPath(io: Io, alloc: std.mem.Allocator, prog: []const u8) []const u8 {
+    const cwd_rel = "vaked/schema/builtins.vaked";
+    // Try exe-relative first: <dir(prog)>/../../../vaked/schema/builtins.vaked.
+    if (std.fs.path.dirname(prog)) |bin_dir| {
+        const cand = std.fs.path.join(alloc, &.{ bin_dir, "..", "..", "..", "vaked", "schema", "builtins.vaked" }) catch return cwd_rel;
+        // existence check via a stat-like open; if it reads, use it.
+        if (Dir.cwd().readFileAlloc(io, cand, alloc, .unlimited)) |_| {
+            return cand;
+        } else |_| {}
+    }
+    return cwd_rel;
 }
 
 /// `vakedc parse <file> [--json PATH] [--sqlite PATH] [--print]`.

@@ -19,6 +19,10 @@ pub const graphToCanonical = json_canon.graphToCanonical;
 pub const valueDocToPretty = json_canon.valueDocToPretty;
 pub const stablePropsKey = json_canon.stablePropsKey;
 
+pub const diagnostic = @import("diagnostic.zig");
+pub const Diagnostic = diagnostic.Diagnostic;
+pub const diagnosticsDocToCanonical = diagnostic.diagnosticsDocToCanonical;
+
 // The lexer (Phase 1) lives in the separate `vaked-lex` module (see build.zig)
 // to respect Zig 0.16 module boundaries. Consumers import `vaked-lex` directly.
 
@@ -28,4 +32,5 @@ test {
     _ = @import("value.zig");
     _ = @import("graph.zig");
     _ = @import("json_canon.zig");
+    _ = @import("diagnostic.zig");
 }
