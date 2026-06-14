@@ -17,7 +17,7 @@
 - `SWE_AF_STREAM` (default `SWE_AF_TASKS`), `SWE_AF_SUBJECT` (default `swe.af.tasks`), `SWE_AF_CONSUMER` (default `swe-af-workers`), `SWE_AF_STATUS_PREFIX` (default `swe.af.status`).
 - `SWE_AF_POOL` (default `6`), `SWE_AF_SCRATCH` (default `/var/lib/swe-af/scratch`), `SWE_AF_MIN_FREE_GB` (default `10`), `SWE_AF_SCRATCH_CAP_GB` (default `20`).
 - `SWE_AF_BIN` (default `/usr/local/bin/vaked-swe-af`), `SWE_AF_BWRAP` (`1` to wrap, default `0` in v1).
-- `OPENROUTER_BASE_URL` (Aperture: `https://nixai-base.tail2870dc.ts.net/aperture/v1`), `SWE_AF_API_KEY` (placeholder `tailscale-identity`).
+- `OPENROUTER_BASE_URL` (Aperture: `https://nixai-base.tail2870dc.ts.net/v1`), `SWE_AF_API_KEY` (placeholder `tailscale-identity`).
 - `GH_TOKEN` (read scope, passed to `vaked-swe-af` for `gh issue view`), `SWE_AF_GH_WRITE_TOKEN` (write scope, used only for the broker step).
 - `SWE_AF_PLAN_MODEL` (default `deepseek/deepseek-v4-flash`), `SWE_AF_CODE_MODEL` (default `openai/gpt-5.3-codex`).
 - `EVENTD_LOG` (default `<scratch>/<task_id>/eventd/log.jsonl` per task).
@@ -510,7 +510,7 @@ impl Config {
             scratch_cap_bytes: gb(m, "SWE_AF_SCRATCH_CAP_GB", 20),
             swe_af_bin: or(m, "SWE_AF_BIN", "/usr/local/bin/vaked-swe-af"),
             bwrap: get(m, "SWE_AF_BWRAP") == Some("1"),
-            base_url: or(m, "OPENROUTER_BASE_URL", "https://nixai-base.tail2870dc.ts.net/aperture/v1"),
+            base_url: or(m, "OPENROUTER_BASE_URL", "https://nixai-base.tail2870dc.ts.net/v1"),
             api_key: or(m, "SWE_AF_API_KEY", "tailscale-identity"),
             gh_read_token: get(m, "GH_TOKEN").map(String::from),
             gh_write_token: get(m, "SWE_AF_GH_WRITE_TOKEN").map(String::from),
@@ -1103,7 +1103,7 @@ SWE_AF_SCRATCH=/var/lib/swe-af/scratch
 SWE_AF_MIN_FREE_GB=10
 SWE_AF_SCRATCH_CAP_GB=20
 SWE_AF_BIN=/usr/local/bin/vaked-swe-af
-OPENROUTER_BASE_URL=https://nixai-base.tail2870dc.ts.net/aperture/v1
+OPENROUTER_BASE_URL=https://nixai-base.tail2870dc.ts.net/v1
 SWE_AF_API_KEY=tailscale-identity
 SWE_AF_PLAN_MODEL=deepseek/deepseek-v4-flash
 SWE_AF_CODE_MODEL=openai/gpt-5.3-codex

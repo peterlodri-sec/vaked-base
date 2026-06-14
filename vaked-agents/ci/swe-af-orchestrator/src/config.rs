@@ -60,7 +60,7 @@ impl Config {
             base_url: or(
                 m,
                 "OPENROUTER_BASE_URL",
-                "https://nixai-base.tail2870dc.ts.net/aperture/v1",
+                "https://nixai-base.tail2870dc.ts.net/v1",
             ),
             api_key: or(m, "SWE_AF_API_KEY", "tailscale-identity"),
             gh_read_token: get(m, "GH_TOKEN").map(String::from),

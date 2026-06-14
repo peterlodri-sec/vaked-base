@@ -102,7 +102,7 @@ services hub, so execution moves **off** cx53 onto dedicated worker hosts.
    logic, invoked per task by the orchestrator inside a **sandboxd/bwrap cgroup
    cell** (`memory.max`, `pids.max`, `cpu.max`, disk-quota scratch). Model calls
    -> Aperture (env below).
-4. **Aperture wiring** (env on workers): `OPENROUTER_BASE_URL=https://nixai-base.tail2870dc.ts.net/aperture/v1`,
+4. **Aperture wiring** (env on workers): `OPENROUTER_BASE_URL=https://nixai-base.tail2870dc.ts.net/v1`,
    `SWE_AF_API_KEY=tailscale-identity` (placeholder to satisfy the presence check;
    Aperture authenticates by tailnet identity and injects the real key). Models
    are OpenRouter-style FQNs, already valid in Aperture's config.
