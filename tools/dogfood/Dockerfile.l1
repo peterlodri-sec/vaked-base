@@ -1,0 +1,25 @@
+# L1 advisory-evidence dev environment (Linux) for the dogfood kernel.
+#
+# LD_PRELOAD / Frida are Linux+glibc; the M1 host cannot run them. This image is
+# the local Linux substrate (run via colima on macOS — see
+# docs/dogfood/l1-frida-evidence.md). It carries: python3 (kernel + observer),
+# git (change detection), clang (LD_PRELOAD .so shims), and Frida (dynamic
+# instrumentation). It is a DEV/EVIDENCE env, not an enforcement boundary.
+#
+# Build (inside colima):   docker build -f tools/dogfood/Dockerfile.l1 -t vaked-dogfood-l1 .
+# Run (repo mounted):      docker run --rm -it -v "$PWD":/repo -w /repo vaked-dogfood-l1
+#   Frida needs to ptrace the child it spawns, so add:  --cap-add=SYS_PTRACE
+#
+# Keep it small to respect the host RAM budget — a slim base, no extra layers.
+FROM python:3.12-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git clang \
+ && rm -rf /var/lib/apt/lists/*
+
+# Frida userspace + CLI tools (frida-tools pulls frida core). Pinned major line.
+RUN pip install --no-cache-dir "frida-tools>=13" "frida>=16"
+
+WORKDIR /repo
+# repo is bind-mounted at run time; nothing is COPYed so the image stays generic.
+CMD ["bash"]

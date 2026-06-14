@@ -1,0 +1,69 @@
+{
+  "_comment": "LOCAL dogfood override of tracks.json: every track pinned to a self-hosted Ollama model so the decide loop runs locally at zero cloud cost. Model MUST support 'thinking' (ralph stage-1 sends reasoning={enabled,effort}); qwen3:8b does, qwen2.5-coder does not. Keep Ollama under ~8GB RAM: serve with OLLAMA_CONTEXT_LENGTH=8192 OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=60s OLLAMA_FLASH_ATTENTION=1 (prompts reach ~21k tokens and are truncated to the 8192 window — acceptable for local plumbing; do NOT raise ctx to 16k, it nearly froze the host). Use with: RALPH_BASE_URL=http://localhost:11434/v1/chat/completions RALPH_API_KEY=ollama python3 tools/ralph/ralph.py decide --tracks tools/ralph/tracks.local.json --track base-language-spec. Do not commit secrets; this file holds none.",
+  "tracks": [
+    {
+      "name": "base-language-spec",
+      "topic": "the Vaked base language specification (grammar, schema, examples, core design)",
+      "model": "qwen3:8b",
+      "label": "track:language",
+      "issue_labels": ["language"],
+      "context": {
+        "docs": [
+          "vaked/grammar/**",
+          "vaked/schema/**",
+          "vaked/examples/**",
+          "docs/language/0001-*.md",
+          "docs/language/0003-*.md",
+          "docs/language/0008-*.md",
+          "docs/language/0011-*.md",
+          "docs/language/0012-*.md"
+        ],
+        "paths": ["vaked/", "vakedc/"]
+      }
+    },
+    {
+      "name": "graph-concept",
+      "topic": "Vaked's typed semantic graph — the Labeled Property Graph, type system, and lowering to artifacts",
+      "model": "qwen3:8b",
+      "label": "track:graph",
+      "issue_labels": ["language", "bug"],
+      "context": {
+        "docs": [
+          "docs/language/0011-*.md",
+          "docs/language/0012-*.md",
+          "docs/language/0013-*.md",
+          "docs/language/0014-*.md"
+        ],
+        "paths": ["vakedc/"]
+      }
+    },
+    {
+      "name": "mlir-topology",
+      "topic": "the MLIR topology-compilation dialects (0013) and the memory primitive (0014)",
+      "model": "qwen3:8b",
+      "label": "track:mlir",
+      "issue_labels": ["design"],
+      "context": {
+        "docs": [
+          "docs/language/0013-*.md",
+          "docs/language/0014-*.md"
+        ],
+        "paths": []
+      }
+    },
+    {
+      "name": "hcp-litany",
+      "topic": "the HCP / Litany wire protocol — Litany Wire, Votive Frames, .hcplang, hcpbin (RFCs)",
+      "model": "qwen3:8b",
+      "label": "track:protocol",
+      "issue_labels": ["design"],
+      "context": {
+        "docs": [
+          "protocol/**",
+          "docs/protocol/**"
+        ],
+        "paths": ["protocol/"]
+      }
+    }
+  ]
+}
