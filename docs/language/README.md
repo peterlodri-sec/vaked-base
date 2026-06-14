@@ -77,6 +77,23 @@ targets; provenance is preserved per-artifact (generated header) and in
 for `operator-field.vaked` are in
 [`vaked/examples/lowering/`](../../vaked/examples/lowering/).
 
+## Design series
+
+Numbered design notes in this directory. Each note is either a seed draft
+(concept + output-first sketch) or a full spec; check its `§1 Status`.
+
+| Note | Title | Role |
+|------|-------|------|
+| [0001](./0001-language-manifesto.md) | Language Manifesto | Founding design goals and constraints |
+| [0003](./0003-reference-map.md) | Reference Map | Cross-reference of constructs to outputs |
+| [0008](./0008-parallel-fibers-indexes-surfaces.md) | Parallel Fibers, Indexes, and Native Surfaces | Introduces the 9 core primitive kinds |
+| [0009](./0009-kickoff-context-for-dedicated-session.md) | Kickoff Context | Session-start reference snapshot |
+| [0010](./0010-mirageos-unikernel-surface.md) | MirageOS Unikernel Surface | Unikernel target for `surface` declarations |
+| [0011](./0011-type-system.md) | Type System (Goal 2) | Structural typing, schemas, capability taxonomy |
+| [0012](./0012-lowering.md) | Lowering (Goal 3) | Graph → artifacts: emitters, Nix spine, provenance |
+| [0013](./0013-traversable-execution.md) | Traversable Execution Tree | `lifecycle` block for `parallel`/`fiber`: pause/resume/stop/rewind |
+| [0014](./0014-typed-capability-graph.md) | Typed Capability Graph | Zero-proof containment; typed `domain.grant` refs |
+
 ## Golden commands
 
 ```bash
