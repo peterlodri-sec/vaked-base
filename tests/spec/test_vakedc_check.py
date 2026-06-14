@@ -284,6 +284,31 @@ def _test_exec_bad_transition(lines):
     return True
 
 
+def _test_exec_cycle(lines):
+    cache = _builtins_cache()
+    src = ('fiber a { input = s.y output = s.x }\n'
+           'fiber b { input = s.x output = s.y }\n'
+           'parallel "p" { fibers = [a, b] }\n')
+    codes = [d.code for d in vakedc.check_source(src, "x.vaked", builtins_cache=cache)]
+    if "E-EXEC-CYCLE" not in codes:
+        lines.append(f"  FAIL: expected E-EXEC-CYCLE, got {codes}")
+        return False
+    lines.append("  E-EXEC-CYCLE: raised for a↔b dependency cycle")
+    return True
+
+
+def _test_exec_rewind_no_retention(lines):
+    cache = _builtins_cache()
+    src = ('fiber a { input = s.in output = s.out }\n'
+           'parallel "p" { fibers = [a]\n  lifecycle { on rewind { } } }\n')
+    codes = [d.code for d in vakedc.check_source(src, "x.vaked", builtins_cache=cache)]
+    if "E-EXEC-REWIND-NO-RETENTION" not in codes:
+        lines.append(f"  FAIL: expected E-EXEC-REWIND-NO-RETENTION, got {codes}")
+        return False
+    lines.append("  E-EXEC-REWIND-NO-RETENTION: raised when on rewind lacks retention")
+    return True
+
+
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
@@ -293,7 +318,8 @@ def run():
     ok = True
     for fn in (_test_builtins, _test_coverage, _test_conformant, _test_rejected,
                _test_all_examples, _test_determinism,
-               _test_exec_lifecycle_context, _test_exec_bad_transition):
+               _test_exec_lifecycle_context, _test_exec_bad_transition,
+               _test_exec_cycle, _test_exec_rewind_no_retention):
         try:
             ok = fn(lines) and ok
         except Exception as e:

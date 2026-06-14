@@ -1132,6 +1132,9 @@ def _check_execution(items, smap, filename, diags):
         declaration kind.
     E-EXEC-BAD-TRANSITION — duplicate ``on <event>`` clause within a lifecycle
         block.
+    E-EXEC-CYCLE — dependency cycle among fibers in a ``parallel`` group.
+    E-EXEC-REWIND-NO-RETENTION — ``on rewind`` handler present but no rewindable
+        checkpoint exists (no input stream with ``retention``).
     """
     def walk(decl):
         for st in decl.body:
@@ -1153,6 +1156,26 @@ def _check_execution(items, smap, filename, diags):
     for it in items:
         if isinstance(it, P.Decl):
             walk(it)
+
+    # E-EXEC-CYCLE + E-EXEC-REWIND-NO-RETENTION: check each parallel group.
+    from .schedule import fiber_ios, member_names, compute_schedule
+    decl_by_name = {d.name: d for d in items if isinstance(d, P.Decl)}
+    for it in items:
+        if isinstance(it, P.Decl) and it.kind == "parallel":
+            members = [decl_by_name[n] for n in member_names(it) if n in decl_by_name]
+            sched = compute_schedule(fiber_ios(members))
+            if sched.cycle is not None:
+                _emit(diags, "E-EXEC-CYCLE", filename, _decl_span(it), it,
+                      f"dependency cycle among fibers: {' -> '.join(sched.cycle)}")
+                continue
+            has_rewind = any(
+                isinstance(st, P.LifecycleDecl)
+                and any(cl.event == "rewind" for cl in st.clauses)
+                for st in it.body)
+            if has_rewind and not any(sched.rewindable.get(lv) for lv in sched.checkpoints):
+                _emit(diags, "E-EXEC-REWIND-NO-RETENTION", filename, _decl_span(it), it,
+                      "`on rewind` requires an input stream with `retention`; "
+                      "no rewindable checkpoint exists")
 
 
 def check_source(src, filename, builtins_path=None, builtins_cache=None):
