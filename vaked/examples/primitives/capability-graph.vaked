@@ -1,0 +1,37 @@
+# capability-graph.vaked — typed capability graph (0014)
+# Demonstrates: capability domains, typed refs in mesh nodes and fiber policy.
+
+capability fs {
+  grant repo_ro repo_rw
+  order repo_ro < repo_rw
+}
+
+capability net {
+  grant none outbound_dns outbound_full
+  order none < outbound_dns < outbound_full
+}
+
+mesh agentfield {
+  node codex {
+    role = "worker"
+    capabilities = [fs.repo_rw, net.outbound_dns]
+  }
+
+  node redteam {
+    role = "reviewer"
+    capabilities = [fs.repo_ro, net.none]
+  }
+
+  route codex -> redteam
+}
+
+fiber mediaCompress {
+  engine = zigimg
+  input = stream.screenrec
+  output = artifacts.compressedMedia
+
+  policy {
+    capabilities = [fs.repo_rw]
+    strip_metadata = true
+  }
+}
