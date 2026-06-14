@@ -138,10 +138,6 @@ check_examples_catalog() {
 check_link_health() {
   log "Checking link health..."
 
-  # Skip expensive link check (too slow even with timeout)
-  log "  ⊗ Link check disabled (performance optimization)"
-  return
-
   local links_file="$CACHE_DIR/links.json"
   local prev_hash=$(load_manifest | jq -r '.links_hash // "missing"' 2>/dev/null || echo "missing")
 
@@ -153,37 +149,42 @@ check_link_health() {
     return
   fi
 
-  log "  Scanning for markdown links..."
+  log "  Scanning for markdown links (sampling 20)..."
 
   local broken_links=()
   local checked=0
+  local sample_limit=20
 
-  # Extract all links from README and docs (format: [text](link) or [text]: link)
-  # Use timeout to prevent hanging on large directories
-  while IFS= read -r line; do
-    if [[ $line =~ \]\(([^\)]+)\) ]]; then
-      local url="${BASH_REMATCH[1]}"
-      # Skip URLs to external sites
-      if [[ "$url" == http* ]]; then
-        continue
-      fi
+  # Extract .md links from README and docs with timeout
+  local link_list=$(timeout 3 grep -rho '\[.*\]([^)]*)' "$REPO_ROOT/README.md" "$REPO_ROOT/docs" 2>/dev/null | grep '\.md' | sed 's/.*(\(.*\))/\1/' | head -20 || echo "")
 
-      # Extract file path and anchor
-      local file_path="${url%%#*}"
-      local anchor="${url##*#}"
-
-      if [ -n "$file_path" ]; then
-        local full_path="$REPO_ROOT/$file_path"
-        # Only check a sample to avoid timeout
-        if [ "$checked" -lt 50 ]; then
-          if [ ! -f "$full_path" ]; then
-            broken_links+=("$url (missing file)")
-          fi
-        fi
-      fi
-      ((checked++))
+  while IFS= read -r link; do
+    if [ -z "$link" ]; then
+      continue
     fi
-  done < <(timeout 5 grep -rh '\[.*\](.*\.md' "$REPO_ROOT/README.md" "$REPO_ROOT/docs" 2>/dev/null || echo "")
+
+    # Extract file path from link (before # if anchor exists)
+    local file_path="${link%%#*}"
+
+    # Skip empty paths and external URLs
+    if [ -z "$file_path" ] || [[ "$file_path" == http* ]]; then
+      continue
+    fi
+
+    local full_path="$REPO_ROOT/$file_path"
+
+    # Check if file exists
+    if [ ! -f "$full_path" ]; then
+      broken_links+=("$link")
+    fi
+
+    ((checked++))
+
+    # Stop after sampling limit
+    if [ "$checked" -ge "$sample_limit" ]; then
+      break
+    fi
+  done < <(echo "$link_list")
 
   local links_json="{\"checked\": $checked, \"broken\": ${#broken_links[@]}, \"broken_links\": ["
   for link in "${broken_links[@]}"; do
@@ -195,7 +196,7 @@ check_link_health() {
     echo "$links_json" > "$links_file"
   fi
 
-  log "  ✓ Checked $checked links"
+  log "  ✓ Checked $checked links (sampled)"
 
   if [ ${#broken_links[@]} -gt 0 ]; then
     log "  ✗ ALERT: ${#broken_links[@]} broken links"
@@ -303,6 +304,7 @@ check_doc_coherence() {
   local coherence_file="$CACHE_DIR/coherence.json"
   local orphaned_docs=()
   local dangling_refs=()
+  local all_docs=$(find "$REPO_ROOT/docs" -name "*.md" -type f 2>/dev/null | wc -l)
 
   # Check for docs not referenced in any index or README
   while IFS= read -r doc; do
