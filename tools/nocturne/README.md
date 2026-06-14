@@ -15,8 +15,8 @@ sibling to `ralph` and `optitron`. Design:
 ```
 tools/nocturne/
   nocturne.py     orchestrator (runs on GHA/dev, NO GPU): provision→drive→harvest→teardown→gate→escalate
-  provision.sh    vastai rent/ssh/destroy under a $/hr cap + the watch-and-destroy watchdog
-  onstart.sh      box bootstrap: install uv, `uv sync`, one-time `uv run prepare.py`
+  provision.sh    vastai rent/ssh/destroy under a $/hr cap + the watch-and-destroy watchdog (registers the runner SSH key before create)
+  onstart.sh      box bootstrap: C toolchain (build-essential) + libcuda.so/CUDA stubs for torch.compile, then install uv, `uv sync`, one-time `uv run prepare.py`
   driver.py       runs ON the box: the OpenRouter mutation→train→score→keep/discard loop → results.jsonl
   gate.py         PURE verdict over harvested results.jsonl (never trains)
   ledger.py       single-writer SHA256 hash-chained event log (ralph-compatible)
@@ -48,8 +48,8 @@ python3 tools/nocturne/nocturne.py run                    # provision → drive 
 | `OPENROUTER_API_KEY` | — | forwarded to the box as **`LLM_API_KEY`** (the port's var name) |
 | `LLM_MODEL` | `deepseek/deepseek-chat` | mutation model (OpenRouter) |
 | `GPU_NAME` / `MAX_DPH` | `H100_SXM` / `3.0` | GPU tier + `$/hr` bid cap |
-| `MAX_MINUTES` | `150` | hard self-destruct deadline (the cost lynchpin) |
-| `NOCTURNE_WALL_SECS` / `NOCTURNE_MAX_TRIALS` | `6600` / `60` | on-box search budget |
+| `MAX_MINUTES` | `180` | hard self-destruct deadline (the cost lynchpin); must stay above bootstrap + `NOCTURNE_WALL_SECS` + harvest |
+| `NOCTURNE_WALL_SECS` / `NOCTURNE_MAX_TRIALS` | `9000` / `60` | on-box search budget |
 | `NOCTURNE_CONFIRM_SEEDS` | `2` | independent re-run seeds the gate requires |
 | `NOCTURNE_DRY_ACT=1` | — | whole pipeline, **no GPU / no money / drafts not sent** |
 
@@ -58,7 +58,7 @@ python3 tools/nocturne/nocturne.py run                    # provision → drive 
 A real night ≈ **$6–18** on an H100 (the dominant risk — 1–2 orders above the API-only siblings).
 Hard controls: `$/hr` bid cap (abort if nothing under it) · `watch-and-destroy` self-destruct ·
 `NOCTURNE_MAX_TRIALS` / `NOCTURNE_WALL_SECS` · per-trial OpenRouter cost is tiny (one structured
-call/trial). The first validation is a ~2h karpathy-matched H100 run after a sub-$1 smoke.
+call/trial). The first validation is a ~2.5h karpathy-matched H100 run after a sub-$1 smoke.
 
 ## Secret forwarding
 

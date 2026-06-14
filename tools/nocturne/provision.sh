@@ -16,7 +16,7 @@
 #
 # Env (with defaults sized for the karpathy-matched H100 validation):
 #   VAST_API_KEY (required for real ops)   GPU_NAME=H100_SXM   MAX_DPH=3.0   NUM_GPUS=1
-#   DISK_GB=64   IMAGE=pytorch/pytorch:2.9.1-cuda12.8-cudnn9-runtime   MAX_MINUTES=150
+#   DISK_GB=64   IMAGE=pytorch/pytorch:2.9.1-cuda12.8-cudnn9-devel   MAX_MINUTES=180
 #   MIN_CUDA=12.8   MIN_RELIABILITY=0.95   STATE_DIR=tools/nocturne/state
 set -euo pipefail
 
@@ -25,7 +25,7 @@ MAX_DPH="${MAX_DPH:-3.0}"
 NUM_GPUS="${NUM_GPUS:-1}"
 DISK_GB="${DISK_GB:-64}"
 IMAGE="${IMAGE:-pytorch/pytorch:2.9.1-cuda12.8-cudnn9-devel}"  # devel: cuda dev libs + nvcc that torch.compile needs (proven on H100 smoke)
-MAX_MINUTES="${MAX_MINUTES:-150}"
+MAX_MINUTES="${MAX_MINUTES:-180}"  # cap MUST exceed bootstrap + NOCTURNE_WALL_SECS(9000s/150min) + harvest; the watchdog clock starts at instance-running (before bootstrap), so 180 leaves ~30min slack
 MIN_CUDA="${MIN_CUDA:-12.8}"
 MIN_RELIABILITY="${MIN_RELIABILITY:-0.95}"
 STATE_DIR="${STATE_DIR:-$(cd "$(dirname "$0")/state" && pwd)}"
