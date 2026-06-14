@@ -49,7 +49,7 @@ mod guardrails;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-const DEFAULT_MODEL: &str = "deepseek/deepseek-v4-flash";
+const DEFAULT_MODEL: &str = "openai/gpt-oss-120b";
 const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const DEFAULT_MAX_ITERS: u32 = 6;
 const COMPACTION_BUDGET_TOKENS: usize = 80_000;
@@ -235,7 +235,7 @@ fn build_runner(cfg: &Config, api_key: &str) -> Result<TaggerRunner> {
         .with_prompt_cache_key(CACHE_KEY)
         .with_provider_preferences(OpenRouterProviderPreferences {
             allow_fallbacks: Some(false),
-            order: Some(vec!["DeepSeek".to_string()]),
+            order: Some(vec!["OpenAI".to_string()]),
             ..Default::default()
         })
         .insert_into_config(&mut gen_cfg)
