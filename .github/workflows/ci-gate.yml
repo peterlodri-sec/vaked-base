@@ -238,10 +238,27 @@ jobs:
             ${{ job.status == 'success' && '✅' || '❌' }} nix-check: ${{ job.status }} on ${{ github.event.pull_request.number && format('PR #{0}', github.event.pull_request.number) || github.ref_name }}
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-  # ─── 8. Gate aggregator (the only REQUIRED check) ─────────────────────────
+  # ─── 8. Agent-structure guard (revert protection — part of the required gate) ─
+  # Fails a PR that silently reverts a landed agent refactor (re-monolithizing a
+  # crate's main.rs, re-inlining setup_tracing over the shared vaked_telemetry
+  # crate, or deleting module files). Runs from inside the required gate so the
+  # block is enforced, not advisory. No-ops cheaply for PRs that don't touch agents.
+  agent-guard:
+    name: agent-guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Full history so the PR base commit is available to diff against.
+          fetch-depth: 0
+      - name: Guard against agent-refactor reverts
+        run: bash tools/ci/agent-structure-guard.sh "${{ github.event.pull_request.base.sha }}"
+
+  # ─── 9. Gate aggregator (the only REQUIRED check) ─────────────────────────
   ci-gate:
     name: ci-gate
-    needs: [classify, smoke, standard, full, nix-parse, nix-check]
+    needs: [classify, smoke, standard, full, nix-parse, nix-check, agent-guard]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -255,14 +272,16 @@ jobs:
           FULL:         ${{ needs.full.result }}
           NIX_PARSE:    ${{ needs.nix-parse.result }}
           NIX_CHECK:    ${{ needs.nix-check.result }}
+          AGENT_GUARD:  ${{ needs.agent-guard.result }}
         run: |
-          echo "tier:       $TIER"
-          echo "ping_owner: $PING_OWNER"
-          echo "smoke:      $SMOKE"
-          echo "standard:   $STANDARD"
-          echo "full:       $FULL"
-          echo "nix-parse:  $NIX_PARSE"
-          echo "nix-check:  $NIX_CHECK"
+          echo "tier:        $TIER"
+          echo "ping_owner:  $PING_OWNER"
+          echo "smoke:       $SMOKE"
+          echo "standard:    $STANDARD"
+          echo "full:        $FULL"
+          echo "nix-parse:   $NIX_PARSE"
+          echo "nix-check:   $NIX_CHECK"
+          echo "agent-guard: $AGENT_GUARD"
 
           if [ "$PING_OWNER" = "true" ]; then
             echo "::warning::ping-owner label set — human review required before merge"
@@ -270,7 +289,7 @@ jobs:
           fi
 
           FAIL=0
-          for job_result in "$SMOKE" "$STANDARD" "$FULL" "$NIX_PARSE" "$NIX_CHECK"; do
+          for job_result in "$SMOKE" "$STANDARD" "$FULL" "$NIX_PARSE" "$NIX_CHECK" "$AGENT_GUARD"; do
             if [ "$job_result" = "failure" ]; then
               FAIL=1
             fi
@@ -290,3 +309,4 @@ jobs:
           echo "| full | $FULL |" >> "$GITHUB_STEP_SUMMARY"
           echo "| nix-parse | $NIX_PARSE |" >> "$GITHUB_STEP_SUMMARY"
           echo "| nix-check | $NIX_CHECK |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| agent-guard | $AGENT_GUARD |" >> "$GITHUB_STEP_SUMMARY"
