@@ -58,17 +58,19 @@ impl std::ops::AddAssign for Usage {
 }
 
 /// Build a reviewer (model + reasoning + caching + tools + loop bounds) and Runner.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_runner_with(
     cfg: &Config,
     api_key: &str,
+    model: &str,
     effort: &str,
     max_out: i32,
     structured: bool,
     crabcc: Option<Arc<dyn Toolset>>,
     instruction: String,
 ) -> Result<ReviewRunner> {
-    let model = build_or_model(cfg, api_key)?;
-    let gen_cfg = gen_config(&cfg.model, effort, max_out, structured)?;
+    let or_model = build_or_model(api_key, model, &cfg.base_url)?;
+    let gen_cfg = gen_config(model, effort, max_out, structured)?;
 
     // Bounded retries so a flaky tool call retries instead of failing the turn.
     let retry = || RetryBudget {
@@ -77,21 +79,28 @@ pub(crate) fn build_runner_with(
     };
     let mut builder = LlmAgentBuilder::new("vaked-ci-reviewer")
         .instruction(instruction)
-        .model(Arc::new(model))
+        .model(Arc::new(or_model))
         .generate_content_config(gen_cfg)
         .max_iterations(cfg.max_iters)
         .tool_timeout(Duration::from_secs(60))
         .tool_execution_strategy(ToolExecutionStrategy::Auto)
         .tool_retry_budget("crabcc", retry())
         .tool_retry_budget("read_lines", retry())
-        .tool(read_lines_tool())
         // Security guardrails (item 5). Input: redact secrets + defang injection
         // on the untrusted diff. Output: cap findings. All Transform/Pass — never
         // Fail — so a guardrail can never suppress this advisory reviewer.
         .input_guardrails(guardrails::input_guardrails())
         .output_guardrails(guardrails::output_guardrails(cfg.max_findings as usize));
-    if let Some(ts) = crabcc {
-        builder = builder.toolset(ts);
+    // No-tool single-pass is the default for the REVIEWER (PR_REVIEW_USE_TOOLS=1 to
+    // opt in), so non-tool-driving models review the diff directly instead of
+    // narrating tool intent. A caller that explicitly supplies a toolset — the
+    // interactive @vaked-ci responder — still gets tools: it has to look code up to
+    // answer questions, and conversational narration there is harmless.
+    if cfg.use_tools || crabcc.is_some() {
+        builder = builder.tool(read_lines_tool());
+        if let Some(ts) = crabcc {
+            builder = builder.toolset(ts);
+        }
     }
     let agent = builder.build().map_err(|e| anyhow!("agent build: {e}"))?;
 
@@ -130,9 +139,9 @@ pub(crate) fn build_runner_with(
 }
 
 /// The OpenRouter model client (shared shape for every reviewer agent).
-fn build_or_model(cfg: &Config, api_key: &str) -> Result<OpenRouterClient> {
-    let or_config = OpenRouterConfig::new(api_key.to_string(), cfg.model.clone())
-        .with_base_url(cfg.base_url.clone())
+fn build_or_model(api_key: &str, model: &str, base_url: &str) -> Result<OpenRouterClient> {
+    let or_config = OpenRouterConfig::new(api_key.to_string(), model.to_string())
+        .with_base_url(base_url.to_string())
         .with_http_referer("https://github.com/peterlodri-sec/vaked-base")
         .with_title("vaked-ci-reviewer")
         .with_default_api_mode(OpenRouterApiMode::ChatCompletions);
@@ -160,10 +169,12 @@ fn gen_config(
     }
     // Provider pinning for cache hits: OpenRouter's prefix cache is per-provider, so
     // letting it route the map-reduce per-file passes to different DeepSeek hosts cold-
-    // starts the cache each time. Pin the first-party DeepSeek provider first (keeping
-    // `allow_fallbacks` for resilience) so the byte-stable system-prompt prefix stays
-    // warm across passes. Only pin for deepseek/* models; override via
+    // starts the cache each time. Pin the first-party DeepSeek provider; for a
+    // deepseek/* model that is the canonical host (it serves the model, so this can't
+    // 404 the way a wrong third-party pin would — cf. the gpt-oss/"OpenAI" mispin that
+    // dead-ended label-tagger). Only pin for deepseek/* models; override via
     // PR_REVIEW_PROVIDER_ORDER (comma-separated provider slugs).
+    let custom_order = env_first(&["PR_REVIEW_PROVIDER_ORDER"]).is_some();
     let order = env_first(&["PR_REVIEW_PROVIDER_ORDER"])
         .map(|s| {
             s.split(',')
@@ -174,6 +185,13 @@ fn gen_config(
         .or_else(|| model.starts_with("deepseek/").then(|| vec!["DeepSeek".to_string()]))
         .filter(|v| !v.is_empty());
 
+    // Cache locality (target ≥75% prefix-cache hits): when pinned to first-party
+    // DeepSeek for a deepseek/* model, disable fallbacks so EVERY map-reduce per-file
+    // call lands on the same provider and the byte-stable system-prompt prefix stays
+    // warm. A custom order or a non-deepseek model keeps fallbacks ON — we can't
+    // assume the pinned provider actually serves the model.
+    let first_party_pin = order.is_some() && !custom_order && model.starts_with("deepseek/");
+
     let mut opts = OpenRouterRequestOptions::default()
         .with_reasoning(OpenRouterReasoningConfig {
             effort: Some(effort.to_string()),
@@ -182,7 +200,7 @@ fn gen_config(
         })
         .with_prompt_cache_key(CACHE_KEY)
         .with_provider_preferences(OpenRouterProviderPreferences {
-            allow_fallbacks: Some(true),
+            allow_fallbacks: Some(!first_party_pin),
             order,
             ..Default::default()
         });
@@ -218,6 +236,7 @@ fn gen_config(
 fn build_pipeline_agent(
     cfg: &Config,
     model: Arc<OpenRouterClient>,
+    model_id: &str,
     name: &str,
     effort: &str,
     max_out: i32,
@@ -228,7 +247,9 @@ fn build_pipeline_agent(
     output_guardrail: bool,
     isolate_history: bool,
 ) -> Result<LlmAgent> {
-    let gen_cfg = gen_config(&cfg.model, effort, max_out, structured)?;
+    // gen_config's provider-order pinning must reflect the model the agent was
+    // actually built with (per-file = cfg.model, synthesis = cfg.reasoner_model).
+    let gen_cfg = gen_config(model_id, effort, max_out, structured)?;
     let retry = || RetryBudget {
         max_retries: 2,
         delay: Duration::from_millis(250),
@@ -253,14 +274,16 @@ fn build_pipeline_agent(
         .tool_execution_strategy(ToolExecutionStrategy::Auto)
         .tool_retry_budget("crabcc", retry())
         .tool_retry_budget("read_lines", retry())
-        .tool(read_lines_tool())
         .output_key(output_key);
+    if cfg.use_tools {
+        builder = builder.tool(read_lines_tool());
+        if let Some(ts) = crabcc {
+            builder = builder.toolset(ts);
+        }
+    }
     if output_guardrail {
         builder =
             builder.output_guardrails(guardrails::output_guardrails(cfg.max_findings as usize));
-    }
-    if let Some(ts) = crabcc {
-        builder = builder.toolset(ts);
     }
     builder.build().map_err(|e| anyhow!("agent build: {e}"))
 }
@@ -342,7 +365,10 @@ pub(crate) async fn parallel_agent_review(
     let files = split_per_file(diff);
     let total = files.len();
     let budget = cfg.max_diff_chars / 4;
-    let model = Arc::new(build_or_model(cfg, api_key)?);
+    // Per-file passes use the cheap coder (cfg.model); the synthesis pass uses the
+    // reasoner (cfg.reasoner_model). Two clients, pinned to their own providers.
+    let model = Arc::new(build_or_model(api_key, &cfg.model, &cfg.base_url)?);
+    let reasoner = Arc::new(build_or_model(api_key, &cfg.reasoner_model, &cfg.base_url)?);
 
     // Untrusted text (per-file diff/path, PR title) goes into SESSION STATE and is
     // referenced from the instruction by a single `{placeholder}`. adk templates
@@ -363,11 +389,12 @@ pub(crate) async fn parallel_agent_review(
         initial_state.insert(format!("file_body_{i}"), Value::String(body));
         let instruction = format!(
             "{}\n\n## Your assignment\nReview ONLY this file's diff per your rules. Output findings bullets only — no verdict line, no JSON. If clean, output nothing.\n{{file_body_{i}}}",
-            system_prompt(cfg.max_findings, cfg.crabcc_budget, false)
+            system_prompt(cfg.max_findings, cfg.crabcc_budget, false, cfg.use_tools)
         );
         let agent = build_pipeline_agent(
             cfg,
             model.clone(),
+            &cfg.model,
             &format!("file-reviewer-{i}"),
             PERFILE_REASONING_EFFORT,
             1024,
@@ -412,12 +439,13 @@ pub(crate) async fn parallel_agent_review(
     );
     let synth_instruction = format!(
         "{}\n\n## Your assignment\nThe conversation above holds per-file findings from a large PR ({total} files){note}. Produce the FINAL review per your output contract: dedupe, drop noise, keep the most important, group by severity, lead with the verdict line.\n\nPR #{}: {{pr_title}}",
-        system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured),
+        system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured, cfg.use_tools),
         meta.number,
     );
     let synth = build_pipeline_agent(
         cfg,
-        model.clone(),
+        reasoner.clone(),
+        &cfg.reasoner_model,
         "synthesis",
         &cfg.reasoning_effort,
         4096,

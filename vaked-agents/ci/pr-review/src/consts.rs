@@ -1,13 +1,16 @@
 //! Shared constants + the footer signature stamped on every posted comment.
 
-// Gemini 3.1 Flash Lite: cheap ($0.25/$1.50 per Mtok) and — critically — it actually
-// DRIVES the structured-output / tool loop through adk→OpenRouter. deepseek/claude
-// instead *narrate* their intent ("I'll start by reading the files…") and ship an
-// empty/preamble review on large diffs — observed live: pr-review going green while
-// posting nothing. Same failure mode the swe_af work identified. Override with
-// PR_REVIEW_MODEL (e.g. google/gemini-3-flash or google/gemini-3.5-flash for deeper
-// reviews, anthropic/claude-sonnet-4.6, z-ai/glm-5) — see README "Model choice".
-pub(crate) const DEFAULT_MODEL: &str = "google/gemini-3.1-flash-lite";
+// DeepSeek V4 Flash: the cheap coder default — 1M-context MoE with automatic prefix
+// caching (good for the per-file map-reduce that re-sends the identical system-prompt
+// prefix). Reviews run no-tool single-pass by default (the model reviews the diff
+// directly), and large diffs (> mapreduce_lines) add a reasoner for the synthesis pass
+// (see DEFAULT_REASONER_MODEL). Override with PR_REVIEW_MODEL (e.g. deepseek/deepseek-v4-pro,
+// anthropic/claude-sonnet-4.6, google/gemini-3-flash, z-ai/glm-5) — see README "Model choice".
+pub(crate) const DEFAULT_MODEL: &str = "deepseek/deepseek-v4-flash";
+/// The synthesis / reasoner model used for the map-reduce synthesis pass on large
+/// diffs (> mapreduce_lines); the per-file passes still use the cheap coder. Override
+/// with PR_REVIEW_REASONER_MODEL.
+pub(crate) const DEFAULT_REASONER_MODEL: &str = "deepseek/deepseek-v4-pro";
 pub(crate) const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub(crate) const DEFAULT_MAX_DIFF_CHARS: usize = 48_000;
 pub(crate) const DEFAULT_MAPREDUCE_LINES: usize = 600;
