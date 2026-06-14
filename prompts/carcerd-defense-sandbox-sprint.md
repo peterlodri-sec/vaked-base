@@ -67,10 +67,10 @@ CORRECTED LAYER MODEL (defense-in-depth)
 - L4 attestation — sealed-image + optional AMD SEV-SNP report — hardware root — RFC 0007,
   `hosts/vakedos`.
 
-DELIVERABLES (produce all four, in this order)
+DELIVERABLES (produce all six, in this order; items 1-4 are the priority core arc)
 
 1. `docs/runtime/carcerd-design.md` — the primary design doc. Must contain: the layer model
-   above; the four workstreams below; and a "prior art and corrections" appendix capturing the
+   above; all six workstreams below; and a "prior art and corrections" appendix capturing the
    rejected ideas so they are not reintroduced. Cross-link the RFCs and daemons it builds on.
 
 2. `protocol/rfcs/0008-jail-control-frames.md` — extends RFC 0005. Specify a new `JAILED` /
@@ -92,7 +92,20 @@ DELIVERABLES (produce all four, in this order)
    turns a raw secret read into `EACCES` plus testimony; `mcp-brokerd` holds the raw secret and
    the agent sees only a capability handle. Label it for the language track.
 
-WORKSTREAMS (specify each in the design doc; B/C/E/F are design-only this sprint)
+5. `docs/runtime/eventd-iouring-append.md` — the io_uring append fast-path design (workstream
+   E). Specify a batched, async, fsync-correct append path for the eventd Zig port under
+   100k-worker testimony load, preserving the canonical-bytes hash contract and single-writer
+   discipline. Correct the "Ring 0 / zero syscall" framing: io_uring is a user-space
+   submission/completion ring; SQPOLL trades a dedicated core to approach syscall-free
+   submission. Design only; benchmarks gated to `dev-cx53`.
+
+6. `docs/runtime/sev-snp-attestation.md` — the hardware-TEE attestation design (workstream F),
+   written as an addendum that closes RFC 0007's hardware gap. Bind the sealed-image quote to a
+   real AMD SEV-SNP attestation report on the EPYC `vakedos` host, recorded write-ahead to
+   eventd. State the SEV-SNP availability check as a hard precondition; if the host does not
+   support it, the design degrades to the existing PQC sealed-image quote.
+
+WORKSTREAMS (specify each in the design doc; A-D are the priority core, E and F follow)
 
 - A — adversarial harness (the proof). Delivered as item 3 above.
 - B — kernel-true lineage attestation. eBPF LSM (`bprm_check_security` /
@@ -102,10 +115,10 @@ WORKSTREAMS (specify each in the design doc; B/C/E/F are design-only this sprint
 - C — active jail state. The RFC 0008 extension (item 2). Continuous in-loop conformance: a
   capability violation drives the worker to `JAILED` and fires the kill-switch.
 - D — secret-scrub membrane via `seccomp-unotify` (item 4 issue plus design section).
-- E (stretch) — io_uring batched async append fast-path for eventd under 100k-worker load.
-  Performance only; correct the "Ring 0 / zero syscall" framing.
-- F (stretch) — SEV-SNP-grounded attestation closing RFC 0007's hardware gap on the EPYC
-  `vakedos` host. Verify SEV-SNP availability before relying on it.
+- E — io_uring batched async append fast-path for eventd (item 5). Performance, not defense;
+  correct the "Ring 0 / zero syscall" framing.
+- F — SEV-SNP-grounded attestation closing RFC 0007's hardware gap on the EPYC `vakedos` host
+  (item 6). Verify SEV-SNP availability before relying on it.
 
 REUSE (do not re-invent)
 
