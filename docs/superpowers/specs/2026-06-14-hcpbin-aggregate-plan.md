@@ -72,7 +72,7 @@ spec-cited rejection rule.
 | **Enum golden** | RFC 0002 §6.7.1 (`info`→`00`, `warn`→`01`, unknown(5)→`05` round-trips) | Case value + unknown-case preservation |
 | **Whole-frame golden** | RFC 0002 §10 / §10.1 (`ToolCallRequest{tool="fs.read",args=0x6b6579}` → `01 07 66 73 2e 72 65 61 64 02 03 6b 65 79`; `ToolCallResponse` text/binary/relic variants) | End-to-end record + union + hash composition |
 | **Rejection rules (negative)** | RFC 0002 §6.2 rule 1 (out-of-order / duplicate tags), §6.6 (duplicate map keys), §6.1 (overlong/non-minimal length prefixes — inherited from S1) | Every malformed aggregate fails as a typed `DecodeError` |
-| **Existing adversarial-independence suite** | [`protocol/hcp/hcpbin/tests/golden.rs`](../../../protocol/hcp/hcpbin/tests/golden.rs) — "written BLIND to the implementation" | This spec extends that discipline to aggregates |
+| **Existing adversarial-independence suite** | ``protocol/hcp/hcpbin/tests/golden.rs`` (`../../../protocol/hcp/hcpbin/tests/golden.rs`) — "written BLIND to the implementation" | This spec extends that discipline to aggregates |
 
 ## 3. File layout (paths to create)
 
@@ -373,7 +373,7 @@ Done when **all** hold (all M1-local):
 6. **No regression** in the S1 suite (`cargo test -p hcpbin` green).
 7. Every new test file **cites the RFC § it enforces** and is written blind to
    the implementation, matching the convention of
-   [`protocol/hcp/hcpbin/tests/golden.rs`](../../../protocol/hcp/hcpbin/tests/golden.rs).
+   ``protocol/hcp/hcpbin/tests/golden.rs`` (`../../../protocol/hcp/hcpbin/tests/golden.rs`).
 
 ## 7. Dependencies on other sprints
 

@@ -14,7 +14,7 @@ M1 dev box** (`cargo test`) — it needs nothing from `dev-cx53` (see §6).
 This is a planning artifact: the actual edit is future work, sequenced behind the
 WP3 freeze and the citation reconciliation below. It is written to the
 adversarial-independence golden convention already established in
-[`protocol/hcp/hcpbin/tests/golden.rs`](../../../protocol/hcp/hcpbin/tests/golden.rs)
+``protocol/hcp/hcpbin/tests/golden.rs`` (`../../../protocol/hcp/hcpbin/tests/golden.rs`)
 (every expectation derived from the RFC, blind to the implementation).
 
 ## 0. Citation correction (read first)
@@ -509,7 +509,7 @@ Done when ALL hold (all verifiable on M1, none requiring dev-cx53):
 
 | Relationship | Item | Status |
 |---|---|---|
-| **Builds on** | WP3-S1 `hcpbin` primitives (`Reader`/`Writer`, `decode_all`, `DecodeError`, `golden.rs` convention) | Landed ([`lib.rs`](../../../protocol/hcp/hcpbin/src/lib.rs), [`golden.rs`](../../../protocol/hcp/hcpbin/tests/golden.rs)) |
+| **Builds on** | WP3-S1 `hcpbin` primitives (`Reader`/`Writer`, `decode_all`, `DecodeError`, `golden.rs` convention) | Landed ([`lib.rs`](../../../protocol/hcp/hcpbin/src/lib.rs), ``golden.rs`` (`../../../protocol/hcp/hcpbin/tests/golden.rs`)) |
 | **New external dep** | `unicode-normalization =0.1.23` (Unicode 15.1.0 data) | Available on crates.io; verified `UNICODE_VERSION (15,1,0)` |
 | **Consumed by** | WP3-S2 frame layer / records-frames-unions encoders (need `string`/`f*` as field types) | Future; these scalars are a precondition for any schema with `string`/`f32`/`f64` fields |
 | **Consumed by** | `eventd` hash chain / `litanyreplay` (RFC 0002 §9) — rely on canonical string/float bytes | Determinism guaranteed only once these scalars + the pin land |

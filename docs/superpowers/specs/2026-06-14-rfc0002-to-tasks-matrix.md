@@ -62,7 +62,7 @@ into "deferred hcpbin work" would repeat the §4-confusion. Hence:
 | RFC 0002 §10 / §10.1 worked frames | §10 L1009–1117; §10.1 L1119–1160 | End-to-end golden frames (ToolCallRequest/Response, ToolEvent, map frame). |
 | Example schema | [`protocol/hcplang/examples/hcp-core.hcplang`](../../../protocol/hcplang/examples/hcp-core.hcplang) | The concrete types the §10 vectors encode. |
 | Existing codec | [`protocol/hcp/hcpbin/src/lib.rs`](../../../protocol/hcp/hcpbin/src/lib.rs) | What is already done (WP3-S1). |
-| Existing golden tests | [`protocol/hcp/hcpbin/tests/golden.rs`](../../../protocol/hcp/hcpbin/tests/golden.rs) | Blind, RFC-derived golden suite (verified: `cargo test` → 50 passed). |
+| Existing golden tests | ``protocol/hcp/hcpbin/tests/golden.rs`` (`../../../protocol/hcp/hcpbin/tests/golden.rs`) | Blind, RFC-derived golden suite (verified: `cargo test` → 50 passed). |
 
 **Boundary oracle (out-of-scope rows):** RFC 0002 §4.2 (header reserved,
 implicit), §6 scope note (L446–450), and RFC 0003 §4.4 / §4.4.1 (header wire
