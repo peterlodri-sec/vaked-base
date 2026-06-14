@@ -44,7 +44,10 @@ fn main() {
 
     match ailish::format_message(&src, compact) {
         Ok(out) => {
-            let _ = io::stdout().write_all(out.as_bytes());
+            if let Err(e) = io::stdout().write_all(out.as_bytes()) {
+                eprintln!("ailishfmt: write error: {e}");
+                std::process::exit(2);
+            }
         }
         Err(e) => {
             eprintln!("ailishfmt: {e}");

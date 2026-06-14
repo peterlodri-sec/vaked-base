@@ -226,10 +226,12 @@ fn assign(i: &str) -> IResult<&str, Line> {
             input = rest;
             continue;
         }
-        if let Ok((rest, b)) = because(input) {
-            bec = Some(b);
-            input = rest;
-            continue;
+        if bec.is_none() {
+            if let Ok((rest, b)) = because(input) {
+                bec = Some(b);
+                input = rest;
+                continue;
+            }
         }
         break;
     }

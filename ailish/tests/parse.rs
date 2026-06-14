@@ -151,3 +151,9 @@ fn typed_atoms_are_distinguished() {
     assert_eq!(vals[4], &Operand::Atom(Atom::Number("42".into())));
     assert_eq!(vals[5], &Operand::Atom(Atom::Bool(true)));
 }
+
+#[test]
+fn second_justification_is_rejected() {
+    // An assignment carries at most one `∵` justification.
+    assert!(parse_message("[R:commit] %0 = merge(pr=1) ∵ %1 ∵ %2\n").is_err());
+}

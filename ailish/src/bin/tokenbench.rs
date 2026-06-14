@@ -32,7 +32,15 @@ fn main() {
     println!("long:    {lc} chars, {lt} tokens");
     println!("compact: {cc} chars, {ct} tokens");
 
-    let char_savings = 100.0 * (1.0 - cc as f64 / lc as f64);
-    let tok_savings = 100.0 * (1.0 - ct as f64 / lt as f64);
+    let char_savings = if lc > 0 {
+        100.0 * (1.0 - cc as f64 / lc as f64)
+    } else {
+        0.0
+    };
+    let tok_savings = if lt > 0 {
+        100.0 * (1.0 - ct as f64 / lt as f64)
+    } else {
+        0.0
+    };
     println!("savings: {char_savings:.1}% chars, {tok_savings:.1}% tokens");
 }
