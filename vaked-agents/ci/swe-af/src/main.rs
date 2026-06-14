@@ -44,9 +44,7 @@ use adk_rust::{RetryBudget, ToolExecutionStrategy};
 use adk_runner::compaction::{CompactionConfig, TruncationCompaction};
 use anyhow::{Context, Result, anyhow};
 use futures::StreamExt;
-use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
-use opentelemetry_sdk::trace::SdkTracerProvider;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tracing::{info, warn};
@@ -231,51 +229,6 @@ fn noop_json(mode: Mode) -> String {
         Mode::Plan => serde_json::to_string(&PlanOutput::default()).unwrap(),
         Mode::Code => serde_json::to_string(&CodeOutput::default()).unwrap(),
     }
-}
-
-// ---------------------------------------------------------------------------
-// Tracing (identical pattern to the fleet)
-// ---------------------------------------------------------------------------
-
-fn setup_tracing() -> Option<SdkTracerProvider> {
-    let base = std::env::var("LANGFUSE_URL").ok().filter(|s| !s.is_empty())?;
-    let token = std::env::var("LANGFUSE_API_KEY").ok().filter(|s| !s.is_empty());
-    let endpoint = format!("{}/api/public/otel/v1/traces", base.trim_end_matches('/'));
-    let mut headers = HashMap::new();
-    if let Some(token) = token {
-        headers.insert("Authorization".to_string(), format!("Basic {token}"));
-    }
-    let exporter = match opentelemetry_otlp::SpanExporter::builder()
-        .with_http()
-        .with_endpoint(&endpoint)
-        .with_headers(headers)
-        .build()
-    {
-        Ok(e) => e,
-        Err(e) => {
-            eprintln!("swe-af: Langfuse exporter init failed: {e}");
-            return None;
-        }
-    };
-    let resource = opentelemetry_sdk::Resource::builder_empty()
-        .with_attributes([opentelemetry::KeyValue::new("service.name", "vaked-swe-af")])
-        .build();
-    let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
-        .with_resource(resource)
-        .build();
-    let tracer = provider.tracer("vaked-swe-af");
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
-        .with(tracing_opentelemetry::layer().with_tracer(tracer))
-        .try_init()
-        .ok();
-    opentelemetry::global::set_tracer_provider(provider.clone());
-    info!(langfuse.endpoint = %endpoint, "Langfuse tracing enabled");
-    Some(provider)
 }
 
 // ---------------------------------------------------------------------------
@@ -674,7 +627,7 @@ async fn main() {
         return;
     }
 
-    let tracer_provider = setup_tracing();
+    let tracer_provider = vaked_telemetry::setup_tracing("vaked-swe-af", "vaked-swe-af");
     let mode = Mode::from_str(&std::env::var("MODE").unwrap_or_default());
 
     let code = match run().await {
@@ -689,8 +642,14 @@ async fn main() {
     };
 
     if let Some(provider) = tracer_provider {
+        // Short-lived process: force_flush drains the batch span processor before
+        // shutdown, so the run's trace reliably reaches Langfuse instead of being
+        // dropped on exit.
+        if let Err(e) = provider.force_flush() {
+            eprintln!("swe-af: telemetry force_flush failed: {e}");
+        }
         if let Err(e) = provider.shutdown() {
-            eprintln!("swe-af: telemetry flush failed: {e}");
+            eprintln!("swe-af: telemetry shutdown failed: {e}");
         }
     }
     std::process::exit(code);
