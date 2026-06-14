@@ -109,7 +109,11 @@ fiber compress { input = stream.raw           output = artifacts.compressed }
 fiber publish  { input = artifacts.compressed output = surface.feed }
 parallel "pipe" {
   fibers = [capture, compress, publish]
-  lifecycle { on rewind { } }
+  lifecycle {
+    on pause  { }
+    on stop   { }
+    on rewind { }
+  }
 }
 """
 
@@ -128,6 +132,20 @@ def _t_overlay_schedule(lines):
     return ok
 
 
+def _t_oracle(lines):
+    from vakedc.oracle import expected_behavior
+    ok = True
+    g = build_graph(parse_source(_WAVE_SRC, "w.vaked"), "w.vaked")
+    b = expected_behavior(g)
+    if b["start_order"] != [["capture"], ["compress"], ["publish"]]:
+        ok = False; lines.append(f"  FAIL start_order: {b['start_order']}")
+    if "pause" not in b["control_alphabet"]:
+        ok = False; lines.append(f"  FAIL: 'pause' missing from control_alphabet: {b['control_alphabet']}")
+    if "stop" not in b["control_alphabet"]:
+        ok = False; lines.append(f"  FAIL: 'stop' missing from control_alphabet: {b['control_alphabet']}")
+    return ok
+
+
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
@@ -135,7 +153,7 @@ def _t_overlay_schedule(lines):
 def run():
     lines = []
     ok = True
-    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle, _t_overlay_caps, _t_overlay_schedule):
+    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle, _t_overlay_caps, _t_overlay_schedule, _t_oracle):
         try:
             ok = fn(lines) and ok
         except Exception as e:
