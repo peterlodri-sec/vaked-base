@@ -14,6 +14,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, ROOT)
 from vakedc.schedule import FiberIO, compute_schedule
+from vakedc.parser import parse_source
+from vakedc.resolve import build_graph
 
 
 def _t_levels(lines):
@@ -44,6 +46,38 @@ def _t_cycle(lines):
     return True
 
 
+_LIFECYCLE_SRC = """fiber mediaCompress {
+  input = stream.screenrec
+  output = artifacts.out
+  lifecycle {
+    on pause  { drain_timeout = "2s" }
+    on resume { }
+    on stop   { flush = true }
+  }
+}
+"""
+
+
+def _t_overlay_lifecycle(lines):
+    ok = True
+    g = build_graph(parse_source(_LIFECYCLE_SRC, "m.vaked"), "m.vaked")
+    ids = {n.id for n in g.nodes}
+    kinds = {n.kind for n in g.nodes}
+    for need in ("m.vaked#mediaCompress/state:running",
+                 "m.vaked#mediaCompress/state:paused",
+                 "m.vaked#mediaCompress/state:stopped",
+                 "m.vaked#mediaCompress/transition:pause"):
+        if need not in ids:
+            ok = False; lines.append(f"  FAIL: missing node {need}")
+    if "lifecycle-state" not in kinds or "transition" not in kinds:
+        ok = False; lines.append(f"  FAIL: kinds {kinds}")
+    edges = {(e.source, e.label, e.target) for e in g.edges}
+    want = ("m.vaked#mediaCompress", "controls", "m.vaked#mediaCompress/transition:pause")
+    if want not in edges:
+        ok = False; lines.append("  FAIL: missing controls edge")
+    return ok
+
+
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
@@ -51,7 +85,7 @@ def _t_cycle(lines):
 def run():
     lines = []
     ok = True
-    for fn in (_t_levels, _t_cycle):
+    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle):
         try:
             ok = fn(lines) and ok
         except Exception as e:

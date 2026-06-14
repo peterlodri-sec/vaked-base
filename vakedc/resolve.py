@@ -342,4 +342,8 @@ def _annotation_to_props(a):
 
 
 def build_graph(items, filename: str) -> Graph:
-    return Resolver(items, filename).build()
+    resolver = Resolver(items, filename)
+    g = resolver.build()
+    from .overlay import apply_execution_overlay
+    apply_execution_overlay(g, items, resolver.basename, resolver.provfile)
+    return g
