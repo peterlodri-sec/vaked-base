@@ -875,8 +875,8 @@ def _test_ebpf_intent(lines):
         (_EBPF_OBSERVE_ON_KPROBE_OK, "ebpf-observe-kprobe.vaked", []),
         (_EBPF_ENFORCE_ON_LSM_OK, "ebpf-enforce-lsm.vaked", []),
         (_EBPF_ENFORCE_ON_CGROUP_OK, "ebpf-enforce-cgroup.vaked", []),
-        # a bad hook name is a conformance (oneof) error, NOT a false enforce error.
-        (_EBPF_BAD_HOOK, "ebpf-bad-hook.vaked", ["E-CONSTRAINT-ONEOF"]),
+        # a bad hook name is its own error, NOT a false enforce error.
+        (_EBPF_BAD_HOOK, "ebpf-bad-hook.vaked", ["E-EBPF-UNKNOWN-HOOK"]),
     ]
     for src, name, want in cases:
         got = codes(src, name)

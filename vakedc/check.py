@@ -1811,33 +1811,55 @@ def _check_workflow(wf_decl, registry, smap, file, diags, sibling_meshes=None,
                   f"exceeding the declared maxDepth = {bound}")
 
 
-# Observe-only eBPF hook points: a program attached here cannot change system
-# behaviour (kprobe/kretprobe/tracepoint/perf). Everything else in the `ebpf`
-# schema's `hook` oneof is verdict-capable and may carry `intent = "enforce"`.
+# eBPF hook points, by enforcement capability (#225). The hook point decides
+# whether a program can enforce or only observe. OBSERVE-ONLY hooks cannot change
+# system behaviour; VERDICT-CAPABLE hooks consume a verdict (LSM return 0/-errno,
+# cgroup connect/skb, XDP/tc, override_return/send_signal) and may enforce.
+# `ebpf` is NOT a top-level schema (the kind-agnostic LPG would collide a
+# `schema ebpf` with the existing `capability ebpf` domain — cf. `mem`/`memory`),
+# so the `ebpf` decl is validated here directly rather than via conformance.
 _EBPF_OBSERVE_ONLY_HOOKS = frozenset(("kprobe", "kretprobe", "tracepoint", "perf"))
+_EBPF_ENFORCE_HOOKS = frozenset(("lsm", "cgroup_connect", "cgroup_skb",
+                                 "xdp", "tc", "override_return", "send_signal"))
+_EBPF_HOOKS = _EBPF_OBSERVE_ONLY_HOOKS | _EBPF_ENFORCE_HOOKS
 
 
 def _check_ebpf_intent(decl, smap, file, diags):
-    """#225 — reject `intent = "enforce"` on an observe-only eBPF hook.
+    """#225 — type an `ebpf` guard's hook + intent.
 
     The hook point decides whether a program can enforce or only observe:
     kprobe/kretprobe/tracepoint/perf are observe-only and cannot change system
-    behaviour, so an `enforce` intent on one is a compile-time error (the single
-    most common eBPF security mistake — assuming a kprobe enforces). A bad hook
-    NAME is left to the schema's `oneof` conformance check, not flagged here."""
+    behaviour, so `intent = "enforce"` on one is E-EBPF-ENFORCE-ON-OBSERVE (the
+    single most common eBPF security mistake — assuming a kprobe enforces). An
+    unrecognised `hook` is E-EBPF-UNKNOWN-HOOK; an unrecognised `intent` is
+    E-EBPF-BAD-INTENT."""
     bindings, _order = _decl_field_bindings(decl)
+    dspan = (decl.byteStart, decl.byteEnd, decl.line, decl.col)
+
+    def vspan(field):
+        return (smap.field_value_span(decl.byteStart, decl.byteEnd, field)
+                if smap else None) or dspan
+
     hook = _string_lit(bindings.get("hook"))
     intent = _string_lit(bindings.get("intent"))
-    if intent != "enforce" or hook not in _EBPF_OBSERVE_ONLY_HOOKS:
+
+    if hook is not None and hook not in _EBPF_HOOKS:
+        _emit(diags, "E-EBPF-UNKNOWN-HOOK", file, vspan("hook"), decl,
+              f"ebpf `{decl.name}`: unknown hook `{hook}`; expected one of "
+              f"{sorted(_EBPF_HOOKS)}")
         return
-    dspan = (decl.byteStart, decl.byteEnd, decl.line, decl.col)
-    span = (smap.field_value_span(decl.byteStart, decl.byteEnd, "hook")
-            if smap else None) or dspan
-    _emit(diags, "E-EBPF-ENFORCE-ON-OBSERVE", file, span, decl,
-          f"ebpf `{decl.name}` declares `intent = \"enforce\"` on observe-only "
-          f"hook `{hook}`; {hook} cannot change system behaviour. Use a "
-          f"verdict-capable hook (lsm, cgroup_connect/cgroup_skb, xdp/tc, "
-          f"override_return, send_signal) to enforce, or set `intent = \"observe\"`.")
+    if intent is not None and intent not in ("observe", "enforce"):
+        _emit(diags, "E-EBPF-BAD-INTENT", file, vspan("intent"), decl,
+              f"ebpf `{decl.name}`: intent must be \"observe\" or \"enforce\", "
+              f"got `{intent}`")
+        return
+
+    if intent == "enforce" and hook in _EBPF_OBSERVE_ONLY_HOOKS:
+        _emit(diags, "E-EBPF-ENFORCE-ON-OBSERVE", file, vspan("hook"), decl,
+              f"ebpf `{decl.name}` declares `intent = \"enforce\"` on observe-only "
+              f"hook `{hook}`; {hook} cannot change system behaviour. Use a "
+              f"verdict-capable hook (lsm, cgroup_connect/cgroup_skb, xdp/tc, "
+              f"override_return, send_signal) to enforce, or set `intent = \"observe\"`.")
 
 
 def _string_lit(vprop):

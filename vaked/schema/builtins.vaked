@@ -141,20 +141,6 @@ schema parallel {
   field supervisor : Supervisor
 }
 
-# `ebpf` (#225) — an eBPF guard node.  The HOOK POINT decides whether the
-# program can enforce or only observe: kprobe / kretprobe / tracepoint / perf
-# are observe-only (cannot change system behaviour); only verdict-capable hooks
-# (lsm, cgroup_connect, cgroup_skb, xdp, tc, override_return, send_signal) may
-# carry `intent = "enforce"`.  The checker (#225) rejects `enforce` on an
-# observe-only hook with E-EBPF-ENFORCE-ON-OBSERVE.  Closed.
-schema ebpf {
-  field hook   : String { oneof ["kprobe", "kretprobe", "tracepoint", "perf",
-                                 "lsm", "cgroup_connect", "cgroup_skb",
-                                 "xdp", "tc", "override_return", "send_signal"] }
-  field intent : String { oneof ["observe", "enforce"] }
-  field target : String { optional nonempty }   # symbol / cgroup / iface attached to
-}
-
 # --------------------------------------------------------------------------- #
 # NixOS-deployment cohort (#1-#6).  These kinds let Vaked express ordinary host
 # infrastructure (nixpkgs services, OCI containers, sops secrets, host DBs, Caddy
