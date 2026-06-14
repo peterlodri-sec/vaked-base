@@ -4,6 +4,8 @@
 
 This is a **stub**. The normative spec lives in the RFC series under [`/protocol/rfcs`](../../protocol/rfcs/); see [`0001-hcp.md`](../../protocol/rfcs/0001-hcp.md).
 
+> **Adjacent register-language RFC:** [`0009-ail-register-language.md`](../../protocol/rfcs/0009-ail-register-language.md) defines **AIL-0** (Agentic Intermediate Language) — a register notation for agent reasoning / tool-intent / artifact frames. It is *adjacent to* HCP (it is the grammar for the text conventions that **ARP**, [issue #202](https://github.com/peterlodri-sec/vaked-base/issues/202), carries), not an HCP wire concern: it adds no Votive Frame, wire format, or daemon. (RFC 0008 is in-flight on a separate branch — crypto-seal domain.)
+
 ## Vocabulary
 
 | Term | Meaning |

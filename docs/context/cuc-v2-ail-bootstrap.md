@@ -7,7 +7,7 @@
 
 ## Name stack
 
-Use these consistently. All four names are live in the repository.
+Use these consistently. All five names are live in the repository.
 
 | Name | Meaning | Where it lives |
 |------|---------|----------------|
