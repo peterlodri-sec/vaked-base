@@ -4,6 +4,8 @@
 
 This is a **stub**. The normative spec lives in the RFC series under [`/protocol/rfcs`](../../protocol/rfcs/); see [`0001-hcp.md`](../../protocol/rfcs/0001-hcp.md).
 
+> **Adjacent register-language RFC:** [`0009-ail-register-language.md`](../../protocol/rfcs/0009-ail-register-language.md) defines **AIL-0** (Agentic Intermediate Language) — a register notation for agent reasoning / tool-intent / artifact frames. It is *adjacent to* HCP (it is the grammar for the text conventions that **ARP**, [issue #202](https://github.com/peterlodri-sec/vaked-base/issues/202), carries), not an HCP wire concern: it adds no Votive Frame, wire format, or daemon. (The 0008 slot is in-flight on a separate branch — crypto-seal domain — so it is intentionally absent from `protocol/rfcs/` here.)
+
 ## Vocabulary
 
 | Term | Meaning |
@@ -65,6 +67,16 @@ This is a **stub**. The normative spec lives in the RFC series under [`/protocol
 | Image-as-code | The only mutation path to a running system is a re-derived, re-signed code change — no out-of-band mutation |
 | Votive seal | A PQC (ML-DSA) signature over a sealed image's measurement + provenance, recorded to `eventd` — the image's analogue of an SVID |
 | Attestation quote | Load-time evidence (ML-DSA over `{measurement, nonce, epoch}`) that a measured image matches its signed provenance; replaces "eBPF testifies" for sealed unikernels |
+
+### Agent register protocol ([RFC 0009](../../protocol/rfcs/0009-arp.md))
+
+ARP adds behavioral signals + per-model adapters layered on [AI-lish V1](../ailish/2026-06-14-ailish-v1-rfc.md) (the agent execution-graph IR + `ailish/` crate). It is in-context text only — no wire — carries no authority, and composes one level below HCP.
+
+| Term | Meaning |
+|------|---------|
+| ARP | Behavioral primitives + model adapters for AI-lish (this RFC) |
+| Stride / Tension / Valence / Branch | `[STRIDE: a → b]` (progress arc), `[T:N]` (goal-distance 0..100), `[+]/[-]/[!]` (result polarity), `[BRANCH: a \| b; condition: X]` (fork) |
+| AI-lish V1 | The execution-graph grammar/IR ARP rides on (the `ailish/` crate + `docs/ailish/` RFC) |
 
 ## Daemons (proposed — roles to be fixed in RFCs)
 

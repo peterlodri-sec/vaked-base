@@ -1,0 +1,187 @@
+# AIL-0 grammar — Agentic Intermediate Language, v0 (EXPERIMENTAL)
+#
+# Purpose: a small, ASCII, register-tagged notation for LLM-agent communication
+#          (planning, tool-intent, causality, risk, artifacts, state). AIL is a
+#          *register language*, not a full programming language — it is the formal
+#          grammar for the text conventions that ARP (issue #202) carries.
+#
+# ASCII-CANONICAL operators (normative). The causal / parallel / comparison
+# operators are ASCII: -> => bc so par merge conflict != ~= <= >= . Unicode forms
+# (the arrows and "because"/"therefore" glyphs) are OPTIONAL, NON-NORMATIVE sugar
+# only and are deliberately NOT in the `op` production below: rare-Unicode and CJK
+# glyphs can INCREASE token count under byte-fallback tokenization, defeating the
+# purpose. A conformant emitter SHOULD emit the ASCII forms.
+#
+# Core design rule — compress what natural language wastes, keep EXACT what
+# machines need:
+#   - Reasoning registers ([R:think], [R:plan]) carry FREE TEXT. Forcing structure
+#     on reasoning collapses model accuracy, so the grammar does not constrain it.
+#   - OUTPUT registers are GATED, in the GRAMMAR not in prose. [R:artifact] and
+#     [R:commit] bodies are English-only (no CJK — see `english_char`); [R:tool]
+#     preserves exact path / symbol literals as first-class productions.
+#
+# v0 EXPERIMENTAL. Token savings are a HYPOTHESIS to be measured on a bench, not a
+# claim. This grammar is intentionally SMALL: grammar-constrained-decoding coverage
+# collapses on complex grammars, so simplicity here is a correctness requirement.
+#
+# ---- Notation ---------------------------------------------------------------
+#
+#   "literal"      terminal (keyword or punctuation, matched verbatim)
+#   { x }          zero or more repetitions of x
+#   [ x ]          optional: zero or one occurrence of x
+#   x | y          alternation (ORDERED: first match wins)
+#   ( x )          grouping (precedence only, no semantics)
+#   ? text ?       special sequence: a constraint stated in prose
+#   rule ::= ... ; one production rule, semicolon-terminated
+#
+# ---- Lexical rules ----------------------------------------------------------
+#
+# AIL-0 is LINE-ORIENTED (same discipline as the Vaked grammar). A newline
+# TERMINATES a frame: each frame occupies exactly one line and its body runs to
+# the end of that line. Within a STRUCTURED frame, ";" separates statements.
+# Frames in a message are newline-separated. Free-text and English bodies are
+# therefore bounded by the end of line, which is what makes `message ::= frame
+# { frame }` unambiguous (a [R:think] body cannot swallow the following frame).
+# Source is UTF-8. Operators, keywords, register tags, and idents are ASCII.
+# Spaces and tabs between tokens inside a structured frame are insignificant.
+
+message        ::= frame { frame } ;
+
+# ---- Frames: register-dispatched (ORDERED alternation on the register tag) ---
+#
+# The frame shape is chosen by the register. Three body arms:
+#   reasoning  ([R:think], [R:plan])               -> free_text  (unconstrained)
+#   english    ([R:artifact], [R:commit])          -> gated English-only body
+#   structured ([R:tool], [R:risk], [R:review], [R:bench]) -> stmt list
+# The specialized frames are listed before the generic `structured_frame` so the
+# dispatch is deterministic. Every register in `register` is reached by exactly
+# one arm.
+
+frame          ::= think_frame
+                 | plan_frame
+                 | artifact_frame
+                 | commit_frame
+                 | structured_frame ;
+
+# Reasoning registers — FREE TEXT. Body is unconstrained (bounded by end of line).
+think_frame    ::= "[R:think]" free_text eol ;
+plan_frame     ::= "[R:plan]" free_text eol ;
+
+# Output registers — GATED IN GRAMMAR. English-only bodies, no CJK.
+# `english_text` reduces to `english_char`, which EXCLUDES CJK Unicode blocks;
+# this is the artifact gate as grammar (not a prose comment). The commit body is
+# an English Conventional-Commit subject.
+artifact_frame ::= "[R:artifact]" english_text eol ;
+commit_frame   ::= "[R:commit]" conventional_commit eol ;
+
+# Structured registers — the generic frame body: a ";"-separated stmt list.
+# `register` here ranges over the four structured tags only (see `register`).
+structured_frame ::= "[" register "]" stmt { ";" stmt } eol ;
+
+# Registers reachable via `structured_frame`. The reasoning + output registers
+# (think, plan, artifact, commit) have their own dedicated frames above; this set
+# is the structured remainder. Listed for completeness / round-trip with the
+# morpheme table.
+register       ::= "R:tool" | "R:risk" | "R:review" | "R:bench" ;
+
+# ---- Statements (structured frames only) ------------------------------------
+#
+# stmt is an ORDERED alternation. `gate` and `action` are tried before `relation`
+# / `atom` because they begin with a fixed keyword / verb-then-"(" shape that an
+# atom would otherwise shadow.
+
+stmt           ::= gate | action | relation | atom ;
+
+# A relation links two atoms with an ASCII operator (causal, parallel, or
+# comparison). Example: parse.py -> ok , risk ~= low .
+relation       ::= atom op atom ;
+
+# ASCII-CANONICAL operators (normative set). Unicode sugar is NOT admitted here.
+#   -> sequence/yields   => implies   bc because   so therefore
+#   par parallel-with    merge join   conflict     != ~= <= >= comparisons
+op             ::= "->" | "=>" | "bc" | "so"
+                 | "par" | "merge" | "conflict"
+                 | "!=" | "~=" | "<=" | ">=" ;
+
+# An action is a verb with an optional key=value argument list. [R:tool] uses
+# this; `value` reaches `atom` so exact path / symbol literals are preserved.
+action         ::= verb "(" [ args ] ")" ;
+args           ::= arg { "," arg } ;
+arg            ::= key "=" value ;
+key            ::= ident ;
+value          ::= atom ;
+verb           ::= ident ;
+
+# ---- Gates (safety / output-discipline checks) ------------------------------
+#
+# gate(name:state) records the outcome of a discipline check. Both name and state
+# are CLOSED sets. The `artifact`, `english`, and `no_cjk` gates are the grammar-
+# enforced output discipline; `ci`, `bench`, `parse` are pipeline checks.
+
+gate           ::= "gate(" gate_name ":" gate_state ")" ;
+gate_name      ::= "artifact" | "english" | "no_cjk" | "ci" | "bench" | "parse" ;
+gate_state     ::= "pass" | "fail" | "warn" | "skip" ;
+
+# ---- Atoms — KEEP-EXACT literals are first-class ----------------------------
+#
+# `path` and `symbol` are real productions (not folded into `ident`) so that
+# file paths and code symbols round-trip byte-for-byte through [R:tool]. Ordered:
+# `path` and `symbol` before `ident` because each requires a distinguishing
+# character (a "/" or "." opener for path; a ".", "::", "#", or "/<arity>" for
+# symbol) that a bare ident lacks.
+
+atom           ::= path | symbol | quoted | number | ident ;
+
+# A file path: absolute, relative, or dot-relative. Keeps "/" and "." exactly.
+path           ::= ( "/" | "./" | "../" ) path_seg { "/" path_seg }
+                 | path_seg "/" path_seg { "/" path_seg } ;
+path_seg       ::= path_char { path_char } ;
+path_char      ::= letter | digit | "_" | "-" | "." ;
+
+# A code symbol: a dotted / "::"-scoped / "#"-anchored name, optionally with a
+# Prolog-style "/arity" suffix. Distinct from `ident` (which has no separator).
+# Examples: foo.bar.baz , Module::func , Type#method , parse/2 .
+symbol         ::= sym_part sym_sep sym_part { sym_sep sym_part } [ "/" number ] ;
+sym_part       ::= ident ;
+sym_sep        ::= "." | "::" | "#" ;
+
+# A double-quoted literal — opaque payload (error strings, commit text fragments,
+# any value needing spaces or punctuation). Kept verbatim.
+quoted         ::= '"' { quoted_char } '"' ;
+quoted_char    ::= ? any UTF-8 scalar value except '"' and a line terminator,
+                     or the two-character escape '\"' denoting a literal '"' ? ;
+
+number         ::= [ "-" ] digit { digit } [ "." digit { digit } ] ;
+
+# ---- Free-text and English (gated) bodies -----------------------------------
+#
+# `free_text` is unconstrained reasoning content, bounded only by end of line:
+# any character except a line terminator. The reasoning registers use it as-is.
+free_text      ::= { free_char } ;
+free_char      ::= ? any UTF-8 scalar value except a line terminator ? ;
+
+# `english_text` is the GATE-AS-GRAMMAR body for [R:artifact]. It reduces to
+# `english_char`, which EXCLUDES the CJK Unicode blocks, so a CJK glyph in an
+# artifact body is a GRAMMAR rejection, not a style note. This is the artifact
+# gate the design exists to enforce.
+english_text   ::= english_char { english_char } ;
+english_char   ::= ? any UTF-8 scalar value that is NOT a line terminator AND NOT
+                     in any CJK block: CJK Unified Ideographs (U+4E00..U+9FFF) and
+                     Extension A (U+3400..U+4DBF), CJK Compatibility Ideographs
+                     (U+F900..U+FAFF), Hiragana (U+3040..U+309F), Katakana
+                     (U+30A0..U+30FF), Hangul Syllables (U+AC00..U+D7AF), or the
+                     CJK Symbols and Punctuation block (U+3000..U+303F) ? ;
+
+# `conventional_commit` is the [R:commit] body: an English Conventional-Commit
+# subject, "type(scope): description". The type set is the conventional-commits
+# closed list; scope is an optional ident; the description is English (no CJK).
+conventional_commit ::= commit_type [ "(" ident ")" ] [ "!" ] ":" english_text ;
+commit_type    ::= "feat" | "fix" | "docs" | "style" | "refactor"
+                 | "perf" | "test" | "build" | "ci" | "chore" | "revert" ;
+
+# ---- Character-level productions --------------------------------------------
+
+ident          ::= letter { letter | digit | "_" | "-" } ;
+letter         ::= ? ASCII letter: a-z or A-Z ? ;
+digit          ::= ? ASCII decimal digit: 0-9 ? ;
+eol            ::= ? U+000A (line feed) or U+000D U+000A (CRLF), or end of input ? ;
