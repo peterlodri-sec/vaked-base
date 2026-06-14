@@ -90,31 +90,44 @@ GHA cron (~02:00 UTC) is a **thin orchestrator** with no GPU; the rented box run
 A survivor's `agent` issue body **is** the swe_af request: *"promote this `train.py` diff to the
 baseline"* — with the BPB delta, the diff, the re-run confirmation, and a link to the ledger event.
 
+## Mutation driver — DECIDED: OpenRouter-driven pipeline (fleet-native)
+
+**Resolved (2026-06-14, owner).** Each trial's `train.py` mutation is proposed by an
+**optitron-style OpenRouter pipeline**, not a full headless coding agent and not a fixed search.
+Rationale: controllable + cheaper per call, bounded by a `--budget-total` cap like optitron, and
+it **reuses the fleet's existing LLM machinery** (`tools/optitron/internal/llm` — the Eino
+OpenRouter wrapper with strict `json_schema` structured output) instead of standing up a new
+agent runtime. Mechanics per iteration, on the rented box:
+
+1. The driver builds a prompt from `program.md` + the current `train.py` + recent `results.jsonl`
+   trials, and asks the model (via OpenRouter) for **one structured mutation** (a diff/patch to
+   `train.py` + a rationale + a `signature`).
+2. The driver applies the patch and invokes the **frozen Python/PyTorch harness** for the fixed
+   5-minute train + score (the *training* stays PyTorch-on-GPU; only the *mutation generation* is
+   the API call).
+3. It reads back val BPB from `results.jsonl`, keeps or discards, and loops.
+
+Implications: the driver is most naturally a **Go binary in/alongside the optitron module**
+(reusing `internal/llm` + `internal/ledger`) that shells out to the Python training harness on the
+box — or a thin Python driver that calls OpenRouter directly if co-locating with PyTorch is
+simpler on the rented image. ⟨OPEN, minor⟩ pick Go-reuse vs Python-local once the port's harness
+interface is known. Models: env-overridable like optitron (a capable codegen model for the
+mutation, e.g. an `anthropic/claude-fable-5` / `deepseek-v4` tier).
+
 ## ⟨OPEN⟩ decisions — reconcile against `vast-autoresearcher` before implementing
 
-1. **What drives the mutation?** Karpathy hands `train.py` + `program.md` to *a coding agent*
-   (Claude/Codex) which proposes each edit. nocturne needs that agent **on the GPU box or in the
-   driver**. Candidates:
-   - **(recommended) Claude Code headless** (`claude -p`) on the GPU box — closest to Karpathy's
-     original, and the fleet already runs headless agents. Each loop iteration: agent reads
-     `program.md` + recent `results.jsonl`, edits `train.py`, the harness trains + scores, the
-     agent sees the metric and decides keep/discard.
-   - **OpenRouter-driven (Eino/Go), optitron-style** — a fixed pipeline proposes diffs via
-     `OPENROUTER_API_KEY`. More controllable/cheaper per call, less open-ended than a full agent.
-   - **Fixed search** — if the port replaced the LLM with a hyperparameter/architecture search,
-     there's no per-trial model spend at all.
-   The port answers this; it changes step 3's `<driver>` and the per-night cost model entirely.
-2. **Local GPU vs. API.** Confirm the port truly trains on the rented box (PyTorch local, the
+1. **Local GPU vs. API.** Confirm the port truly trains on the rented box (PyTorch local, the
    Karpathy shape) vs. driving training through an API. Owner indicated **Vast.ai rented GPU**, so
-   assume local training on the box.
-3. **One objective or a rotating queue?** ralph picks a *track* each night (`tracks.json`).
+   assume local training on the box. (The *mutation* is now decided as an OpenRouter call; this
+   item is only about where *training* runs.)
+2. **One objective or a rotating queue?** ralph picks a *track* each night (`tracks.json`).
    nocturne could be pinned to a single `program.md` (steady SOTA-chasing on one dataset) or carry
    an `objectives.json` queue (rotate datasets/objectives nightly). Recommend **single objective
    first**, add rotation once the loop is proven.
-4. **Baseline persistence.** Each night must build on the prior night's best. Propose the winning
+3. **Baseline persistence.** Each night must build on the prior night's best. Propose the winning
    `train.py` baseline is **version-controlled** (committed under `tools/nocturne/baseline/` or
    promoted via the swe_af PR), so "running best" survives the ephemeral GPU box.
-5. **GPU spec + bid.** H100 vs A100, exact `$/hr` cap, on-demand vs interruptible. Karpathy tested
+4. **GPU spec + bid.** H100 vs A100, exact `$/hr` cap, on-demand vs interruptible. Karpathy tested
    H100; interruptible is cheaper but can be reclaimed mid-night (the harness must checkpoint
    `results.jsonl` so a reclaim ⇒ partial-night ledger entry, not a lost night).
 
@@ -123,8 +136,10 @@ baseline"* — with the BPB delta, the diff, the re-run confirmation, and a link
 - **`tools/nocturne/`** — the orchestrator + provisioning, sibling to `tools/optitron/`:
   - `PURPOSE.md` — the abstain-by-default mission preamble (optitron/ralph pattern).
   - `provision.sh` — `vastai` search/create/destroy with `$/hr` cap + **mandatory teardown trap**.
-  - `loop.py` (or the port's driver) — the on-GPU mutate→train→score→keep/discard loop writing
-    `results.jsonl`. ⟨OPEN⟩ — likely vendored/adapted from `vast-autoresearcher`.
+  - the **driver** — proposes each mutation via an OpenRouter call (reusing optitron's
+    `internal/llm` if Go, or a thin Python client co-located with PyTorch), applies the patch, and
+    invokes the training harness; the on-GPU mutate→train→score→keep/discard loop writes
+    `results.jsonl`. ⟨OPEN, minor⟩ Go-reuse vs Python-local; harness likely adapted from the port.
   - `program.md` — the research objective (human-edited, the only "knob" for direction).
   - `gate.py` / gate module — deterministic: baseline delta, re-run confirmation, novelty, sanity.
   - `ledger.*` — single-writer hash-chained appends (reuse optitron's `internal/ledger` shape if
@@ -145,9 +160,11 @@ baseline"* — with the BPB delta, the diff, the re-run confirmation, and a link
   bid and on-demand vs interruptible. This is **1–2 orders of magnitude** above the API-only
   siblings (optitron ~$1–3/day, fleet-introspect ~$0.20–0.45/run) — the cost design must be
   proportionally stricter.
-- **Per-trial model spend** (only if the mutation driver is an LLM — ⟨OPEN⟩ #1): ~60–70
-  trials/night × a coding-agent turn each. Could rival or exceed the GPU cost depending on the
-  model; bound it with a per-night model budget cap like optitron's `--budget-total`.
+- **Per-trial model spend** (decided: OpenRouter pipeline): ~60–70 trials/night × **one
+  structured mutation call** each (not a multi-turn agent), so far cheaper than a headless-agent
+  driver — a single bounded codegen call per trial. Still bound it with a per-night
+  `--budget-total` cap like optitron, and pick a cost-appropriate codegen model; the cap is
+  non-bypassable and checked before every call.
 - **Hard controls:** `$/hr` bid cap (abort if no GPU under it) · mandatory teardown trap (no
   orphaned instances) · monthly spend ceiling that disables the cron · per-night model-budget cap
   · spend reported in every ledger event + digest toot + a Telegram alert on each night's total.
