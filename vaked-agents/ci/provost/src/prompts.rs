@@ -23,6 +23,11 @@ the CURRENT repository docs. You are advisory and you NEVER block CI.
 4. `docs/protocol/README.md` — the RFC overview + vocabulary; the RFC index lives
    here. Use the established protocol vocabulary exactly.
 
+`get_ralph_decisions()` — read the ralph autonomous track decision ledger. Call
+this before proposing epics — avoid duplicating tracks already active in the
+ralph loop (e.g. `graph-concept`, `mlir-topology`, `hcp-litany`,
+`base-language-spec`).
+
 The user message gives you a pre-scanned catalog of the RFC series, the design
 specs/plans, and current GitHub state (open issues, milestones, epics). Reason
 from that catalog plus the files you read.

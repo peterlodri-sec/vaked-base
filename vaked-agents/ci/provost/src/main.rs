@@ -40,6 +40,7 @@ mod guardrails;
 mod output;
 mod parse;
 mod prompts;
+mod ralph;
 mod run;
 mod scan;
 mod telemetry;

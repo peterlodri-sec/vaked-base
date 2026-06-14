@@ -34,7 +34,7 @@ fn inject_context(ctx: &RepoContext) -> String {
 }
 
 pub(crate) fn system_prompt() -> String {
-    r#"You are the Vaked CI label-tagger: a doc-grounded automation agent for the
+    let mut s = r#"You are the Vaked CI label-tagger: a doc-grounded automation agent for the
 vaked-base monorepo. Your ONLY job is to classify a PR, issue, or set of merged
 commits and emit structured JSON. You are advisory — you NEVER block CI.
 
@@ -98,7 +98,20 @@ Each: `{ "title": "Phase N — ...", "description": "<first two bullet points>" 
 ## Output contract
 Respond ONLY with JSON matching the schema. No prose, no markdown fences.
 On any uncertainty, omit the field (null) rather than guess.
-If `no-auto-label` is present on the PR/issue, set `labels: []` and return."#.to_string()
+If `no-auto-label` is present on the PR/issue, set `labels: []` and return.
+
+## Extra context (area-specific hints, if any)
+
+See AGENT_EXTRA_CONTEXT in your environment — if set, it contains brief
+area-specific reminders injected by the CI workflow based on what files changed."#.to_string();
+    if let Ok(extra) = std::env::var("AGENT_EXTRA_CONTEXT") {
+        if !extra.trim().is_empty() {
+            s.push_str("\n\n## Area-specific hints (from CI)\n");
+            s.push_str(extra.trim());
+            s.push('\n');
+        }
+    }
+    s
 }
 
 pub(crate) fn build_label_pr_prompt(meta: &PrMeta, diff: &str, ctx: &RepoContext) -> String {
