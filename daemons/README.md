@@ -1,6 +1,6 @@
 # daemons/
 
-Code subtree for the Vaked runtime daemons. **Currently empty** — this is the monorepo slot where each daemon's implementation will land.
+Code subtree for the Vaked runtime daemons. WP4 scaffolding landed (`daemons/sandboxd/`). Implementation starts Jun 24.
 
 The authoritative roster, responsibilities, and membrane mapping live in [`docs/runtime/README.md`](../docs/runtime/README.md). Per-daemon directories (e.g. `daemons/sandboxd/`) are created when that daemon's design → plan → implementation cycle begins.
 
