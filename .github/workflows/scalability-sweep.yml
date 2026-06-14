@@ -1,0 +1,49 @@
+name: scalability-sweep
+
+# Advisory benchmark: runs the vakedc compile-time scalability sweep
+# (scripts/benchmark-scalability-sweep.py) across N fibers and uploads the
+# curve, so docs/evaluation/scalability-analysis-v0.1.md can be filled with
+# measured numbers (credibility-review Risk 4). Manual-only; never a PR gate.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sizes:
+        description: "comma-separated N values (fiber counts)"
+        default: "100,1000,10000,100000"
+      iters:
+        description: "iterations per N (median is reported)"
+        default: "10"
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run scalability sweep (vakedc is stdlib-only — no install)
+        run: |
+          PYTHONPATH=. python3 scripts/benchmark-scalability-sweep.py \
+            --sweep --sizes "${{ inputs.sizes }}" --iters "${{ inputs.iters }}" \
+            --out artifacts/scalability-curve.csv
+      - name: Write results to step summary
+        if: always()
+        run: |
+          {
+            echo "### Scalability sweep — sizes=${{ inputs.sizes }} iters=${{ inputs.iters }}"
+            echo '```'
+            cat artifacts/scalability-curve.csv 2>/dev/null || echo "(no CSV produced)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scalability-curve
+          path: artifacts/scalability-curve.*
+          if-no-files-found: warn
