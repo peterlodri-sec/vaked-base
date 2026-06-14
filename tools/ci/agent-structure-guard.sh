@@ -55,16 +55,17 @@ for a in "${AGENTS[@]}"; do
             echo "::error file=$main::$a/src/main.rs is a thin dispatcher on $BASE ($base_lines lines) but this PR balloons it to $head_lines. That re-monolithizes the crate and reverts its module split — rebase on $BASE and re-apply your change on top of the modules."
             fail=1
         fi
+    fi
 
-        # 2) Telemetry re-inlining: if base delegates to the shared crate, the head
-        #    must still delegate. (main keeps a thin `fn setup_tracing` wrapper that
-        #    CALLS vaked_telemetry::setup_tracing, so the signal is the call being
-        #    removed — i.e. re-inlined to the old OTLP builder — not the fn's presence.)
-        if printf '%s' "$base_main" | grep -q 'vaked_telemetry::setup_tracing'; then
-            if ! grep -qs 'vaked_telemetry::setup_tracing' "$main"; then
-                echo "::error file=$main::$a delegates tracing to vaked_telemetry::setup_tracing on $BASE, but this PR drops that call (re-inlining the old OTLP setup). That reverts the shared-telemetry refactor — keep calling vaked_telemetry::setup_tracing."
-                fail=1
-            fi
+    # 2) Telemetry re-inlining: if the crate delegates to vaked_telemetry::setup_tracing
+    #    ANYWHERE in its src on $BASE — the call may live in src/telemetry.rs rather
+    #    than main.rs (e.g. modularized pr-review) — the head must still call it
+    #    somewhere in src. A revert to the old inline OTLP builder drops the call.
+    #    Scan the whole src tree on BOTH sides (base via `git grep`), not just main.rs.
+    if git grep -q 'vaked_telemetry::setup_tracing' "$BASE" -- "$dir/src" 2>/dev/null; then
+        if ! grep -rqs 'vaked_telemetry::setup_tracing' "$dir/src"; then
+            echo "::error file=$main::$a delegates tracing to vaked_telemetry::setup_tracing on $BASE (somewhere in src), but this PR drops that call (re-inlining the old OTLP setup). That reverts the shared-telemetry refactor — keep calling vaked_telemetry::setup_tracing."
+            fail=1
         fi
     fi
 
