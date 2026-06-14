@@ -1,0 +1,101 @@
+name: swe-af-orchestrator-build
+
+# Bakes the swe-af-orchestrator + swe-af-enqueue binaries and publishes them as a
+# rolling GitHub Release (tag `swe-af-orchestrator-bin`). Worker hosts download
+# these instead of compiling (no rust toolchain on bench-node). Mirrors
+# swe-af-build.yml. Runs when the crate changes on main, or on demand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - vaked-agents/ci/swe-af-orchestrator/**
+      - .github/workflows/swe-af-orchestrator-build.yml
+  # On PRs touching the crate, compile + test as a pre-merge gate (no publish).
+  pull_request:
+    paths:
+      - vaked-agents/ci/swe-af-orchestrator/**
+      - .github/workflows/swe-af-orchestrator-build.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create/update the rolling release + upload assets
+
+concurrency:
+  group: swe-af-orchestrator-build-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: vaked-agents/ci/swe-af-orchestrator
+
+      - name: Set up sccache
+        uses: mozilla-actions/sccache-action@v0.0.10
+
+      - name: Set up mold linker
+        uses: rui314/setup-mold@v1
+
+      - name: Build + test (release)
+        env:
+          RUSTC_WRAPPER: sccache
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          probe() {
+            printf 'int main(){return 0;}' > "$RUNNER_TEMP/ld.c" && \
+            cc -fuse-ld="$1" "$RUNNER_TEMP/ld.c" -o "$RUNNER_TEMP/ld.out" 2>/dev/null
+          }
+          FUSE=""
+          for c in mold lld; do probe "$c" && FUSE="$c"; done
+          FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
+          if [ -n "$FUSE" ]; then
+            echo "::notice::linking with $FUSE"
+            FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE"
+          fi
+          export RUSTFLAGS="$FLAGS"
+          cargo test --release \
+            --manifest-path vaked-agents/ci/swe-af-orchestrator/Cargo.toml
+          cargo clippy --release --all-targets \
+            --manifest-path vaked-agents/ci/swe-af-orchestrator/Cargo.toml -- -D warnings
+          cargo build --release \
+            --manifest-path vaked-agents/ci/swe-af-orchestrator/Cargo.toml
+          cp vaked-agents/ci/swe-af-orchestrator/target/release/swe-af-orchestrator \
+             vaked-swe-af-orchestrator-linux-x86_64
+          cp vaked-agents/ci/swe-af-orchestrator/target/release/swe-af-enqueue \
+             vaked-swe-af-enqueue-linux-x86_64
+
+      # PRs are a compile/test gate only — publish the rolling binaries on main.
+      - name: Publish rolling release assets
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view swe-af-orchestrator-bin >/dev/null 2>&1 || \
+            gh release create swe-af-orchestrator-bin \
+              --title "swe-af orchestrator (prebuilt)" \
+              --notes "Rolling prebuilt linux-x86_64 binaries (orchestrator + enqueue) of vaked-agents/ci/swe-af-orchestrator. Auto-updated from main." \
+              --prerelease
+          gh release upload swe-af-orchestrator-bin \
+            vaked-swe-af-orchestrator-linux-x86_64 \
+            vaked-swe-af-enqueue-linux-x86_64 --clobber
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to:      ${{ secrets.TELEGRAM_TO }}
+          token:   ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ swe-af-orchestrator-build failed on ${{ github.ref_name }}
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -1,0 +1,20 @@
+[Unit]
+Description=swe-af fan-out batch orchestrator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Slice=swe-af.slice
+DynamicUser=yes
+# scratch + state live under /var/lib/swe-af (owned by the dynamic user)
+StateDirectory=swe-af
+EnvironmentFile=/etc/swe-af/orchestrator.env
+ExecStart=/usr/local/bin/swe-af-orchestrator
+Restart=on-failure
+RestartSec=5
+# graceful: let in-flight tasks finish on stop before SIGKILL
+TimeoutStopSec=900
+
+[Install]
+WantedBy=multi-user.target
