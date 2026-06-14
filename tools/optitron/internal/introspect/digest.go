@@ -129,7 +129,7 @@ func AggregateByModel(observations []map[string]any, cost CostFn) map[string]*Mo
 		} else if cost != nil {
 			a.s.Cost += cost(model, pin, pout)
 		}
-		if lat := num(o["latency"]); lat > 0 || o["latency"] != nil {
+		if lat := num(o["latency"]); lat > 0 { // skip absent/zero — they'd skew p50/p95 low
 			a.lat = append(a.lat, lat)
 		}
 	}

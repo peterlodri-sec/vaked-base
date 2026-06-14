@@ -67,7 +67,12 @@ func (c *LangfuseClient) Query(path string, params map[string]string, maxPages i
 		decErr := dec.Decode(&body)
 		resp.Body.Close()
 		if decErr != nil || resp.StatusCode >= 400 {
-			fmt.Printf("::warning::introspect: langfuse %s status=%d\n", path, resp.StatusCode)
+			if resp.StatusCode >= 400 && len(out) == 0 {
+				// first page already failed → bad host/creds, not "no traffic"
+				fmt.Printf("::warning::introspect: langfuse %s status=%d, no data — check LANGFUSE_HOST/PUBLIC/SECRET\n", path, resp.StatusCode)
+			} else {
+				fmt.Printf("::warning::introspect: langfuse %s status=%d\n", path, resp.StatusCode)
+			}
 			break
 		}
 		out = append(out, body.Data...)
