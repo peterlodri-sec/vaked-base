@@ -40,7 +40,23 @@ fn env_first(keys: &[&str]) -> Option<String> {
 ///   token built from the standard `LANGFUSE_PUBLIC_KEY` : `LANGFUSE_SECRET_KEY`
 ///   pair (the keys that actually live in the `ci` environment).
 pub fn setup_tracing(service_name: &str, tracer_name: &str) -> Option<SdkTracerProvider> {
-    let base = env_first(&["LANGFUSE_HOST", "LANGFUSE_BASE_URL", "LANGFUSE_URL"])?;
+    // Always install a stderr log layer so the agents are observable in CI even without
+    // Langfuse (otherwise a missing base URL meant *no logs at all*). ANSI color is
+    // disabled when stderr isn't a TTY (CI) or NO_COLOR is set, keeping GitHub-Actions
+    // step logs free of escape codes. The OTLP/Langfuse layer is added on top when configured.
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    let use_ansi = std::io::IsTerminal::is_terminal(&std::io::stderr())
+        && std::env::var("NO_COLOR").is_err();
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stderr)
+        .with_ansi(use_ansi);
+
+    let Some(base) = env_first(&["LANGFUSE_HOST", "LANGFUSE_BASE_URL", "LANGFUSE_URL"]) else {
+        // No Langfuse configured — stderr logging only.
+        tracing_subscriber::registry().with(filter).with(fmt_layer).try_init().ok();
+        return None;
+    };
 
     let token = env_first(&["LANGFUSE_API_KEY"]).or_else(|| {
         match (
@@ -66,7 +82,9 @@ pub fn setup_tracing(service_name: &str, tracer_name: &str) -> Option<SdkTracerP
     {
         Ok(e) => e,
         Err(e) => {
-            eprintln!("vaked-telemetry: Langfuse exporter init failed, tracing off: {e}");
+            // Exporter init failed — keep stderr logging, drop the OTLP layer.
+            tracing_subscriber::registry().with(filter).with(fmt_layer).try_init().ok();
+            eprintln!("vaked-telemetry: Langfuse exporter init failed, stderr-only: {e}");
             return None;
         }
     };
@@ -83,11 +101,9 @@ pub fn setup_tracing(service_name: &str, tracer_name: &str) -> Option<SdkTracerP
         .build();
 
     let tracer = provider.tracer(tracer_name.to_string());
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     tracing_subscriber::registry()
         .with(filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+        .with(fmt_layer)
         .with(tracing_opentelemetry::layer().with_tracer(tracer))
         .try_init()
         .ok();
