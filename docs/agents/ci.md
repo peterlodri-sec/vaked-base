@@ -33,6 +33,7 @@ agent's README.
 |----------|---------|----------|---------|
 | [`ralph-tracks.yml`](../../.github/workflows/ralph-tracks.yml) | cron 3h + 23:00 UTC, dispatch | LLM | decide one track → commit ledger → announce/recap to Mastodon |
 | [`optitron-crawl.yml`](../../.github/workflows/optitron-crawl.yml) | daily cron 05:33 UTC; **double-confirmed** dispatch | LLM (Go/Eino) | concurrent crawl→verify→bench→adjudicate for ONE proven optimization → open `agent` issue (swe_af) + announce; else abstain. Manual runs gated by `confirm: RUN` + the `optitron-manual` Environment required-reviewer approval |
+| [`fleet-introspect.yml`](../../.github/workflows/fleet-introspect.yml) | cron daily 06:00 UTC; **double-confirmed** dispatch | LLM (Go/Eino) | mine the fleet's own Langfuse traces (≤2d) → detect→ideate→**review** one novel improvement → `agent` issue (swe_af) + economy report; else abstain. Reads ralph's live loop read-only. Manual runs gated by `confirm: RUN` + the `introspect-manual` Environment approval |
 | [`pr-review.yml`](../../.github/workflows/pr-review.yml) | `pull_request` | LLM | advisory diff review (prebuilt binary; from-source fallback) |
 | [`vaked-ci-respond.yml`](../../.github/workflows/vaked-ci-respond.yml) | `issue_comment` w/ `@vaked-ci` | LLM | answer maintainer questions / `re-review` |
 | [`pr-review-build.yml`](../../.github/workflows/pr-review-build.yml) | push to `main` (agent crate) | CI | compile + publish the rolling `pr-review-bin` release |

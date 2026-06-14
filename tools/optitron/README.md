@@ -98,7 +98,28 @@ tools/optitron/
   internal/gate/        pure deterministic gate: scope, independence, bench parse, pass/reject (+ tests)
   internal/llm/         Eino OpenRouter wrapper, strict schemas, prompt builders
   internal/run/         orchestration: config, budget guard, novelty, bench runner, act, pipeline (+ tests)
-  sources.json · PURPOSE.md · state/events.jsonl
+  cmd/introspect/       fleet-introspect — sibling agent (reuses internal/ledger + internal/llm)
+  internal/introspect/  langfuse query, telemetry digest + economy, detect→ideate→review loop (+ tests)
+  sources.json · PURPOSE.md · state/{events,introspect}.jsonl
 ```
 
 Scheduled / gated by [`.github/workflows/optitron-crawl.yml`](../../.github/workflows/optitron-crawl.yml).
+
+## Sibling agent — `cmd/introspect` (fleet-introspect)
+
+This module also hosts **fleet-introspect**, a daily self-improvement loop that **reuses this
+core** (`internal/ledger` + `internal/llm`). It mines the fleet's own Langfuse telemetry (+ the
+hash-chained ledgers — **ralph's is read-only**) over the last ≤2 days, auto-detects the most
+salient finding, ideates one novel solution, **always reviews** it behind a fail-closed gate, hands
+a survivor to swe_af via an `agent` issue, and reports the fleet **economy** (real spend → normal
+day/week/month projection). Own ledger: `state/introspect.jsonl`. Design:
+[`docs/superpowers/specs/2026-06-14-fleet-introspect-design.md`](../../docs/superpowers/specs/2026-06-14-fleet-introspect-design.md).
+
+```bash
+go run ./cmd/introspect run --dry-run          # build the telemetry digest + economy, no model calls
+go run ./cmd/introspect run --once --budget-total 3 [--focus "..."]
+go run ./cmd/introspect events --replay        # verify the introspect ledger chain
+```
+Models (env-overridable): `INTROSPECT_DETECT_MODEL` (deepseek-v4-flash), `INTROSPECT_{IDEATE,REVIEW}_MODEL`
+(claude-opus-4.8). Gated daily by [`.github/workflows/fleet-introspect.yml`](../../.github/workflows/fleet-introspect.yml)
+(daily schedule + a double-confirmed manual dispatch via the `introspect-manual` Environment).

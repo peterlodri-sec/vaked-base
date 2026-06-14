@@ -67,7 +67,7 @@ func (c *Client) CostOf(model string, promptTokens, completionTokens int) float6
 // reply to `ns`'s strict JSON schema, and unmarshals it into `out`. It returns
 // the USD cost of the call. `effort` is "" for no reasoning, or low|medium|high.
 // Retries with exponential backoff on transient failures.
-func (c *Client) CallJSON(ctx context.Context, model string, msgs []*schema.Message, ns *namedSchema, maxTokens int, effort string, out any) (float64, error) {
+func (c *Client) CallJSON(ctx context.Context, model string, msgs []*schema.Message, ns *NamedSchema, maxTokens int, effort string, out any) (float64, error) {
 	cfg := &openrouter.Config{
 		APIKey:      c.APIKey,
 		BaseURL:     c.BaseURL,

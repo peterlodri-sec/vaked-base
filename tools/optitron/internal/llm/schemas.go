@@ -70,15 +70,24 @@ func mustSchema(raw string) *jsonschema.Schema {
 
 // Schema names + parsed schemas for each pipeline leg.
 var (
-	CrawlSchema      = &namedSchema{"optitron_candidates", mustSchema(crawlSchemaJSON)}
-	VerifySchema     = &namedSchema{"optitron_verify", mustSchema(verifySchemaJSON)}
-	BenchSchema      = &namedSchema{"optitron_bench", mustSchema(benchSchemaJSON)}
-	AdjudicateSchema = &namedSchema{"optitron_adjudicate", mustSchema(adjudicateSchemaJSON)}
+	CrawlSchema      = &NamedSchema{"optitron_candidates", mustSchema(crawlSchemaJSON)}
+	VerifySchema     = &NamedSchema{"optitron_verify", mustSchema(verifySchemaJSON)}
+	BenchSchema      = &NamedSchema{"optitron_bench", mustSchema(benchSchemaJSON)}
+	AdjudicateSchema = &NamedSchema{"optitron_adjudicate", mustSchema(adjudicateSchemaJSON)}
 )
 
-type namedSchema struct {
+// NamedSchema is a named, strict json_schema response format. Exported so sibling
+// agents in this module (e.g. cmd/introspect) can define their own schemas and
+// drive Client.CallJSON with them.
+type NamedSchema struct {
 	Name   string
 	Schema *jsonschema.Schema
+}
+
+// NewSchema builds a NamedSchema from a raw JSON-schema literal (panics on a
+// malformed literal — a programming error, surfaced at startup).
+func NewSchema(name, rawJSON string) *NamedSchema {
+	return &NamedSchema{Name: name, Schema: mustSchema(rawJSON)}
 }
 
 // --- Prompt builders. The crawl prompt embeds SKILL.md as the system message,
