@@ -93,6 +93,7 @@ Numbered design notes in this directory. Each note is either a seed draft
 | [0012](./0012-lowering.md) | Lowering (Goal 3) | Graph → artifacts: emitters, Nix spine, provenance |
 | [0013](./0013-traversable-execution.md) | Traversable Execution Tree | `lifecycle` block for `parallel`/`fiber`: pause/resume/stop/rewind |
 | [0014](./0014-typed-capability-graph.md) | Typed Capability Graph | Zero-proof containment; typed `domain.grant` refs |
+| [0015](./0015-inline-arp-compiled-execution.md) | Inline ARP: Compiled-Parallelized Execution | IR exec overlay + wavefront schedule + dual-projection contract + verification |
 
 ## Golden commands
 
