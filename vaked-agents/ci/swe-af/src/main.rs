@@ -971,15 +971,19 @@ fn strip_fences(s: &str) -> &str {
     s
 }
 
-/// Pull a schema-conforming JSON object out of a model reply that may contain
-/// reasoning prose before the answer (the agent explores with tools, then ends on
-/// JSON). Tries the whole (fence-stripped) string first, then every balanced
-/// top-level `{...}` object from last to first, returning the first that
-/// deserializes into `T`. Braces inside strings are ignored. Slices land on `{`/`}`
+/// Pull a schema-conforming JSON object out of a model reply that may contain reasoning
+/// prose before the answer (the agent explores with tools, then ends on JSON). Tries the
+/// whole (fence-stripped) string first, then every balanced top-level `{...}` object from
+/// last to first, returning the first that deserializes into `T` **and** passes `accept`.
+/// The `accept` guard matters because our output structs default every field, so a trailing
+/// echoed schema/empty object would otherwise deserialize to an empty value and shadow the
+/// real answer that came earlier. Braces inside strings are ignored; slices land on `{`/`}`
 /// (ASCII) boundaries, so byte indexing is char-safe.
-fn extract_json<T: serde::de::DeserializeOwned>(raw: &str) -> Option<T> {
+fn extract_json<T: serde::de::DeserializeOwned>(raw: &str, accept: impl Fn(&T) -> bool) -> Option<T> {
     if let Ok(v) = serde_json::from_str::<T>(strip_fences(raw)) {
-        return Some(v);
+        if accept(&v) {
+            return Some(v);
+        }
     }
     let bytes = raw.as_bytes();
     let mut spans: Vec<(usize, usize)> = Vec::new();
@@ -1018,11 +1022,13 @@ fn extract_json<T: serde::de::DeserializeOwned>(raw: &str) -> Option<T> {
     spans
         .iter()
         .rev()
-        .find_map(|&(a, b)| serde_json::from_str::<T>(&raw[a..b]).ok())
+        .filter_map(|&(a, b)| serde_json::from_str::<T>(&raw[a..b]).ok())
+        .find(|v| accept(v))
 }
 
 fn parse_plan(raw: &str) -> PlanOutput {
-    match extract_json::<PlanOutput>(raw) {
+    // A usable plan must at least have a non-empty plan body.
+    match extract_json::<PlanOutput>(raw, |p| !p.plan.trim().is_empty()) {
         Some(mut out) => {
             out.target_files.retain(|p| safe_rel_path(p));
             out.target_files.truncate(40);
@@ -1036,7 +1042,8 @@ fn parse_plan(raw: &str) -> PlanOutput {
 }
 
 fn parse_code(raw: &str, max_files: usize) -> CodeOutput {
-    match extract_json::<CodeOutput>(raw) {
+    // A usable code result must carry at least one file edit — reject empty/echoed objects.
+    match extract_json::<CodeOutput>(raw, |c| !c.files.is_empty()) {
         Some(mut out) => {
             // Drop unsafe paths and clamp content size; cap the file count.
             out.files.retain(|f| safe_rel_path(&f.path));
@@ -1223,7 +1230,7 @@ mod tests {
         // The new agent explores, narrates, then ends on the JSON object.
         let s = "Let me read graph.py first.\nOK, here is the plan:\n\
                  {\"plan\":\"add a kind to node_id\",\"target_files\":[\"vakedc/graph.py\"],\"summary\":\"qualify node ids\"}\nDone.";
-        let out: PlanOutput = extract_json(s).expect("should find trailing JSON");
+        let out: PlanOutput = extract_json(s, |p: &PlanOutput| !p.plan.trim().is_empty()).expect("should find trailing JSON");
         assert_eq!(out.summary, "qualify node ids");
         assert_eq!(out.target_files, vec!["vakedc/graph.py"]);
     }
@@ -1232,20 +1239,32 @@ mod tests {
     fn extract_json_prefers_last_object() {
         let s = "{\"plan\":\"draft\",\"target_files\":[],\"summary\":\"a\"} ... revised: \
                  {\"plan\":\"final\",\"target_files\":[\"b.rs\"],\"summary\":\"b\"}";
-        let out: PlanOutput = extract_json(s).expect("json");
+        let out: PlanOutput = extract_json(s, |p: &PlanOutput| !p.plan.trim().is_empty()).expect("json");
         assert_eq!(out.summary, "b");
     }
 
     #[test]
     fn extract_json_ignores_braces_in_strings() {
         let s = "noise {\"plan\":\"use a HashMap<K,{}>\",\"target_files\":[\"x\"],\"summary\":\"s\"} tail";
-        let out: PlanOutput = extract_json(s).expect("json");
+        let out: PlanOutput = extract_json(s, |p: &PlanOutput| !p.plan.trim().is_empty()).expect("json");
         assert_eq!(out.target_files, vec!["x"]);
     }
 
     #[test]
     fn extract_json_none_when_absent() {
-        assert!(extract_json::<PlanOutput>("no json here at all").is_none());
+        assert!(extract_json::<PlanOutput>("no json here at all", |_| true).is_none());
+    }
+
+    #[test]
+    fn parse_code_skips_trailing_empty_object() {
+        // Real edits first, then an echoed empty/schema object — must keep the real edits,
+        // not let the trailing empty CodeOutput shadow them.
+        let s = "{\"files\":[{\"path\":\"a.rs\",\"content\":\"x\"}],\"commit_message\":\"c\",\"notes\":\"\"} \
+                 then schema echo {\"files\":[],\"commit_message\":\"\",\"notes\":\"\"}";
+        let out = parse_code(s, 20);
+        assert_eq!(out.files.len(), 1);
+        assert_eq!(out.files[0].path, "a.rs");
+        assert_eq!(out.commit_message, "c");
     }
 
     #[test]
@@ -1275,9 +1294,9 @@ mod tests {
 
     #[test]
     fn parse_code_strips_fences() {
-        let j = "```json\n{\"files\":[],\"commit_message\":\"x\",\"notes\":\"\"}\n```";
+        let j = "```json\n{\"files\":[{\"path\":\"a.rs\",\"content\":\"hi\"}],\"commit_message\":\"x\",\"notes\":\"\"}\n```";
         let out = parse_code(j, 20);
-        assert!(out.files.is_empty());
+        assert_eq!(out.files.len(), 1);
         assert_eq!(out.commit_message, "x");
     }
 
