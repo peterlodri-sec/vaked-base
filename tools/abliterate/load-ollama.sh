@@ -28,7 +28,9 @@ python3 "$(brew --prefix llama.cpp)/bin/convert_hf_to_gguf.py" \
   "$FUSED" --outtype q4_k_m --outfile "$GGUF_PATH"
 
 echo "==> Creating Ollama model: $OLLAMA_NAME"
-cat > /tmp/cuc-Modelfile <<EOF
+MODELFILE=$(mktemp)
+trap 'rm -f "$MODELFILE"' EXIT
+cat > "$MODELFILE" <<EOF
 FROM $GGUF_PATH
 
 SYSTEM """
@@ -43,8 +45,7 @@ PARAMETER temperature 0.7
 PARAMETER num_predict 1024
 EOF
 
-ollama create "$OLLAMA_NAME" -f /tmp/cuc-Modelfile
-rm /tmp/cuc-Modelfile
+ollama create "$OLLAMA_NAME" -f "$MODELFILE"
 
 echo ""
 echo "==> Model loaded: $OLLAMA_NAME"

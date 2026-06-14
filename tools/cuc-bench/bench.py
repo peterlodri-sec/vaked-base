@@ -181,7 +181,7 @@ def call_openai(api_key: str, system: str, user: str) -> dict:
     }
 
 
-def call_ollama(host: str, system: str, user: str) -> dict:
+def call_ollama(host_url: str, system: str, user: str) -> dict:
     model = os.environ.get("BENCH_MODEL", "llama3.3:70b-instruct-q4_K_M")
     payload = json.dumps({
         "model": model,
@@ -192,13 +192,16 @@ def call_ollama(host: str, system: str, user: str) -> dict:
         ],
     }).encode()
     req = urllib.request.Request(
-        f"{host.rstrip('/')}/v1/chat/completions",
+        f"{host_url.rstrip('/')}/v1/chat/completions",
         data=payload,
         headers={"content-type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=300) as resp:
-        data = json.loads(resp.read())
+    try:
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            data = json.loads(resp.read())
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Ollama unreachable at {host_url}: {exc}") from exc
     choice = data["choices"][0]["message"]["content"]
     usage = data.get("usage", {})
     return {
@@ -211,7 +214,7 @@ def call_ollama(host: str, system: str, user: str) -> dict:
 
 def call_api(backend: str, api_key: str, system: str, user: str) -> dict:
     if backend == "ollama":
-        return call_ollama(api_key, system, user)  # api_key holds the host URL
+        return call_ollama(api_key, system, user)  # api_key holds the OLLAMA_HOST URL
     if backend == "anthropic":
         return call_anthropic(api_key, system, user)
     if backend == "openrouter":
