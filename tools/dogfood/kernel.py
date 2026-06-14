@@ -50,31 +50,58 @@ def _is_git(root: str) -> bool:
                           capture_output=True, text=True).returncode == 0
 
 
-def _git_universe(root: str) -> list[str]:
-    """Files git 'sees': tracked + untracked-but-not-ignored. Respects
-    .gitignore via --exclude-standard, so the kernel's own .dogfood state and
-    build artifacts stay out of the judged tree."""
+# Hot-path complexity (per transition), git mode:
+#   change detection = two `git status` calls + a dict diff. git stats the tracked
+#   set (O(N_tracked)) but content-hashes ONLY files whose mtime/size changed, via
+#   its index cache — so detection is O(N_tracked stats + N_changed·bytes), NOT a
+#   full-tree content hash. The before/after STATUS delta (not a content-snapshot
+#   delta) is what makes a pre-existing dirty worktree free to ignore. Scope
+#   hashing (post-images + state hash) is O(N_scope·bytes) — bounded by the small
+#   granted scope, not the repo. Earlier drafts content-hashed the whole git
+#   universe twice per transition (O(N_repo·bytes)); that is gone.
+
+def _git_status_map(root: str) -> dict[str, str]:
+    """Map repo-relative path -> 2-char porcelain status. Uses git's index+mtime
+    cache (`status --porcelain -uall`), so only changed files are hashed by git;
+    untracked files are listed individually (`-uall`, no dir collapse) and ignored
+    paths (.dogfood, build artifacts) are excluded by default."""
     out = subprocess.run(
-        ["git", "-C", root, "ls-files", "--cached", "--others",
-         "--exclude-standard", "-z"],
+        ["git", "-C", root, "status", "--porcelain", "-uall", "-z"],
         capture_output=True, text=True, check=True).stdout
-    return [p for p in out.split("\0") if p]
+    m: dict[str, str] = {}
+    toks = out.split("\0")
+    i = 0
+    while i < len(toks):
+        t = toks[i]
+        if not t:
+            i += 1
+            continue
+        code, path = t[:2], t[3:]
+        if code and code[0] in ("R", "C"):   # rename/copy: source path is next token
+            i += 1
+        m[path] = code
+        i += 1
+    return m
 
 
-def _git_snapshot(root: str) -> dict[str, str]:
-    """Content snapshot of the git file universe: {rel: sha}. The before/after
-    delta of two of these is exactly one proposal's effect — independent of any
-    pre-existing dirty state in the worktree."""
-    snap = {}
-    for rel in _git_universe(root):
-        full = os.path.join(root, rel)
-        if os.path.isfile(full):
-            snap[rel] = T.file_sha(full)
-    return snap
+def _git_changes(before: dict, after: dict) -> dict:
+    """The proposal's effect = the STATUS delta between before and after. A path
+    whose status is unchanged was already dirty before the proposal and is
+    ignored; a newly-D path is a delete; any other new/changed status is a write;
+    a path whose dirty status cleared (reverted) counts as a write (content moved).
+    """
+    writes, deletes = [], []
+    for path, code in after.items():
+        if before.get(path) == code:
+            continue
+        (deletes if "D" in code else writes).append(path)
+    writes += [p for p in before if p not in after]
+    return {"writes": sorted(writes), "deletes": sorted(deletes)}
 
 
 def _full_changes(root: str, base_full: dict) -> dict:
-    """Whole-``root`` change set via snapshot diff (non-git fallback, e.g. tests)."""
+    """Whole-``root`` change set via snapshot diff (non-git fallback, e.g. tests;
+    O(N_tree·bytes) — acceptable only because non-git roots here are tiny)."""
     cur_full = T.tree_snapshot(root, ["."])
     return T.changed_set(base_full, cur_full)
 
@@ -180,7 +207,7 @@ def judge(root: str, scope: list[str], intent: str, proposer, *,
     for rel in list(base_scope):
         T.store_blob(blobs_dir, os.path.join(root, rel))
     git = _is_git(root)
-    base_git = _git_snapshot(root) if git else None
+    base_git = _git_status_map(root) if git else None
     base_full = None if git else T.tree_snapshot(root, ["."])
     if base_full is not None:
         # non-git: blob the whole base so a reject can be totally rolled back
@@ -191,7 +218,7 @@ def judge(root: str, scope: list[str], intent: str, proposer, *,
     declared = proposer(root, scope, intent)
 
     # 2. DETECT actual changes — the before/after delta caused by THIS proposal
-    actual = (T.changed_set(base_git, _git_snapshot(root)) if git
+    actual = (_git_changes(base_git, _git_status_map(root)) if git
               else _full_changes(root, base_full))
     actual_paths = actual["writes"] + actual["deletes"]
 

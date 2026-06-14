@@ -92,6 +92,31 @@ membrane schema lands, `writeScope` rides as a descriptive open field on the
 (open) `meshNode` schema — carried, not yet checked. Add a real `filesystem`
 membrane kind so the path allow-set is a compile-time fact.
 
+## Hot-path complexity
+
+Per transition (N_scope = files in the granted scope; N_repo = repo files;
+N_changed = files this proposal touched; n = WAL length):
+
+| Step | Cost | Note |
+|------|------|------|
+| Change detection (git) | `O(N_tracked stats + N_changed·bytes)` | two `git status --porcelain` calls + a dict diff; git's index/mtime cache hashes only changed files. **Not** a full-tree content hash. |
+| Change detection (non-git, tests only) | `O(N_tree·bytes)` | full snapshot diff; acceptable only because non-git roots here are tiny. |
+| Post-images + state hash | `O(N_scope·bytes)` | bounded by the small granted scope, not the repo. |
+| Replay gate | `O(N_scope·bytes)` | rebuild scope in a temp dir + re-hash. |
+| Capability check | `O(N_changed · N_scope_prefixes)` | prefix match per changed path. |
+| WAL append (`eventd`) | `O(n)` per open | `EventLog` verifies the whole chain on open (the tamper guarantee), then append is `O(1)`. |
+
+A regression earlier content-hashed the whole git universe **twice** per
+transition (`O(N_repo·bytes)`); that is removed — detection is now linear in the
+*change*, not the repo.
+
+The one super-linear term is `eventd`'s boot-verify: a fresh `EventLog` open is
+`O(n)`, so a one-shot `propose` per process is `O(n)` and a loop of m one-shot
+proposes is `O(m·n)`. This is `eventd`'s frozen audit design, not the kernel's. A
+long-running supervisor should hold the log open once and append `O(1)` per
+transition; the CLI pays the `O(n)` verify per invocation deliberately (it
+re-checks the audit spine on every run).
+
 ## Not in scope (deliberately)
 
 - **No AIL-0 / ARP parser** — neutral JSON records; the ARP IR is a separate
