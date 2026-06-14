@@ -23,6 +23,12 @@ esac
 
 GGUF_PATH="${FUSED}.gguf"
 
+if [[ ! -d "$FUSED" ]]; then
+  echo "ERROR: Fused model not found at $FUSED" >&2
+  echo "       Run: python3 -m mlx_lm.fuse --model <abliterated> --adapter-path <output>/adapters --save-path $FUSED" >&2
+  exit 1
+fi
+
 echo "==> Converting to GGUF (Q4_K_M)"
 if command -v convert_hf_to_gguf.py &>/dev/null; then
   CONVERT_SCRIPT="convert_hf_to_gguf.py"

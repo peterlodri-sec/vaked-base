@@ -6,7 +6,7 @@ Uses the cuc-bench corpus + two existing bench reports (normal vs wenyan-ultra)
 to build a JSONL training dataset compatible with mlx-tune / mlx-lm LoRA format.
 
 Output: tools/abliterate/wenyan-pairs.jsonl
-Format: {"text": "<s>[INST] {user} [/INST] {wenyan_response}</s>"}
+Format: {"text": "<s>[INST] {prompt_text} [/INST] {wenyan_response}</s>"}
 
 The model has already been verbosity-ablated by Heretic; this LoRA teaches it
 to use cuc-style compression natively — recovering benchmark accuracy while
