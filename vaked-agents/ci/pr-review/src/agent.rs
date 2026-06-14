@@ -91,10 +91,12 @@ pub(crate) fn build_runner_with(
         // Fail — so a guardrail can never suppress this advisory reviewer.
         .input_guardrails(guardrails::input_guardrails())
         .output_guardrails(guardrails::output_guardrails(cfg.max_findings as usize));
-    // No-tool single-pass is the default: only attach read_lines + crabcc when the
-    // tool loop is explicitly enabled (PR_REVIEW_USE_TOOLS), so non-tool-driving
-    // models review the diff directly instead of narrating tool intent.
-    if cfg.use_tools {
+    // No-tool single-pass is the default for the REVIEWER (PR_REVIEW_USE_TOOLS=1 to
+    // opt in), so non-tool-driving models review the diff directly instead of
+    // narrating tool intent. A caller that explicitly supplies a toolset — the
+    // interactive @vaked-ci responder — still gets tools: it has to look code up to
+    // answer questions, and conversational narration there is harmless.
+    if cfg.use_tools || crabcc.is_some() {
         builder = builder.tool(read_lines_tool());
         if let Some(ts) = crabcc {
             builder = builder.toolset(ts);
@@ -167,10 +169,12 @@ fn gen_config(
     }
     // Provider pinning for cache hits: OpenRouter's prefix cache is per-provider, so
     // letting it route the map-reduce per-file passes to different DeepSeek hosts cold-
-    // starts the cache each time. Pin the first-party DeepSeek provider first (keeping
-    // `allow_fallbacks` for resilience) so the byte-stable system-prompt prefix stays
-    // warm across passes. Only pin for deepseek/* models; override via
+    // starts the cache each time. Pin the first-party DeepSeek provider; for a
+    // deepseek/* model that is the canonical host (it serves the model, so this can't
+    // 404 the way a wrong third-party pin would — cf. the gpt-oss/"OpenAI" mispin that
+    // dead-ended label-tagger). Only pin for deepseek/* models; override via
     // PR_REVIEW_PROVIDER_ORDER (comma-separated provider slugs).
+    let custom_order = env_first(&["PR_REVIEW_PROVIDER_ORDER"]).is_some();
     let order = env_first(&["PR_REVIEW_PROVIDER_ORDER"])
         .map(|s| {
             s.split(',')
@@ -181,6 +185,13 @@ fn gen_config(
         .or_else(|| model.starts_with("deepseek/").then(|| vec!["DeepSeek".to_string()]))
         .filter(|v| !v.is_empty());
 
+    // Cache locality (target ≥75% prefix-cache hits): when pinned to first-party
+    // DeepSeek for a deepseek/* model, disable fallbacks so EVERY map-reduce per-file
+    // call lands on the same provider and the byte-stable system-prompt prefix stays
+    // warm. A custom order or a non-deepseek model keeps fallbacks ON — we can't
+    // assume the pinned provider actually serves the model.
+    let first_party_pin = order.is_some() && !custom_order && model.starts_with("deepseek/");
+
     let mut opts = OpenRouterRequestOptions::default()
         .with_reasoning(OpenRouterReasoningConfig {
             effort: Some(effort.to_string()),
@@ -189,7 +200,7 @@ fn gen_config(
         })
         .with_prompt_cache_key(CACHE_KEY)
         .with_provider_preferences(OpenRouterProviderPreferences {
-            allow_fallbacks: Some(true),
+            allow_fallbacks: Some(!first_party_pin),
             order,
             ..Default::default()
         });
