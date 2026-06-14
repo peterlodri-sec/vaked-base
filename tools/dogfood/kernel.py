@@ -280,8 +280,11 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("propose", help="run one transition through the judge")
     p.add_argument("--root", default=".")
-    p.add_argument("--scope", required=True,
-                   help="comma-separated granted path prefixes")
+    p.add_argument("--scope", help="comma-separated granted path prefixes")
+    p.add_argument("--from-vaked",
+                   help="lower the scope from a parsed Vaked LPG (graph.json)")
+    p.add_argument("--principal",
+                   help="mesh node name to scope as (used with --from-vaked)")
     p.add_argument("--intent", required=True)
     p.add_argument("--proposer", choices=["stub", "opencode"], default="stub")
     p.add_argument("--edit", action="append", help="stub edit rel=srcfile (repeatable)")
@@ -297,7 +300,18 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     if args.cmd == "propose":
-        scope = [s.strip() for s in args.scope.split(",") if s.strip()]
+        if args.from_vaked:
+            if not args.principal:
+                ap.error("--from-vaked requires --principal")
+            import scope_from_vaked as SV
+            scope = SV.write_scope(SV.load_graph(args.from_vaked), args.principal)
+            if not scope:
+                ap.error(f"principal {args.principal!r} grants no write-scope "
+                         f"(read-only or no writeScope) — nothing to propose")
+        elif args.scope:
+            scope = [s.strip() for s in args.scope.split(",") if s.strip()]
+        else:
+            ap.error("provide --scope or (--from-vaked --principal)")
         verdict = judge(args.root, scope, args.intent, _proposer_from_args(args),
                         wal_path=args.wal, blobs_dir=args.blobs)
         print(json.dumps({k: verdict[k] for k in

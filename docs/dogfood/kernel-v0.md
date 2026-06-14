@@ -65,6 +65,33 @@ accept ⇒ append to eventd WAL ; reject ⇒ roll tree back, record nothing
   out-of-scope write **rejected** by the capability gate and rolled back (no
   stray file); `verify` confirms the chain; `log` lists the transition.
 
+## Capability scope lowered from Vaked (M2.5)
+
+The kernel's write-scope is no longer hand-typed — it is **lowered from a Vaked
+capability declaration** (`vaked/examples/dogfood-kernel.vaked`), so the declared
+POLA and the enforced scope cannot drift:
+
+```
+dogfood-kernel.vaked  --(vakedc|vakedz parse)-->  .vaked/graph.json
+                                                       |
+                              scope_from_vaked.py (reads the LPG)
+                                                       |
+                       kernel.py propose --from-vaked … --principal proposer
+```
+
+`scope_from_vaked.py` returns a principal's `writeScope` **only** if its `fs`
+grant is write-capable (`repo_rw`/`host_rw`); a read-only principal (`fs.repo_ro`,
+e.g. the judge) gets `[]` and the kernel refuses to propose as it. It reads the
+parsed **LPG artifact**, not the source, so it is engine-agnostic — it survives
+the planned `vakedc`(Python)→`vakedz`(Zig) cutover since both emit the LPG.
+
+**Known gap (follow-up):** `filesystem` is currently a *schema-less* kind — there
+is no path-allow-set membrane that *checks* the `writeScope` (the way
+`networkMembrane` refines a `network` grant into host:port rules). Until that
+membrane schema lands, `writeScope` rides as a descriptive open field on the
+(open) `meshNode` schema — carried, not yet checked. Add a real `filesystem`
+membrane kind so the path allow-set is a compile-time fact.
+
 ## Not in scope (deliberately)
 
 - **No AIL-0 / ARP parser** — neutral JSON records; the ARP IR is a separate

@@ -33,6 +33,7 @@ tools/dogfood/
   transition.py    content-addressed tree hashing + post-image blob store
   wal.py           thin wrapper over the real eventd EventLog (the WAL)
   proposer.py      stub_propose (tests/demo) + opencode_propose (local Ollama)
+  scope_from_vaked.py  lower the kernel's write-scope FROM a Vaked POLA graph
   observe_frida.py L1 advisory observer — runs in a Linux container (M3)
   test_kernel.py   stdlib test runner (no pytest)
   sandbox/         demo target dir
@@ -56,8 +57,26 @@ python3 tools/dogfood/kernel.py propose --scope tools/dogfood/sandbox \
 python3 tools/dogfood/kernel.py verify    # boot tamper-check + replay summary
 python3 tools/dogfood/kernel.py log       # list recorded transitions
 
-python3 tools/dogfood/test_kernel.py      # 11 tests, stdlib only
+python3 tools/dogfood/test_kernel.py      # 16 tests, stdlib only
 ```
+
+### Scope lowered from a Vaked POLA graph
+
+Instead of hand-passing `--scope`, derive it from a Vaked capability declaration
+so the declaration and the enforcement cannot drift:
+
+```bash
+# 1. parse the kernel's POLA declaration into the LPG (vakedc OR vakedz)
+python3 -m vakedc parse vaked/examples/dogfood-kernel.vaked      # → .vaked/graph.json
+# 2. the kernel scopes itself to what the graph grants the principal
+python3 tools/dogfood/kernel.py propose --from-vaked .vaked/graph.json \
+  --principal proposer --intent "..." --proposer opencode
+```
+
+`scope_from_vaked.py` reads the parsed LPG artifact (engine-agnostic — works with
+the `vakedc` Python or `vakedz` Zig front-end), returns a principal's `writeScope`
+only if its `fs` grant is write-capable (`repo_rw`/`host_rw`); a read-only
+principal (`fs.repo_ro`) gets nothing. The kernel then enforces exactly that.
 
 ## Design notes
 

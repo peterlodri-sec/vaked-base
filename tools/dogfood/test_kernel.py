@@ -25,8 +25,27 @@ if HERE not in sys.path:
 import capability               # noqa: E402
 import kernel                   # noqa: E402
 import proposer as P            # noqa: E402
+import scope_from_vaked as SV   # noqa: E402
 import transition as T          # noqa: E402
 import wal as W                 # noqa: E402
+
+
+# A parsed-LPG fixture matching vakedc/vakedz `parse` output shape: a write-capable
+# proposer with a writeScope, and a read-only judge.
+_GRAPH = {
+    "version": 1, "edges": [],
+    "nodes": [
+        {"kind": "node", "name": "proposer",
+         "props": {"role": {"lit": "string", "value": "propose"},
+                   "capabilities": [{"ref": "fs.repo_rw"}, {"ref": "network.loopback"},
+                                    {"ref": "mem.recall"}],
+                   "writeScope": [{"lit": "string", "value": "tools/dogfood/sandbox"}]}},
+        {"kind": "node", "name": "judge",
+         "props": {"role": {"lit": "string", "value": "verify"},
+                   "capabilities": [{"ref": "fs.repo_ro"}, {"ref": "mem.append"}],
+                   "writeScope": []}},
+    ],
+}
 
 
 # --- fixtures ---------------------------------------------------------------
@@ -162,6 +181,41 @@ def test_wal_tamper_detected():
     except W.TamperError:
         raised = True
     assert raised, "tampered WAL must raise TamperError on open"
+
+
+# --- POLA lowering: scope derived from the Vaked capability graph -----------
+
+def test_scope_from_vaked_write_capable_principal():
+    assert SV.write_scope(_GRAPH, "proposer") == ["tools/dogfood/sandbox"]
+
+
+def test_scope_from_vaked_readonly_principal_gets_nothing():
+    # judge holds fs.repo_ro ⇒ no write authority regardless of any writeScope
+    assert SV.write_scope(_GRAPH, "judge") == []
+
+
+def test_scope_from_vaked_unknown_principal_raises():
+    raised = False
+    try:
+        SV.write_scope(_GRAPH, "ghost")
+    except KeyError:
+        raised = True
+    assert raised
+
+
+def test_lowered_scope_enforced_by_judge():
+    """End-to-end: a scope LOWERED from the Vaked graph gates the kernel exactly
+    like a hand-passed scope — in-scope accepted, out-of-scope rejected."""
+    scope = SV.write_scope(_GRAPH, "proposer")        # ["tools/dogfood/sandbox"]
+    root = tempfile.mkdtemp(prefix="dogfood-test-")
+    os.makedirs(os.path.join(root, "tools", "dogfood", "sandbox"))
+    with open(os.path.join(root, "tools", "dogfood", "sandbox", "a.txt"), "w") as f:
+        f.write("base\n")
+    ok = _judge(root, scope, {"tools/dogfood/sandbox/a.txt": "v1\n"})
+    assert ok["accepted"], ok["reasons"]
+    bad = _judge(root, scope, {"escape.txt": "x\n"})
+    assert not bad["accepted"]
+    assert any("capability" in r for r in bad["reasons"])
 
 
 # --- git-mode rollback safety (regression: must never delete tracked files) --
