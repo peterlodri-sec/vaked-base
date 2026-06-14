@@ -19,6 +19,14 @@ if ! command -v cc >/dev/null 2>&1; then
 fi
 export CC="${CC:-cc}" CXX="${CXX:-c++}"
 
+# Make `-lcuda` linkable for triton/torch.compile runtime kernel builds: the driver's
+# libcuda.so.1 has no `.so` dev symlink in the linker path, so triton's `cc ... -lcuda`
+# fails (CalledProcessError) and train.py never emits val_bpb. Symlink it + add cuda stubs.
+# (Proven necessary on H100 smoke runs, 2026-06-14.)
+LIBCUDA="$(ldconfig -p 2>/dev/null | grep -m1 'libcuda.so.1' | awk '{print $NF}')"
+[ -n "$LIBCUDA" ] && ln -sf "$LIBCUDA" /usr/lib/x86_64-linux-gnu/libcuda.so 2>/dev/null || true
+export LIBRARY_PATH="/usr/local/cuda/lib64/stubs:${LIBRARY_PATH:-}"
+
 if ! command -v uv >/dev/null 2>&1; then
   log "installing uv"
   curl -LsSf https://astral.sh/uv/install.sh | sh
