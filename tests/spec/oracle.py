@@ -28,7 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
 
 # Stages whose Zig implementation exists and should be gated. Grows per phase.
-ENABLED_STAGES: list[str] = ["lex"]
+ENABLED_STAGES: list[str] = ["lex", "parse"]
 
 # How to invoke each stage on each implementation. Each entry maps a stage to
 # the argv *suffix* (after the program) that emits the comparable artifact on

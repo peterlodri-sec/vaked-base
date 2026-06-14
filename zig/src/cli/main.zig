@@ -1,6 +1,7 @@
 const std = @import("std");
 const core = @import("vaked-core");
 const lex = @import("vaked-lex");
+const parse = @import("vaked-parse");
 const lexer = lex.lexer;
 const json_canon = core.json_canon;
 const Io = std.Io;
@@ -33,9 +34,104 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(try cmdLex(io, alloc, argv[2]));
     }
 
-    // Other subcommands (parse/check/lower) land in later phases.
+    if (std.mem.eql(u8, cmd, "parse")) {
+        std.process.exit(try cmdParse(io, alloc, argv[2..]));
+    }
+
+    // Other subcommands (check/lower) land in later phases.
     try writeStderr(io, "vakedc: not yet implemented\n");
     std.process.exit(2);
+}
+
+/// `vakedc parse <file> [--json PATH] [--sqlite PATH] [--print]`.
+///
+/// Mirrors `vakedc/__main__.py:_cmd_parse` for the oracle-gated path: lex →
+/// parse → build_graph → canonical JSON. With `--print` the canonical JSON is
+/// written to stdout. Exit codes: 0 ok; 1 on read/lex/parse error (message to
+/// stderr, stdout stays empty) — matching Python (the Unicode-version warning
+/// also goes to stderr so stdout is clean). The default `.vaked/` file writes
+/// and `--sqlite` emit are NOT oracle-gated and are out of scope here; we accept
+/// the flags so arg parsing doesn't break, but only `--print` produces output.
+fn cmdParse(io: Io, alloc: std.mem.Allocator, args: []const [:0]const u8) !u8 {
+    var file: ?[]const u8 = null;
+    var print_: bool = false;
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const a = args[i];
+        if (std.mem.eql(u8, a, "--print")) {
+            print_ = true;
+        } else if (std.mem.eql(u8, a, "--json") or std.mem.eql(u8, a, "--sqlite")) {
+            // flag takes a PATH value; skip it (not gated, not emitted here).
+            i += 1;
+        } else if (a.len >= 1 and a[0] == '-') {
+            try writeStderrFmt(io, alloc, "vakedc: unknown option {s}\n", .{a});
+            return 2;
+        } else if (file == null) {
+            file = a;
+        } else {
+            try writeStderr(io, "usage: vakedc parse <file> [--json PATH] [--sqlite PATH] [--print]\n");
+            return 2;
+        }
+    }
+    const path = file orelse {
+        try writeStderr(io, "usage: vakedc parse <file> [--json PATH] [--sqlite PATH] [--print]\n");
+        return 2;
+    };
+
+    // Read the file. On read error, match Python: message to stderr, exit 1.
+    const src = Dir.cwd().readFileAlloc(io, path, alloc, .unlimited) catch {
+        try writeStderrFmt(io, alloc, "vakedc: cannot read {s}\n", .{path});
+        return 1;
+    };
+
+    // Unicode-version-mismatch warning to stderr (parity; stderr is ungated).
+    lexer.maybeWarnUnicodeVersion(io);
+
+    // lex
+    var lex_err: lexer.ErrInfo = undefined;
+    const toks = lexer.tokenize(alloc, src, path, &lex_err) catch |e| switch (e) {
+        error.LexFailed => {
+            try writeStderrFmt(io, alloc, "vakedc: {s}:{d}:{d} \u{2014} {s}\n", .{
+                lex_err.file, lex_err.line, lex_err.col, lex_err.msg,
+            });
+            return 1;
+        },
+        error.OutOfMemory => return e,
+    };
+
+    // parse
+    var parse_err: parse.ErrInfo = undefined;
+    const items = parse.parse(alloc, toks, path, &parse_err) catch |e| switch (e) {
+        error.ParseFailed => {
+            try writeStderrFmt(io, alloc, "vakedc: {s}:{d}:{d} \u{2014} expected {s}, got {s}\n", .{
+                parse_err.file, parse_err.line, parse_err.col, parse_err.expected, parse_err.got,
+            });
+            return 1;
+        },
+        error.OutOfMemory => return e,
+    };
+
+    // resolve -> Graph (source_file = the path as given, matching Python).
+    var graph = core.Graph.init(alloc, path);
+    var unserializable = false;
+    parse.buildGraph(alloc, &graph, items, path, &unserializable) catch |e| switch (e) {
+        error.Unserializable => {
+            // Python builds the graph but crashes in json.dumps on a non-
+            // serializable Literal/ListLit left by a `default`/`oneof` field
+            // refinement: empty stdout, exit 1. Reproduce that exactly.
+            return 1;
+        },
+        error.OutOfMemory => return e,
+    };
+
+    const canonical = try json_canon.graphToCanonical(alloc, &graph);
+
+    if (print_) {
+        try File.stdout().writeStreamingAll(io, canonical);
+    }
+    // The default `.vaked/` file writes (when no flags given) are a Python side
+    // effect the oracle does not read; we intentionally omit them (and SQLite).
+    return 0;
 }
 
 fn cmdLex(io: Io, alloc: std.mem.Allocator, file: []const u8) !u8 {

@@ -23,6 +23,17 @@ pub fn build(b: *std.Build) void {
     });
     lex_mod.addImport("vaked-core", core_mod);
 
+    // vaked-parse: the parser + resolver module (Phase 2). Separate module so
+    // its files stay within their own subtree (Zig 0.16 module boundaries).
+    // Depends on vaked-core (LPG model + value tree) and vaked-lex (tokens).
+    const parse_mod = b.addModule("vaked-parse", .{
+        .root_source_file = b.path("src/parse/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    parse_mod.addImport("vaked-core", core_mod);
+    parse_mod.addImport("vaked-lex", lex_mod);
+
     // vakedc CLI executable. NOTE: libc + sqlite linking is added in Phase 2
     // (when `parse --sqlite` lands), together with the nix linker-path fix —
     // not at scaffold time, so the scaffold builds with zero system deps.
@@ -36,6 +47,7 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("vaked-core", core_mod);
     exe.root_module.addImport("vaked-lex", lex_mod);
+    exe.root_module.addImport("vaked-parse", parse_mod);
     b.installArtifact(exe);
 
     // `zig build run -- <args>`
@@ -48,9 +60,11 @@ pub fn build(b: *std.Build) void {
     // + cli.
     const core_tests = b.addTest(.{ .root_module = core_mod });
     const lex_tests = b.addTest(.{ .root_module = lex_mod });
+    const parse_tests = b.addTest(.{ .root_module = parse_mod });
     const cli_tests = b.addTest(.{ .root_module = exe.root_module });
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&b.addRunArtifact(core_tests).step);
     test_step.dependOn(&b.addRunArtifact(lex_tests).step);
+    test_step.dependOn(&b.addRunArtifact(parse_tests).step);
     test_step.dependOn(&b.addRunArtifact(cli_tests).step);
 }
