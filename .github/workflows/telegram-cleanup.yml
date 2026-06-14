@@ -1,0 +1,77 @@
+name: telegram-cleanup
+# Deletes specific Telegram messages by ID.
+# Trigger from the Actions tab: supply message_ids (comma-separated integers).
+# The message_id for every post is logged in the telegram-post job summary.
+on:
+  workflow_dispatch:
+    inputs:
+      message_ids:
+        description: 'Comma-separated message IDs to delete (e.g. 42,43,100)'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: ci   # TELEGRAM_TOKEN + TELEGRAM_TO
+    steps:
+      - name: Delete messages
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TO: ${{ secrets.TELEGRAM_TO }}
+          MSG_IDS: ${{ inputs.message_ids }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys, urllib.request
+
+          token   = os.environ["TOKEN"]
+          chat_id = os.environ["TO"]
+          raw_ids = os.environ["MSG_IDS"]
+
+          ids = []
+          bad = []
+          for x in raw_ids.split(","):
+              x = x.strip()
+              if not x:
+                  continue
+              try:
+                  ids.append(int(x))
+              except ValueError:
+                  bad.append(x)
+          if bad:
+              print(f"::error::invalid message IDs (not integers): {bad}", file=sys.stderr)
+              sys.exit(1)
+          if not ids:
+              print("No message IDs provided — nothing to do.")
+              sys.exit(0)
+
+          deleted = failed = 0
+          # deleteMessages supports up to 100 IDs per call
+          for i in range(0, len(ids), 100):
+              batch = ids[i:i + 100]
+              body  = json.dumps({"chat_id": chat_id, "message_ids": batch}).encode()
+              req   = urllib.request.Request(
+                  f"https://api.telegram.org/bot{token}/deleteMessages",
+                  data=body, headers={"Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      resp = json.loads(r.read())
+                  if resp.get("ok"):
+                      deleted += len(batch)
+                      print(f"batch {i//100+1}: deleted {batch}")
+                  else:
+                      failed += len(batch)
+                      print(f"batch {i//100+1}: failed — {resp}", file=sys.stderr)
+              except Exception as e:
+                  failed += len(batch)
+                  print(f"batch {i//100+1}: error — {e}", file=sys.stderr)
+
+          print(f"done: {deleted} deleted, {failed} failed")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as s:
+              s.write(f"### Telegram cleanup\n")
+              s.write(f"Deleted: **{deleted}**, Failed: **{failed}**\n")
+              s.write(f"IDs: `{raw_ids}`\n")
+          if failed:
+              sys.exit(1)
+          PYEOF

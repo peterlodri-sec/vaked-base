@@ -143,7 +143,9 @@ def main() -> int:
     baseline_src = open(TRAIN, encoding="utf-8").read()
 
     # 1. Baseline.
+    t0 = time.time()
     b = run_train("run.baseline.log")
+    base_secs = time.time() - t0
     emit({"kind": "baseline", **{k: b[k] for k in ("val_bpb", "peak_vram_mb", "note") if k in b}})
     if b["crashed"]:
         emit({"kind": "error", "note": "baseline crashed — aborting", "detail": b.get("tail", "")})
@@ -153,9 +155,15 @@ def main() -> int:
     best_sig = None
     history: list[dict] = []
 
+    # Reserve wall-clock for the confirm phase so a long search can't starve it — the gate needs
+    # CONFIRM_SEEDS confirm rows, and without a reserve a full-length search leaves zero, silently
+    # discarding a real win. Budget ~1.2x the measured baseline per seed, capped at 30% of the wall.
+    confirm_reserve = min(CONFIRM_SEEDS * base_secs * 1.2, WALL_SECS * 0.30)
+    search_deadline = WALL_SECS - confirm_reserve
+
     # 2. Search.
     trial = 0
-    while time.time() - start < WALL_SECS and trial < MAX_TRIALS:
+    while time.time() - start < search_deadline and trial < MAX_TRIALS:
         trial += 1
         cur_src = open(TRAIN, encoding="utf-8").read()
         mut = llm_mutation(open(PROGRAM, encoding="utf-8").read() if os.path.exists(PROGRAM) else "",

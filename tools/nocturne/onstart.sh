@@ -23,7 +23,7 @@ export CC="${CC:-cc}" CXX="${CXX:-c++}"
 # libcuda.so.1 has no `.so` dev symlink in the linker path, so triton's `cc ... -lcuda`
 # fails (CalledProcessError) and train.py never emits val_bpb. Symlink it + add cuda stubs.
 # (Proven necessary on H100 smoke runs, 2026-06-14.)
-LIBCUDA="$(ldconfig -p 2>/dev/null | grep -m1 'libcuda.so.1' | awk '{print $NF}')"
+LIBCUDA="$(ldconfig -p 2>/dev/null | grep -m1 'libcuda.so.1' | awk '{print $NF}')" || true  # grep -m1 exits 1 if absent; under pipefail+set -e that would abort onstart — empty is handled on the next line
 [ -n "$LIBCUDA" ] && ln -sf "$LIBCUDA" /usr/lib/x86_64-linux-gnu/libcuda.so 2>/dev/null || true
 export LIBRARY_PATH="/usr/local/cuda/lib64/stubs:${LIBRARY_PATH:-}"
 

@@ -1,10 +1,13 @@
 //! Shared constants + the footer signature stamped on every posted comment.
 
-// DeepSeek V4 Flash: cheap, 1M-context MoE with automatic prefix caching (good for
-// the per-file map-reduce that re-sends the identical system-prompt prefix).
-// Override with PR_REVIEW_MODEL (e.g. deepseek/deepseek-v4-pro, anthropic/claude-sonnet-4.6,
-// google/gemini-3-flash, z-ai/glm-5) — see README "Model choice".
-pub(crate) const DEFAULT_MODEL: &str = "deepseek/deepseek-v4-flash";
+// Gemini 3.1 Flash Lite: cheap ($0.25/$1.50 per Mtok) and — critically — it actually
+// DRIVES the structured-output / tool loop through adk→OpenRouter. deepseek/claude
+// instead *narrate* their intent ("I'll start by reading the files…") and ship an
+// empty/preamble review on large diffs — observed live: pr-review going green while
+// posting nothing. Same failure mode the swe_af work identified. Override with
+// PR_REVIEW_MODEL (e.g. google/gemini-3-flash or google/gemini-3.5-flash for deeper
+// reviews, anthropic/claude-sonnet-4.6, z-ai/glm-5) — see README "Model choice".
+pub(crate) const DEFAULT_MODEL: &str = "google/gemini-3.1-flash-lite";
 pub(crate) const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub(crate) const DEFAULT_MAX_DIFF_CHARS: usize = 48_000;
 pub(crate) const DEFAULT_MAPREDUCE_LINES: usize = 600;
@@ -17,9 +20,9 @@ pub(crate) const DEFAULT_REASONING_EFFORT: &str = "high";
 pub(crate) const PERFILE_REASONING_EFFORT: &str = "medium";
 pub(crate) const DEFAULT_CONCURRENCY: usize = 6;
 /// Blended $/million-token rate for the cost estimate in the footer (override with
-/// PR_REVIEW_USD_PER_MTOK). Default is a rough DeepSeek-V4-Flash-class blended price;
-/// bump it when pointing PR_REVIEW_MODEL at a pricier model.
-pub(crate) const DEFAULT_USD_PER_MTOK: f64 = 0.3;
+/// PR_REVIEW_USD_PER_MTOK). Default is a rough gemini-3.1-flash-lite-class blend
+/// ($0.25 in / $1.50 out); bump it when pointing PR_REVIEW_MODEL at a pricier model.
+pub(crate) const DEFAULT_USD_PER_MTOK: f64 = 0.5;
 pub(crate) const MAX_FILES_MAPREDUCE: usize = 40;
 pub(crate) const CACHE_KEY: &str = "vaked-ci-reviewer-v1";
 pub(crate) const COMMENT_MARKER: &str = "<!-- vaked-pr-review -->";
