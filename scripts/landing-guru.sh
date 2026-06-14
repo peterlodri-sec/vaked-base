@@ -153,38 +153,33 @@ check_link_health() {
 
   local broken_links=()
   local checked=0
-  local sample_limit=20
 
-  # Extract .md links from README and docs with timeout
-  local link_list=$(timeout 3 grep -rho '\[.*\]([^)]*)' "$REPO_ROOT/README.md" "$REPO_ROOT/docs" 2>/dev/null | grep '\.md' | sed 's/.*(\(.*\))/\1/' | head -20 || echo "")
+  # Extract links from README: Find pattern ](path.md...) and extract the path
+  local link_paths
+  link_paths=$(timeout 2 grep -o ']([^)]*.md[^)]*)' "$REPO_ROOT/README.md" 2>/dev/null | awk -F'[()]' '{print $2}' | head -20)
 
-  while IFS= read -r link; do
-    if [ -z "$link" ]; then
-      continue
-    fi
+  # Check each extracted link
+  while read -r file_path; do
+    [ -z "$file_path" ] && continue
 
-    # Extract file path from link (before # if anchor exists)
-    local file_path="${link%%#*}"
+    # Remove anchor if present (before #)
+    base_path="${file_path%%#*}"
 
-    # Skip empty paths and external URLs
-    if [ -z "$file_path" ] || [[ "$file_path" == http* ]]; then
-      continue
-    fi
+    # Skip external URLs
+    case "$base_path" in
+      http*) continue ;;
+      "")    continue ;;
+    esac
 
-    local full_path="$REPO_ROOT/$file_path"
+    full_path="$REPO_ROOT/$base_path"
 
     # Check if file exists
     if [ ! -f "$full_path" ]; then
-      broken_links+=("$link")
+      broken_links+=("$base_path")
     fi
 
-    ((checked++))
-
-    # Stop after sampling limit
-    if [ "$checked" -ge "$sample_limit" ]; then
-      break
-    fi
-  done < <(echo "$link_list")
+    checked=$((checked + 1))
+  done <<< "$link_paths"
 
   local links_json="{\"checked\": $checked, \"broken\": ${#broken_links[@]}, \"broken_links\": ["
   for link in "${broken_links[@]}"; do
