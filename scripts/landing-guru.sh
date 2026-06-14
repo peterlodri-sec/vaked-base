@@ -181,11 +181,13 @@ check_link_health() {
     checked=$((checked + 1))
   done <<< "$link_paths"
 
-  local links_json="{\"checked\": $checked, \"broken\": ${#broken_links[@]}, \"broken_links\": ["
-  for link in "${broken_links[@]}"; do
-    links_json="$links_json\"$link\","
-  done
-  links_json="${links_json%,}]}"
+  # Use jq to safely construct JSON with proper escaping
+  local links_json
+  links_json=$(jq -n \
+    --arg checked "$checked" \
+    --arg broken "${#broken_links[@]}" \
+    --argjson broken_links "$(printf '%s\n' "${broken_links[@]}" | jq -Rs -c '[inputs] | if .[0] == "" then [] else . end')" \
+    '{checked: $checked | tonumber, broken: $broken | tonumber, broken_links: $broken_links}' 2>/dev/null || echo '{"checked": 0, "broken": 0, "broken_links": []}')
 
   if [ "$DRY_RUN" != "true" ]; then
     echo "$links_json" > "$links_file"
@@ -436,38 +438,120 @@ post_slack_alert() {
   if [ "$TEST_SLACK" = "true" ] || [ "$alert_triggered" = "true" ]; then
     log "  Posting to Slack..."
 
-    local payload=$(cat <<EOF
-{
-  "text": "Landing Guru Alert",
-  "blocks": [
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "$alert_msg"
-      }
-    },
-    {
-      "type": "context",
-      "elements": [
-        {
-          "type": "mrkdwn",
-          "text": "View findings: \`cat .landing-cache/findings.json\`"
-        }
-      ]
-    }
-  ]
-}
-EOF
-    )
+    # Build payload safely using jq to escape all variables
+    local payload=$(jq -n \
+      --arg text "Landing Guru Alert" \
+      --arg msg "$alert_msg" \
+      '{
+        "text": $text,
+        "blocks": [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": $msg
+            }
+          },
+          {
+            "type": "context",
+            "elements": [
+              {
+                "type": "mrkdwn",
+                "text": "View findings: `cat .landing-cache/findings.json`"
+              }
+            ]
+          }
+        ]
+      }')
 
     if [ "$DRY_RUN" = "true" ]; then
       log "  [DRY-RUN] Would POST to Slack:"
       echo "$payload" | jq . >&2
     else
-      curl -X POST -H 'Content-type: application/json' \
-        --data "$payload" \
-        "$webhook" 2>/dev/null || log "  ✗ Slack POST failed"
+      # POST to Slack with HTTP status checking and retry logic
+      local max_retries=3
+      local retry_count=0
+      local backoff=1
+      local success=false
+
+      while [ "$retry_count" -lt "$max_retries" ] && [ "$success" = "false" ]; do
+        # Capture both HTTP status and response body
+        local response=$(mktemp)
+        local http_status=$(curl -w '%{http_code}' -o "$response" -s -X POST \
+          -H 'Content-type: application/json' \
+          --data "$payload" \
+          "$webhook" 2>&1)
+        local curl_exit=$?
+
+        # Check curl exit code
+        if [ "$curl_exit" -ne 0 ]; then
+          log "  ✗ Slack curl failed (exit code $curl_exit, attempt $((retry_count + 1))/$max_retries)"
+          retry_count=$((retry_count + 1))
+          if [ "$retry_count" -lt "$max_retries" ]; then
+            log "    Retrying in ${backoff}s..."
+            sleep "$backoff"
+            backoff=$((backoff * 2))
+          fi
+          rm -f "$response"
+          continue
+        fi
+
+        # Check HTTP status code
+        case "$http_status" in
+          200|201)
+            log "  ✓ Slack notification posted successfully"
+            success=true
+            ;;
+          401)
+            log "  ✗ Slack webhook auth failed (401 Unauthorized) — check SLACK_WEBHOOK_LANDING token"
+            log "    Response: $(cat "$response" 2>/dev/null || echo 'N/A')"
+            rm -f "$response"
+            return 1
+            ;;
+          403)
+            log "  ✗ Slack webhook forbidden (403 Forbidden) — webhook may be revoked or workspace access denied"
+            log "    Response: $(cat "$response" 2>/dev/null || echo 'N/A')"
+            rm -f "$response"
+            return 1
+            ;;
+          404)
+            log "  ✗ Slack webhook not found (404 Not Found) — SLACK_WEBHOOK_LANDING URL is invalid"
+            rm -f "$response"
+            return 1
+            ;;
+          429)
+            log "  ⊙ Slack rate limited (429 Too Many Requests, attempt $((retry_count + 1))/$max_retries)"
+            retry_count=$((retry_count + 1))
+            if [ "$retry_count" -lt "$max_retries" ]; then
+              log "    Retrying in ${backoff}s..."
+              sleep "$backoff"
+              backoff=$((backoff * 2))
+            fi
+            ;;
+          500|502|503|504)
+            log "  ⊙ Slack server error (HTTP $http_status, attempt $((retry_count + 1))/$max_retries)"
+            retry_count=$((retry_count + 1))
+            if [ "$retry_count" -lt "$max_retries" ]; then
+              log "    Retrying in ${backoff}s..."
+              sleep "$backoff"
+              backoff=$((backoff * 2))
+            fi
+            ;;
+          *)
+            log "  ✗ Slack POST failed with HTTP $http_status"
+            log "    Response: $(cat "$response" 2>/dev/null || echo 'N/A')"
+            rm -f "$response"
+            return 1
+            ;;
+        esac
+
+        rm -f "$response"
+      done
+
+      if [ "$success" = "false" ]; then
+        log "  ✗ Failed to post to Slack after $max_retries attempts"
+        return 1
+      fi
     fi
   fi
 }
