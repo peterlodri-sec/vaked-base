@@ -138,10 +138,6 @@ check_examples_catalog() {
 check_link_health() {
   log "Checking link health..."
 
-  # Skip expensive link check (too slow even with timeout)
-  log "  ⊗ Link check disabled (performance optimization)"
-  return
-
   local links_file="$CACHE_DIR/links.json"
   local prev_hash=$(load_manifest | jq -r '.links_hash // "missing"' 2>/dev/null || echo "missing")
 
@@ -153,49 +149,51 @@ check_link_health() {
     return
   fi
 
-  log "  Scanning for markdown links..."
+  log "  Scanning for markdown links (sampling 20)..."
 
   local broken_links=()
   local checked=0
 
-  # Extract all links from README and docs (format: [text](link) or [text]: link)
-  # Use timeout to prevent hanging on large directories
-  while IFS= read -r line; do
-    if [[ $line =~ \]\(([^\)]+)\) ]]; then
-      local url="${BASH_REMATCH[1]}"
-      # Skip URLs to external sites
-      if [[ "$url" == http* ]]; then
-        continue
-      fi
+  # Extract links from README: Find pattern ](path.md...) and extract the path
+  local link_paths
+  link_paths=$(timeout 2 grep -o ']([^)]*.md[^)]*)' "$REPO_ROOT/README.md" 2>/dev/null | awk -F'[()]' '{print $2}' | head -20)
 
-      # Extract file path and anchor
-      local file_path="${url%%#*}"
-      local anchor="${url##*#}"
+  # Check each extracted link
+  while read -r file_path; do
+    [ -z "$file_path" ] && continue
 
-      if [ -n "$file_path" ]; then
-        local full_path="$REPO_ROOT/$file_path"
-        # Only check a sample to avoid timeout
-        if [ "$checked" -lt 50 ]; then
-          if [ ! -f "$full_path" ]; then
-            broken_links+=("$url (missing file)")
-          fi
-        fi
-      fi
-      ((checked++))
+    # Remove anchor if present (before #)
+    base_path="${file_path%%#*}"
+
+    # Skip external URLs
+    case "$base_path" in
+      http*) continue ;;
+      "")    continue ;;
+    esac
+
+    full_path="$REPO_ROOT/$base_path"
+
+    # Check if file exists
+    if [ ! -f "$full_path" ]; then
+      broken_links+=("$base_path")
     fi
-  done < <(timeout 5 grep -rh '\[.*\](.*\.md' "$REPO_ROOT/README.md" "$REPO_ROOT/docs" 2>/dev/null || echo "")
 
-  local links_json="{\"checked\": $checked, \"broken\": ${#broken_links[@]}, \"broken_links\": ["
-  for link in "${broken_links[@]}"; do
-    links_json="$links_json\"$link\","
-  done
-  links_json="${links_json%,}]}"
+    checked=$((checked + 1))
+  done <<< "$link_paths"
+
+  # Use jq to safely construct JSON with proper escaping
+  local links_json
+  links_json=$(jq -n \
+    --arg checked "$checked" \
+    --arg broken "${#broken_links[@]}" \
+    --argjson broken_links "$(printf '%s\n' "${broken_links[@]}" | jq -Rs -c '[inputs] | if .[0] == "" then [] else . end')" \
+    '{checked: $checked | tonumber, broken: $broken | tonumber, broken_links: $broken_links}' 2>/dev/null || echo '{"checked": 0, "broken": 0, "broken_links": []}')
 
   if [ "$DRY_RUN" != "true" ]; then
     echo "$links_json" > "$links_file"
   fi
 
-  log "  ✓ Checked $checked links"
+  log "  ✓ Checked $checked links (sampled)"
 
   if [ ${#broken_links[@]} -gt 0 ]; then
     log "  ✗ ALERT: ${#broken_links[@]} broken links"
@@ -303,6 +301,7 @@ check_doc_coherence() {
   local coherence_file="$CACHE_DIR/coherence.json"
   local orphaned_docs=()
   local dangling_refs=()
+  local all_docs=$(find "$REPO_ROOT/docs" -name "*.md" -type f 2>/dev/null | wc -l)
 
   # Check for docs not referenced in any index or README
   while IFS= read -r doc; do
@@ -439,38 +438,120 @@ post_slack_alert() {
   if [ "$TEST_SLACK" = "true" ] || [ "$alert_triggered" = "true" ]; then
     log "  Posting to Slack..."
 
-    local payload=$(cat <<EOF
-{
-  "text": "Landing Guru Alert",
-  "blocks": [
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "$alert_msg"
-      }
-    },
-    {
-      "type": "context",
-      "elements": [
-        {
-          "type": "mrkdwn",
-          "text": "View findings: \`cat .landing-cache/findings.json\`"
-        }
-      ]
-    }
-  ]
-}
-EOF
-    )
+    # Build payload safely using jq to escape all variables
+    local payload=$(jq -n \
+      --arg text "Landing Guru Alert" \
+      --arg msg "$alert_msg" \
+      '{
+        "text": $text,
+        "blocks": [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": $msg
+            }
+          },
+          {
+            "type": "context",
+            "elements": [
+              {
+                "type": "mrkdwn",
+                "text": "View findings: `cat .landing-cache/findings.json`"
+              }
+            ]
+          }
+        ]
+      }')
 
     if [ "$DRY_RUN" = "true" ]; then
       log "  [DRY-RUN] Would POST to Slack:"
       echo "$payload" | jq . >&2
     else
-      curl -X POST -H 'Content-type: application/json' \
-        --data "$payload" \
-        "$webhook" 2>/dev/null || log "  ✗ Slack POST failed"
+      # POST to Slack with HTTP status checking and retry logic
+      local max_retries=3
+      local retry_count=0
+      local backoff=1
+      local success=false
+
+      while [ "$retry_count" -lt "$max_retries" ] && [ "$success" = "false" ]; do
+        # Capture both HTTP status and response body
+        local response=$(mktemp)
+        local http_status=$(curl -w '%{http_code}' -o "$response" -s -X POST \
+          -H 'Content-type: application/json' \
+          --data "$payload" \
+          "$webhook" 2>&1)
+        local curl_exit=$?
+
+        # Check curl exit code
+        if [ "$curl_exit" -ne 0 ]; then
+          log "  ✗ Slack curl failed (exit code $curl_exit, attempt $((retry_count + 1))/$max_retries)"
+          retry_count=$((retry_count + 1))
+          if [ "$retry_count" -lt "$max_retries" ]; then
+            log "    Retrying in ${backoff}s..."
+            sleep "$backoff"
+            backoff=$((backoff * 2))
+          fi
+          rm -f "$response"
+          continue
+        fi
+
+        # Check HTTP status code
+        case "$http_status" in
+          200|201)
+            log "  ✓ Slack notification posted successfully"
+            success=true
+            ;;
+          401)
+            log "  ✗ Slack webhook auth failed (401 Unauthorized) — check SLACK_WEBHOOK_LANDING token"
+            log "    Response: $(cat "$response" 2>/dev/null || echo 'N/A')"
+            rm -f "$response"
+            return 1
+            ;;
+          403)
+            log "  ✗ Slack webhook forbidden (403 Forbidden) — webhook may be revoked or workspace access denied"
+            log "    Response: $(cat "$response" 2>/dev/null || echo 'N/A')"
+            rm -f "$response"
+            return 1
+            ;;
+          404)
+            log "  ✗ Slack webhook not found (404 Not Found) — SLACK_WEBHOOK_LANDING URL is invalid"
+            rm -f "$response"
+            return 1
+            ;;
+          429)
+            log "  ⊙ Slack rate limited (429 Too Many Requests, attempt $((retry_count + 1))/$max_retries)"
+            retry_count=$((retry_count + 1))
+            if [ "$retry_count" -lt "$max_retries" ]; then
+              log "    Retrying in ${backoff}s..."
+              sleep "$backoff"
+              backoff=$((backoff * 2))
+            fi
+            ;;
+          500|502|503|504)
+            log "  ⊙ Slack server error (HTTP $http_status, attempt $((retry_count + 1))/$max_retries)"
+            retry_count=$((retry_count + 1))
+            if [ "$retry_count" -lt "$max_retries" ]; then
+              log "    Retrying in ${backoff}s..."
+              sleep "$backoff"
+              backoff=$((backoff * 2))
+            fi
+            ;;
+          *)
+            log "  ✗ Slack POST failed with HTTP $http_status"
+            log "    Response: $(cat "$response" 2>/dev/null || echo 'N/A')"
+            rm -f "$response"
+            return 1
+            ;;
+        esac
+
+        rm -f "$response"
+      done
+
+      if [ "$success" = "false" ]; then
+        log "  ✗ Failed to post to Slack after $max_retries attempts"
+        return 1
+      fi
     fi
   fi
 }

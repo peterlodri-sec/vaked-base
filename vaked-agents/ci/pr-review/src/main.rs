@@ -66,9 +66,17 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("vaked-pr-review {}+{}", consts::VERSION, consts::GIT_SHA);
+        return;
+    }
+
     let tracer_provider = setup_tracing();
 
     let code = if let Some(dir) = eval_dir() {
+        // eval is a MANUAL regression harness (not wired to any CI workflow), so
+        // unlike the advisory production paths below it exits non-zero on a
+        // regression — that is intentional: it is meant to fail a local test run.
         match run_eval(&dir).await {
             Ok(()) => 0,
             Err(e) => {

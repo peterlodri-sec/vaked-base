@@ -14,6 +14,7 @@ on:
       - "docs/**/*.md"
       - "vaked/examples/**/*.vaked"
       - "scripts/landing-guru.sh"
+  pull_request:
   schedule:
     - cron: "0 */3 * * *" # Every 3h
   workflow_dispatch:
@@ -62,7 +63,6 @@ jobs:
         run: bash scripts/landing-guru.sh
         env:
           SLACK_WEBHOOK_LANDING: ${{ secrets.SLACK_WEBHOOK_LANDING }}
-        continue-on-error: true
 
       - name: Capture findings
         id: findings
@@ -109,11 +109,28 @@ jobs:
               body: comment
             });
 
-      - name: Self-check-in (if requested)
+      - name: Validate pr_number input
+        id: validate-pr
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.pr_number != ''
         run: |
+          PR_NUM="${{ github.event.inputs.pr_number }}"
+          # Trim whitespace
+          PR_NUM=$(echo "$PR_NUM" | xargs)
+
+          # Validate format: must be digits only
+          if ! [[ "$PR_NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid pr_number format: '$PR_NUM' (must be digits only, got whitespace or non-numeric)"
+            exit 1
+          fi
+
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "pr_valid=true" >> $GITHUB_OUTPUT
+
+      - name: Self-check-in (if requested)
+        if: github.event_name == 'workflow_dispatch' && steps.validate-pr.outputs.pr_valid == 'true'
+        run: |
           sleep $(( ${{ github.event.inputs.delay_minutes }} * 60 ))
-          gh pr comment ${{ github.event.inputs.pr_number }} \
+          gh pr comment ${{ steps.validate-pr.outputs.pr_number }} \
             --repo "${{ github.repository }}" \
             --body "<!-- claude-self-checkin -->
           **Self-check-in** (${{ github.event.inputs.reason }}): re-checking landing page health."
