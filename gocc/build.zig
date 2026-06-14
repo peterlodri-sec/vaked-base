@@ -10,6 +10,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const wire_mod = b.addModule("wire", .{
+        .root_source_file = b.path("src/wire/frame.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
     const exe = b.addExecutable(.{
         .name = "gocc",
         .root_module = b.createModule(.{
@@ -55,4 +61,14 @@ pub fn build(b: *std.Build) void {
     scheduler_test_mod.addImport("gocc-core", core_mod);
     const scheduler_tests = b.addTest(.{ .root_module = scheduler_test_mod });
     test_step.dependOn(&b.addRunArtifact(scheduler_tests).step);
+
+    // tests — ZetaTensor frame + uring logger tests
+    const uring_test_mod = b.createModule(.{
+        .root_source_file = b.path("src/security/uring.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    uring_test_mod.addImport("wire", wire_mod);
+    const uring_tests = b.addTest(.{ .root_module = uring_test_mod });
+    test_step.dependOn(&b.addRunArtifact(uring_tests).step);
 }
