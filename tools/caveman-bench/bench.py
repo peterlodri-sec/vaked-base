@@ -3,15 +3,18 @@
 Benchmark: caveman wenyan-ultra vs normal (default) mode.
 
 Measures output token count and artifact English accuracy across 8 prompts.
-Writes results to report.md in the same directory.
+Writes results to report-<model>.md in the same directory.
 
-Backends:
-  - Anthropic API (default):  ANTHROPIC_API_KEY env var, model claude-sonnet-4-6
-  - OpenAI API (fallback):    OPENAI_API_KEY env var, model gpt-4o-mini
+Backends (priority order):
+  - Anthropic API:   ANTHROPIC_API_KEY env var, model claude-sonnet-4-6
+  - OpenRouter API:  OPENROUTER_API_KEY env var, model via BENCH_MODEL env var
+  - OpenAI API:      OPENAI_API_KEY env var, model gpt-4o-mini
 
 Usage:
-    ANTHROPIC_API_KEY=sk-ant-... python3 tools/caveman-bench/bench.py
-    OPENAI_API_KEY=sk-...      python3 tools/caveman-bench/bench.py
+    ANTHROPIC_API_KEY=sk-ant-...    python3 tools/caveman-bench/bench.py
+    OPENAI_API_KEY=sk-...           python3 tools/caveman-bench/bench.py
+    OPENROUTER_API_KEY=sk-or-...  \\
+      BENCH_MODEL=deepseek/deepseek-r1  python3 tools/caveman-bench/bench.py
 """
 
 import json
@@ -68,6 +71,8 @@ CJK_RE = re.compile(r"[一-鿿㐀-䶿]")
 def detect_backend():
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic", os.environ["ANTHROPIC_API_KEY"]
+    if os.environ.get("OPENROUTER_API_KEY"):
+        return "openrouter", os.environ["OPENROUTER_API_KEY"]
     if os.environ.get("OPENAI_API_KEY"):
         return "openai", os.environ["OPENAI_API_KEY"]
     return None, None
@@ -100,6 +105,39 @@ def call_anthropic(api_key: str, system: str, user: str) -> dict:
         "input_tokens": data["usage"]["input_tokens"],
         "output_tokens": data["usage"]["output_tokens"],
         "model": data["model"],
+    }
+
+
+def call_openrouter(api_key: str, system: str, user: str) -> dict:
+    model = os.environ.get("BENCH_MODEL", "deepseek/deepseek-r1")
+    payload = json.dumps({
+        "model": model,
+        "max_tokens": 2048,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }).encode()
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "content-type": "application/json",
+            "HTTP-Referer": "https://github.com/peterlodri-sec/vaked-base",
+            "X-Title": "caveman-bench",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = json.loads(resp.read())
+    choice = data["choices"][0]["message"]["content"]
+    usage = data["usage"]
+    return {
+        "text": choice,
+        "input_tokens": usage.get("prompt_tokens", 0),
+        "output_tokens": usage.get("completion_tokens", 0),
+        "model": data.get("model", model),
     }
 
 
@@ -136,6 +174,8 @@ def call_openai(api_key: str, system: str, user: str) -> dict:
 def call_api(backend: str, api_key: str, system: str, user: str) -> dict:
     if backend == "anthropic":
         return call_anthropic(api_key, system, user)
+    if backend == "openrouter":
+        return call_openrouter(api_key, system, user)
     return call_openai(api_key, system, user)
 
 
@@ -298,7 +338,8 @@ def main():
     results = run_benchmark(backend, api_key)
     report = build_report(results, backend)
 
-    out_path = _here / "report.md"
+    model_slug = results[0].get("model", "unknown").replace("/", "-").replace(":", "-")
+    out_path = _here / f"report-{model_slug}.md"
     out_path.write_text(report, encoding="utf-8")
     print(f"\nReport: {out_path}")
 
