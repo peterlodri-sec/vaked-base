@@ -158,6 +158,46 @@ mesh agentfield {
 }
 ```
 
+## Concept: device
+
+A `device` declares a named hardware or protocol endpoint — USB peripheral, Zigbee radio, framebuffer, etc. — that Vaked tracks as part of the capability graph. Fields include `driver` (a ref-app to a driver declaration or built-in driver), `mount` (host path), `permissions` (list of strings), and optional `observe`. Other fields are allowed (schema is `open`).
+
+```vaked
+device zigbeeRadio {
+  driver = usb.cdc_acm
+  mount = "/dev/ttyUSB0"
+  permissions = ["read", "write"]
+  observe = true
+}
+```
+
+Device declarations can be referenced in `mediaPipeline.source`, `mesh` node definitions, and capability grant lists. Their lowering target is not yet specified (see [`0012-lowering.md §5.4`](./0012-lowering.md)).
+
+## Concept: mediaPipeline
+
+A `mediaPipeline` models a named source → stages → sink media graph. It represents a sequence of processing steps (resize, encode, filter, etc.) that transform a media stream or device input into an output stream. Fields: `source` (device or stream ref), `stages` (non-empty list of stage records), `sink` (stream or source ref).
+
+```vaked
+mediaPipeline screenCapture {
+  source = device.framebuffer
+
+  stages = [
+    resize {
+      width = 1920
+      height = 1080
+    },
+    encode {
+      codec = "h264"
+      bitrate = 2000000
+    }
+  ]
+
+  sink = stream.screenrec
+}
+```
+
+A `mediaPipeline` can feed directly into a `fiber` input or a `surface`. Its lowering target is not yet specified (see [`0012-lowering.md §5.4`](./0012-lowering.md)).
+
 ## Parallel block
 
 ```vaked
