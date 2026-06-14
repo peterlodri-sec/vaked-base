@@ -205,14 +205,14 @@ def _engine_projection(engine_name: str) -> dict:
 
 def _children_of(graph, parent_id):
     """Direct ``contains`` children of a node, in source order (the resolver
-    appends edges in declaration order, and we never reorder)."""
-    out = []
-    for e in graph.edges:
-        if e.label == "contains" and e.source == parent_id:
-            child = graph.get_node(e.target)
-            if child is not None:
-                out.append(child)
-    return out
+    appends edges in declaration order, and we never reorder).
+
+    Delegates to :meth:`Graph.children`, which serves this from an O(E)
+    adjacency index built once at edge-add time — O(deg) per parent instead of
+    the former O(E) full edge scan per parent (which made the whole pass O(N²)).
+    The index preserves edge insertion order, so the returned child order is
+    byte-for-byte identical to the historical full-scan order."""
+    return graph.children(parent_id, "contains")
 
 
 def _by_kind(nodes, kind):
@@ -1574,8 +1574,17 @@ def enrich_graph(graph, items) -> None:
     no nodes/edges. Run by the lowering driver after resolve, before lower()."""
     from .resolve import _value_to_props  # local import: avoid a cycle at import
 
+    # Build the chain-suffix -> node lookup once (O(N)), instead of a full node
+    # scan per decl (O(N) calls x O(N) scan = O(N^2), the real super-linear cost
+    # of the lowering pass — Risk 4). The index keys each provenanced node by its
+    # ``#<chain>`` id suffix, keeping the FIRST node (in node-insertion order)
+    # for each suffix — byte-for-byte the node the former first-match
+    # ``endswith`` scan returned. (Node ids are ``<basename>#<chain>``, so the
+    # ``#<chain>`` suffix is unambiguous in practice; ties resolve identically.)
+    suffix_index = _build_chain_suffix_index(graph)
+
     def walk(decl, chain):
-        node = _node_for_chain(graph, chain)
+        node = _node_for_chain(suffix_index, chain)
         if node is not None:
             allowed = _CONFIG_BLOCK_FIELDS.get(decl.kind, frozenset())
             for st in decl.body:
@@ -1591,15 +1600,32 @@ def enrich_graph(graph, items) -> None:
             walk(it, [it.name])
 
 
-def _node_for_chain(graph, chain):
-    """Find the graph node whose id ends with the given decl-name chain. The
-    resolver keys ids by the source-file *basename*; we match on the chain
-    suffix so this works regardless of how the file path was spelled."""
-    suffix = "#" + "/".join(chain)
+def _build_chain_suffix_index(graph) -> dict:
+    """Map each provenanced node's ``#<chain>`` id suffix to that node, in a
+    single O(N) pass over the graph nodes (node-insertion order). For each
+    suffix the FIRST node encountered is kept, so a lookup returns the same node
+    the former first-match ``endswith`` scan over ``graph.nodes`` did.
+
+    Node ids are ``<basename>#<outer>/<inner>/...`` (see :func:`graph.node_id`),
+    so the substring from the first ``#`` is exactly ``#<chain>``; we key on that
+    so the lookup is path-spelling-agnostic, matching the prior behaviour."""
+    index = {}
     for n in graph.nodes:
-        if n.id.endswith(suffix) and n.provenance is not None:
-            return n
-    return None
+        if n.provenance is None:
+            continue
+        hash_at = n.id.find("#")
+        if hash_at < 0:
+            continue
+        suffix = n.id[hash_at:]  # "#<chain>"
+        index.setdefault(suffix, n)
+    return index
+
+
+def _node_for_chain(suffix_index, chain):
+    """The graph node whose id ends with the given decl-name chain, via the
+    prebuilt ``#<chain>`` suffix index (O(1)). Returns the same node the former
+    O(N) first-match ``endswith`` scan returned."""
+    return suffix_index.get("#" + "/".join(chain))
 
 
 # --------------------------------------------------------------------------- #
