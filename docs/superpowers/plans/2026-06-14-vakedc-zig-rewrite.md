@@ -378,7 +378,29 @@ git commit -m "test: oracle harness — byte-diff Zig vs Python per stage (opt-i
 
 Reference: `vakedc/lexer.py` (388 lines) is the behavioral spec — token kinds, NFC normalization, the pinned-Unicode-version warning, error positions. `tests/spec/lex_vaked.py` shows the existing Python lexer test surface.
 
-### Task 1.1: Add the `zg` Unicode dependency, pinned to Python's Unicode version
+### Task 1.1 — REVISED: defer `zg`; NFC is passthrough (corpus is 100% NFC-stable)
+
+**Phase-0 finding (2026-06-14):** scanning the corpus, **14/16 `.vaked` files contain
+non-ASCII bytes, but ZERO files change under `unicodedata.normalize('NFC', src)`** —
+every source (and `builtins.vaked`) is already in NFC. So Python's unconditional
+NFC normalization is a **no-op over the entire corpus**.
+
+**Decision:** the Zig lexer implements NFC as **UTF-8 passthrough** (validate UTF-8,
+emit bytes unchanged) and reproduces the pinned-Unicode-version **warning** to
+stderr. This is byte-identical to Python for all NFC-stable input — i.e. the whole
+corpus — so the lexer oracle passes **without the `zg` dependency**. The `zg`
+fetch/pin is therefore **deferred** to when a genuinely non-NFC input appears
+(the oracle would flag the divergence). This removes a network/dep/API risk from
+Phase 1 entirely.
+
+**Documented gap (not silent):** a source that is NOT already NFC would be passed
+through unchanged by Zig while Python would compose it — a divergence the oracle
+catches. Tracked in the design spec §4 fidelity risk. The original `zg`-based task
+is preserved below for when that day comes.
+
+<details><summary>Deferred: original Task 1.1 (add the <code>zg</code> Unicode dependency)</summary>
+
+#### Task 1.1: Add the `zg` Unicode dependency, pinned to Python's Unicode version
 
 **Files:**
 - Modify: `zig/build.zig.zon`, `zig/build.zig`
@@ -408,6 +430,8 @@ Run (in `zig/`): `ND zig build` → succeeds.
 git add zig/build.zig zig/build.zig.zon
 git commit -m "build(core): add zg Unicode dep (NFC), pinned to python unidata version"
 ```
+
+</details>
 
 ### Task 1.2: Define the canonical token-dump contract in BOTH impls
 
