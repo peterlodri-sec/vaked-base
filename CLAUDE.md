@@ -23,6 +23,7 @@ Language + compiler are **done**. Protocol has 7 RFCs. Two runtime reference dae
 | `docs/protocol/`, `protocol/` | HCP / Litany protocol + RFCs 0001–0007 |
 | `vaked-agents/` | Agent fleet — pr-review, swe_af, provost, ralph, docs-keeper, merge-train |
 | `tools/ralph/` | Autonomous track decision loop — commits ledger entry, announces |
+| `tools/nocturne/` | Nightly GPU-rented auto-researcher — Vast.ai rent/teardown, Karpathy `autoresearch` mutate→train→keep/discard loop, results ledger, swe_af hand-off |
 | `agent_guardd/` | Reference daemon — network/eBPF membrane (deny-by-default egress) |
 | `eventd/` | Reference daemon — append-only hash-chained event log |
 | `prompts/` | `dedicated-language-session.md` kickoff prompt |
@@ -85,6 +86,7 @@ Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external d
 | `pr-review` | advisory diff review (never blocks merge) |
 | `@vaked-ci` | responds to maintainer `@vaked-ci` comments |
 | `ralph` | autonomous track decision loop — picks track, commits ledger |
+| `nocturne` | nightly GPU auto-researcher — rents Vast.ai, mutate→train→keep/discard for lower `val_bpb`, confirmed win → swe_af |
 | `docs-keeper` | RFC/doc drift gate |
 | `merge-train` | advisory merge planner |
 | `swe_af` | SWE agent field — runs on GHA, uses OpenRouter |
