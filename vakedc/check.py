@@ -1632,6 +1632,11 @@ def _check_decl_tree(decl, registry, by_name_kind, smap, file, diags,
         _check_workflow(decl, registry, smap, file, diags, sibling_meshes,
                         sibling_kinds)
 
+    # eBPF (#225): an `ebpf` guard declaring `intent = "enforce"` must target a
+    # verdict-capable hook; `enforce` on an observe-only hook is rejected.
+    if kind == "ebpf":
+        _check_ebpf_intent(decl, smap, file, diags)
+
     # Recurse into nested declarations (e.g. a runtime's index/stream/fiber/…).
     # Meshes declared in THIS body are sibling-scope for nested workflows.
     child_meshes = _mesh_node_index(decl.body)
@@ -1804,6 +1809,42 @@ def _check_workflow(wf_decl, registry, smap, file, diags, sibling_meshes=None,
             _emit(diags, "E-WORKFLOW-DEPTH", file, span, wf_decl,
                   f"workflow `{wf_decl.name}` has critical-path depth {depth}, "
                   f"exceeding the declared maxDepth = {bound}")
+
+
+# Observe-only eBPF hook points: a program attached here cannot change system
+# behaviour (kprobe/kretprobe/tracepoint/perf). Everything else in the `ebpf`
+# schema's `hook` oneof is verdict-capable and may carry `intent = "enforce"`.
+_EBPF_OBSERVE_ONLY_HOOKS = frozenset(("kprobe", "kretprobe", "tracepoint", "perf"))
+
+
+def _check_ebpf_intent(decl, smap, file, diags):
+    """#225 — reject `intent = "enforce"` on an observe-only eBPF hook.
+
+    The hook point decides whether a program can enforce or only observe:
+    kprobe/kretprobe/tracepoint/perf are observe-only and cannot change system
+    behaviour, so an `enforce` intent on one is a compile-time error (the single
+    most common eBPF security mistake — assuming a kprobe enforces). A bad hook
+    NAME is left to the schema's `oneof` conformance check, not flagged here."""
+    bindings, _order = _decl_field_bindings(decl)
+    hook = _string_lit(bindings.get("hook"))
+    intent = _string_lit(bindings.get("intent"))
+    if intent != "enforce" or hook not in _EBPF_OBSERVE_ONLY_HOOKS:
+        return
+    dspan = (decl.byteStart, decl.byteEnd, decl.line, decl.col)
+    span = (smap.field_value_span(decl.byteStart, decl.byteEnd, "hook")
+            if smap else None) or dspan
+    _emit(diags, "E-EBPF-ENFORCE-ON-OBSERVE", file, span, decl,
+          f"ebpf `{decl.name}` declares `intent = \"enforce\"` on observe-only "
+          f"hook `{hook}`; {hook} cannot change system behaviour. Use a "
+          f"verdict-capable hook (lsm, cgroup_connect/cgroup_skb, xdp/tc, "
+          f"override_return, send_signal) to enforce, or set `intent = \"observe\"`.")
+
+
+def _string_lit(vprop):
+    """The string value of a string-literal value-prop, else None."""
+    if isinstance(vprop, dict) and (vprop.get("lit") or "").upper() == "STRING":
+        return vprop.get("value")
+    return None
 
 
 def _conform_node(node_decl, schema, registry, smap, file, diags, nspan):

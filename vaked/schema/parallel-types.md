@@ -476,9 +476,10 @@ schema runclass {
 - Conforms to `vaked/examples/agentfield-swe.vaked` (`runclass interactive {
   priority = "high"  interval = 5s }`, referenced from the `transcriptMiner`
   fiber).
-- The remaining schema-less kinds (`network`, `filesystem`, `mcp`, `ebpf`,
+- The remaining schema-less kinds (`network`, `filesystem`, `mcp`,
   `observability`) stay open under #28's audit: each gets a schema or a removal
-  decision (`host` got its schema in slice 3, below; `input` was removed — #48).
+  decision (`host` got its schema in slice 3, below; `ebpf` got its schema in
+  #225, below; `input` was removed — #48).
 
 ---
 
@@ -503,9 +504,39 @@ schema host {
 - `deploy`'s format ("ssh://…" | "local") is documentation until the lowering
   follow-up enforces it; a `host.system` ∈ enclosing `runtime.systems`
   membership check is a follow-up checker rule tracked on #28.
-- Audit state (#28): `input` was removed (#48); `network` / `filesystem` /
-  `mcp` / `ebpf` / `observability` get schemas with their daemons' policy
-  formats.
+- Audit state (#28): `input` was removed (#48); `ebpf` got its schema (#225,
+  below); `network` / `filesystem` / `mcp` / `observability` get schemas with
+  their daemons' policy formats.
+
+---
+
+## Schema: `ebpf`
+
+`Ebpf` — an eBPF guard node (#225). The **hook point** decides whether a program
+can *enforce* or only *observe*: `kprobe` / `kretprobe` / `tracepoint` / `perf`
+are observe-only and cannot change system behaviour, whereas `lsm`,
+`cgroup_connect` / `cgroup_skb`, `xdp` / `tc`, `override_return`, and
+`send_signal` are verdict-capable. The single most common eBPF security mistake
+is assuming a kprobe enforces; vakedc makes the distinction a compile-time
+invariant — an `ebpf` declaring `intent = "enforce"` on an observe-only hook is
+rejected with **`E-EBPF-ENFORCE-ON-OBSERVE`**. **Closed.**
+
+```vaked
+schema ebpf {
+  field hook   : String { oneof ["kprobe", "kretprobe", "tracepoint", "perf",
+                                 "lsm", "cgroup_connect", "cgroup_skb",
+                                 "xdp", "tc", "override_return", "send_signal"] }
+  field intent : String { oneof ["observe", "enforce"] }
+  field target : String { optional nonempty }
+}
+```
+
+- Conforms to `vaked/examples/ebpf/guards.vaked` (observe-on-kprobe, plus
+  enforce-on-`lsm` and enforce-on-`cgroup_connect`).
+- Doctrine (#225): keep "eBPF testifies" as the default (observe), but allow a
+  curated `lsm` / cgroup enforcement tier where userspace mediation would be too
+  slow or racy (the userspace-verdict TOCTOU gap). Prefer `override_return` /
+  LSM-deny over `send_signal` (SIGKILL is not reliable prevention).
 
 ---
 
