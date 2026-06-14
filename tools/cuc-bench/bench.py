@@ -69,6 +69,8 @@ CJK_RE = re.compile(r"[一-鿿㐀-䶿]")
 # Backend detection
 # ---------------------------------------------------------------------------
 def detect_backend():
+    if os.environ.get("OLLAMA_HOST"):
+        return "ollama", os.environ["OLLAMA_HOST"]
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic", os.environ["ANTHROPIC_API_KEY"]
     if os.environ.get("OPENROUTER_API_KEY"):
@@ -179,7 +181,37 @@ def call_openai(api_key: str, system: str, user: str) -> dict:
     }
 
 
+def call_ollama(host: str, system: str, user: str) -> dict:
+    model = os.environ.get("BENCH_MODEL", "llama3.3:70b-instruct-q4_K_M")
+    payload = json.dumps({
+        "model": model,
+        "max_tokens": 2048,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }).encode()
+    req = urllib.request.Request(
+        f"{host.rstrip('/')}/v1/chat/completions",
+        data=payload,
+        headers={"content-type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        data = json.loads(resp.read())
+    choice = data["choices"][0]["message"]["content"]
+    usage = data.get("usage", {})
+    return {
+        "text": choice,
+        "input_tokens": usage.get("prompt_tokens", 0),
+        "output_tokens": usage.get("completion_tokens", len(choice.split())),
+        "model": data.get("model", model),
+    }
+
+
 def call_api(backend: str, api_key: str, system: str, user: str) -> dict:
+    if backend == "ollama":
+        return call_ollama(api_key, system, user)  # api_key holds the host URL
     if backend == "anthropic":
         return call_anthropic(api_key, system, user)
     if backend == "openrouter":
@@ -336,7 +368,7 @@ def build_report(results: list, backend: str) -> str:
 def main():
     backend, api_key = detect_backend()
     if not backend:
-        print("ERROR: set ANTHROPIC_API_KEY or OPENAI_API_KEY", file=sys.stderr)
+        print("ERROR: set OLLAMA_HOST, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY", file=sys.stderr)
         sys.exit(1)
 
     print(f"Backend: {backend}")
