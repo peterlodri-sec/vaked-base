@@ -5,7 +5,7 @@ use tracing::{debug, info, warn};
 
 use crate::agent::{ask, build_runner};
 use crate::config::{Config, Mode};
-use crate::consts::OPT_OUT_LABEL;
+use crate::consts::{GIT_SHA, OPT_OUT_LABEL, VERSION};
 use crate::github::{fetch_commits_since_tag, fetch_issue_meta, fetch_pr_diff, fetch_pr_meta};
 use crate::goals::parse_goals_phases;
 use crate::output::{MilestoneSpec, TaggerOutput, noop_json};
@@ -41,7 +41,40 @@ pub(crate) async fn run() -> Result<()> {
     }
 }
 
+/// Append the shared advisory footer to the agent's comment (baked into the
+/// binary so every agent's footer matches). Fills only the fields label-tagger
+/// tracks; tokens/cost are omitted.
+fn append_footer(cfg: &Config, output: &mut TaggerOutput, runtime_s: f64) {
+    let Some(comment) = output.comment.take() else { return };
+    let comment = comment.trim().to_string();
+    if comment.is_empty() {
+        return;
+    }
+    let model_short = cfg.model.rsplit('/').next().unwrap_or(&cfg.model);
+    let metrics = [
+        ("model", model_short.to_string()),
+        ("labels", output.labels.len().to_string()),
+    ];
+    let links = format!(
+        "{}{}",
+        vaked_agents_shared::footer::commit_link(&cfg.repo, cfg.head_sha.as_deref()),
+        vaked_agents_shared::footer::run_link(&cfg.repo),
+    );
+    let sig = vaked_agents_shared::footer::signature(VERSION, GIT_SHA);
+    let footer = vaked_agents_shared::footer::Footer {
+        agent: "vaked-label-tagger",
+        metrics: &metrics,
+        runtime_s: Some(runtime_s),
+        slowest: None,
+        links: &links,
+        signature: &sig,
+    }
+    .render();
+    output.comment = Some(format!("{comment}\n\n---\n{footer}"));
+}
+
 async fn run_label(cfg: &Config) -> Result<()> {
+    let started = std::time::Instant::now();
     let api_key = cfg.api_key.as_deref()
         .ok_or_else(|| anyhow!("no OPENROUTER_API_KEY — set it to enable labeling"))?;
 
@@ -91,7 +124,8 @@ async fn run_label(cfg: &Config) -> Result<()> {
 
     let runner = build_runner(cfg, api_key)?;
     let raw = ask(&runner, prompt).await?;
-    let output = parse_output(&raw);
+    let mut output = parse_output(&raw);
+    append_footer(cfg, &mut output, started.elapsed().as_secs_f64());
     println!("{}", serde_json::to_string(&output)?);
     Ok(())
 }
