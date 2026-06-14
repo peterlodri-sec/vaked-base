@@ -957,6 +957,15 @@ _NESTED_SCHEMA = {
     ("fiber", "policy"): "fiberPolicy",
 }
 
+# Kinds whose conformance schema is named differently from the kind, because a
+# top-level `schema <kind>` would collide with a same-named `capability <kind>`
+# in the kind-agnostic LPG (E-DECL-NAME-COLLISION).  `network` is both a kind
+# (an egress membrane) and a capability domain; its membrane schema lives under
+# `networkMembrane` (mirrors the `mem`/`memory` naming dodge in builtins.vaked).
+_KIND_SCHEMA = {
+    "network": "networkMembrane",
+}
+
 
 def _conform_decl(decl, schema: SchemaSpec, registry, smap, file, diags):
     decl_span = (decl.byteStart, decl.byteEnd, decl.line, decl.col)
@@ -1616,7 +1625,7 @@ def _check_decl_tree(decl, registry, by_name_kind, smap, file, diags,
 
     # Conformance for kinds that have a schema (skip the meta-kinds themselves).
     if kind not in ("schema", "capability"):
-        schema = registry.schemas.get(kind)
+        schema = registry.schemas.get(_KIND_SCHEMA.get(kind, kind))
         if schema is not None:
             _conform_decl(decl, schema, registry, smap, file, diags)
         _check_generics(decl, registry, by_name_kind, smap, file, diags)
@@ -1632,6 +1641,11 @@ def _check_decl_tree(decl, registry, by_name_kind, smap, file, diags,
     if kind == "workflow":
         _check_workflow(decl, registry, smap, file, diags, sibling_meshes,
                         sibling_kinds)
+
+    # eBPF (#225): an `ebpf` guard declaring `intent = "enforce"` must target a
+    # verdict-capable hook; `enforce` on an observe-only hook is rejected.
+    if kind == "ebpf":
+        _check_ebpf_intent(decl, smap, file, diags)
 
     # Recurse into nested declarations (e.g. a runtime's index/stream/fiber/…).
     # Meshes declared in THIS body are sibling-scope for nested workflows.
@@ -1890,6 +1904,64 @@ def _check_workflow(wf_decl, registry, smap, file, diags, sibling_meshes=None,
             _emit(diags, "E-WORKFLOW-DEPTH", file, span, wf_decl,
                   f"workflow `{wf_decl.name}` has critical-path depth {depth}, "
                   f"exceeding the declared maxDepth = {bound}")
+
+
+# eBPF hook points, by enforcement capability (#225). The hook point decides
+# whether a program can enforce or only observe. OBSERVE-ONLY hooks cannot change
+# system behaviour; VERDICT-CAPABLE hooks consume a verdict (LSM return 0/-errno,
+# cgroup connect/skb, XDP/tc, override_return/send_signal) and may enforce.
+# `ebpf` is NOT a top-level schema (the kind-agnostic LPG would collide a
+# `schema ebpf` with the existing `capability ebpf` domain — cf. `mem`/`memory`),
+# so the `ebpf` decl is validated here directly rather than via conformance.
+_EBPF_OBSERVE_ONLY_HOOKS = frozenset(("kprobe", "kretprobe", "tracepoint", "perf"))
+_EBPF_ENFORCE_HOOKS = frozenset(("lsm", "cgroup_connect", "cgroup_skb",
+                                 "xdp", "tc", "override_return", "send_signal"))
+_EBPF_HOOKS = _EBPF_OBSERVE_ONLY_HOOKS | _EBPF_ENFORCE_HOOKS
+
+
+def _check_ebpf_intent(decl, smap, file, diags):
+    """#225 — type an `ebpf` guard's hook + intent.
+
+    The hook point decides whether a program can enforce or only observe:
+    kprobe/kretprobe/tracepoint/perf are observe-only and cannot change system
+    behaviour, so `intent = "enforce"` on one is E-EBPF-ENFORCE-ON-OBSERVE (the
+    single most common eBPF security mistake — assuming a kprobe enforces). An
+    unrecognised `hook` is E-EBPF-UNKNOWN-HOOK; an unrecognised `intent` is
+    E-EBPF-BAD-INTENT."""
+    bindings, _order = _decl_field_bindings(decl)
+    dspan = (decl.byteStart, decl.byteEnd, decl.line, decl.col)
+
+    def vspan(field):
+        return (smap.field_value_span(decl.byteStart, decl.byteEnd, field)
+                if smap else None) or dspan
+
+    hook = _string_lit(bindings.get("hook"))
+    intent = _string_lit(bindings.get("intent"))
+
+    if hook is not None and hook not in _EBPF_HOOKS:
+        _emit(diags, "E-EBPF-UNKNOWN-HOOK", file, vspan("hook"), decl,
+              f"ebpf `{decl.name}`: unknown hook `{hook}`; expected one of "
+              f"{sorted(_EBPF_HOOKS)}")
+        return
+    if intent is not None and intent not in ("observe", "enforce"):
+        _emit(diags, "E-EBPF-BAD-INTENT", file, vspan("intent"), decl,
+              f"ebpf `{decl.name}`: intent must be \"observe\" or \"enforce\", "
+              f"got `{intent}`")
+        return
+
+    if intent == "enforce" and hook in _EBPF_OBSERVE_ONLY_HOOKS:
+        _emit(diags, "E-EBPF-ENFORCE-ON-OBSERVE", file, vspan("hook"), decl,
+              f"ebpf `{decl.name}` declares `intent = \"enforce\"` on observe-only "
+              f"hook `{hook}`; {hook} cannot change system behaviour. Use a "
+              f"verdict-capable hook (lsm, cgroup_connect/cgroup_skb, xdp/tc, "
+              f"override_return, send_signal) to enforce, or set `intent = \"observe\"`.")
+
+
+def _string_lit(vprop):
+    """The string value of a string-literal value-prop, else None."""
+    if isinstance(vprop, dict) and (vprop.get("lit") or "").upper() == "STRING":
+        return vprop.get("value")
+    return None
 
 
 def _conform_node(node_decl, schema, registry, smap, file, diags, nspan):

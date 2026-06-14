@@ -34,8 +34,9 @@ VAKED_EXAMPLE_GLOBS = [
     "vaked/examples/engines/zig.vaked",     # 1
     "vaked/examples/agentfield-swe.vaked",  # 1 (#27 dogfood: swe_af workflow)
     "vaked/examples/namespace/*.vaked",     # 2 (RFC 0017: valid + error-unknown-namespace)
+    "vaked/examples/ebpf/*.vaked",          # 1 (#225: observe/enforce hook typing)
 ]
-EXPECTED_VAKED_COUNT = 22
+EXPECTED_VAKED_COUNT = 23
 
 HCP_EXAMPLE = "protocol/hcplang/examples/hcp-core.hcplang"
 
