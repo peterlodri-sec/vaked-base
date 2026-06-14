@@ -24,13 +24,34 @@ add_mlir_dialect_library(VakedDialect
   lib/VakedDialect.cpp
   lib/VakedOps.cpp
   lib/VakedTypes.cpp
-  lib/Pass1TopologyAnalysis.cpp
 
   DEPENDS
   VakedOpsIncGen
   VakedTypesIncGen
   VakedDialectIncGen
-  VakedPassesIncGen
+)
+
+# HCP dialect library target
+add_mlir_dialect_library(HcpDialect
+  lib/HcpDialect.cpp
+
+  DEPENDS
+  HcpOpsIncGen
+  HcpTypesIncGen
+  HcpDialectIncGen
+)
+
+# Vaked passes library target
+add_library(VakedPasses
+  lib/Pass1TopologyAnalysis.cpp
+  lib/Pass2WalInjection.cpp
+)
+target_link_libraries(VakedPasses
+  PUBLIC
+  VakedDialect
+  HcpDialect
+  MLIRPass
+  MLIRIR
 )
 
 target_include_directories(VakedDialect
@@ -68,6 +89,30 @@ add_mlir_tablegen(VakedPassesIncGen
   -gen-pass-defs
   SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/include/vaked/VakedPasses.td
   TARGET VakedPassesIncGen
+)
+
+# TableGen target for HCP operations
+add_mlir_tablegen(HcpOpsIncGen
+  HcpOps.td
+  -gen-op-defs -gen-op-decls
+  SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/include/hcp/HcpOps.td
+  TARGET HcpOpsIncGen
+)
+
+# TableGen target for HCP types
+add_mlir_tablegen(HcpTypesIncGen
+  HcpTypes.td
+  -gen-typedef-defs -gen-typedef-decls
+  SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/include/hcp/HcpTypes.td
+  TARGET HcpTypesIncGen
+)
+
+# TableGen target for HCP dialect
+add_mlir_tablegen(HcpDialectIncGen
+  HcpDialect.td
+  -gen-dialect-defs -gen-dialect-decls
+  SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/include/hcp/HcpDialect.td
+  TARGET HcpDialectIncGen
 )
 
 # Link against MLIR libraries

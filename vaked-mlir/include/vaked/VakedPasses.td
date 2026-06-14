@@ -33,4 +33,23 @@ def VakedTopologyAnalysis : Pass<"vaked-topology-analysis", "ModuleOp"> {
   let constructor = "createVakedTopologyAnalysisPass()";
 }
 
+def VakedToHcpLowering : Pass<"vaked-to-hcp-lowering", "ModuleOp"> {
+  let summary = "Lower Vaked dialect to HCP dialect with WAL injection";
+  let description = [{
+    Pass 2 of the Vaked compilation pipeline.
+
+    This pass lowers the high-level `vaked` dialect to the `hcp` dialect by
+    automatically injecting write-ahead-log (WAL) operations:
+
+    1. Every `vaked.consume` operation is intercepted
+    2. Replaced with: hcp.create_registration_token → hcp.write_ahead_log → hcp.fetch_canonical_data
+    3. All operations wrapped in `hcp.rewind_scope` for eventual consistency
+
+    The WAL discipline becomes structural — cannot be forgotten or reordered.
+
+    Stage-0 reference: vakedc/lower.py (WAL injection pattern)
+  }];
+  let constructor = "createVakedToHcpLoweringPass()";
+}
+
 #endif // VAKED_PASSES

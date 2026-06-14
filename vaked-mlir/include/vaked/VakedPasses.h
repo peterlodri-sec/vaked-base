@@ -18,6 +18,10 @@ namespace vaked::mlir::vaked {
 /// Detects cycles, computes critical paths, enforces depth bounds.
 std::unique_ptr<mlir::Pass> createVakedTopologyAnalysisPass();
 
+/// Create Pass 2: WAL Injection / Vaked-to-HCP Lowering pass.
+/// Lowers vaked dialect to hcp dialect with write-ahead-log injection.
+std::unique_ptr<mlir::Pass> createVakedToHcpLoweringPass();
+
 //===----------------------------------------------------------------------===//
 // Pass Registration
 //===----------------------------------------------------------------------===//
