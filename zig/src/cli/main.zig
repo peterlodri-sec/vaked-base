@@ -3,6 +3,7 @@ const core = @import("vaked-core");
 const lex = @import("vaked-lex");
 const parse = @import("vaked-parse");
 const check = @import("vaked-check");
+const lower = @import("vaked-lower");
 const lexer = lex.lexer;
 const json_canon = core.json_canon;
 const Io = std.Io;
@@ -43,9 +44,201 @@ pub fn main(init: std.process.Init) !void {
         std.process.exit(try cmdCheck(io, alloc, argv[0], argv[2..]));
     }
 
-    // Other subcommands (lower) land in later phases.
+    if (std.mem.eql(u8, cmd, "lower")) {
+        std.process.exit(try cmdLower(io, alloc, argv[0], argv[2..]));
+    }
+
     try writeStderr(io, "vakedc: not yet implemented\n");
     std.process.exit(2);
+}
+
+/// `vakedc lower <file> [--out DIR] [--builtins PATH]`.
+///
+/// Mirrors `vakedc/__main__.py:_cmd_lower` + `_write_tree` branch-for-branch:
+/// read → parse → load+parse builtins → check FIRST; if any diagnostic, print
+/// to stderr, write NOTHING, exit 1; else build_graph → lower → write the tree
+/// under `--out` (default `.vaked/lower/`): every file at its relative path
+/// (mkdir -p parents) + `provenance.json` at the out root. Exit codes:
+///   * 0  — emitted
+///   * 1  — read / parse / diagnostics error (nothing written)
+///   * 2  — usage / builtins read/parse error
+/// The status line (with the out-dir path) goes to stderr; the oracle compares
+/// the tree + exit code, never stderr.
+fn cmdLower(io: Io, alloc: std.mem.Allocator, prog: []const u8, args: []const [:0]const u8) !u8 {
+    var file: ?[]const u8 = null;
+    var out_override: ?[]const u8 = null;
+    var builtins_override: ?[]const u8 = null;
+    var i: usize = 0;
+    while (i < args.len) : (i += 1) {
+        const a = args[i];
+        if (std.mem.eql(u8, a, "--out")) {
+            if (i + 1 >= args.len) {
+                try writeStderr(io, "usage: vakedc lower <file> [--out DIR] [--builtins PATH]\n");
+                return 2;
+            }
+            i += 1;
+            out_override = args[i];
+        } else if (std.mem.eql(u8, a, "--builtins")) {
+            if (i + 1 >= args.len) {
+                try writeStderr(io, "usage: vakedc lower <file> [--out DIR] [--builtins PATH]\n");
+                return 2;
+            }
+            i += 1;
+            builtins_override = args[i];
+        } else if (a.len >= 1 and a[0] == '-') {
+            try writeStderrFmt(io, alloc, "vakedc: unknown option {s}\n", .{a});
+            return 2;
+        } else if (file == null) {
+            file = a;
+        } else {
+            try writeStderr(io, "usage: vakedc lower <file> [--out DIR] [--builtins PATH]\n");
+            return 2;
+        }
+    }
+    const path = file orelse {
+        try writeStderr(io, "usage: vakedc lower <file> [--out DIR] [--builtins PATH]\n");
+        return 2;
+    };
+
+    // 1) read the source. On read error: stderr, exit 1 (Python `_cmd_lower`).
+    const src = Dir.cwd().readFileAlloc(io, path, alloc, .unlimited) catch {
+        try writeStderrFmt(io, alloc, "vakedc: cannot read {s}\n", .{path});
+        return 1;
+    };
+
+    // Unicode-version-mismatch warning to stderr (parity with Python).
+    lexer.maybeWarnUnicodeVersion(io);
+
+    // parse the file. On lex/parse error: stderr, exit 1 (Python: VakedLexError /
+    // VakedSyntaxError → return 1).
+    var lex_err: lexer.ErrInfo = undefined;
+    const toks = lexer.tokenize(alloc, src, path, &lex_err) catch |e| switch (e) {
+        error.LexFailed => {
+            try writeStderrFmt(io, alloc, "vakedc: {s}:{d}:{d} \u{2014} {s}\n", .{ lex_err.file, lex_err.line, lex_err.col, lex_err.msg });
+            return 1;
+        },
+        error.OutOfMemory => return e,
+    };
+    var parse_err: parse.ErrInfo = undefined;
+    const items = parse.parse(alloc, toks, path, &parse_err) catch |e| switch (e) {
+        error.ParseFailed => {
+            try writeStderrFmt(io, alloc, "vakedc: {s}:{d}:{d} \u{2014} expected {s}, got {s}\n", .{ parse_err.file, parse_err.line, parse_err.col, parse_err.expected, parse_err.got });
+            return 1;
+        },
+        error.OutOfMemory => return e,
+    };
+
+    // 2) check FIRST. Builtins read error: stderr, exit 2 (Python OSError → 2).
+    const b_path = builtins_override orelse defaultBuiltinsPath(io, alloc, prog);
+    const b_src = Dir.cwd().readFileAlloc(io, b_path, alloc, .unlimited) catch {
+        try writeStderrFmt(io, alloc, "vakedc: cannot read builtins {s}\n", .{b_path});
+        return 2;
+    };
+    const builtins = check.loadBuiltins(alloc, b_src, b_path) catch |e| switch (e) {
+        error.OutOfMemory => return e,
+        error.ParseFailed => {
+            try writeStderr(io, "vakedc: builtins catalog failed to parse\n");
+            return 2;
+        },
+    };
+    const diags = check.checkSource(alloc, src, path, builtins) catch |e| switch (e) {
+        error.OutOfMemory => return e,
+        error.ParseFailed => {
+            // A lex/parse error here is already handled above; Python would have
+            // returned 1 at parse. Keep exit 1 for parity (nothing written).
+            try writeStderrFmt(io, alloc, "vakedc: {s}: parse error\n", .{path});
+            return 1;
+        },
+    };
+
+    if (diags.len != 0) {
+        // Refuse to emit on ANY diagnostic (0012 §1). Print diags to stderr (the
+        // oracle ignores stderr), write NOTHING, exit 1.
+        for (diags) |d| {
+            try writeStderrFmt(io, alloc, "{s}:{d}:{d}: {s}: {s}: {s} [{s}]\n", .{
+                d.file, d.line, d.col, d.severity, d.code, d.message, d.decl,
+            });
+        }
+        const plural: []const u8 = if (diags.len != 1) "s" else "";
+        try writeStderrFmt(io, alloc, "vakedc: {d} diagnostic{s} in {s}; refusing to lower (nothing written)\n", .{ diags.len, plural, path });
+        return 1;
+    }
+
+    // 3) resolve + lower. enrich_graph (the policy sub-block) runs inside lower().
+    //
+    // `error.Unserializable` (a `default`/`oneof` field refinement left a raw AST
+    // node in props) is NOT fatal here: it only matters when the graph is
+    // serialized to canonical JSON (`parse --print`), which lowering never does.
+    // Python's `_cmd_lower` calls `build_graph` then `lower` without serializing,
+    // so it lowers such a graph normally (in the corpus this is a `types/` file
+    // with no `runtime`, so the result is the empty-artifacts provenance). We
+    // mirror that: keep the graph as built and lower it.
+    var graph = core.Graph.init(alloc, path);
+    var unserializable = false;
+    parse.buildGraph(alloc, &graph, items, path, &unserializable) catch |e| switch (e) {
+        error.Unserializable => {}, // graph is usable for lowering; see note above.
+        error.OutOfMemory => return e,
+    };
+    const result = try lower.lower(alloc, &graph, items);
+
+    // 4) write the tree. provenance.json at <out>/; the rest at their rel paths.
+    // Default out-dir is `.vaked/lower/` (CWD-relative). Python joins the absolute
+    // cwd, but the oracle always passes `--out`, so the exact default-dir spelling
+    // is never gated (the status line carrying it is ungated stderr).
+    const out_dir = out_override orelse defaultOutDir(io, alloc);
+    const written = try writeTree(io, alloc, out_dir, result);
+    try writeStderrFmt(io, alloc, "vakedc: lowered {s} \u{2192} {s} ({d} files)\n", .{ path, out_dir, written });
+    return 0;
+}
+
+/// `_write_tree`: write a `LowerResult` to `out_dir` — every emitted file at its
+/// relative path (mkdir -p parents), plus `provenance.json` at the root. Files
+/// are written in sorted relative-path order (matching Python's `sorted`).
+fn writeTree(io: Io, alloc: std.mem.Allocator, out_dir: []const u8, result: lower.LowerResult) !usize {
+    const cwd = Dir.cwd();
+    var written: usize = 0;
+
+    // Sort the relative paths (Python: `for rel, content in sorted(result.files.items())`).
+    const rels = try alloc.dupe([]const u8, result.files.keys());
+    std.mem.sort([]const u8, rels, {}, lessStr);
+
+    for (rels) |rel| {
+        const content = result.files.get(rel).?;
+        const dest = try std.fs.path.join(alloc, &.{ out_dir, rel });
+        if (std.fs.path.dirname(dest)) |parent| {
+            cwd.createDirPath(io, parent) catch |e| switch (e) {
+                error.PathAlreadyExists => {},
+                else => return e,
+            };
+        }
+        try cwd.writeFile(io, .{ .sub_path = dest, .data = content });
+        written += 1;
+    }
+
+    // provenance manifest at the out root.
+    cwd.createDirPath(io, out_dir) catch |e| switch (e) {
+        error.PathAlreadyExists => {},
+        else => return e,
+    };
+    const prov_text = try lower.provenanceJsonText(alloc, result.provenance);
+    const prov_dest = try std.fs.path.join(alloc, &.{ out_dir, "provenance.json" });
+    try cwd.writeFile(io, .{ .sub_path = prov_dest, .data = prov_text });
+    written += 1;
+    return written;
+}
+
+/// The default `--out` directory: `<cwd>/.vaked/lower` (mirrors Python's
+/// `os.path.join(os.getcwd(), ".vaked", "lower")`), falling back to the relative
+/// `.vaked/lower` if the cwd can't be resolved. The oracle always passes `--out`,
+/// so this path is never on the gated channel.
+fn defaultOutDir(io: Io, alloc: std.mem.Allocator) []const u8 {
+    var buf: [std.fs.max_path_bytes]u8 = undefined;
+    const n = Dir.cwd().realPath(io, &buf) catch return ".vaked/lower";
+    return std.fs.path.join(alloc, &.{ buf[0..n], ".vaked", "lower" }) catch ".vaked/lower";
+}
+
+fn lessStr(_: void, a: []const u8, b: []const u8) bool {
+    return std.mem.lessThan(u8, a, b);
 }
 
 /// `vakedc check <file> [--json] [--builtins PATH]`.

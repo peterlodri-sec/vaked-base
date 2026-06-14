@@ -41,6 +41,10 @@ pub const Graph = struct {
     source_file: []const u8,
     nodes: std.StringArrayHashMapUnmanaged(GraphNode),
     edges: std.ArrayList(GraphEdge),
+    /// Lazy adjacency index `source_id -> [edges]`, built once on first
+    /// `edgesFrom` and invalidated on `addEdge`. Turns per-parent child lookups
+    /// from O(E) full-scans into O(1) (mirrors `graph.py:edges_from`).
+    adj: ?std.StringArrayHashMapUnmanaged(std.ArrayList(GraphEdge)) = null,
 
     pub fn init(alloc: std.mem.Allocator, source_file: []const u8) Graph {
         return .{
@@ -48,12 +52,17 @@ pub const Graph = struct {
             .source_file = source_file,
             .nodes = .empty,
             .edges = .empty,
+            .adj = null,
         };
     }
 
     pub fn deinit(self: *Graph) void {
         self.nodes.deinit(self.alloc);
         self.edges.deinit(self.alloc);
+        if (self.adj) |*adj| {
+            for (adj.values()) |*bucket| bucket.deinit(self.alloc);
+            adj.deinit(self.alloc);
+        }
     }
 
     /// Insert a node unless its id already exists; returns a pointer to the
@@ -92,6 +101,34 @@ pub const Graph = struct {
 
     pub fn addEdge(self: *Graph, edge: GraphEdge) !void {
         try self.edges.append(self.alloc, edge);
+        // Invalidate the lazy adjacency index (mirrors graph.py: `self._adj = None`).
+        if (self.adj) |*adj| {
+            for (adj.values()) |*bucket| bucket.deinit(self.alloc);
+            adj.deinit(self.alloc);
+            self.adj = null;
+        }
+    }
+
+    /// All edges whose `from` is `source_id`, in insertion (source) order.
+    ///
+    /// Backed by a memoized adjacency index built once in O(E) on first call;
+    /// each lookup is then O(1). Mirrors `graph.py:edges_from` — turning
+    /// per-parent child traversal from O(N*E) into O(N+E). Insertion order is
+    /// preserved, so callers see edges in the same order a full scan produced
+    /// (output bytes unchanged). The returned slice is shared, not copied —
+    /// callers must not mutate it.
+    pub fn edgesFrom(self: *Graph, source_id: []const u8) ![]const GraphEdge {
+        if (self.adj == null) {
+            var idx: std.StringArrayHashMapUnmanaged(std.ArrayList(GraphEdge)) = .empty;
+            for (self.edges.items) |e| {
+                const gop = try idx.getOrPut(self.alloc, e.from);
+                if (!gop.found_existing) gop.value_ptr.* = .empty;
+                try gop.value_ptr.append(self.alloc, e);
+            }
+            self.adj = idx;
+        }
+        if (self.adj.?.getPtr(source_id)) |bucket| return bucket.items;
+        return &.{};
     }
 
     /// Nodes sorted by id. Returns an owned slice (freed with `self.alloc`).
@@ -175,4 +212,30 @@ test "edges_sorted orders by (from,label,to)" {
     try std.testing.expectEqualStrings("wraps", sorted[2].label);
     try std.testing.expectEqualStrings("y", sorted[2].to);
     try std.testing.expectEqualStrings("b", sorted[3].from);
+}
+
+test "edges_from returns source edges in insertion order, lazily rebuilt on add" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    var g = Graph.init(arena.allocator(), "f.vaked");
+    defer g.deinit();
+
+    try g.addEdge(.{ .from = "p", .to = "c1", .label = "contains", .props = .null });
+    try g.addEdge(.{ .from = "q", .to = "x", .label = "uses", .props = .null });
+    try g.addEdge(.{ .from = "p", .to = "c2", .label = "contains", .props = .null });
+
+    // First lookup builds the index; order is insertion order (= source order).
+    const from_p = try g.edgesFrom("p");
+    try std.testing.expectEqual(@as(usize, 2), from_p.len);
+    try std.testing.expectEqualStrings("c1", from_p[0].to);
+    try std.testing.expectEqualStrings("c2", from_p[1].to);
+
+    // Unknown source returns empty.
+    try std.testing.expectEqual(@as(usize, 0), (try g.edgesFrom("nope")).len);
+
+    // Adding an edge invalidates the index; the new edge appears at the tail.
+    try g.addEdge(.{ .from = "p", .to = "c3", .label = "contains", .props = .null });
+    const from_p2 = try g.edgesFrom("p");
+    try std.testing.expectEqual(@as(usize, 3), from_p2.len);
+    try std.testing.expectEqualStrings("c3", from_p2[2].to);
 }

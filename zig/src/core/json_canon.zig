@@ -95,7 +95,7 @@ fn sortedFields(alloc: std.mem.Allocator, fields: []const Value.Field) ![]Value.
     return out;
 }
 
-fn writeValueCompact(buf: *Buf, alloc: std.mem.Allocator, v: Value) !void {
+pub fn writeValueCompact(buf: *Buf, alloc: std.mem.Allocator, v: Value) !void {
     switch (v) {
         .null => try buf.appendSlice(alloc, "null"),
         .bool => |b| try buf.appendSlice(alloc, if (b) "true" else "false"),
