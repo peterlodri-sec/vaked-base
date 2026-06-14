@@ -1,11 +1,18 @@
 name: Claude Code
 
 # Responds to @claude mentions in issues and pull requests.
+#
 # Auth: Claude subscription OAuth token (no Anthropic API key / usage billing).
 #   1. Run `claude setup-token` locally on a machine signed in to your
 #      Claude Pro/Max account. It prints a long-lived OAuth token.
 #   2. Add that token as a repository secret named CLAUDE_CODE_OAUTH_TOKEN
-#      (GitHub -> Settings -> Secrets and variables -> Actions).
+#      (GitHub -> Settings -> Secrets and variables -> Actions, "ci" environment).
+#
+# Security: this agent has write access (contents/PRs/issues) and runs from the
+# default branch with repository secrets regardless of who triggers it. The
+# author-association gate below is the key control: only the owner, org members,
+# and collaborators can invoke it, and never another bot. Without this gate any
+# stranger commenting "@claude" could drive a write-capable agent.
 
 on:
   issue_comment:
@@ -19,14 +26,31 @@ on:
 
 jobs:
   claude:
-    # Only run when the trigger phrase "@claude" is present, to avoid spending
-    # turns on unrelated activity.
-    if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    if: >-
+      (
+        github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        github.event.comment.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      ) || (
+        github.event_name == 'pull_request_review_comment' &&
+        contains(github.event.comment.body, '@claude') &&
+        github.event.comment.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+      ) || (
+        github.event_name == 'pull_request_review' &&
+        contains(github.event.review.body, '@claude') &&
+        github.event.review.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.review.author_association)
+      ) || (
+        github.event_name == 'issues' &&
+        (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) &&
+        github.event.issue.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)
+      )
     runs-on: ubuntu-latest
+    environment: ci
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -45,7 +69,7 @@ jobs:
           # Subscription OAuth token instead of anthropic_api_key.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           trigger_phrase: "@claude"
-          # Optional: pin a model and bound the turn budget.
-          # claude_args: |
-          #   --model claude-opus-4-8
-          #   --max-turns 20
+          # Sonnet only, by request. In-repo skills under .claude/skills
+          # (including caveman) are auto-discovered and usable via /caveman.
+          claude_args: |
+            --model claude-sonnet-4-6
