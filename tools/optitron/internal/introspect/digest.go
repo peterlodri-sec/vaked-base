@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os/exec"
 	"sort"
 	"strings"
@@ -66,20 +67,24 @@ func obsTokens(o map[string]any) (int, int) {
 	return int(pin), int(pout)
 }
 
-func percentile(vals []float64, pct float64) float64 {
+// latencyPercentiles sorts once and returns (p50, p95).
+func latencyPercentiles(vals []float64) (float64, float64) {
 	if len(vals) == 0 {
-		return 0
+		return 0, 0
 	}
 	s := append([]float64(nil), vals...)
 	sort.Float64s(s)
-	k := int(pct/100*float64(len(s)-1) + 0.5)
-	if k < 0 {
-		k = 0
+	at := func(pct float64) float64 {
+		k := int(pct/100*float64(len(s)-1) + 0.5)
+		if k < 0 {
+			k = 0
+		}
+		if k >= len(s) {
+			k = len(s) - 1
+		}
+		return s[k]
 	}
-	if k >= len(s) {
-		k = len(s) - 1
-	}
-	return s[k]
+	return at(50), at(95)
 }
 
 // CostFn prices a (model, prompt, completion) call in USD.
@@ -105,7 +110,8 @@ func AggregateByModel(observations []map[string]any, cost CostFn) map[string]*Mo
 			tmp[model] = a
 		}
 		a.s.Calls++
-		if strings.EqualFold(fmt.Sprint(o["level"]), "ERROR") || fmt.Sprint(o["statusMessage"]) != "" && o["statusMessage"] != nil {
+		statusMsg, _ := o["statusMessage"].(string)
+		if strings.EqualFold(fmt.Sprint(o["level"]), "ERROR") || statusMsg != "" {
 			a.s.Errors++
 		}
 		if strings.EqualFold(fmt.Sprint(o["finishReason"]), "length") {
@@ -129,8 +135,9 @@ func AggregateByModel(observations []map[string]any, cost CostFn) map[string]*Mo
 	}
 	out := map[string]*ModelStats{}
 	for m, a := range tmp {
-		a.s.LatencyP50 = round(percentile(a.lat, 50), 3)
-		a.s.LatencyP95 = round(percentile(a.lat, 95), 3)
+		p50, p95 := latencyPercentiles(a.lat)
+		a.s.LatencyP50 = round(p50, 3)
+		a.s.LatencyP95 = round(p95, 3)
 		a.s.Cost = round(a.s.Cost, 4)
 		out[m] = a.s
 	}
@@ -282,16 +289,6 @@ func CIStats(ctx context.Context, repoRoot, repoGH string) map[string]any {
 }
 
 func round(f float64, places int) float64 {
-	p := 1.0
-	for i := 0; i < places; i++ {
-		p *= 10
-	}
-	return float64(int64(f*p+0.5*sign(f))) / p
-}
-
-func sign(f float64) float64 {
-	if f < 0 {
-		return -1
-	}
-	return 1
+	scale := math.Pow(10, float64(places))
+	return math.Round(f*scale) / scale
 }

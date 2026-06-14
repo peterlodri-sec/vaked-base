@@ -25,6 +25,14 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 	client := llm.New(cfg.APIKey, strings.TrimSuffix(cfg.BaseURL, "/chat/completions"), cfg.Prices)
 	costFn := func(model string, pin, pout int) float64 { return client.CostOf(model, pin, pout) }
 
+	// A live run needs the key — guard before the read-only ingest so we don't page
+	// Langfuse + load the ledgers + list CI for nothing. (--dry-run still ingests to
+	// render the digest.)
+	if !dryRun && cfg.APIKey == "" {
+		fmt.Println("::notice::introspect: no API key (OPENROUTER_API_KEY/RALPH_API_KEY) — skipping")
+		return nil
+	}
+
 	// --- Ingest (read-only): Langfuse + the ledgers (ralph is live, read only) + CI ---
 	lf := NewLangfuse(cfg.LangfuseHost, cfg.LangfusePublic, cfg.LangfuseSecret)
 	from, to := IngestWindow(cfg.WindowDays)
@@ -39,10 +47,6 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 	if dryRun {
 		return dryReport(cfg, client, digest, econ)
 	}
-	if cfg.APIKey == "" {
-		fmt.Println("::notice::introspect: no API key (OPENROUTER_API_KEY/RALPH_API_KEY) — skipping")
-		return nil
-	}
 
 	lw, err := ledger.Open(cfg.EventsPath)
 	if err != nil {
@@ -52,14 +56,13 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 
 	// 1. detect the single most salient finding
 	var finding Finding
-	if c, e := client.CallJSON(ctx, cfg.DetectModel, DetectMessages(purpose, digest, cfg.Focus),
-		DetectSchema, 1200, "", &finding); e != nil {
-		spent += c
+	c, e := client.CallJSON(ctx, cfg.DetectModel, DetectMessages(purpose, digest, cfg.Focus),
+		DetectSchema, 1200, "", &finding)
+	spent += c
+	if e != nil {
 		appendEvent(lw, map[string]any{"event": "error", "stage": "detect", "msg": short(e)})
 		fmt.Printf("::warning::introspect: detect failed: %v\n", e)
 		return nil
-	} else {
-		spent += c
 	}
 	if finding.Finding == "" {
 		appendEvent(lw, map[string]any{"event": "none", "reason": "no-finding", "cost": round(spent, 5), "economy": econ})
@@ -70,13 +73,12 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 
 	// 2. ideate ONE novel solution
 	var idea Idea
-	if c, e := client.CallJSON(ctx, cfg.IdeateModel, IdeateMessages(purpose, finding, digest),
-		IdeateSchema, 2500, "medium", &idea); e != nil {
-		spent += c
+	c, e = client.CallJSON(ctx, cfg.IdeateModel, IdeateMessages(purpose, finding, digest),
+		IdeateSchema, 2500, "medium", &idea)
+	spent += c
+	if e != nil {
 		appendEvent(lw, map[string]any{"event": "error", "stage": "ideate", "msg": short(e)})
 		return nil
-	} else {
-		spent += c
 	}
 	title := strings.TrimSpace(idea.Title)
 	if title == "" {
@@ -104,13 +106,12 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 
 	// 3. always review (skeptical, fail-closed gate)
 	var review Review
-	if c, e := client.CallJSON(ctx, cfg.ReviewModel, ReviewMessages(purpose, finding, idea, digest),
-		ReviewSchema, 1500, "medium", &review); e != nil {
-		spent += c
+	c, e = client.CallJSON(ctx, cfg.ReviewModel, ReviewMessages(purpose, finding, idea, digest),
+		ReviewSchema, 1500, "medium", &review)
+	spent += c
+	if e != nil {
 		appendEvent(lw, map[string]any{"event": "error", "stage": "review", "msg": short(e)})
 		return nil
-	} else {
-		spent += c
 	}
 	if passed, reason := PassesGate(review, cfg.MinConfidence); !passed {
 		appendEvent(lw, map[string]any{"event": "rejected", "title": title, "reason": reason,
@@ -227,7 +228,11 @@ func appendEvent(lw *ledger.Writer, payload map[string]any) {
 }
 
 func introSummary(econ Economy, f *Finding, found bool, spent float64, title, url string) string {
-	head := "## fleet-introspect\n\nfound: **" + map[bool]string{true: "yes", false: "no (abstained)"}[found] + "**"
+	verdict := "no (abstained)"
+	if found {
+		verdict = "yes"
+	}
+	head := "## fleet-introspect\n\nfound: **" + verdict + "**"
 	if found && strings.HasPrefix(url, "http") {
 		head += fmt.Sprintf(" — [%s](%s)", title, url)
 	} else if found {
