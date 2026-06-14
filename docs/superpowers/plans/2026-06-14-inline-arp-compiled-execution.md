@@ -902,7 +902,10 @@ Run: `python3 tests/spec/run_all.py` → FAIL (refs in fiber policy not validate
     for it in items:
         if isinstance(it, P.Decl) and it.kind in _CAP_CONTEXT_KINDS:
             for listlit in caps_in(it):
-                for ref in listlit.items:
+                for item in listlit.items:
+                    # list items are P.App(ref=P.Ref,...), not bare P.Ref;
+                    # App has no span, so take the span from the inner Ref.
+                    ref = item.ref if isinstance(item, P.App) else item
                     if isinstance(ref, P.Ref) and len(ref.parts) == 2:
                         span = (ref.byteStart, ref.byteEnd, ref.line, ref.col)
                         _check_capability_refs(ref.parts[0], ref.parts[1],
