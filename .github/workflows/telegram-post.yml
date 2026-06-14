@@ -1,7 +1,7 @@
 name: telegram-post
 # Posts .github/social/telegram.txt to the configured Telegram chat/channel
-# whenever that file changes. Lets agents publish updates by committing the
-# message text — the bot token never leaves the runner.
+# whenever that file changes. Uses a direct curl call so the message_id is
+# captured and surfaced in the job summary — useful for manual cleanup.
 # workflow_dispatch can't fire from a feature branch, so push+paths triggered.
 on:
   push:
@@ -35,17 +35,45 @@ jobs:
 
       - name: Post to Telegram
         if: steps.msg.outputs.skip != 'true'
-        uses: appleboy/telegram-action@v1.0.1
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: ${{ steps.msg.outputs.content }}
-          format: text
+        id: post
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TO: ${{ secrets.TELEGRAM_TO }}
+          TEXT: ${{ steps.msg.outputs.content }}
+        run: |
+          RESP=$(python3 - <<'PYEOF'
+          import json, os, urllib.request
+          token = os.environ["TOKEN"]
+          body  = json.dumps({"chat_id": os.environ["TO"], "text": os.environ["TEXT"]}).encode()
+          req   = urllib.request.Request(
+              f"https://api.telegram.org/bot{token}/sendMessage",
+              data=body, headers={"Content-Type": "application/json"})
+          with urllib.request.urlopen(req, timeout=30) as r:
+              print(r.read().decode())
+          PYEOF
+          )
+          echo "response: $RESP"
+          MSG_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['message_id'])" 2>/dev/null || echo "unknown")
+          echo "message_id=${MSG_ID}" >> "$GITHUB_OUTPUT"
+          echo "### Telegram post" >> "$GITHUB_STEP_SUMMARY"
+          echo "message_id: \`${MSG_ID}\` (chat: \`$TO\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Use the \`telegram-cleanup\` workflow to delete it later." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Notify Telegram on failure
         if: failure()
-        uses: appleboy/telegram-action@v1.0.1
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ telegram-post workflow failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TO: ${{ secrets.TELEGRAM_TO }}
+          REF: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+          token = os.environ["TOKEN"]
+          text  = f"❌ telegram-post workflow failed on {os.environ['REF']}\n{os.environ['RUN_URL']}"
+          body  = json.dumps({"chat_id": os.environ["TO"], "text": text}).encode()
+          req   = urllib.request.Request(
+              f"https://api.telegram.org/bot{token}/sendMessage",
+              data=body, headers={"Content-Type": "application/json"})
+          urllib.request.urlopen(req, timeout=15)
+          PYEOF

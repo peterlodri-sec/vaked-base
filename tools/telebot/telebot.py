@@ -46,6 +46,7 @@ for p in (REPO_ROOT, os.path.join(REPO_ROOT, "tools", "yardmaster")):
 STATE_DIR = os.environ.get("TELEBOT_STATE_DIR") or os.path.join(HERE, "state")
 OFFSET_PATH = os.path.join(STATE_DIR, "offset")
 LOG_PATH = os.path.join(STATE_DIR, "log.jsonl")
+SENT_MSGS_PATH = os.path.join(STATE_DIR, "sent_msgs.jsonl")
 
 TG_API = "https://api.telegram.org"
 DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
@@ -57,6 +58,7 @@ MENU = [
     ("ci", "🩺 CI & PRs"),
     ("wf", "⚙️ Trigger workflow"),
     ("fleet", "📚 Fleet & decisions"),
+    ("cleanup", "🗑️ Cleanup"),
 ]
 # Workflows offered by the ⚙️ submenu: callback suffix → (workflow file, label).
 WORKFLOWS = {
@@ -65,7 +67,7 @@ WORKFLOWS = {
     "train": ("merge-train.yml", "🚂 merge-train tick"),
     "ralph": ("ralph-tracks.yml", "🧠 ralph decision"),
 }
-ACTING = {"wf"}        # callback prefixes that change state → require admin
+ACTING = {"wf", "cleanup"}   # callback prefixes that change state → require admin
 
 
 # --------------------------------------------------------------------------- #
@@ -147,9 +149,14 @@ def _handle_message(u: Update, ctx: Ctx) -> list:
     if text in ("/start", "/menu", "/help"):
         body = ("🤖 yardmaster control — pick a scenario, or just ask me anything "
                 "about the repo / fleet." if text != "/help" else
-                "Commands: /menu · or send a question. Buttons: train, CI, workflows, fleet.")
+                "Commands: /menu · /cleanup · or send a question. Buttons: train, CI, workflows, fleet.")
         return [Op("message", {"chat_id": u.chat_id, "text": body,
                                "reply_markup": menu_markup()})]
+    if text == "/cleanup":
+        if u.user_id not in ctx.admin_ids:
+            return _deny(u)
+        return [Op("message", {"chat_id": u.chat_id, "text": "🗑️ Delete messages older than:",
+                               "reply_markup": _cleanup_markup()})]
     if not text or text.startswith("/"):
         return [Op("message", {"chat_id": u.chat_id, "text": "Use /menu, or ask a question."})]
     # free-form → LLM
@@ -177,6 +184,8 @@ def _handle_callback(u: Update, ctx: Ctx) -> list:
         return [ack, Op("message", {"chat_id": u.chat_id, "text": _scenario_ci(ctx)})]
     if data == "fleet":
         return [ack, Op("message", {"chat_id": u.chat_id, "text": _scenario_fleet(ctx)})]
+    if data == "cleanup" or data.startswith("cleanup:"):
+        return [ack] + _scenario_cleanup(u, ctx, data)
     if data == "wf" or data.startswith("wf:"):
         if ctx.github is None:          # no GitHub dispatch → don't pretend it worked
             return [ack, Op("message", {"chat_id": u.chat_id,
@@ -234,6 +243,46 @@ def _scenario_fleet(ctx: Ctx) -> str:
         except Exception:
             pass
     return "\n\n".join(out) or "📚 (no fleet data)"
+
+
+def _cleanup_markup() -> dict:
+    return {"inline_keyboard": [
+        [{"text": "🕐 >1 h old",  "callback_data": "cleanup:1"}],
+        [{"text": "📅 >24 h old", "callback_data": "cleanup:24"}],
+        [{"text": "📆 >7 d old",  "callback_data": "cleanup:168"}],
+        [{"text": "⬅️ Back",      "callback_data": "menu"}],
+    ]}
+
+
+def _scenario_cleanup(u: Update, ctx: Ctx, data: str) -> list:
+    if data == "cleanup":
+        return [Op("message", {"chat_id": u.chat_id, "text": "🗑️ Delete messages older than:",
+                               "reply_markup": _cleanup_markup()})]
+    hours = int(data.split(":", 1)[1])
+    cutoff = time.time() - hours * 3600
+    to_delete: list = []
+    keep_lines: list = []
+    try:
+        with open(SENT_MSGS_PATH) as f:
+            for raw in f:
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    entry = json.loads(raw)
+                    if entry.get("ts", 0) < cutoff:
+                        to_delete.append(entry)
+                    else:
+                        keep_lines.append(raw)
+                except json.JSONDecodeError:
+                    keep_lines.append(raw)
+    except OSError:
+        return [Op("message", {"chat_id": u.chat_id, "text": "🗑️ No tracked messages found."})]
+    if not to_delete:
+        return [Op("message", {"chat_id": u.chat_id,
+                               "text": "🗑️ No messages older than %dh to clean up." % hours})]
+    return [Op("cleanup_msgs", {"chat_id": u.chat_id, "to_delete": to_delete,
+                                "keep_lines": keep_lines, "hours": hours})]
 
 
 def _repo_context(ctx: Ctx) -> str:
@@ -350,6 +399,23 @@ def _ledger(payload: dict) -> None:
         pass
 
 
+def _track_sent(resp: dict) -> None:
+    if not (resp.get("ok") and resp.get("result")):
+        return
+    msg = resp["result"]
+    msg_id = msg.get("message_id")
+    if not msg_id:
+        return
+    try:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        with open(SENT_MSGS_PATH, "a") as f:
+            f.write(json.dumps({"ts": time.time(),
+                                "chat_id": msg.get("chat", {}).get("id"),
+                                "msg_id": msg_id}) + "\n")
+    except OSError:
+        pass
+
+
 def execute(ops: list, token: str, gh_ops: "GitHubOps | None") -> None:
     # NB: messages are sent as PLAIN TEXT (no parse_mode) — bodies carry arbitrary
     # content (PR titles, commit subjects, LLM output) that would break Markdown
@@ -359,12 +425,32 @@ def execute(ops: list, token: str, gh_ops: "GitHubOps | None") -> None:
             p = dict(op.payload)
             if "reply_markup" in p:
                 p["reply_markup"] = json.dumps(p["reply_markup"])
-            _tg(token, "sendMessage", p)
+            _track_sent(_tg(token, "sendMessage", p))
         elif op.kind == "photo":
             p = dict(op.payload)
             png = p.pop("photo")
             _tg(token, "sendPhoto", {k: v for k, v in p.items()},
                 files={"photo": ("train.png", png, "image/png")})
+        elif op.kind == "cleanup_msgs":
+            p = op.payload
+            deleted = failed = 0
+            for entry in p["to_delete"]:
+                r = _tg(token, "deleteMessage",
+                        {"chat_id": entry["chat_id"], "message_id": entry["msg_id"]})
+                if r.get("ok"):
+                    deleted += 1
+                else:
+                    failed += 1
+            try:
+                os.makedirs(STATE_DIR, exist_ok=True)
+                with open(SENT_MSGS_PATH, "w") as f:
+                    for line in p["keep_lines"]:
+                        f.write(line + "\n")
+            except OSError:
+                pass
+            _tg(token, "sendMessage", {"chat_id": p["chat_id"],
+                "text": "🗑️ cleanup >%dh: deleted %d, failed %d, %d retained"
+                        % (p["hours"], deleted, failed, len(p["keep_lines"]))})
         elif op.kind == "answer":
             _tg(token, "answerCallbackQuery", op.payload)
         elif op.kind == "dispatch":
