@@ -24,7 +24,7 @@ GPU_NAME="${GPU_NAME:-H100_SXM}"
 MAX_DPH="${MAX_DPH:-3.0}"
 NUM_GPUS="${NUM_GPUS:-1}"
 DISK_GB="${DISK_GB:-64}"
-IMAGE="${IMAGE:-pytorch/pytorch:2.9.1-cuda12.8-cudnn9-runtime}"
+IMAGE="${IMAGE:-pytorch/pytorch:2.9.1-cuda12.8-cudnn9-devel}"  # devel: cuda dev libs + nvcc that torch.compile needs (proven on H100 smoke)
 MAX_MINUTES="${MAX_MINUTES:-150}"
 MIN_CUDA="${MIN_CUDA:-12.8}"
 MIN_RELIABILITY="${MIN_RELIABILITY:-0.95}"
@@ -35,7 +35,14 @@ DRY=0; [[ "${1:-}" == "--dry-run" ]] && { DRY=1; shift; }
 CMD="${1:-search}"; shift || true
 
 QUERY="gpu_name=${GPU_NAME} num_gpus=${NUM_GPUS} cuda_max_good>=${MIN_CUDA} \
-reliability2>=${MIN_RELIABILITY} dph_total<=${MAX_DPH} rentable=true disk_space>=${DISK_GB}"
+reliability2>=${MIN_RELIABILITY} dph_total<=${MAX_DPH} rentable=true disk_space>=${DISK_GB} \
+direct_port_count>=1"
+SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_ed25519}"
+
+ensure_ssh_key() {  # vast requires the pubkey registered BEFORE create
+  [ -f "$SSH_KEY" ] || ssh-keygen -t ed25519 -N "" -f "$SSH_KEY" -C "nocturne@vaked" >/dev/null 2>&1
+  vastai create ssh-key "$(cat "${SSH_KEY}.pub")" >/dev/null 2>&1 || true  # idempotent
+}
 
 log() { echo "[provision] $*" >&2; }
 need_key() { [[ -n "${VAST_API_KEY:-}" ]] || { log "FATAL: VAST_API_KEY not set"; exit 2; }; }
@@ -68,6 +75,7 @@ case "$CMD" in
       exit 0
     fi
     auth
+    ensure_ssh_key
     read -r OID DPH < <(cheapest_offer)
     log "cheapest offer $OID @ \$${DPH}/hr (cap \$${MAX_DPH})"
     NEW=$(vastai create instance "$OID" --image "$IMAGE" --disk "$DISK_GB" --ssh --direct --raw \
@@ -80,12 +88,12 @@ case "$CMD" in
       [[ "$STATUS" == "running" && -n "$SSH_HOST" ]] && break
       sleep 10
     done
-    [[ "${STATUS:-}" == "running" ]] || { log "instance never reached running — destroying"; vastai destroy instance "$NEW" || true; exit 1; }
+    [[ "${STATUS:-}" == "running" ]] || { log "instance never reached running — destroying"; vastai destroy instance "$NEW" -y || true; exit 1; }
     printf '%s %s %s\n' "$NEW" "$SSH_HOST" "$SSH_PORT" > "$INST_FILE"
     log "running: ssh -p $SSH_PORT root@$SSH_HOST"
     # arm the self-destruct watchdog (detached; survives orchestrator death)
     ( sleep "$((MAX_MINUTES*60))"; vastai set api-key "$VAST_API_KEY" >/dev/null 2>&1; \
-      vastai destroy instance "$NEW" >/dev/null 2>&1; echo "[watchdog] destroyed $NEW after ${MAX_MINUTES}min" >&2 ) &
+      vastai destroy instance "$NEW" -y >/dev/null 2>&1; echo "[watchdog] destroyed $NEW after ${MAX_MINUTES}min" >&2 ) &
     echo $! > "$WATCH_FILE"
     log "watch-and-destroy armed (pid $(cat "$WATCH_FILE"), ${MAX_MINUTES}min hard cap)"
     ;;
@@ -106,7 +114,7 @@ case "$CMD" in
     [[ -f "$WATCH_FILE" ]] && { kill "$(cat "$WATCH_FILE")" 2>/dev/null || true; rm -f "$WATCH_FILE"; }
     if [[ -f "$INST_FILE" ]]; then
       auth; ID=$(cut -d' ' -f1 "$INST_FILE")
-      vastai destroy instance "$ID" && log "destroyed $ID" || log "destroy reported error (may already be gone)"
+      vastai destroy instance "$ID" -y && log "destroyed $ID" || log "destroy reported error (may already be gone)"
       rm -f "$INST_FILE"
     else
       log "no instance to destroy"
