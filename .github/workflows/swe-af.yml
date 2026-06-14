@@ -105,6 +105,40 @@ jobs:
           cargo build --release --manifest-path vaked-agents/ci/swe-af/Cargo.toml
           cp vaked-agents/ci/swe-af/target/release/vaked-swe-af ./vaked-swe-af
 
+      # crabcc symbol index — the swe-af exploration surface (the agent runs
+      # `vaked explore` → crabcc). Best-effort: installed from the private repo via the `ci`
+      # CRABCC_INSTALL_TOKEN, cached by version so it only builds once. If absent/failed, the
+      # agent falls back to its built-in read/search tools (never hard-fails).
+      - name: Rust toolchain (crabcc)
+        if: steps.guard.outputs.enabled == 'true'
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache crabcc binary
+        if: steps.guard.outputs.enabled == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/crabcc
+          key: crabcc-v6.2.0-${{ runner.os }}
+      - name: Install crabcc (best-effort)
+        if: steps.guard.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CRABCC_INSTALL_TOKEN: ${{ secrets.CRABCC_INSTALL_TOKEN }}
+        run: |
+          if [ -x "$HOME/.cargo/bin/crabcc" ] || command -v crabcc >/dev/null; then
+            echo "crabcc present (cached)"; exit 0
+          fi
+          if [ -z "$CRABCC_INSTALL_TOKEN" ]; then
+            echo "::notice::no CRABCC_INSTALL_TOKEN — swe-af uses built-in explore tools"; exit 0
+          fi
+          git config --global url."https://x-access-token:${CRABCC_INSTALL_TOKEN}@github.com/crabcc-labs/".insteadOf "https://github.com/crabcc-labs/"
+          export CARGO_NET_GIT_FETCH_WITH_CLI=true
+          # Build-time trims (override the crate's fat-LTO profile; link with lld if present).
+          export CARGO_PROFILE_RELEASE_LTO=thin CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+          command -v ld.lld >/dev/null && export RUSTFLAGS="-C link-arg=-fuse-ld=lld"
+          cargo install --git https://github.com/crabcc-labs/crabcc --tag v6.2.0 \
+            crabcc-cli --bin crabcc --locked --force \
+            || echo "::warning::crabcc install failed — swe-af falls back to built-in explore tools"
+
       # eventd helper: append a JSON event to the hash chain (the audit spine).
       - name: eventd — run started
         if: steps.guard.outputs.enabled == 'true'
