@@ -15,6 +15,11 @@ use adk_agent::guardrails::{Guardrail, GuardrailResult};
 use adk_core::{Content, Part};
 
 /// Build the agent's input guardrail set: redaction, then injection defense.
+///
+/// Kept for reference/parity with the fleet, but swe-af does NOT attach this to the agent:
+/// it would redact the trusted repo files seeded into the prompt (corrupting full-file
+/// rewrites). swe-af defangs untrusted input at prompt-build time via [`sanitize_untrusted`].
+#[allow(dead_code)]
 pub fn input_guardrails() -> adk_agent::guardrails::GuardrailSet {
     adk_agent::guardrails::GuardrailSet::new()
         .with(SecretRedactor)
