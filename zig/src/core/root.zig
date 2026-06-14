@@ -14,9 +14,15 @@ pub const GraphNode = graph.GraphNode;
 pub const GraphEdge = graph.GraphEdge;
 pub const nodeId = graph.nodeId;
 
+pub const json_canon = @import("json_canon.zig");
+pub const graphToCanonical = json_canon.graphToCanonical;
+pub const valueDocToPretty = json_canon.valueDocToPretty;
+pub const stablePropsKey = json_canon.stablePropsKey;
+
 test {
     _ = @import("span.zig");
     _ = @import("provenance.zig");
     _ = @import("value.zig");
     _ = @import("graph.zig");
+    _ = @import("json_canon.zig");
 }
