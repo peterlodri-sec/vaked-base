@@ -58,14 +58,14 @@ mod guardrails;
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
-// gemini-3.5-flash is the frontier default for every node: of the models tested through
-// the adk→OpenRouter path it's the only one that reliably EMITS tool calls (deepseek/
-// claude narrate "I'll explore…" instead), and it reasons well. It also *requires*
-// reasoning, which we run at max effort. Overrides (all env): SWE_AF_MODEL routes every
-// node; SWE_AF_PLAN_MODEL / SWE_AF_CODE_MODEL route a single node — e.g. set
-// SWE_AF_PLAN_MODEL=deepseek/deepseek-v4-pro (reasoner) or
+// Default model for every node: gemini-3.1-flash-lite — same Gemini family (reliably
+// EMITS tool calls through adk→OpenRouter, where deepseek/claude narrate "I'll explore…"
+// instead), but ~6x cheaper than gemini-3.5-flash ($0.25/$1.50 vs $1.50/$9 per Mtok),
+// and the code node's ~16k-token output is the real cost driver. Overrides (all env):
+// SWE_AF_MODEL routes every node; SWE_AF_PLAN_MODEL / SWE_AF_CODE_MODEL route a single
+// node — e.g. SWE_AF_PLAN_MODEL=deepseek/deepseek-v4-pro (reasoner) or
 // SWE_AF_CODE_MODEL=deepseek/deepseek-v4-flash (coder), which ground on seeded context.
-const DEFAULT_MODEL: &str = "google/gemini-3.5-flash";
+const DEFAULT_MODEL: &str = "google/gemini-3.1-flash-lite";
 const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 // crabcc calls are cheap indexed lookups, so we allow many; the 3-minute wall-clock cap
 // (below) is the real bound, not the iteration count.
