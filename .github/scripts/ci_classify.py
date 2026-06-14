@@ -39,15 +39,22 @@ SIZE_TIERS = {
     "size/ultra": "extended",
 }
 
-# Paths that are purely non-source (docs, config, ci scripts)
+# Paths that are purely non-source (docs, config, ci scripts).
+# NOTE: only the *doc* part of protocol/ (the RFCs) is non-src — protocol/hcp/**
+# is Rust code and must NOT be treated as non-src (else it forces smoke tier and
+# the code never gets built; see ci-gate-build-extension spec / #7).
 NON_SRC_PREFIXES = (
-    "docs/", "protocol/", "prompts/", ".github/", "CLAUDE.md",
+    "docs/", "protocol/rfcs/", "prompts/", ".github/", "CLAUDE.md",
     "README", "CHANGELOG", "DEPLOY", "CONTRIBUTING", "SECURITY",
     "ROADMAP", "REVIEW_MAP", "VAKED_AGENTS",
 )
 
+# First-match-wins (the break in classify_paths), so order matters:
+# "rust" MUST precede "docs" so protocol/hcp/** routes to rust while
+# protocol/rfcs/** still routes to docs. "daemons/" is compiled Zig → language.
 PATH_GROUPS = {
-    "language": ("vaked/", "vakedc/", "vakedz/"),
+    "language": ("vaked/", "vakedc/", "vakedz/", "daemons/"),
+    "rust":     ("protocol/hcp/",),
     "nix":      ("nix/", "hosts/", "flake.nix", "flake.lock"),
     "docs":     ("docs/", "protocol/", "prompts/", "examples/evaluation/"),
     "agents":   ("vaked-agents/",),
@@ -134,6 +141,11 @@ def main():
     run_nix_parse = "nix" in changed_groups or tier in ("full", "extended")
     run_nix_check = "nix" in changed_groups and tier == "extended"
 
+    # Build triggers are tier-INDEPENDENT: a 5-line change can break compilation,
+    # so these never wait for full/extended (unlike run_nix_parse). See #7.
+    run_rust = "rust" in changed_groups
+    run_zig = "language" in changed_groups and any(f.startswith("daemons/") for f in files)
+
     # Write outputs
     output_path = os.environ.get("GITHUB_OUTPUT", "")
     lines = [
@@ -142,6 +154,8 @@ def main():
         f"ping_owner={'true' if ping_owner else 'false'}",
         f"run_nix_parse={'true' if run_nix_parse else 'false'}",
         f"run_nix_check={'true' if run_nix_check else 'false'}",
+        f"run_rust={'true' if run_rust else 'false'}",
+        f"run_zig={'true' if run_zig else 'false'}",
     ]
     if output_path:
         with open(output_path, "a") as fh:
@@ -155,8 +169,34 @@ def main():
     print(f"changed_groups: {sorted(changed_groups)}")
     print(f"run_nix_parse:  {run_nix_parse}")
     print(f"run_nix_check:  {run_nix_check}")
+    print(f"run_rust:       {run_rust}")
+    print(f"run_zig:        {run_zig}")
     print(f"size label:     {next((l for l in labels if l in SIZE_TIERS), '(auto)')}")
 
 
+def selftest():
+    """Inline regression vectors for the path classifier (ci-gate-build-extension)."""
+    cases = [
+        (classify_paths(["protocol/hcp/hcpbin/src/lib.rs"]), {"rust"}),
+        (is_non_src("protocol/hcp/hcpbin/src/lib.rs"), False),
+        (auto_tier(10, ["protocol/hcp/hcpbin/src/lib.rs"]) != "smoke", True),
+        (classify_paths(["daemons/sandboxd/src/main.zig"]), {"language"}),
+        (classify_paths(["protocol/rfcs/0002-hcplang.md"]), {"docs"}),
+        (is_non_src("protocol/rfcs/0002-hcplang.md"), True),
+    ]
+    failed = 0
+    for i, (got, want) in enumerate(cases, 1):
+        ok = got == want
+        print(f"  [{'ok' if ok else 'FAIL'}] case {i}: got={got!r} want={want!r}")
+        failed += not ok
+    if failed:
+        print(f"selftest: {failed} FAILED")
+        sys.exit(1)
+    print("selftest: all passed")
+
+
 if __name__ == "__main__":
-    main()
+    if "--selftest" in sys.argv:
+        selftest()
+    else:
+        main()

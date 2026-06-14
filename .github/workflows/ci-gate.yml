@@ -50,10 +50,15 @@ jobs:
       ping_owner:      ${{ steps.run.outputs.ping_owner }}
       run_nix_parse:   ${{ steps.run.outputs.run_nix_parse }}
       run_nix_check:   ${{ steps.run.outputs.run_nix_check }}
+      run_rust:        ${{ steps.run.outputs.run_rust }}
+      run_zig:         ${{ steps.run.outputs.run_zig }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
+      - name: classify self-test
+        run: python3 .github/scripts/ci_classify.py --selftest
 
       - name: Classify PR
         id: run
@@ -255,10 +260,74 @@ jobs:
       - name: Guard against agent-refactor reverts
         run: bash tools/ci/agent-structure-guard.sh "${{ github.event.pull_request.base.sha }}"
 
+  # ─── 8a. Rust build+test (protocol/hcp/**) ────────────────────────────────
+  # Kills the vacuous-green for Rust: previously no job ever compiled this code
+  # (issue #7). Discovers crates by glob so new ones (litany, WP3-S2) auto-cover.
+  rust-build:
+    name: rust-build
+    needs: classify
+    if: |
+      needs.classify.outputs.ping_owner != 'true' &&
+      needs.classify.outputs.run_rust == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust toolchain
+        run: rustup show active-toolchain || rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: protocol/hcp/hcpbin
+      - name: cargo test each protocol/hcp crate
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          found=0
+          for manifest in protocol/hcp/**/Cargo.toml; do
+            case "$manifest" in */target/*) continue;; esac
+            found=1
+            echo "::group::cargo test $manifest"
+            cargo test --manifest-path "$manifest" --locked
+            echo "::endgroup::"
+          done
+          [ "$found" = 1 ] || { echo "::error::run_rust=true but no Cargo.toml found under protocol/hcp/"; exit 1; }
+
+  # ─── 8b. Zig build (daemons/**) ───────────────────────────────────────────
+  zig-build:
+    name: zig-build
+    needs: classify
+    if: |
+      needs.classify.outputs.ping_owner != 'true' &&
+      needs.classify.outputs.run_zig == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: zig build each daemon
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          found=0
+          for bz in daemons/**/build.zig; do
+            case "$bz" in */.zig-cache/*|*/zig-cache/*) continue;; esac
+            dir="$(dirname "$bz")"
+            found=1
+            echo "::group::zig build $dir"
+            ( cd "$dir" && zig build )
+            if grep -q 'b.step("test"' "$bz"; then
+              ( cd "$dir" && zig build test )
+            fi
+            echo "::endgroup::"
+          done
+          [ "$found" = 1 ] || { echo "::error::run_zig=true but no build.zig found under daemons/"; exit 1; }
+
   # ─── 9. Gate aggregator (the only REQUIRED check) ─────────────────────────
   ci-gate:
     name: ci-gate
-    needs: [classify, smoke, standard, full, nix-parse, nix-check, agent-guard]
+    needs: [classify, smoke, standard, full, nix-parse, nix-check, agent-guard, rust-build, zig-build]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -273,6 +342,8 @@ jobs:
           NIX_PARSE:    ${{ needs.nix-parse.result }}
           NIX_CHECK:    ${{ needs.nix-check.result }}
           AGENT_GUARD:  ${{ needs.agent-guard.result }}
+          RUST_BUILD:   ${{ needs.rust-build.result }}
+          ZIG_BUILD:    ${{ needs.zig-build.result }}
         run: |
           echo "tier:        $TIER"
           echo "ping_owner:  $PING_OWNER"
@@ -282,6 +353,8 @@ jobs:
           echo "nix-parse:   $NIX_PARSE"
           echo "nix-check:   $NIX_CHECK"
           echo "agent-guard: $AGENT_GUARD"
+          echo "rust-build:  $RUST_BUILD"
+          echo "zig-build:   $ZIG_BUILD"
 
           if [ "$PING_OWNER" = "true" ]; then
             echo "::warning::ping-owner label set — human review required before merge"
@@ -289,7 +362,7 @@ jobs:
           fi
 
           FAIL=0
-          for job_result in "$SMOKE" "$STANDARD" "$FULL" "$NIX_PARSE" "$NIX_CHECK" "$AGENT_GUARD"; do
+          for job_result in "$SMOKE" "$STANDARD" "$FULL" "$NIX_PARSE" "$NIX_CHECK" "$AGENT_GUARD" "$RUST_BUILD" "$ZIG_BUILD"; do
             if [ "$job_result" = "failure" ]; then
               FAIL=1
             fi
@@ -310,3 +383,5 @@ jobs:
           echo "| nix-parse | $NIX_PARSE |" >> "$GITHUB_STEP_SUMMARY"
           echo "| nix-check | $NIX_CHECK |" >> "$GITHUB_STEP_SUMMARY"
           echo "| agent-guard | $AGENT_GUARD |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| rust-build | $RUST_BUILD |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| zig-build | $ZIG_BUILD |" >> "$GITHUB_STEP_SUMMARY"
