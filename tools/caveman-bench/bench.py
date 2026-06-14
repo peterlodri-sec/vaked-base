@@ -5,19 +5,27 @@ Benchmark: caveman wenyan-ultra vs normal (default) mode.
 Measures output token count and artifact English accuracy across 8 prompts.
 Writes results to report.md in the same directory.
 
+Backends:
+  - Anthropic API (default):  ANTHROPIC_API_KEY env var, model claude-sonnet-4-6
+  - OpenAI API (fallback):    OPENAI_API_KEY env var, model gpt-4o-mini
+
 Usage:
-    ANTHROPIC_API_KEY=sk-... python3 tools/caveman-bench/bench.py
+    ANTHROPIC_API_KEY=sk-ant-... python3 tools/caveman-bench/bench.py
+    OPENAI_API_KEY=sk-...      python3 tools/caveman-bench/bench.py
 """
 
+import json
 import os
+import pathlib
 import re
 import sys
 import time
-import pathlib
+import urllib.request
+import urllib.error
 import importlib.util
 
 # ---------------------------------------------------------------------------
-# Load corpus from sibling file without installing as a package
+# Load corpus
 # ---------------------------------------------------------------------------
 _here = pathlib.Path(__file__).parent
 spec = importlib.util.spec_from_file_location("corpus", _here / "corpus.py")
@@ -26,7 +34,7 @@ spec.loader.exec_module(corpus_mod)
 PROMPTS = corpus_mod.PROMPTS
 
 # ---------------------------------------------------------------------------
-# Caveman wenyan-ultra system prompt — mirrors SKILL.md core rules
+# Caveman wenyan-ultra system prompt
 # ---------------------------------------------------------------------------
 WENYAN_SYSTEM = """\
 You are in wenyan-ultra mode. This is a mandatory, persistent communication style.
@@ -41,104 +49,190 @@ NEVER translate or compress — keep verbatim.
 
 ARTIFACT GATE (mandatory):
 When producing content that will be written to a file, a git commit message, a PR title/body, \
-or any text persisted externally, you MUST output standard English — complete sentences, \
-normal articles, no classical Chinese compression. This applies even in wenyan-ultra mode.
-The gate applies to: file content, commit messages, PR descriptions, issue bodies.
-It does NOT apply to your conversational replies (those stay wenyan-ultra).
+or any text persisted externally, output standard English — complete sentences, normal articles, \
+no classical Chinese compression. Gate applies to: file content, commit messages, PR descriptions, \
+issue bodies. Does NOT apply to chat replies (those stay wenyan-ultra).
 """
 
-NORMAL_SYSTEM = """\
-You are a helpful, knowledgeable software engineering assistant. \
-Reply clearly and concisely in standard English.
-"""
+NORMAL_SYSTEM = (
+    "You are a helpful, knowledgeable software engineering assistant. "
+    "Reply clearly and concisely in standard English."
+)
 
-MODEL = "claude-sonnet-4-6"
 CJK_RE = re.compile(r"[一-鿿㐀-䶿]")
 
-# ---------------------------------------------------------------------------
 
-def call_api(client, system: str, user: str) -> dict:
-    """Single API call; returns {text, input_tokens, output_tokens}."""
-    msg = client.messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        system=system,
-        messages=[{"role": "user", "content": user}],
+# ---------------------------------------------------------------------------
+# Backend detection
+# ---------------------------------------------------------------------------
+def detect_backend():
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic", os.environ["ANTHROPIC_API_KEY"]
+    if os.environ.get("OPENAI_API_KEY"):
+        return "openai", os.environ["OPENAI_API_KEY"]
+    return None, None
+
+
+# ---------------------------------------------------------------------------
+# API calls via urllib (no SDK dependency)
+# ---------------------------------------------------------------------------
+def call_anthropic(api_key: str, system: str, user: str) -> dict:
+    payload = json.dumps({
+        "model": "claude-sonnet-4-6",
+        "max_tokens": 1024,
+        "system": system,
+        "messages": [{"role": "user", "content": user}],
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        method="POST",
     )
-    text = msg.content[0].text
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
     return {
-        "text": text,
-        "input_tokens": msg.usage.input_tokens,
-        "output_tokens": msg.usage.output_tokens,
+        "text": data["content"][0]["text"],
+        "input_tokens": data["usage"]["input_tokens"],
+        "output_tokens": data["usage"]["output_tokens"],
+        "model": data["model"],
     }
+
+
+def call_openai(api_key: str, system: str, user: str) -> dict:
+    payload = json.dumps({
+        "model": "gpt-4o-mini",
+        "max_tokens": 1024,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "content-type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
+    choice = data["choices"][0]["message"]["content"]
+    usage = data["usage"]
+    return {
+        "text": choice,
+        "input_tokens": usage["prompt_tokens"],
+        "output_tokens": usage["completion_tokens"],
+        "model": data["model"],
+    }
+
+
+def call_api(backend: str, api_key: str, system: str, user: str) -> dict:
+    if backend == "anthropic":
+        return call_anthropic(api_key, system, user)
+    return call_openai(api_key, system, user)
 
 
 def has_cjk(text: str) -> bool:
     return bool(CJK_RE.search(text))
 
 
-def run_benchmark(client) -> list[dict]:
+# ---------------------------------------------------------------------------
+# Benchmark runner
+# ---------------------------------------------------------------------------
+def run_benchmark(backend: str, api_key: str) -> list:
     results = []
-    modes = [
-        ("normal", NORMAL_SYSTEM),
-        ("wenyan-ultra", WENYAN_SYSTEM),
-    ]
+    modes = [("normal", NORMAL_SYSTEM), ("wenyan-ultra", WENYAN_SYSTEM)]
     total = len(PROMPTS) * len(modes)
     done = 0
     for prompt in PROMPTS:
-        row = {"id": prompt["id"], "category": prompt["category"], "is_artifact": prompt["is_artifact"]}
+        row = {
+            "id": prompt["id"],
+            "category": prompt["category"],
+            "is_artifact": prompt["is_artifact"],
+        }
         for mode_name, system in modes:
             print(f"  [{done+1}/{total}] {prompt['id']} / {mode_name} ...", flush=True)
-            result = call_api(client, system, prompt["text"])
-            row[f"{mode_name}_input_tok"] = result["input_tokens"]
-            row[f"{mode_name}_output_tok"] = result["output_tokens"]
-            row[f"{mode_name}_chars"] = len(result["text"])
-            row[f"{mode_name}_text"] = result["text"]
-            if prompt["is_artifact"]:
-                row[f"{mode_name}_artifact_english"] = not has_cjk(result["text"])
+            try:
+                result = call_api(backend, api_key, system, prompt["text"])
+                row[f"{mode_name}_input_tok"] = result["input_tokens"]
+                row[f"{mode_name}_output_tok"] = result["output_tokens"]
+                row[f"{mode_name}_chars"] = len(result["text"])
+                row[f"{mode_name}_text"] = result["text"]
+                row["model"] = result["model"]
+                if prompt["is_artifact"]:
+                    row[f"{mode_name}_artifact_english"] = not has_cjk(result["text"])
+            except Exception as exc:
+                print(f"    ERROR: {exc}", file=sys.stderr)
+                row[f"{mode_name}_input_tok"] = 0
+                row[f"{mode_name}_output_tok"] = 0
+                row[f"{mode_name}_chars"] = 0
+                row[f"{mode_name}_text"] = f"ERROR: {exc}"
+                if prompt["is_artifact"]:
+                    row[f"{mode_name}_artifact_english"] = None
             done += 1
-            time.sleep(0.5)  # gentle rate limiting
+            time.sleep(0.4)
         results.append(row)
     return results
 
 
-def build_report(results: list[dict]) -> str:
+# ---------------------------------------------------------------------------
+# Report generation
+# ---------------------------------------------------------------------------
+def build_report(results: list, backend: str) -> str:
+    model = results[0].get("model", "unknown") if results else "unknown"
     lines = [
         "# Caveman Wenyan-Ultra vs Normal — Benchmark Report",
         "",
-        f"Model: `{MODEL}` | Prompts: {len(results)} | Date: run at script time",
+        f"**Backend:** {backend} | **Model:** `{model}` | **Prompts:** {len(results)}",
         "",
         "## Per-Prompt Token Comparison",
         "",
-        "| ID | Category | Normal out-tok | Wenyan out-tok | Savings % | Wenyan chars | Normal chars |",
-        "|----|----------|---------------|----------------|-----------|--------------|--------------|",
+        "| ID | Category | Normal tok | Wenyan tok | Savings % | Normal chars | Wenyan chars |",
+        "|----|----------|-----------|-----------|-----------|-------------|-------------|",
     ]
 
-    total_normal = 0
-    total_wenyan = 0
+    total_normal_tok = 0
+    total_wenyan_tok = 0
+    total_normal_chars = 0
+    total_wenyan_chars = 0
 
     for r in results:
-        n_tok = r["normal_output_tok"]
-        w_tok = r["wenyan-ultra_output_tok"]
-        savings = (n_tok - w_tok) / n_tok * 100 if n_tok else 0
-        total_normal += n_tok
-        total_wenyan += w_tok
+        n_tok = r.get("normal_output_tok", 0)
+        w_tok = r.get("wenyan-ultra_output_tok", 0)
+        n_ch = r.get("normal_chars", 0)
+        w_ch = r.get("wenyan-ultra_chars", 0)
+        savings_tok = (n_tok - w_tok) / n_tok * 100 if n_tok else 0
+        total_normal_tok += n_tok
+        total_wenyan_tok += w_tok
+        total_normal_chars += n_ch
+        total_wenyan_chars += w_ch
         lines.append(
-            f"| {r['id']} | {r['category']} | {n_tok} | {w_tok} | {savings:+.1f}% "
-            f"| {r['wenyan-ultra_chars']} | {r['normal_chars']} |"
+            f"| {r['id']} | {r['category']} | {n_tok} | {w_tok} | {savings_tok:+.1f}% "
+            f"| {n_ch} | {w_ch} |"
         )
 
-    agg_savings = (total_normal - total_wenyan) / total_normal * 100 if total_normal else 0
+    agg_tok = (total_normal_tok - total_wenyan_tok) / total_normal_tok * 100 if total_normal_tok else 0
+    agg_ch = (total_normal_chars - total_wenyan_chars) / total_normal_chars * 100 if total_normal_chars else 0
+
     lines += [
         "",
-        f"**Aggregate output token savings: {agg_savings:.1f}%** "
-        f"(normal total={total_normal}, wenyan total={total_wenyan})",
+        f"**Aggregate output token savings: {agg_tok:.1f}%** "
+        f"(normal={total_normal_tok} tok, wenyan={total_wenyan_tok} tok)",
+        f"**Character reduction: {agg_ch:.1f}%** "
+        f"(normal={total_normal_chars} chars, wenyan={total_wenyan_chars} chars)",
         "",
         "## Artifact Gate Accuracy",
         "",
-        "For artifact prompts, wenyan-ultra responses must contain no CJK characters.",
+        "Artifact prompts in wenyan-ultra mode must contain **no CJK characters** in the response.",
         "",
-        "| ID | Normal English? | Wenyan English? | Pass |",
+        "| ID | Normal English? | Wenyan English? | Gate |",
         "|----|----------------|-----------------|------|",
     ]
 
@@ -146,17 +240,26 @@ def build_report(results: list[dict]) -> str:
     all_pass = True
     for r in artifact_rows:
         n_eng = r.get("normal_artifact_english", True)
-        w_eng = r.get("wenyan-ultra_artifact_english", False)
-        passed = "✓" if w_eng else "✗ FAIL"
-        if not w_eng:
+        w_eng = r.get("wenyan-ultra_artifact_english")
+        if w_eng is None:
+            passed = "?"
+        elif w_eng:
+            passed = "✓ PASS"
+        else:
+            passed = "✗ FAIL"
             all_pass = False
-        lines.append(f"| {r['id']} | {'yes' if n_eng else 'no'} | {'yes' if w_eng else 'NO — CJK FOUND'} | {passed} |")
+        lines.append(
+            f"| {r['id']} | {'yes' if n_eng else 'no'} "
+            f"| {'yes' if w_eng else ('NO — CJK found' if w_eng is False else 'error')} "
+            f"| {passed} |"
+        )
 
+    gate_result = "PASS — all artifacts in English" if all_pass else "FAIL — CJK found in artifact"
     lines += [
         "",
-        f"**Artifact gate result: {'PASS — all artifacts in English' if all_pass else 'FAIL — CJK found in artifact output'}**",
+        f"**Artifact gate: {gate_result}**",
         "",
-        "## Sample Responses",
+        "## Sample Responses (first 400 chars)",
         "",
     ]
 
@@ -166,12 +269,12 @@ def build_report(results: list[dict]) -> str:
             "",
             "**Normal:**",
             "```",
-            r["normal_text"][:600] + ("..." if len(r["normal_text"]) > 600 else ""),
+            r.get("normal_text", "")[:400].replace("```", "'''"),
             "```",
             "",
             "**Wenyan-ultra:**",
             "```",
-            r["wenyan-ultra_text"][:600] + ("..." if len(r["wenyan-ultra_text"]) > 600 else ""),
+            r.get("wenyan-ultra_text", "")[:400].replace("```", "'''"),
             "```",
             "",
         ]
@@ -179,40 +282,34 @@ def build_report(results: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 def main():
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        print("ERROR: ANTHROPIC_API_KEY not set.", file=sys.stderr)
+    backend, api_key = detect_backend()
+    if not backend:
+        print("ERROR: set ANTHROPIC_API_KEY or OPENAI_API_KEY", file=sys.stderr)
         sys.exit(1)
 
-    try:
-        import anthropic
-    except ImportError:
-        print("ERROR: anthropic SDK not installed. Run: pip install anthropic", file=sys.stderr)
-        sys.exit(1)
-
-    client = anthropic.Anthropic(api_key=api_key)
-
-    print(f"Running benchmark: {len(PROMPTS)} prompts × 2 modes = {len(PROMPTS)*2} API calls")
-    print(f"Model: {MODEL}")
+    print(f"Backend: {backend}")
+    print(f"Prompts: {len(PROMPTS)} × 2 modes = {len(PROMPTS)*2} API calls")
     print()
 
-    results = run_benchmark(client)
-    report = build_report(results)
+    results = run_benchmark(backend, api_key)
+    report = build_report(results, backend)
 
     out_path = _here / "report.md"
     out_path.write_text(report, encoding="utf-8")
-    print(f"\nReport written to {out_path}")
+    print(f"\nReport: {out_path}")
 
-    # Also print aggregate to stdout
-    total_normal = sum(r["normal_output_tok"] for r in results)
-    total_wenyan = sum(r["wenyan-ultra_output_tok"] for r in results)
-    savings = (total_normal - total_wenyan) / total_normal * 100 if total_normal else 0
-    print(f"Aggregate output token savings: {savings:.1f}%")
+    total_n = sum(r.get("normal_output_tok", 0) for r in results)
+    total_w = sum(r.get("wenyan-ultra_output_tok", 0) for r in results)
+    savings = (total_n - total_w) / total_n * 100 if total_n else 0
+    print(f"Token savings: {savings:.1f}%")
 
-    artifact_rows = [r for r in results if r["is_artifact"]]
-    gate_pass = all(r.get("wenyan-ultra_artifact_english", False) for r in artifact_rows)
-    print(f"Artifact gate: {'PASS' if gate_pass else 'FAIL'}")
+    artifacts = [r for r in results if r["is_artifact"]]
+    gate = all(r.get("wenyan-ultra_artifact_english", False) for r in artifacts)
+    print(f"Artifact gate: {'PASS' if gate else 'FAIL'}")
 
 
 if __name__ == "__main__":
