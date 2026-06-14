@@ -34,14 +34,25 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(hook_lib);
 
-    // tests — root at grammar.zig so its test blocks are directly compiled
+    // tests — grammar.zig tests
     const test_step = b.step("test", "Run unit tests");
+
     const grammar_test_mod = b.createModule(.{
         .root_source_file = b.path("src/parser/grammar.zig"),
         .target = target,
         .optimize = optimize,
     });
     grammar_test_mod.addImport("gocc-core", core_mod);
-    const tests = b.addTest(.{ .root_module = grammar_test_mod });
-    test_step.dependOn(&b.addRunArtifact(tests).step);
+    const grammar_tests = b.addTest(.{ .root_module = grammar_test_mod });
+    test_step.dependOn(&b.addRunArtifact(grammar_tests).step);
+
+    // tests — scheduler.zig tests
+    const scheduler_test_mod = b.createModule(.{
+        .root_source_file = b.path("src/dispatch/scheduler.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    scheduler_test_mod.addImport("gocc-core", core_mod);
+    const scheduler_tests = b.addTest(.{ .root_module = scheduler_test_mod });
+    test_step.dependOn(&b.addRunArtifact(scheduler_tests).step);
 }
