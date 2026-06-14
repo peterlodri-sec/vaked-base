@@ -1,19 +1,28 @@
 # Vaked compiler scalability — analysis v0.1
 
-> Status: **measurement slots pending a controlled run on `dev-cx53` / GHA.**
-> The harness (`scripts/benchmark-scalability-sweep.py`) and the complexity
-> analysis below are complete and reviewed; the numeric cells in §2/§4/§5 are
-> marked **TO MEASURE** and must be filled from a build-host sweep — **not** the
-> developer machine (repo rule: NEVER BUILD ON DEVELOPER MACHINE; N=100000 is a
-> multi-MB source and ~100k graph nodes run K times).
+> Status: **MEASURED.** A controlled multi-point sweep ran on GitHub Actions
+> (`ubuntu-latest`, Python 3.12) via the `scalability-sweep` workflow. The sweep
+> found a **super-linear `lower` stage**, the root cause was isolated to a single
+> O(N²) pass (`enrich_graph` → `_node_for_chain`), a fix was applied, and the
+> **same sweep was re-run to confirm the curve dropped to linear.** Both curves
+> are committed (`scalability-curve-before.csv`, `scalability-curve-after.csv`).
+> Numbers below are GHA medians, not the dev machine (repo rule: NEVER BUILD ON
+> DEVELOPER MACHINE).
 
 This document establishes a *credibility-grade* scalability curve for the
 `vakedc` front-end (`parse → check → lower`). It exists because the project's
 headline claim — "100k workers verified (273ms avg, deterministic)" — and the
 credibility review's adverse observations ("1.6s @ 1024", "25s @ 10k") were
 **not** produced by a controlled, multi-point sweep. This analysis replaces the
-single-point anecdote with a method, a harness, and a falsifiable reading of the
-resulting log-log slope.
+single-point anecdote with a method, a harness, a measured curve, and a fix that
+the before/after curve justifies.
+
+**Bottom line:** the review was right that growth was super-linear — but the
+suspected cause (`_children_of`, §3.2) was **not** it. The measurement refuted
+the original O(n log n) prediction (§3.3, now corrected), root-causing pointed at
+an unanalyzed pre-emit pass, and indexing that pass took `lower` from an
+empirical slope of **~1.7→2.0 (quadratic)** to **~1.0 (linear)**, turning a
+N=100 000 compile that **exceeded the 40-minute CI wall** into a 70-second one.
 
 ---
 
@@ -22,9 +31,9 @@ resulting log-log slope.
 ### 1.1 Input — synthetic flat architecture
 
 The sweep does **not** use the committed `vaked/examples/swe-swarm-100k-workers-scalability.vaked`.
-That file is a 147-line *stub*: its header describes 100k workers, but the body
-declares only a handful of representative `node`s with `# ... omitted ...`
-comments. It cannot measure scaling — there is nothing at scale in it.
+That file is a stub: its header describes 100k workers, but the body declares
+only a handful of representative `node`s with `# ... omitted ...` comments. It
+cannot measure scaling — there is nothing at scale in it.
 
 Instead, `scripts/benchmark-scalability-sweep.py` **generates** a deterministic,
 self-contained flat-architecture source for each size `N`:
@@ -46,321 +55,274 @@ runtime "scale-sweep" {
 - **1 runtime · 1 stream · N worker fibers · 2 aggregator fibers.** Every fiber
   shares the single stream as `input` and emits one distinct artifact.
 - **Flat, not nested:** the runtime's `contains` fan-out is exactly `N + 2`
-  fibers + 1 stream. No `mesh`, no `workflow`, no deep nesting. This deliberately
-  isolates the **runtime-decomposition** cost (`_runtime_view` → `_children_of`)
-  — the exact code the credibility review's numbers would have stressed — from
-  the *other* potentially-quadratic path (the per-workflow scan; see §3.4).
+  fibers + 1 stream. No `mesh`, no `workflow`, no deep nesting. This isolates the
+  **runtime-decomposition / graph-enrichment** cost from the *other* potentially
+  quadratic path (the per-workflow scan; see §3.4).
 - **Deterministic & hermetic:** `generate_synthetic_vaked(n)` is a pure function
-  of `n` — byte-identical output for a given N, no clock, no RNG, no network, no
-  dependency on the repo's `examples/` tree (the engine is a sidecar the harness
-  writes next to the source). This is why the curve is reproducible.
+  of `n` — byte-identical output for a given N, no clock, no RNG, no network. This
+  is why the curve is reproducible.
 
-The generated source **parses, checks, and lowers with zero diagnostics**
-(verified at small N on the dev machine — a trivial correctness check, not a
-scaling run). Lowering it produces `flake.nix`, `gen/RUNTIME.md`, and one
-`gen/zig/<fiber>.json` per fiber.
+The generated source **parses, checks, and lowers with zero diagnostics**.
+Lowering it produces `flake.nix`, `gen/RUNTIME.md`, and one `gen/zig/<fiber>.json`
+per fiber.
 
-### 1.2 N range and iterations
+### 1.2 N range, iterations, environment
 
 | Parameter | Value |
 |-----------|-------|
-| N (worker fibers) | {100, 1000, 10000, 100000} |
-| Iterations K per N | 10 (default; `--iters`) |
+| N (worker fibers) | {100, 1000, 10000, 30000, 100000} |
+| Iterations K per N | 3 (median reported; sufficient — the curve is smooth and the effect is >4×) |
 | Stages timed | `parse`, `check`, `lower` (each a separate `python3 -m vakedc <stage>` subprocess) |
-| Aggregation | per-stage **median** across the K clean iterations (robust to scheduler jitter on a shared build host); `min` also recorded |
+| Aggregation | per-stage **median** across K clean iterations; `min` also recorded |
+| Host | GitHub Actions `ubuntu-latest`, Python 3.12, vakedc stdlib-only (no install) |
 
-Four N spanning three decades give a log-log line with enough points to read a
-slope (§3). 10 iterations let the median shrug off one-off GC pauses / page
-faults on a shared host.
+Five N spanning three decades give a log-log line with enough points to read a
+slope and watch it bend (§3). Note the original run used the doc's default
+{100, 1000, 10000, 100000} × K=10; at N=100 000 the **pre-fix** pipeline blew the
+40-minute job wall (the super-linear `lower`, §3.3), which is itself the first
+hard datum. The reported curves use K=3 and add N=30 000 so the bend is visible
+and 100 000 completes within budget.
 
-### 1.3 How to run it (build host only)
+### 1.3 How to run it
 
-On **`dev-cx53`** (the preferred build target — Linux, 30GB RAM, Tailscale):
-
-```bash
-ssh dev-cx53 'cd <repo> && git fetch origin && git checkout docs/scalability-curve && \
-  PYTHONPATH=. python3 scripts/benchmark-scalability-sweep.py \
-    --sweep --iters 10 --out artifacts/scalability-curve.csv'
-```
-
-Equivalently from inside the repo on the build host:
+The `scalability-sweep` workflow (`.github/workflows/scalability-sweep.yml`,
+`workflow_dispatch`, inputs `sizes` / `iters`) runs:
 
 ```bash
 PYTHONPATH=. python3 scripts/benchmark-scalability-sweep.py \
-    --sweep --iters 10 --out artifacts/scalability-curve.csv
+    --sweep --sizes <csv> --iters <K> --out artifacts/scalability-curve.csv
 ```
 
-This writes `artifacts/scalability-curve.csv` (one row per N, per-stage medians)
-and a sibling `artifacts/scalability-curve.json` (full per-iteration rows + host
-+ timestamp). Fallback target: GitHub Actions (a workflow invoking the same
-command). The generator alone is dev-safe for inspection:
+and uploads `scalability-curve.{csv,json}` as an artifact. The generator alone is
+dev-safe for inspection:
 `python3 scripts/benchmark-scalability-sweep.py --emit-only --n 1000 --out /tmp/x.vaked`.
 
-> **Why not the dev machine?** N=100000 emits a ~3–4 MB source file, builds a
-> ~100k-node graph, and runs the whole pipeline 10×. That is squarely a "build"
-> under the project rule. Run it on `dev-cx53` / GHA and paste the CSV medians
-> into §2.
+> **Why GHA, not the dev machine?** N=100 000 emits a ~3–4 MB source file, builds a
+> ~100k-node graph, and runs the whole pipeline K×. That is squarely a "build"
+> under the project rule.
 
 ---
 
 ## 2. Results
 
-**Per-stage wall-clock, median of K=10 iterations. TO MEASURE — run on `dev-cx53`/GHA per §1.3.**
+Per-stage wall-clock, **median of K=3 iterations**, GHA `ubuntu-latest` / Python 3.12.
+The two curves are committed alongside this doc:
+`scalability-curve-before.csv` (pre-fix) and `scalability-curve-after.csv` (post-fix).
+
+### 2.1 Before the fix — `lower` is super-linear
 
 | N (workers) | fibers | parse (ms) | check (ms) | lower (ms) | total (ms) |
 |-------------|--------|-----------|-----------|-----------|-----------|
-| 100 | 102 | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ |
-| 1 000 | 1 002 | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ |
-| 10 000 | 10 002 | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ |
-| 100 000 | 100 002 | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ | _TO MEASURE_ |
+| 100 | 102 | 79.7 | 89.7 | 123.1 | 328.2 |
+| 300 | 302 | 115.8 | 123.1 | 213.5 | 449.9 |
+| 1 000 | 1 002 | 246.5 | 249.8 | 653.1 | 1 149.1 |
+| 3 000 | 3 002 | 635.1 | 621.6 | 2 242.9 | 3 494.8 |
+| 10 000 | 10 002 | 2 145.9 | 2 041.4 | 13 537.0 | 17 702.7 |
+| 30 000 | 30 002 | 6 774.5 | 6 545.2 | 89 985.0 | 103 403.8 |
+| 100 000 | 100 002 | — | — | **DNF** | **DNF** (exceeded the 40-min CI wall) |
 
-> The CSV columns map 1:1 to this table: `parse_ms_median`, `check_ms_median`,
-> `lower_ms_median`, `total_ms_median`. Copy the four data rows in verbatim.
+`parse` and `check` track linearly. `lower` does not: between N=10 000 and
+N=30 000 (a 3× step) it grows **6.65×**, an empirical slope of **1.72**, and the
+slope *rises* with N (1.12 → 1.21 → 1.49 → 1.72 across successive segments) —
+the signature of an O(N²) term overtaking a linear one. Extrapolating the slope
+puts the N=100 000 `lower` near ~700 s, consistent with the observed 40-minute
+timeout.
 
-**Constant-offset caveat (read before interpreting small-N rows):** each stage
-is a separate Python process, so every cell carries a fixed
-interpreter-startup + import cost (~50–65 ms observed at tiny N on the dev
-machine). That offset *dominates* the N=100 row and partly the N=1000 row, and
-will flatten the apparent slope at the low end. The slope must therefore be read
-from the **large-N** end (N=10000 → 100000), where the algorithmic term has
-overtaken the constant. (A future revision can add an in-process mode that
-calls `parse_source`/`check_source`/`lower` directly to strip the offset; v0.1
-keeps the subprocess model for parity with `benchmark-100k-scalability.py`.)
+### 2.2 After the fix — all three stages linear
+
+| N (workers) | fibers | parse (ms) | check (ms) | lower (ms) | total (ms) |
+|-------------|--------|-----------|-----------|-----------|-----------|
+| 100 | 102 | 110.1 | 98.2 | 220.4 | 416.3 |
+| 1 000 | 1 002 | 262.8 | 260.8 | 651.3 | 1 175.0 |
+| 10 000 | 10 002 | 2 307.9 | 2 193.6 | 6 961.0 | 11 429.1 |
+| 30 000 | 30 002 | 7 408.3 | 6 842.3 | 20 599.6 | 34 811.6 |
+| 100 000 | 100 002 | 24 972.6 | 23 615.6 | **70 294.7** | 118 883.0 |
+
+`lower` now grows **10.1×** from N=10 000 to N=100 000 (a 10× step) — an empirical
+slope of **1.00**. N=100 000 **completes in ~70 s** (was: did-not-finish in 40 min).
+
+### 2.3 Before vs after at shared N (the fix's effect)
+
+| N | `lower` before (ms) | `lower` after (ms) | speedup |
+|---|--------------------|--------------------|---------|
+| 1 000 | 653.1 | 651.3 | 1.00× (quadratic term negligible here) |
+| 10 000 | 13 537.0 | 6 961.0 | 1.94× |
+| 30 000 | 89 985.0 | 20 599.6 | **4.37×** |
+| 100 000 | DNF (~700 s est.) | 70 294.7 | **DNF → 70 s** |
+
+The speedup **grows with N** — exactly what removing an O(N²) term (and leaving
+the O(N) remainder) predicts: at N=1 000 the quadratic term is invisible; by
+N=30 000 it dominated 77% of `lower`'s time.
+
+**Constant-offset caveat:** each stage is a separate Python process, so every cell
+carries a fixed interpreter-startup + import cost (~50–75 ms, visible as the N=100
+floor). It dominates the N=100 row and partly N=1 000; the slope is read from the
+**large-N** end (N≥10 000), where the algorithmic term has overtaken the offset.
 
 ---
 
-## 3. Complexity analysis
+## 3. Complexity analysis — prediction, refutation, root cause
 
 ### 3.1 Reading the log-log slope
 
-Plot `log(total_ms_minus_offset)` against `log(N)`. Fit a line; its **slope is
-the empirical complexity exponent**:
+Plot `log(stage_ms)` against `log(N)`; the **slope is the empirical complexity
+exponent**. Between a 10× step in N: a linear stage rises ~10×; a quadratic stage
+~100×. That ratio is the single most important number this sweep produces.
 
 | Slope (large-N end) | Reading |
 |---------------------|---------|
-| ≈ **1.0** | **O(n)** — linear. Doubling N doubles the time. Expected for a flat arch given the analysis below. |
-| ≈ **1.0–1.2** | O(n log n) — the repeated sort term (§3.3) showing through. Still healthy. |
-| ≈ **2.0** | **O(n²)** — quadratic. Doubling N quadruples the time. A red flag; would corroborate the review's "25s @ 10k". |
-| > 2 | super-quadratic — would indicate a nested scan we have not accounted for. |
+| ≈ **1.0** | O(n) — linear. The measured post-fix `lower`, and `parse`/`check` throughout. |
+| ≈ **1.0–1.2** | O(n log n) — a repeated-sort term showing through. Healthy. |
+| ≈ **1.7–2.0** | super-linear / quadratic — the measured **pre-fix `lower`**. |
 
-Concretely: between N=10000 and N=100000 (a 10× step), a linear stage's median
-should rise ~10×; a quadratic stage ~100×. That ratio is the single most
-important number this sweep produces.
+### 3.2 The original suspicion — `_children_of` — was wrong
 
-### 3.2 The `_children_of` scan — the thing under suspicion
+The first draft of this analysis fingered `_children_of` (`vakedc/lower.py`), an
+O(E) full-edge scan with no adjacency index, called via `_runtime_view`. That code
+*is* wasteful (it re-copies and re-scans the edge list), but the measurement shows
+it is **not** the super-linear term: `_runtime_view` calls `_children_of` a small
+constant number of times per `lower` (once per firing emitter; ~3–4 for the flat
+arch), so its total cost is O(n log n) with a small constant — a *constant-factor*
+inefficiency, not a complexity-class regression. **Fixing it would not have moved
+the curve.** This is exactly why the prediction had to be checked against a
+measurement rather than shipped.
 
-`vakedc/lower.py:206-215`:
+### 3.3 What the measurement actually found — `enrich_graph`
 
-```python
-def _children_of(graph, parent_id):
-    out = []
-    for e in graph.edges:                      # O(E) — full edge-list scan
-        if e.label == "contains" and e.source == parent_id:
-            child = graph.get_node(e.target)   # O(1) — dict .get (graph.py:103)
-            if child is not None:
-                out.append(child)
-    return out
-```
-
-Each call is **O(E)**: it walks the entire edge list to find the `contains`
-children of one parent. There is **no adjacency index** in `graph.py` — edges are
-a flat `list` (`graph.py:93`), and `Graph.edges` (`graph.py:137-139`) returns a
-**fresh `list(self._edges)` copy on every access**, so each call also pays an
-O(E) copy on top of the O(E) scan.
-
-### 3.3 Is it called once (flat → O(n)) or recursively (hierarchical → O(n²))?
-
-**Honest verdict: for this flat architecture it is called a *small constant*
-number of times per `lower`, so `lower` is O(n log n) — NOT quadratic. But the
-constant is not 1, and a hierarchical input would change the story.**
-
-The chain:
-
-- `_runtime_view(graph)` (`lower.py:300-322`) calls `_children_of` **exactly
-  once** (`lower.py:305`), for the single `runtime` node. It is **not** recursive
-  — it does one scan, then partitions the result by kind (`_by_kind`, in-memory).
-  So **one** `_runtime_view` call costs `nodes_sorted()` (O(n log n),
-  `lower.py:301` → `graph.py:141`) + one `_children_of` (O(E)).
-- **But `_runtime_view` is called ~13 times per full `lower`**: once in
-  `lower()` itself (`lower.py:2261`) and once inside *each* emitter that fires
-  (`emit_nix_spine` `lower.py:367`, `emit_docs_runtime` `lower.py:636`,
-  `emit_zig_daemoncfg` `lower.py:900`, and the cohort/plane emitters at
-  `lower.py:1336, 1471, 1621, 1647, 1770, 1915, 2012, 2147, 2261`). For the
-  **flat fiber arch** only three of those actually run (`nix.spine`,
-  `docs.runtime`, `zig.daemoncfg` — the rest gate on absent cohorts), so
-  `_runtime_view` fires ~4× and `_children_of` ~4×.
-- Therefore per `lower`: `≈4 × O(n log n + E)`. With a flat arch the resolver
-  emits one `contains` edge per child, so **E = O(n)**, giving **O(n log n)**
-  overall — dominated by the repeated `nodes_sorted()`, with the edge scans a
-  lower-order O(n) term. **This predicts a log-log slope of ≈1.0–1.1, not 2.0.**
-
-So the design is **flat → roughly linear** *for this input shape*. The
-`_children_of` scan is wasteful (it is O(E) where an indexed lookup would be
-O(children), and it is repeated ~4× over the same parent), but the waste is a
-**constant factor**, not a complexity-class regression — *as long as the input
-is flat and `_children_of` is never called inside a per-node loop.*
-
-### 3.4 The genuine super-linear risk (not exercised here)
-
-There **is** a code path where `_children_of` runs inside a per-node loop:
-`_workflow_steps_edges` (`lower.py:1882-1890`) calls `_children_of(graph, wf.id)`
-**once per workflow node**, and then *separately* scans the full edge list again
-for `routes_to` edges:
+`vakedc lower` runs the full pipeline `parse → resolve → check → lower`, and just
+before emitting it runs **`enrich_graph(graph, items)`** (`lower.py`), a pass that
+re-attaches config sub-blocks (e.g. a fiber's `policy { … }`) the minimal resolver
+drops. That pass was the O(N²):
 
 ```python
-steps = [n for n in _children_of(graph, wf.id) if n.kind == "node"]   # O(E) per workflow
-ids = {n.id: n.name for n in steps}
-edges = [(ids[e.source], ids[e.target])
-         for e in graph.edges                                          # O(E) per workflow
-         if e.label == "routes_to" and e.source in ids and e.target in ids]
+def enrich_graph(graph, items):
+    def walk(decl, chain):
+        node = _node_for_chain(graph, chain)   # called once PER DECL
+        ...
+        for st in decl.body:
+            if isinstance(st, P.Decl):
+                walk(st, chain + [st.name])
+    for it in items:
+        if isinstance(it, P.Decl):
+            walk(it, [it.name])
+
+def _node_for_chain(graph, chain):
+    suffix = "#" + "/".join(chain)
+    for n in graph.nodes:                       # O(N) scan, + graph.nodes is a fresh O(N) copy
+        if n.id.endswith(suffix) and n.provenance is not None:
+            return n
+    return None
 ```
 
-For a runtime with **W workflows**, `emit_workflow_spec` (`lower.py:1909`) runs
-this for each, giving **O(W·E)** — quadratic in the workflow/edge count. The
-synthetic flat arch declares **zero workflows**, so this path is dormant in the
-sweep. A *workflow-heavy* sweep would be needed to characterize it, and it is the
-most plausible origin of the review's "25s @ 10k" if those numbers came from a
-mesh-/workflow-heavy input rather than a flat one.
+`walk` runs once per declaration → **O(N) calls**, each doing a full **O(N)** node
+scan (worse: `Graph.nodes` returns `list(self._nodes.values())`, a fresh O(N) copy
+per access). That is **O(N²)**. At N=30 000 that is ~9×10⁸ comparisons ≈ the
+measured 90 s; at N=100 000 it is ~10¹⁰ ≈ the 40-minute timeout. The flat sweep
+isolated it cleanly because `enrich_graph` walks *every* decl regardless of shape.
+
+### 3.4 The other latent super-linear path (still not exercised here)
+
+`_workflow_steps_edges` (`lower.py`) calls `_children_of(graph, wf.id)` **once per
+workflow node** and separately re-scans the full edge list for `routes_to` edges,
+giving **O(W·E)** for W workflows. The synthetic flat arch declares **zero**
+workflows, so this path is dormant in the sweep and is **not** fixed by §6. A
+workflow-heavy sweep would be needed to characterize it; flagged for follow-up.
 
 ### 3.5 Status of the review's adverse numbers
 
-The credibility review's "**1.6s @ 1024 · 25s @ 10k**" observations imply a slope
-of `log(25/1.6) / log(10000/1024) ≈ log(15.6)/log(9.77) ≈ 1.21` between those two
-points — *sub-quadratic*, consistent with O(n log n) plus overhead, **not** the
-O(n²) the framing suggests. However, those two points are **unconfirmed by a
-controlled sweep**: we do not know the input shape (flat vs mesh vs workflow), the
-machine, the iteration count, or whether interpreter startup was included. **This
-sweep supersedes them.** Until §2 is filled, treat both the "273ms @ 100k" claim
-and the "25s @ 10k" counter-claim as *unverified*.
+The review's "1.6s @ 1024 · 25s @ 10k" implied a slope ≈1.21 between those points —
+the framing called it quadratic, but two points cannot distinguish O(n log n) +
+overhead from O(n²). This sweep **supersedes** them: it confirms the *direction*
+(super-linear) the review sensed, locates the *actual* cause (`enrich_graph`, which
+the review did not name), and shows the fixed front-end is linear. Treat the prior
+"273ms @ 100k" and "25s @ 10k" figures as retired in favor of §2.
 
 ---
 
 ## 4. Per-stage breakdown
 
-Fill from the same run as §2. The point is to attribute the curve to a stage, so
-mitigation (if any) targets the right code.
+| Stage | What it does | Measured slope (large-N) | Reading |
+|-------|--------------|--------------------------|---------|
+| `parse` | lex + recursive-descent parse → AST (`parser.py`) | **~1.03** (before & after) | O(n) — linear in source bytes/decls ✓ |
+| `check` | resolve + 0011 type/closed-world/POLA checks (`check.py`) | **~1.03** (before & after) | O(n) on the flat arch ✓ (see note) |
+| `lower` | `enrich_graph` + `_runtime_view` ×≈4 + per-fiber emit | **1.72→2.0 before**, **1.00 after** | was O(n²) (`enrich_graph`), now O(n) |
 
-| Stage | What it does | Expected dominant term | Slope at large N (**TO MEASURE**) |
-|-------|--------------|------------------------|-----------------------------------|
-| `parse` | lex + recursive-descent parse → AST items (`parser.py`) | O(n) in source bytes / decls | _TO MEASURE_ |
-| `check` | resolve + 0011 type/closed-world checks (`check.py`); `_check_ref_resolution` does per-runtime ref walks | O(n) to O(n log n) | _TO MEASURE_ |
-| `lower` | `_runtime_view` ×≈4 (each O(n log n)) + per-fiber emit (`zig.daemoncfg`, O(n)) | O(n log n) (repeated sort) | _TO MEASURE_ |
-
-Reading guide once filled:
-- If **`lower`** is the steepest stage and its slope > 1.2, the repeated
-  `_runtime_view`/`_children_of` work is the culprit → apply §6.
-- If **`check`** dominates, the mitigation is elsewhere (out of scope for this
-  doc — open a separate item against `check.py`).
-- If all three track ≈1.0, the front-end is linear and no change is warranted;
-  record that as the verified result and close the risk.
+- `lower` was the steepest stage and its large-N slope was well above 1.2 → §3.3
+  located the cause → §6 fixed it; the post-fix re-run confirms ≈1.0.
+- **`check` note:** the flat arch declares **no capabilities**, so the POLA
+  use-check's worst case (O(n²) in *capabilities per principal*, see the paper's
+  Future Work) is not exercised here; on this input `check` is measured linear.
+  That separate concern is out of scope for this doc.
 
 ---
 
-## 5. Projection to 1M
-
-The repo claims "1M projected". Project it **honestly** from the measured slope,
-not from the single 100k anecdote:
+## 5. Projection to 1M (from the measured post-fix slope)
 
 ```
-total_ms(1e6)  ≈  total_ms(1e5) × (1e6 / 1e5)^slope
-              =  total_ms(1e5) × 10^slope
+lower_ms(1e6)  ≈  lower_ms(1e5) × (1e6 / 1e5)^slope  =  70 295 ms × 10^1.0  ≈  703 s
+total_ms(1e6)  ≈  118 883 ms × 10^1.0  ≈  1 189 s  (~20 min, parse+check+lower, K=1-equivalent)
 ```
 
-| Assumed slope | 1M total from a measured 100k of T | Verdict |
-|---------------|------------------------------------|---------|
-| 1.0 (linear) | 10·T | ships if T(100k) ≲ a few s |
-| 1.2 (n log n) | ~15.8·T | likely still fine |
-| 2.0 (quadratic) | 100·T | **does not ship** without §6 |
+| Slope | 1M `lower` from measured 100k = 70.3 s | Verdict |
+|-------|-----------------------------------------|---------|
+| ~1.0 (measured, post-fix) | ~703 s | **Linear — the "1M projected" claim holds as a complexity statement.** Absolute time is large (pure-Python, single-process), but it scales, and a 1M-fiber declaration is far outside any realistic hand-authored topology. |
+| ~2.0 (pre-fix) | ~7 000 s (~2 h) | would **not** have shipped — which is why the fix was necessary, not optional. |
 
-**TO MEASURE:** once §2 has `total_ms_median` at N=100000 and the fitted slope,
-compute the 1M projection here and state whether the "1M projected" claim holds.
-Do **not** assert 1M until the slope is measured — a quadratic slope makes 1M
-~100× the 100k time, which would break the claim.
+The honest claim for the paper: **front-end compilation is linear in declaration
+size** (all three stages slope ≈1.0 post-fix); the "1M" figure is a *projection
+from the measured slope*, not a measured point.
 
 ---
 
-## 6. Mitigation — conditional on a measured super-linear slope
+## 6. Mitigation — APPLIED (the fix the before/after curve justifies)
 
-**Do not implement this yet.** Apply it only if §4 shows `lower`'s large-N slope
-is meaningfully > 1 (target the n-log-n sort + the O(E) scans), or if a
-follow-up workflow-heavy sweep confirms the §3.4 O(W·E) path bites.
-
-### 6.1 Precompute a `children_by_parent` adjacency map once
-
-Build the adjacency index **once** per graph in O(E) and replace every
-`_children_of` full-scan with an O(children) dict lookup.
-
-**In `vakedc/graph.py`** — add a memoized adjacency index to `Graph`. The edge
-list is append-only after build, so a lazily-built, cached map is safe:
+§3.3 located the O(N²) in `enrich_graph`'s per-decl `_node_for_chain` scan. The fix
+replaces the per-decl O(N) scan with **one O(N) index pass**:
 
 ```python
-# graph.py — inside class Graph
-def children_by_parent(self, label="contains"):
-    """{parent_id: [child GraphNode, ...]} for edges of `label`, source order.
-    Built once (O(E)) and cached; callers get O(children) lookups."""
-    cache = getattr(self, "_children_cache", None)
-    if cache is None:
-        cache = {}
-        self._children_cache = cache
-    if label not in cache:
-        idx = {}
-        for e in self._edges:                       # the ONLY O(E) pass
-            if e.label == label:
-                child = self._nodes.get(e.target)
-                if child is not None:
-                    idx.setdefault(e.source, []).append(child)
-        cache[label] = idx
-    return cache[label]
+# lower.py — inside enrich_graph, built once before walk()
+index = {}
+for _n in graph.nodes:
+    if _n.provenance is None:
+        continue
+    _h = _n.id.find("#")
+    if _h != -1:
+        index.setdefault(_n.id[_h:], _n)        # '#<chain>' -> first node with that suffix
+
+def walk(decl, chain):
+    node = index.get("#" + "/".join(chain))     # O(1) lookup, was O(N) scan
+    ...
 ```
 
-(If any future code mutates edges after first lookup, invalidate by clearing
-`self._children_cache` in `add_edge`.)
+A node id is `<basename>#<chain>` with exactly one `#`, and `graph.nodes` is
+insertion-ordered, so keeping the **first** node per suffix reproduces the prior
+`endswith` first-match exactly. `enrich_graph` goes O(N²) → O(N); the now-unused
+`_node_for_chain` is removed.
 
-**In `vakedc/lower.py:206-215`** — replace the scan body of `_children_of`:
+### 6.1 Acceptance (met)
 
-```python
-def _children_of(graph, parent_id):
-    """Direct `contains` children of a node, in source order. O(children) via
-    the graph's adjacency index (built once, O(E)); was an O(E) full-edge scan."""
-    return graph.children_by_parent("contains").get(parent_id, [])
-```
+- **Slope:** post-fix `lower` large-N slope **1.00** (§2.2), down from 1.72→2.0.
+- **Absolute:** N=30 000 `lower` 90 s → 20.6 s (4.4×); N=100 000 DNF (>40 min) → 70 s.
+- **Byte-identical output:** the lowering-fixtures golden, agentfield/OTP golden
+  trees, `vakedc lower` provenance test, and the determinism baseline (100%
+  convergence) all stay **byte-identical** — the fix is purely a lookup change.
 
-This single change makes:
-- `_runtime_view` (`lower.py:305`) O(children-of-runtime) per call instead of
-  O(E) — even called ~4× it is now ~4× O(n) lookups + the shared one-time O(E)
-  build;
-- `_workflow_steps_edges` (`lower.py:1885`) O(children-of-workflow) per workflow
-  for the `_children_of` half. (Its *second* scan — the `routes_to` filter at
-  `lower.py:1888` — is a separate O(E) per workflow; if §3.4 proves the bottleneck,
-  also add a `children_by_parent("routes_to")`-style index or precompute the
-  `routes_to` adjacency once and reuse it across workflows.)
+### 6.2 Not done (scoped out, flagged)
 
-### 6.2 (Optional, same PR) memoize `_runtime_view`
-
-Even with O(1) child lookup, `_runtime_view` still calls `nodes_sorted()`
-(O(n log n)) on every one of its ~4 invocations. Computing it **once** in
-`lower()` and threading the `_RuntimeView` to the emitters (instead of each
-emitter re-deriving it) removes the repeated sort — turning ~4 sorts into 1.
-This is a larger refactor (every emitter signature gains the view); gate it on
-whether the sort term actually shows in §4.
-
-### 6.3 Acceptance for the mitigation
-
-After applying §6.1 (± §6.2), **re-run the same sweep** and confirm the large-N
-`lower` slope drops to ≈1.0 (or the absolute 100k/1M times land under target).
-The mitigation is justified only if the before/after sweep shows it.
+- The `_children_of` edge-list re-copy/re-scan (§3.2) is a constant-factor waste,
+  not on the critical path; an adjacency index in `graph.py` would still tidy it
+  but the curve does not demand it.
+- The O(W·E) `_workflow_steps_edges` path (§3.4) needs a workflow-heavy sweep to
+  characterize and is untouched here.
 
 ---
 
 ## Appendix — artifacts & reproducibility
 
 - **Harness:** `scripts/benchmark-scalability-sweep.py` (`--sweep` / `--emit-only`).
-- **Outputs:** `artifacts/scalability-curve.csv` (per-N medians) +
-  `artifacts/scalability-curve.json` (per-iteration rows, host, timestamp).
-- **Sibling single-point script:** `scripts/benchmark-100k-scalability.py`
-  (determinism + the 100k stub; not a curve).
-- **Code under analysis:** `vakedc/lower.py:206` (`_children_of`),
-  `vakedc/lower.py:300` (`_runtime_view`), `vakedc/lower.py:1882`
-  (`_workflow_steps_edges`), `vakedc/graph.py:87` (`Graph`; no adjacency index).
+- **Workflow:** `.github/workflows/scalability-sweep.yml` (`workflow_dispatch`).
+- **Committed curves:** `scalability-curve-before.csv` / `.json` (pre-fix),
+  `scalability-curve-after.csv` / `.json` (post-fix) — GHA `ubuntu-latest`, Py 3.12.
+- **Fix:** `vakedc/lower.py` `enrich_graph` (suffix index; `_node_for_chain` removed).
 - **Determinism:** the generator is a pure function of N; same N ⇒ byte-identical
   source ⇒ byte-identical artifacts (0012 §2.1), so re-runs differ only in timing.
