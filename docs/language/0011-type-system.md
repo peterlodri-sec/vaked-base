@@ -378,31 +378,45 @@ Delegating a capability the sender does not itself hold, or one strictly above
 what the sender holds, is an **attenuation error**. This is POLA enforced as a
 *typing rule*: authority only ever decreases along delegation paths.
 
-### 4.5 Soundness of the POLA check
+### 4.5 Informal soundness argument for the POLA check
 
-The check is sound w.r.t. the intended semantics — "no principal ends up able to
-exercise authority that was never transitively granted to it from a strictly
-greater holder" — because:
+This section gives an **informal argument, not a machine-checked proof**. It
+captures *why* the check is intended to be sound; a mechanized proof (Lean 4 /
+Coq) is tracked as a future RFC, [`0017-pola-formalization.md`](./0017-pola-formalization.md),
+which will discharge this argument formally. The intuition we are arguing for is:
+"no principal ends up able to exercise authority that was never transitively
+granted to it from a strictly greater holder."
 
 1. `≤` is a partial order (§4.2), so `⊑` is a well-defined preorder on grant
    sets (reflexive: `G ⊑ G`; transitive: `G1 ⊑ G2 ∧ G2 ⊑ G3 ⇒ G1 ⊑ G3`, since
    `≤` is transitive within each domain).
-2. The use check (§4.3) guarantees every *exercised* capability is dominated by
-   a *held* one.
-3. The delegation check (§4.4) guarantees `granted` only decreases along edges:
-   if `s ->* r` (a delegation path), then `granted(r) ⊑ granted(s)` by
-   transitivity of `⊑`.
+2. The use check (§4.3) is *intended* to ensure every *exercised* capability is
+   dominated by a *held* one. **Note:** the `used(p)` computation and the
+   corresponding `E-CAP-USE` diagnostic are **specified but not yet implemented**
+   in `vakedc` (only ref-validity — `E-CAP-UNKNOWN-DOMAIN` / `E-CAP-UNKNOWN-GRANT`
+   / `E-CAP-ORDER-*` — and mesh-edge attenuation — `E-CAP-ATTENUATION` — are
+   enforced today). This clause states the *intended invariant*, not a property
+   the current checker enforces.
+3. The delegation check (§4.4) ensures `granted` does not increase along any
+   single edge: for each edge `s -> r`, `granted(r) ⊑ granted(s)`. By induction
+   over a delegation path it follows that if `s ->* r`, then
+   `granted(r) ⊑ granted(s)`, using transitivity of `⊑`.
 
 Composing 2 and 3: any capability a principal can exercise is `≤` some grant it
 holds, and any grant it holds is `≤` some grant held by every upstream
 delegator. Hence authority along any path is non-increasing and bounded by the
-root grant — the POLA invariant. (Cycles in the *mesh* are allowed structurally;
-because `⊑` along a cycle forces all grant-sets on the cycle to be `⊑`-equal,
-the check degenerates to equality on cycles, which is sound and still total.)
+root grant — the POLA invariant. Cycles in the *mesh* are allowed structurally;
+mutual `⊑` around a cycle forces the grant-sets on the cycle to be
+`⊑`-equivalent (the check degenerates to equality on cycles). We believe this
+case is sound; a rigorous treatment of the cyclic case is deferred to the
+mechanization RFC ([`0017`](./0017-pola-formalization.md)).
 
 Runtime *enforcement* of this invariant (membranes, revocation) is out of scope
-(§Scope); the type system certifies the static authority assignment is
-POLA-consistent before lowering.
+(§Scope); the type system *checks* the static authority assignment is
+POLA-consistent before lowering. ("Certifies" / "certified" elsewhere in this
+note means a *checked* property, not a machine-checked proof.) For the runtime
+layer that turns a subset of these checked properties into kernel-enforced
+predicates, see [`0016-runtime-enforcement.md`](./0016-runtime-enforcement.md).
 
 ---
 
@@ -644,3 +658,5 @@ Runnable forms of this example, plus a deliberately-rejected counterpart, are in
 - Primitives & graph model: [`0008-parallel-fibers-indexes-surfaces.md`](./0008-parallel-fibers-indexes-surfaces.md)
 - Principles: [`0001-language-manifesto.md`](./0001-language-manifesto.md)
 - Type-layer examples: [`vaked/examples/types/`](../../vaked/examples/types/)
+- POLA-check soundness mechanization (deferred): [`0017-pola-formalization.md`](./0017-pola-formalization.md) — the formal counterpart to §4.5
+- Runtime enforcement of POLA (subset → kernel predicates): [`0016-runtime-enforcement.md`](./0016-runtime-enforcement.md)
