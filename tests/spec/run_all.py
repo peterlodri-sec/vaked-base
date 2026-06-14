@@ -26,6 +26,7 @@ import test_vakedc as t_vakedc  # noqa: E402
 import test_vakedc_check as t_vakedc_check  # noqa: E402
 import test_vakedc_lower as t_vakedc_lower  # noqa: E402
 import test_float_repr as t_float_repr  # noqa: E402
+import oracle as t_oracle  # noqa: E402
 
 MODULES = [
     ("grammar_selfcontained", t_grammar),
@@ -36,6 +37,7 @@ MODULES = [
     ("vakedc_check", t_vakedc_check),
     ("vakedc_lower", t_vakedc_lower),
     ("float_repr", t_float_repr),
+    ("oracle", t_oracle),
 ]
 
 
