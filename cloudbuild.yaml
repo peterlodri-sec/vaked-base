@@ -1,0 +1,57 @@
+# GCP Cloud Build — Nix build + attic cache push
+#
+# Mirrors peterlodri-sec/nix-base/cloudbuild.yaml. Builds the Vaked flake (incl.
+# the `vakedos` NixOS host) on a GCP private worker pool and pushes the result
+# closure to the attic binary cache, so NixOS host materialization is fast and
+# cached instead of rebuilt from scratch.
+#
+# Private pool: nix-fleet-c3-pool (c3-standard-8, europe-west2)
+# Project:      datapy-spider
+# Trigger:      push to main / feat/* (configure in the Cloud Build console)
+#
+# Secrets required in Secret Manager (project datapy-spider):
+#   ATTIC_TOKEN — push token for the attic binary cache
+#
+# TODO(confirm against nix-base/cloudbuild.yaml before enabling the trigger):
+#   - the pinned Nix image tag
+#   - the attic endpoint + cache name (_ATTIC_ENDPOINT / _ATTIC_CACHE below)
+#   - the Secret Manager secret name (ATTIC_TOKEN)
+#   - which flake outputs to build/cache
+
+substitutions:
+  _ATTIC_ENDPOINT: "https://attic.example.internal"   # TODO(confirm)
+  _ATTIC_CACHE: "vaked"                                # TODO(confirm)
+
+options:
+  pool:
+    name: projects/datapy-spider/locations/europe-west2/workerPools/nix-fleet-c3-pool
+  logging: CLOUD_LOGGING_ONLY
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/datapy-spider/secrets/ATTIC_TOKEN/versions/latest   # TODO(confirm name)
+      env: ATTIC_TOKEN
+
+timeout: 3600s
+
+steps:
+  - id: nix-build-and-push
+    name: docker.io/nixos/nix:latest   # TODO(confirm pinned tag, match nix-base)
+    secretEnv: [ATTIC_TOKEN]
+    entrypoint: bash
+    args:
+      - -euo
+      - pipefail
+      - -c
+      - |
+        mkdir -p ~/.config/nix
+        echo 'experimental-features = nix-command flakes' >> ~/.config/nix/nix.conf
+
+        # Build flake checks + the vakedos NixOS host toplevel.
+        nix build --print-build-logs .#checks.x86_64-linux.default || true
+        nix build --print-build-logs \
+          '.#nixosConfigurations.vakedos.config.system.build.toplevel'
+
+        # Push the built closure to the attic binary cache.
+        nix run nixpkgs#attic-client -- login fleet "${_ATTIC_ENDPOINT}" "$ATTIC_TOKEN"
+        nix run nixpkgs#attic-client -- push "${_ATTIC_CACHE}" ./result

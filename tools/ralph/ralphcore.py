@@ -214,12 +214,14 @@ next_track = _next_in_ring
 _STAGE1_SYS = (
     "You are the strategy advisor for {subject}. From the project state and the titles of prior decisions, identify the open STRATEGIC decisions that matter most right now. Return JSON ONLY matching the schema: "
     '{{"candidates":[{{"title":str,"why_now":str,"urgency":1-5,"addressed":bool}}]}}. '
-    "Mark addressed=true if a prior-decision title already covers it. Rank by urgency. Do not invent work; ground every candidate in the provided state."
+    "Mark addressed=true if a prior-decision title already covers it. Rank by urgency. Do not invent work; ground every candidate in the provided state. "
+    "You MAY reason in AI-lish [R:*] register frames before the JSON object (ARP, RFC 0009); only the JSON candidates object is read, so register frames in surrounding prose are ignored."
 )
 
 _STAGE2_SYS = (
     "You are the strategy advisor for {subject}. Given ONE chosen decision and the full project context, write a single decision entry in GitHub-flavored markdown with these bold-labelled lines: Decision / question, Options, Recommendation, Risks, Next actions, Confidence (low|med|high). "
-    "GROUND every claim in the provided context — reference the actual file or issue it relies on (e.g. `docs/language/0011-type-system.md`, issue #17). Do NOT invent facts, files, or issues not present in the context. Make the Recommendation concrete and the Next actions a specific PR or issue to open. No preamble; output only the entry body."
+    "GROUND every claim in the provided context — reference the actual file or issue it relies on (e.g. `docs/language/0011-type-system.md`, issue #17). Do NOT invent facts, files, or issues not present in the context. Make the Recommendation concrete and the Next actions a specific PR or issue to open. No preamble; output only the entry body. "
+    "ARTIFACT GATE (ARP, RFC 0009): this entry is committed verbatim to the decision log — standard English only, no CJK, and no AI-lish [R:*] register frames or operators in the entry."
 )
 
 _CRITIQUE_SYS = (
@@ -227,7 +229,8 @@ _CRITIQUE_SYS = (
     "Rewrite it to be sharper and better grounded: every claim must cite the actual file or issue it relies on (from the context); cut hand-waving and hedging; make the Recommendation concrete and the Next actions a specific PR/issue. Remove any claim not supported by the context. "
     "Keep the SAME bold-labelled structure (Decision / question, Options, Recommendation, Risks, Next actions, Confidence). "
     "Output the rewritten ENTRY and NOTHING else. Do NOT restate the draft, do NOT list or explain your changes, do NOT think out loud, do NOT use first person or review language ('we', 'let's', 'I', 'the draft', 'we'll keep'). "
-    "Begin your output IMMEDIATELY with the line `**Decision / question:**` — no preamble before it."
+    "Begin your output IMMEDIATELY with the line `**Decision / question:**` — no preamble before it. "
+    "ARTIFACT GATE (ARP, RFC 0009): the rewritten entry is committed verbatim to the decision log — standard English only, no CJK, and no AI-lish [R:*] register frames or operators."
 )
 
 

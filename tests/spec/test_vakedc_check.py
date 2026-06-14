@@ -235,11 +235,15 @@ def _test_all_examples(lines):
         # checker). It is verified separately (group 5c-ns below) and excluded here.
         if os.path.basename(f) == "error-unknown-namespace.vaked":
             continue
-        if diags:
+        # "Clean" means no ERRORS. Advisory warnings (e.g. the #226 POLA /
+        # confused-deputy lints on pola-violation.vaked) are non-blocking and
+        # are verified by their own group below.
+        errs = [d for d in diags if d.severity == "error"]
+        if errs:
             ok = False
             lines.append(f"  FAIL examples: {rel} expected clean, "
-                         f"got {len(diags)} {[d.code for d in diags]}")
-            for d in diags[:4]:
+                         f"got {len(errs)} {[d.code for d in errs]}")
+            for d in errs[:4]:
                 lines.append(f"      {d.code} @ {d.line}:{d.col} :: {d.message}")
         else:
             n_clean += 1
@@ -376,6 +380,23 @@ _RR_ACCESSOR_BAD = '''runtime "t" {
 '''
 
 
+# Regression for the issue-#7 MINIMAL REPRODUCER: a fiber whose `input` names an
+# UNDECLARED kind-qualified node (`stream.neverDeclared`) must be flagged
+# E-REF-UNRESOLVED — the false-green that #7 reported. The `engine = pkgs.X` ref
+# is an OPEN value-namespace (nixpkgs is unbounded, RFC 0017) and is correctly
+# accepted; `output = artifacts.X` is a producer-side write (D1, deferred). So
+# the ONE diagnostic the reproducer must surface is the undeclared input stream.
+_RR_ISSUE7_REPRO = '''runtime "repro" {
+  systems = ["x86_64-linux"]
+  fiber f {
+    engine = pkgs.doesNotExist
+    input  = stream.neverDeclared
+    output = artifacts.whatever
+  }
+}
+'''
+
+
 def _test_ref_resolution(lines):
     cache = _builtins_cache()
 
@@ -383,6 +404,17 @@ def _test_ref_resolution(lines):
         return [d.code for d in vakedc.check_source(src, name, builtins_cache=cache)]
 
     ok = True
+
+    # #7 reproducer: the undeclared `input = stream.neverDeclared` is the one
+    # ref that must be rejected (engine=pkgs.X is open-ns; output=artifacts.X is
+    # a producer-side write). Previously this whole file false-greened.
+    repro = [c for c in codes(_RR_ISSUE7_REPRO, "issue7-repro.vaked")
+             if c == _REF_UNRESOLVED]
+    if repro != [_REF_UNRESOLVED]:
+        ok = False
+        lines.append(f"  FAIL ref-res (#7 reproducer): `input = stream.neverDeclared` "
+                     f"must yield exactly one {_REF_UNRESOLVED} (engine=pkgs.X open-ns "
+                     f"OK, output=artifacts.X is a write), got {repro}")
 
     acc_ok = [c for c in codes(_RR_ACCESSOR_OK, "rr-accessor-ok.vaked")
               if c == _REF_UNRESOLVED]
@@ -815,6 +847,81 @@ def _test_namespace_checker(lines):
 
 
 # --------------------------------------------------------------------------- #
+# 5f. eBPF observe/enforce hook typing (#225)
+# --------------------------------------------------------------------------- #
+# The hook point decides whether you can enforce or only observe: kprobe /
+# kretprobe / tracepoint / perf are observe-only and cannot change behaviour;
+# only verdict-capable hooks (lsm, cgroup_connect, cgroup_skb, xdp, tc,
+# override_return, send_signal) may carry `intent = "enforce"`.  An `ebpf` decl
+# declaring `intent = "enforce"` on an observe-only hook is E-EBPF-ENFORCE-ON-OBSERVE.
+
+_EBPF_ENFORCE_ON_KPROBE = '''ebpf badGuard {
+  hook   = "kprobe"
+  intent = "enforce"
+}
+'''
+
+_EBPF_ENFORCE_ON_TRACEPOINT = '''ebpf badGuard {
+  hook   = "tracepoint"
+  intent = "enforce"
+}
+'''
+
+_EBPF_OBSERVE_ON_KPROBE_OK = '''ebpf okGuard {
+  hook   = "kprobe"
+  intent = "observe"
+}
+'''
+
+_EBPF_ENFORCE_ON_LSM_OK = '''ebpf lsmGuard {
+  hook   = "lsm"
+  intent = "enforce"
+}
+'''
+
+_EBPF_ENFORCE_ON_CGROUP_OK = '''ebpf egressGuard {
+  hook   = "cgroup_connect"
+  intent = "enforce"
+}
+'''
+
+_EBPF_BAD_HOOK = '''ebpf typoGuard {
+  hook   = "kprobr"
+  intent = "observe"
+}
+'''
+
+
+def _test_ebpf_intent(lines):
+    cache = _builtins_cache()
+
+    def codes(src, name):
+        return [d.code for d in vakedc.check_source(src, name, builtins_cache=cache)]
+
+    ok = True
+    cases = [
+        (_EBPF_ENFORCE_ON_KPROBE, "ebpf-enforce-kprobe.vaked",
+         ["E-EBPF-ENFORCE-ON-OBSERVE"]),
+        (_EBPF_ENFORCE_ON_TRACEPOINT, "ebpf-enforce-tracepoint.vaked",
+         ["E-EBPF-ENFORCE-ON-OBSERVE"]),
+        (_EBPF_OBSERVE_ON_KPROBE_OK, "ebpf-observe-kprobe.vaked", []),
+        (_EBPF_ENFORCE_ON_LSM_OK, "ebpf-enforce-lsm.vaked", []),
+        (_EBPF_ENFORCE_ON_CGROUP_OK, "ebpf-enforce-cgroup.vaked", []),
+        # a bad hook name is its own error, NOT a false enforce error.
+        (_EBPF_BAD_HOOK, "ebpf-bad-hook.vaked", ["E-EBPF-UNKNOWN-HOOK"]),
+    ]
+    for src, name, want in cases:
+        got = codes(src, name)
+        if got != want:
+            ok = False
+            lines.append(f"  FAIL ebpf-intent: {name} expected {want}, got {got}")
+    if ok:
+        lines.append("  ebpf-intent (#225): enforce on kprobe/tracepoint rejected; "
+                     "observe-on-kprobe and enforce-on-lsm/cgroup check clean")
+    return ok
+
+
+# --------------------------------------------------------------------------- #
 # 6. Determinism
 # --------------------------------------------------------------------------- #
 
@@ -905,6 +1012,136 @@ def _test_determinism_boundary(lines):
     return ok
 
 
+# 5d. Capability reachability — POLA / confused-deputy lints (#226, 0026)
+# --------------------------------------------------------------------------- #
+# Advisory WARNINGS over the mesh capability graph:
+#   * W-POLA-EXCESS    — a node holds a grant strictly stronger than its `needs`.
+#   * W-CONFUSED-DEPUTY — a capability-holding node is the `->` target of >=2
+#                         distinct callers (a shared deputy under its own identity).
+# pola-violation.vaked emits exactly these two (and no errors); the paired
+# pola-least-authority.vaked emits neither (and no errors).
+
+_POLA_EXCESS = "W-POLA-EXCESS"
+_CONFUSED_DEPUTY = "W-CONFUSED-DEPUTY"
+POLA_VIOLATION = os.path.join(REPO, "vaked", "examples", "types", "pola-violation.vaked")
+POLA_CLEAN = os.path.join(REPO, "vaked", "examples", "types", "pola-least-authority.vaked")
+
+
+def _test_capability_reachability(lines):
+    ok = True
+    cache = _builtins_cache()
+
+    # Violation example: exactly one W-POLA-EXCESS + one W-CONFUSED-DEPUTY, all
+    # warnings, no errors.
+    rel = os.path.relpath(POLA_VIOLATION, REPO)
+    vdiags = vakedc.check_source(open(POLA_VIOLATION, encoding="utf-8").read(), rel,
+                                 builtins_cache=cache)
+    errs = [d for d in vdiags if d.severity == "error"]
+    if errs:
+        ok = False
+        lines.append(f"  FAIL reach: pola-violation has {len(errs)} errors "
+                     f"{[d.code for d in errs]} (expected warnings only)")
+    excess = [d for d in vdiags if d.code == _POLA_EXCESS]
+    deputy = [d for d in vdiags if d.code == _CONFUSED_DEPUTY]
+    if len(excess) != 1:
+        ok = False
+        lines.append(f"  FAIL reach: expected 1 {_POLA_EXCESS}, got {len(excess)}")
+    if len(deputy) != 1:
+        ok = False
+        lines.append(f"  FAIL reach: expected 1 {_CONFUSED_DEPUTY}, got {len(deputy)}")
+    for d in excess + deputy:
+        if d.severity != "warning":
+            ok = False
+            lines.append(f"  FAIL reach: {d.code} severity is {d.severity} "
+                         f"(expected warning)")
+    # the W-POLA-EXCESS must name the offending node `builder`.
+    if excess and "builder" not in excess[0].message:
+        ok = False
+        lines.append(f"  FAIL reach: {_POLA_EXCESS} message lacks node name: "
+                     f"{excess[0].message}")
+    # the W-CONFUSED-DEPUTY must name the deputy `proxy` and both callers.
+    if deputy:
+        m = deputy[0].message
+        if "proxy" not in m or "worker" not in m or "cron" not in m:
+            ok = False
+            lines.append(f"  FAIL reach: {_CONFUSED_DEPUTY} message lacks "
+                         f"node/edge names: {m}")
+
+    # Clean example: no errors AND no POLA/confused-deputy warnings.
+    relc = os.path.relpath(POLA_CLEAN, REPO)
+    cdiags = vakedc.check_source(open(POLA_CLEAN, encoding="utf-8").read(), relc,
+                                 builtins_cache=cache)
+    noise = [d for d in cdiags
+             if d.severity == "error" or d.code in (_POLA_EXCESS, _CONFUSED_DEPUTY)]
+    if noise:
+        ok = False
+        lines.append(f"  FAIL reach: pola-least-authority expected clean, got "
+                     f"{[d.code for d in noise]}")
+    if ok:
+        lines.append("  reach: POLA-excess + confused-deputy lints fire on the "
+                     "violation example and stay silent on the clean one")
+    return ok
+
+
+# 6. `network` schema (#28) — the egress-membrane kind is now schema'd.
+#
+# Before this slice a `network` decl was schema-less: ANY body checked clean.
+# The schema makes `network` a CLOSED kind with a required `principal`, a
+# `default` constrained to {"deny","allow"}, and optional `allow`/`observe`.
+# This guards both arms: a valid membrane stays clean; a typo'd field + a bad
+# `default` value yield exactly E-CONFORM-UNKNOWN-FIELD + E-CONSTRAINT-ONEOF.
+# --------------------------------------------------------------------------- #
+
+# Valid membrane (mirrors vaked/examples/membrane/agent-egress.vaked) — clean.
+_NET_OK = '''runtime "t" {
+  systems = ["x86_64-linux"]
+  mesh m { node worker { role = "worker"  capabilities = [network.loopback] } }
+  network agentEgress {
+    principal = "worker"
+    default   = "deny"
+    allow = [ egress("127.0.0.1", 9) ]
+  }
+}
+'''
+
+# Invalid membrane: `principl` is a typo (unknown field of the CLOSED schema)
+# and `default = "drop"` is not one of {"deny","allow"}.
+_NET_BAD = '''runtime "t" {
+  systems = ["x86_64-linux"]
+  network agentEgress {
+    principal = "worker"
+    default   = "drop"
+    principl  = "worker"
+  }
+}
+'''
+
+
+def _test_network_schema(lines):
+    ok = True
+    cache = _builtins_cache()
+
+    diags = vakedc.check_source(_NET_OK, "net-ok.vaked", builtins_cache=cache)
+    if diags:
+        ok = False
+        lines.append(f"  FAIL network: valid membrane should be clean, got "
+                     f"{[d.code for d in diags]}")
+
+    codes = sorted(d.code for d in
+                   vakedc.check_source(_NET_BAD, "net-bad.vaked", builtins_cache=cache))
+    want = ["E-CONFORM-UNKNOWN-FIELD", "E-CONSTRAINT-ONEOF"]
+    if codes != want:
+        ok = False
+        lines.append(f"  FAIL network: invalid membrane should yield {want}, "
+                     f"got {codes}")
+
+    if ok:
+        lines.append("  network schema (#28): valid membrane clean; typo field "
+                     "+ bad `default` yield E-CONFORM-UNKNOWN-FIELD + "
+                     "E-CONSTRAINT-ONEOF")
+    return ok
+
+
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
@@ -915,7 +1152,9 @@ def run():
     for fn in (_test_builtins, _test_coverage, _test_conformant, _test_rejected,
                _test_all_examples, _test_ref_resolution, _test_import_binding,
                _test_name_collision, _test_workflow, _test_namespace_checker,
-               _test_determinism, _test_determinism_boundary):
+               _test_network_schema, _test_ebpf_intent,
+               _test_capability_reachability, _test_determinism,
+               _test_determinism_boundary):
         try:
             ok = fn(lines) and ok
         except Exception as e:

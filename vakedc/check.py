@@ -892,13 +892,14 @@ def _render_oneof(allowed):
 # Diagnostic emit helper
 # --------------------------------------------------------------------------- #
 
-def _emit(diags, code, file, span, decl_or_spec, message, related=None):
+def _emit(diags, code, file, span, decl_or_spec, message, related=None,
+          severity="error"):
     bs, be, ln, col = span
     decl_str = _decl_label(decl_or_spec)
     diags.append(Diagnostic(
         code=code, message=message, file=file,
         byteStart=bs, byteEnd=be, line=ln, col=col,
-        decl=decl_str, related=related or [],
+        decl=decl_str, related=related or [], severity=severity,
     ))
 
 
@@ -954,6 +955,15 @@ def _entry_to_props_safe(e):
 # nested-record field schema for known structural sub-blocks (§ catalog):
 _NESTED_SCHEMA = {
     ("fiber", "policy"): "fiberPolicy",
+}
+
+# Kinds whose conformance schema is named differently from the kind, because a
+# top-level `schema <kind>` would collide with a same-named `capability <kind>`
+# in the kind-agnostic LPG (E-DECL-NAME-COLLISION).  `network` is both a kind
+# (an egress membrane) and a capability domain; its membrane schema lives under
+# `networkMembrane` (mirrors the `mem`/`memory` naming dodge in builtins.vaked).
+_KIND_SCHEMA = {
+    "network": "networkMembrane",
 }
 
 
@@ -1615,7 +1625,7 @@ def _check_decl_tree(decl, registry, by_name_kind, smap, file, diags,
 
     # Conformance for kinds that have a schema (skip the meta-kinds themselves).
     if kind not in ("schema", "capability"):
-        schema = registry.schemas.get(kind)
+        schema = registry.schemas.get(_KIND_SCHEMA.get(kind, kind))
         if schema is not None:
             _conform_decl(decl, schema, registry, smap, file, diags)
         _check_generics(decl, registry, by_name_kind, smap, file, diags)
@@ -1632,6 +1642,11 @@ def _check_decl_tree(decl, registry, by_name_kind, smap, file, diags,
         _check_workflow(decl, registry, smap, file, diags, sibling_meshes,
                         sibling_kinds)
 
+    # eBPF (#225): an `ebpf` guard declaring `intent = "enforce"` must target a
+    # verdict-capable hook; `enforce` on an observe-only hook is rejected.
+    if kind == "ebpf":
+        _check_ebpf_intent(decl, smap, file, diags)
+
     # Recurse into nested declarations (e.g. a runtime's index/stream/fiber/…).
     # Meshes declared in THIS body are sibling-scope for nested workflows.
     child_meshes = _mesh_node_index(decl.body)
@@ -1645,6 +1660,7 @@ def _check_decl_tree(decl, registry, by_name_kind, smap, file, diags,
 def _check_mesh(mesh_decl, registry, smap, file, diags):
     mesh_schema = registry.schemas.get("meshNode")
     node_grants = {}        # node name -> list[(domain, grant)]
+    node_needs = {}         # node name -> list[(domain, grant)] (declared `needs`)
     node_decls = {}
     ds, de, dl, dc = (mesh_decl.byteStart, mesh_decl.byteEnd, mesh_decl.line, mesh_decl.col)
 
@@ -1670,6 +1686,21 @@ def _check_mesh(mesh_decl, registry, smap, file, diags):
                     if _check_capability_refs(dom, gr, registry, file, cspan, st, diags):
                         grants.append((dom, gr))
             node_grants[st.name] = grants
+            # collect declared `needs` (optional POLA budget; same ref shape as
+            # capabilities). Unknown domains/grants here are reported like caps.
+            needs = []
+            needs_prop = bindings.get("needs")
+            if isinstance(needs_prop, list):
+                for e in needs_prop:
+                    dg = _grant_ref_parts(e)
+                    if dg is None:
+                        continue
+                    dom, gr = dg
+                    nspan2 = (smap.field_value_span(st.byteStart, st.byteEnd, "needs")
+                              if smap else None) or nspan
+                    if _check_capability_refs(dom, gr, registry, file, nspan2, st, diags):
+                        needs.append((dom, gr))
+            node_needs[st.name] = needs
 
     # Attenuation on delegation edges (§4.4): for each `a -> b`, every grant the
     # receiver holds must be ≤ some grant the sender holds in the same domain.
@@ -1684,6 +1715,75 @@ def _check_mesh(mesh_decl, registry, smap, file, diags):
                 _check_edge_attenuation(
                     sender, receiver, node_grants[sender], node_grants[receiver],
                     a_ref, b_ref, registry, file, mesh_decl, diags)
+
+    # Capability-reachability analysis (#226 / 0026): POLA-excess + confused-deputy.
+    _check_capability_reachability(
+        mesh_decl, node_decls, node_grants, node_needs, registry, smap, file, diags)
+
+
+def _check_capability_reachability(mesh_decl, node_decls, node_grants,
+                                   node_needs, registry, smap, file, diags):
+    """Least-authority lints over the capability graph (#226, 0026), emitted as
+    WARNINGS (advisory; never block):
+
+    * **W-POLA-EXCESS** — a node that declares `needs` holds a capability strictly
+      stronger than every need it declares in that domain (granted > needed).
+    * **W-CONFUSED-DEPUTY** — a node that holds a capability of its own and is the
+      delegation target (`->`) of two or more distinct callers: a shared deputy
+      acting under its own identity on behalf of multiple callers. The network
+      membrane gates the channel but cannot attenuate the capability the deputy
+      wields inside an allowed connection (0026 §2)."""
+    # POLA: held grant strictly exceeds the strongest declared need in its domain.
+    for name in sorted(node_decls):
+        needs = node_needs.get(name) or []
+        if not needs:
+            continue   # no declared budget ⇒ nothing to compare against
+        needs_by_dom = {}
+        for (dom, gr) in needs:
+            needs_by_dom.setdefault(dom, []).append(gr)
+        st = node_decls[name]
+        nspan = (st.byteStart, st.byteEnd, st.line, st.col)
+        cspan = (smap.field_value_span(st.byteStart, st.byteEnd, "capabilities")
+                 if smap else None) or nspan
+        for (dom, gr) in node_grants.get(name) or []:
+            cap = registry.caps.get(dom)
+            if cap is None or dom not in needs_by_dom:
+                continue   # unknown domain (reported elsewhere) or no need set there
+            need_grants = needs_by_dom[dom]
+            # POLA holds iff held grant <= some declared need in this domain.
+            if not any(_leq(cap, gr, ng) for ng in need_grants):
+                needed = ", ".join("%s.%s" % (dom, g) for g in need_grants)
+                _emit(diags, "W-POLA-EXCESS", file, cspan, mesh_decl,
+                      f"node `{name}` holds `{dom}.{gr}` but declares it needs "
+                      f"only {needed} — granted more authority than its declared "
+                      f"need (least-authority violation)", severity="warning")
+
+    # Confused deputy: a capability-holding node that is the delegation target of
+    # ≥2 distinct callers (a shared deputy under its own identity).
+    callers_of = {}        # target name -> set of distinct caller names
+    for st in mesh_decl.body:
+        if isinstance(st, P.Edge):
+            refs = st.refs
+            for a_ref, b_ref in zip(refs, refs[1:]):
+                sender = a_ref.parts[0] if len(a_ref.parts) == 1 else None
+                receiver = b_ref.parts[0] if len(b_ref.parts) == 1 else None
+                if sender in node_decls and receiver in node_decls and sender != receiver:
+                    callers_of.setdefault(receiver, set()).add(sender)
+    for name in sorted(callers_of):
+        callers = callers_of[name]
+        if len(callers) < 2:
+            continue   # single-caller sink ⇒ not a shared deputy
+        if not (node_grants.get(name) or []):
+            continue   # holds no capability of its own ⇒ not a deputy
+        st = node_decls[name]
+        nspan = (st.byteStart, st.byteEnd, st.line, st.col)
+        held = ", ".join("%s.%s" % (d, g) for (d, g) in node_grants[name])
+        caller_list = ", ".join("`%s`" % c for c in sorted(callers))
+        _emit(diags, "W-CONFUSED-DEPUTY", file, nspan, mesh_decl,
+              f"node `{name}` is a shared deputy: {len(callers)} distinct callers "
+              f"({caller_list}) delegate to it while it holds {held} under its own "
+              f"identity (confused-deputy shape) — keep delegation inside "
+              f"Vaked-minted capabilities (0026 §2)", severity="warning")
 
 
 # Determinism boundary (#224): the side-effecting effect vocabulary a pure
@@ -1851,6 +1951,64 @@ def _check_workflow(wf_decl, registry, smap, file, diags, sibling_meshes=None,
             _emit(diags, "E-WORKFLOW-DEPTH", file, span, wf_decl,
                   f"workflow `{wf_decl.name}` has critical-path depth {depth}, "
                   f"exceeding the declared maxDepth = {bound}")
+
+
+# eBPF hook points, by enforcement capability (#225). The hook point decides
+# whether a program can enforce or only observe. OBSERVE-ONLY hooks cannot change
+# system behaviour; VERDICT-CAPABLE hooks consume a verdict (LSM return 0/-errno,
+# cgroup connect/skb, XDP/tc, override_return/send_signal) and may enforce.
+# `ebpf` is NOT a top-level schema (the kind-agnostic LPG would collide a
+# `schema ebpf` with the existing `capability ebpf` domain — cf. `mem`/`memory`),
+# so the `ebpf` decl is validated here directly rather than via conformance.
+_EBPF_OBSERVE_ONLY_HOOKS = frozenset(("kprobe", "kretprobe", "tracepoint", "perf"))
+_EBPF_ENFORCE_HOOKS = frozenset(("lsm", "cgroup_connect", "cgroup_skb",
+                                 "xdp", "tc", "override_return", "send_signal"))
+_EBPF_HOOKS = _EBPF_OBSERVE_ONLY_HOOKS | _EBPF_ENFORCE_HOOKS
+
+
+def _check_ebpf_intent(decl, smap, file, diags):
+    """#225 — type an `ebpf` guard's hook + intent.
+
+    The hook point decides whether a program can enforce or only observe:
+    kprobe/kretprobe/tracepoint/perf are observe-only and cannot change system
+    behaviour, so `intent = "enforce"` on one is E-EBPF-ENFORCE-ON-OBSERVE (the
+    single most common eBPF security mistake — assuming a kprobe enforces). An
+    unrecognised `hook` is E-EBPF-UNKNOWN-HOOK; an unrecognised `intent` is
+    E-EBPF-BAD-INTENT."""
+    bindings, _order = _decl_field_bindings(decl)
+    dspan = (decl.byteStart, decl.byteEnd, decl.line, decl.col)
+
+    def vspan(field):
+        return (smap.field_value_span(decl.byteStart, decl.byteEnd, field)
+                if smap else None) or dspan
+
+    hook = _string_lit(bindings.get("hook"))
+    intent = _string_lit(bindings.get("intent"))
+
+    if hook is not None and hook not in _EBPF_HOOKS:
+        _emit(diags, "E-EBPF-UNKNOWN-HOOK", file, vspan("hook"), decl,
+              f"ebpf `{decl.name}`: unknown hook `{hook}`; expected one of "
+              f"{sorted(_EBPF_HOOKS)}")
+        return
+    if intent is not None and intent not in ("observe", "enforce"):
+        _emit(diags, "E-EBPF-BAD-INTENT", file, vspan("intent"), decl,
+              f"ebpf `{decl.name}`: intent must be \"observe\" or \"enforce\", "
+              f"got `{intent}`")
+        return
+
+    if intent == "enforce" and hook in _EBPF_OBSERVE_ONLY_HOOKS:
+        _emit(diags, "E-EBPF-ENFORCE-ON-OBSERVE", file, vspan("hook"), decl,
+              f"ebpf `{decl.name}` declares `intent = \"enforce\"` on observe-only "
+              f"hook `{hook}`; {hook} cannot change system behaviour. Use a "
+              f"verdict-capable hook (lsm, cgroup_connect/cgroup_skb, xdp/tc, "
+              f"override_return, send_signal) to enforce, or set `intent = \"observe\"`.")
+
+
+def _string_lit(vprop):
+    """The string value of a string-literal value-prop, else None."""
+    if isinstance(vprop, dict) and (vprop.get("lit") or "").upper() == "STRING":
+        return vprop.get("value")
+    return None
 
 
 def _conform_node(node_decl, schema, registry, smap, file, diags, nspan):
