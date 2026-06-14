@@ -30,11 +30,12 @@ pub(crate) async fn run_eval(dir: &str) -> Result<()> {
     let runner = build_runner_with(
         &cfg,
         &api_key,
+        &cfg.model,
         &cfg.reasoning_effort,
         4096,
         cfg.structured,
         None,
-        system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured),
+        system_prompt(cfg.max_findings, cfg.crabcc_budget, cfg.structured, cfg.use_tools),
     )?;
 
     let mut entries: Vec<_> = std::fs::read_dir(dir)

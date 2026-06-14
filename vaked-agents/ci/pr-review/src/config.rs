@@ -29,6 +29,11 @@ pub(crate) struct Config {
     pub(crate) usd_per_mtok: f64,
     pub(crate) provenance: bool,
     pub(crate) cleanup: bool,
+    /// Synthesis/reasoner model for the large-diff (map-reduce) synthesis pass.
+    pub(crate) reasoner_model: String,
+    /// Gate crabcc + read_lines tools. Default FALSE (no-tool single-pass) — set
+    /// PR_REVIEW_USE_TOOLS=1/true to re-enable the tool loop.
+    pub(crate) use_tools: bool,
 }
 
 impl Config {
@@ -97,6 +102,11 @@ impl Config {
                 .unwrap_or(DEFAULT_USD_PER_MTOK),
             provenance: std::env::var("PR_REVIEW_NO_PROVENANCE").is_err(),
             cleanup: std::env::var("PR_REVIEW_NO_CLEANUP").is_err(),
+            reasoner_model: env_first(&["PR_REVIEW_REASONER_MODEL"])
+                .unwrap_or_else(|| DEFAULT_REASONER_MODEL.to_string()),
+            use_tools: std::env::var("PR_REVIEW_USE_TOOLS")
+                .ok()
+                .is_some_and(|v| matches!(v.trim(), "1" | "true")),
         })
     }
 
@@ -128,6 +138,8 @@ impl Config {
             usd_per_mtok: DEFAULT_USD_PER_MTOK,
             provenance: false,
             cleanup: false,
+            reasoner_model: DEFAULT_REASONER_MODEL.into(),
+            use_tools: false,
         }
     }
 }

@@ -72,7 +72,7 @@ pub(crate) async fn run_respond() -> Result<()> {
             |t| Some(Arc::new(t) as Arc<dyn Toolset>),
         );
         let runner = build_runner_with(
-            &cfg, &api_key, &cfg.reasoning_effort, 2048, false, crabcc,
+            &cfg, &api_key, &cfg.model, &cfg.reasoning_effort, 2048, false, crabcc,
             assistant_prompt(cfg.crabcc_budget),
         )?;
         let (body_diff, truncated) = truncate(&diff, cfg.max_diff_chars);
