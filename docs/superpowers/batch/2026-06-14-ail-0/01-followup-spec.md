@@ -103,14 +103,38 @@ DEFERRED (separate plan, dev-cx53/GHA): `tools/cuc-bench/*.py` + the multi-model
 
 ## 8. ARP / multi-agent context (from `wnlq8ckib`)
 
-> TO ENRICH when run `wnlq8ckib` lands: cross-provider adapter portability, agent-communication-
-> language prior art (FIPA-ACL / KQML / AutoGen / LangGraph), multi-agent structured-state
-> compression, register/channel discipline, and whether a shared IR measurably helps swarms. These
-> feed the ARP adapter layer (umbrella plan Wave 2) and the RFC's multi-agent framing.
+Run `wnlq8ckib` (multi-agent / adapter, 5 strands) lands three load-bearing findings:
+
+1. **Conventions do NOT port across providers** — the strongest-supported result, and the empirical
+   case for ARP having an *adapter* layer rather than one canonical convention. A prompt tuned for
+   one model carries a large penalty to another (PromptBridge: 99.39%→68.70% transferred, a 10.77pp
+   "model drift"; FormatSpread: up to 76 accuracy points from format alone, weakly correlated across
+   models; IFEval++: 18.3-61.8% reliability decline under convention-preserving paraphrase). The fix
+   is measured too: format-recovery alone +6-8 F1, a verifier-driven repair step +14-16 F1, reaching
+   ~99.3% of oracle (PromptPort). → **ARP adapter = a bidirectional schema↔target translator with a
+   built-in output validator/repair step**, not just an emitter.
+2. **KQML / FIPA-ACL failed because their semantics were mentalistic** — defined over the sender's
+   private beliefs, so compliance was not third-party-checkable, and dialects drifted until agents
+   could not interoperate (Singh 1998). → **AIL-0 register discipline must be publicly checkable
+   (defined over observable artifacts — what was written, not what an agent believes) and tight
+   enough to prevent dialect drift, with a complete act/intent vocabulary.**
+3. **Structured handoffs help; a shared compressed IR at swarm scale is unproven.** Typed handoff
+   discipline measurably helps — ReWOO's reasoning/observation channel split cut tokens ~5x
+   (9,795→1,986) with a small accuracy gain (the best evidence FOR the register split); MetaGPT's
+   structured artifacts hit 85.9% HumanEval Pass@1; AgentAsk's clarification at handoffs recovers
+   most of a heavy evaluator's gain at <5% overhead. BUT no located source ablates a *designed shared
+   compressed IR* against no-IR at fan-out scale, MAST finds structure alone insufficient for
+   inter-agent misalignment, and adding stages that reprocess context without new information
+   *degrades* reliability (.907 centralized → .435 at 3 stages). → **AIL-0's shared-IR ambition is a
+   hypothesis; the bench must ablate IR vs no-IR, not assume the win.**
+
+These feed the ARP adapter layer (umbrella plan Wave 2 — the `adapters.md` + `validate.py` are now
+evidence-backed) and the umbrella plan's honest framing. Full report:
+`docs/superpowers/research/2026-06-14-arp-multiagent-research.md`.
 
 ## 9. References
 
 - Research: `docs/superpowers/research/2026-06-14-ail-0-single-agent-research.md` (run `wru7qq2ax`),
-  `2026-06-14-arp-multiagent-research.md` (run `wnlq8ckib`, pending).
+  `docs/superpowers/research/2026-06-14-arp-multiagent-research.md` (run `wnlq8ckib`).
 - Issue #202 (ARP), PR #203 (caveman→cuc + 5-model bench), PR #187 (CUC origin).
 - Umbrella plan: `docs/superpowers/plans/2026-06-14-arp-e2e-naive.md`.
