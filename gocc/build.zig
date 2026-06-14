@@ -91,4 +91,24 @@ pub fn build(b: *std.Build) void {
         }),
     });
     test_step.dependOn(&b.addRunArtifact(loader_tests).step);
+
+    // tests — tpm.zig (TPM/SEP key sealing scaffold)
+    const tpm_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/security/tpm.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(tpm_tests).step);
+
+    // tests — dragonfly.zig (RESP2 client + DragonflyDB state bus)
+    const dragonfly_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/state/dragonfly.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    test_step.dependOn(&b.addRunArtifact(dragonfly_tests).step);
 }

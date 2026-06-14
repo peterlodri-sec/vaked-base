@@ -2,6 +2,7 @@ const std = @import("std");
 const core = @import("gocc-core");
 const grammar = @import("parser/grammar.zig");
 const scheduler = @import("dispatch/scheduler.zig");
+const tpm = @import("security/tpm.zig");
 
 pub fn main(init: std.process.Init.Minimal) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -9,6 +10,14 @@ pub fn main(init: std.process.Init.Minimal) !void {
     const alloc = arena.allocator();
 
     const args = try init.args.toSlice(alloc);
+
+    // Initialize TPM key (ephemeral fallback if TPM not available)
+    var tpm_key = tpm.unsealKey() catch |err| blk: {
+        std.log.warn("gocc: TPM key init failed ({s}), proceeding without sealing", .{@errorName(err)});
+        break :blk tpm.SealedKey{};
+    };
+    defer tpm_key.deinit();
+    // tpm_key will be wired into vault in phase6-real; deinit handles zeroing.
 
     if (args.len >= 2 and std.mem.eql(u8, args[1], "run")) {
         if (args.len < 3) {
