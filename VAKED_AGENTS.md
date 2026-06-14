@@ -13,7 +13,8 @@ Shared conventions: all credentials live in the **`ci` GitHub Environment**
 are **advisory / never block** a merge; failures route to **Telegram**; LLM-driven
 runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE.md`).
 **CI details:** [`docs/agents/ci.md`](docs/agents/ci.md). **Fleet backlog:**
-[`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md).
+[`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md). **Self-hosted runners
+(opt-in):** [`docs/agents/self-hosted-runners.md`](docs/agents/self-hosted-runners.md).
 
 ## Active agents
 
