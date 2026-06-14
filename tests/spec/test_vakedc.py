@@ -38,6 +38,13 @@ GOLDEN = os.path.join(HERE, "golden", "operator-field.graph.json")
 OPERATOR_FIELD = "vaked/examples/operator-field.vaked"
 PROVENANCE = "vaked/examples/lowering/provenance.json"
 
+# Additional graph-golden pairs: (source-rel-to-repo, golden-basename)
+_EXTRA_GOLDENS = [
+    ("vaked/examples/primitives/lifecycle.vaked",         "lifecycle.graph.json"),
+    ("vaked/examples/primitives/capability-graph.vaked",  "capability-graph.graph.json"),
+    ("vaked/examples/primitives/wavefront.vaked",         "wavefront.graph.json"),
+]
+
 
 def _vakedc_accepts(src, filename="<probe>"):
     """vakedc's accept/reject verdict for a source string (no exceptions leak)."""
@@ -92,21 +99,18 @@ def _test_differential(lines):
 # 2. Golden snapshot
 # --------------------------------------------------------------------------- #
 
-def _test_golden(lines):
-    if not os.path.exists(GOLDEN):
-        lines.append(f"  FAIL golden: missing {GOLDEN}")
+def _cmp_golden(src_rel, golden_path, lines):
+    """Compare vakedc output for src_rel against golden_path. Returns True on match."""
+    if not os.path.exists(golden_path):
+        lines.append(f"  FAIL golden: missing {golden_path}")
         return False
-    graph = vakedc.parse_file(OPERATOR_FIELD)
+    graph = vakedc.parse_file(src_rel)
     produced = vakedc.to_canonical_json(graph)
-    expected = open(GOLDEN, encoding="utf-8").read()
+    expected = open(golden_path, encoding="utf-8").read()
     if produced == expected:
-        doc = json.loads(produced)
-        lines.append(f"  golden snapshot: byte-identical "
-                     f"({len(doc['nodes'])} nodes, {len(doc['edges'])} edges)")
         return True
-    lines.append("  FAIL golden: canonical JSON differs from "
-                 "tests/spec/golden/operator-field.graph.json")
-    # show the first differing offset for debuggability
+    name = os.path.basename(golden_path)
+    lines.append(f"  FAIL golden: canonical JSON differs from tests/spec/golden/{name}")
     for i, (a, b) in enumerate(zip(produced, expected)):
         if a != b:
             lines.append(f"    first diff at byte {i}: "
@@ -116,6 +120,23 @@ def _test_golden(lines):
         lines.append(f"    length differs: produced {len(produced)} "
                      f"vs golden {len(expected)}")
     return False
+
+
+def _test_golden(lines):
+    ok = _cmp_golden(OPERATOR_FIELD, GOLDEN, lines)
+    extra_ok = True
+    for src_rel, golden_name in _EXTRA_GOLDENS:
+        golden_path = os.path.join(HERE, "golden", golden_name)
+        if not _cmp_golden(src_rel, golden_path, lines):
+            extra_ok = False
+    if ok and extra_ok:
+        # report aggregate stats for the primary golden; extras verified silently
+        graph = vakedc.parse_file(OPERATOR_FIELD)
+        doc = json.loads(vakedc.to_canonical_json(graph))
+        lines.append(f"  golden snapshot: byte-identical "
+                     f"({len(doc['nodes'])} nodes, {len(doc['edges'])} edges)"
+                     f" + {len(_EXTRA_GOLDENS)} overlay goldens match")
+    return ok and extra_ok
 
 
 # --------------------------------------------------------------------------- #
