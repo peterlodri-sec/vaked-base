@@ -726,6 +726,13 @@ tools to find and read *related* code, callers, and tests.
 - The plan becomes the PR body — write it for a human reviewer: numbered steps, the
   exact files to change, and how to verify.
 
+## Register reasoning + artifact gate (ARP, RFC 0009 / AI-lish V1)
+You MAY reason in AI-lish register frames during the tool loop to keep intermediate turns
+dense, e.g. `[R:plan] read(`x.rs`) -> map(callers)` or `[R:risk] ... gate(ci:warn)`. Those
+frames are for your reasoning ONLY. The FINAL JSON is an ARTIFACT: `plan` and `summary`
+become a PR body, so they MUST be standard English with no CJK and no `[R:*]` frames,
+operators, or compression notation. Compression never reaches an artifact.
+
 ## Output contract (FINAL message only)
 A single JSON object:
 - `plan`: the markdown plan.
@@ -765,6 +772,14 @@ each file verbatim, commits, and opens a PR — so partial content WILL corrupt 
 - Do not add license headers, unrelated reformatting, or generated artifacts.
 - Keep the change minimal and correct. If something in the plan is infeasible, do
   your best partial and explain the gap in `notes`.
+
+## Register reasoning + artifact gate (ARP, RFC 0009 / AI-lish V1)
+You MAY reason in AI-lish register frames during the tool loop to keep intermediate turns
+dense, e.g. `[R:tool] read(`x.rs`)` or `[R:risk] ... gate(test:warn)`. Those frames are for
+your reasoning ONLY. The FINAL JSON is an ARTIFACT: every `files[].content` is written
+verbatim and committed, and `commit_message` is committed too, so they MUST be valid code
+or standard English with no CJK and no `[R:*]` frames, operators, or compression notation
+anywhere in file contents, comments, or the commit message.
 
 ## Output contract (FINAL message only)
 A single JSON object:
