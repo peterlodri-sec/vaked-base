@@ -230,11 +230,13 @@ pub(crate) async fn run_review() -> Result<()> {
         let run_link = run_html_url(&cfg.repo)
             .map(|u| format!(" · [run]({u})"))
             .unwrap_or_default();
+        // Bare model name (drop the `provider/` prefix) for a leaner footer.
+        let model_short = cfg.model.rsplit('/').next().unwrap_or(&cfg.model);
         let body = format!(
             "{COMMENT_MARKER}\n{review}\n{provenance}\n\n---\n\
-             <sub>🦴 vaked-ci-reviewer · advisory · model={} · findings={} · tok={} (cached {}) · \
+             <sub>vaked-ci-reviewer · advisory · model={} · findings={} · tok={} (cached {}) · \
              cost=${:.4} · runtime={:.1}s (slowest: {}){}{}{} · {}</sub>",
-            cfg.model, n_findings, usage.total, usage.cached, cost, total_s, slowest,
+            model_short, n_findings, usage.total, usage.cached, cost, total_s, slowest,
             commit_link, run_link, trace_link, footer_signature()
         );
 
