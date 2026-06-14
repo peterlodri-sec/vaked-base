@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from . import parser as P
 from .graph import GraphNode, GraphEdge, Provenance, Span, node_id
+from .schedule import fiber_ios, member_names, compute_schedule
 
 # transition state machine (0015 §4)
 _TRANSITIONS = {
@@ -84,7 +85,43 @@ def _walk(graph, body, chain, owner_id, owner, basename, provfile):
             _walk(graph, st.body, child_chain, child_id, st, basename, provfile)
 
 
+def _emit_schedule(graph, group_decl, basename, provfile, decl_by_name):
+    prov = _prov(group_decl, provfile)
+    names = member_names(group_decl)
+    members = [decl_by_name[n] for n in names if n in decl_by_name]
+    if not members:
+        return
+    sched = compute_schedule(fiber_ios(members))
+    if sched.cycle is not None:
+        return  # cycle is a checker error (E-EXEC-CYCLE); skip materialization
+    for a, b, via in sched.deps:
+        graph.add_edge(GraphEdge(node_id(basename, [a]), node_id(basename, [b]),
+                                 "depends-on", {"via": via}))
+    for name, lvl in sched.levels.items():
+        nd = graph.get_node(node_id(basename, [name]))
+        if nd is not None:
+            nd.props["level"] = lvl
+    gchain = [group_decl.name]
+    for lv in sched.checkpoints:
+        cid = node_id(basename, gchain + ["checkpoint:" + str(lv)])
+        graph.add_node(GraphNode(id=cid, kind="checkpoint", name=str(lv),
+                                 labels=["checkpoint"],
+                                 props={"level": lv, "rewindable": sched.rewindable[lv]},
+                                 provenance=prov))
+        for name, nlvl in sched.levels.items():
+            if nlvl == lv:
+                graph.add_edge(GraphEdge(cid, node_id(basename, [name]), "boundary-for"))
+    # rewind-to: any rewind transition on the group -> nearest rewindable checkpoint
+    rewindable_levels = [lv for lv in sched.checkpoints if sched.rewindable[lv]]
+    if rewindable_levels:
+        tid = node_id(basename, gchain + ["transition:rewind"])
+        if graph.get_node(tid) is not None:
+            target = node_id(basename, gchain + ["checkpoint:" + str(min(rewindable_levels))])
+            graph.add_edge(GraphEdge(tid, target, "rewind-to"))
+
+
 def apply_execution_overlay(graph, items, basename, provfile):
+    decl_by_name = {it.name: it for it in items if isinstance(it, P.Decl)}
     for it in items:
         if isinstance(it, P.Decl) and it.kind == "capability":
             _emit_grants(graph, it, basename, provfile)
@@ -92,3 +129,5 @@ def apply_execution_overlay(graph, items, basename, provfile):
         if isinstance(it, P.Decl):
             chain = [it.name]
             _walk(graph, it.body, chain, node_id(basename, chain), it, basename, provfile)
+            if it.kind == "parallel":
+                _emit_schedule(graph, it, basename, provfile, decl_by_name)

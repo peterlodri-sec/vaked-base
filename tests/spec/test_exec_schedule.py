@@ -104,6 +104,30 @@ def _t_overlay_caps(lines):
     return ok
 
 
+_WAVE_SRC = """fiber capture  { input = device.camera        output = stream.raw }
+fiber compress { input = stream.raw           output = artifacts.compressed }
+fiber publish  { input = artifacts.compressed output = surface.feed }
+parallel "pipe" {
+  fibers = [capture, compress, publish]
+  lifecycle { on rewind { } }
+}
+"""
+
+
+def _t_overlay_schedule(lines):
+    ok = True
+    g = build_graph(parse_source(_WAVE_SRC, "w.vaked"), "w.vaked")
+    node = {n.id: n for n in g.nodes}
+    if node["w.vaked#compress"].props.get("level") != 1:
+        ok = False; lines.append(f"  FAIL compress level: {node['w.vaked#compress'].props}")
+    edges = {(e.source, e.label, e.target) for e in g.edges}
+    if ("w.vaked#compress", "depends-on", "w.vaked#capture") not in edges:
+        ok = False; lines.append("  FAIL: missing depends-on edge")
+    if "w.vaked#pipe/checkpoint:0" not in node:
+        ok = False; lines.append("  FAIL: missing checkpoint node")
+    return ok
+
+
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
@@ -111,7 +135,7 @@ def _t_overlay_caps(lines):
 def run():
     lines = []
     ok = True
-    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle, _t_overlay_caps):
+    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle, _t_overlay_caps, _t_overlay_schedule):
         try:
             ok = fn(lines) and ok
         except Exception as e:
