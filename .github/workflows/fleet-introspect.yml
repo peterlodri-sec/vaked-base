@@ -49,7 +49,7 @@ jobs:
   # typed confirmation (#1) is not exactly RUN.
   approve:
     if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN'
-    runs-on: ${{ vars.AGENT_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, linux, hetzner]
     environment: introspect-manual
     timeout-minutes: 60
     steps:
@@ -61,7 +61,7 @@ jobs:
       always() &&
       ( github.event_name == 'schedule'
         || (github.event_name == 'workflow_dispatch' && needs.approve.result == 'success') )
-    runs-on: ${{ vars.AGENT_RUNNER || 'ubuntu-latest' }}
+    runs-on: [self-hosted, linux, hetzner]
     environment: ci # OPENROUTER_API_KEY / LANGFUSE_* live in the `ci` Environment
     timeout-minutes: 20
     env:
