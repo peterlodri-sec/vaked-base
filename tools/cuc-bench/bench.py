@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Benchmark: caveman wenyan-ultra vs normal (default) mode.
+Benchmark: CUC (caveman ultra chinese) wenyan-ultra vs normal (default) mode.
 
 Measures output token count and artifact English accuracy across 8 prompts.
 Writes results to report-<model>.md in the same directory.
@@ -11,10 +11,10 @@ Backends (priority order):
   - OpenAI API:      OPENAI_API_KEY env var, model gpt-4o-mini
 
 Usage:
-    ANTHROPIC_API_KEY=sk-ant-...    python3 tools/caveman-bench/bench.py
-    OPENAI_API_KEY=sk-...           python3 tools/caveman-bench/bench.py
+    ANTHROPIC_API_KEY=sk-ant-...    python3 tools/cuc-bench/bench.py
+    OPENAI_API_KEY=sk-...           python3 tools/cuc-bench/bench.py
     OPENROUTER_API_KEY=sk-or-...  \\
-      BENCH_MODEL=deepseek/deepseek-r1  python3 tools/caveman-bench/bench.py
+      BENCH_MODEL=deepseek/deepseek-r1  python3 tools/cuc-bench/bench.py
 """
 
 import json
@@ -108,15 +108,23 @@ def call_anthropic(api_key: str, system: str, user: str) -> dict:
     }
 
 
+SINGLE_TURN_MODELS = {"morph/morph-v3-large", "morph/morph-v3"}
+
+
 def call_openrouter(api_key: str, system: str, user: str) -> dict:
     model = os.environ.get("BENCH_MODEL", "deepseek/deepseek-r1")
+    # Models that reject multi-turn / system messages — fold system into user.
+    if model in SINGLE_TURN_MODELS:
+        messages = [{"role": "user", "content": f"{system}\n\n---\n\n{user}"}]
+    else:
+        messages = [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ]
     payload = json.dumps({
         "model": model,
         "max_tokens": 2048,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
+        "messages": messages,
     }).encode()
     req = urllib.request.Request(
         "https://openrouter.ai/api/v1/chat/completions",
@@ -125,7 +133,7 @@ def call_openrouter(api_key: str, system: str, user: str) -> dict:
             "Authorization": f"Bearer {api_key}",
             "content-type": "application/json",
             "HTTP-Referer": "https://github.com/peterlodri-sec/vaked-base",
-            "X-Title": "caveman-bench",
+            "X-Title": "cuc-bench",
         },
         method="POST",
     )
@@ -228,7 +236,7 @@ def run_benchmark(backend: str, api_key: str) -> list:
 def build_report(results: list, backend: str) -> str:
     model = results[0].get("model", "unknown") if results else "unknown"
     lines = [
-        "# Caveman Wenyan-Ultra vs Normal — Benchmark Report",
+        "# CUC (Caveman Ultra Chinese) — Wenyan-Ultra vs Normal Benchmark Report",
         "",
         f"**Backend:** {backend} | **Model:** `{model}` | **Prompts:** {len(results)}",
         "",

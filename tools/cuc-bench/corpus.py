@@ -1,4 +1,4 @@
-"""Benchmark prompt corpus for caveman wenyan-ultra vs normal mode comparison."""
+"""Benchmark prompt corpus for CUC (caveman ultra chinese) wenyan-ultra vs normal mode comparison."""
 
 PROMPTS = [
     # --- Reasoning / Explain ---
