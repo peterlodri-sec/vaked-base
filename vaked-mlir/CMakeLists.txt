@@ -45,6 +45,7 @@ add_mlir_dialect_library(HcpDialect
 add_library(VakedPasses
   lib/Pass1TopologyAnalysis.cpp
   lib/Pass2WalInjection.cpp
+  lib/Pass3AotIndex.cpp
 )
 target_link_libraries(VakedPasses
   PUBLIC
@@ -52,6 +53,7 @@ target_link_libraries(VakedPasses
   HcpDialect
   MLIRPass
   MLIRIR
+  MLIRTransforms
 )
 
 target_include_directories(VakedDialect
@@ -124,12 +126,27 @@ target_link_libraries(VakedDialect
   MLIRPass
 )
 
+# vaked-opt tool
+add_executable(vaked-opt tools/vaked-opt.cpp)
+target_link_libraries(vaked-opt
+  PRIVATE
+  VakedDialect
+  HcpDialect
+  VakedPasses
+  MLIRIR
+  MLIROptLib
+)
+
 # Optional: add tests if present
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/test)
-  add_subdirectory(test)
+  # Integration tests
+  add_test(
+    NAME vaked-e2e-test
+    COMMAND vaked-opt -pass-pipeline="builtin.module(vaked-topology-analysis,vaked-to-hcp-lowering,vaked-aot-index)" ${CMAKE_CURRENT_SOURCE_DIR}/test/integration-e2e.mlir
+  )
 endif()
 
-# Optional: add tools if present
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools)
+# Optional: add tools subdirectory if present
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tools/CMakeLists.txt)
   add_subdirectory(tools)
 endif()

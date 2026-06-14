@@ -22,6 +22,10 @@ std::unique_ptr<mlir::Pass> createVakedTopologyAnalysisPass();
 /// Lowers vaked dialect to hcp dialect with write-ahead-log injection.
 std::unique_ptr<mlir::Pass> createVakedToHcpLoweringPass();
 
+/// Create Pass 3: AOT Supervisor Index Generation pass.
+/// Generates supervisor index from static agent topology.
+std::unique_ptr<mlir::Pass> createVakedAotIndexPass();
+
 //===----------------------------------------------------------------------===//
 // Pass Registration
 //===----------------------------------------------------------------------===//

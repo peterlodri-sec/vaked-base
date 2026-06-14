@@ -52,4 +52,24 @@ def VakedToHcpLowering : Pass<"vaked-to-hcp-lowering", "ModuleOp"> {
   let constructor = "createVakedToHcpLoweringPass()";
 }
 
+def VakedAotIndex : Pass<"vaked-aot-index", "ModuleOp"> {
+  let summary = "Generate AOT supervisor index from agent topology";
+  let description = [{
+    Pass 3 of the Vaked compilation pipeline.
+
+    This pass generates a read-only supervisor index from the static agent topology:
+
+    1. Assigns numeric IDs to agents (in module order)
+    2. Builds subscription lists (agent dependencies)
+    3. Includes per-agent depth from Pass 1
+    4. Computes critical path length
+    5. Emits JSON index for agent-supervisord boot-load
+
+    The index is deterministic and suitable for version control and diffing.
+
+    Stage-0 reference: vakedc/lower.py:1893-1953
+  }];
+  let constructor = "createVakedAotIndexPass()";
+}
+
 #endif // VAKED_PASSES
