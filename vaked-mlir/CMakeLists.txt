@@ -45,7 +45,9 @@ add_mlir_dialect_library(HcpDialect
 add_library(VakedPasses
   lib/Pass1TopologyAnalysis.cpp
   lib/Pass2WalInjection.cpp
+  lib/Pass2WalInjectionFull.cpp
   lib/Pass3AotIndex.cpp
+  lib/LlvmLowering.cpp
 )
 target_link_libraries(VakedPasses
   PUBLIC
@@ -54,6 +56,10 @@ target_link_libraries(VakedPasses
   MLIRPass
   MLIRIR
   MLIRTransforms
+  MLIRArithDialect
+  MLIRLLVM
+  MLIRLLVMCommonConversion
+  MLIRControlFlowToLLVM
 )
 
 target_include_directories(VakedDialect
