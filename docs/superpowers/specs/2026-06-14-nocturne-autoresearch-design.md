@@ -76,7 +76,8 @@ GHA cron (~02:00 UTC) is a **thin orchestrator** with no GPU; the rented box run
 │               best_bpb < committed_baseline − ε  AND  confirm seeds held?  │
 │               ├─ yes → dispatch swe_af with the winning train.py diff      │
 │               └─ no  → abstain (ledger-only)                              │
-│ 9. ANNOUNCE   stage toot.txt + telegram.txt → push → social CI sends      │
+│ 9. ANNOUNCE   stage toot.txt + telegram.txt → push → dispatch the social  │
+│               workflows (a GITHUB_TOKEN push alone won't trigger them)     │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -231,8 +232,13 @@ remote command, not via `~/.ssh` config), or write a **short-lived env file** to
   reviewer (no secrets — purely the manual-run approval gate, like `optitron-manual`).
 - **Monthly ceiling:** set the spend cap value (workflow input/secret) the cron checks before
   provisioning.
-- Social plumbing is **already live** — reuses `social-post.yml` / `telegram-post.yml` (staging
-  files); no new setup there.
+- Social plumbing **reuses** `social-post.yml` / `telegram-post.yml` (staging files) — but
+  ⚠️ both are `on: push`, and **a push made by a scheduled job's `GITHUB_TOKEN` does not trigger
+  another workflow** (GitHub's workflow-recursion prevention). So nocturne's staged digest would
+  be committed but never posted. nocturne must therefore **`workflow_dispatch` the social
+  workflows** after staging (add a `workflow_dispatch:` trigger to each if absent), or push the
+  staging commit with a PAT/App token. ⟨VERIFY⟩ mirror how ralph/optitron actually post today
+  (they hit the same constraint).
 - **swe_af hand-off:** the bare `agent` label does **not** trigger swe_af from a scheduled job
   (owner-sender gate, `swe-af.yml` 39–42). nocturne `workflow_dispatch`es `swe-af.yml` instead —
   so the only setup is granting the workflow `actions: write` (above). ⟨VERIFY⟩ mirror whatever
