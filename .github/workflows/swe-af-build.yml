@@ -56,6 +56,11 @@ jobs:
           ln -sf "$(command -v wild)" "$HOME/.local/bin/ld.wild"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # Only needed for the published asset (main), not the PR compile/test gate.
+      - name: Install UPX
+        if: github.event_name != 'pull_request'
+        run: sudo apt-get install -y upx-ucl
+
       - name: Build release binary
         env:
           RUSTC_WRAPPER: sccache
@@ -83,6 +88,10 @@ jobs:
             --manifest-path vaked-agents/ci/swe-af/Cargo.toml
           cp vaked-agents/ci/swe-af/target/release/vaked-swe-af \
              vaked-swe-af-linux-x86_64
+
+      - name: Compress binary with UPX
+        if: github.event_name != 'pull_request'
+        run: upx --best vaked-swe-af-linux-x86_64
 
       # PRs are a compile/test gate only — publish the rolling binary on main.
       - name: Publish rolling release asset
