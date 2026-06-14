@@ -6,7 +6,7 @@
 
 Four changes shipped together:
 
-1. **wenyan-ultra as default** — `SessionStart` hook injects activation notice; `.claude/skills/caveman/SKILL.md` default changed from `full` to `wenyan-ultra`
+1. **wenyan-ultra as default** — `SessionStart` hook injects activation notice; `.claude/skills/cuc/SKILL.md` default changed from `full` to `wenyan-ultra`
 2. **Artifact Gate** — explicit rule: all content written via `Write`, `Edit`, git commit messages, and GitHub MCP tools must be normalized to standard English before the tool call fires; internal reasoning stays compressed
 3. **internal-monologue** — `PreToolUse` hook (`.claude/hooks/internal-monologue.py`) fires before every `Write`/`Edit`/`Bash`/`Agent`/GitHub call; emits one strategic sentence (60-token LLM call, claude-sonnet-4-6 or gpt-4o-mini fallback); goal: increase deliberate tool-chaining
 4. **auto-compact at 60%** — `PreCompact` hook (`.claude/hooks/pre-compact.sh`) mines mempalace async and emits structured preservation instructions; `maxTurns` lifted from 200 → 400
@@ -15,7 +15,7 @@ Four changes shipped together:
 
 ## Benchmark results
 
-**Model:** gpt-4o-mini-2024-07-18 | 8 prompts × 2 modes | Full report: `tools/caveman-bench/report.md`
+**Model:** gpt-4o-mini-2024-07-18 | 8 prompts × 2 modes | Full report: `tools/cuc-bench/report.md`
 
 | Prompt | Category | Normal tok | Wenyan tok | Savings |
 |--------|----------|-----------|-----------|---------|
@@ -101,18 +101,18 @@ The `internal-monologue` hook fires before every substantive tool call and emits
 2. Claude reads the reflection as part of its context window before deciding whether to continue
 3. The hypothesis: a model that sees its own stated intent before acting is less likely to abandon mid-chain, more likely to plan the next step
 
-This is not yet measured. Measuring it requires comparing tool-chain-call depth (average consecutive tool uses before an idle turn) across sessions with and without the hook. The benchmark in `tools/caveman-bench/` does not cover this — it measures compression, not chaining.
+This is not yet measured. Measuring it requires comparing tool-chain-call depth (average consecutive tool uses before an idle turn) across sessions with and without the hook. The benchmark in `tools/cuc-bench/` does not cover this — it measures compression, not chaining.
 
 ---
 
 ## Files
 
 ```
-.claude/skills/caveman/SKILL.md      ← default + ARTIFACT GATE
+.claude/skills/cuc/SKILL.md          ← default + ARTIFACT GATE
 .claude/settings.json                ← SessionStart, PreToolUse, PreCompact, maxTurns
 .claude/hooks/internal-monologue.py  ← PreToolUse reflection hook
 .claude/hooks/pre-compact.sh         ← PreCompact mempalace + preservation prompt
-tools/caveman-bench/bench.py         ← benchmark runner (urllib, no SDK deps)
-tools/caveman-bench/corpus.py        ← 8-prompt corpus
-tools/caveman-bench/report.md        ← actual benchmark output
+tools/cuc-bench/bench.py         ← benchmark runner (urllib, no SDK deps)
+tools/cuc-bench/corpus.py        ← 8-prompt corpus
+tools/cuc-bench/report.md        ← actual benchmark output
 ```
