@@ -51,7 +51,7 @@ jobs:
   # runs whose typed confirmation (#1) is not exactly RUN.
   approve:
     if: github.event_name == 'workflow_dispatch' && inputs.confirm == 'RUN'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.AGENT_RUNNER || 'ubuntu-latest' }}
     environment: nocturne-manual
     timeout-minutes: 60
     steps:
@@ -63,7 +63,7 @@ jobs:
       always() &&
       ( github.event_name == 'schedule'
         || (github.event_name == 'workflow_dispatch' && needs.approve.result == 'success') )
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.AGENT_RUNNER || 'ubuntu-latest' }}
     environment: ci # VAST_API_KEY / OPENROUTER_API_KEY live in the `ci` Environment
     timeout-minutes: 360 # 6h ceiling; the box's own watch-and-destroy is the real cap
     env:
