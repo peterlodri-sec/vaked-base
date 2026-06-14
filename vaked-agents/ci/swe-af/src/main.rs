@@ -342,7 +342,14 @@ struct AgentRunner {
 /// Every agent CLI call thus goes through the single `vaked` entrypoint. Returns the MCP
 /// toolset, or an error if the index/binary isn't available (caller falls back).
 async fn connect_explorer() -> Result<McpToolset> {
-    let bin = std::env::var("VAKED_BIN").unwrap_or_else(|_| "vaked".to_string());
+    // Prefer the checked-out wrapper so CI works without PATH/env setup; VAKED_BIN overrides.
+    let bin = std::env::var("VAKED_BIN").unwrap_or_else(|_| {
+        if std::path::Path::new("./bin/vaked").exists() {
+            "./bin/vaked".to_string()
+        } else {
+            "vaked".to_string()
+        }
+    });
     let sub = if std::path::Path::new(".crabcc").is_dir() { "refresh" } else { "build" };
     match StdCommand::new(&bin).args(["explore", "index", sub]).status() {
         Ok(s) if s.success() => info!(action = sub, "vaked→crabcc index ready"),
@@ -436,6 +443,10 @@ async fn build_runner(cfg: &Config, api_key: &str) -> Result<AgentRunner> {
         Ok(_) => cfg.max_iters,
         Err(_) => cfg.max_iters.min(20),
     };
+    // Native read/search tools are ALWAYS registered: crabcc navigates (sym/refs/outline/
+    // grep) but cannot return a full file's contents, and the coder must read any target
+    // outside the seed pack before rewriting it — otherwise it would guess and corrupt the
+    // file. crabcc is layered on top when available as the faster navigation surface.
     let mut builder = LlmAgentBuilder::new("vaked-swe-af")
         .instruction(system_prompt(cfg.mode))
         .model(Arc::new(model))
@@ -443,10 +454,17 @@ async fn build_runner(cfg: &Config, api_key: &str) -> Result<AgentRunner> {
         .max_iterations(iters)
         .tool_timeout(Duration::from_secs(30))
         .tool_execution_strategy(ToolExecutionStrategy::Auto)
+        .tool_retry_budget("read_file", RetryBudget {
+            max_retries: 2,
+            delay: Duration::from_millis(200),
+        })
+        .tool(read_file_tool())
+        .tool(list_dir_tool())
+        .tool(search_repo_tool())
         .input_guardrails(guardrails::input_guardrails());
     match explorer {
         Ok(ts) => {
-            info!("exploration via vaked→crabcc symbol index");
+            info!("exploration via vaked→crabcc symbol index (+ native read for full files)");
             builder = builder
                 .tool_retry_budget("crabcc", RetryBudget {
                     max_retries: 2,
@@ -455,15 +473,7 @@ async fn build_runner(cfg: &Config, api_key: &str) -> Result<AgentRunner> {
                 .toolset(Arc::new(ts) as Arc<dyn Toolset>);
         }
         Err(e) => {
-            warn!(error = %e, "crabcc unavailable — falling back to built-in read/search tools");
-            builder = builder
-                .tool_retry_budget("read_file", RetryBudget {
-                    max_retries: 2,
-                    delay: Duration::from_millis(200),
-                })
-                .tool(read_file_tool())
-                .tool(list_dir_tool())
-                .tool(search_repo_tool());
+            warn!(error = %e, "crabcc unavailable — using native read/search tools only");
         }
     }
     let agent = builder.build().map_err(|e| anyhow!("agent build: {e}"))?;
@@ -745,13 +755,13 @@ concrete, minimal implementation plan for the vaked-base monorepo.
 2. ANSWER. Once grounded, your FINAL message must be EXACTLY one JSON object matching
    the output contract below — no prose, no markdown fences, nothing else.
 
-## Tools (read-only) — crabcc symbol index
-Explore via the crabcc index: look up a symbol's definition, its references and callers, a
-file's outline, fuzzy-find names, and grep the indexed code. Prefer these indexed lookups
-over brute reading — they're cheap, so chain as many as you need. (Key file contents are
-already inlined above, so you mostly need crabcc to find *related* code, callers, and tests.)
-If the index is unavailable, equivalent `read_file`/`list_dir`/`search_repo` tools are offered
-instead.
+## Tools (read-only)
+Navigate with the crabcc symbol index when present (a symbol's definition, references,
+callers, a file's outline, fuzzy name search, and grep over indexed code) — cheap indexed
+lookups, chain as many as you need. Fetch full file contents with `read_file` (and
+`list_dir`/`search_repo`); always `read_file` a target before rewriting it so you preserve
+everything you're not changing. Key files are already inlined above, so you mostly need
+tools to find and read *related* code, callers, and tests.
 
 ## Discipline
 - Smallest change that fully resolves the issue. Prefer editing existing files and
@@ -780,13 +790,13 @@ issue and an approved plan. Produce the actual change as FULL file contents.
 2. ANSWER. Your FINAL message must be EXACTLY one JSON object matching the output
    contract below — no prose, no markdown fences, nothing else.
 
-## Tools (read-only) — crabcc symbol index
-Explore via the crabcc index: look up a symbol's definition, its references and callers, a
-file's outline, fuzzy-find names, and grep the indexed code. Prefer these indexed lookups
-over brute reading — they're cheap, so chain as many as you need. (Key file contents are
-already inlined above, so you mostly need crabcc to find *related* code, callers, and tests.)
-If the index is unavailable, equivalent `read_file`/`list_dir`/`search_repo` tools are offered
-instead.
+## Tools (read-only)
+Navigate with the crabcc symbol index when present (a symbol's definition, references,
+callers, a file's outline, fuzzy name search, and grep over indexed code) — cheap indexed
+lookups, chain as many as you need. Fetch full file contents with `read_file` (and
+`list_dir`/`search_repo`); always `read_file` a target before rewriting it so you preserve
+everything you're not changing. Key files are already inlined above, so you mostly need
+tools to find and read *related* code, callers, and tests.
 
 ## How to emit changes
 For each file you create or modify, return an object `{ "path", "content" }` where

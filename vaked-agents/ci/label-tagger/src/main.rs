@@ -230,9 +230,12 @@ fn setup_tracing() -> Option<SdkTracerProvider> {
     let tracer = provider.tracer("vaked-label-tagger");
     let filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    // Disable ANSI color when stderr isn't a terminal (CI) or NO_COLOR is set.
+    let use_ansi = std::io::IsTerminal::is_terminal(&std::io::stderr())
+        && std::env::var("NO_COLOR").is_err();
     tracing_subscriber::registry()
         .with(filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr).with_ansi(use_ansi))
         .with(tracing_opentelemetry::layer().with_tracer(tracer))
         .try_init()
         .ok();
