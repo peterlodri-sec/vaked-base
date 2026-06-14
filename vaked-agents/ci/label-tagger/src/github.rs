@@ -99,7 +99,7 @@ pub(crate) fn fetch_pr_diff(cfg: &Config, pr: u64) -> String {
     truncated.to_string()
 }
 
-pub(crate) fn fetch_commits_since_tag(repo: &str) -> String {
+pub(crate) async fn fetch_commits_since_tag(repo: &str) -> String {
     // Get the latest semver tag, then list commits since it.
     let last_tag = git(&["describe", "--tags", "--abbrev=0", "--match", "v*"])
         .unwrap_or_else(|_| String::new());
@@ -109,14 +109,25 @@ pub(crate) fn fetch_commits_since_tag(repo: &str) -> String {
     } else {
         format!("{last_tag}..HEAD")
     };
-    let log = git(&[
-        "log", "--oneline", "--no-merges", "--pretty=format:%h %s", &range,
-    ]).unwrap_or_default();
-    // Also try to pull merged PR numbers from recent merge commits
-    let prs = gh(&[
-        "pr", "list", "--repo", repo, "--state", "merged", "--limit", "20",
-        "--json", "number,title,labels,mergedAt",
-    ]).unwrap_or_default();
+
+    // git log (local) and gh pr list (network) are independent — run concurrently.
+    let range_clone = range.clone();
+    let repo_owned = repo.to_string();
+    let (log_res, prs_res) = tokio::join!(
+        tokio::task::spawn_blocking(move || {
+            git(&["log", "--oneline", "--no-merges", "--pretty=format:%h %s", &range_clone])
+                .unwrap_or_default()
+        }),
+        tokio::task::spawn_blocking(move || {
+            gh(&[
+                "pr", "list", "--repo", &repo_owned, "--state", "merged", "--limit", "20",
+                "--json", "number,title,labels,mergedAt",
+            ])
+            .unwrap_or_default()
+        }),
+    );
+    let log = log_res.unwrap_or_default();
+    let prs = prs_res.unwrap_or_default();
     format!("Last tag: {last_tag}\nCommits since tag:\n{log}\n\nRecently merged PRs:\n{prs}")
 }
 

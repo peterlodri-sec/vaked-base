@@ -162,6 +162,19 @@ jobs:
             echo "mode=label" >> "$GITHUB_OUTPUT"
           fi
 
+      # Route to a cheaper model for low-complexity modes.
+      # changelog / milestone-sync = commit summarisation / GOALS.md parsing —
+      # no code understanding needed; flash-class model is sufficient.
+      # label = PR/issue triage — keep the full model for accuracy.
+      - name: Select model
+        run: |
+          case "${{ steps.mode.outputs.mode }}" in
+            changelog|milestone-sync)
+              echo "LABEL_TAGGER_MODEL=deepseek/deepseek-v4-flash" >> "$GITHUB_ENV" ;;
+            *)
+              echo "LABEL_TAGGER_MODEL=openai/gpt-oss-120b"        >> "$GITHUB_ENV" ;;
+          esac
+
       # Run the agent. Output goes to a temp file so later steps can inspect it.
       # If the skip gate fired, write empty JSON and exit early (no LLM call).
       - name: Run label-tagger agent
