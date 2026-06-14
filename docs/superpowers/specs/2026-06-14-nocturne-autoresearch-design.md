@@ -62,33 +62,62 @@ GHA cron (~02:00 UTC) is a **thin orchestrator** with no GPU; the rented box run
 │ 1. PROVISION  vastai search/create: cheapest GPU ≥ spec under $/hr cap;   │
 │               abort cleanly if none < cap (event: `none{reason:no-gpu}`)  │
 │ 2. SYNC       ssh: clone repo @ current baseline train.py + program.md    │
-│ 3. RUN ≤6h    ssh `timeout 6h <driver>` — Karpathy's mutate→train 5min→   │
-│               read val BPB→keep/discard, each trial → results.jsonl       │
-│ 4. HARVEST    scp results.jsonl + best train.py back to the runner        │
-│ 5. TEARDOWN   vastai destroy — ALWAYS (trap/finally); the cost lynchpin   │
-│ 6. LEDGER     append state/events.jsonl (hash-chained), commit            │
-│ 7. GATE       best_bpb < committed_baseline − ε  AND  confirmed re-run?   │
-│               ├─ yes → `agent` issue with the winning train.py diff       │
+│ 3. RUN ≤~5.5h ssh `timeout <search-budget> <driver>` — Karpathy's         │
+│               mutate→train 5min→read val BPB→keep/discard, each trial →    │
+│               results.jsonl (reserve the tail of the 6h for step 4)       │
+│ 4. CONFIRM    ON THE BOX, before teardown: re-train the night's best      │
+│  (on GPU)     train.py on N fresh seeds; append the confirm runs to        │
+│               results.jsonl. THIS is the gate's "independent re-run" — it  │
+│               MUST happen here because the runner has no GPU.              │
+│ 5. HARVEST    scp results.jsonl + best train.py back to the runner        │
+│ 6. TEARDOWN   vastai destroy — ALWAYS (trap/finally); the cost lynchpin   │
+│ 7. LEDGER     append state/events.jsonl (hash-chained), commit            │
+│ 8. GATE       (pure, on runner — reads only the harvested results.jsonl)  │
+│               best_bpb < committed_baseline − ε  AND  confirm seeds held?  │
+│               ├─ yes → dispatch swe_af with the winning train.py diff      │
 │               └─ no  → abstain (ledger-only)                              │
-│ 8. ANNOUNCE   stage toot.txt + telegram.txt → push → social CI sends      │
+│ 9. ANNOUNCE   stage toot.txt + telegram.txt → push → social CI sends      │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### The strict gate (step 7 — every condition must hold; else abstain, post nothing)
+> **Confirmation runs on the GPU, before teardown (step 4) — not in the gate.** The seed
+> re-confirmation needs a GPU, and the runner has none, so it cannot live after teardown. The box
+> measures it and writes it to `results.jsonl`; the post-teardown gate (step 8) is then **pure** —
+> it only *reads* already-measured numbers and never trains. The 6h wall-clock budgets the search
+> (step 3) to leave room for the confirm re-runs (step 4).
+
+### The strict gate (step 8 — pure, reads harvested results; every condition holds, else abstain)
 1. **Measured, not claimed.** The improvement comes from `results.jsonl` rows the harness wrote
    from a real 5-minute training run — never from model prose. A trial with no metric is discarded.
 2. **Beats the committed baseline** by ≥ `min_bpb_delta` (e.g. 0.002 BPB), not just the night's
    own running best.
-3. **Confirmed on an independent re-run** — the winning `train.py` re-trained on a *different
-   seed* still clears the baseline (kills lucky-seed noise; the empirical analogue of optitron's
-   "≥2 independent sources").
+3. **Confirmed on independent re-runs** — the winning `train.py`, re-trained **on the box in
+   step 4** on N *different seeds*, still clears the baseline (kills lucky-seed noise; the
+   empirical analogue of optitron's "≥2 independent sources"). The gate only *checks* these rows;
+   it does not train.
 4. **Novel** — the winning diff's `signature` isn't already in the ledger or the committed
    baseline history (`git grep` + ledger dedupe), so we don't re-surface a known win.
 5. **Sane** — the run produced no NaN/divergence and stayed within the harness's fixed wall-clock
    and token budget (no "won" by changing the rules).
 
-A survivor's `agent` issue body **is** the swe_af request: *"promote this `train.py` diff to the
-baseline"* — with the BPB delta, the diff, the re-run confirmation, and a link to the ledger event.
+A survivor's swe_af request is *"promote this `train.py` diff to the baseline"* — with the BPB
+delta, the diff, the seed-confirmation rows, and a link to the ledger event.
+
+**swe_af hand-off — explicit dispatch, NOT a bare label.** `.github/workflows/swe-af.yml` gates
+its `agent`-label trigger on `github.event.sender.login == github.repository_owner` (`swe-af.yml`
+lines 39–42), so an `agent` label applied by a *scheduled* job (sender = `github-actions[bot]`)
+will **not** fire swe_af — the confirmed win would stall at an issue. nocturne must therefore use
+swe_af's owner-equivalent path. Two options:
+- **(recommended) `workflow_dispatch` swe-af.yml** with the issue number — the workflow explicitly
+  accepts `workflow_dispatch` with an `issue` input and bypasses the sender gate. nocturne opens
+  the issue (audit trail), then dispatches swe_af against it. Clean, no extra credential.
+- **Label with the owner credential** the other CI bots use (a PAT/app token whose
+  `sender.login` resolves to the owner), if nocturne is given that secret — matches however
+  optitron/fleet-introspect currently satisfy the same gate.
+
+⟨VERIFY⟩ confirm which path optitron/fleet-introspect actually use today and mirror it, so the
+fleet stays consistent. The earlier "no new setup" claim was wrong for a scheduled trigger — this
+is the corrected hand-off.
 
 ## Mutation driver — DECIDED: OpenRouter-driven pipeline (fleet-native)
 
@@ -141,7 +170,8 @@ mutation, e.g. an `anthropic/claude-fable-5` / `deepseek-v4` tier).
     invokes the training harness; the on-GPU mutate→train→score→keep/discard loop writes
     `results.jsonl`. ⟨OPEN, minor⟩ Go-reuse vs Python-local; harness likely adapted from the port.
   - `program.md` — the research objective (human-edited, the only "knob" for direction).
-  - `gate.py` / gate module — deterministic: baseline delta, re-run confirmation, novelty, sanity.
+  - `gate.py` / gate module — **pure** deterministic check over harvested `results.jsonl`:
+    baseline delta, confirm-seed rows hold, novelty, sanity (never trains).
   - `ledger.*` — single-writer hash-chained appends (reuse optitron's `internal/ledger` shape if
     Go, or a small Python port matching ralph's chain format).
   - `state/events.jsonl` — append-only, hash-chained, committed. Events: `provision`, `trial`,
@@ -149,8 +179,10 @@ mutation, e.g. an `anthropic/claude-fable-5` / `deepseek-v4` tier).
   - `state/baseline/train.py` — the current best (the running-best that survives the box).
 - **`.github/workflows/nocturne.yml`** — nightly `schedule` (~02:00 UTC) + double-confirmed
   `workflow_dispatch` (`approve` job on the protected **`nocturne-manual`** Environment, then the
-  run in `ci` where secrets live). Holds the cost guardrails: `$/hr` cap input, monthly-ceiling
-  check that no-ops the cron when exceeded.
+  run in `ci` where secrets live). `permissions: issues: write` (open the survivor issue) +
+  `actions: write` (so it can `workflow_dispatch` `swe-af.yml` — the gate-satisfying hand-off, see
+  the strict-gate section). Holds the cost guardrails: `$/hr` cap input, monthly-ceiling check that
+  no-ops the cron when exceeded.
 - **Registry/docs**: `VAKED_AGENTS.md` (add `nocturne`), `docs/agents/ci.md`, this spec, a
   `tools/nocturne/README.md`. Update root `CLAUDE.md` "CI agent fleet" + status tables.
 
@@ -177,8 +209,12 @@ mutation, e.g. an `anthropic/claude-fable-5` / `deepseek-v4` tier).
   reviewer (no secrets — purely the manual-run approval gate, like `optitron-manual`).
 - **Monthly ceiling:** set the spend cap value (workflow input/secret) the cron checks before
   provisioning.
-- Social/issue plumbing is **already live** — reuses `social-post.yml` / `telegram-post.yml`
-  (staging files) and the `agent` label → `swe_af` trigger; no new setup.
+- Social plumbing is **already live** — reuses `social-post.yml` / `telegram-post.yml` (staging
+  files); no new setup there.
+- **swe_af hand-off:** the bare `agent` label does **not** trigger swe_af from a scheduled job
+  (owner-sender gate, `swe-af.yml` 39–42). nocturne `workflow_dispatch`es `swe-af.yml` instead —
+  so the only setup is granting the workflow `actions: write` (above). ⟨VERIFY⟩ mirror whatever
+  optitron/fleet-introspect do today.
 
 ## Verification
 
