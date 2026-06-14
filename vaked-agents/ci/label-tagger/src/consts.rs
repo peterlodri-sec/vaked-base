@@ -1,6 +1,6 @@
 //! Shared constants.
 
-pub(crate) const DEFAULT_MODEL: &str = "deepseek/deepseek-v4-flash";
+pub(crate) const DEFAULT_MODEL: &str = "openai/gpt-oss-120b";
 pub(crate) const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub(crate) const DEFAULT_MAX_ITERS: u32 = 6;
 pub(crate) const COMPACTION_BUDGET_TOKENS: usize = 80_000;
