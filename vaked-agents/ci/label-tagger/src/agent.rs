@@ -48,7 +48,8 @@ pub(crate) fn build_runner(cfg: &Config, api_key: &str) -> Result<TaggerRunner> 
         })
         .with_prompt_cache_key(CACHE_KEY)
         .with_provider_preferences(OpenRouterProviderPreferences {
-            allow_fallbacks: Some(true),
+            allow_fallbacks: Some(false),
+            order: Some(vec!["OpenAI".to_string()]),
             ..Default::default()
         })
         .insert_into_config(&mut gen_cfg)
