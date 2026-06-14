@@ -202,7 +202,10 @@ def call_ollama(host_url: str, system: str, user: str) -> dict:
             data = json.loads(resp.read())
     except urllib.error.URLError as exc:
         raise RuntimeError(f"Ollama unreachable at {host_url}: {exc}") from exc
-    choice = data["choices"][0]["message"]["content"]
+    choices = data.get("choices") or []
+    if not choices:
+        raise RuntimeError(f"Ollama returned no choices: {data}")
+    choice = choices[0]["message"]["content"]
     usage = data.get("usage", {})
     return {
         "text": choice,

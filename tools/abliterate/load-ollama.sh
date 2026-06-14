@@ -24,8 +24,15 @@ esac
 GGUF_PATH="${FUSED}.gguf"
 
 echo "==> Converting to GGUF (Q4_K_M)"
-python3 "$(brew --prefix llama.cpp)/bin/convert_hf_to_gguf.py" \
-  "$FUSED" --outtype q4_k_m --outfile "$GGUF_PATH"
+if command -v convert_hf_to_gguf.py &>/dev/null; then
+  CONVERT_SCRIPT="convert_hf_to_gguf.py"
+elif brew list llama.cpp &>/dev/null 2>&1; then
+  CONVERT_SCRIPT="$(brew --prefix llama.cpp)/bin/convert_hf_to_gguf.py"
+else
+  echo "ERROR: convert_hf_to_gguf.py not found. Install llama.cpp: brew install llama.cpp" >&2
+  exit 1
+fi
+python3 "$CONVERT_SCRIPT" "$FUSED" --outtype q4_k_m --outfile "$GGUF_PATH"
 
 echo "==> Creating Ollama model: $OLLAMA_NAME"
 MODELFILE=$(mktemp)
