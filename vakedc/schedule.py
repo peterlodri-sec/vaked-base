@@ -55,14 +55,36 @@ def fiber_ios(member_decls):
         inputs, outputs = set(), set()
         for st in d.body:
             if isinstance(st, P.Assignment):
-                rs = _ref_str(st.value)
-                if rs is None:
-                    continue
-                if st.target == "input":
-                    inputs.add(rs)
-                elif st.target == "output":
-                    outputs.add(rs)
+                if st.target in ("input", "output"):
+                    if isinstance(st.value, P.ListLit):
+                        # FIX 3: list-valued input/output
+                        for item in st.value.items:
+                            rs = _ref_str(item)
+                            if rs is not None:
+                                if st.target == "input":
+                                    inputs.add(rs)
+                                else:
+                                    outputs.add(rs)
+                    else:
+                        rs = _ref_str(st.value)
+                        if rs is not None:
+                            if st.target == "input":
+                                inputs.add(rs)
+                            else:
+                                outputs.add(rs)
         out.append(FiberIO(d.name, frozenset(inputs), frozenset(outputs)))
+    return out
+
+
+def retained_inputs(items):
+    """Ref-strings of streams declaring `retention` (0013 rewind precondition)."""
+    out = set()
+    for d in items:
+        if isinstance(d, P.Decl) and d.kind == "stream":
+            for st in d.body:
+                if isinstance(st, P.Assignment) and st.target == "retention":
+                    out.add("stream." + d.name)
+                    break
     return out
 
 

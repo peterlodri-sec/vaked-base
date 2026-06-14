@@ -310,7 +310,30 @@ def _test_exec_rewind_no_retention(lines):
 
 
 # --------------------------------------------------------------------------- #
-# 8. Capability refs in fiber policy + surface input
+# 8. Retention wiring — on rewind with a retained stream must NOT raise
+# --------------------------------------------------------------------------- #
+
+def _test_exec_rewind_with_retention(lines):
+    """FIX 2: stream with `retention` declared -> rewindable checkpoint -> no E-EXEC-REWIND-NO-RETENTION."""
+    cache = _builtins_cache()
+    src = (
+        'stream raw { retention = 24h }\n'
+        'fiber a { input = device.cam output = stream.raw }\n'
+        'fiber b { input = stream.raw output = artifacts.out }\n'
+        'parallel "p" { fibers = [a, b]\n'
+        '  lifecycle { on rewind { } } }\n'
+    )
+    diags = vakedc.check_source(src, "x.vaked", builtins_cache=cache)
+    codes = [d.code for d in diags]
+    if "E-EXEC-REWIND-NO-RETENTION" in codes:
+        lines.append(f"  FAIL: E-EXEC-REWIND-NO-RETENTION raised when retention IS declared; codes={codes}")
+        return False
+    lines.append("  E-EXEC-REWIND-NO-RETENTION: correctly suppressed when stream has retention")
+    return True
+
+
+# --------------------------------------------------------------------------- #
+# 9. Capability refs in fiber policy + surface input
 # --------------------------------------------------------------------------- #
 
 def _test_cap_fiber_policy(lines):
@@ -336,6 +359,7 @@ def run():
                _test_all_examples, _test_determinism,
                _test_exec_lifecycle_context, _test_exec_bad_transition,
                _test_exec_cycle, _test_exec_rewind_no_retention,
+               _test_exec_rewind_with_retention,
                _test_cap_fiber_policy):
         try:
             ok = fn(lines) and ok

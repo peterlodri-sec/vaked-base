@@ -133,6 +133,7 @@ def _t_overlay_schedule(lines):
 
 
 def _t_oracle(lines):
+    import json
     from vakedc.oracle import expected_behavior
     ok = True
     g = build_graph(parse_source(_WAVE_SRC, "w.vaked"), "w.vaked")
@@ -143,6 +144,52 @@ def _t_oracle(lines):
         ok = False; lines.append(f"  FAIL: 'pause' missing from control_alphabet: {b['control_alphabet']}")
     if "stop" not in b["control_alphabet"]:
         ok = False; lines.append(f"  FAIL: 'stop' missing from control_alphabet: {b['control_alphabet']}")
+    # FIX 6: P3 oracle golden — byte-for-byte check against committed golden
+    golden_path = os.path.join(HERE, "golden", "wavefront-oracle.json")
+    produced = json.dumps(b, sort_keys=True, indent=2) + "\n"
+    if not os.path.exists(golden_path):
+        ok = False; lines.append(f"  FAIL: missing oracle golden {golden_path}")
+    else:
+        expected = open(golden_path, encoding="utf-8").read()
+        if produced != expected:
+            ok = False; lines.append("  FAIL: oracle output differs from wavefront-oracle.json")
+            for i, (a, ev) in enumerate(zip(produced, expected)):
+                if a != ev:
+                    lines.append(f"    first diff at byte {i}: produced {a!r} vs golden {ev!r}")
+                    break
+            else:
+                lines.append(f"    length differs: produced {len(produced)} vs golden {len(expected)}")
+    return ok
+
+
+def _t_p1_monotone(lines):
+    """FIX 5: spec §7 P1 — for every dep (a, b, via), levels[a] > levels[b]."""
+    import random
+    random.seed(1234)
+    ok = True
+    for _round in range(5):
+        n = 15
+        # Build acyclic deps: fiber i can only depend on fiber j < i (j produces out_j, i consumes it)
+        fiber_outputs = {j: f"out{j}" for j in range(n)}
+        fiber_inputs = {}
+        for i in range(n):
+            # pick 0–3 deps from fibers with index < i
+            pool = list(range(i))
+            k = min(len(pool), random.randint(0, 3))
+            deps = random.sample(pool, k) if pool else []
+            fiber_inputs[i] = frozenset(fiber_outputs[j] for j in deps)
+        ios = [
+            FiberIO(f"f{i}", fiber_inputs[i], frozenset({fiber_outputs[i]}))
+            for i in range(n)
+        ]
+        s = compute_schedule(ios)
+        if s.cycle is not None:
+            ok = False; lines.append(f"  FAIL P1 round {_round}: unexpected cycle {s.cycle}"); continue
+        for a, b, via in s.deps:
+            if s.levels[a] <= s.levels[b]:
+                ok = False
+                lines.append(f"  FAIL P1 round {_round}: dep ({a}->{b} via {via}) "
+                              f"levels[{a}]={s.levels[a]} not > levels[{b}]={s.levels[b]}")
     return ok
 
 
@@ -153,7 +200,7 @@ def _t_oracle(lines):
 def run():
     lines = []
     ok = True
-    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle, _t_overlay_caps, _t_overlay_schedule, _t_oracle):
+    for fn in (_t_levels, _t_cycle, _t_overlay_lifecycle, _t_overlay_caps, _t_overlay_schedule, _t_oracle, _t_p1_monotone):
         try:
             ok = fn(lines) and ok
         except Exception as e:

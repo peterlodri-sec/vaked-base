@@ -1190,20 +1190,25 @@ def _check_execution(items, registry, smap, filename, diags):
                                                registry, filename, span, it, diags)
 
     # E-EXEC-CYCLE + E-EXEC-REWIND-NO-RETENTION: check each parallel group.
-    from .schedule import fiber_ios, member_names, compute_schedule
+    from .schedule import fiber_ios, member_names, compute_schedule, retained_inputs
+    retained = retained_inputs(items)
     decl_by_name = {d.name: d for d in items if isinstance(d, P.Decl)}
     for it in items:
         if isinstance(it, P.Decl) and it.kind == "parallel":
             members = [decl_by_name[n] for n in member_names(it) if n in decl_by_name]
-            sched = compute_schedule(fiber_ios(members))
+            sched = compute_schedule(fiber_ios(members), retained=retained)
             if sched.cycle is not None:
                 _emit(diags, "E-EXEC-CYCLE", filename, _decl_span(it), it,
                       f"dependency cycle among fibers: {' -> '.join(sched.cycle)}")
                 continue
-            has_rewind = any(
-                isinstance(st, P.LifecycleDecl)
-                and any(cl.event == "rewind" for cl in st.clauses)
-                for st in it.body)
+            # FIX 4: has_rewind — also scan member fiber lifecycle blocks
+            def _has_rewind_in_body(body):
+                return any(
+                    isinstance(st, P.LifecycleDecl)
+                    and any(cl.event == "rewind" for cl in st.clauses)
+                    for st in body)
+            has_rewind = _has_rewind_in_body(it.body) or any(
+                _has_rewind_in_body(m.body) for m in members)
             if has_rewind and not any(sched.rewindable.get(lv) for lv in sched.checkpoints):
                 _emit(diags, "E-EXEC-REWIND-NO-RETENTION", filename, _decl_span(it), it,
                       "`on rewind` requires an input stream with `retention`; "
