@@ -182,9 +182,18 @@ pub(crate) async fn run_review() -> Result<()> {
         };
         stages.push(("review", st.elapsed().as_secs_f64()));
 
-        let (review, n_findings, n_blocking) = render_review(&raw_review, cfg.max_findings as usize);
-        if review.is_empty() {
-            return Err(anyhow!("model returned empty review"));
+        let (mut review, n_findings, n_blocking) = render_review(&raw_review, cfg.max_findings as usize);
+        // Degenerate-output guard. When the structured reviewer returns no parseable
+        // structured review, the model narrated its tool intent ("I'll start by
+        // reading the files…") instead of reviewing — the failure mode that silently
+        // shipped empty/terse reviews while CI stayed green (the comment was either
+        // dropped, or the raw preamble was posted as the "review"). Replace it with a
+        // VISIBLE no-op note (findings=0) so a non-reviewing run can never hide again.
+        let degenerate = review.trim().is_empty()
+            || (cfg.structured && parse_structured(&raw_review).is_none());
+        if degenerate {
+            warn!(raw_len = raw_review.len(), "reviewer returned no usable structured review — posting a visible no-op note");
+            review = "⚠️ _The reviewer model returned no usable review_ — it narrated tool intent instead of emitting the structured findings (a known failure mode of non-tool-driving models on large diffs). No findings reported; nothing to act on here. If this recurs, point `PR_REVIEW_MODEL` at a tool-driving model.".to_string();
         }
         // Structured findings (if any) drive the inline ```suggestion``` comments.
         let findings = parse_structured(&raw_review)
