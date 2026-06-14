@@ -60,3 +60,38 @@
 **Confidence**
 **High.** Adding a domain type is a bounded extension to the existing 13 kinds (0011 §2.3) and follows the same structural
 
+## 2026-06-14 — Decision #3: Decision / question: Decide whether to merge ‘memory’ into the type system as a 
+- **Track:** graph-concept · **Models:** stage1 deepseek-v4-flash · stage2 deepseek-v4-pro
+- **Context snapshot:** HEAD 5806db2, 7 open issues
+
+**Decision / question:** Decide whether to merge ‘memory’ into the type system as a first‑class primitive or keep it as a runtime‑only concept.
+
+**Options**
+1. **First‑class primitive** — Add `memory` as a new top‑level kind in the grammar, built‑in schema catalog, type‑checker, and lowering pipeline. The schema uses only existing refinements (`nonempty`, `oneof`, `required`, `optional`) and the new `mem` capability domain preserves the partial‑order discipline of `docs/language/0011-type-system.md` §4. The checker validates memory declarations under the closed constraint set (`docs/language/0011-type-system.md` §3). Lowering emits pure projection artifacts per `docs/language/0012-lowering.md` §2.4. The runtime daemon (`memoryd`) is deferred, consistent with the staged adoption pattern of `docs/language/0013-mlir-topology-compilation.md`.
+2. **Runtime‑only** — Keep the `memory` semantics entirely outside the language; agents interact with an opaque runtime service via streams/APIs, with no language‑level declaration, type‑checking, or lowering.
+3. **Hybrid** — Accept `memory` in the type system only as a declaration container that stores schema/metadata, but defer the runtime integration (lowering emits configs referencing a future daemon). This is a subset of Option 1; the full first‑class path is straighter.
+
+**Recommendation**
+**Option 1 — first‑class primitive.** The `memory` shape described in `docs/language/0014-memory-primitive.md` fits as a new domain type in the type system defined by `docs/language/0011-type-system.md`. The schema uses only existing refinements (`docs/language/0011-type-system.md` §3). The checker can validate memory declarations with no new evaluation or side‑effects (`docs/language/0011-type-system.md` §6.2). Lowering can emit `gen/memory/<name>.json` as a pure graph projection (`docs/language/0012-lowering.md` §2.4), and the `memory.store` emitter has already been registered in the 0012 §3.4 registry. Making ‘memory’ first‑class gives agents a typed, capability‑checked declaration for their runtime memories, integrates with the `eventd` log (issue #18), and provides the foundation for eventual `memoryd` implementation without adding compiler‑time dependence on the runtime.
+
+**Risks**
+- **Dead artifact until runtime exists** — The `gen/memory/<name>.json` artifacts will reference a `memoryd` daemon that does not yet exist. This is acceptable because the artifact is still inspectable and the daemon is explicitly deferred; the same pattern is used for the pending `workflow.spec` emitter (issue #27).
+- **Grammar and checker surface** — Adding a new top‑level kind requires a production in `vaked/grammar/vaked-v0-plus.ebnf`, a schema entry in `vaked/schema/parallel-types.md`, and a new case in the elaboration/conformance stages. The risk is bounded because no new constraint types or evaluation are introduced; the closed constraint set (`docs/language/0011-type-system.md` §3) still covers memory’s fields.
+- **Capability domain naming collision** — The natural domain name `memory` would collide with a `schema memory` declaration in the LPG’s kind‑agnostic ids (issue #25). Using the domain name `mem` avoids the collision but introduces an inconsistency between the kind name `memory` and its capability domain `mem`. This is a documentation concern.
+- **Scope creep into runtime state** — The `memory` primitive introduces runtime‑appended mutable state. The design explicitly separates declaration (checked at compiler time) from runtime effects (`docs/language/0014-memory-primitive.md` §Semantics), preserving the “validate before generating” invariant. This boundary must be enforced strictly as the runtime implementation evolves.
+
+**Next actions**
+1. **Open PR to add `memory` to the grammar and schema**  
+   - Add the `memory` production to `vaked/grammar/vaked-v0-plus.ebnf` (top‑level kind) using the field set from `docs/language/0014-memory-primitive.md`.  
+   - Register the `memory` schema in `vaked/schema/parallel-types.md`, including the `mem` capability domain with order `none < recall < append < admin`.
+2. **Extend the checker**  
+   - In the elaboration stage (`docs/language/0011-type-system.md` §6.1), add a case for `memory` nodes that applies standard record conformance (same pattern as `index`, `catalog`, etc.).  
+   - Validate the `source` field’s `nonempty` constraint, the `scope` `oneof`, and the capability‑flow for the `mem` domain.
+3. **Implement the `memory.store` lowering emitter**  
+   - Existing registry entry (`docs/language/0012-lowering.md` §3.4) lists `memory.store`; implement the emitter that projects each `memory` node into `gen/memory/<name>.json` (pure structural mapping per 0012 §2.4).  
+   - Emit the `gen/eventd.json` log‑contract artifact whenever a runtime declares any `memory` or `workflow`.
+4. **Tracking issue for the runtime daemon**  
+   - Create an issue (linked to #24) to design and implement `memoryd` — the mining daemon that consumes source streams, appends to `eventd`, and serves recall queries. Mark it as post‑MVP and note that lowering artifacts already define the contract.
+
+**Confidence:** High — The type system’s extensibility with new domain types is proven (`docs/language/0011-type-system.md` §2.3 lists 13 kinds; adding a 14th is a bounded change). The design note (`docs/language/0014-memory-primitive.md`) provides a concrete, constraint‑compatible schema, and the lowering interface is already defined in 0012’s emitter registry. The only deferred work is the runtime daemon, which does not block language integration.
+
