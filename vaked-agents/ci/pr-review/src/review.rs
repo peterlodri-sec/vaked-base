@@ -189,8 +189,17 @@ pub(crate) async fn run_review() -> Result<()> {
         // shipped empty/terse reviews while CI stayed green (the comment was either
         // dropped, or the raw preamble was posted as the "review"). Replace it with a
         // VISIBLE no-op note (findings=0) so a non-reviewing run can never hide again.
+        // Fire ONLY when there is genuinely no review to show: an empty body, or a
+        // structured run that produced neither parseable JSON nor any markdown review
+        // signal (no counted findings AND no verdict) — i.e. the model narrated instead
+        // of reviewing. A provider/OpenRouter fallback that ignored `response_schema`
+        // but still returned real `### …` / `- `path:line`` findings or a `**Verdict:**`
+        // is a legitimate markdown review and is left untouched (don't hide findings).
         let degenerate = review.trim().is_empty()
-            || (cfg.structured && parse_structured(&raw_review).is_none());
+            || (cfg.structured
+                && parse_structured(&raw_review).is_none()
+                && n_findings == 0
+                && !review.contains("**Verdict"));
         if degenerate {
             warn!(raw_len = raw_review.len(), "reviewer returned no usable structured review — posting a visible no-op note");
             review = "⚠️ _The reviewer model returned no usable review_ — it narrated tool intent instead of emitting the structured findings (a known failure mode of non-tool-driving models on large diffs). No findings reported; nothing to act on here. If this recurs, point `PR_REVIEW_MODEL` at a tool-driving model.".to_string();
