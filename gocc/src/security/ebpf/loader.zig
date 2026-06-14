@@ -26,11 +26,13 @@ pub const EbpfError = error{
 pub const GuardHandle = struct {
     /// Opaque handle — null on non-Linux or when BPF LSM is unavailable.
     inner: ?*anyopaque = null,
+    /// True when the guard is a no-op stub (macOS, no BPF LSM, or libbpf not yet wired).
+    /// False only when libbpf is fully wired and the guard is actively enforcing.
+    is_stub: bool = true,
 
     pub fn deinit(self: *GuardHandle) void {
         if (self.inner) |_| {
-            // Real implementation: call bpf_object__destroy(inner) via
-            // cImport of libbpf.  Stubbed until libbpf cImport lands.
+            // TODO(phase6): call bpf_object__destroy(inner) via cImport of libbpf.
             self.inner = null;
         }
     }
@@ -62,7 +64,7 @@ pub fn checkBpfLsmAvailable() bool {
 pub fn loadGuard() EbpfError!GuardHandle {
     if (builtin.os.tag != .linux) {
         std.log.info("gocc eBPF guard: not available on {s}, skipping", .{@tagName(builtin.os.tag)});
-        return .{};
+        return .{ .is_stub = true };
     }
 
     if (!checkBpfLsmAvailable()) {
@@ -77,7 +79,7 @@ pub fn loadGuard() EbpfError!GuardHandle {
     //   // attach LSM + tracepoint programs ...
     //   return GuardHandle{ .inner = obj };
     std.log.info("gocc eBPF guard: BPF LSM available, loading guard.bpf.o (stub)", .{});
-    return .{};
+    return .{ .is_stub = true };
 }
 
 /// Register a tgid as authorized in the BPF map.
@@ -118,5 +120,14 @@ test "authorizeProcess on inactive handle is a no-op" {
 test "GuardHandle.deinit clears inner" {
     var handle = GuardHandle{ .inner = null };
     handle.deinit();
+    try std.testing.expect(!handle.isActive());
+}
+
+test "GuardHandle.deinit reaches inner branch when inner is set" {
+    // Set a non-null sentinel value to force the `if (self.inner) |_|` branch.
+    // This does NOT call bpf_object__destroy — libbpf is not wired yet (TODO phase6).
+    var handle = GuardHandle{ .inner = @ptrFromInt(1) };
+    handle.deinit();
+    try std.testing.expect(handle.inner == null);
     try std.testing.expect(!handle.isActive());
 }

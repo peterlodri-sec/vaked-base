@@ -10,14 +10,15 @@
 // redefinition errors.
 
 #include <linux/bpf.h>
+#include <linux/errno.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 #include <bpf/bpf_tracing.h>
 
-// Map: tgid (u32) → enforcement_flags (u8)
+// Map: ppid/tgid (u32) → enforcement_flags (u8)
+// Key 0xFFFFFFFF = sentinel meaning "guard is armed/initialized"
 // 0x01 = enforce process spawn
-// 0x02 = enforce file access
-// 0x00 / absent = unauthorized
+// 0x00 = not authorized
 //
 // Note: keys are the *current* thread-group ID (tgid) of the spawning
 // process, not its parent PID.  bpf_get_current_pid_tgid() >> 32 gives
@@ -38,16 +39,15 @@ struct {
 SEC("lsm/bprm_check_security")
 int BPF_PROG(bprm_check_security, struct linux_binprm *bprm)
 {
-    u32 ppid = (u32)(bpf_get_current_pid_tgid() >> 32);
-    u8 *flags = bpf_map_lookup_elem(&authorized_ppids, &ppid);
-    if (flags == NULL) {
-        // tgid not in authorized map — block spawn
-        return -EACCES;
-    }
-    if (!(*flags & 0x01)) {
-        // spawn-enforcement flag not set
-        return -EACCES;
-    }
+    // Only enforce when guard is armed (sentinel key 0xFFFFFFFF present).
+    // Without this, an empty map at attach time would block every execve and halt the system.
+    u32 sentinel_key = 0xFFFFFFFF;
+    u8 *armed = bpf_map_lookup_elem(&authorized_ppids, &sentinel_key);
+    if (armed == NULL) return 0; // guard not yet armed — allow through
+
+    u32 tgid = bpf_get_current_pid_tgid() >> 32;
+    u8 *flags = bpf_map_lookup_elem(&authorized_ppids, &tgid);
+    if (flags == NULL || !(*flags & 0x01)) return -EACCES;
     return 0;
 }
 
