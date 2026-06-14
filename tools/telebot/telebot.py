@@ -430,7 +430,9 @@ def _load_credentials() -> None:
         pass
 
 
-def run_daemon() -> int:
+def run_daemon(max_seconds: "float | None" = None) -> int:
+    """Long-poll the bot. ``max_seconds`` bounds the run (a single GitHub Actions
+    session) — the persistent crabcc.app daemon leaves it None and runs forever."""
     _load_credentials()
     token = os.environ.get("TELEGRAM_TOKEN")
     repo = os.environ.get("GITHUB_REPOSITORY", "peterlodri-sec/vaked-base")
@@ -445,11 +447,15 @@ def run_daemon() -> int:
               train=(lambda: _train_snapshot(gh_ops)) if gh_ops else None,
               llm=_openrouter, decisions=None)
     offset = _read_offset()
-    sys.stderr.write("telebot: long-polling as %s for chat %d (admins=%s)\n"
-                     % (repo, chat_id, sorted(admins)))
-    while True:
+    deadline = (time.time() + max_seconds) if max_seconds else None
+    sys.stderr.write("telebot: long-polling as %s for chat %d (admins=%s%s)\n"
+                     % (repo, chat_id, sorted(admins),
+                        ", %ds budget" % max_seconds if max_seconds else ""))
+    while deadline is None or time.time() < deadline:
+        # cap the long-poll so we never overshoot a bounded deadline.
+        poll = 50 if deadline is None else max(1, min(50, int(deadline - time.time())))
         resp = _tg(token, "getUpdates",
-                   {"offset": offset, "timeout": 50,
+                   {"offset": offset, "timeout": poll,
                     "allowed_updates": ["message", "callback_query"]})
         for raw in resp.get("result", []):
             offset = max(offset, raw["update_id"] + 1)
@@ -464,7 +470,13 @@ def run_daemon() -> int:
         _write_offset(offset)
         if not resp.get("ok", True):
             time.sleep(5)                   # back off on API error
+    return 0
 
 
 if __name__ == "__main__":
-    sys.exit(run_daemon())
+    import argparse
+    ap = argparse.ArgumentParser(prog="telebot")
+    ap.add_argument("--run-seconds", type=float, default=None,
+                    help="bound the run (for a GitHub Actions session); default: forever")
+    a = ap.parse_args()
+    sys.exit(run_daemon(max_seconds=a.run_seconds))

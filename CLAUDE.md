@@ -8,22 +8,28 @@ Foundation monorepo for the **Vaked** agentic-runtime ecosystem.
 
 Vaked is a flake-native **capability-graph language**. A Vaked declaration compiles to a typed semantic graph, then to artifacts: `flake.nix` / NixOS modules, Zig daemon configs, eBPF policy manifests, OTel config, CrabCC indexes, and docs. Those run on a NixOS host under an OTP supervision plane that orchestrates single-purpose Zig enforcement daemons, with eBPF as the evidence layer and operator surfaces on top.
 
-This repo is currently a **scaffold**: the language track is real design content; runtime and protocol are indexed stubs. See `README.md` for the full repo map and `docs/context/PROJECT_CONTEXT.md` for the canonical overview.
+Language + compiler are **done**. Protocol has 7 RFCs. Two runtime reference daemons exist. See `README.md` for the full repo map and `docs/context/PROJECT_CONTEXT.md` for the canonical overview.
 
 ## Structure
 
 | Path | Purpose |
 |------|---------|
 | `vaked/` | The language — `grammar/vaked-v0-plus.ebnf`, `schema/`, `examples/` |
-| `docs/language/` | Design series `0001…0010` + `references/` |
+| `vakedc/` | Python prototype front-end — parse → check → lower (stages 1–4) |
+| `vakedz/` | Zig production front-end — cache-native port of vakedc; min Zig 0.16 |
+| `docs/language/` | Design series `0001…0018` + `references/` |
 | `docs/context/` | `PROJECT_CONTEXT.md` (canonical overview) |
-| `docs/runtime/`, `daemons/` | Runtime daemon roster (OTP + Zig) — stub |
-| `docs/protocol/`, `protocol/` | HCP / Litany protocol + RFCs — stub |
+| `docs/runtime/`, `daemons/` | Runtime daemon roster (OTP + Zig) |
+| `docs/protocol/`, `protocol/` | HCP / Litany protocol + RFCs 0001–0007 |
+| `vaked-agents/` | Agent fleet — pr-review, swe_af, provost, ralph, docs-keeper, merge-train |
+| `tools/ralph/` | Autonomous track decision loop — commits ledger entry, announces |
+| `agent_guardd/` | Reference daemon — network/eBPF membrane (deny-by-default egress) |
+| `eventd/` | Reference daemon — append-only hash-chained event log |
 | `prompts/` | `dedicated-language-session.md` kickoff prompt |
 | `hosts/` | `vakedos` bare-metal NixOS host — the materialization target (EPYC 4345P); deploy guide in [`DEPLOY.md`](DEPLOY.md) |
 | `flake.nix` | Dev shell (Zig, BEAM/OTP, Rust for CrabCC, tooling) + `nixosConfigurations.vakedos` |
 | `.mcp.json` | Project MCP servers |
-| `.claude/skills/` | `vaked-language-author`, `hcp-rfc-author` |
+| `.claude/skills/` | `vaked-language-author`, `hcp-rfc-author`, `vaked-compiler-dev`, `vaked-engineer-onboarding`, `caveman`, `mastodon-poster` |
 
 ## Conventions
 
@@ -32,9 +38,81 @@ This repo is currently a **scaffold**: the language track is real design content
 - **Each subsystem (language impl, each daemon, the wire protocol) gets its own design → plan → implementation cycle.** Don't implement a daemon inline; scaffold its spec first.
 - **Dev shell:** `nix develop` provides the toolchains. Zig/Erlang/Elixir are not assumed to be globally installed.
 
+## 🚫 NEVER BUILD ON DEVELOPER MACHINE
+
+**This is a project-wide rule. No build, compile, link, or package step is allowed on the developer machine (M1 MacBook).**
+
+A "build" includes any of: `cargo build`, `cargo test`, `cargo check --workspace`, `zig build`, `nix build`, `docker build`, `nix develop` (with build side-effects), `pip install -e`, `python setup.py`, `make`, or any `run_verifiers` invocation that triggers a compile/link/test cascade (e.g. `rust-fmt`, `rust-check`, `rust-metadata`, `rust-test`).
+
+**Allowed on the developer machine:** `nix develop` (shell entry only, no builds), `cargo fmt -- --check` (format-only, no compile), `cargo clippy` (lint-only, no compile), reading files, editing files, git operations, static analysis that doesn't compile.
+
+### 3-gate verify-confirm protocol
+
+Before any build command is issued, the agent MUST pass all three gates using **default native tools only** (no MCP, no external services):
+
+| Gate | Action | Tool / Check |
+|------|--------|--------------|
+| **Gate 1 — Target verification** | Confirm the build target is NOT the developer machine. Verify the target host is reachable, has the required toolchain, and has sufficient disk/memory. | `ssh <target> 'which <compiler> && df -h / && free -h'` |
+| **Gate 2 — Intent confirmation** | Present the exact build command(s) to the user, with target host, estimated duration, and risk. Require explicit user approval. | `request_user_input` or explicit approval prompt listing: command, target, duration estimate, risk level |
+| **Gate 3 — Pre-flight check** | On the target host, verify: repo is synced (`git status`, `git log -1`), no dirty working tree, toolchain version matches expected. Run a dry-run or `--check` equivalent if available. | `ssh <target> 'cd <path> && git status && <compiler> --version && <build-cmd> --dry-run 2>&1 \|\| <build-cmd> --check 2>&1'` |
+
+**All three gates must pass in sequence.** If any gate fails, the build is blocked. If the user explicitly overrides the rule (with a clear statement like "I understand the risk, build on my machine"), Gate 2 substitutes the user's explicit override as approval — Gates 1 and 3 still run, adapted to the local machine.
+
+**Preferred build target:** `dev-cx53` (Linux, Nix 2.34.7, 30GB RAM, Tailscale-accessible via `ssh dev-cx53`). Fallback: GitHub Actions via `mcp__github__actions_run_trigger`.
+
+## Status (2026-06-13)
+
+WP1 language ✅  WP2 vakedc ✅  WP3 wire-protocol ⏳ (start Jun 24)  WP4 daemons ⏳ (start Jun 24)
+
+- grammar v0.3 · 29 kinds
+- 100k workers verified (273ms avg, deterministic) · 1M projected
+- RFCs 0001–0007 (HCP · hcplang · Litany · multi-agent · control frames · transport · PQ-sealed image)
+- vakedz v0.1.0 (Zig 0.16) · vakedc (Python, stdlib-only)
+
+## vakedz — Zig front-end
+
+```
+zig build                    # → zig-out/bin/vakedz
+zig build run -- parse <file>
+zig build test
+```
+Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external deps.
+
+## CI agent fleet
+
+| Agent | Role |
+|-------|------|
+| `pr-review` | advisory diff review (never blocks merge) |
+| `@vaked-ci` | responds to maintainer `@vaked-ci` comments |
+| `ralph` | autonomous track decision loop — picks track, commits ledger |
+| `docs-keeper` | RFC/doc drift gate |
+| `merge-train` | advisory merge planner |
+| `swe_af` | SWE agent field — runs on GHA, uses OpenRouter |
+| `provost` | multi-step automation |
+| `social-post` | Mastodon dev-feed (Carcin persona) |
+| `label-tagger` | auto-labels PRs/issues |
+
 ## Security / Snyk
 
 **Snyk is OFF for this project.** The global "Snyk at inception" directive does **not** apply here (explicit owner decision, 2026-06-08). Do **not** run `snyk_code_scan` in this repo. If that decision is reversed, remove this section.
+
+## Landing-Guru Agent
+
+Automated landing page maintenance loop. Ensures landing readiness via scheduled checks, cache freshness, and Slack alerting.
+
+| Item | Value |
+|------|-------|
+| **Purpose** | Maintain `.landing-cache/` coherence, validate landing page generation, alert on drift |
+| **Cache dir** | `.landing-cache/` (gitignored; local agent artifacts only) |
+| **Run** | `bash scripts/landing-guru.sh [--dry-run\|--full\|--test-slack]` |
+| **CI trigger** | `.github/workflows/landing-guru.yml` (cron every 3h) |
+| **Slack alerts** | Via `SLACK_WEBHOOK_LANDING` env var (set in GitHub → Settings → Environments → `ci`) |
+| **Generated files** | `docs/website/index.html`, `docs/website/examples.html`, `docs/website/docs.html` (gitignored) |
+
+**Flags:**
+- `--dry-run`: validate cache state, report issues, exit 0 (no modifications)
+- `--full`: regenerate all landing pages from `docs/website/landing/base.html` template
+- `--test-slack`: trigger a test alert to `SLACK_WEBHOOK_LANDING` (verify hook is live)
 
 ## MCP servers (`.mcp.json`)
 

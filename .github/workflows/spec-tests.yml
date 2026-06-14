@@ -17,7 +17,27 @@ on:
       - 'v*'
     branches:
       - main
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'hosts/**'
+      - 'nix/**'
+      - 'vaked/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'eventd/**'
+      - '.github/workflows/spec-tests.yml'
   pull_request:
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'hosts/**'
+      - 'nix/**'
+      - 'vaked/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'eventd/**'
+      - '.github/workflows/spec-tests.yml'
   workflow_dispatch:
 
 permissions:
@@ -66,6 +86,38 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: "❌ spec-tests (python-spec) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
+  optitron-go:
+    # vaked-optitron's Go (Eino) suite: the single-writer hash-chained ledger
+    # (incl. a concurrent-append race test), the deterministic gate, and a real
+    # compiled C micro-benchmark. Offline — no OpenRouter calls.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: tools/optitron/go.sum
+
+      - name: go vet + test (race)
+        run: |
+          cd tools/optitron
+          test -z "$(gofmt -l .)" || { echo "::error::gofmt"; gofmt -l .; exit 1; }
+          go vet ./...
+          go test -race ./...
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ spec-tests (optitron-go) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
   nix-parse:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -78,6 +130,9 @@ jobs:
       # builds or fetches, so the fixtures' placeholder revs are never resolved.
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Cache Nix store
+        uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Parse-check flake.nix fixtures (parse only — no build, no fetch)
         run: |
@@ -104,27 +159,30 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
 
+      # Backs the Nix store with GitHub Actions cache so nixpkgs/disko tarballs
+      # are served from cache on subsequent runs instead of re-fetched from GitHub.
+      - name: Cache Nix store
+        uses: DeterminateSystems/magic-nix-cache-action@v8
+
       # Real EVALUATION check of the root flake: every output (devShells, formatter,
       # and crucially nixosConfigurations.vakedos — the host config) must evaluate.
       #   --no-build   evaluate, don't realize: still instantiates the vakedos
-      #                toplevel derivation graph, but never tries to BUILD the
-      #                x86_64-darwin / aarch64-* devShells (which can't build on a
-      #                Linux runner) or the host closure.
-      #   --all-systems evaluate outputs for every declared system, not just the runner's.
-      # No flake.lock is committed yet, so this resolves nixpkgs (nixos-unstable) +
-      # disko at run time. Committing `flake.lock` (via `nix flake lock`) is the
-      # follow-up for full reproducibility + binary-cache hits. The lowering-FIXTURE
-      # flakes (placeholder revs) stay on the parse-only nix-parse job — never checked.
+      #                toplevel derivation graph but never builds anything.
+      # Checks only x86_64-linux (the runner's native system) — no --all-systems,
+      # which would multiply evaluation 4× across darwin/aarch64 for no CI benefit.
+      # nixosConfigurations.vakedos is platform-independent in the outputs map and
+      # is always evaluated. The lowering-FIXTURE flakes (placeholder revs) stay on
+      # the parse-only nix-parse job — never checked.
       - name: nix flake check (evaluate all outputs, no build)
         id: flakecheck
         run: |
           set -o pipefail
-          nix flake check --no-build --all-systems 2>&1 | tee nix-check.log
+          nix flake check --no-build 2>&1 | tee nix-check.log
 
       - name: Publish nix-check to step summary
         if: always()
         run: |
-          echo "## nix-check (\`nix flake check --no-build --all-systems\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "## nix-check (\`nix flake check --no-build\`)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           tail -n 200 nix-check.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no log produced)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -161,6 +219,6 @@ jobs:
           token: ${{ secrets.TELEGRAM_TOKEN }}
           message: |
             ${{ job.status == 'success' && '✅' || '❌' }} nix-check: ${{ job.status }} on ${{ github.ref_name }}
-            ran: nix flake check --no-build --all-systems
+            ran: nix flake check --no-build
             ${{ steps.sum.outputs.tail }}
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

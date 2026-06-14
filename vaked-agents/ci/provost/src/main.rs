@@ -44,14 +44,10 @@ use adk_rust::{RetryBudget, ToolExecutionStrategy};
 use adk_runner::compaction::{CompactionConfig, TruncationCompaction};
 use anyhow::{Context, Result, anyhow};
 use futures::StreamExt;
-use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tracing::{info, warn};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing::warn;
 
 mod guardrails;
 
@@ -361,51 +357,12 @@ fn noop_json() -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Tracing (identical pattern to label-tagger / pr-review)
+// Tracing → self-hosted Langfuse, via the shared `vaked-telemetry` crate
+// (single source of truth for the LANGFUSE_* env resolution).
 // ---------------------------------------------------------------------------
 
 fn setup_tracing() -> Option<SdkTracerProvider> {
-    let base = std::env::var("LANGFUSE_URL").ok().filter(|s| !s.is_empty())?;
-    let token = std::env::var("LANGFUSE_API_KEY").ok().filter(|s| !s.is_empty());
-    let endpoint = format!("{}/api/public/otel/v1/traces", base.trim_end_matches('/'));
-    let mut headers = HashMap::new();
-    if let Some(token) = token {
-        headers.insert("Authorization".to_string(), format!("Basic {token}"));
-    }
-    let exporter = match opentelemetry_otlp::SpanExporter::builder()
-        .with_http()
-        .with_endpoint(&endpoint)
-        .with_headers(headers)
-        .build()
-    {
-        Ok(e) => e,
-        Err(e) => {
-            eprintln!("provost: Langfuse exporter init failed: {e}");
-            return None;
-        }
-    };
-    let resource = opentelemetry_sdk::Resource::builder_empty()
-        .with_attributes([opentelemetry::KeyValue::new("service.name", "vaked-provost")])
-        .build();
-    let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
-        .with_resource(resource)
-        .build();
-    let tracer = provider.tracer("vaked-provost");
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    // Disable ANSI color when stderr isn't a terminal (CI) or NO_COLOR is set.
-    let use_ansi = std::io::IsTerminal::is_terminal(&std::io::stderr())
-        && std::env::var("NO_COLOR").is_err();
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr).with_ansi(use_ansi))
-        .with(tracing_opentelemetry::layer().with_tracer(tracer))
-        .try_init()
-        .ok();
-    opentelemetry::global::set_tracer_provider(provider.clone());
-    info!(langfuse.endpoint = %endpoint, "Langfuse tracing enabled");
-    Some(provider)
+    vaked_telemetry::setup_tracing("vaked-provost", "vaked-provost")
 }
 
 // ---------------------------------------------------------------------------
@@ -802,19 +759,22 @@ struct IssueLite {
 fn fetch_gh_state(cfg: &Config) -> GhState {
     let mut state = GhState::default();
 
-    // Open issues with labels + milestone.
+    // Open issues — jq-projected to only the fields we use, so the wire payload
+    // is ~90% smaller than fetching full issue JSON.
     let limit = MAX_ISSUES.to_string();
+    let jq = r#"[.[] | {number, title, labels: [.labels[].name], milestone: .milestone.title}]"#;
     if let Ok(raw) = gh(&[
         "issue", "list", "--repo", &cfg.repo, "--state", "open",
         "--limit", &limit, "--json", "number,title,labels,milestone",
+        "--jq", jq,
     ]) {
         if let Ok(Value::Array(arr)) = serde_json::from_str::<Value>(&raw) {
             for v in arr {
                 let labels: Vec<String> = v["labels"]
                     .as_array()
-                    .map(|a| a.iter().filter_map(|l| l["name"].as_str().map(String::from)).collect())
+                    .map(|a| a.iter().filter_map(|l| l.as_str().map(String::from)).collect())
                     .unwrap_or_default();
-                let milestone = v["milestone"]["title"].as_str().map(String::from);
+                let milestone = v["milestone"].as_str().map(String::from);
                 let is_epic = labels.iter().any(|l| l == EPIC_LABEL);
                 state.issues.push(IssueLite {
                     number: v["number"].as_u64().unwrap_or(0),
@@ -826,7 +786,7 @@ fn fetch_gh_state(cfg: &Config) -> GhState {
             }
         }
     } else {
-        warn!("could not list issues (no GH_TOKEN?) — proceeding with empty issue set");
+        eprintln!("provost: could not list issues (no GH_TOKEN?) — proceeding with empty issue set");
     }
 
     // Milestone titles.
@@ -976,23 +936,36 @@ fn deterministic_plan(rfcs: &[RfcMeta]) -> ProvostOutput {
 // Orchestration
 // ---------------------------------------------------------------------------
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_SHA: &str = env!("GIT_SHA");
+
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("vaked-provost {VERSION}+{GIT_SHA}");
+        return;
+    }
+
     let tracer_provider = setup_tracing();
 
     let code = match run().await {
         Ok(()) => 0,
         Err(e) => {
-            warn!(error = %e, "provost failed (advisory — exiting 0)");
-            eprintln!("provost: {e:#}");
+                eprintln!("provost: {e:#}");
             println!("{}", noop_json());
             0
         }
     };
 
     if let Some(provider) = tracer_provider {
+        // Short-lived process: force_flush drains the batch span processor before
+        // shutdown, so the run's trace reliably reaches Langfuse instead of being
+        // dropped on exit.
+        if let Err(e) = provider.force_flush() {
+            eprintln!("provost: telemetry force_flush failed: {e}");
+        }
         if let Err(e) = provider.shutdown() {
-            eprintln!("provost: telemetry flush failed: {e}");
+            eprintln!("provost: telemetry shutdown failed: {e}");
         }
     }
     std::process::exit(code);
@@ -1004,21 +977,11 @@ async fn run() -> Result<()> {
     let rfcs = scan_rfcs();
     let specs = scan_specs();
     let gh_state = fetch_gh_state(&cfg);
-    info!(
-        rfcs = rfcs.len(),
-        specs = specs.len(),
-        issues = gh_state.issues.len(),
-        milestones = gh_state.milestones.len(),
-        mode = cfg.mode.as_str(),
-        "scanned project graph"
-    );
-
     let output = match cfg.api_key.as_deref() {
         Some(api_key) => {
             let prompt = build_reconcile_prompt(&cfg, &rfcs, &specs, &gh_state);
             let runner = build_runner(&cfg, api_key)?;
             let raw = ask(&runner, prompt).await?;
-            info!(response_chars = raw.len(), "agent response received");
             parse_output(&raw)
         }
         None => {

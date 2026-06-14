@@ -1,0 +1,147 @@
+name: landing-guru
+
+# Landing page health oracle — maintains examples catalog, validates links,
+# audits setup instructions, identifies diagram opportunities, and verifies
+# doc coherence. Caches results to skip unchanged content; alerts on broken
+# links, setup failures, and orphaned docs via Slack.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - "QUICKSTART.md"
+      - "DEPLOY.md"
+      - "docs/**/*.md"
+      - "vaked/examples/**/*.vaked"
+      - "scripts/landing-guru.sh"
+  pull_request:
+  schedule:
+    - cron: "0 */3 * * *" # Every 3h
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Optional PR number for self-check-in
+        required: false
+        type: string
+      delay_minutes:
+        description: Minutes to sleep before re-check (default 50)
+        required: false
+        default: "50"
+      reason:
+        description: Reason for manual trigger
+        required: false
+        default: "manual check"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  landing-guru:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ci
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache landing findings
+        uses: actions/cache@v4
+        with:
+          path: .landing-cache
+          key: landing-cache-${{ hashFiles('docs/**/*.md', 'README.md', 'vaked/examples/**/*.vaked') }}
+          restore-keys: |
+            landing-cache-
+
+      - name: Run landing-guru checks
+        run: bash scripts/landing-guru.sh
+        env:
+          SLACK_WEBHOOK_LANDING: ${{ secrets.SLACK_WEBHOOK_LANDING }}
+
+      - name: Capture findings
+        id: findings
+        if: always()
+        run: |
+          if [ -f .landing-cache/findings.json ]; then
+            BROKEN_LINKS=$(jq '.checks.links.broken // 0' .landing-cache/findings.json 2>/dev/null || echo "0")
+            ORPHANED_DOCS=$(jq '.checks.coherence.orphaned // 0' .landing-cache/findings.json 2>/dev/null || echo "0")
+            SETUP_STATUS=$(jq -r '.checks.setup.status // "UNKNOWN"' .landing-cache/findings.json 2>/dev/null || echo "UNKNOWN")
+
+            echo "broken_links=$BROKEN_LINKS" >> $GITHUB_OUTPUT
+            echo "orphaned_docs=$ORPHANED_DOCS" >> $GITHUB_OUTPUT
+            echo "setup_status=$SETUP_STATUS" >> $GITHUB_OUTPUT
+
+            cat .landing-cache/findings.json >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Post PR comment (if findings)
+        if: github.event_name == 'pull_request' && (steps.findings.outputs.broken_links > 0 || steps.findings.outputs.orphaned_docs >= 5)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const findings = require('./.landing-cache/findings.json');
+            const brokenLinks = findings.checks.links?.broken || 0;
+            const orphanedDocs = findings.checks.coherence?.orphaned || 0;
+            const setupStatus = findings.checks.setup?.status || 'UNKNOWN';
+
+            let comment = '## 🔍 Landing Guru Findings\n\n';
+            if (brokenLinks > 0) {
+              comment += `- ⚠️ **${brokenLinks} broken links** detected\n`;
+            }
+            if (setupStatus !== 'OK') {
+              comment += `- ⚠️ **Setup audit**: ${setupStatus}\n`;
+            }
+            if (orphanedDocs >= 5) {
+              comment += `- ⚠️ **${orphanedDocs} orphaned docs** (threshold: 5)\n`;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Validate pr_number input
+        id: validate-pr
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.pr_number != ''
+        run: |
+          PR_NUM="${{ github.event.inputs.pr_number }}"
+          # Trim whitespace
+          PR_NUM=$(echo "$PR_NUM" | xargs)
+
+          # Validate format: must be digits only
+          if ! [[ "$PR_NUM" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid pr_number format: '$PR_NUM' (must be digits only, got whitespace or non-numeric)"
+            exit 1
+          fi
+
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+          echo "pr_valid=true" >> $GITHUB_OUTPUT
+
+      - name: Self-check-in (if requested)
+        if: github.event_name == 'workflow_dispatch' && steps.validate-pr.outputs.pr_valid == 'true'
+        run: |
+          sleep $(( ${{ github.event.inputs.delay_minutes }} * 60 ))
+          gh pr comment ${{ steps.validate-pr.outputs.pr_number }} \
+            --repo "${{ github.repository }}" \
+            --body "<!-- claude-self-checkin -->
+          **Self-check-in** (${{ github.event.inputs.reason }}): re-checking landing page health."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Report status
+        if: always()
+        run: |
+          echo "Landing Guru run complete"
+          echo "Broken links: ${{ steps.findings.outputs.broken_links }}"
+          echo "Orphaned docs: ${{ steps.findings.outputs.orphaned_docs }}"
+          echo "Setup status: ${{ steps.findings.outputs.setup_status }}"

@@ -55,9 +55,29 @@ The daemon reads those keys from `$CREDENTIALS_DIRECTORY/telebot.env` when run
 under systemd (`_load_credentials`); set them as plain env vars for an ad-hoc run
 (`python3 tools/telebot/telebot.py`).
 
-**NixOS:** prefer a `systemd.services.vaked-telebot` module (the store `python3` +
-`sops`/`agenix` for the credential) over this generic unit; the daemon is
-stdlib-only, so no Python packages are needed beyond the interpreter.
+**NixOS (recommended for crabcc.app):** use the flake's package + module instead
+of the generic unit. The package (`nix build .#vaked-telebot`) is `python3` + the
+stdlib-only sources (tiny closure); the module runs it unprivileged with the
+secret as a systemd credential (`nix/vaked-telebot.nix`):
+
+```nix
+# in the host flake
+imports = [ inputs.vaked.nixosModules.vaked-telebot ];
+services.vaked-telebot = {
+  enable = true;
+  environmentFile = config.sops.secrets.vaked-telebot.path;   # sops-nix / agenix
+};
+```
+
+**Turnkey:** `sudo bash tools/telebot/deploy.sh` clones/updates the repo, installs
+the unit, and starts it (after you've written `/etc/vaked-telebot.env`).
+
+**No host? Bounded GitHub Actions run.** As a bridge (or a live test), the
+[`telebot.yml`](../../.github/workflows/telebot.yml) workflow runs the bot for a
+session window (`workflow_dispatch`, `--run-seconds`) using the `ci` secrets — laggier
+and not always-on, but needs no host. **Run only ONE poller at a time:** `getUpdates`
+is single-consumer, so don't run this workflow while the crabcc.app daemon is up
+(they'd race for updates).
 
 ## Design
 

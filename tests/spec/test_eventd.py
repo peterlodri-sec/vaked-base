@@ -630,8 +630,8 @@ def _test_lowering_wiring(lines):
         # list-valued memory sources survive into the store config (Codex
         # round 3): source = [stream.a, stream.b] must emit both
         msrc = ('runtime "t" {\n  systems = ["x86_64-linux"]\n'
-                '  stream a { source = agentpipe.a  type = Agent.T }\n'
-                '  stream b { source = agentpipe.b  type = Agent.T }\n'
+                '  stream a { source = agentpipe.transcripts  type = Agent.T }\n'
+                '  stream b { source = agentpipe.screenrec  type = Agent.T }\n'
                 '  memory m {\n    source = [stream.a, stream.b]\n'
                 '    schema = schema.episode\n  }\n}\n')
         mp = os.path.join(tmp, "multisrc.vaked")

@@ -39,14 +39,10 @@ use adk_rust::{RetryBudget, ToolExecutionStrategy};
 use adk_runner::compaction::{CompactionConfig, TruncationCompaction};
 use anyhow::{Context, Result, anyhow};
 use futures::StreamExt;
-use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_otlp::{WithExportConfig, WithHttpConfig};
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tracing::{info, warn};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use tracing::{debug, info, warn};
 
 mod guardrails;
 
@@ -197,51 +193,12 @@ fn noop_json() -> String {
 }
 
 // ---------------------------------------------------------------------------
-// Tracing (identical pattern to pr-review)
+// Tracing → self-hosted Langfuse, via the shared `vaked-telemetry` crate
+// (single source of truth for the LANGFUSE_* env resolution).
 // ---------------------------------------------------------------------------
 
 fn setup_tracing() -> Option<SdkTracerProvider> {
-    let base = std::env::var("LANGFUSE_URL").ok().filter(|s| !s.is_empty())?;
-    let token = std::env::var("LANGFUSE_API_KEY").ok().filter(|s| !s.is_empty());
-    let endpoint = format!("{}/api/public/otel/v1/traces", base.trim_end_matches('/'));
-    let mut headers = HashMap::new();
-    if let Some(token) = token {
-        headers.insert("Authorization".to_string(), format!("Basic {token}"));
-    }
-    let exporter = match opentelemetry_otlp::SpanExporter::builder()
-        .with_http()
-        .with_endpoint(&endpoint)
-        .with_headers(headers)
-        .build()
-    {
-        Ok(e) => e,
-        Err(e) => {
-            eprintln!("label-tagger: Langfuse exporter init failed: {e}");
-            return None;
-        }
-    };
-    let resource = opentelemetry_sdk::Resource::builder_empty()
-        .with_attributes([opentelemetry::KeyValue::new("service.name", "vaked-label-tagger")])
-        .build();
-    let provider = SdkTracerProvider::builder()
-        .with_batch_exporter(exporter)
-        .with_resource(resource)
-        .build();
-    let tracer = provider.tracer("vaked-label-tagger");
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    // Disable ANSI color when stderr isn't a terminal (CI) or NO_COLOR is set.
-    let use_ansi = std::io::IsTerminal::is_terminal(&std::io::stderr())
-        && std::env::var("NO_COLOR").is_err();
-    tracing_subscriber::registry()
-        .with(filter)
-        .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr).with_ansi(use_ansi))
-        .with(tracing_opentelemetry::layer().with_tracer(tracer))
-        .try_init()
-        .ok();
-    opentelemetry::global::set_tracer_provider(provider.clone());
-    info!(langfuse.endpoint = %endpoint, "Langfuse tracing enabled");
-    Some(provider)
+    vaked_telemetry::setup_tracing("vaked-label-tagger", "vaked-label-tagger")
 }
 
 // ---------------------------------------------------------------------------
@@ -731,15 +688,22 @@ fn parse_output(raw: &str) -> TaggerOutput {
 // Orchestration
 // ---------------------------------------------------------------------------
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_SHA: &str = env!("GIT_SHA");
+
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|a| a == "--version" || a == "-V") {
+        println!("vaked-label-tagger {VERSION}+{GIT_SHA}");
+        return;
+    }
+
     let tracer_provider = setup_tracing();
 
     let code = match run().await {
         Ok(()) => 0,
         Err(e) => {
-            warn!(error = %e, "label-tagger failed (advisory — exiting 0)");
-            eprintln!("label-tagger: {e:#}");
+                eprintln!("label-tagger: {e:#}");
             // Emit a safe no-op JSON so the shell wrapper never crashes on empty stdout.
             println!("{}", noop_json());
             0
@@ -747,8 +711,14 @@ async fn main() {
     };
 
     if let Some(provider) = tracer_provider {
+        // Short-lived process: force_flush drains the batch span processor before
+        // shutdown, so the run's trace reliably reaches Langfuse instead of being
+        // dropped on exit.
+        if let Err(e) = provider.force_flush() {
+            eprintln!("label-tagger: telemetry force_flush failed: {e}");
+        }
         if let Err(e) = provider.shutdown() {
-            eprintln!("label-tagger: telemetry flush failed: {e}");
+            eprintln!("label-tagger: telemetry shutdown failed: {e}");
         }
     }
     std::process::exit(code);
@@ -798,14 +768,13 @@ async fn run_label(cfg: &Config) -> Result<()> {
     };
 
     if cfg.dry_run {
-        eprintln!("label-tagger: dry-run — would send prompt ({} chars)", prompt.len());
+        debug!("dry-run: would send label prompt ({} chars)", prompt.len());
         println!("{}", noop_json());
         return Ok(());
     }
 
     let runner = build_runner(cfg, api_key)?;
     let raw = ask(&runner, prompt).await?;
-    info!(response_chars = raw.len(), "agent response received");
     let output = parse_output(&raw);
     println!("{}", serde_json::to_string(&output)?);
     Ok(())
@@ -819,14 +788,13 @@ async fn run_changelog(cfg: &Config) -> Result<()> {
     let prompt = build_changelog_prompt(&commits);
 
     if cfg.dry_run {
-        eprintln!("label-tagger: dry-run changelog — would send prompt ({} chars)", prompt.len());
+        debug!("dry-run: would send changelog prompt ({} chars)", prompt.len());
         println!("{}", noop_json());
         return Ok(());
     }
 
     let runner = build_runner(cfg, api_key)?;
     let raw = ask(&runner, prompt).await?;
-    info!(response_chars = raw.len(), "agent response received");
     let output = parse_output(&raw);
     println!("{}", serde_json::to_string(&output)?);
     Ok(())

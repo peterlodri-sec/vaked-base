@@ -1,0 +1,42 @@
+name: diagrams
+
+# Drift guard: ensures every committed diagram SVG matches its .d2 source.
+# render.sh --check renders all docs/assets/diagrams/src/*.d2 to a tempdir and
+# diffs against the committed SVGs; any mismatch exits non-zero and fails CI.
+# d2 is provided by the flake devshell (nix develop).
+on:
+  push:
+    paths:
+      - "docs/assets/diagrams/src/**"
+      - "tools/diagrams/**"
+  pull_request:
+    paths:
+      - "docs/assets/diagrams/src/**"
+      - "tools/diagrams/**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  diagrams-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Check diagram drift
+        run: nix develop --command bash tools/diagrams/render.sh --check
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ diagrams drift detected on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

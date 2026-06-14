@@ -61,7 +61,11 @@ for src in "${sources[@]}"; do
   if [ "$mode" = "check" ]; then
     d2 --layout "$D2_LAYOUT" --theme "$D2_THEME" --pad "$D2_PAD" "$src" "$check_dir/$name.svg" >/dev/null
     normalize "$check_dir/$name.svg"
-    if ! diff -q "$out_dir/$name.svg" "$check_dir/$name.svg" >/dev/null 2>&1; then
+    # Normalize committed copy too — SVGs committed before this normalize step
+    # was added may still carry the data-d2-version stamp.
+    cp "$out_dir/$name.svg" "$check_dir/$name.committed.svg"
+    normalize "$check_dir/$name.committed.svg"
+    if ! diff -q "$check_dir/$name.committed.svg" "$check_dir/$name.svg" >/dev/null 2>&1; then
       echo "DRIFT: $name.svg is out of date — run \`task diagrams\`" >&2
       drift=1
     fi

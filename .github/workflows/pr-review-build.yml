@@ -50,6 +50,9 @@ jobs:
           ln -sf "$(command -v wild)" "$HOME/.local/bin/ld.wild"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Install UPX
+        run: sudo apt-get install -y upx-ucl
+
       - name: Build release binary
         env:
           RUSTC_WRAPPER: sccache
@@ -64,7 +67,9 @@ jobs:
           FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
           if [ -n "$FUSE" ]; then
             echo "::notice::linking with $FUSE"
-            FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+            # No -Wl,--icf=all: identical-code-folding yields a GNU hash table
+            # UPX 4.2.2 can't pack (CantPackException: bad DT_GNU_HASH n_bucket=0x1).
+            FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE"
           else
             echo "::notice::no fast linker accepted by cc — using default"
           fi
@@ -72,6 +77,12 @@ jobs:
           cargo build --release --manifest-path vaked-agents/ci/pr-review/Cargo.toml
           cp vaked-agents/ci/pr-review/target/release/vaked-pr-review \
              vaked-pr-review-linux-x86_64
+
+      - name: Compress binary with UPX (best-effort)
+        # UPX 4.2.2 can't pack mold's single-bucket .gnu.hash (CantPackException:
+        # bad DT_GNU_HASH n_bucket=0x1). Don't fail the build on it — ship the
+        # binary uncompressed when UPX can't pack it.
+        run: upx --best vaked-pr-review-linux-x86_64 || echo "::warning::UPX could not pack the binary; shipping uncompressed"
 
       - name: Publish rolling release asset
         env:
