@@ -45,9 +45,15 @@ async fn run_label(cfg: &Config) -> Result<()> {
     let api_key = cfg.api_key.as_deref()
         .ok_or_else(|| anyhow!("no OPENROUTER_API_KEY — set it to enable labeling"))?;
 
-    let ctx = load_context();
     let prompt = if let Some(issue) = cfg.issue_number {
-        let meta = fetch_issue_meta(cfg, issue)?;
+        // Context files and issue meta are independent — overlap them.
+        let cfg2 = cfg.clone();
+        let (ctx_res, meta_res) = tokio::join!(
+            tokio::task::spawn_blocking(load_context),
+            tokio::task::spawn_blocking(move || fetch_issue_meta(&cfg2, issue)),
+        );
+        let ctx = ctx_res?;
+        let meta = meta_res??;
         if meta.labels.iter().any(|l| l == OPT_OUT_LABEL) {
             info!("'{OPT_OUT_LABEL}' on issue — skipping");
             println!("{}", noop_json());
@@ -55,13 +61,23 @@ async fn run_label(cfg: &Config) -> Result<()> {
         }
         build_label_issue_prompt(&meta, &ctx)
     } else if let Some(pr) = cfg.pr_number {
-        let meta = fetch_pr_meta(cfg, pr)?;
+        // Context files, PR meta (network), and PR diff (local git) are all
+        // independent — fire them all at once.
+        let cfg2 = cfg.clone();
+        let cfg3 = cfg.clone();
+        let (ctx_res, meta_res, diff_res) = tokio::join!(
+            tokio::task::spawn_blocking(load_context),
+            tokio::task::spawn_blocking(move || fetch_pr_meta(&cfg2, pr)),
+            tokio::task::spawn_blocking(move || fetch_pr_diff(&cfg3, pr)),
+        );
+        let ctx = ctx_res?;
+        let meta = meta_res??;
+        let diff = diff_res?;
         if meta.labels.iter().any(|l| l == OPT_OUT_LABEL) {
             info!("'{OPT_OUT_LABEL}' on PR — skipping");
             println!("{}", noop_json());
             return Ok(());
         }
-        let diff = fetch_pr_diff(cfg, pr);
         build_label_pr_prompt(&meta, &diff, &ctx)
     } else {
         return Err(anyhow!("label mode requires PR_NUMBER or ISSUE_NUMBER"));
@@ -84,8 +100,12 @@ async fn run_changelog(cfg: &Config) -> Result<()> {
     let api_key = cfg.api_key.as_deref()
         .ok_or_else(|| anyhow!("no OPENROUTER_API_KEY — set it to enable changelog mode"))?;
 
-    let ctx = load_context();
-    let commits = fetch_commits_since_tag(&cfg.repo);
+    // File reads and git/network fetches are independent — overlap them.
+    let (ctx_res, commits) = tokio::join!(
+        tokio::task::spawn_blocking(load_context),
+        fetch_commits_since_tag(&cfg.repo),
+    );
+    let ctx = ctx_res?;
     let prompt = build_changelog_prompt(&commits, &ctx);
 
     if cfg.dry_run {

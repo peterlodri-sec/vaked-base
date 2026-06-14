@@ -62,7 +62,7 @@ def provision_run_real(dry: bool) -> None:
         f'LLM_BASE_URL="{os.environ.get("LLM_BASE_URL","https://openrouter.ai/api/v1")}" '
         f'LLM_MODEL="{os.environ.get("LLM_MODEL","deepseek/deepseek-chat")}" '
         f'NOCTURNE_HARNESS_DIR="{REMOTE}/harness" '
-        f'NOCTURNE_WALL_SECS="{os.environ.get("NOCTURNE_WALL_SECS","6600")}" '
+        f'NOCTURNE_WALL_SECS="{os.environ.get("NOCTURNE_WALL_SECS","9000")}" '
         f'NOCTURNE_MAX_TRIALS="{os.environ.get("NOCTURNE_MAX_TRIALS","60")}" '
         f'NOCTURNE_CONFIRM_SEEDS="{os.environ.get("NOCTURNE_CONFIRM_SEEDS","2")}"'
     )

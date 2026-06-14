@@ -1,4 +1,4 @@
-# Why Caveman Ultra V2? The Case for an AI-Native Language in the Vaked Ecosystem
+# Why CUC V2? The Case for an AI-Native Language in the Vaked Ecosystem
 
 *A reasoning story — not a spec, not a plan. Just the honest thinking.*
 
@@ -14,7 +14,7 @@ We didn't really reckon with this until we ran the numbers. In a typical reasoni
 
 ## The Accidental Discovery
 
-The caveman skill started as a simple quality-of-life improvement. Drop the filler. Be direct. It worked, but incompletely — "full" caveman mode still operated within the rhythms of English, just tighter. The real insight came when someone asked what would happen if we switched the compression substrate entirely.
+The cuc skill started as a simple quality-of-life improvement. Drop the filler. Be direct. It worked, but incompletely — "full" mode still operated within the rhythms of English, just tighter. The real insight came when someone asked what would happen if we switched the compression substrate entirely.
 
 Classical Chinese — 文言文 — is not a language designed for AI communication. It's a language designed by scholars for permanence, precision, and extreme density. A text that would take a page in vernacular Chinese might take a paragraph in classical Chinese. Characters double as verbs and nouns contextually. Subjects are omitted when obvious. Causality is implied by juxtaposition: you don't write "because A, therefore B" — you write "A, B" and the relationship is understood. It's a writing system that assumes a reader who fills in the gaps.
 
@@ -69,9 +69,9 @@ This would compress more than wenyan-ultra on technical content. It would compre
 
 ## Why Vaked Is the Right Home for This
 
-The coincidence is almost too convenient. Vaked is already a grammar-first, formally-specified, domain-specific language with an EBNF grammar file, a type system document, a lowering spec, and a set of RFCs governing protocol evolution. The HCP protocol already has LFCs in the form of `protocol/rfcs/`. The caveman skill already lives in `.claude/skills/`. The infrastructure for defining, versioning, and evolving a language is sitting right here.
+The coincidence is almost too convenient. Vaked is already a grammar-first, formally-specified, domain-specific language with an EBNF grammar file, a type system document, a lowering spec, and a set of RFCs governing protocol evolution. The HCP protocol already has LFCs in the form of `protocol/rfcs/`. The cuc skill already lives in `.claude/skills/`. The infrastructure for defining, versioning, and evolving a language is sitting right here.
 
-An AI-lish V1 in this repo would look like this: a new EBNF grammar at vaked/grammar/ailish-v0.ebnf (not yet created), a core morpheme table at docs/language/0019-ailish-morphemes.md (not yet created), an LFC-0001 proposing the initial vocabulary, and a modified caveman skill that references the grammar instead of describing a style. The compression wouldn't be a convention — it would be a language.
+An AI-lish V1 in this repo would look like this: a new EBNF grammar at vaked/grammar/ailish-v0.ebnf (not yet created), a core morpheme table at docs/language/0019-ailish-morphemes.md (not yet created), an LFC-0001 proposing the initial vocabulary, and a modified cuc skill that references the grammar instead of describing a style. The compression wouldn't be a convention — it would be a language.
 
 The Artifact Gate would be a grammar production: `artifact-output ::= normal-english-text`. The internal monologue hook would emit AI-lish. The bench would measure compression against the grammar spec.
 
