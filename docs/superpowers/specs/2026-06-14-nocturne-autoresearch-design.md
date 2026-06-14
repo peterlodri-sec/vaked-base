@@ -37,9 +37,9 @@ discards, and repeats."* Three files: `prepare.py` (frozen harness: data + token
 `program.md` (the human-written objective the agent reasons toward). ~100 five-minute trials fit
 in a night on a single H100; **6 hours ⇒ ~60–70 keep/discard trials/night.**
 
-Nothing in the fleet currently does **empirical** research — ralph reasons over structure and
-optitron crawls literature (a planned `fleet-introspect` would mine telemetry, but is **not in the
-tree** yet). nocturne closes the last loop:
+Nothing in the fleet currently does **empirical** research — ralph reasons over structure,
+optitron crawls literature, and `fleet-introspect` mines telemetry (both on `main`, the latter a
+second binary inside the optitron Go module). nocturne closes the last loop:
 **run real experiments overnight, keep what measurably wins, and only escalate a confirmed
 improvement to a human/swe_af.** It also dogfoods Vaked's theses on a new axis — *immutable
 ledger of trials* (replayable experiment history) and *control* (stop/teardown at runtime, hard
@@ -125,8 +125,9 @@ explicit `workflow_dispatch` whose single input is the `issue` number. **Verifie
 swe_af from a scheduled run — twice over: (a) the sender is `github-actions[bot]`, not the owner, so
 the gate fails; and (b) GitHub suppresses workflow triggers from events created with the default
 `GITHUB_TOKEN`. So optitron's scheduled finding lands a **labelled issue the owner then picks up**;
-it does not chain into swe_af automatically. (`fleet-introspect` is named in the fleet vision but is
-**not in the tree**, so there is no second precedent to mirror.)
+it does not chain into swe_af automatically. (`fleet-introspect` — a second binary in the optitron
+module, **on `main`** — files the same bare `agent` label via the default token, so it shares the
+same gap; there is no in-tree precedent that auto-chains to mirror.)
 
 nocturne therefore **improves on the bare-label path deliberately**: it opens the issue (audit
 trail) and then **`workflow_dispatch`es `swe-af.yml`** against that issue number — the one path that
@@ -152,15 +153,16 @@ agent runtime. Mechanics per iteration, on the rented box:
 3. It reads back val BPB from `results.jsonl`, keeps or discards, and loops.
 
 Implications — two viable shapes (**resolved: the port's harness is stdlib Python with an
-OpenAI-compatible client, so Python-local is the natural fit**; Go-reuse stays available if optitron
-lands on `main` first and tighter wrapper reuse is wanted):
+OpenAI-compatible client, so Python-local is the natural fit**; Go-reuse stays available since
+optitron is already on `main`, if tighter wrapper reuse is ever wanted):
 - **Go-reuse — must live INSIDE the optitron module.** Go `internal/` packages are only importable
   by code rooted under `tools/optitron/`, so to reuse `internal/llm` + `internal/ledger` the driver
   must be a **new binary in the optitron module** (`tools/optitron/cmd/nocturne` +
-  `tools/optitron/internal/nocturne`) — and optitron must land on `main` first (it currently lives
-  only on `origin/claude/vaked-optitron`; there is no `cmd/introspect` precedent in-tree). It would
+  `tools/optitron/internal/nocturne`) — the `cmd/introspect` (fleet-introspect) binary on `main`
+  already does exactly this, so the precedent **does** exist in-tree (verified 2026-06-14). It would
   still shell out to the Python training harness on the box. A sibling `tools/nocturne/` tree could
-  **not** import those `internal/` packages.
+  **not** import those `internal/` packages. Python-local is still chosen (below) for the harness's
+  own sake, not for lack of precedent.
 - **Python-local.** A thin Python driver co-located with PyTorch on the rented image that calls
   OpenRouter directly (own small ledger matching ralph's chain format). Simpler on the box; no Go
   module-boundary constraint; doesn't reuse optitron's wrapper.
@@ -230,10 +232,11 @@ both, since the mutated `train.py` is model-written code. Never bake any key int
   - `state/baseline/train.py` — the current best (the running-best that survives the box).
 - **`.github/workflows/nocturne.yml`** — nightly `schedule` (~02:00 UTC) + double-confirmed
   `workflow_dispatch` (`approve` job on the protected **`nocturne-manual`** Environment, then the
-  run in `ci` where secrets live). `permissions: issues: write` (open the survivor issue) +
-  `actions: write` (so it can `workflow_dispatch` `swe-af.yml` — the gate-satisfying hand-off, see
-  the strict-gate section). Holds the cost guardrails: `$/hr` cap input, monthly-ceiling check that
-  no-ops the cron when exceeded.
+  run in `ci` where secrets live). `permissions: contents: write` (commit the ledger + promoted
+  baseline) + `issues: write` (open the survivor issue) + `actions: write` (so it can
+  `workflow_dispatch` `swe-af.yml` — the gate-satisfying hand-off, see the strict-gate section).
+  Holds the cost guardrails: `$/hr` cap input, monthly-ceiling check that no-ops the cron when
+  exceeded.
 - **Registry/docs**: `VAKED_AGENTS.md` (add `nocturne`), `docs/agents/ci.md`, this spec, a
   `tools/nocturne/README.md`. Update root `CLAUDE.md` "CI agent fleet" + status tables.
 
