@@ -29,8 +29,23 @@ class Schedule:
     cycle: "list | None"
 
 
+def _as_ref(node):
+    """Unwrap a value / list-item to its P.Ref, or None.
+
+    Bare and dotted refs in value or list-item position parse as
+    ``P.App(ref=P.Ref(...), args=None, record=None)`` — not a bare ``P.Ref`` —
+    so both forms must be handled.
+    """
+    if isinstance(node, P.Ref):
+        return node
+    if isinstance(node, P.App) and isinstance(node.ref, P.Ref):
+        return node.ref
+    return None
+
+
 def _ref_str(value):
-    return ".".join(value.parts) if isinstance(value, P.Ref) else None
+    r = _as_ref(value)
+    return ".".join(r.parts) if r is not None else None
 
 
 def fiber_ios(member_decls):
@@ -58,8 +73,9 @@ def member_names(group_decl):
         if isinstance(st, P.Assignment) and st.target == "fibers" \
                 and isinstance(st.value, P.ListLit):
             for item in st.value.items:
-                if isinstance(item, P.Ref) and len(item.parts) == 1:
-                    names.append(item.parts[0])
+                r = _as_ref(item)
+                if r is not None and len(r.parts) == 1:
+                    names.append(r.parts[0])
     return names
 
 
