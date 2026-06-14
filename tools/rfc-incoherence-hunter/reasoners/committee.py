@@ -21,7 +21,9 @@ async def section_classifier(
             "sole-writer invariant, thread scheduling interactions, and TelemetryBind/Unbind frames.\n\n"
             "languages_focus: which sections concern formal term definitions, MUST/SHOULD normative "
             "language consistency, logical ordering of protocol states, JournalDelta format invariants, "
-            "and MemPalace boundary semantics.\n\n"
+            "and MemPalace boundary semantics. ALSO cover the MLIR dialect set (docs 0013, 0019-0024): "
+            "vaked/hcp dialect op and type completeness, SSA well-formedness, pass pre/postconditions, "
+            "and the hcp<->RFC 0004 frame mapping.\n\n"
             "Each focus should be 2-4 sentences of plain English instruction for the analyst."
         ),
         user=corpus_summary,
@@ -39,7 +41,9 @@ async def section_classifier(
         )
         result.languages_focus = (
             "Focus on §1 terminology, §3 JournalDelta format, §7 MemPalace boundary. "
-            "Check for undefined terms in normative clauses and circular definitions."
+            "Check for undefined terms in normative clauses and circular definitions. "
+            "Also review the MLIR set (0013, 0019-0024): vaked/hcp op+type completeness, "
+            "SSA well-formedness, pass pre/postconditions, and the hcp<->RFC 0004 frame mapping."
         )
     return result
 
