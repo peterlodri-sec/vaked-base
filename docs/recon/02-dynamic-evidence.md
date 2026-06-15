@@ -105,3 +105,17 @@ python3 tools/oracle/watcher_client.py --pid <pid> --duration 5
 ```
 
 The `--pid` CLI was added alongside the frida_driver migration.
+
+## validated in a finding (2026-06-15, run3 `caa53b79…`)
+`oracle.py run --funcs llama_decode --infer-cmd "llama-completion -m <gguf> -p hi -n 4"`
+— both producers landed in one finding (chain_ok=True):
+```
+frida: {calls: 1, timing_ms: 788.0}                       # llama_decode hooked live
+ebpf : syscalls{futex:885, write:15, openat:8, read:5, close:4}, files:8
+```
+Notes: watcher socket was ad-hoc `chmod 666` (production = `oracle-watcher` group via the nix module).
+`futex`-heavy = inference threading. `mmaps:[]` — the GGUF mmap happens during the *load* phase;
+the 5s PID-scoped trace + `sys_enter_*` attach latency can miss it (widen `duration_s` / trace the
+load window to catch the weight mmap). One `llama-completion` run threw `std::runtime_error: this
+custom template is not supported, try using --jinja` — add `--jinja` for chat-template models;
+oracle degraded gracefully and still recorded both blobs.
