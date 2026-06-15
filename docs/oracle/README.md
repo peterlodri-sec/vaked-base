@@ -77,7 +77,8 @@ budget is exhausted. The ledger is tamper-evident and replay-verifies via
 | `frida_driver.py` | Frida-python driver — spawns target with `stdio="pipe"`, hooks named exports via `Module.findGlobalExportByName` (frida 17 API), waits for process detach, emits one JSON line per call; validated on dev-cx53 (frida 17.5.1) |
 | `watcher_client.py` | Unprivileged client to the root watcher socket — `query_watcher(sock_path, pid, duration_s)` sends a JSON request, receives `{syscalls, mmaps, files}`; `encode_request` and `decode_response` are pure and tested |
 | `watcher_daemon.py` | Root daemon served by `oracle-ebpf-watcher.nix` — accepts requests on the unix socket, runs a PID-scoped bpftrace program, parses and returns results; `parse_bpftrace` and `handle_request` are pure and tested |
-| `bridge.py` | `to_observed_effects(finding, files_written, files_deleted)` — emits the `{writes, deletes}` shape the aegis kernel consumes; `attach_transition(finding, hash)` — links a finding to a kernel transition hash (null in slice 1) |
+| `bridge.py` | `to_observed_effects(finding, files_written, files_deleted)` — emits the `{writes, deletes}` shape the aegis kernel consumes; `attach_transition(finding, hash)` — links a finding to a kernel transition hash (wired in slice 2 via `dogfood_bridge.py`) |
+| `dogfood_bridge.py` | Double-dogfood wire — `ground_finding(...)` records a finding as a real aegis kernel transition (reuses `tools/dogfood/kernel.judge`) and cross-links both hash chains; `verify_xref(...)` proves the bidirectional `transition_xref` link + that both chains verify independently. CLI: `oracle ground` / `oracle verify-xref` |
 | `oracle-ebpf-watcher.nix` | NixOS systemd service (root) for the eBPF watcher — `bpftrace` in the service path, unix socket at `/run/oracle-watcher.sock` with group `oracle-watcher` (`srw-rw----`), Python 3 interpreter, on-failure restart |
 
 ---
