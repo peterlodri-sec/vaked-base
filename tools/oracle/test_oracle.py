@@ -853,6 +853,67 @@ def test_parse_args_team_flags():
     assert ns.funcs == ["a", "b"] and ns.memory == "/m.jsonl"
 
 
+# ---- slice 4b thread 1: team-in-vaked ----
+def _team_graph():
+    """A minimal lowered-LPG fixture mirroring oracle-team.vaked (numbers are strings)."""
+    def s(v): return {"lit": "string", "value": v}
+    def num(v): return {"lit": "number", "value": v}
+    def cap(ref): return {"ref": ref}
+    return {"version": 1, "nodes": [
+        {"kind": "node", "name": "operator", "props": {
+            "role": s("control-plane"), "capabilities": [cap("fs.repo_rw"), cap("network.egress"), cap("mem.admin")]}},
+        {"kind": "node", "name": "coordinator", "props": {
+            "role": s("coordinate"), "capabilities": [cap("fs.repo_rw"), cap("network.loopback")], "budgetCalls": num("30")}},
+        {"kind": "node", "name": "infralight", "props": {
+            "role": s("panelist"), "model": s("qwen2.5-coder-3b-instruct"),
+            "capabilities": [cap("network.loopback")],
+            "endpoint": s("http://127.0.0.1:8091/v1/chat/completions"), "temperature": num("0")}},
+        {"kind": "node", "name": "feketecs", "props": {
+            "role": s("panelist"), "model": s("deepseek/deepseek-v4-flash"),
+            "capabilities": [cap("network.egress")],
+            "endpoint": s("https://openrouter.ai/api/v1/chat/completions"),
+            "keyEnv": s("OPENROUTER_API_KEY"), "temperature": num("1")}},
+        {"kind": "node", "name": "anstetten", "props": {
+            "role": s("judge"), "model": s("deepseek/deepseek-v4-pro"),
+            "capabilities": [cap("network.egress")],
+            "endpoint": s("https://openrouter.ai/api/v1/chat/completions"),
+            "keyEnv": s("OPENROUTER_API_KEY"), "temperature": num("1"), "reasoningEffort": s("high")}},
+        {"kind": "network", "name": "feketecsCordon", "props": {
+            "principal": s("feketecs"), "default": s("deny"),
+            "allow": [{"ref": "egress", "args": [s("openrouter.ai"), num("443")]}]}},
+        {"kind": "network", "name": "anstettenCordon", "props": {
+            "principal": s("anstetten"), "default": s("deny"),
+            "allow": [{"ref": "egress", "args": [s("openrouter.ai"), num("443")]}]}},
+    ]}
+
+
+def test_roster_from_vaked_extracts_panelists_judge_budget():
+    import os
+    import roster_from_vaked as rfv
+    os.environ["OPENROUTER_API_KEY"] = "test-key-not-real"
+    try:
+        panelists, judge, budget = rfv.load_roster_from_graph(_team_graph())
+    finally:
+        os.environ.pop("OPENROUTER_API_KEY", None)
+    names = sorted(p.name for p in panelists)
+    assert names == ["feketecs", "infralight"]
+    assert getattr(judge, "model", None) == "deepseek/deepseek-v4-pro"
+    assert budget == 30
+    feke = next(p for p in panelists if p.name == "feketecs")
+    assert feke.client.temperature == 1.0
+    assert judge.reasoning_effort == "high"
+
+
+def test_roster_from_vaked_drops_node_with_absent_key_env():
+    import os
+    import roster_from_vaked as rfv
+    os.environ.pop("OPENROUTER_API_KEY", None)
+    panelists, judge, budget = rfv.load_roster_from_graph(_team_graph())
+    names = sorted(p.name for p in panelists)
+    assert names == ["infralight"]
+    assert judge is panelists[0].client
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
