@@ -89,6 +89,28 @@ def test_ledger_detects_tamper():
         assert len(lg2.valid_prefix()) == 0
 
 
+import llm_refine  # noqa: E402
+
+
+def test_build_prompt_inserts_pseudo_c():
+    p = llm_refine.build_prompt("int f(){return 1;}")
+    assert "int f(){return 1;}" in p
+    assert p.endswith(llm_refine.PROMPT_SUFFIX)
+
+
+def test_parse_completion_extracts_content():
+    # llama.cpp native /completion returns {"content": "..."}
+    assert llm_refine.parse_completion({"content": "int f(){...}"}) == "int f(){...}"
+
+
+def test_parse_completion_missing_content_raises():
+    try:
+        llm_refine.parse_completion({"oops": 1})
+        assert False, "expected KeyError"
+    except KeyError:
+        pass
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
