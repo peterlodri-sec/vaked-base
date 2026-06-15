@@ -111,6 +111,24 @@ def test_parse_completion_missing_content_raises():
         pass
 
 
+import ghidra_frontend as gf  # noqa: E402
+
+
+def test_parse_decomp_reads_json_map():
+    blob = '{"sample_fn": "int sample_fn(void){return 0;}", "g": "void g(){}"}'
+    got = gf.parse_decomp(blob)
+    assert got["sample_fn"].startswith("int sample_fn")
+    assert set(got) == {"sample_fn", "g"}
+
+
+def test_parse_decomp_bad_json_raises():
+    try:
+        gf.parse_decomp("not json")
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
