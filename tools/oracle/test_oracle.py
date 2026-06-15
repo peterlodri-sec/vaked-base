@@ -213,6 +213,28 @@ def test_parse_bpftrace_strips_tracepoint_prefix():
     assert parsed["syscalls"] == {"openat": 4, "mmap": 2}
 
 
+import bridge  # noqa: E402
+
+
+def test_bridge_emits_observed_effects_shape():
+    fdg = schema.build_finding(
+        target={"path": "/p", "sha256": "0" * 64, "source_ref": "v"},
+        decompiler={"model": "m", "model_sha256": "0" * 64, "temperature": 0},
+        functions=[], confidence=0.0)
+    oe = bridge.to_observed_effects(fdg, files_written=["/p/notes.md"])
+    assert oe == {"writes": ["/p/notes.md"], "deletes": []}
+
+
+def test_bridge_attaches_transition_xref():
+    fdg = schema.build_finding(
+        target={"path": "/p", "sha256": "0" * 64, "source_ref": "v"},
+        decompiler={"model": "m", "model_sha256": "0" * 64, "temperature": 0},
+        functions=[], confidence=0.0)
+    out = bridge.attach_transition(fdg, "deadbeef" * 8)
+    assert out["transition_xref"] == "deadbeef" * 8
+    assert out is not fdg  # non-mutating
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
