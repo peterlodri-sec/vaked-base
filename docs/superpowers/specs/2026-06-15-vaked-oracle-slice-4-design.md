@@ -84,6 +84,23 @@ Degrade rules (never crash the round): a panelist error drops that candidate; th
 runs with ≥1 candidate; **zero** candidates ⇒ judge skipped, chosen = pseudo-C (fidelity
 None). A missing/unreachable judge ⇒ pick the highest-fidelity (or first) candidate.
 
+### 1b. Adaptive judge effort (the cost lever — default on)
+
+`select_effort(candidates, fidelities) -> "none" | "high" | "max"`, a cheap per-function
+heuristic run BEFORE the judge call:
+
+- candidates near-identical **or** best fidelity ≥ `FIDELITY_THRESHOLD` (0.75) → **`"none"`**:
+  skip the judge's reasoning entirely — take the best-fidelity (or first) candidate; the
+  judge call is a cheap confirm or skipped. The easy-function fast path.
+- candidates diverge but ≥1 is decent → **`"high"`**.
+- all candidates low-fidelity / hard tie → **`"max"`**.
+
+The chosen effort is passed to the judge client's `reasoning_effort` and recorded in the
+verdict (`{"effort": ...}`). Per `docs/oracle/COST_ANALYSIS.md` this is the **~10× lever**:
+most functions are "easy", so the pro judge rarely spends `max` reasoning — the 90%-of-spend
+reasoning tokens collapse on the common path. Default-on; `--judge-effort fixed:high`
+overrides for benchmarking.
+
 ### 2. The coordinator — `tools/oracle/team.py`
 
 ```python
