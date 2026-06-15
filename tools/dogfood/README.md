@@ -10,7 +10,7 @@ replay-verifies it on the real `eventd` append-only hash chain.
 This is the local approximation of Vaked's runtime: capability scoping, immutable
 audit, and effect honesty enforced in *userspace on macOS* — no Linux kernel
 features. The real enforcement boundary (eBPF/seccomp, L2) lives elsewhere; this
-proves the *principles* (POLA, replay-stability, declared≈observed) on the M1.
+proves the *principles* (POLA, replay-stability, declared≈observed) on the M3.
 
 ## The four gates
 
@@ -86,7 +86,7 @@ principal (`fs.repo_ro`) gets nothing. The kernel then enforces exactly that.
 - **No AIL/ARP parser.** Transition records are neutral JSON (eventd-style), not
   AIL-0 frames — the ARP IR is a separate workstream. A seam exists to adopt it.
 - **WAL = eventd**, the canonical daemon, not a third inline hash chain.
-- **Capability = git path-scope** locally; the kernel boundary that runs on M1.
+- **Capability = git path-scope** locally; the kernel boundary that runs on M3.
 - **Post-images, not diffs.** A transition is captured as the exact bytes of
   changed in-scope files (content-addressed blobs), so replay is a pure, total
   function — no `git apply` fuzz/whitespace nondeterminism.

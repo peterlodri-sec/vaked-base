@@ -1,4 +1,4 @@
-# Local Ollama setup — ralph dogfood loop at zero cloud cost (M1)
+# Local Ollama setup — ralph dogfood loop at zero cloud cost (M3)
 
 Run the existing `tools/ralph/` decision loop against a self-hosted Ollama model
 instead of OpenRouter. No code change to ralph — it already honors a base-url +

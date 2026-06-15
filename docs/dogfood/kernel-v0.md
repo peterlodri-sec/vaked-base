@@ -5,7 +5,7 @@ A local, zero-cloud kernel that makes one agent-proposed code transition
 accepted. The creative half (opencode + local Ollama) proposes; the deterministic
 half (this kernel) decides. It dogfoods Vaked's three theories — immutable
 (eventd WAL), control (accept/reject/rollback), and capability (POLA scope) —
-on the M1, with no Linux kernel features.
+on the M3, with no Linux kernel features.
 
 Code: `tools/dogfood/` (see its README for the file map and CLI).
 

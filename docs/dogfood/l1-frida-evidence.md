@@ -9,7 +9,7 @@ up the *dev environment* to produce L1 evidence that feeds the kernel's
 
 ## Why a container
 
-LD_PRELOAD, `ptrace`/Frida-attach, seccomp, and eBPF are **Linux+glibc**. The M1
+LD_PRELOAD, `ptrace`/Frida-attach, seccomp, and eBPF are **Linux+glibc**. The M3
 host (macOS, `DYLD_INSERT_LIBRARIES`, no eBPF) cannot run them, and the project
 rule is **never build/enforce on the developer machine**. So L1 work runs in a
 local Linux container via **colima** (Docker engine on a Linux VM on macOS).
@@ -78,7 +78,7 @@ write-opens and the delete, and correctly skipped the read-only open.
 
 **Self-hosted LLM:** dev-cx53 already runs a `crabcc-ollama-stack` (ollama +
 litellm OpenAI-compat gateway on `:4000`, auth-gated). Point opencode/ralph at it
-(`task point`) to free the M1's RAM — no duplicate ollama needed.
+(`task point`) to free the M3's RAM — no duplicate ollama needed.
 
 ## Status
 

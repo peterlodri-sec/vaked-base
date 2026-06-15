@@ -6,7 +6,7 @@
 dogfood loop: an AI agent *proposes* a code transition; the kernel *judges* it
 against four gates, records the accepted ones to an append-only hash-chained
 ledger, and replay-verifies them — all **locally, at zero cloud cost**, on a
-macOS M1, with a real-Linux evidence layer on `dev-cx53`.
+macOS M3, with a real-Linux evidence layer on `dev-cx53`.
 
 > Vaked declares · Nix materializes · OTP supervises · Zig enforces · eBPF testifies · **Aegis adjudicates**.
 
@@ -129,24 +129,24 @@ docs/dogfood/
 
 | Tool | Where | Why |
 |------|-------|-----|
-| Python 3.12+ stdlib | M1 + dev-cx53 | the kernel, ralph, eventd — no pip needed |
-| **Ollama** | M1 (≤8GB) or dev-cx53 | the local model backend (OpenAI-compatible) |
-| **opencode** | M1 | the proposer agent (drives a local model) |
-| **vakedc** | M1 | `python3 -m vakedc parse\|check\|lower` — the Vaked front-end |
-| **go-task** | M1 | runs `tools/dogfood/Taskfile.yml` |
+| Python 3.12+ stdlib | M3 + dev-cx53 | the kernel, ralph, eventd — no pip needed |
+| **Ollama** | M3 (≤8GB) or dev-cx53 | the local model backend (OpenAI-compatible) |
+| **opencode** | M3 | the proposer agent (drives a local model) |
+| **vakedc** | M3 | `python3 -m vakedc parse\|check\|lower` — the Vaked front-end |
+| **go-task** | M3 | runs `tools/dogfood/Taskfile.yml` |
 | **clang** | dev-cx53 only | builds the LD_PRELOAD `.so` (Linux) |
 | **tailscale** | both | reaches dev-cx53 (`100.105.72.88`) |
 
 **Two machines, one rule each:**
 
-- **macOS M1 (dev workstation)** — runs the kernel, ralph, opencode, vakedc. Keep
+- **macOS M3 (dev workstation)** — runs the kernel, ralph, opencode, vakedc. Keep
   Ollama **≤8GB**: serve with `OLLAMA_CONTEXT_LENGTH=8192 OLLAMA_MAX_LOADED_MODELS=1
   OLLAMA_KEEP_ALIVE=60s OLLAMA_FLASH_ATTENTION=1` (16k ctx nearly froze the host).
   **Cannot** do LD_PRELOAD/seccomp/eBPF (macOS).
 - **dev-cx53 (NixOS, `dev@100.105.72.88`)** — the sanctioned Linux build/run
   target (16 cpu, 30GB, sudo-nopasswd). Real LD_PRELOAD/clang. Already self-hosts
   a `crabcc-ollama-stack` (ollama + **litellm** OpenAI-compat gateway on `:4000`,
-  auth-gated). **Never build/compile on the M1** (project rule) — gate compiles to
+  auth-gated). **Never build/compile on the M3** (project rule) — gate compiles to
   dev-cx53.
 
 ---
@@ -189,7 +189,7 @@ task preflight        # probe dev-cx53
 task stack:status     # the existing ollama+litellm stack
 task l1:build         # ship observe_preload.c → clang on dev-cx53
 task l1:test          # expect W,W,D; read-only open NOT logged
-task point            # prints env to aim ralph/opencode at dev-cx53 (frees M1 RAM)
+task point            # prints env to aim ralph/opencode at dev-cx53 (frees M3 RAM)
 ```
 > litellm is auth-gated: `export LITELLM_KEY=…` (see `OLLAMA-AUTH.md` in the stack)
 > before `task stack:models` / using `task point`.
@@ -228,7 +228,7 @@ Earlier drafts content-hashed the whole git universe twice per transition
   Always branch from `origin/main`.
 - **ralph needs a *thinking* model** locally (`qwen3:8b`); `qwen2.5-coder` 400s on
   the `reasoning=` field.
-- **Keep Ollama ≤8GB on the M1** — 16k context nearly froze the host. Or offload to
+- **Keep Ollama ≤8GB on the M3** — 16k context nearly froze the host. Or offload to
   dev-cx53 (`task point`).
 - **Don't `pkill -f "ollama serve"` on dev-cx53** — it matches the stack container's
   process (shared host). Use `task`/docker compose instead.
@@ -260,7 +260,7 @@ Earlier drafts content-hashed the whole git universe twice per transition
 ## 10. Status & next steps
 
 - **Branch:** `feat/local-dogfood-kernel` · **PR:** #267 · **trunk:** `origin/main`.
-- **Done:** ralph-on-Ollama (M1) · kernel + 16 tests · POLA lowered from Vaked ·
+- **Done:** ralph-on-Ollama (M3) · kernel + 16 tests · POLA lowered from Vaked ·
   hot-path made linear-in-change · L1 LD_PRELOAD observer built+validated on dev-cx53 ·
   Taskfile.
 - **Next (pick up here):**
@@ -268,7 +268,7 @@ Earlier drafts content-hashed the whole git universe twice per transition
   2. Feed `observe_preload.py` output into the kernel's observed gate on dev-cx53
      (close the declared≈observed loop on real syscalls).
   3. Aim ralph/opencode at the dev-cx53 litellm stack (`LITELLM_KEY` + `task point`)
-     to free the M1 entirely.
+     to free the M3 entirely.
   4. File the `filesystem`-membrane follow-up (make `writeScope` a checked schema).
 
 **Pointers:** design `docs/dogfood/kernel-v0.md` · local model `docs/dogfood/local-ollama-setup.md`
