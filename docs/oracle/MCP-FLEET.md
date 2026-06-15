@@ -16,6 +16,17 @@ ctags provider (crabcc is C-only); (2) token-efficient editing of our own Python
   the canonical uvx-from-git form above is correct. Needs `uv` + first-run network fetch.
 - Reload Claude Code after the `.mcp.json` change for it to start.
 
+## OpenRouter key (diverse panel) — stored for reuse
+
+The OpenRouter API key (for `feketecs` deepseek-v4-flash + `anstetten` deepseek-v4-pro) is
+stored secured (chmod 600), never committed:
+- **M3:** `~/.config/oracle/openrouter.key`
+- **dev-cx53 (revdev):** `~/.config/oracle/openrouter.env` (`export OPENROUTER_API_KEY=…`)
+
+`task -d tools/oracle team` auto-sources the box env (no-op if absent), so diverse-panel
+runs are keyed automatically. Keyless-local runs use `PANEL=tools/oracle/panel.local.json`
+(no secret). Rotate by overwriting both files.
+
 ## Observability — Langfuse (push, not MCP)
 
 Langfuse (`langfuse.crabcc.app`) is **observability via SDK push**, not an MCP query server:
