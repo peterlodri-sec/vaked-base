@@ -78,3 +78,21 @@ tasks:
           --infer-cmd "llama-completion --jinja -m ${LLAMA_DEMO_MODEL:-$HOME/oracle/models/llm4decompile-6.7b-v2-q4_k_m.gguf} -p hi -n 4" \
           --watch-seconds "${ORACLE_WATCH_SECONDS:-12}" \
           --budget-iters "${ORACLE_BUDGET:-8}"
+
+  team:
+    desc: "run the reverser debate-panel team (slice 4a; dev-cx53). PANEL=panel.local.json for keyless; default diverse panel auto-sources ~/.config/oracle/openrouter.env"
+    vars:
+      PANEL: '{{.PANEL | default "tools/oracle/panel.example.json"}}'
+    cmds:
+      - |
+        [ -f ~/.config/oracle/openrouter.env ] && . ~/.config/oracle/openrouter.env || true   # diverse panel key (no-op if absent)
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        ORACLE_DIR="${ORACLE_DIR:-$HOME/oracle/team-run}" python3 tools/oracle/oracle.py team \
+          --target {{.TARGET}} --funcs {{.FUNCS}} --panel {{.PANEL}} \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --crabcc-root "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --budget-calls "${ORACLE_BUDGET:-30}" --memory "$HOME/oracle/dossier.jsonl"
