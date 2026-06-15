@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """vaked-oracle unit tests (stdlib only; run: python3 tools/oracle/test_oracle.py)."""
+import json
 import os
 import sys
 
@@ -148,6 +149,45 @@ def test_parse_frida_aggregates_calls():
 def test_parse_frida_ignores_noise_lines():
     got = dfr.parse_frida_trace('garbage\n{"fn":"f","dur_ns":1000}\n[frida] log')
     assert got["f"]["calls"] == 1
+
+
+import watcher_client as wc  # noqa: E402
+import socket  # noqa: E402
+import threading  # noqa: E402
+
+
+def test_encode_decode_roundtrip():
+    req = wc.encode_request(pid=1234, duration_s=5)
+    assert json.loads(req.decode())["pid"] == 1234
+    resp = wc.decode_response(json.dumps(
+        {"ok": True, "syscalls": {"openat": 3}, "mmaps": ["model.gguf"], "files": []}).encode())
+    assert resp["syscalls"]["openat"] == 3
+
+
+def test_decode_response_error_raises():
+    try:
+        wc.decode_response(json.dumps({"ok": False, "error": "no such pid"}).encode())
+        assert False, "expected RuntimeError"
+    except RuntimeError as e:
+        assert "no such pid" in str(e)
+
+
+def test_query_watcher_against_fake_socket():
+    with tempfile.TemporaryDirectory() as d:
+        sock_path = os.path.join(d, "w.sock")
+        srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        srv.bind(sock_path); srv.listen(1)
+
+        def serve():
+            conn, _ = srv.accept()
+            conn.recv(4096)
+            conn.sendall(json.dumps({"ok": True, "syscalls": {"mmap": 1},
+                                     "mmaps": [], "files": []}).encode())
+            conn.close()
+        t = threading.Thread(target=serve, daemon=True); t.start()
+        out = wc.query_watcher(sock_path, pid=42, duration_s=1)
+        assert out["syscalls"]["mmap"] == 1
+        srv.close()
 
 
 if __name__ == "__main__":
