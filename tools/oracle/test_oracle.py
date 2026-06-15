@@ -653,6 +653,195 @@ def test_parse_args_agent_flags():
     assert ns.agent is True and ns.crabcc_root == "/src" and ns.llm_model == "m7"
 
 
+# --- slice 4a: reverser debate-panel team -----------------------------------
+import panel as _panel  # noqa: E402
+import team as _team  # noqa: E402
+import memory as _mem  # noqa: E402
+
+
+def test_panel_runs_all_candidates_order_stable():
+    ps = [_panel.Panelist("zeta", lambda p: "Z"), _panel.Panelist("alpha", lambda p: "A")]
+    out = _panel.run_panel("fn", "pseudo", "", ps)
+    assert [o["panelist"] for o in out] == ["alpha", "zeta"]
+    assert all(o["refined_c"] for o in out)
+
+
+def test_panel_panelist_error_degrades():
+    def boom(p):
+        raise RuntimeError("down")
+    out = _panel.run_panel("fn", "pc", "", [_panel.Panelist("a", lambda p: "A"), _panel.Panelist("b", boom)])
+    d = {o["panelist"]: o for o in out}
+    assert d["a"]["refined_c"] == "A"
+    assert d["b"]["refined_c"] is None and d["b"]["error"]
+
+
+def test_select_effort_none_on_agreement():
+    cands = [{"refined_c": "int f(){}"}, {"refined_c": "int f(){}"}]
+    assert _panel.select_effort(cands, None) == "none"
+
+
+def test_select_effort_high_max_none_by_fidelity():
+    cands = [{"refined_c": "a"}, {"refined_c": "bbb"}]
+    assert _panel.select_effort(cands, [0.5, 0.6]) == "high"
+    assert _panel.select_effort(cands, [0.1, 0.2]) == "max"
+    assert _panel.select_effort(cands, [0.9, 0.1]) == "none"   # max fidelity >= threshold
+
+
+def test_openai_client_reasoning_and_temp():
+    c = _panel.OpenAIChatClient("http://x/v1", "mymodel", temperature=1.0, reasoning_effort="high")
+    b = c._build_body("hi", c.reasoning_effort)
+    assert b["temperature"] == 1.0 and b["reasoning"] == {"effort": "high"} and b["model"] == "mymodel"
+    assert "reasoning" not in c._build_body("hi", None)
+
+
+def test_judge_pick_parses():
+    cands = [{"panelist": "a", "refined_c": "AAA"}, {"panelist": "b", "refined_c": "BBB"}]
+    judge = lambda prompt, reasoning_effort=None: '{"mode":"pick","index":1,"rationale":"b"}'
+    v = _panel.judge_candidates("fn", cands, "", judge, effort="high")
+    assert v["mode"] == "pick" and v["refined_c"] == "BBB" and v["drew_from"] == ["b"]
+
+
+def test_judge_merge_parses():
+    cands = [{"panelist": "a", "refined_c": "AAA"}, {"panelist": "b", "refined_c": "BBB"}]
+    judge = lambda prompt, reasoning_effort=None: '{"mode":"merge","refined_c":"MERGED","drew_from":[0,1],"rationale":"x"}'
+    v = _panel.judge_candidates("fn", cands, "", judge)
+    assert v["mode"] == "merge" and v["refined_c"] == "MERGED" and v["drew_from"] == ["a", "b"]
+
+
+def test_judge_fallback_on_garbage():
+    cands = [{"panelist": "a", "refined_c": "AAA"}, {"panelist": "b", "refined_c": "BBB"}]
+    judge = lambda prompt, reasoning_effort=None: "not json"
+    v = _panel.judge_candidates("fn", cands, "", judge, fidelities=[0.2, 0.7])
+    assert v["mode"] == "fallback" and v["refined_c"] == "BBB"   # best fidelity
+
+
+def test_debate_function_end_to_end():
+    ps = [_panel.Panelist("a", lambda p: "int f(){}"), _panel.Panelist("b", lambda p: "int f(){return 1;}")]
+    judge = lambda prompt, reasoning_effort=None: '{"mode":"pick","index":0,"rationale":"a"}'
+    r = _panel.debate_function("f", "pc", "", ps, judge, score=lambda c, gt: 0.5, ground_truth="src")
+    assert r["chosen"] == "int f(){}" and r["effort"] == "high"
+    assert "candidates" in r and r["verdict"]["mode"] == "pick"
+
+
+def test_load_roster_keyenv_degrade():
+    with tempfile.TemporaryDirectory() as d:
+        rp = os.path.join(d, "roster.json")
+        json.dump({"panelists": [
+            {"name": "local", "endpoint": "http://x/v1", "model": "m", "key_env": None},
+            {"name": "paid", "endpoint": "http://y/v1", "model": "m2", "key_env": "NOPE_KEY_XYZ"}],
+            "judge": {"name": "j", "endpoint": "http://z/v1", "model": "jm", "key_env": None}},
+            open(rp, "w"))
+        os.environ.pop("NOPE_KEY_XYZ", None)
+        ps, judge = _panel.load_roster(rp)
+        names = [p.name for p in ps]
+        assert "local" in names and "paid" not in names and judge is not None
+
+
+def test_memory_remember_recall_roundtrip():
+    with tempfile.TemporaryDirectory() as d:
+        m = _mem.TeamMemory(os.path.join(d, "dossier.jsonl"))
+        m.remember(run_id="r", fn="llama_decode", kind="finding", text="llama_decode calls decode_impl", tags=["llama_decode"])
+        m.remember(run_id="r", fn="other", kind="finding", text="unrelated", tags=["other"])
+        hits = m.recall("decode")
+        assert hits and hits[0]["fn"] == "llama_decode"
+
+
+def test_memory_recall_empty_safe():
+    with tempfile.TemporaryDirectory() as d:
+        m = _mem.TeamMemory(os.path.join(d, "dossier.jsonl"))
+        assert m.recall("anything") == [] and m.inject("fn", "fn") == ""
+
+
+def test_memory_tags_boost():
+    with tempfile.TemporaryDirectory() as d:
+        m = _mem.TeamMemory(os.path.join(d, "dossier.jsonl"))
+        m.remember(run_id="r", fn="x", kind="k", text="nothing relevant here", tags=["decode"])
+        m.remember(run_id="r", fn="y", kind="k", text="decode appears in body", tags=[])
+        assert m.recall("decode")[0]["fn"] == "x"   # tag weight 2 > body weight 1
+
+
+def test_investigate_ctags_provider_parses():
+    def runner(cmd, timeout=30):
+        if cmd[0] == "ctags":
+            return 0, '{"_type":"tag","name":"llama_decode","kind":"function","signature":"(ctx)","path":"x.cpp","line":10}\n'
+        return 1, ""
+    obs = _inv.make_investigator(source_root="SRC", runner=runner)({"kind": "sym", "name": "llama_decode"})
+    assert obs["provider"] == "ctags" and obs["result"][0]["name"] == "llama_decode"
+
+
+def test_investigate_chain_crabcc_ctags_binutils():
+    o1 = _inv.make_investigator(source_root="S", runner=lambda cmd, timeout=30: (0, '[{"name":"f"}]') if cmd[0] == "crabcc" else (1, ""))({"kind": "sym", "name": "f"})
+    assert o1["provider"] == "crabcc"
+
+    def r2(cmd, timeout=30):
+        if cmd[0] == "ctags":
+            return 0, '{"_type":"tag","name":"f","kind":"function"}'
+        return 1, ""
+    assert _inv.make_investigator(source_root="S", runner=r2)({"kind": "sym", "name": "f"})["provider"] == "ctags"
+
+    def r3(cmd, timeout=30):
+        return (0, "0001 T f\n") if cmd[0] == "nm" else (1, "")
+    assert _inv.make_investigator(source_root="S", binary="/lib/x.so", runner=r3)({"kind": "sym", "name": "f"})["provider"] == "binutils"
+
+
+def test_run_team_drives_and_records():
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        mem = _mem.TeamMemory(os.path.join(d, "dossier.jsonl"))
+        ps = [_panel.Panelist("a", lambda p: "int x(){}"), _panel.Panelist("b", lambda p: "int y(){}")]
+        judge = lambda prompt, reasoning_effort=None: '{"mode":"pick","index":0,"rationale":"a"}'
+        finding = _team.run_team(
+            functions=["f1", "f2"],
+            target={"path": "/bin/x", "sha256": "0" * 64, "source_ref": "v"},
+            decompiler_meta={"model": "team", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg, decompile=lambda fn: "pseudo " + fn,
+            panelists=ps, judge_client=judge,
+            score=lambda c, gt: 0.5, ground_truth=lambda fn: "src", memory=mem, budget_calls=60)
+        assert finding["kind"] == "oracle_finding" and len(finding["functions"]) == 2
+        kinds = [e["payload"]["kind"] for e in lg.entries()]
+        assert kinds.count("candidate") == 4 and kinds.count("verdict") == 2 and "finding" in kinds
+        assert lg.verify() and mem.recall("f1")
+
+
+def test_run_team_budget_calls_stops():
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        ps = [_panel.Panelist("a", lambda p: "A"), _panel.Panelist("b", lambda p: "B")]
+        judge = lambda prompt, reasoning_effort=None: '{"mode":"pick","index":0}'
+        finding = _team.run_team(
+            functions=["f1", "f2", "f3"],
+            target={"path": "/b", "sha256": "0" * 64, "source_ref": "v"},
+            decompiler_meta={"model": "t", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg, decompile=lambda fn: "p", panelists=ps, judge_client=judge, budget_calls=3)
+        payloads = [e["payload"] for e in lg.entries()]
+        assert any(p.get("reason") == "budget_exhausted" for p in payloads)
+        assert finding["kind"] == "oracle_finding"
+
+
+def test_run_team_uses_recall_context():
+    seen = {}
+    def client(p):
+        seen["prompt"] = p
+        return "int f(){}"
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        mem = _mem.TeamMemory(os.path.join(d, "dossier.jsonl"))
+        mem.remember(run_id="r", fn="f1", kind="finding", text="f1 calls helper_42", tags=["f1"])
+        judge = lambda prompt, reasoning_effort=None: '{"mode":"pick","index":0}'
+        _team.run_team(functions=["f1"], target={"path": "/b", "sha256": "0" * 64, "source_ref": "v"},
+            decompiler_meta={"model": "t", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg, decompile=lambda fn: "pseudo", panelists=[_panel.Panelist("a", client)],
+            judge_client=judge, memory=mem, budget_calls=10)
+        assert "helper_42" in seen["prompt"]
+
+
+def test_parse_args_team_flags():
+    ns = oracle_cli.parse_args(["team", "--target", "/b", "--funcs", "a,b", "--panel", "/p.json",
+                                "--budget-calls", "12", "--memory", "/m.jsonl"])
+    assert ns.cmd == "team" and ns.panel == "/p.json" and ns.budget_calls == 12
+    assert ns.funcs == ["a", "b"] and ns.memory == "/m.jsonl"
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()

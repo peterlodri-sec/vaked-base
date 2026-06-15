@@ -28,6 +28,9 @@ import ghidra_frontend as gf  # noqa: E402
 import ledger      # noqa: E402
 import llm_refine  # noqa: E402
 import loop        # noqa: E402
+import memory as team_memory  # noqa: E402
+import panel as panel_mod  # noqa: E402
+import team        # noqa: E402
 import watcher_client as wc  # noqa: E402
 
 ORACLE_DIR = os.environ.get("ORACLE_DIR", ".oracle")
@@ -67,6 +70,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     v.add_argument("--finding", required=True)
     v.add_argument("--wal-path", required=True)
     v.add_argument("--ledger", required=True)
+
+    t = sub.add_parser("team", help="reverser debate-panel team (slice 4a)")
+    t.add_argument("--target", required=True)
+    t.add_argument("--funcs", required=True, type=lambda s: [x for x in s.split(",") if x])
+    t.add_argument("--panel", required=True, help="roster JSON (see panel.example.json)")
+    t.add_argument("--pyghidra-python", default=os.environ.get("ORACLE_PYGHIDRA_PYTHON", "python3"))
+    t.add_argument("--source-dir", default=None, help="ground-truth source (fidelity + crabcc/ctags investigate)")
+    t.add_argument("--crabcc-root", default=None, help="crabcc/ctags index root (defaults to --source-dir)")
+    t.add_argument("--budget-calls", type=int, default=60)
+    t.add_argument("--max-workers", type=int, default=4)
+    t.add_argument("--memory", default=os.path.join(ORACLE_DIR, "dossier.jsonl"))
     return p.parse_args(argv)
 
 
@@ -199,6 +213,33 @@ def cmd_verify_xref(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_team(ns: argparse.Namespace) -> int:
+    import investigate as inv
+    panelists, judge = panel_mod.load_roster(ns.panel)
+    if not panelists:
+        print("team: no usable panelists (check roster / keys)")
+        return 1
+    decomp_map = gf.run_ghidra(binary=ns.target, functions=ns.funcs, pyghidra_python=ns.pyghidra_python)
+    src_root = ns.crabcc_root or ns.source_dir
+    investigate = inv.make_investigator(source_root=src_root, binary=ns.target)
+    lg = ledger.Ledger(os.path.join(ORACLE_DIR, "events.jsonl"))
+    mem = team_memory.TeamMemory(ns.memory)
+    finding = team.run_team(
+        functions=ns.funcs,
+        target={"path": ns.target, "sha256": _sha256_file(ns.target), "source_ref": ns.source_dir or "unknown"},
+        decompiler_meta={"model": "reverser-team", "model_sha256": "n/a", "temperature": 0},
+        ledger_=lg, decompile=lambda fn: decomp_map.get(fn, ""),
+        panelists=panelists, judge_client=judge,
+        score=fidelity.score,
+        ground_truth=(lambda fn: _ground_truth(ns.source_dir, fn)) if ns.source_dir else None,
+        investigate=investigate, memory=mem,
+        budget_calls=ns.budget_calls, max_workers=ns.max_workers)
+    path = persist_finding(finding, findings_dir=os.path.join(ORACLE_DIR, "findings"))
+    print(f"team finding: {path}  confidence={finding['confidence']}  "
+          f"funcs={len(finding['functions'])}  chain_ok={lg.verify()}")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ns = parse_args(argv)
     if ns.cmd == "run":
@@ -207,6 +248,8 @@ def main(argv: list[str]) -> int:
         return cmd_ground(ns)
     if ns.cmd == "verify-xref":
         return cmd_verify_xref(ns)
+    if ns.cmd == "team":
+        return cmd_team(ns)
     return 2
 
 
