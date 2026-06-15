@@ -353,6 +353,163 @@ def test_smoke_end_to_end_with_fakes_persists_and_verifies():
         assert reloaded["confidence"] >= 0.75 and lg.verify()
 
 
+# --- slice 2: double-dogfood transition_xref wire -------------------------------
+import dogfood_bridge as ddb  # noqa: E402
+
+
+def _fixture_finding():
+    fn = schema.function_entry(name="llama_decode", addr="0x1000",
+                               pseudo_c_sha="ab" * 32, refined_c="int llama_decode(){}",
+                               fidelity_score=0.81)
+    return schema.build_finding(
+        target={"path": "/usr/lib/libllama.so.0", "sha256": "0" * 64, "source_ref": "b9190"},
+        decompiler={"model": "llm4decompile-6.7b-v2", "model_sha256": "0" * 64, "temperature": 0},
+        functions=[fn], confidence=0.81)
+
+
+def _ground_in(d, finding, finding_rel="findings/f.json", scope=("findings",)):
+    """Ground a finding in a clean workspace under tmpdir `d`. WAL/blobs are
+    SIBLINGS of root (never under it). Returns (result, root, wal_path, lg)."""
+    root = os.path.join(d, "ws")
+    os.makedirs(root, exist_ok=True)
+    wal_path = os.path.join(d, "aegis-wal", "wal.jsonl")
+    blobs = os.path.join(d, "aegis-wal", "blobs")
+    lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+    res = ddb.ground_finding(finding=finding, finding_rel=finding_rel, root=root,
+                             scope=list(scope), wal_path=wal_path, blobs_dir=blobs,
+                             oracle_ledger=lg)
+    return res, root, wal_path, lg
+
+
+def test_ground_attaches_real_wal_hash():
+    from eventd import EventLog
+    with tempfile.TemporaryDirectory() as d:
+        res, root, wal_path, lg = _ground_in(d, _fixture_finding())
+        xref = res["transition_xref"]
+        assert isinstance(xref, str) and len(xref) == 64 and xref != "0" * 64
+        assert res["linked_finding"]["transition_xref"] == xref
+        assert os.path.exists(os.path.join(root, "findings", "f.json"))
+        with EventLog(wal_path) as log:
+            entries = list(log.entries)
+        assert len(entries) == 1
+        assert entries[0]["payload"]["actual_effects"]["writes"] == ["findings/f.json"]
+        assert entries[0]["hash"] == xref
+        assert lg.verify()
+
+
+def test_ground_respects_capability_scope():
+    with tempfile.TemporaryDirectory() as d:
+        try:
+            _ground_in(d, _fixture_finding(), finding_rel="outside/f.json", scope=("findings",))
+            assert False, "expected RuntimeError (out-of-scope write)"
+        except RuntimeError:
+            pass
+        assert not os.path.exists(os.path.join(d, "aegis-wal", "wal.jsonl"))
+        assert not os.path.exists(os.path.join(d, "ws", "outside", "f.json"))
+
+
+def test_verify_xref_resolves_bidirectionally():
+    with tempfile.TemporaryDirectory() as d:
+        res, root, wal_path, lg = _ground_in(d, _fixture_finding())
+        assert ddb.verify_xref(finding=res["linked_finding"], wal_path=wal_path,
+                               oracle_ledger=lg) is True
+
+
+def test_verify_xref_rejects_missing_wal_entry():
+    with tempfile.TemporaryDirectory() as d:
+        res, root, wal_path, lg = _ground_in(d, _fixture_finding())
+        forged = dict(res["linked_finding"])
+        forged["transition_xref"] = "00" * 32
+        try:
+            ddb.verify_xref(finding=forged, wal_path=wal_path, oracle_ledger=lg)
+            assert False, "expected ValueError (missing WAL entry)"
+        except ValueError:
+            pass
+
+
+def test_verify_xref_rejects_finding_not_in_writes():
+    with tempfile.TemporaryDirectory() as d:
+        res, root, wal_path, lg = _ground_in(d, _fixture_finding(),
+                                             finding_rel="findings/a.json")
+        forged = dict(res["linked_finding"])
+        forged["observed_effects"] = {"writes": ["findings/b.json"], "deletes": []}
+        try:
+            ddb.verify_xref(finding=forged, wal_path=wal_path, oracle_ledger=lg)
+            assert False, "expected ValueError (finding not in transition writes)"
+        except ValueError:
+            pass
+
+
+def test_chains_verify_independently():
+    from eventd import EventLog, TamperError
+    with tempfile.TemporaryDirectory() as d:
+        res, root, wal_path, lg = _ground_in(d, _fixture_finding())
+        linked = res["linked_finding"]
+        # (a) tamper the oracle ledger ⇒ verify_xref fails at the ledger gate.
+        led_path = os.path.join(d, "events.jsonl")
+        rows = open(led_path).read().splitlines()
+        bad = json.loads(rows[-1]); bad["payload"]["confidence"] = 0.0
+        rows[-1] = json.dumps(bad, sort_keys=True)
+        open(led_path, "w").write("\n".join(rows) + "\n")
+        tampered_lg = ledger.Ledger(led_path)
+        assert tampered_lg.verify() is False
+        try:
+            ddb.verify_xref(finding=linked, wal_path=wal_path, oracle_ledger=tampered_lg)
+            assert False, "expected ValueError (tampered ledger)"
+        except ValueError:
+            pass
+        # (b) tamper the WAL bytes ⇒ EventLog open raises; the ledger is unaffected.
+        wrows = open(wal_path).read().splitlines()
+        wbad = json.loads(wrows[0]); wbad["payload"]["intent"] = "FORGED"
+        wrows[0] = json.dumps(wbad, sort_keys=True)
+        open(wal_path, "w").write("\n".join(wrows) + "\n")
+        try:
+            with EventLog(wal_path) as log:
+                list(log.entries)
+            assert False, "expected TamperError (tampered WAL)"
+        except TamperError:
+            pass
+        # verify_xref must also surface the WAL tamper (not silently pass).
+        # lg's in-memory chain is still clean, so step 1 passes; the WAL open raises.
+        try:
+            ddb.verify_xref(finding=linked, wal_path=wal_path, oracle_ledger=lg)
+            assert False, "expected verify_xref to raise on tampered WAL"
+        except Exception:
+            pass
+
+
+def test_ground_strips_stale_xref_from_artifact():
+    """Re-grounding a finding that already carries an xref must hash WITHOUT it."""
+    with tempfile.TemporaryDirectory() as d:
+        stale = dict(_fixture_finding())
+        stale["transition_xref"] = "ff" * 32   # pretend previously linked
+        res, root, wal_path, lg = _ground_in(d, stale)
+        art = json.load(open(os.path.join(root, "findings", "f.json")))
+        assert art.get("transition_xref") is None   # the hashed artifact carries no xref
+        assert ddb.verify_xref(finding=res["linked_finding"], wal_path=wal_path,
+                               oracle_ledger=lg) is True
+
+
+def test_cli_ground_then_verify_roundtrip():
+    import oracle as oc
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "ws"); os.makedirs(os.path.join(root, "findings"))
+        fpath = os.path.join(root, "findings", "f.json")
+        json.dump(_fixture_finding(), open(fpath, "w"), sort_keys=True)
+        wal_path = os.path.join(d, "aegis-wal", "wal.jsonl")
+        blobs = os.path.join(d, "aegis-wal", "blobs")
+        led = os.path.join(d, "events.jsonl")
+        rc = oc.main(["ground", "--finding", fpath, "--root", root, "--scope", "findings",
+                      "--wal-path", wal_path, "--blobs", blobs, "--ledger", led])
+        assert rc == 0
+        last = json.loads(open(led).read().splitlines()[-1])
+        linked_path = os.path.join(d, "linked.json")
+        json.dump(last["payload"], open(linked_path, "w"))
+        rc2 = oc.main(["verify-xref", "--finding", linked_path,
+                       "--wal-path", wal_path, "--ledger", led])
+        assert rc2 == 0
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()

@@ -1,0 +1,59 @@
+# .DEV.TODO — vaked-oracle roadmap
+
+Backlog for the LLM-assisted reverse-engineering subsystem (`tools/oracle/`).
+Slice 1 SHIPPED (origin/main `5308672`): ralph-loop → PyGhidra → llm4decompile-6.7B
+refine → fidelity-vs-FOSS → Frida+eBPF dynamic evidence → finding + hash-chained
+ledger + (unwired) kernel bridge. Acceptance proven on dev-cx53 (static + dynamic).
+
+Premise: a decompiler-LLM reverse-engineers the runtime of another LLM
+(llama.cpp / libllama.so.0). FOSS target ⇒ objective fidelity. Recursive.
+
+---
+
+## ▶ SLICE 2 — double-dogfood (IN PROGRESS, branch feat/oracle-double-dogfood)
+
+Wire the `transition_xref` seam. Today: `bridge.attach_transition` +
+`bridge.to_observed_effects` are tested but never called; every persisted finding
+has `transition_xref: null` (see `docs/oracle/integration.md` §2).
+
+- [ ] Oracle finding → vaked-aegis kernel transition (eventd WAL via `tools/dogfood/wal.py`)
+- [ ] observed_effects = finding's written files (bridge.to_observed_effects)
+- [ ] accepted WAL entry hash → bridge.attach_transition → re-persist finding with xref
+- [ ] bidirectional integrity: finding.transition_xref resolves to a WAL entry whose
+      observed_effects writes include the finding path; both chains verify independently
+- [ ] flip integration.md "null in slice 1" → "wired"; on-box acceptance run
+- Scope decision (pending user): agent-free deterministic evidence wire vs. agentic patch
+
+---
+
+## BACKLOG (user: "don't forget the others")
+
+### Slice 3 — agentic reverser loop  (reverser_ai-style)
+Agent (pi / claude / nullclaw on revdev) drives the deterministic primitives:
+plan → decompile → probe → refine, autonomously. Turns slice-1 primitives into a
+self-directed reverser. Biggest lift. Likely consumes slice-2's xref wire (a
+proposer transition grounded in an oracle finding = the agent's real code edit).
+
+### Slice 4 — arbitrary-binary RE  (generality)
+Unknown/stripped ELFs — the pure llm4decompile / OGhidra demo. Proves the system
+works beyond the FOSS-ground-truth case. No ground truth ⇒ needs a confidence
+heuristic to replace fidelity-vs-source scoring (self-consistency / recompile-diff).
+
+### Slice 5 — deepen target + fidelity  (hardening)
+- ggml/tensor hot path: `ggml_compute_forward`, `ggml_graph_compute` on
+  `libggml-base.so` (more llama.cpp surface for static+dynamic acceptance).
+- tree-sitter AST fidelity replacing `normalized-token-similarity` in `fidelity.py`.
+- widen the eBPF watcher trace window to catch GGUF mmap.
+
+---
+
+## CHORES / DRIFT
+- [ ] revdev GUI desktop: `revdev-xfce` service flapped (failed→active across rebuilds);
+      compositing still reads ON despite `use_compositing = false`. Headless oracle
+      unaffected. Clean when convenient. (nix-base hosts/dev-cx53/revdev-gui.nix)
+- substrate bring-up recipe: docs/recon/00-dev-cx53-env.md ; golden SSH: docs/recon/golden-ssh-patterns.md
+
+## CONSTRAINTS (always)
+never build on M3 (gate to dev-cx53; 3-gate protocol in CLAUDE.md) · revdev unprivileged
+(eBPF only via root watcher socket) · Snyk OFF · reuse tools/ralph read-only ·
+don't touch execution ARP IR or L2 eBPF-LSM (other dev's lanes).

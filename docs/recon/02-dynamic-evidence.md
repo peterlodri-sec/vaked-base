@@ -119,3 +119,15 @@ the 5s PID-scoped trace + `sys_enter_*` attach latency can miss it (widen `durat
 load window to catch the weight mmap). One `llama-completion` run threw `std::runtime_error: this
 custom template is not supported, try using --jinja` — add `--jinja` for chat-template models;
 oracle degraded gracefully and still recorded both blobs.
+
+---
+
+## Double-dogfood grounding (slice 2)
+
+A finding produced here can be **grounded** into the vaked-aegis kernel: `oracle
+ground` records it as an eventd-WAL transition, `oracle verify-xref` proves the
+bidirectional `transition_xref` link + both hash chains. On-box acceptance
+(2026-06-15, dev-cx53/revdev, python 3.13) on the static finding `81ff9c4f…`:
+`transition_xref=c15ef2f2…cfda` (WAL seq 0), `actual_effects.writes ==
+observed_effects.writes == ["findings/f.json"]`, `capability_ok=True`,
+`verify-xref OK`. See `docs/oracle/v0.md` + `docs/oracle/integration.md` §2.

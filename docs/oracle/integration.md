@@ -58,14 +58,14 @@ entry — the entry recording a transition in which the oracle's RE output was
 used as evidence. It is a cross-reference across two hash-chained ledgers (the
 oracle's own `events.jsonl` and the kernel's `eventd` WAL).
 
-In slice 1 this field is always `null` in persisted findings. The double-dogfood
-cycle (roadmap item 2) populates it: when oracle's finding informs a kernel
-proposer transition, the accepted WAL entry's hash is fed back here, creating
-a bidirectional link between the RE evidence and the code transition it grounded.
+Slice 2 populates it (`tools/oracle/dogfood_bridge.py`): `ground_finding` records
+the finding as a kernel transition and feeds the accepted WAL entry's hash back
+here, creating a bidirectional link between the RE evidence and the transition
+that recorded it.
 
 ---
 
-## 2. The double-dogfood link (null in slice 1)
+## 2. The double-dogfood link (wired in slice 2)
 
 The `transition_xref` field is the seam for the "double-dogfood" framing: oracle
 reverse-engineers the LLM runtime; the RE findings ground a vaked-aegis proposer
@@ -79,9 +79,30 @@ oracle finding <────── transition_xref ──────> aegis WAL
 ```
 
 Both sides are tamper-evident independently (each has its own hash chain); the
-link is the content hash of the WAL entry, so it survives replay. Slice 1 does
-not wire this up — `transition_xref` is `null` in every persisted finding, and
-`bridge.attach_transition` is tested but not called in production flows yet.
+link is the content hash of the WAL entry, so it survives replay.
+
+**Slice 2 wires this up** (`tools/oracle/dogfood_bridge.py`). `ground_finding`
+records the finding as a real aegis kernel transition by reusing
+`tools/dogfood/kernel.judge()` — the proposer materializes the finding artifact
+into a capability-scoped workspace; the kernel gates it (capability, declared-vs-
+actual, replay-stable) and appends it to the eventd WAL. The accepted WAL entry's
+hash is attached to the finding (`bridge.attach_transition`) and the linked
+finding is appended to the oracle's ralphcore ledger.
+
+The hash cycle is broken by construction: the **WAL** records the finding
+*without* `transition_xref` (the post-image it hashes), while the **oracle ledger**
+records it *with* the xref. `verify_xref` proves both directions —
+`finding.transition_xref` resolves to a WAL entry whose `actual_effects.writes`
+contains the finding's path — and that both chains verify independently.
+
+CLI:
+
+    oracle ground --finding <f.json> --root <ws> --scope findings \
+                  --wal-path <wal> --blobs <blobs> --ledger <events.jsonl>
+    oracle verify-xref --finding <linked.json> --wal-path <wal> --ledger <events.jsonl>
+
+NOTE: `--wal-path`/`--blobs` must resolve outside `--root` (the kernel snapshots
+the whole non-git root subtree); the CLI defaults them to a `.aegis-wal/` sibling.
 
 ---
 
