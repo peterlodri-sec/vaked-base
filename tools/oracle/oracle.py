@@ -88,7 +88,8 @@ def cmd_run(ns: argparse.Namespace) -> int:
         return (pseudo_c, refined, fid)
 
     def refine_fn(fn, prev):
-        refined = llm_refine.refine(decomp_map.get(fn, ""), server=ns.server)
+        base = prev or decomp_map.get(fn, "")
+        refined = llm_refine.refine(base, server=ns.server) if base else None
         gt = _ground_truth(ns.source_dir, fn)
         fid = fidelity.score(refined or "", gt) if (refined and gt) else None
         return (refined, fid)
