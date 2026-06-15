@@ -1,0 +1,109 @@
+# Taskfile.yml — dogfood dev-cx53 ops: self-hosted LLM + L1 LD_PRELOAD observer.
+#
+# dev-cx53 is the sanctioned Linux build/run target (NixOS 26.05, 16 cpu, 30GB,
+# tailscale 100.105.72.88, user `dev`, sudo-nopasswd). It ALREADY self-hosts an
+# ollama + litellm stack (crabcc-ollama-stack) — prefer the `stack:*` tasks over
+# spinning up a duplicate ollama. LD_PRELOAD/Frida/eBPF are Linux-only, so the L1
+# observer is built and run here, not on the macOS M1.
+#
+# Run:  cd tools/dogfood && task <name>     (go-task v3)
+version: '3'
+
+vars:
+  IP: 100.105.72.88                 # tailscale IP of dev-cx53
+  HOST: dev@100.105.72.88           # no ssh alias on the M1; use user@tailscale-ip
+  SSH: ssh -o BatchMode=yes dev@100.105.72.88
+  REMOTE: /tmp/dogfood-l1           # remote scratch for the L1 .so + logs
+  STACK: /home/dev/crabcc/install/ollama-stack   # the existing ollama+litellm compose
+  LITELLM: http://100.105.72.88:4000             # OpenAI-compat gateway (auth-gated)
+
+tasks:
+  default:
+    desc: list tasks
+    cmds:
+      - task --list
+
+  ssh:
+    desc: interactive shell on dev-cx53
+    cmds:
+      - "{{.SSH}}"
+
+  preflight:
+    desc: probe host (Gate 1/3) — tooling, ram
+    cmds:
+      - "{{.SSH}} 'uname -srm; nproc; free -h | grep Mem; for b in ollama nix clang gcc python3 docker; do printf \"%-8s \" $b; command -v $b || echo -; done'"
+
+  # --- existing self-hosted stack (crabcc-ollama-stack) ----------------------
+  stack:status:
+    desc: status of the ollama+litellm stack + gateway liveness
+    cmds:
+      - "{{.SSH}} 'docker ps --format \"table {{`{{.Names}}`}}\\t{{`{{.Image}}`}}\" | grep -iE \"ollama|litellm\" || echo none'"
+      - "{{.SSH}} 'curl -s --max-time 5 {{.LITELLM}}/health/liveliness; echo'"
+
+  stack:models:
+    desc: list models via litellm (export LITELLM_KEY first — see OLLAMA-AUTH.md in the stack)
+    cmds:
+      - "{{.SSH}} 'curl -s -H \"Authorization: Bearer $LITELLM_KEY\" {{.LITELLM}}/v1/models'"
+
+  stack:up:
+    desc: bring the stack up (shared host — use sparingly)
+    cmds:
+      - "{{.SSH}} 'cd {{.STACK}} && docker compose up -d'"
+
+  stack:logs:
+    desc: tail litellm logs
+    cmds:
+      - "{{.SSH}} 'cd {{.STACK}} && docker compose logs --tail=40 litellm'"
+
+  # --- standalone ollama (OPTIONAL — the stack already provides one) ----------
+  ollama:install:
+    desc: install ollama into dev's nix profile (only if NOT using the stack)
+    cmds:
+      - "{{.SSH}} 'nix profile install nixpkgs#ollama && ~/.nix-profile/bin/ollama --version'"
+
+  ollama:serve:
+    desc: standalone ollama bound to the tailscale IP ONLY (not 0.0.0.0) — tailnet-scoped
+    cmds:
+      - "{{.SSH}} 'setsid env OLLAMA_HOST={{.IP}}:11434 OLLAMA_CONTEXT_LENGTH=16384 OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=300s OLLAMA_FLASH_ATTENTION=1 /home/dev/.nix-profile/bin/ollama serve >/home/dev/ollama.log 2>&1 </dev/null & sleep 4; curl -s --max-time 5 http://{{.IP}}:11434/api/version; echo'"
+
+  ollama:pull:
+    desc: "pull a model into standalone ollama (MODEL=qwen2.5-coder:7b)"
+    vars:
+      MODEL: '{{.MODEL | default "qwen2.5-coder:7b"}}'
+    cmds:
+      - "{{.SSH}} 'OLLAMA_HOST={{.IP}}:11434 /home/dev/.nix-profile/bin/ollama pull {{.MODEL}}'"
+
+  # --- L1 LD_PRELOAD advisory observer (built + run on dev-cx53) --------------
+  l1:build:
+    desc: ship observe_preload.c to dev-cx53 and compile the .so (clang)
+    cmds:
+      - "{{.SSH}} 'mkdir -p {{.REMOTE}}'"
+      - "cat observe_preload.c | {{.SSH}} 'cat > {{.REMOTE}}/observe_preload.c'"
+      - "{{.SSH}} 'cd {{.REMOTE}} && clang -shared -fPIC -O2 -o observe_preload.so observe_preload.c -ldl && echo BUILT'"
+
+  l1:test:
+    desc: smoke-test the observer (expect W,W,D; read-only open NOT logged)
+    cmds:
+      - >-
+        {{.SSH}} 'cd {{.REMOTE}} && rm -f obs.log &&
+        LD_PRELOAD=$PWD/observe_preload.so DOGFOOD_OBSERVE_LOG=$PWD/obs.log
+        python3 -c "open(\"{{.REMOTE}}/w.txt\",\"w\").write(\"x\"); import os; open(\"{{.REMOTE}}/d.txt\",\"w\").close(); os.unlink(\"{{.REMOTE}}/d.txt\"); open(\"{{.REMOTE}}/w.txt\").read()" &&
+        echo "--- obs.log ---" && cat obs.log'
+
+  l1:observe:
+    desc: "run CMD under the observer and print observed_effects (CMD=..., ROOT=dir)"
+    vars:
+      ROOT: '{{.ROOT | default "/tmp/dogfood-l1"}}'
+    cmds:
+      - "cat observe_preload.py | {{.SSH}} 'cat > {{.REMOTE}}/observe_preload.py'"
+      - "{{.SSH}} 'cd {{.ROOT}} && python3 {{.REMOTE}}/observe_preload.py --so {{.REMOTE}}/observe_preload.so -- {{.CMD}}'"
+
+  # --- point the local dogfood loop at dev-cx53 ------------------------------
+  point:
+    desc: print env to point ralph/opencode at dev-cx53 (frees M1 RAM)
+    cmds:
+      - 'echo "# litellm gateway (auth-gated):"'
+      - 'echo "export RALPH_BASE_URL={{.LITELLM}}/v1/chat/completions"'
+      - 'echo "export RALPH_API_KEY=$LITELLM_KEY   # see {{.STACK}}/OLLAMA-AUTH.md"'
+      - 'echo "# or standalone ollama (after ollama:serve):"'
+      - 'echo "export RALPH_BASE_URL=http://{{.IP}}:11434/v1/chat/completions"'
