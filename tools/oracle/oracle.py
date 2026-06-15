@@ -97,10 +97,21 @@ def cmd_run(ns: argparse.Namespace) -> int:
     def dynamic(fn):
         frida = ebpf = None
         if ns.infer_cmd:
+            import subprocess
+            proc = subprocess.Popen(ns.infer_cmd.split())
+            try:
+                ebpf = wc.query_watcher(ns.watcher_sock, pid=proc.pid, duration_s=5)
+            except Exception:  # noqa: BLE001 (degrade)
+                ebpf = None
             try:
                 frida = dfr.run_frida(target_cmd=ns.infer_cmd.split(), functions=[fn]).get(fn)
-            except Exception:  # noqa: BLE001 (degrade, never crash)
+            except Exception:  # noqa: BLE001
                 frida = None
+            finally:
+                try:
+                    proc.wait(timeout=60)
+                except Exception:  # noqa: BLE001 (never let teardown crash the loop)
+                    proc.kill()
         return (frida, ebpf)
 
     lg = ledger.Ledger(os.path.join(ORACLE_DIR, "events.jsonl"))
