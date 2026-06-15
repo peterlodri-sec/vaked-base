@@ -50,3 +50,14 @@ dynamic layer gets its multi-agent pass.
 Considered; dropped for this round (pyghidra already covers decompilation in-loop; the
 community Ghidra MCP needs a running Ghidra+plugin — heavy on the headless box). Revisit if
 agents need live, interactive decompiler queries.
+
+## Outside-model prompt dogfeed (zero-infra transparency)
+
+The oracle's non-hosted (OpenRouter) calls are surfaced to ONE rolling GitHub issue
+("oracle: outside-model prompt dogfeed") — a human-visible cost/prompt audit that complements
+the Langfuse SDK push. A team run with `ORACLE_DOGFEED_LOG=<path>` set makes the panel sink
+(`panel.OpenAIChatClient._dogfeed`) append one JSONL record per outside-model call (model,
+prompt sha + first line, completion tokens, cost — **no full prompt/response, no key**; keyless
+local models are never logged). Then, from where `gh` is authed (M3): `task -d tools/oracle
+dogfeed` (or `DRY=1 ... dogfeed` to preview) find-or-creates the issue and appends the run's
+summary. Posting is a deliberate step, never in a run's hot path.
