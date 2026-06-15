@@ -1150,6 +1150,110 @@ def test_dogfeed_cli_args_and_dryrun():
     os.remove(p)
 
 
+# ---- slice 4b thread 3: ARP-emission ----
+def _arp_finding():
+    return {"kind": "oracle_finding", "v": 1,
+            "target": {"path": "libllama.so.0", "sha256": "0" * 64, "source_ref": "x"},
+            "decompiler": {"model": "m"},
+            "functions": [
+                {"name": "llama_decode", "addr": "0x0", "pseudo_c_sha": "a" * 64,
+                 "refined_c": "int llama_decode(void){return 0;}",
+                 "fidelity": {"score": 0.581, "method": "x"}, "dynamic": {"frida": None, "ebpf": None}},
+                {"name": "cache.sha256Hex", "addr": "0x0", "pseudo_c_sha": "b" * 64,
+                 "refined_c": None,
+                 "fidelity": {"score": None, "method": "x"}, "dynamic": {"frida": None, "ebpf": None}},
+            ],
+            "observed_effects": {"writes": [], "deletes": []}, "transition_xref": None,
+            "confidence": 0.0}
+
+
+def test_arp_finding_to_events_per_function():
+    import arp_emit
+    evs = arp_emit.finding_to_events(_arp_finding())
+    assert len(evs) == 2
+    a, b = evs
+    assert a["command"] == "oracle RE llama_decode"
+    assert a["inputs"] == ["libllama.so.0", "llama_decode"]
+    assert a["status"] == "ok"
+    assert any(o.startswith("fidelity:0.581") for o in a["outputs"])
+    assert b["command"] == "oracle RE cache.sha256Hex"
+    assert b["status"] == "no-ground-truth"
+    assert "refined_sha:none" in b["outputs"]
+
+
+def test_arp_slug_is_ident_safe():
+    import arp_emit, re
+    s = arp_emit._slug("cache.sha256Hex", "code")
+    assert re.match(r"^[A-Za-z_]\w*$", s)
+    assert s.startswith("oracle_cache_sha256Hex_")
+
+
+def test_arp_status_thresholds():
+    import arp_emit
+    assert arp_emit._status(None) == "no-ground-truth"
+    assert arp_emit._status(0.2) == "low-fidelity"
+    assert arp_emit._status(0.4) == "ok"
+    assert arp_emit._status(0.9) == "ok"
+
+
+def test_arp_render_block_shape():
+    import arp_emit
+    ev = {"slug": "oracle_f_abc", "command": "oracle RE f", "inputs": ["t", "f"],
+          "outputs": ["refined_sha:abc", "fidelity:0.5"], "status": "ok"}
+    blk = arp_emit.render_arp_block(ev, ts="2026-06-16 12:00")
+    assert blk.startswith("```vaked\narp_event oracle_f_abc {")
+    assert 'ts      = "2026-06-16 12:00"' in blk
+    assert 'command = "oracle RE f"' in blk
+    assert 'status  = "ok"' in blk
+    assert "inputs  =" in blk and "outputs =" in blk
+    blk2 = arp_emit.render_arp_block({"slug": "oracle_g_x", "command": "c",
+                                      "inputs": [], "outputs": [], "status": "ok"}, ts="t")
+    assert "inputs  =" not in blk2 and "outputs =" not in blk2
+
+
+def test_arp_emit_appends_and_headers_once():
+    import arp_emit, tempfile, os
+    p = tempfile.mktemp(suffix=".md")
+    n1 = arp_emit.emit(_arp_finding(), path=p, ts="2026-06-16 12:00")
+    n2 = arp_emit.emit(_arp_finding(), path=p, ts="2026-06-16 12:05")
+    body = open(p).read()
+    assert n1 == 2 and n2 == 2
+    assert body.count("# vaked-oracle ARP trace") == 1
+    assert body.count("arp_event ") == 4
+    os.remove(p)
+
+
+def test_arp_emitted_blocks_pass_vakedc_check():
+    import arp_emit, tempfile, os, sys, subprocess
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))   # tools/ -> `arp` package
+    from arp import verify_log
+    md = tempfile.mktemp(suffix=".md")
+    arp_emit.emit(_arp_finding(), path=md, ts="2026-06-16 12:00")
+    blocks = verify_log.extract(open(md).read())
+    assert len(blocks) == 2
+    src = "\n\n".join(blocks) + "\n"
+    vk = tempfile.mktemp(suffix=".vaked")
+    open(vk, "w").write(src)
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    r = subprocess.run([sys.executable, "-m", "vakedc", "check", vk], cwd=repo_root,
+                       capture_output=True, text=True)
+    assert r.returncode == 0, "vakedc check failed: %s" % (r.stdout + r.stderr)
+    os.remove(md); os.remove(vk)
+
+
+def test_arp_emit_cli():
+    import oracle, tempfile, json, os
+    fp = tempfile.mktemp(suffix=".json")
+    open(fp, "w").write(json.dumps(_arp_finding()))
+    out = tempfile.mktemp(suffix=".md")
+    ns = oracle.parse_args(["arp-emit", "--finding", fp, "--out", out, "--ts", "2026-06-16 12:00"])
+    assert ns.finding == fp and ns.out == out and ns.ts == "2026-06-16 12:00"
+    assert oracle.cmd_arp_emit(ns) == 0
+    body = open(out).read()
+    assert "arp_event oracle_llama_decode_" in body
+    os.remove(fp); os.remove(out)
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
