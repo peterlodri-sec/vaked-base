@@ -19,8 +19,12 @@ def extract(md: str) -> list[str]:
 
 def main(argv: list[str]) -> int:
     path = argv[0] if argv else "docs/arp-log.md"
-    with open(path, encoding="utf-8") as fh:
-        blocks = extract(fh.read())
+    try:
+        with open(path, encoding="utf-8") as fh:
+            blocks = extract(fh.read())
+    except OSError as exc:
+        print(f"verify_log: cannot read {path}: {exc}")
+        return 1
     if not blocks:
         print("verify_log: no vaked blocks found")
         return 0

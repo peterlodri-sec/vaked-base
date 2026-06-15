@@ -100,7 +100,10 @@ def outputs_delta(before: dict, after: dict) -> list[str]:
 
 
 def _esc(s: str) -> str:
-    return s.replace("\\", "\\\\").replace('"', '\\"')
+    return (s.replace("\\", "\\\\")
+             .replace('"', '\\"')
+             .replace("\n", "\\n")
+             .replace("\r", "\\r"))
 
 
 def _vstr(s: str) -> str:

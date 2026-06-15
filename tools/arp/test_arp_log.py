@@ -90,6 +90,26 @@ class HookHelpersTest(unittest.TestCase):
         finally:
             os.unlink(tmp)
 
+    def test_render_block_multiline_command_validates(self):
+        # multi-line commands (heredocs, ;-joined lines) must escape to a valid
+        # single-line Vaked string, else vakedc check rejects the block.
+        from tools.arp.verify_log import extract
+        block = self.h.render_block(
+            "2026-06-15 10:30",
+            'python3 - <<EOF\nopen("x","w").write("hi")\nEOF',
+            [], ["x"], "ok")
+        blocks = extract(block)
+        self.assertTrue(blocks)
+        fd, tmp = tempfile.mkstemp(suffix=".vaked")
+        os.close(fd)
+        try:
+            with open(tmp, "w") as fh:
+                fh.write(blocks[0] + "\n")
+            r = _run(["-m", "vakedc", "check", tmp])
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        finally:
+            os.unlink(tmp)
+
 
 class HookMainTest(unittest.TestCase):
     def _drive(self, command, gitmap):
