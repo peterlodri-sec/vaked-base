@@ -96,3 +96,23 @@ tasks:
           --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
           --crabcc-root "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
           --budget-calls "${ORACLE_BUDGET:-30}" --memory "$HOME/oracle/dossier.jsonl"
+
+  team:vaked:
+    desc: "team-in-vaked (slice 4b): lower oracle-team.vaked -> graph.json + ebpf.policy.json, then run the graph-derived team (dev-cx53). Auto-sources ~/.config/oracle/openrouter.env"
+    vars:
+      VAKED: '{{.VAKED | default "vaked/examples/oracle-team.vaked"}}'
+    cmds:
+      - |
+        [ -f ~/.config/oracle/openrouter.env ] && . ~/.config/oracle/openrouter.env || true   # diverse-panel key (no-op if absent)
+        python3 -m vakedc parse {{.VAKED}}
+        python3 -m vakedc lower {{.VAKED}}     # emits .vaked/lower/gen/ebpf.policy.json (agent_guardd manifest)
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        ORACLE_DIR="${ORACLE_DIR:-$HOME/oracle/team-vaked-run}" python3 tools/oracle/oracle.py team \
+          --target {{.TARGET}} --funcs {{.FUNCS}} --from-vaked .vaked/graph.json \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --crabcc-root "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --memory "$HOME/oracle/dossier.jsonl"

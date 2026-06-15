@@ -853,6 +853,167 @@ def test_parse_args_team_flags():
     assert ns.funcs == ["a", "b"] and ns.memory == "/m.jsonl"
 
 
+# ---- slice 4b thread 1: team-in-vaked ----
+def _team_graph():
+    """A minimal lowered-LPG fixture mirroring oracle-team.vaked (numbers are strings)."""
+    def s(v): return {"lit": "string", "value": v}
+    def num(v): return {"lit": "number", "value": v}
+    def cap(ref): return {"ref": ref}
+    return {"version": 1, "nodes": [
+        {"kind": "node", "name": "operator", "props": {
+            "role": s("control-plane"), "capabilities": [cap("fs.repo_rw"), cap("network.egress"), cap("mem.admin")]}},
+        {"kind": "node", "name": "coordinator", "props": {
+            "role": s("coordinate"), "capabilities": [cap("fs.repo_rw"), cap("network.loopback")], "budgetCalls": num("30")}},
+        {"kind": "node", "name": "infralight", "props": {
+            "role": s("panelist"), "model": s("qwen2.5-coder-3b-instruct"),
+            "capabilities": [cap("network.loopback")],
+            "endpoint": s("http://127.0.0.1:8091/v1/chat/completions"), "temperature": num("0")}},
+        {"kind": "node", "name": "feketecs", "props": {
+            "role": s("panelist"), "model": s("deepseek/deepseek-v4-flash"),
+            "capabilities": [cap("network.egress")],
+            "endpoint": s("https://openrouter.ai/api/v1/chat/completions"),
+            "keyEnv": s("OPENROUTER_API_KEY"), "temperature": num("1")}},
+        {"kind": "node", "name": "anstetten", "props": {
+            "role": s("judge"), "model": s("deepseek/deepseek-v4-pro"),
+            "capabilities": [cap("network.egress")],
+            "endpoint": s("https://openrouter.ai/api/v1/chat/completions"),
+            "keyEnv": s("OPENROUTER_API_KEY"), "temperature": num("1"), "reasoningEffort": s("high")}},
+        {"kind": "network", "name": "feketecsCordon", "props": {
+            "principal": s("feketecs"), "default": s("deny"),
+            "allow": [{"ref": "egress", "args": [s("openrouter.ai"), num("443")]}]}},
+        {"kind": "network", "name": "anstettenCordon", "props": {
+            "principal": s("anstetten"), "default": s("deny"),
+            "allow": [{"ref": "egress", "args": [s("openrouter.ai"), num("443")]}]}},
+    ]}
+
+
+def test_roster_from_vaked_extracts_panelists_judge_budget():
+    import os
+    import roster_from_vaked as rfv
+    os.environ["OPENROUTER_API_KEY"] = "test-key-not-real"
+    try:
+        panelists, judge, budget = rfv.load_roster_from_graph(_team_graph())
+    finally:
+        os.environ.pop("OPENROUTER_API_KEY", None)
+    names = sorted(p.name for p in panelists)
+    assert names == ["feketecs", "infralight"]
+    assert getattr(judge, "model", None) == "deepseek/deepseek-v4-pro"
+    assert budget == 30
+    feke = next(p for p in panelists if p.name == "feketecs")
+    assert feke.client.temperature == 1.0
+    assert judge.reasoning_effort == "high"
+
+
+def test_roster_from_vaked_drops_node_with_absent_key_env():
+    import os
+    import roster_from_vaked as rfv
+    os.environ.pop("OPENROUTER_API_KEY", None)
+    panelists, judge, budget = rfv.load_roster_from_graph(_team_graph())
+    names = sorted(p.name for p in panelists)
+    assert names == ["infralight"]
+    assert judge is panelists[0].client
+
+
+def test_egress_check_clean_graph_has_no_violations():
+    import roster_from_vaked as rfv
+    assert rfv.check_roster_egress(_team_graph()) == []
+
+
+def test_egress_check_loopback_endpoint_needs_no_membrane():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # drop both cordons; loopback nodes still clean, egress nodes now violate
+    g["nodes"] = [n for n in g["nodes"] if n.get("kind") != "network"]
+    names = sorted(v["node"] for v in rfv.check_roster_egress(g))
+    assert names == ["anstetten", "feketecs"]            # loopback infralight is clean
+
+
+def test_egress_check_endpoint_outside_allow_set_is_a_violation():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # point feketecs at an undeclared host
+    for n in g["nodes"]:
+        if n.get("name") == "feketecs":
+            n["props"]["endpoint"] = {"lit": "string", "value": "https://evil.example/v1/chat/completions"}
+    viol = rfv.check_roster_egress(g)
+    assert [v["node"] for v in viol] == ["feketecs"]
+    assert viol[0]["host"] == "evil.example"
+    assert viol[0]["port"] == 443
+
+
+def test_egress_check_port_mismatch_is_a_violation():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # feketecs cordon allows openrouter.ai:443; endpoint dials :8443 (right host, wrong port)
+    for n in g["nodes"]:
+        if n.get("name") == "feketecs":
+            n["props"]["endpoint"] = {"lit": "string", "value": "https://openrouter.ai:8443/v1/chat/completions"}
+    viol = rfv.check_roster_egress(g)
+    assert [v["node"] for v in viol] == ["feketecs"]
+    assert viol[0]["port"] == 8443
+
+
+def test_team_from_vaked_parses():
+    import oracle
+    ns = oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
+                            "--from-vaked", "graph.json"])
+    assert ns.from_vaked == "graph.json"
+    assert ns.panel is None
+
+
+def test_team_panel_and_from_vaked_mutually_exclusive():
+    import oracle
+    try:
+        oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
+                           "--panel", "p.json", "--from-vaked", "graph.json"])
+        assert False, "expected SystemExit (mutually exclusive)"
+    except SystemExit:
+        pass
+
+
+def test_team_requires_one_roster_source():
+    import oracle
+    try:
+        oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f"])
+        assert False, "expected SystemExit (one of --panel/--from-vaked required)"
+    except SystemExit:
+        pass
+
+
+def _ebpf_policy_doc():
+    # the exact shape vakedc lower emits for oracle-team: loopback cordon gets a real
+    # IP rule; the OpenRouter cordon's DNS host is DROPPED at lower -> allow [].
+    return {"runtime": "oracle-team", "version": 1, "membranes": [
+        {"membrane": "infralightCordon", "principal": "infralight", "grant": "network.loopback",
+         "default": "deny", "allow": [
+             {"proto": "tcp", "host": "127.0.0.1", "cidr": "127.0.0.1/32", "port": 8091}]},
+        {"membrane": "feketecsCordon", "principal": "feketecs", "grant": "network.egress",
+         "default": "deny", "allow": []},      # DNS host dropped at lower -> deny-all
+    ]}
+
+
+def test_ebpf_manifest_loads_and_decides():
+    import os
+    import json
+    import tempfile
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # repo root for agent_guardd
+    from agent_guardd import policy as agp
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(_ebpf_policy_doc(), f)
+        path = f.name
+    pol = agp.load_policy(path)
+    loop = pol.membrane_for("infralight")
+    feke = pol.membrane_for("feketecs")
+    # loopback IP rule -> enforceable (fully eBPF-attestable)
+    assert agp.decide(loop, "127.0.0.1", 8091)[0] == "allow"
+    assert agp.decide(loop, "127.0.0.1", 9999)[0] == "deny"
+    # OpenRouter cordon -> deny-all (DNS dropped at lower; also non-IP at decide). The
+    # documented gap: packet-layer egress to OpenRouter is un-attestable; the tool-layer
+    # check_roster_egress is the only enforcement.
+    assert agp.decide(feke, "openrouter.ai", 443)[0] == "deny"
+    os.unlink(path)
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()

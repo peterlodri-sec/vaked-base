@@ -71,14 +71,17 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     v.add_argument("--wal-path", required=True)
     v.add_argument("--ledger", required=True)
 
-    t = sub.add_parser("team", help="reverser debate-panel team (slice 4a)")
+    t = sub.add_parser("team", help="reverser debate-panel team (slice 4a/4b)")
     t.add_argument("--target", required=True)
     t.add_argument("--funcs", required=True, type=lambda s: [x for x in s.split(",") if x])
-    t.add_argument("--panel", required=True, help="roster JSON (see panel.example.json)")
+    src = t.add_mutually_exclusive_group(required=True)
+    src.add_argument("--panel", help="roster JSON (see panel.example.json)")
+    src.add_argument("--from-vaked", dest="from_vaked",
+                     help="lowered graph.json — derive roster+budget+egress, with the POLA egress check")
     t.add_argument("--pyghidra-python", default=os.environ.get("ORACLE_PYGHIDRA_PYTHON", "python3"))
     t.add_argument("--source-dir", default=None, help="ground-truth source (fidelity + crabcc/ctags investigate)")
     t.add_argument("--crabcc-root", default=None, help="crabcc/ctags index root (defaults to --source-dir)")
-    t.add_argument("--budget-calls", type=int, default=60)
+    t.add_argument("--budget-calls", type=int, default=None)
     t.add_argument("--max-workers", type=int, default=4)
     t.add_argument("--memory", default=os.path.join(ORACLE_DIR, "dossier.jsonl"))
     return p.parse_args(argv)
@@ -215,10 +218,22 @@ def cmd_verify_xref(ns: argparse.Namespace) -> int:
 
 def cmd_team(ns: argparse.Namespace) -> int:
     import investigate as inv
-    panelists, judge = panel_mod.load_roster(ns.panel)
+    if ns.from_vaked:
+        import roster_from_vaked as rfv
+        graph = rfv.load_graph(ns.from_vaked)
+        violations = rfv.check_roster_egress(graph)
+        if violations:
+            for v in violations:
+                print(f"team: EGRESS VIOLATION node={v['node']} reaches "
+                      f"{v['host']}:{v['port']} — {v['reason']}")
+            return 1
+        panelists, judge, graph_budget = rfv.load_roster_from_graph(graph)
+    else:
+        panelists, judge, graph_budget = (*panel_mod.load_roster(ns.panel), 60)
     if not panelists:
         print("team: no usable panelists (check roster / keys)")
         return 1
+    budget_calls = ns.budget_calls if ns.budget_calls is not None else graph_budget
     decomp_map = gf.run_ghidra(binary=ns.target, functions=ns.funcs, pyghidra_python=ns.pyghidra_python)
     src_root = ns.crabcc_root or ns.source_dir
     investigate = inv.make_investigator(source_root=src_root, binary=ns.target)
@@ -233,7 +248,7 @@ def cmd_team(ns: argparse.Namespace) -> int:
         score=fidelity.score,
         ground_truth=(lambda fn: _ground_truth(ns.source_dir, fn)) if ns.source_dir else None,
         investigate=investigate, memory=mem,
-        budget_calls=ns.budget_calls, max_workers=ns.max_workers)
+        budget_calls=budget_calls, max_workers=ns.max_workers)
     path = persist_finding(finding, findings_dir=os.path.join(ORACLE_DIR, "findings"))
     print(f"team finding: {path}  confidence={finding['confidence']}  "
           f"funcs={len(finding['functions'])}  chain_ok={lg.verify()}")
