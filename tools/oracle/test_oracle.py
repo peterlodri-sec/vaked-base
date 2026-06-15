@@ -752,6 +752,17 @@ def test_memory_recall_empty_safe():
         assert m.recall("anything") == [] and m.inject("fn", "fn") == ""
 
 
+def test_memory_recall_survives_corrupt_line():
+    """A partial/corrupt dossier line (interrupted write) must not crash recall."""
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "dossier.jsonl")
+        m = _mem.TeamMemory(p)
+        m.remember(run_id="r", fn="llama_decode", kind="finding", text="decode info", tags=["llama_decode"])
+        with open(p, "a") as f:
+            f.write('{"partial": tru')   # corrupt/partial line
+        assert m.recall("llama_decode")[0]["fn"] == "llama_decode"
+
+
 def test_memory_tags_boost():
     with tempfile.TemporaryDirectory() as d:
         m = _mem.TeamMemory(os.path.join(d, "dossier.jsonl"))

@@ -37,8 +37,12 @@ class TeamMemory:
         out = []
         for line in open(self.path, encoding="utf-8"):
             line = line.strip()
-            if line:
+            if not line:
+                continue
+            try:
                 out.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue   # skip corrupt/partial lines (interrupted write); append-only, rest intact
         return out
 
     def recall(self, query, k=5):
