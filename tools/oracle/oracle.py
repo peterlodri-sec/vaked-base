@@ -84,6 +84,12 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     t.add_argument("--budget-calls", type=int, default=None)
     t.add_argument("--max-workers", type=int, default=4)
     t.add_argument("--memory", default=os.path.join(ORACLE_DIR, "dossier.jsonl"))
+
+    d = sub.add_parser("dogfeed", help="post outside-model prompt records to the rolling GitHub issue")
+    d.add_argument("--log", required=True, help="JSONL written by the panel sink (ORACLE_DOGFEED_LOG)")
+    d.add_argument("--repo", required=True, help="owner/name for the rolling issue")
+    d.add_argument("--run-id", dest="run_id", default="run")
+    d.add_argument("--dry-run", dest="dry_run", action="store_true", help="print the comment; post nothing")
     return p.parse_args(argv)
 
 
@@ -255,6 +261,17 @@ def cmd_team(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_dogfeed(ns: argparse.Namespace) -> int:
+    import dogfeed_prompts as dfp
+    records = dfp.load_records(ns.log)
+    if ns.dry_run:
+        print(dfp.build_comment(records, run_id=ns.run_id))
+        return 0
+    num = dfp.post(records, repo=ns.repo, run_id=ns.run_id, gh=dfp._gh)
+    print("dogfeed: posted %d record(s) to %s issue #%d" % (len(records), ns.repo, num))
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ns = parse_args(argv)
     if ns.cmd == "run":
@@ -265,6 +282,8 @@ def main(argv: list[str]) -> int:
         return cmd_verify_xref(ns)
     if ns.cmd == "team":
         return cmd_team(ns)
+    if ns.cmd == "dogfeed":
+        return cmd_dogfeed(ns)
     return 2
 
 

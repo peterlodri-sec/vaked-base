@@ -1139,6 +1139,17 @@ def test_dogfeed_post_appends_comment():
     assert any(a[0] == "issue" and a[1] == "comment" and a[2] == "5" for a in calls)
 
 
+def test_dogfeed_cli_args_and_dryrun():
+    import oracle, tempfile, json, os
+    p = tempfile.mktemp(suffix=".jsonl")
+    open(p, "w").write(json.dumps({"model": "deepseek/deepseek-v4-pro", "completion_tokens": 9,
+                                   "cost": 0.001, "prompt_sha": "z" * 64, "first_line": "hi"}) + "\n")
+    ns = oracle.parse_args(["dogfeed", "--log", p, "--repo", "o/r", "--dry-run"])
+    assert ns.log == p and ns.repo == "o/r" and ns.dry_run is True
+    assert oracle.cmd_dogfeed(ns) == 0          # dry-run prints the comment, posts nothing
+    os.remove(p)
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
