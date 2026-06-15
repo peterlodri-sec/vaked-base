@@ -53,16 +53,21 @@ def make_investigator(*, source_root=None, binary=None, crabcc="crabcc", runner=
     """investigate(query) -> observation. crabcc-preferred, binutils fallback, 'none'
     if neither usable. Never raises."""
     def investigate(query):
-        try:
-            if source_root:
+        # per-provider guards: a crabcc failure (incl. crabcc not installed —
+        # FileNotFoundError) must FALL THROUGH to binutils, not short-circuit to none.
+        if source_root:
+            try:
                 obs = crabcc_query(query, source_root=source_root, crabcc=crabcc, runner=runner)
                 if obs is not None:
                     return obs
-            if binary:
+            except Exception:  # noqa: BLE001 — crabcc missing/erroring => try binutils
+                pass
+        if binary:
+            try:
                 obs = binutils_query(query, binary=binary, runner=runner)
                 if obs is not None:
                     return obs
-        except Exception:  # noqa: BLE001 — investigation must never crash the loop
-            pass
+            except Exception:  # noqa: BLE001 — investigation must never crash the loop
+                pass
         return {"query": query, "provider": "none", "result": None}
     return investigate

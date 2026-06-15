@@ -563,6 +563,17 @@ def test_investigate_never_raises_returns_none():
     assert investigate({"kind": "sym", "name": "x"})["provider"] == "none"
 
 
+def test_investigate_crabcc_missing_falls_through_to_binutils():
+    """crabcc not installed (FileNotFoundError) + binary set => binutils, not 'none'."""
+    def runner(cmd, timeout=30):
+        if cmd[0] == "crabcc":
+            raise FileNotFoundError("crabcc not installed")
+        return 0, "0000000000001234 T ggml_compute_forward\n"
+    investigate = _inv.make_investigator(source_root="SRC", binary="/lib/libggml.so", runner=runner)
+    obs = investigate({"kind": "sym", "name": "ggml_compute_forward"})
+    assert obs["provider"] == "binutils" and obs["result"]["found"] is True
+
+
 def test_loop_agentic_drives_to_finalize():
     with tempfile.TemporaryDirectory() as d:
         lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
