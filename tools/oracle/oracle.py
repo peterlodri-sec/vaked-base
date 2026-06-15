@@ -21,6 +21,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bridge      # noqa: E402
+import dogfood_bridge as ddb  # noqa: E402
 import dynamic_frida as dfr  # noqa: E402
 import fidelity    # noqa: E402
 import ghidra_frontend as gf  # noqa: E402
@@ -48,6 +49,19 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="eBPF watcher trace window (s); wide enough to catch the model-load mmap")
     r.add_argument("--budget-iters", type=int, default=50)
     r.add_argument("--control", default=None)
+
+    g = sub.add_parser("ground", help="record a finding as an aegis kernel transition")
+    g.add_argument("--finding", required=True)
+    g.add_argument("--root", required=True, help="workspace root; scope is relative to it")
+    g.add_argument("--scope", action="append", required=True, help="granted write-scope prefix (repeatable)")
+    g.add_argument("--wal-path", default=None, help="eventd WAL (default: .aegis-wal sibling of root)")
+    g.add_argument("--blobs", default=None, help="kernel blob store (default: .aegis-wal sibling of root)")
+    g.add_argument("--ledger", default=os.path.join(ORACLE_DIR, "events.jsonl"))
+
+    v = sub.add_parser("verify-xref", help="prove a finding's transition_xref link + both chains")
+    v.add_argument("--finding", required=True)
+    v.add_argument("--wal-path", required=True)
+    v.add_argument("--ledger", required=True)
     return p.parse_args(argv)
 
 
@@ -135,10 +149,47 @@ def cmd_run(ns: argparse.Namespace) -> int:
     return 0
 
 
+def _sibling(root: str, name: str) -> str:
+    """A path under a `.aegis-wal/` dir that is a SIBLING of root (never under it —
+    the kernel snapshots the whole non-git root subtree)."""
+    return os.path.join(os.path.dirname(os.path.abspath(root)), ".aegis-wal", name)
+
+
+def cmd_ground(ns: argparse.Namespace) -> int:
+    finding = json.load(open(ns.finding))
+    root = os.path.abspath(ns.root)
+    finding_rel = os.path.relpath(os.path.abspath(ns.finding), root)
+    wal_path = ns.wal_path or _sibling(root, "wal.jsonl")
+    blobs = ns.blobs or _sibling(root, "blobs")
+    lg = ledger.Ledger(ns.ledger)
+    res = ddb.ground_finding(finding=finding, finding_rel=finding_rel, root=root,
+                             scope=ns.scope, wal_path=wal_path, blobs_dir=blobs,
+                             oracle_ledger=lg)
+    print(f"grounded: transition_xref={res['transition_xref']} "
+          f"seq={res['verdict']['seq']} accepted={res['verdict']['accepted']}")
+    return 0
+
+
+def cmd_verify_xref(ns: argparse.Namespace) -> int:
+    finding = json.load(open(ns.finding))
+    lg = ledger.Ledger(ns.ledger)
+    try:
+        ddb.verify_xref(finding=finding, wal_path=ns.wal_path, oracle_ledger=lg)
+    except Exception as e:  # noqa: BLE001
+        print(f"verify-xref FAIL: {e}")
+        return 1
+    print("verify-xref OK")
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ns = parse_args(argv)
     if ns.cmd == "run":
         return cmd_run(ns)
+    if ns.cmd == "ground":
+        return cmd_ground(ns)
+    if ns.cmd == "verify-xref":
+        return cmd_verify_xref(ns)
     return 2
 
 
