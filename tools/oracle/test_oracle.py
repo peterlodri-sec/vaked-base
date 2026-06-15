@@ -273,6 +273,15 @@ def test_policy_stops_refining_after_max_passes():
     assert policy.next_action(state) == {"action": "finalize"}
 
 
+def test_policy_skips_refine_when_fidelity_unknown():
+    # no ground truth -> fidelity None -> can't improve an unmeasurable score -> finalize
+    state = policy.LoopState(
+        functions=["a"],
+        results={"a": {"fidelity": None, "refined": True, "refine_passes": 0}},
+        iters=1, budget_iters=10)
+    assert policy.next_action(state) == {"action": "finalize"}
+
+
 import loop  # noqa: E402
 
 

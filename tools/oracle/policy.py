@@ -27,10 +27,12 @@ def next_action(state: LoopState) -> dict:
     for fn in state.functions:
         if fn not in state.results:
             return {"action": "decompile", "fn": fn}
-    # 2. any below threshold with refine budget left?
+    # 2. any below threshold with refine budget left? (skip if fidelity unknown —
+    #    can't improve a score we can't measure)
     for fn in state.functions:
         r = state.results[fn]
-        if (r.get("fidelity") or 0.0) < FIDELITY_THRESHOLD and r.get("refine_passes", 0) < MAX_REFINE:
+        fid = r.get("fidelity")
+        if fid is not None and fid < FIDELITY_THRESHOLD and r.get("refine_passes", 0) < MAX_REFINE:
             return {"action": "refine", "fn": fn}
     # 3. done
     return {"action": "finalize"}
