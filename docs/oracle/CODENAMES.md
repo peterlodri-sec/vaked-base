@@ -18,6 +18,8 @@ eerily well — the Judge *is* the Demon Emperor.
 | panelist · deepseek-v4-flash (OpenRouter) | **feketecs** | black-hood — the outside operative across the cordon |
 | recon — `investigate.py` (crabcc/binutils) | **sherlock** | *Hogyan legyunk Sherlock Holmes?* — recon before the strike |
 | hash-chained ledger / blackboard | **katedralis** | the Cathedral series — the incorruptible long-term archive |
+| team memory (`memory.py`, recall) | **the-dossier** | the Hooded's accumulated intel — recalled before each strike (mutable; vs katedralis's immutable record) |
+| C++ investigate provider (Serena/clangd) | **sherlock** (ext.) | recon extended to the C++ bodies crabcc can't read |
 | parallel debate execution | **opium-waltz** | *Opiumkeringo* — high-concurrency; many operatives at once |
 | OpenRouter egress (`networkMembrane`) | **the-cordon** | what the Hooded may / may not cross |
 | dev-cx53 host (the vessel) | **bolygorozsa** | Planet-Rose — the luxury clipper carrying the whole op |

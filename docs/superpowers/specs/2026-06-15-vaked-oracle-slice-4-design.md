@@ -195,6 +195,36 @@ Keyless local panel proven first: panelists = qwen-coder-3b (`:8091`, up) + llm4
 libllama.so.0 --funcs llama_decode,…` → confirm per-function candidates + verdicts +
 finding in the ledger; record evidence in `docs/oracle/v0.md`.
 
+### 6. Team memory — "the Dossier" (`tools/oracle/memory.py`)
+
+A **simple, async, auto-firing** shared memory so the team accumulates knowledge across
+functions + runs (mempalace-style, but for the agents). Deterministic core + stdlib.
+
+- `remember(entry)` — append `{ts, run_id, fn, kind, text, tags}` to `memory.jsonl` (cheap
+  sync file append). **Auto-fires** from the coordinator after each verdict with
+  *deterministic facts* (no LLM): fn, chosen model, fidelity, judge pick, key symbols from
+  investigate. Memory grows automatically, every round — zero extra calls.
+- `recall(query, k=5)` — stdlib keyword/tag scoring over `memory.jsonl` → top-k notes,
+  **injected into the next debate's `context`** so panelists + judge see prior team
+  knowledge ("llama_decode already reversed, fidelity 0.8, calls decode_impl").
+- **Async distiller (optional, mempalace pattern):** a detached background worker
+  (`setsid`/`nohup`, fire-and-forget, never blocks the loop) that periodically compacts +
+  LLM-distills cross-function insight into higher-level notes. Off by default (`--distill`
+  enables). The deterministic `remember` is the simple core; distillation is enrichment.
+
+Codename **the-dossier** — what the Hooded have learned, recalled before each strike.
+Distinct from **katedralis** (the immutable audit ledger): the Dossier is mutable recall,
+the Archive is tamper-evident record.
+
+### 7. Investigate upgrade — Serena/clangd for C++ (fills crabcc's gap)
+
+crabcc indexes C only; llama.cpp is mostly C++. Add **Serena** (oraios/serena — LSP-based
+semantic-code MCP, 40+ langs incl C++ via clangd) as an investigate provider, so the chain
+becomes: crabcc (C) → **serena/clangd (the C++ bodies crabcc skips)** → binutils (symbols)
+→ none. Same graceful-degrade contract. Fills the real gap — the panel can investigate the
+C++ *implementation* of `libllama`, not just C headers. (Serena doubles as a token-efficient
+symbolic-editing MCP for our own Python/Zig source at dev time.)
+
 ## Dogfeed dimension — vakedc + ARP into the whole (recursive)
 
 Three ways the team consumes/produces Vaked's own stack (other dev's ARP-IR + L2
