@@ -9,7 +9,7 @@ up the *dev environment* to produce L1 evidence that feeds the kernel's
 
 ## Why a container
 
-LD_PRELOAD, `ptrace`/Frida-attach, seccomp, and eBPF are **Linux+glibc**. The M1
+LD_PRELOAD, `ptrace`/Frida-attach, seccomp, and eBPF are **Linux+glibc**. The M3
 host (macOS, `DYLD_INSERT_LIBRARIES`, no eBPF) cannot run them, and the project
 rule is **never build/enforce on the developer machine**. So L1 work runs in a
 local Linux container via **colima** (Docker engine on a Linux VM on macOS).
@@ -53,9 +53,37 @@ integration step (have `kernel.py propose` shell `observe_frida.py` around the
 apply inside the container) is the remaining M3 wiring; the gate logic itself
 needs no further code.
 
+## LD_PRELOAD observer on dev-cx53 (validated, preferred over colima)
+
+The L1 advisory observer now has a real-Linux home: **dev-cx53** (NixOS, tailscale
+`100.105.72.88`, user `dev`) — the sanctioned build target, so no colima needed.
+`observe_preload.c` is a small LD_PRELOAD `.so` that interposes glibc
+`open/openat/creat/unlink(at)`, logging write-intent opens + deletes;
+`observe_preload.py` runs a command under it and folds the log into the same
+`observed_effects` shape the kernel's gate consumes. Same advisory caveat — it is
+evidence, not enforcement (a static binary / direct `syscall()` bypasses it).
+
+All ops are captured in `tools/dogfood/Taskfile.yml` (go-task):
+
+```bash
+cd tools/dogfood
+task preflight        # probe dev-cx53
+task l1:build         # ship observe_preload.c → clang -shared on dev-cx53
+task l1:test          # smoke: expect W,W,D; read-only open NOT logged
+task l1:observe CMD="python3 myscript.py" ROOT=/path   # → observed_effects JSON
+```
+
+Validated 2026-06-15 on dev-cx53: build OK; the smoke test logged the two
+write-opens and the delete, and correctly skipped the read-only open.
+
+**Self-hosted LLM:** dev-cx53 already runs a `crabcc-ollama-stack` (ollama +
+litellm OpenAI-compat gateway on `:4000`, auth-gated). Point opencode/ralph at it
+(`task point`) to free the M3's RAM — no duplicate ollama needed.
+
 ## Status
 
-- `observe_frida.py` + `Dockerfile.l1` written and committed.
+- `observe_preload.c` + `observe_preload.py` built and validated on dev-cx53; ops in `Taskfile.yml`.
+- `observe_frida.py` + `Dockerfile.l1` written and committed (Frida/colima alternative).
 - Kernel-side observed gate: implemented + unit-tested (`test_kernel.py:
   test_reject_observed_exceeds_declared`, `test_observed_subset_accepts`).
 - Live container run + propose-around-observer wiring: **deferred** — run when

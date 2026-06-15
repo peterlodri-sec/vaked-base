@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# vk — M3 dev CLI for the vaked-aegis / vaked-oracle workflow.
+# Single front door: dashboards dev-cx53, drops you onto the box, and launches a
+# curated local Claude Code. dev-cx53 ops delegate to tools/dogfood/Taskfile.yml
+# (one source of truth). See `vk help`.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOGFOOD="$REPO/tools/dogfood"
+IP="${VK_DEV53_IP:-100.105.72.88}"
+HOST="dev@$IP"
+NIXBASE="${VK_NIXBASE:-$HOME/workspace/peterlodri-sec/nix-base}"
+TS="$(command -v tailscale || echo /opt/homebrew/bin/tailscale)"
+
+c_grn=$'\033[32m'; c_red=$'\033[31m'; c_dim=$'\033[2m'; c_cyn=$'\033[36m'; c_rst=$'\033[0m'
+ok(){ printf "  %s✓%s %s\n" "$c_grn" "$c_rst" "$1"; }
+bad(){ printf "  %s✗%s %s\n" "$c_red" "$c_rst" "$1"; }
+
+usage(){ cat <<EOF
+${c_cyn}vk${c_rst} — vaked dev CLI (M3)
+
+  vk status                 dashboard: dev-cx53, litellm, ollama, revdev, git/PRs, aegis tests
+  vk to-dev53 [--deploy|--rev]
+                            ssh dev@dev-cx53  (--rev: ssh revdev@ · --deploy: nixos-rebuild sync)
+  vk code [-- <claude args>]
+                            launch local Claude Code, curated: only crabcc+context7+github MCP,
+                            vaked dev-brief system prompt, --permission-mode acceptEdits
+  vk help                   this
+
+env: VK_DEV53_IP (=$IP)  VK_NIXBASE (=$NIXBASE)
+EOF
+}
+
+cmd_status(){
+  printf "%svaked-aegis / dev-cx53 status%s\n" "$c_cyn" "$c_rst"
+  if "$TS" ping --c 1 --timeout 3s "$IP" >/dev/null 2>&1; then ok "dev-cx53 reachable ($IP)"; else bad "dev-cx53 unreachable"; fi
+  if python3 - "$IP" <<'PY' 2>/dev/null
+import sys,urllib.request
+urllib.request.urlopen(f"http://{sys.argv[1]}:4000/health/liveliness",timeout=4).read()
+PY
+  then ok "litellm gateway :4000 alive"; else bad "litellm :4000 down"; fi
+  # one ssh round-trip for box-side facts
+  ssh -o BatchMode=yes -o ConnectTimeout=6 "$HOST" '
+    docker ps --format "{{.Names}}" 2>/dev/null | grep -q ollama && echo "OLLAMA up" || echo "OLLAMA down"
+    getent passwd revdev >/dev/null && echo "REVDEV present" || echo "REVDEV absent"
+  ' 2>/dev/null | while read -r line; do
+    case "$line" in *up|*present) ok "${line}";; *) bad "${line}";; esac
+  done
+  printf "%s  git%s %s\n" "$c_dim" "$c_rst" "$(git -C "$REPO" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  if command -v gh >/dev/null; then
+    printf "%s  open PRs%s\n" "$c_dim" "$c_rst"; gh pr list --repo peterlodri-sec/vaked-base --state open --limit 5 2>/dev/null | sed 's/^/    /' || true
+  fi
+  if [ -f "$DOGFOOD/test_kernel.py" ]; then
+    printf "%s  aegis tests%s %s\n" "$c_dim" "$c_rst" "$(python3 "$DOGFOOD/test_kernel.py" 2>/dev/null | tail -1)"
+  fi
+}
+
+cmd_to_dev53(){
+  case "${1:-}" in
+    --rev) exec ssh "revdev@$IP" ;;
+    --deploy)
+      [ -d "$NIXBASE" ] || { echo "nix-base not at $NIXBASE (set VK_NIXBASE)"; exit 1; }
+      echo "nixos-rebuild switch --flake .#dev-cx53 → $HOST (build+target on remote, sudo)"
+      cd "$NIXBASE"
+      exec nix --extra-experimental-features 'nix-command flakes' run nixpkgs#nixos-rebuild -- \
+        switch --flake ".#dev-cx53" --build-host "$HOST" --target-host "$HOST" --sudo ;;
+    "") exec ssh "$HOST" ;;
+    *) echo "vk to-dev53: unknown flag $1"; exit 2 ;;
+  esac
+}
+
+cmd_code(){
+  cd "$REPO"
+  exec claude \
+    --strict-mcp-config --mcp-config "$DOGFOOD/mcp.dev.json" \
+    --permission-mode acceptEdits \
+    --append-system-prompt-file "$DOGFOOD/dev-brief.md" \
+    "$@"
+}
+
+sub="${1:-help}"; shift 2>/dev/null || true
+case "$sub" in
+  status)    cmd_status "$@" ;;
+  to-dev53)  cmd_to_dev53 "$@" ;;
+  code)      cmd_code "$@" ;;
+  help|-h|--help) usage ;;
+  *) echo "vk: unknown command '$sub'"; echo; usage; exit 2 ;;
+esac
