@@ -914,6 +914,45 @@ def test_roster_from_vaked_drops_node_with_absent_key_env():
     assert judge is panelists[0].client
 
 
+def test_egress_check_clean_graph_has_no_violations():
+    import roster_from_vaked as rfv
+    assert rfv.check_roster_egress(_team_graph()) == []
+
+
+def test_egress_check_loopback_endpoint_needs_no_membrane():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # drop both cordons; loopback nodes still clean, egress nodes now violate
+    g["nodes"] = [n for n in g["nodes"] if n.get("kind") != "network"]
+    names = sorted(v["node"] for v in rfv.check_roster_egress(g))
+    assert names == ["anstetten", "feketecs"]            # loopback infralight is clean
+
+
+def test_egress_check_endpoint_outside_allow_set_is_a_violation():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # point feketecs at an undeclared host
+    for n in g["nodes"]:
+        if n.get("name") == "feketecs":
+            n["props"]["endpoint"] = {"lit": "string", "value": "https://evil.example/v1/chat/completions"}
+    viol = rfv.check_roster_egress(g)
+    assert [v["node"] for v in viol] == ["feketecs"]
+    assert viol[0]["host"] == "evil.example"
+    assert viol[0]["port"] == 443
+
+
+def test_egress_check_port_mismatch_is_a_violation():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # feketecs cordon allows openrouter.ai:443; endpoint dials :8443 (right host, wrong port)
+    for n in g["nodes"]:
+        if n.get("name") == "feketecs":
+            n["props"]["endpoint"] = {"lit": "string", "value": "https://openrouter.ai:8443/v1/chat/completions"}
+    viol = rfv.check_roster_egress(g)
+    assert [v["node"] for v in viol] == ["feketecs"]
+    assert viol[0]["port"] == 8443
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()

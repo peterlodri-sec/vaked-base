@@ -78,3 +78,55 @@ def load_roster_from_graph(graph):
             budget = int(_val(props.get("budgetCalls")))
             break
     return panelists, judge, budget
+
+
+def membrane_allow(graph):
+    """principal -> set of (host, port) allow rules from networkMembrane (kind 'network') nodes."""
+    out = {}
+    for n in graph.get("nodes", []):
+        if n.get("kind") != "network":
+            continue
+        props = n.get("props", {})
+        principal = _val(props.get("principal"))
+        if principal is None:
+            continue
+        rules = set()
+        for r in props.get("allow", []):
+            if r.get("ref") != "egress":
+                continue
+            args = r.get("args", [])
+            if len(args) >= 2:
+                try:
+                    rules.add((str(_val(args[0])), int(_val(args[1]))))
+                except (TypeError, ValueError):
+                    continue   # malformed port -> skip the rule (fail-soft, cf. lower.py _egress_rule)
+        out.setdefault(principal, set()).update(rules)
+    return out
+
+
+def _endpoint_host_port(endpoint):
+    """(host, port) from an endpoint URL; default port by scheme."""
+    u = urlsplit(endpoint or "")
+    host = u.hostname or ""
+    port = u.port or (443 if u.scheme == "https" else 80)
+    return host, port
+
+
+def check_roster_egress(graph):
+    """Drift check: each endpoint node must reach loopback OR a (host, port) in its
+    own networkMembrane allow-set. Returns [] when clean (deny-by-default). The
+    tool-local E-EGRESS-USE analog; non-empty -> the caller must reject the run."""
+    nodes = _mesh_nodes(graph)
+    # NOTE: a membrane's `default` posture is intentionally ignored here — the tool
+    # layer is allow-list-only (strictly >= the eBPF deny-by-default posture).
+    allow = membrane_allow(graph)
+    violations = []
+    for name, props in sorted(_roster_nodes(nodes).items()):
+        host, port = _endpoint_host_port(_val(props.get("endpoint")))
+        if host in LOOPBACK_HOSTS:
+            continue
+        if (host, port) in allow.get(name, set()):
+            continue
+        violations.append({"node": name, "host": host, "port": port,
+                           "reason": "host:port not in node's networkMembrane allow-set (deny-by-default)"})
+    return violations
