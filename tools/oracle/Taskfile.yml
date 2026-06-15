@@ -1,0 +1,51 @@
+version: '3'
+
+# vaked-oracle ops. Heavy tasks run on dev-cx53 (never the M3).
+vars:
+  TARGET: '{{.TARGET | default "/etc/profiles/per-user/revdev/bin/llama-cli"}}'
+  FUNCS: '{{.FUNCS | default "llama_decode,llama_model_load_from_file,llama_batch_init"}}'
+  SERVER: '{{.SERVER | default "http://127.0.0.1:8090/completion"}}'   # :8080 is taken by atticd
+
+tasks:
+  default:
+    cmds: [task --list]
+
+  test:
+    desc: run oracle unit tests
+    cmds:
+      - python3 tools/oracle/test_oracle.py
+
+  model:fetch:
+    desc: download the llm4decompile-6.7B GGUF into the oracle model dir (dev-cx53)
+    cmds:
+      - mkdir -p ~/oracle/models
+      - echo "fetch the chosen GGUF (see docs/oracle/v0.md open items) into ~/oracle/models"
+
+  llm:serve:
+    desc: serve llm4decompile via llama-server on :8090 (dev-cx53; :8080 is atticd)
+    cmds:
+      - llama-server -m ~/oracle/models/llm4decompile-6.7b-v2-q4_k_m.gguf --host 127.0.0.1 --port 8090 -c 4096
+
+  pyghidra:setup:
+    desc: create the pyghidra+frida venv on dev-cx53 (idempotent)
+    cmds:
+      - |
+        WHL=$(ls $(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d"; done | head -1)/Ghidra/Features/PyGhidra/pypkg/dist/pyghidra-*.whl)
+        cd ~/oracle && uv venv pgvenv --python 3.13 && uv pip install --python ~/oracle/pgvenv/bin/python "$WHL" "frida==17.5.1"
+
+  run:
+    desc: run the RE loop on the target (dev-cx53); derives the PyGhidra nix env
+    cmds:
+      - |
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        python3 tools/oracle/oracle.py run \
+          --target {{.TARGET}} --funcs {{.FUNCS}} \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --frida-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --server {{.SERVER}} \
+          --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --infer-cmd "llama-completion --jinja -m ${LLAMA_DEMO_MODEL:-$HOME/oracle/models/llm4decompile-6.7b-v2-q4_k_m.gguf} -p hi -n 4" \
+          --watch-seconds "${ORACLE_WATCH_SECONDS:-12}"
