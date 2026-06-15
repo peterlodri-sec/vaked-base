@@ -3,9 +3,12 @@
 
 Usage:
   oracle run --target /path/to/llama-cli --funcs ggml_compute,llama_decode \
-             --analyze-headless <path> --server http://127.0.0.1:8080/completion \
+             --pyghidra-python <venv-python> \
+             --server http://127.0.0.1:8080/completion \
              --source-dir <llama.cpp src> --watcher-sock /run/oracle-watcher.sock \
              --infer-cmd "llama-cli -m model.gguf -p hello -n 8"
+Env vars for PyGhidra: GHIDRA_INSTALL_DIR, JAVA_HOME, ORACLE_LIBSTDCXX_DIR
+(the Taskfile derives these from the nix store automatically).
 Heavy work runs on dev-cx53; never on the M3.
 """
 from __future__ import annotations
@@ -35,7 +38,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     r = sub.add_parser("run")
     r.add_argument("--target", required=True)
     r.add_argument("--funcs", required=True, type=lambda s: [x for x in s.split(",") if x])
-    r.add_argument("--analyze-headless", default=os.environ.get("ANALYZE_HEADLESS", "analyzeHeadless"))
+    r.add_argument("--pyghidra-python", default=os.environ.get("ORACLE_PYGHIDRA_PYTHON", "python3"))
     r.add_argument("--server", default=llm_refine.DEFAULT_SERVER)
     r.add_argument("--source-dir", default=None, help="llama.cpp source for fidelity ground truth")
     r.add_argument("--watcher-sock", default=wc.DEFAULT_SOCK)
@@ -77,8 +80,8 @@ def _sha256_file(path: str) -> str:
 
 
 def cmd_run(ns: argparse.Namespace) -> int:
-    decomp_map = gf.run_ghidra(analyze_headless=ns.analyze_headless,
-                               binary=ns.target, functions=ns.funcs)
+    decomp_map = gf.run_ghidra(binary=ns.target, functions=ns.funcs,
+                               pyghidra_python=ns.pyghidra_python)
 
     def decompile(fn):
         pseudo_c = decomp_map.get(fn, "")

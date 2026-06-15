@@ -29,7 +29,7 @@ inference model is also the machine that reverse-engineers it.
 ```
 llama-cli (nix-store, FOSS, MIT)
      │
-     ├── Ghidra analyzeHeadless ──→ pseudo-C per function
+     ├── Ghidra PyGhidra (CPython 3) ──→ pseudo-C per function
      │                                      │
      │                              llm4decompile-6.7B
      │                              (llama-server :8080)
@@ -70,8 +70,8 @@ budget is exhausted. The ledger is tamper-evident and replay-verifies via
 | `ledger.py` | Thin wrapper over `ralphcore.py` — JSONL of hash-chained entries, one per decision; `verify()` and `valid_prefix()` |
 | `schema.py` | Finding record constructors (`function_entry`, `build_finding`) and `validate_finding`; defines `FINDING_KIND`, `FINDING_V`, `FIDELITY_METHOD` |
 | `fidelity.py` | `score(a, b)` — Dice coefficient over C token multisets (slice-1 method); comments stripped, whitespace collapsed |
-| `ghidra_frontend.py` | `run_ghidra(analyze_headless, binary, functions)` — launches Ghidra analyzeHeadless with `DecompileExport.py`, returns `{func: pseudo_c}`; `parse_decomp` is pure and tested |
-| `DecompileExport.py` | Jython post-script run inside Ghidra — iterates the function manager, decompiles each requested function, writes `{func: pseudo_c}` JSON to disk |
+| `ghidra_frontend.py` | `run_ghidra(binary, functions, pyghidra_python, ...)` — decompiles via PyGhidra (CPython 3), threads GHIDRA_INSTALL_DIR/JAVA_HOME/LD_LIBRARY_PATH env, returns `{func: pseudo_c}`; `parse_decomp` is pure and tested |
+| `pyghidra_decompile.py` | PyGhidra headless decompiler script — invoked by `run_ghidra` via the `~/oracle/pgvenv` venv; requires `pyghidra` + `jpype1`; writes `{func: pseudo_c}` JSON to disk; validated on ghidra 12.0.4 / openjdk-21 / pyghidra 3.0.2 |
 | `llm_refine.py` | `refine(fn, pseudo_c, server)` — builds the llm4decompile prompt (`PROMPT_PREFIX` + code + `PROMPT_SUFFIX`), POSTs to llama-server `/completion`, returns refined C; `build_prompt` and `parse_completion` are pure and tested |
 | `dynamic_frida.py` | `run_frida(target_cmd, functions)` — runs the target inside `sample-run` (bubblewrap, no-net) under Frida with `hook.js`; aggregates `{fn: {calls, timing_ms}}`; `parse_frida_trace` is pure and tested |
 | `hook.js` | Frida script injected into the target process — reads function names from `ORACLE_HOOK_FUNCS` env, resolves exports, hooks each with `Interceptor.attach`, emits one JSON line per call with `Date.now()`-based wall-clock duration |
@@ -87,7 +87,7 @@ budget is exhausted. The ledger is tamper-evident and replay-verifies via
 ```bash
 # Step 1: run the unit suite (pure stdlib, M3 is fine, no dev-cx53 needed)
 python3 tools/oracle/test_oracle.py
-# → 32 passed, 0 failed
+# → 33 passed, 0 failed
 
 # Step 2: heavy runs go on dev-cx53 via the Taskfile
 # (install go-task if not present: nix shell nixpkgs#go-task)
@@ -99,11 +99,14 @@ task -t tools/oracle/Taskfile.yml test
 ssh dev-cx53
 task -t tools/oracle/Taskfile.yml model:fetch
 
+# create the pyghidra venv (once; idempotent — safe to re-run)
+task -t tools/oracle/Taskfile.yml pyghidra:setup
+
 # start llama-server on :8080 (dev-cx53)
 task -t tools/oracle/Taskfile.yml llm:serve &
 
 # run the full RE loop on the default target
-ANALYZE_HEADLESS=/nix/store/<ghidra>/support/analyzeHeadless \
+# (GHIDRA_INSTALL_DIR / JAVA_HOME / ORACLE_LIBSTDCXX_DIR derived from nix store automatically)
 LLAMA_CPP_SRC=~/src/llama.cpp \
 LLAMA_DEMO_MODEL=~/oracle/models/llm4decompile-6.7b-v2.gguf \
   task -t tools/oracle/Taskfile.yml run

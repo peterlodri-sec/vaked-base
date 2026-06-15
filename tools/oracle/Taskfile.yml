@@ -26,13 +26,23 @@ tasks:
     cmds:
       - llama-server -m ~/oracle/models/llm4decompile-6.7b-v2.gguf --port 8080 -c 4096
 
-  run:
-    desc: run the RE loop on the target (dev-cx53)
+  pyghidra:setup:
+    desc: create the pyghidra venv on dev-cx53 (idempotent)
     cmds:
-      - >
-        python3 tools/oracle/oracle.py run
-        --target {{.TARGET}} --funcs {{.FUNCS}}
-        --analyze-headless "$ANALYZE_HEADLESS"
-        --server {{.SERVER}}
-        --source-dir "$LLAMA_CPP_SRC"
-        --infer-cmd "{{.TARGET}} -m $LLAMA_DEMO_MODEL -p hi -n 8"
+      - |
+        WHL=$(ls $(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d"; done | head -1)/Ghidra/Features/PyGhidra/pypkg/dist/pyghidra-*.whl)
+        cd ~/oracle && uv venv pgvenv --python 3.13 && uv pip install --python ~/oracle/pgvenv/bin/python "$WHL"
+
+  run:
+    desc: run the RE loop on the target (dev-cx53); derives the PyGhidra nix env
+    cmds:
+      - |
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        python3 tools/oracle/oracle.py run \
+          --target {{.TARGET}} --funcs {{.FUNCS}} \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --server {{.SERVER}} \
+          --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}"
