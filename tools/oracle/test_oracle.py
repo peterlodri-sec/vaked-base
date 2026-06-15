@@ -953,6 +953,33 @@ def test_egress_check_port_mismatch_is_a_violation():
     assert viol[0]["port"] == 8443
 
 
+def test_team_from_vaked_parses():
+    import oracle
+    ns = oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
+                            "--from-vaked", "graph.json"])
+    assert ns.from_vaked == "graph.json"
+    assert ns.panel is None
+
+
+def test_team_panel_and_from_vaked_mutually_exclusive():
+    import oracle
+    try:
+        oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
+                           "--panel", "p.json", "--from-vaked", "graph.json"])
+        assert False, "expected SystemExit (mutually exclusive)"
+    except SystemExit:
+        pass
+
+
+def test_team_requires_one_roster_source():
+    import oracle
+    try:
+        oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f"])
+        assert False, "expected SystemExit (one of --panel/--from-vaked required)"
+    except SystemExit:
+        pass
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
