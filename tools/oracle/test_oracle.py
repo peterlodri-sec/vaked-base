@@ -190,6 +190,22 @@ def test_query_watcher_against_fake_socket():
         srv.close()
 
 
+import watcher_daemon as wd  # noqa: E402
+
+
+def test_parse_bpftrace_syscall_counts():
+    # bpftrace prints @syscalls[name]: count maps after exit
+    out = "@syscalls[openat]: 4\n@syscalls[mmap]: 2\n@files[/m/model.gguf]: 1\n"
+    parsed = wd.parse_bpftrace(out)
+    assert parsed["syscalls"] == {"openat": 4, "mmap": 2}
+    assert parsed["files"] == ["/m/model.gguf"]
+
+
+def test_handle_request_bad_pid_returns_error():
+    resp = wd.handle_request({"pid": -1, "duration_s": 1}, run=lambda pid, dur: {})
+    assert resp["ok"] is False and "pid" in resp["error"]
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
