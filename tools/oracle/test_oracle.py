@@ -612,6 +612,30 @@ def test_loop_default_brain_unchanged():
         assert f_default == f_explicit and led_default == led_explicit
 
 
+def test_loop_agentic_budget_hard_gate():
+    """A stubborn LLM that always returns a valid action still terminates at budget."""
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        decide = _agent.make_policy(lambda p: '{"action":"investigate","query":{"kind":"sym","name":"a"}}')
+        investigate = _inv.make_investigator(source_root="SRC",
+            runner=lambda cmd, timeout=30: (0, '[]'))
+        finding = loop.run_loop(
+            functions=["a"],
+            target={"path": "/bin/x", "sha256": "0" * 64, "source_ref": "v"},
+            decompiler_meta={"model": "m", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg,
+            decompile=lambda fn: ("p", "int a(){}", 0.9),
+            refine=lambda fn, prev: ("int a(){}", 0.95),
+            dynamic=lambda fn: (None, None),
+            budget_iters=5, decide=decide, investigate=investigate)
+        assert finding["kind"] == "oracle_finding"
+        payloads = [e["payload"] for e in lg.entries()]
+        assert sum(1 for p in payloads if p["kind"] == "observation") == 5  # exactly budget
+        assert any(p.get("reason") == "budget_exhausted"
+                   for p in payloads if p["kind"] == "decision")
+        assert lg.verify()
+
+
 def test_parse_args_agent_flags():
     ns = oracle_cli.parse_args(["run", "--target", "/bin/x", "--funcs", "a",
                                 "--agent", "--crabcc-root", "/src", "--llm-model", "m7"])

@@ -36,6 +36,13 @@ def run_loop(*, functions, target, decompiler_meta, ledger_,
         if _control_stop(control_path):
             ledger_.append({"kind": "decision", "action": "control_stop"})
             break
+        # hard budget ceiling — the deterministic policy honors budget, but an
+        # injected LLM brain that keeps returning valid actions would not; enforce
+        # here so no `decide` (cooperative-misbehaving model included) can unbound it.
+        if iters >= budget_iters:
+            ledger_.append({"kind": "decision", "action": "finalize",
+                            "iter": iters, "reason": "budget_exhausted"})
+            break
         state = policy.LoopState(functions=functions, results=results,
                                  iters=iters, budget_iters=budget_iters,
                                  observations=observations)
