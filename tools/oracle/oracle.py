@@ -44,6 +44,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     r.add_argument("--watcher-sock", default=wc.DEFAULT_SOCK)
     r.add_argument("--frida-python", default=os.environ.get("ORACLE_FRIDA_PYTHON", "python3"))
     r.add_argument("--infer-cmd", default=None, help="command to drive a live inference")
+    r.add_argument("--watch-seconds", type=int, default=12,
+                   help="eBPF watcher trace window (s); wide enough to catch the model-load mmap")
     r.add_argument("--budget-iters", type=int, default=50)
     r.add_argument("--control", default=None)
     return p.parse_args(argv)
@@ -104,7 +106,7 @@ def cmd_run(ns: argparse.Namespace) -> int:
             import subprocess
             proc = subprocess.Popen(ns.infer_cmd.split())
             try:
-                ebpf = wc.query_watcher(ns.watcher_sock, pid=proc.pid, duration_s=5)
+                ebpf = wc.query_watcher(ns.watcher_sock, pid=proc.pid, duration_s=ns.watch_seconds)
             except Exception:  # noqa: BLE001 (degrade)
                 ebpf = None
             try:
