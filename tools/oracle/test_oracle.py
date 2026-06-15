@@ -129,6 +129,27 @@ def test_parse_decomp_bad_json_raises():
         pass
 
 
+import dynamic_frida as dfr  # noqa: E402
+
+
+def test_parse_frida_aggregates_calls():
+    # hook.js emits one JSON line per call event
+    lines = [
+        '{"fn": "ggml_compute", "dur_ns": 1000}',
+        '{"fn": "ggml_compute", "dur_ns": 3000}',
+        '{"fn": "llama_decode", "dur_ns": 500}',
+    ]
+    got = dfr.parse_frida_trace("\n".join(lines))
+    assert got["ggml_compute"]["calls"] == 2
+    assert got["ggml_compute"]["timing_ms"] == 0.004  # (1000+3000)ns -> ms, rounded
+    assert got["llama_decode"]["calls"] == 1
+
+
+def test_parse_frida_ignores_noise_lines():
+    got = dfr.parse_frida_trace('garbage\n{"fn":"f","dur_ns":1000}\n[frida] log')
+    assert got["f"]["calls"] == 1
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
