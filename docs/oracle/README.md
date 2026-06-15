@@ -79,6 +79,8 @@ budget is exhausted. The ledger is tamper-evident and replay-verifies via
 | `watcher_daemon.py` | Root daemon served by `oracle-ebpf-watcher.nix` — accepts requests on the unix socket, runs a PID-scoped bpftrace program, parses and returns results; `parse_bpftrace` and `handle_request` are pure and tested |
 | `bridge.py` | `to_observed_effects(finding, files_written, files_deleted)` — emits the `{writes, deletes}` shape the aegis kernel consumes; `attach_transition(finding, hash)` — links a finding to a kernel transition hash (wired in slice 2 via `dogfood_bridge.py`) |
 | `dogfood_bridge.py` | Double-dogfood wire — `ground_finding(...)` records a finding as a real aegis kernel transition (reuses `tools/dogfood/kernel.judge`) and cross-links both hash chains; `verify_xref(...)` proves the bidirectional `transition_xref` link + that both chains verify independently. CLI: `oracle ground` / `oracle verify-xref` |
+| `agent.py` | Slice-3 LLM-driven loop brain — `make_policy(llm_call)` picks the next action (decompile/refine/investigate/finalize) over the bounded set; `build_prompt`/`parse_action`; `LiteLLMClient` (local litellm `:4000`, temp=0); deterministic `policy.next_action` fallback on any parse failure |
+| `investigate.py` | Slice-3 read-only structural lookup — `make_investigator(source_root, binary)` answers function queries from crabcc (C ground-truth source) with a binutils fallback; never raises |
 | `oracle-ebpf-watcher.nix` | NixOS systemd service (root) for the eBPF watcher — `bpftrace` in the service path, unix socket at `/run/oracle-watcher.sock` with group `oracle-watcher` (`srw-rw----`), Python 3 interpreter, on-failure restart |
 
 ---

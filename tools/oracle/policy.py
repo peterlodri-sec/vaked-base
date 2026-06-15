@@ -6,7 +6,7 @@ control-stop forces finalize (handled by the loop; the policy only sees budget).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 FIDELITY_THRESHOLD = 0.75
 MAX_REFINE = 2
@@ -18,6 +18,7 @@ class LoopState:
     results: dict[str, dict]   # fn -> {"fidelity": float, "refined": bool, "refine_passes": int}
     iters: int
     budget_iters: int
+    observations: list = field(default_factory=list)   # slice-3: investigate results (agent context)
 
 
 def next_action(state: LoopState) -> dict:

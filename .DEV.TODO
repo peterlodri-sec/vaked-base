@@ -10,29 +10,37 @@ Premise: a decompiler-LLM reverse-engineers the runtime of another LLM
 
 ---
 
-## ▶ SLICE 2 — double-dogfood (IN PROGRESS, branch feat/oracle-double-dogfood)
+## ✅ SLICE 2 — double-dogfood — SHIPPED (origin/main `9f092fe`, PR #275)
 
-Wire the `transition_xref` seam. Today: `bridge.attach_transition` +
-`bridge.to_observed_effects` are tested but never called; every persisted finding
-has `transition_xref: null` (see `docs/oracle/integration.md` §2).
+transition_xref seam wired: oracle finding ↔ aegis kernel eventd-WAL transition,
+bidirectional, two independent hash chains. `dogfood_bridge.{ground_finding,verify_xref}`
++ CLI (`ground`/`verify-xref`). 41 tests. On-box acceptance:
+`transition_xref=c15ef2f2…` (WAL seq 0). Agent-free deterministic wire.
 
-- [ ] Oracle finding → vaked-aegis kernel transition (eventd WAL via `tools/dogfood/wal.py`)
-- [ ] observed_effects = finding's written files (bridge.to_observed_effects)
-- [ ] accepted WAL entry hash → bridge.attach_transition → re-persist finding with xref
-- [ ] bidirectional integrity: finding.transition_xref resolves to a WAL entry whose
-      observed_effects writes include the finding path; both chains verify independently
-- [ ] flip integration.md "null in slice 1" → "wired"; on-box acceptance run
-- Scope decision (pending user): agent-free deterministic evidence wire vs. agentic patch
+## ▶ SLICE 3 — agentic reverser (IN PROGRESS, branch feat/oracle-agentic-reverser)
+
+Hybrid: LLM-driven policy + investigate. Spec:
+`docs/superpowers/specs/2026-06-15-vaked-oracle-slice-3-design.md`
+
+- [ ] parameterize `loop.run_loop(decide=, investigate=)` — default = deterministic (back-compat)
+- [ ] `agent.py` — `make_policy(llm_call)` picks next action (decompile/refine/investigate/finalize);
+      local `oq`/litellm :4000, temp=0, deterministic `policy.next_action` fallback
+- [ ] `investigate.py` — crabcc (C subset: ggml + C headers) preferred → binutils fallback
+- [ ] log decisions(+rationale,model) + observations to ledger; budget+control; replay-stable
+- [ ] CLI `run --agent` + `--llm-*` + `--crabcc-root`; ground via slice-2
+- [x] on-box acceptance PASSED (dev-cx53) — keyless Qwen2.5-Coder-3B on :8091
+      (`task llm:serve-instruct`, no secret); 8 live LLM decisions, real nm investigate,
+      chain_ok=True; hard budget ceiling fired live. crabcc install still deferred (gh auth;
+      binutils-investigate used).
+- crabcc verified (6.3.0): indexes C not C++ (`.cpp` skipped); `ggml.c` + `llama.h`/`ggml.h` indexable
 
 ---
 
 ## BACKLOG (user: "don't forget the others")
 
-### Slice 3 — agentic reverser loop  (reverser_ai-style)
-Agent (pi / claude / nullclaw on revdev) drives the deterministic primitives:
-plan → decompile → probe → refine, autonomously. Turns slice-1 primitives into a
-self-directed reverser. Biggest lift. Likely consumes slice-2's xref wire (a
-proposer transition grounded in an oracle finding = the agent's real code edit).
+### Slice 3 — agentic reverser → PROMOTED to active (see top). Chosen: hybrid
+LLM-driven policy + crabcc-powered investigate. Off-the-shelf free-form agent CLIs
+(claude/pi/nullclaw) deferred — the auditable LLM-policy middle ground won.
 
 ### Slice 4 — arbitrary-binary RE  (generality)
 Unknown/stripped ELFs — the pure llm4decompile / OGhidra demo. Proves the system
