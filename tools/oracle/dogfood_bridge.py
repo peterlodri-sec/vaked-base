@@ -37,6 +37,8 @@ def ground_finding(*, finding: dict, finding_rel: str, root: str, scope: list,
     Raises RuntimeError if the kernel rejects the transition.
     """
     finding = dict(finding)
+    finding.pop("transition_xref", None)  # must hash WITHOUT xref (acyclicity invariant;
+                                          # guards re-grounding an already-linked finding)
     # normalize the finding's OWN observed_effects to the artifact path — the
     # shared key verify_xref checks for the WAL->finding direction.
     finding["observed_effects"] = bridge.to_observed_effects(finding, files_written=[finding_rel])

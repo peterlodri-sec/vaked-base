@@ -156,7 +156,8 @@ def _sibling(root: str, name: str) -> str:
 
 
 def cmd_ground(ns: argparse.Namespace) -> int:
-    finding = json.load(open(ns.finding))
+    with open(ns.finding) as fh:
+        finding = json.load(fh)
     root = os.path.abspath(ns.root)
     finding_rel = os.path.relpath(os.path.abspath(ns.finding), root)
     wal_path = ns.wal_path or _sibling(root, "wal.jsonl")
@@ -171,7 +172,8 @@ def cmd_ground(ns: argparse.Namespace) -> int:
 
 
 def cmd_verify_xref(ns: argparse.Namespace) -> int:
-    finding = json.load(open(ns.finding))
+    with open(ns.finding) as fh:
+        finding = json.load(fh)
     lg = ledger.Ledger(ns.ledger)
     try:
         ddb.verify_xref(finding=finding, wal_path=ns.wal_path, oracle_ledger=lg)

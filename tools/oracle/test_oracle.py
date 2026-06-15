@@ -469,6 +469,25 @@ def test_chains_verify_independently():
             assert False, "expected TamperError (tampered WAL)"
         except TamperError:
             pass
+        # verify_xref must also surface the WAL tamper (not silently pass).
+        # lg's in-memory chain is still clean, so step 1 passes; the WAL open raises.
+        try:
+            ddb.verify_xref(finding=linked, wal_path=wal_path, oracle_ledger=lg)
+            assert False, "expected verify_xref to raise on tampered WAL"
+        except Exception:
+            pass
+
+
+def test_ground_strips_stale_xref_from_artifact():
+    """Re-grounding a finding that already carries an xref must hash WITHOUT it."""
+    with tempfile.TemporaryDirectory() as d:
+        stale = dict(_fixture_finding())
+        stale["transition_xref"] = "ff" * 32   # pretend previously linked
+        res, root, wal_path, lg = _ground_in(d, stale)
+        art = json.load(open(os.path.join(root, "findings", "f.json")))
+        assert art.get("transition_xref") is None   # the hashed artifact carries no xref
+        assert ddb.verify_xref(finding=res["linked_finding"], wal_path=wal_path,
+                               oracle_ledger=lg) is True
 
 
 def test_cli_ground_then_verify_roundtrip():
