@@ -1014,6 +1014,63 @@ def test_ebpf_manifest_loads_and_decides():
     os.unlink(path)
 
 
+# ---- outside-model prompt dogfeed ----
+def test_dogfeed_sink_outside_model_only_and_leakfree():
+    import os, json, tempfile
+    import urllib.request as U
+    import panel
+    class _Resp:
+        def __init__(self, d): self._d = d
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return json.dumps(self._d).encode()
+    fake = {"choices": [{"message": {"content": "PONG"}}],
+            "usage": {"completion_tokens": 7, "cost": 0.0009}}
+    orig = U.urlopen
+    U.urlopen = lambda req, timeout=None: _Resp(fake)
+    log = tempfile.mktemp(suffix=".jsonl")
+    os.environ["ORACLE_DOGFEED_LOG"] = log
+    try:
+        out = panel.OpenAIChatClient("https://openrouter.ai/x", "deepseek/deepseek-v4-pro",
+                                     "sekret-key", reasoning_effort="high")
+        assert out("Reverse-engineer fn foo\npseudo-c body") == "PONG"
+        recs = [json.loads(l) for l in open(log) if l.strip()]
+        assert len(recs) == 1
+        r = recs[0]
+        assert r["model"] == "deepseek/deepseek-v4-pro"
+        assert r["completion_tokens"] == 7 and r["cost"] == 0.0009 and r["reasoning"] is True
+        assert r["first_line"] == "Reverse-engineer fn foo"
+        assert len(r["prompt_sha"]) == 64
+        assert "sekret-key" not in json.dumps(r)
+        os.remove(log)
+        loc = panel.OpenAIChatClient("http://127.0.0.1:8091/x", "qwen", "")
+        assert loc("hi there") == "PONG"
+        assert (not os.path.exists(log)) or sum(1 for _ in open(log)) == 0
+    finally:
+        U.urlopen = orig
+        os.environ.pop("ORACLE_DOGFEED_LOG", None)
+        if os.path.exists(log): os.remove(log)
+
+
+def test_dogfeed_sink_noop_when_env_unset():
+    import os, json
+    import urllib.request as U
+    import panel
+    class _Resp:
+        def __init__(self, d): self._d = d
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return json.dumps(self._d).encode()
+    orig = U.urlopen
+    U.urlopen = lambda req, timeout=None: _Resp({"choices": [{"message": {"content": "X"}}], "usage": {}})
+    os.environ.pop("ORACLE_DOGFEED_LOG", None)
+    try:
+        c = panel.OpenAIChatClient("https://openrouter.ai/x", "m", "k")
+        assert c("p") == "X"
+    finally:
+        U.urlopen = orig
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
