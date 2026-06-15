@@ -305,6 +305,25 @@ def test_loop_runs_to_finalize_with_fakes():
         assert "finding" in kinds and lg.verify() is True
 
 
+import oracle as oracle_cli  # noqa: E402
+
+
+def test_persist_finding_writes_hashed_file():
+    with tempfile.TemporaryDirectory() as d:
+        fdg = schema.build_finding(
+            target={"path": "/p", "sha256": "0" * 64, "source_ref": "v"},
+            decompiler={"model": "m", "model_sha256": "0" * 64, "temperature": 0},
+            functions=[], confidence=0.0)
+        path = oracle_cli.persist_finding(fdg, findings_dir=d)
+        assert os.path.exists(path) and path.endswith(".json")
+        assert json.load(open(path))["kind"] == "oracle_finding"
+
+
+def test_parse_args_funcs_splits_csv():
+    ns = oracle_cli.parse_args(["run", "--target", "/bin/x", "--funcs", "a,b,c"])
+    assert ns.funcs == ["a", "b", "c"] and ns.target == "/bin/x"
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
