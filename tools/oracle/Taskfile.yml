@@ -148,3 +148,13 @@ tasks:
           --repo "${ORACLE_REPO:-peterlodri-sec/vaked-base}" \
           --run-id "${RUN_ID:-run}" \
           {{if eq .DRY "1"}}--dry-run{{end}}
+
+  arp:emit:
+    desc: "emit a finding as per-function arp_event declarations into docs/oracle/arp-trace.md"
+    cmds:
+      - python3 tools/oracle/oracle.py arp-emit --finding "{{.FINDING}}" --out "${ARP_OUT:-docs/oracle/arp-trace.md}"
+
+  arp:verify:
+    desc: "verify the oracle ARP trace parses+checks as Vaked (dogfood gate)"
+    cmds:
+      - python3 tools/arp/verify_log.py docs/oracle/arp-trace.md
