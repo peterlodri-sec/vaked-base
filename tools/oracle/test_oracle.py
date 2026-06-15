@@ -273,6 +273,38 @@ def test_policy_stops_refining_after_max_passes():
     assert policy.next_action(state) == {"action": "finalize"}
 
 
+import loop  # noqa: E402
+
+
+def test_loop_runs_to_finalize_with_fakes():
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+
+        def fake_decompile(fn):  # returns (pseudo_c, refined_c, fidelity)
+            return (f"pseudo {fn}", f"int {fn}(){{}}", 0.9)
+
+        def fake_refine(fn, prev):
+            return (f"int {fn}(){{}} // refined", 0.95)
+
+        def fake_dynamic(fn):
+            return ({"calls": 1, "timing_ms": 0.1}, {"syscalls": {"mmap": 1}, "mmaps": [], "files": []})
+
+        result = loop.run_loop(
+            functions=["a", "b"],
+            target={"path": "/bin/llama-cli", "sha256": "0" * 64, "source_ref": "vX"},
+            decompiler_meta={"model": "llm4decompile-6.7b-v2", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg,
+            decompile=fake_decompile, refine=fake_refine, dynamic=fake_dynamic,
+            budget_iters=20, control_path=None)
+
+        assert result["kind"] == "oracle_finding"
+        assert len(result["functions"]) == 2
+        assert all(f["fidelity"]["score"] >= 0.75 for f in result["functions"])
+        # ledger has decision entries + a final finding entry, and verifies
+        kinds = [e["payload"]["kind"] for e in lg.entries()]
+        assert "finding" in kinds and lg.verify() is True
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
