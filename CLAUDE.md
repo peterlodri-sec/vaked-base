@@ -118,7 +118,7 @@ Automated landing page maintenance loop. Ensures landing readiness via scheduled
 
 ## MCP servers (`.mcp.json`)
 
-`crabcc` (symbol index), `github`, `context7` (Nix/Zig/eBPF/MCP docs), `repowise` (codebase graph — consult before refactors), `workspace-fs` (sandboxed repo FS only), `playwright`. Changes to `.mcp.json` require a Claude Code reload to take effect.
+`crabcc` (symbol index), `github`, `context7` (Nix/Zig/eBPF/MCP docs), `workspace-fs` (sandboxed repo FS only). Changes to `.mcp.json` require a Claude Code reload to take effect.
 
 ## Social posting (Mastodon + Telegram)
 
@@ -188,3 +188,15 @@ This session applied environment patches **outside this repo** that can **drift*
 
 ### 4. Memory
 MemPalace is the session-memory system here (mined in the background per hook #1). Do **not** hand-write Claude Code native `.md` auto-memory for session checkpoints.
+
+### 5. ruflo Stop hook — session-end skipped (slow-stop fix)
+- **What:** the `ruflo-core` Stop hook ran `ruflo hooks session-end --generate-summary true …`. No `ruflo`/`claude-flow` binary is installed, so the shim fell through to `npx --prefer-offline --yes ruflo@alpha …` **synchronously on every Stop** — a multi-second registry resolve/install each turn. Now short-circuited.
+- **Where:** `~/.claude/plugins/cache/ruflo/ruflo-core/<VERSION>/scripts/ruflo-hook.sh` (patched at **0.2.2**) — an early `if [ "$1" = "session-end" ]; then exit 0; fi` right after `exec 2>/dev/null`. Other ruflo hook subcommands (PreToolUse/PostToolUse) still run.
+- **Drift signal:** `running stop hooks` indicator slow again, or the `<VERSION>` dir changes after a plugin update.
+- **Fix:** re-add the `session-end` early-exit block. **Verify:** `time (printf '{}' | bash <ruflo-hook.sh> session-end --generate-summary true)` exits 0 in <0.1s.
+
+### 6. claude-mem Stop hook — async/background (slow-stop fix)
+- **What:** the `claude-mem` Stop hook ran `worker-service.cjs hook claude-code summarize` via synchronous `spawnSync` (timeout 120) — blocked session exit while mining the transcript. Rewritten to read stdin, detach the worker with `nohup … &`, and `exit 0` immediately. Mining still happens in the background.
+- **Where:** `~/.claude/plugins/cache/thedotmack/claude-mem/<VERSION>/hooks/hooks.json`, the `Stop` entry (patched at **12.2.0**). Pattern: `INPUT=$(cat); … printf '%s' "$INPUT" | nohup node …/worker-service.cjs hook claude-code summarize >>"${TMPDIR:-/tmp}/claude-mem-stop.log" 2>&1 & exit 0`.
+- **Drift signal:** Stop slow again, or `<VERSION>` dir changes after a plugin update (hooks.json reverts to the inline synchronous `node … summarize`).
+- **Fix:** re-apply the `INPUT=$(cat)` + `nohup … & exit 0` wrapper to the `Stop` command. **Verify:** `time (printf '{}' | bash -c "$(jq -r '.hooks.Stop[0].hooks[0].command' <hooks.json>)")` returns <0.5s; `pgrep -fl "worker-service.cjs hook claude-code summarize"` shows the detached worker.
