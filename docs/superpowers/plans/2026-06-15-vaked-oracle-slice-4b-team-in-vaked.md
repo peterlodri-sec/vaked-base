@@ -352,32 +352,34 @@ git commit -m "feat(oracle): roster_from_vaked — derive panelists/judge/budget
 
 Append to `tools/oracle/test_oracle.py`:
 
+Module-level `test_*` functions with plain `assert` (the file's convention — NO `unittest`/`TestCase`, or the custom runner silently skips them):
+
 ```python
-class TestEgressCheck(unittest.TestCase):
-    def test_clean_graph_has_no_violations(self):
-        import roster_from_vaked as rfv
-        self.assertEqual(rfv.check_roster_egress(_team_graph()), [])
+def test_egress_check_clean_graph_has_no_violations():
+    import roster_from_vaked as rfv
+    assert rfv.check_roster_egress(_team_graph()) == []
 
-    def test_loopback_endpoint_needs_no_membrane(self):
-        import roster_from_vaked as rfv
-        g = _team_graph()
-        # drop both cordons; loopback nodes still clean, egress nodes now violate
-        g["nodes"] = [n for n in g["nodes"] if n.get("kind") != "network"]
-        viol = rfv.check_roster_egress(g)
-        names = sorted(v["node"] for v in viol)
-        self.assertEqual(names, ["anstetten", "feketecs"])       # loopback infralight is clean
 
-    def test_endpoint_outside_allow_set_is_a_violation(self):
-        import roster_from_vaked as rfv
-        g = _team_graph()
-        # point feketecs at an undeclared host
-        for n in g["nodes"]:
-            if n.get("name") == "feketecs":
-                n["props"]["endpoint"] = {"lit": "string", "value": "https://evil.example/v1/chat/completions"}
-        viol = rfv.check_roster_egress(g)
-        self.assertEqual([v["node"] for v in viol], ["feketecs"])
-        self.assertEqual(viol[0]["host"], "evil.example")
-        self.assertEqual(viol[0]["port"], 443)
+def test_egress_check_loopback_endpoint_needs_no_membrane():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # drop both cordons; loopback nodes still clean, egress nodes now violate
+    g["nodes"] = [n for n in g["nodes"] if n.get("kind") != "network"]
+    names = sorted(v["node"] for v in rfv.check_roster_egress(g))
+    assert names == ["anstetten", "feketecs"]            # loopback infralight is clean
+
+
+def test_egress_check_endpoint_outside_allow_set_is_a_violation():
+    import roster_from_vaked as rfv
+    g = _team_graph()
+    # point feketecs at an undeclared host
+    for n in g["nodes"]:
+        if n.get("name") == "feketecs":
+            n["props"]["endpoint"] = {"lit": "string", "value": "https://evil.example/v1/chat/completions"}
+    viol = rfv.check_roster_egress(g)
+    assert [v["node"] for v in viol] == ["feketecs"]
+    assert viol[0]["host"] == "evil.example"
+    assert viol[0]["port"] == 443
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -461,25 +463,34 @@ git commit -m "feat(oracle): check_roster_egress — reject a roster reaching an
 
 Append to `tools/oracle/test_oracle.py`:
 
+Module-level `test_*` functions (file convention); `assertRaises(SystemExit)` becomes a `try/except`:
+
 ```python
-class TestTeamFromVakedArgs(unittest.TestCase):
-    def test_from_vaked_parses(self):
-        import oracle
-        ns = oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
-                                "--from-vaked", "graph.json"])
-        self.assertEqual(ns.from_vaked, "graph.json")
-        self.assertIsNone(ns.panel)
+def test_team_from_vaked_parses():
+    import oracle
+    ns = oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
+                            "--from-vaked", "graph.json"])
+    assert ns.from_vaked == "graph.json"
+    assert ns.panel is None
 
-    def test_panel_and_from_vaked_are_mutually_exclusive(self):
-        import oracle
-        with self.assertRaises(SystemExit):
-            oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
-                               "--panel", "p.json", "--from-vaked", "graph.json"])
 
-    def test_team_requires_one_roster_source(self):
-        import oracle
-        with self.assertRaises(SystemExit):
-            oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f"])
+def test_team_panel_and_from_vaked_mutually_exclusive():
+    import oracle
+    try:
+        oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f",
+                           "--panel", "p.json", "--from-vaked", "graph.json"])
+        assert False, "expected SystemExit (mutually exclusive)"
+    except SystemExit:
+        pass
+
+
+def test_team_requires_one_roster_source():
+    import oracle
+    try:
+        oracle.parse_args(["team", "--target", "/bin/true", "--funcs", "f"])
+        assert False, "expected SystemExit (one of --panel/--from-vaked required)"
+    except SystemExit:
+        pass
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -563,36 +574,41 @@ git commit -m "feat(oracle): team --from-vaked — graph-derived roster + reject
 
 Append to `tools/oracle/test_oracle.py`:
 
-```python
-class TestEbpfManifestInterop(unittest.TestCase):
-    def _policy_doc(self):
-        # the exact shape vakedc lower emits for oracle-team: loopback cordon gets a
-        # real IP rule; the OpenRouter cordon's DNS host is DROPPED at lower -> allow [].
-        return {"runtime": "oracle-team", "version": 1, "membranes": [
-            {"membrane": "infralightCordon", "principal": "infralight", "grant": "network.loopback",
-             "default": "deny", "allow": [
-                 {"proto": "tcp", "host": "127.0.0.1", "cidr": "127.0.0.1/32", "port": 8091}]},
-            {"membrane": "feketecsCordon", "principal": "feketecs", "grant": "network.egress",
-             "default": "deny", "allow": []},      # DNS host dropped at lower -> deny-all
-        ]}
+Module-level functions (file convention; `sys` is already imported at the top of `test_oracle.py`):
 
-    def test_manifest_loads_and_decides(self):
-        import sys, os, json, tempfile
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # repo root for agent_guardd
-        from agent_guardd import policy as agp
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
-            json.dump(self._policy_doc(), f); path = f.name
-        pol = agp.load_policy(path)
-        loop = pol.membrane_for("infralight")
-        feke = pol.membrane_for("feketecs")
-        # loopback IP rule -> enforceable (fully eBPF-attestable)
-        self.assertEqual(agp.decide(loop, "127.0.0.1", 8091)[0], "allow")
-        self.assertEqual(agp.decide(loop, "127.0.0.1", 9999)[0], "deny")
-        # OpenRouter cordon -> deny-all (DNS dropped at lower; also non-IP at decide).
-        # The documented gap: packet-layer egress to OpenRouter is un-attestable; the
-        # tool-layer check_roster_egress is the only enforcement.
-        self.assertEqual(agp.decide(feke, "openrouter.ai", 443)[0], "deny")
-        os.unlink(path)
+```python
+def _ebpf_policy_doc():
+    # the exact shape vakedc lower emits for oracle-team: loopback cordon gets a real
+    # IP rule; the OpenRouter cordon's DNS host is DROPPED at lower -> allow [].
+    return {"runtime": "oracle-team", "version": 1, "membranes": [
+        {"membrane": "infralightCordon", "principal": "infralight", "grant": "network.loopback",
+         "default": "deny", "allow": [
+             {"proto": "tcp", "host": "127.0.0.1", "cidr": "127.0.0.1/32", "port": 8091}]},
+        {"membrane": "feketecsCordon", "principal": "feketecs", "grant": "network.egress",
+         "default": "deny", "allow": []},      # DNS host dropped at lower -> deny-all
+    ]}
+
+
+def test_ebpf_manifest_loads_and_decides():
+    import os
+    import json
+    import tempfile
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # repo root for agent_guardd
+    from agent_guardd import policy as agp
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(_ebpf_policy_doc(), f)
+        path = f.name
+    pol = agp.load_policy(path)
+    loop = pol.membrane_for("infralight")
+    feke = pol.membrane_for("feketecs")
+    # loopback IP rule -> enforceable (fully eBPF-attestable)
+    assert agp.decide(loop, "127.0.0.1", 8091)[0] == "allow"
+    assert agp.decide(loop, "127.0.0.1", 9999)[0] == "deny"
+    # OpenRouter cordon -> deny-all (DNS dropped at lower; also non-IP at decide). The
+    # documented gap: packet-layer egress to OpenRouter is un-attestable; the tool-layer
+    # check_roster_egress is the only enforcement.
+    assert agp.decide(feke, "openrouter.ai", 443)[0] == "deny"
+    os.unlink(path)
 ```
 
 - [ ] **Step 2: Run to verify it fails first, then passes**
