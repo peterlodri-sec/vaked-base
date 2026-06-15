@@ -34,7 +34,10 @@ tools/dogfood/
   wal.py           thin wrapper over the real eventd EventLog (the WAL)
   proposer.py      stub_propose (tests/demo) + opencode_propose (local Ollama)
   scope_from_vaked.py  lower the kernel's write-scope FROM a Vaked POLA graph
-  observe_frida.py L1 advisory observer — runs in a Linux container (M3)
+  observe_preload.c    L1 LD_PRELOAD advisory observer (Linux) — built on dev-cx53
+  observe_preload.py   run a cmd under the .so → observed_effects (declared≈observed)
+  observe_frida.py     L1 advisory observer via Frida (alternative to LD_PRELOAD)
+  Taskfile.yml         dev-cx53 ops: self-hosted LLM stack + L1 build/test/observe
   test_kernel.py   stdlib test runner (no pytest)
   sandbox/         demo target dir
 .dogfood/          runtime state (gitignored): wal/ (eventd chain) + blobs/
