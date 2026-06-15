@@ -136,3 +136,15 @@ tasks:
           --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
           --source-dir vakedz/src \
           --server http://127.0.0.1:8090/completion
+
+  dogfeed:
+    desc: "post outside-model prompt records (ORACLE_DOGFEED_LOG) to the rolling GitHub issue (run where gh is authed, e.g. M3). DRY=1 to preview"
+    vars:
+      DRY: '{{.DRY | default ""}}'
+    cmds:
+      - |
+        python3 tools/oracle/oracle.py dogfeed \
+          --log "${ORACLE_DOGFEED_LOG:-$HOME/oracle/dogfeed.jsonl}" \
+          --repo "${ORACLE_REPO:-peterlodri-sec/vaked-base}" \
+          --run-id "${RUN_ID:-run}" \
+          {{if eq .DRY "1"}}--dry-run{{end}}

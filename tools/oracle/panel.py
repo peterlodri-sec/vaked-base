@@ -8,6 +8,7 @@ error drops only its candidate; the judge never crashes the round.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -49,7 +50,32 @@ class OpenAIChatClient:
         req = urllib.request.Request(self.endpoint, data=json.dumps(self._build_body(prompt, eff)).encode(),
                                      method="POST", headers=headers)
         with urllib.request.urlopen(req, timeout=self.timeout) as r:  # noqa: S310 (operator-configured endpoints)
-            return json.load(r)["choices"][0]["message"]["content"]
+            d = json.load(r)
+        self._dogfeed(prompt, d, eff)
+        return d["choices"][0]["message"]["content"]
+
+    def _dogfeed(self, prompt, resp, eff):
+        """Opt-in, best-effort: append one JSONL record for an OUTSIDE-model call.
+        No-op unless self.key (key_env-gated) AND ORACLE_DOGFEED_LOG is set. Never
+        raises (must not break the model call); never writes the key or the response."""
+        if not self.key:
+            return
+        path = os.environ.get("ORACLE_DOGFEED_LOG")
+        if not path:
+            return
+        try:
+            usage = resp.get("usage", {}) if isinstance(resp, dict) else {}
+            stripped = (prompt or "").strip()
+            rec = {"model": self.model,
+                   "prompt_sha": hashlib.sha256((prompt or "").encode()).hexdigest(),
+                   "first_line": (stripped.splitlines()[0][:120] if stripped else ""),
+                   "completion_tokens": usage.get("completion_tokens"),
+                   "cost": usage.get("cost"),
+                   "reasoning": bool(eff)}
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+        except Exception:  # noqa: BLE001 — the sink must never break the model call
+            pass
 
 
 @dataclass
