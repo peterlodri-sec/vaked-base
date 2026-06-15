@@ -134,7 +134,7 @@ import dynamic_frida as dfr  # noqa: E402
 
 
 def test_parse_frida_aggregates_calls():
-    # hook.js emits one JSON line per call event
+    # frida_driver.py emits one JSON line per call event
     lines = [
         '{"fn": "ggml_compute", "dur_ns": 1000}',
         '{"fn": "ggml_compute", "dur_ns": 3000}',

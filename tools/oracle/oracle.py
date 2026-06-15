@@ -3,10 +3,10 @@
 
 Usage:
   oracle run --target /path/to/llama-cli --funcs ggml_compute,llama_decode \
-             --pyghidra-python <venv-python> \
+             --pyghidra-python <venv-python> --frida-python <frida-venv-python> \
              --server http://127.0.0.1:8080/completion \
              --source-dir <llama.cpp src> --watcher-sock /run/oracle-watcher.sock \
-             --infer-cmd "llama-cli -m model.gguf -p hello -n 8"
+             --infer-cmd "llama-completion -m model.gguf -p hello -n 8"
 Env vars for PyGhidra: GHIDRA_INSTALL_DIR, JAVA_HOME, ORACLE_LIBSTDCXX_DIR
 (the Taskfile derives these from the nix store automatically).
 Heavy work runs on dev-cx53; never on the M3.
@@ -42,6 +42,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     r.add_argument("--server", default=llm_refine.DEFAULT_SERVER)
     r.add_argument("--source-dir", default=None, help="llama.cpp source for fidelity ground truth")
     r.add_argument("--watcher-sock", default=wc.DEFAULT_SOCK)
+    r.add_argument("--frida-python", default=os.environ.get("ORACLE_FRIDA_PYTHON", "python3"))
     r.add_argument("--infer-cmd", default=None, help="command to drive a live inference")
     r.add_argument("--budget-iters", type=int, default=50)
     r.add_argument("--control", default=None)
@@ -107,7 +108,7 @@ def cmd_run(ns: argparse.Namespace) -> int:
             except Exception:  # noqa: BLE001 (degrade)
                 ebpf = None
             try:
-                frida = dfr.run_frida(target_cmd=ns.infer_cmd.split(), functions=[fn]).get(fn)
+                frida = dfr.run_frida(target_cmd=ns.infer_cmd.split(), functions=[fn], frida_python=ns.frida_python).get(fn)
             except Exception:  # noqa: BLE001
                 frida = None
             finally:

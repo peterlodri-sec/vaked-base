@@ -42,3 +42,13 @@ def query_watcher(sock_path: str = DEFAULT_SOCK, *, pid: int, duration_s: int,
         return decode_response(b"".join(chunks))
     finally:
         s.close()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    import argparse
+    ap = argparse.ArgumentParser(prog="watcher_client")
+    ap.add_argument("--sock", default=DEFAULT_SOCK)
+    ap.add_argument("--pid", type=int, required=True)
+    ap.add_argument("--duration", type=int, default=5)
+    a = ap.parse_args()
+    print(json.dumps(query_watcher(a.sock, pid=a.pid, duration_s=a.duration)))

@@ -73,8 +73,8 @@ budget is exhausted. The ledger is tamper-evident and replay-verifies via
 | `ghidra_frontend.py` | `run_ghidra(binary, functions, pyghidra_python, ...)` — decompiles via PyGhidra (CPython 3), threads GHIDRA_INSTALL_DIR/JAVA_HOME/LD_LIBRARY_PATH env, returns `{func: pseudo_c}`; `parse_decomp` is pure and tested |
 | `pyghidra_decompile.py` | PyGhidra headless decompiler script — invoked by `run_ghidra` via the `~/oracle/pgvenv` venv; requires `pyghidra` + `jpype1`; writes `{func: pseudo_c}` JSON to disk; validated on ghidra 12.0.4 / openjdk-21 / pyghidra 3.0.2 |
 | `llm_refine.py` | `refine(fn, pseudo_c, server)` — builds the llm4decompile prompt (`PROMPT_PREFIX` + code + `PROMPT_SUFFIX`), POSTs to llama-server `/completion`, returns refined C; `build_prompt` and `parse_completion` are pure and tested |
-| `dynamic_frida.py` | `run_frida(target_cmd, functions)` — runs the target inside `sample-run` (bubblewrap, no-net) under Frida with `hook.js`; aggregates `{fn: {calls, timing_ms}}`; `parse_frida_trace` is pure and tested |
-| `hook.js` | Frida script injected into the target process — reads function names from `ORACLE_HOOK_FUNCS` env, resolves exports, hooks each with `Interceptor.attach`, emits one JSON line per call with `Date.now()`-based wall-clock duration |
+| `dynamic_frida.py` | `run_frida(target_cmd, functions, frida_python)` — spawns the target via `frida_driver.py` using a frida-python-capable interpreter; aggregates `{fn: {calls, timing_ms}}`; `parse_frida_trace` is pure and tested |
+| `frida_driver.py` | Frida-python driver — spawns target with `stdio="pipe"`, hooks named exports via `Module.findGlobalExportByName` (frida 17 API), waits for process detach, emits one JSON line per call; validated on dev-cx53 (frida 17.5.1) |
 | `watcher_client.py` | Unprivileged client to the root watcher socket — `query_watcher(sock_path, pid, duration_s)` sends a JSON request, receives `{syscalls, mmaps, files}`; `encode_request` and `decode_response` are pure and tested |
 | `watcher_daemon.py` | Root daemon served by `oracle-ebpf-watcher.nix` — accepts requests on the unix socket, runs a PID-scoped bpftrace program, parses and returns results; `parse_bpftrace` and `handle_request` are pure and tested |
 | `bridge.py` | `to_observed_effects(finding, files_written, files_deleted)` — emits the `{writes, deletes}` shape the aegis kernel consumes; `attach_transition(finding, hash)` — links a finding to a kernel transition hash (null in slice 1) |
@@ -147,6 +147,7 @@ Concrete rules:
   Frida instrumentation, and bpftrace runs all require Linux and significant
   RAM (the 6.7B GGUF alone is 5–8 GB). The M3 runs the unit suite and
   orchestrates via SSH/task; it does not run the heavy producers.
-- **sample-run for untrusted targets.** Frida-driven inference runs go inside
-  `sample-run` (bubblewrap, no-net). llama.cpp is FOSS, but the sandboxing
-  habit extends to arbitrary-binary runs in later cycles.
+- **Sandbox untrusted targets.** Trusted targets (llama.cpp, FOSS) run directly under
+  the frida-python driver. For untrusted samples, wrap the target command inside
+  `sample-run` (bubblewrap, no-net) before passing it to `run_frida`; the driver
+  itself does not sandbox.
