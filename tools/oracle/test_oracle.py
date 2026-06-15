@@ -324,6 +324,26 @@ def test_parse_args_funcs_splits_csv():
     assert ns.funcs == ["a", "b", "c"] and ns.target == "/bin/x"
 
 
+def test_smoke_end_to_end_with_fakes_persists_and_verifies():
+    """Full loop -> finding -> persist -> reload, all with fakes (no ghidra/llm/frida)."""
+    import oracle as oc
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        finding = loop.run_loop(
+            functions=["main"],
+            target={"path": "/bin/true", "sha256": "0" * 64, "source_ref": "vX"},
+            decompiler_meta={"model": "m", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg,
+            decompile=lambda fn: ("pseudo", "int main(){return 0;}", 0.99),
+            refine=lambda fn, prev: ("int main(){return 0;}", 0.99),
+            dynamic=lambda fn: (None, None),
+            budget_iters=10, control_path=None)
+        path = oc.persist_finding(finding, findings_dir=os.path.join(d, "findings"))
+        reloaded = json.load(open(path))
+        schema.validate_finding(reloaded)
+        assert reloaded["confidence"] >= 0.75 and lg.verify()
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()

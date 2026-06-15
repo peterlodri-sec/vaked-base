@@ -1,0 +1,38 @@
+version: '3'
+
+# vaked-oracle ops. Heavy tasks run on dev-cx53 (never the M3).
+vars:
+  TARGET: '{{.TARGET | default "/etc/profiles/per-user/revdev/bin/llama-cli"}}'
+  FUNCS: '{{.FUNCS | default "llama_decode,ggml_compute_forward,llama_model_load"}}'
+  SERVER: '{{.SERVER | default "http://127.0.0.1:8080/completion"}}'
+
+tasks:
+  default:
+    cmds: [task --list]
+
+  test:
+    desc: run oracle unit tests
+    cmds:
+      - python3 tools/oracle/test_oracle.py
+
+  model:fetch:
+    desc: download the llm4decompile-6.7B GGUF into the oracle model dir (dev-cx53)
+    cmds:
+      - mkdir -p ~/oracle/models
+      - echo "fetch the chosen GGUF (see docs/oracle/v0.md open items) into ~/oracle/models"
+
+  llm:serve:
+    desc: serve llm4decompile via llama-server on :8080 (dev-cx53)
+    cmds:
+      - llama-server -m ~/oracle/models/llm4decompile-6.7b-v2.gguf --port 8080 -c 4096
+
+  run:
+    desc: run the RE loop on the target (dev-cx53)
+    cmds:
+      - >
+        python3 tools/oracle/oracle.py run
+        --target {{.TARGET}} --funcs {{.FUNCS}}
+        --analyze-headless "$ANALYZE_HEADLESS"
+        --server {{.SERVER}}
+        --source-dir "$LLAMA_CPP_SRC"
+        --infer-cmd "{{.TARGET}} -m $LLAMA_DEMO_MODEL -p hi -n 8"
