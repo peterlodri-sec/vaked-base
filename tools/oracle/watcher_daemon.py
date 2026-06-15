@@ -13,6 +13,7 @@ import socket
 import subprocess
 
 DEFAULT_SOCK = "/run/oracle-watcher.sock"
+_SYS_PREFIX = "tracepoint:syscalls:sys_enter_"
 _SYS = re.compile(r"@syscalls\[(?P<name>[^\]]+)\]:\s*(?P<n>\d+)")
 _FILE = re.compile(r"@files\[(?P<path>[^\]]+)\]:\s*\d+")
 
@@ -20,7 +21,10 @@ _FILE = re.compile(r"@files\[(?P<path>[^\]]+)\]:\s*\d+")
 def parse_bpftrace(out: str) -> dict:
     syscalls, files = {}, []
     for m in _SYS.finditer(out):
-        syscalls[m.group("name")] = int(m.group("n"))
+        name = m.group("name")
+        if name.startswith(_SYS_PREFIX):
+            name = name[len(_SYS_PREFIX):]
+        syscalls[name] = int(m.group("n"))
     for m in _FILE.finditer(out):
         files.append(m.group("path"))
     return {"syscalls": syscalls, "mmaps": [f for f in files if f.endswith(".gguf")],
@@ -29,8 +33,8 @@ def parse_bpftrace(out: str) -> dict:
 
 def _bpftrace_program(pid: int) -> str:
     return (
-        f"tracepoint:raw_syscalls:sys_enter /pid == {pid}/ "
-        f"{{ @syscalls[ksym(args.id)] = count(); }} "
+        f"tracepoint:syscalls:sys_enter_* /pid == {pid}/ "
+        f"{{ @syscalls[probe] = count(); }} "
         f"tracepoint:syscalls:sys_enter_openat /pid == {pid}/ "
         f"{{ @files[str(args.filename)] = count(); }}"
     )

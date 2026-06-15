@@ -206,6 +206,13 @@ def test_handle_request_bad_pid_returns_error():
     assert resp["ok"] is False and "pid" in resp["error"]
 
 
+def test_parse_bpftrace_strips_tracepoint_prefix():
+    out = ("@syscalls[tracepoint:syscalls:sys_enter_openat]: 4\n"
+           "@syscalls[mmap]: 2\n")
+    parsed = wd.parse_bpftrace(out)
+    assert parsed["syscalls"] == {"openat": 4, "mmap": 2}
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
