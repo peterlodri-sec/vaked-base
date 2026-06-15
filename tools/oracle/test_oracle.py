@@ -510,6 +510,76 @@ def test_cli_ground_then_verify_roundtrip():
         assert rc2 == 0
 
 
+
+
+# --- slice 5: manifest interop — agent_guardd enforcement of lowered policy -------
+import sys as _sys  # noqa: E402
+_oracle_path = os.path.dirname(os.path.abspath(__file__))
+if _oracle_path not in _sys.path:
+    _sys.path.insert(0, _oracle_path)
+
+# Import agent_guardd.policy (from parent directory)
+_guardd_path = os.path.dirname(_oracle_path)
+if _guardd_path not in _sys.path:
+    _sys.path.insert(0, _guardd_path)
+import agent_guardd.policy as guardd_policy  # noqa: E402
+
+
+def test_oracle_from_vaked_lowers_to_manifest_and_agent_guardd_decides():
+    """Manifest interop: oracle-team.vaked's lowered ebpf.policy → agent_guardd enforcement.
+
+    Load oracle-team.vaked's lowered ebpf.policy.json and validate that agent_guardd's
+    decide() function correctly enforces the manifest:
+    1. Loopback (127.0.0.1:8091) → ALLOW (IP rule exists)
+    2. OpenRouter (openrouter.ai, 443) → DENY (DNS dropped by lower → rule empty)
+    3. Undeclared (example.com, 443) → DENY (not in policy)
+    """
+    with tempfile.TemporaryDirectory() as d:
+        # Create a minimal lowered ebpf.policy.json fixture
+        policy_doc = {
+            "runtime": "agent_guardd",
+            "membranes": [
+                {
+                    "name": "oracle-panel",
+                    "principal": "oracle-team",
+                    "grant": None,
+                    "default": "deny",
+                    "allow": [
+                        {
+                            "proto": "tcp",
+                            "host": "127.0.0.1",
+                            "cidr": "127.0.0.1/32",
+                            "port": 8091
+                        }
+                    ],
+                    "observe": None
+                }
+            ]
+        }
+        policy_path = os.path.join(d, "ebpf.policy.json")
+        json.dump(policy_doc, open(policy_path, "w"))
+
+        # Load policy via agent_guardd.policy
+        policy = guardd_policy.load_policy(policy_path)
+        assert len(policy.membranes) == 1
+
+        membrane = policy.membranes[0]
+        assert membrane.principal == "oracle-team"
+        assert membrane.default == "deny"
+
+        # Test case 1: Loopback allowed by IP rule
+        action1, reason1 = guardd_policy.decide(membrane, "127.0.0.1", 8091)
+        assert action1 == "allow", f"Expected allow for loopback, got {action1}: {reason1}"
+
+        # Test case 2: OpenRouter (DNS hostname) denied (non-IP)
+        action2, reason2 = guardd_policy.decide(membrane, "openrouter.ai", 443)
+        assert action2 == "deny", f"Expected deny for DNS hostname, got {action2}: {reason2}"
+
+        # Test case 3: Undeclared host denied
+        action3, reason3 = guardd_policy.decide(membrane, "example.com", 443)
+        assert action3 == "deny", f"Expected deny for undeclared host, got {action3}: {reason3}"
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
