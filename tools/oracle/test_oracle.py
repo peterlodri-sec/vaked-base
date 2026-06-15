@@ -41,6 +41,25 @@ def test_validate_rejects_bad_kind():
         pass
 
 
+import fidelity  # noqa: E402
+
+
+def test_fidelity_identical_is_one():
+    src = "int add(int a, int b) { return a + b; }"
+    assert fidelity.score(src, src) == 1.0
+
+
+def test_fidelity_unrelated_is_low():
+    a = "int add(int a, int b) { return a + b; }"
+    b = "while (true) { printf(\"zzz\"); }"
+    assert fidelity.score(a, b) < 0.4
+
+
+def test_fidelity_handles_empty():
+    assert fidelity.score("", "") == 0.0
+    assert fidelity.score("int x;", "") == 0.0
+
+
 import ledger  # noqa: E402
 import tempfile  # noqa: E402
 
