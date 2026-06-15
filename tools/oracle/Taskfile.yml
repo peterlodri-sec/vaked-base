@@ -116,3 +116,23 @@ tasks:
           --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
           --crabcc-root "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
           --memory "$HOME/oracle/dossier.jsonl"
+
+  run:vakedz:
+    desc: "recursive self-RE (slice 4b thread 2): build vakedz (nix zig 0.16) then RE it statically on dev-cx53"
+    vars:
+      VZFUNCS: '{{.VZFUNCS | default "sha256Hex,chainHex,leqGrant"}}'
+    cmds:
+      - |
+        ( cd vakedz && nix shell nixpkgs#zig --command zig build )   # Zig 0.16.0 -> zig-out/bin/vakedz
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        # static-only: NO --infer-cmd -> cmd_run's dynamic(fn) no-ops (frida/ebpf skipped).
+        # NOTE: Zig emits module-qualified names (cache.sha256Hex); Ghidra splits the dot into
+        # a namespace, so target the SHORT names (sha256Hex,...), not the dotted form.
+        ORACLE_DIR="${ORACLE_DIR:-$HOME/oracle/revakedz-run}" python3 tools/oracle/oracle.py run \
+          --target vakedz/zig-out/bin/vakedz --funcs {{.VZFUNCS}} \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --source-dir vakedz/src \
+          --server http://127.0.0.1:8090/completion
