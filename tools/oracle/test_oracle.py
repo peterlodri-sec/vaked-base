@@ -235,6 +235,44 @@ def test_bridge_attaches_transition_xref():
     assert out is not fdg  # non-mutating
 
 
+import policy  # noqa: E402
+
+
+def test_policy_decompiles_unprocessed_function_first():
+    state = policy.LoopState(functions=["a", "b"], results={}, iters=0, budget_iters=10)
+    act = policy.next_action(state)
+    assert act == {"action": "decompile", "fn": "a"}
+
+
+def test_policy_refines_low_fidelity():
+    state = policy.LoopState(
+        functions=["a"],
+        results={"a": {"fidelity": 0.2, "refined": True, "refine_passes": 0}},
+        iters=1, budget_iters=10)
+    assert policy.next_action(state) == {"action": "refine", "fn": "a"}
+
+
+def test_policy_finalizes_when_all_above_threshold():
+    state = policy.LoopState(
+        functions=["a"],
+        results={"a": {"fidelity": 0.95, "refined": True, "refine_passes": 0}},
+        iters=1, budget_iters=10)
+    assert policy.next_action(state) == {"action": "finalize"}
+
+
+def test_policy_finalizes_when_budget_exhausted():
+    state = policy.LoopState(functions=["a", "b"], results={}, iters=10, budget_iters=10)
+    assert policy.next_action(state) == {"action": "finalize"}
+
+
+def test_policy_stops_refining_after_max_passes():
+    state = policy.LoopState(
+        functions=["a"],
+        results={"a": {"fidelity": 0.2, "refined": True, "refine_passes": policy.MAX_REFINE}},
+        iters=5, budget_iters=10)
+    assert policy.next_action(state) == {"action": "finalize"}
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
