@@ -90,6 +90,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     d.add_argument("--repo", required=True, help="owner/name for the rolling issue")
     d.add_argument("--run-id", dest="run_id", default="run")
     d.add_argument("--dry-run", dest="dry_run", action="store_true", help="print the comment; post nothing")
+
+    a = sub.add_parser("arp-emit", help="emit a finding as per-function arp_event Vaked declarations")
+    a.add_argument("--finding", required=True, help="finding JSON (oracle run/team output)")
+    a.add_argument("--out", default="docs/oracle/arp-trace.md", help="ARP trace markdown to append to")
+    a.add_argument("--ts", default=None, help="timestamp string for the arp_event.ts field")
     return p.parse_args(argv)
 
 
@@ -272,6 +277,17 @@ def cmd_dogfeed(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_arp_emit(ns: argparse.Namespace) -> int:
+    import arp_emit
+    import datetime
+    with open(ns.finding, encoding="utf-8") as fh:
+        finding = json.load(fh)
+    ts = ns.ts or datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    n = arp_emit.emit(finding, path=ns.out, ts=ts)
+    print("arp-emit: wrote %d arp_event(s) to %s" % (n, ns.out))
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ns = parse_args(argv)
     if ns.cmd == "run":
@@ -284,6 +300,8 @@ def main(argv: list[str]) -> int:
         return cmd_team(ns)
     if ns.cmd == "dogfeed":
         return cmd_dogfeed(ns)
+    if ns.cmd == "arp-emit":
+        return cmd_arp_emit(ns)
     return 2
 
 

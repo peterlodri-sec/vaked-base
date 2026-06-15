@@ -1241,6 +1241,19 @@ def test_arp_emitted_blocks_pass_vakedc_check():
     os.remove(md); os.remove(vk)
 
 
+def test_arp_emit_cli():
+    import oracle, tempfile, json, os
+    fp = tempfile.mktemp(suffix=".json")
+    open(fp, "w").write(json.dumps(_arp_finding()))
+    out = tempfile.mktemp(suffix=".md")
+    ns = oracle.parse_args(["arp-emit", "--finding", fp, "--out", out, "--ts", "2026-06-16 12:00"])
+    assert ns.finding == fp and ns.out == out and ns.ts == "2026-06-16 12:00"
+    assert oracle.cmd_arp_emit(ns) == 0
+    body = open(out).read()
+    assert "arp_event oracle_llama_decode_" in body
+    os.remove(fp); os.remove(out)
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
