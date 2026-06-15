@@ -1071,6 +1071,74 @@ def test_dogfeed_sink_noop_when_env_unset():
         U.urlopen = orig
 
 
+def test_dogfeed_load_records_skips_corrupt():
+    import dogfeed_prompts as dp, tempfile, os
+    p = tempfile.mktemp(suffix=".jsonl")
+    open(p, "w").write('{"model":"a"}\nNOT JSON\n\n{"model":"b"}\n')
+    recs = dp.load_records(p)
+    assert [r["model"] for r in recs] == ["a", "b"]
+    os.remove(p)
+
+
+def test_dogfeed_summarize_math():
+    import dogfeed_prompts as dp
+    recs = [{"model": "a", "completion_tokens": 10, "cost": 0.001},
+            {"model": "a", "completion_tokens": 5, "cost": 0.002},
+            {"model": "b", "completion_tokens": 3, "cost": None}]
+    s = dp.summarize(recs)
+    assert s["n"] == 3
+    assert s["by_model"]["a"] == {"calls": 2, "tokens": 15, "cost": 0.003}
+    assert s["by_model"]["b"]["tokens"] == 3
+    assert abs(s["total_cost"] - 0.003) < 1e-9
+
+
+def test_dogfeed_build_comment_cap_and_leakfree():
+    import dogfeed_prompts as dp
+    recs = [{"model": "deepseek/deepseek-v4-pro", "prompt_sha": "a" * 64,
+             "first_line": "Reverse-engineer fn x", "completion_tokens": 100,
+             "cost": 0.002, "reasoning": True} for _ in range(3)]
+    c = dp.build_comment(recs, run_id="r1", cap=2)
+    assert "deepseek/deepseek-v4-pro" in c
+    assert "| 3 |" in c
+    assert "more (capped)" in c
+    assert "Bearer" not in c and "sekret" not in c
+
+
+def test_dogfeed_find_or_create_returns_existing():
+    import dogfeed_prompts as dp, json
+    calls = []
+    def fake_gh(args):
+        calls.append(args)
+        if args[1] == "list":
+            return json.dumps([{"number": 42, "title": dp.ISSUE_TITLE}])
+        raise AssertionError("must not create when issue exists")
+    assert dp.find_or_create_issue(dp.ISSUE_TITLE, repo="o/r", gh=fake_gh) == 42
+    assert all(a[1] != "create" for a in calls)
+
+
+def test_dogfeed_find_or_create_creates_when_absent():
+    import dogfeed_prompts as dp
+    def fake_gh(args):
+        if args[1] == "list": return "[]"
+        if args[1] == "create": return "https://github.com/o/r/issues/77\n"
+        raise AssertionError
+    assert dp.find_or_create_issue(dp.ISSUE_TITLE, repo="o/r", gh=fake_gh) == 77
+
+
+def test_dogfeed_post_appends_comment():
+    import dogfeed_prompts as dp, json
+    calls = []
+    def fake_gh(args):
+        calls.append(args)
+        if args[1] == "list": return json.dumps([{"number": 5, "title": dp.ISSUE_TITLE}])
+        return ""
+    n = dp.post([{"model": "m", "completion_tokens": 1, "cost": 0.0,
+                  "prompt_sha": "x" * 64, "first_line": "hi"}],
+                repo="o/r", run_id="r", gh=fake_gh)
+    assert n == 5
+    assert any(a[0] == "issue" and a[1] == "comment" and a[2] == "5" for a in calls)
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
