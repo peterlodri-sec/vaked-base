@@ -41,6 +41,35 @@ def test_validate_rejects_bad_kind():
         pass
 
 
+import ledger  # noqa: E402
+import tempfile  # noqa: E402
+
+
+def test_ledger_append_and_verify():
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        e0 = lg.append({"kind": "decision", "action": "decompile", "fn": "f"})
+        e1 = lg.append({"kind": "finding", "confidence": 0.9})
+        assert e0["seq"] == 0 and e0["prev"] == ledger.GENESIS_HASH
+        assert e1["seq"] == 1 and e1["prev"] == e0["hash"]
+        assert lg.verify() is True
+
+
+def test_ledger_detects_tamper():
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "events.jsonl")
+        lg = ledger.Ledger(path)
+        lg.append({"kind": "decision", "n": 1})
+        lg.append({"kind": "decision", "n": 2})
+        # corrupt the first entry's payload on disk
+        lines = open(path).read().splitlines()
+        lines[0] = lines[0].replace('"n": 1', '"n": 999')
+        open(path, "w").write("\n".join(lines) + "\n")
+        lg2 = ledger.Ledger(path)
+        assert lg2.verify() is False
+        assert len(lg2.valid_prefix()) == 0
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
