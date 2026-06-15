@@ -980,6 +980,40 @@ def test_team_requires_one_roster_source():
         pass
 
 
+def _ebpf_policy_doc():
+    # the exact shape vakedc lower emits for oracle-team: loopback cordon gets a real
+    # IP rule; the OpenRouter cordon's DNS host is DROPPED at lower -> allow [].
+    return {"runtime": "oracle-team", "version": 1, "membranes": [
+        {"membrane": "infralightCordon", "principal": "infralight", "grant": "network.loopback",
+         "default": "deny", "allow": [
+             {"proto": "tcp", "host": "127.0.0.1", "cidr": "127.0.0.1/32", "port": 8091}]},
+        {"membrane": "feketecsCordon", "principal": "feketecs", "grant": "network.egress",
+         "default": "deny", "allow": []},      # DNS host dropped at lower -> deny-all
+    ]}
+
+
+def test_ebpf_manifest_loads_and_decides():
+    import os
+    import json
+    import tempfile
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))  # repo root for agent_guardd
+    from agent_guardd import policy as agp
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(_ebpf_policy_doc(), f)
+        path = f.name
+    pol = agp.load_policy(path)
+    loop = pol.membrane_for("infralight")
+    feke = pol.membrane_for("feketecs")
+    # loopback IP rule -> enforceable (fully eBPF-attestable)
+    assert agp.decide(loop, "127.0.0.1", 8091)[0] == "allow"
+    assert agp.decide(loop, "127.0.0.1", 9999)[0] == "deny"
+    # OpenRouter cordon -> deny-all (DNS dropped at lower; also non-IP at decide). The
+    # documented gap: packet-layer egress to OpenRouter is un-attestable; the tool-layer
+    # check_roster_egress is the only enforcement.
+    assert agp.decide(feke, "openrouter.ai", 443)[0] == "deny"
+    os.unlink(path)
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
