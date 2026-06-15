@@ -26,19 +26,30 @@ def _control_stop(control_path: str | None) -> bool:
 
 
 def run_loop(*, functions, target, decompiler_meta, ledger_,
-             decompile, refine, dynamic, budget_iters=50, control_path=None) -> dict:
+             decompile, refine, dynamic, budget_iters=50, control_path=None,
+             decide=None, investigate=None) -> dict:
+    decide = decide or policy.next_action      # slice-3: injectable LLM brain (default deterministic)
     results: dict[str, dict] = {}
+    observations: list[dict] = []
     iters = 0
     while True:
         if _control_stop(control_path):
             ledger_.append({"kind": "decision", "action": "control_stop"})
             break
         state = policy.LoopState(functions=functions, results=results,
-                                 iters=iters, budget_iters=budget_iters)
-        act = policy.next_action(state)
+                                 iters=iters, budget_iters=budget_iters,
+                                 observations=observations)
+        act = decide(state)
         ledger_.append({"kind": "decision", **act, "iter": iters})
         if act["action"] == "finalize":
             break
+        if act["action"] == "investigate":
+            obs = (investigate(act["query"]) if investigate
+                   else {"query": act["query"], "provider": "none", "result": None})
+            observations.append(obs)
+            ledger_.append({"kind": "observation", "iter": iters, **obs})
+            iters += 1
+            continue
         fn = act["fn"]
         if act["action"] == "decompile":
             pseudo_c, refined_c, fid = decompile(fn)

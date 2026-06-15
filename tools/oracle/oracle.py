@@ -49,6 +49,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="eBPF watcher trace window (s); wide enough to catch the model-load mmap")
     r.add_argument("--budget-iters", type=int, default=50)
     r.add_argument("--control", default=None)
+    r.add_argument("--agent", action="store_true", help="LLM-driven brain (default: deterministic policy)")
+    r.add_argument("--llm-endpoint", default="http://127.0.0.1:4000/v1/chat/completions")
+    r.add_argument("--llm-model", default=os.environ.get("OQ_MODEL", "qwen2.5-coder:7b"))
+    r.add_argument("--crabcc-root", default=None, help="crabcc index root (ground-truth source) for investigate")
+    r.add_argument("--binary-investigate", action="store_true", help="allow binutils investigate over --target")
 
     g = sub.add_parser("ground", help="record a finding as an aegis kernel transition")
     g.add_argument("--finding", required=True)
@@ -135,13 +140,23 @@ def cmd_run(ns: argparse.Namespace) -> int:
         return (frida, ebpf)
 
     lg = ledger.Ledger(os.path.join(ORACLE_DIR, "events.jsonl"))
+    decide = investigate_fn = None
+    if ns.agent:
+        import agent as _agent
+        import investigate as _inv
+        llm = _agent.LiteLLMClient(endpoint=ns.llm_endpoint, model=ns.llm_model)
+        decide = _agent.make_policy(llm, model=ns.llm_model)
+        investigate_fn = _inv.make_investigator(
+            source_root=ns.crabcc_root,
+            binary=ns.target if ns.binary_investigate else None)
     finding = loop.run_loop(
         functions=ns.funcs,
         target={"path": ns.target, "sha256": _sha256_file(ns.target),
                 "source_ref": ns.source_dir or "unknown"},
         decompiler_meta={"model": "llm4decompile-6.7b-v2", "model_sha256": "unknown", "temperature": 0},
         ledger_=lg, decompile=decompile, refine=refine_fn, dynamic=dynamic,
-        budget_iters=ns.budget_iters, control_path=ns.control)
+        budget_iters=ns.budget_iters, control_path=ns.control,
+        decide=decide, investigate=investigate_fn)
     finding["observed_effects"] = bridge.to_observed_effects(
         finding, files_written=[os.path.join(ORACLE_DIR, "findings")])
     path = persist_finding(finding, findings_dir=os.path.join(ORACLE_DIR, "findings"))

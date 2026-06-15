@@ -510,6 +510,114 @@ def test_cli_ground_then_verify_roundtrip():
         assert rc2 == 0
 
 
+# --- slice 3: agentic reverser ---------------------------------------------
+import agent as _agent  # noqa: E402
+import investigate as _inv  # noqa: E402
+
+
+def _state(functions=("a", "b"), results=None, iters=0, budget=20, observations=None):
+    return policy.LoopState(functions=list(functions), results=results or {},
+                            iters=iters, budget_iters=budget,
+                            observations=observations or [])
+
+
+def test_agent_decide_parses_llm_action():
+    decide = _agent.make_policy(lambda p: '{"action":"decompile","fn":"a","rationale":"start"}')
+    act = decide(_state())
+    assert act["action"] == "decompile" and act["fn"] == "a" and act["rationale"] == "start"
+
+
+def test_agent_decide_falls_back_on_garbage():
+    decide = _agent.make_policy(lambda p: "not json at all")
+    assert decide(_state()) == policy.next_action(_state())   # deterministic fallback
+
+
+def test_agent_decide_rejects_out_of_menu():
+    d1 = _agent.make_policy(lambda p: '{"action":"rm","fn":"a"}')
+    assert d1(_state()) == policy.next_action(_state())          # bad action -> fallback
+    d2 = _agent.make_policy(lambda p: '{"action":"decompile","fn":"zzz"}')
+    assert d2(_state()) == policy.next_action(_state())          # fn not in functions -> fallback
+
+
+def test_investigate_crabcc_adapter_parses():
+    def fake_runner(cmd, timeout=30):
+        assert cmd[:5] == ["crabcc", "--root", "SRC", "lookup", "sym"]
+        return 0, '[{"name":"ggml_compute_forward","signature":"int ggml_compute_forward(int)"}]'
+    investigate = _inv.make_investigator(source_root="SRC", runner=fake_runner)
+    obs = investigate({"kind": "sym", "name": "ggml_compute_forward"})
+    assert obs["provider"] == "crabcc" and obs["result"][0]["name"] == "ggml_compute_forward"
+
+
+def test_investigate_binutils_fallback():
+    def fake_runner(cmd, timeout=30):
+        return (0, "0000000000001234 T ggml_compute_forward\n") if cmd[0] == "nm" else (1, "")
+    investigate = _inv.make_investigator(binary="/lib/libggml.so", runner=fake_runner)
+    obs = investigate({"kind": "sym", "name": "ggml_compute_forward"})
+    assert obs["provider"] == "binutils" and obs["result"]["found"] is True
+
+
+def test_investigate_never_raises_returns_none():
+    def boom(cmd, timeout=30):
+        raise RuntimeError("crabcc exploded")
+    investigate = _inv.make_investigator(source_root="SRC", runner=boom)
+    assert investigate({"kind": "sym", "name": "x"})["provider"] == "none"
+
+
+def test_loop_agentic_drives_to_finalize():
+    with tempfile.TemporaryDirectory() as d:
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        script = iter([
+            '{"action":"investigate","query":{"kind":"sym","name":"a"},"rationale":"scout"}',
+            '{"action":"decompile","fn":"a","rationale":"go"}',
+            '{"action":"finalize","rationale":"done"}',
+        ])
+        decide = _agent.make_policy(lambda p: next(script))
+        investigate = _inv.make_investigator(source_root="SRC",
+            runner=lambda cmd, timeout=30: (0, '[{"name":"a"}]'))
+        finding = loop.run_loop(
+            functions=["a"],
+            target={"path": "/bin/x", "sha256": "0" * 64, "source_ref": "v"},
+            decompiler_meta={"model": "m", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg,
+            decompile=lambda fn: ("p", "int a(){}", 0.9),
+            refine=lambda fn, prev: ("int a(){}", 0.95),
+            dynamic=lambda fn: (None, None),
+            budget_iters=10, decide=decide, investigate=investigate)
+        assert finding["kind"] == "oracle_finding"
+        payloads = [e["payload"] for e in lg.entries()]
+        kinds = [p["kind"] for p in payloads]
+        assert "observation" in kinds and "finding" in kinds
+        decs = [p for p in payloads if p["kind"] == "decision"]
+        assert any(p.get("rationale") == "go" and p.get("model") for p in decs)
+        assert lg.verify()
+
+
+def test_loop_default_brain_unchanged():
+    """No decide/investigate => identical finding + ledger to explicit policy.next_action."""
+    def run(d, **extra):
+        lg = ledger.Ledger(os.path.join(d, "events.jsonl"))
+        f = loop.run_loop(
+            functions=["a", "b"],
+            target={"path": "/bin/x", "sha256": "0" * 64, "source_ref": "v"},
+            decompiler_meta={"model": "m", "model_sha256": "0" * 64, "temperature": 0},
+            ledger_=lg,
+            decompile=lambda fn: ("p", f"int {fn}(){{}}", 0.9),
+            refine=lambda fn, prev: (f"int {fn}(){{}}", 0.95),
+            dynamic=lambda fn: (None, None),
+            budget_iters=20, **extra)
+        return f, [e["payload"] for e in lg.entries()]
+    with tempfile.TemporaryDirectory() as d1, tempfile.TemporaryDirectory() as d2:
+        f_default, led_default = run(d1)
+        f_explicit, led_explicit = run(d2, decide=policy.next_action)
+        assert f_default == f_explicit and led_default == led_explicit
+
+
+def test_parse_args_agent_flags():
+    ns = oracle_cli.parse_args(["run", "--target", "/bin/x", "--funcs", "a",
+                                "--agent", "--crabcc-root", "/src", "--llm-model", "m7"])
+    assert ns.agent is True and ns.crabcc_root == "/src" and ns.llm_model == "m7"
+
+
 if __name__ == "__main__":
     def _run():
         tests = sorted((n, f) for n, f in dict(globals()).items()
