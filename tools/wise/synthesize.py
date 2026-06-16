@@ -336,52 +336,68 @@ def generate_wisdom_html(briefing: dict) -> str:
         rec_html += f'<li>{r}</li>'
 
     return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>Vaked Wisdom</title>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Wisdom — Vaked Swarm</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{background:#06060c;color:#c0c8d8;font-family:'Inter',sans-serif;padding:40px;max-width:960px;margin:auto}}
-h1{{font-size:14px;color:#8060c0;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}}
-.sub{{font-size:10px;color:#4a3a5a;margin-bottom:24px}}
-h2{{font-size:12px;color:#9070d0;margin:20px 0 8px;letter-spacing:1px}}
-.focus{{display:inline-block;padding:4px 10px;border-radius:3px;font-size:10px;margin:2px;border:1px solid}}
-.focus.active{{background:rgba(100,60,180,0.15);border-color:rgba(100,60,180,0.3);color:#b090e0}}
-.focus.inactive{{border-color:#2a2a3a;color:#4a4a5a}}
-.directive{{padding:6px 10px;margin:4px 0;background:#0e0a18;border-left:2px solid #8060c0;border-radius:2px;font-size:11px}}
-.tag{{color:#8060c0;font-weight:600}}
-.card{{background:#0a0a18;border:1px solid #1a1a2a;border-radius:4px;padding:12px;margin:6px 0;font-size:11px}}
-.card .val{{font-size:20px;font-weight:300}}
-.card .lbl{{color:#4a4a5a;font-size:9px;text-transform:uppercase;letter-spacing:1px}}
-.row{{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}}
-.row .card{{flex:1;min-width:100px}}
-li{{margin:4px 0 4px 16px;font-size:11px;color:#808898}}
+body{{background:#08081a;color:#c8d0e0;font-family:'Inter','SF Pro',-apple-system,sans-serif;padding:0}}
+::selection{{background:rgba(128,96,192,0.3)}}
+.header{{background:linear-gradient(180deg,#0c0c24 0%,#08081a 100%);border-bottom:1px solid rgba(128,96,192,0.1);padding:40px 48px 32px}}
+.header h1{{font-size:11px;color:#8060c0;letter-spacing:4px;text-transform:uppercase}}
+.header .title{{font-size:28px;font-weight:600;color:#e0e8f0;margin-top:4px;letter-spacing:-0.5px}}
+.header .sub{{font-size:12px;color:#5a5a7a;margin-top:4px}}
+.content{{max-width:960px;margin:0 auto;padding:0 48px 48px}}
+.stats-row{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:24px 0}}
+.stat-card{{background:rgba(14,14,34,0.8);border:1px solid rgba(128,96,192,0.12);border-radius:10px;padding:16px;backdrop-filter:blur(8px)}}
+.stat-card .val{{font-size:24px;font-weight:600;color:#e0e8f0}}
+.stat-card .lbl{{font-size:10px;color:#5a5a7a;margin-top:2px;letter-spacing:1px;text-transform:uppercase}}
+.section-title{{font-size:11px;color:#8060c0;letter-spacing:3px;text-transform:uppercase;margin:32px 0 12px}}
+.focus{{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:6px;font-size:11px;margin:3px;font-weight:500}}
+.focus.active{{background:rgba(128,96,192,0.12);border:1px solid rgba(128,96,192,0.25);color:#b090e0}}
+.focus.inactive{{background:rgba(26,26,46,0.5);border:1px solid rgba(26,26,46,0.3);color:#4a4a6a}}
+.directive{{padding:10px 14px;margin:6px 0;background:rgba(14,14,34,0.6);border-left:3px solid #8060c0;border-radius:6px;font-size:12px;line-height:1.5;color:#a0a8c0}}
+.directive .tag{{font-size:9px;color:#8060c0;font-weight:600;letter-spacing:1px;text-transform:uppercase}}
+ul{{list-style:none;padding:0}}
+li{{padding:6px 0 6px 20px;font-size:12px;color:#7a8aaa;line-height:1.5;position:relative}}
+li:before{{content:"→";position:absolute;left:0;color:#8060c0}}
+.gov-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:12px 0}}
+.gov-item{{background:rgba(14,14,34,0.6);border:1px solid rgba(128,96,192,0.08);border-radius:8px;padding:10px 14px}}
+.gov-item .key{{font-size:9px;color:#5a5a7a;letter-spacing:1px;text-transform:uppercase}}
+.gov-item .val{{font-size:12px;color:#b0b8d0;margin-top:2px}}
+@media(max-width:640px){{.header{{padding:24px 20px}}.content{{padding:0 20px 48px}}}}
 </style></head><body>
-<h1>✦ Wisdom</h1>
-<div class="sub">engram strategic synthesis · {briefing.get("generated_at_iso","")}</div>
+<div class="header">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+<div style="width:24px;height:24px;border-radius:5px;background:linear-gradient(135deg,#8060c0,#3060ff);font-size:10px;display:flex;align-items:center;justify-content:center;color:#fff">✦</div>
+<div><h1>Wisdom</h1></div>
+</div>
+<div class="title">Swarm Strategic Briefing</div>
+<div class="sub">engram v1 · {briefing.get("generated_at_iso","")}</div>
+</div>
+<div class="content">
 
-<div class="row">
-<div class="card"><div class="val">{briefing.get("primary_focus","")}</div><div class="lbl">primary focus</div></div>
-<div class="card"><div class="val">{briefing["ledger_summary"]["total_entries"]}</div><div class="lbl">ledger entries</div></div>
-<div class="card"><div class="val">{briefing["ledger_summary"]["total_entries"]}</div><div class="lbl">ledger entries</div></div>
-<div class="card"><div class="val">{len(briefing["active_focus_areas"])}</div><div class="lbl">active foci</div></div>
+<div class="stats-row">
+<div class="stat-card"><div class="val">{briefing.get("primary_focus","—")}</div><div class="lbl">Primary Focus</div></div>
+<div class="stat-card"><div class="val">{briefing["ledger_summary"]["total_entries"]}</div><div class="lbl">Ledger Entries</div></div>
+<div class="stat-card"><div class="val">{len(briefing["active_focus_areas"])}</div><div class="lbl">Active Focus Areas</div></div>
 </div>
 
-<h2>Active Focus Areas</h2>
-{focus_html}
+<div class="section-title">Active Focus Areas</div>
+<div>{focus_html}</div>
 
-<h2>Strategic Directives</h2>
-{dir_html if dir_html else '<div class="card" style="color:#4a4a5a">No active directives</div>'}
+<div class="section-title">Strategic Directives</div>
+{dir_html if dir_html else '<div style="color:#4a4a6a;font-size:12px;padding:12px;background:rgba(14,14,34,0.4);border-radius:6px">No active directives</div>'}
 
-<h2>Recommendations</h2>
+<div class="section-title">Recommendations</div>
 <ul>{rec_html}</ul>
 
-<h2>Governance</h2>
-<div class="card">
-<div style="font-size:11px">
-Happiness KPI: latency&lt;50ms · gossip&gt;99% · load&lt;70%<br>
-Two-Strike: ACTIVE — Strike 1=reconcile+quarantine · Strike 2=exclusion<br>
-Graveyard: {briefing["governance"]["graveyard"]["entries"]} entries · status: {briefing["governance"]["graveyard"]["status"][:30]}<br>
-Playground: {briefing["governance"]["playground"]["mode"]} · gate: {briefing["governance"]["playground"]["promotion_gate"]}<br>
-Engram: {briefing["engram_version"]}<br>
+<div class="section-title">Governance</div>
+<div class="gov-grid">
+<div class="gov-item"><div class="key">Node Happiness KPI</div><div class="val">latency &lt;50ms · gossip &gt;99% · load &lt;70%</div></div>
+<div class="gov-item"><div class="key">Two-Strike Protocol</div><div class="val">Active — Strike1=quarantine · Strike2=exclusion</div></div>
+<div class="gov-item"><div class="key">Graveyard</div><div class="val">{briefing["governance"]["graveyard"]["entries"]} entries · {briefing["governance"]["graveyard"]["status"][:40]}</div></div>
+<div class="gov-item"><div class="key">Playground</div><div class="val">{briefing["governance"]["playground"]["mode"]} · gate: {briefing["governance"]["playground"]["promotion_gate"]}</div></div>
+<div class="gov-item"><div class="key">Engram</div><div class="val">{briefing["engram_version"]}</div></div>
 </div>
 </div>
 </body></html>"""

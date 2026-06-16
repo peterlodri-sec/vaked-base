@@ -64,40 +64,55 @@ def generate_registry_html(entries, mesh_data=None):
     age_days = int((time.time() - first_ts)/86400) if first_ts else 0
 
     return f"""<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>Vaked Registry</title>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Registry — Vaked Swarm</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{background:#06060c;color:#c0c8d8;font-family:'Inter',sans-serif;padding:40px;max-width:960px;margin:auto}}
-h1{{font-size:14px;color:#4060a0;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}}
-.sub{{font-size:10px;color:#3a3a4a;margin-bottom:24px}}
-h2{{font-size:12px;color:#6070a0;margin:24px 0 8px;letter-spacing:1px}}
-table{{width:100%;border-collapse:collapse;font-size:11px}}
-td,th{{padding:6px 8px;border-bottom:1px solid #1a1a2a;text-align:left}}
-th{{color:#4060a0;font-weight:500}}
-.ok{{color:#00c864}} .warn{{color:#ffc800}} .err{{color:#ff3232}}
-.card{{background:#0a0a18;border:1px solid #1a1a2a;border-radius:4px;padding:16px;margin-bottom:8px;font-size:11px}}
-.card .val{{font-size:24px;font-weight:300;color:#c0c8d8}}
-.card .lbl{{color:#4a4a5a;font-size:9px;letter-spacing:1px;text-transform:uppercase}}
-.row{{display:flex;gap:12px;flex-wrap:wrap}}
-.row .card{{flex:1;min-width:120px}}
+body{{background:#08081a;color:#c8d0e0;font-family:'Inter','SF Pro',-apple-system,sans-serif;padding:0}}
+::selection{{background:rgba(48,96,255,0.2)}}
+.header{{background:linear-gradient(180deg,#0c0c24 0%,#08081a 100%);border-bottom:1px solid rgba(48,96,255,0.1);padding:40px 48px 32px}}
+.header h1{{font-size:11px;color:#4060a0;letter-spacing:4px;text-transform:uppercase}}
+.header .title{{font-size:28px;font-weight:600;color:#e0e8f0;margin-top:4px;letter-spacing:-0.5px}}
+.header .sub{{font-size:12px;color:#5a5a7a;margin-top:4px}}
+.content{{max-width:960px;margin:0 auto;padding:0 48px 48px}}
+.stats-row{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:24px 0}}
+.stat-card{{background:rgba(14,14,34,0.8);border:1px solid rgba(48,96,255,0.12);border-radius:10px;padding:16px;backdrop-filter:blur(8px)}}
+.stat-card .val{{font-size:24px;font-weight:600;color:#e0e8f0}}
+.stat-card .lbl{{font-size:10px;color:#5a5a7a;margin-top:2px;letter-spacing:1px;text-transform:uppercase}}
+.section-title{{font-size:11px;color:#4060a0;letter-spacing:3px;text-transform:uppercase;margin:32px 0 12px}}
+table{{width:100%;border-collapse:collapse;font-size:12px}}
+td,th{{padding:10px 12px;border-bottom:1px solid rgba(48,96,255,0.08);text-align:left}}
+th{{color:#4060a0;font-weight:500;font-size:10px;letter-spacing:1px;text-transform:uppercase}}
+td{{color:#90a0c0}}
+tr:hover td{{background:rgba(48,96,255,0.04)}}
+.ok{{color:#00c864}} .warn{{color:#ffc800}} .err{{color:#ff5252}}
+@media(max-width:640px){{.header{{padding:24px 20px}}.content{{padding:0 20px 48px}}}}
 </style></head><body>
-<h1>⚙ Vaked Registry</h1>
-<div class="sub">public swarm overview · updated {time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())}</div>
+<div class="header">
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+<div style="width:24px;height:24px;border-radius:5px;background:linear-gradient(135deg,#3060ff,#4060a0);font-size:10px;display:flex;align-items:center;justify-content:center;color:#fff">⚙</div>
+<div><h1>Registry</h1></div>
+</div>
+<div class="title">Swarm Node Registry</div>
+<div class="sub">updated {time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())}</div>
+</div>
+<div class="content">
 
-<div class="row">
-<div class="card"><div class="val">{total_entries}</div><div class="lbl">ledger entries</div></div>
-<div class="card"><div class="val">{age_days}d</div><div class="lbl">swarm age</div></div>
-<div class="card"><div class="val">5</div><div class="lbl">nodes</div></div>
-<div class="card"><div class="val">{trust}</div><div class="lbl">trust index</div></div>
+<div class="stats-row">
+<div class="stat-card"><div class="val">{total_entries}</div><div class="lbl">Ledger Entries</div></div>
+<div class="stat-card"><div class="val">{age_days}d</div><div class="lbl">Swarm Age</div></div>
+<div class="stat-card"><div class="val">5</div><div class="lbl">Active Nodes</div></div>
+<div class="stat-card"><div class="val">{trust}</div><div class="lbl">Trust Index</div></div>
 </div>
 
-<h2>Active Nodes</h2>
+<div class="section-title">Active Nodes</div>
 <table><tr><th>Name</th><th>Location</th><th>IP</th><th>Status</th><th>Trust</th></tr>
 {nodes_html}
 </table>
 
-<h2>Recent History</h2>
+<div class="section-title">Recent History</div>
 {generate_history_html(entries)}
+</div>
 </body></html>"""
 
 def build(ledger_path=LEDGER_PATH, output_dir=OUTPUT_DIR):
