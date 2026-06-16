@@ -350,6 +350,25 @@ def test_jeopardy_is_default_and_unchanged():
     assert all("solves" in x and "first_bloods" in x for x in r["scoreboard"])
 
 
+# ---- vuln_arena: bridge to the real vulnbox lab targets ----
+def test_vuln_arena_valid_and_box_mapped():
+    ar = A.vuln_arena()
+    A.validate_arena(ar)                                             # structurally a normal board
+    boxed = [c for c in ar["challenges"] if "box" in c]
+    assert len(boxed) == 2                                           # two real boxes mapped
+    mods = {c["box"]["module"] for c in boxed}
+    assert mods == {"box_traversal", "box_idor"}
+    for c in boxed:                                                  # each names its solve verifier
+        assert c["box"]["solve"].startswith("capture_")
+
+
+def test_vuln_arena_runs_and_replay_stable():
+    r1 = E.run_ctf(A.vuln_arena(), _teams(DEF))
+    r2 = E.run_ctf(A.vuln_arena(), _teams(DEF))
+    assert r1["chain_ok"] and r1["chain_hash"] == r2["chain_hash"]   # deterministic like any board
+    assert len(r1["scoreboard"]) == len(DEF)
+
+
 if __name__ == "__main__":
     tests = sorted((n, f) for n, f in dict(globals()).items()
                    if n.startswith("test_") and callable(f))
