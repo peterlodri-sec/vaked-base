@@ -36,7 +36,8 @@ def run_ctf(arena: dict, teams: list[dict], ledger_path: str | None = None) -> d
                 done = set(s["solves"])
                 remaining = sorted((c for c in arena["challenges"] if c["id"] not in done),
                                    key=lambda c: c["id"])
-                cid = s["pick_fn"](s, remaining, arena, teams_for_game)
+                cid = s["pick_fn"](s, remaining, arena, teams_for_game,
+                                   {"tick": tick, "box_min": box})
                 if cid is None:
                     continue                          # nothing left for this team
                 s["current"], s["accrued"] = cid, 0.0

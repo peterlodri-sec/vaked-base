@@ -20,7 +20,7 @@ import team as team_mod  # noqa: E402
 from ledger import GENESIS_HASH  # noqa: E402
 import ralphcore  # noqa: E402  (path inserted by ledger import)
 
-DEFAULT_STRATEGIES = ["greedy_points", "greedy_easy", "ratio_balanced", "best_response"]
+DEFAULT_STRATEGIES = ["greedy_points", "greedy_easy", "ratio_balanced", "box_aware_response"]
 
 
 def build_teams(n: int, strategies: list[str]) -> list[dict]:
