@@ -24,10 +24,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(b"<h1>Constellation not deployed</h1>")
         elif self.path == "/mesh.json":
             self._serve_mesh()
+        elif self.path in ("/swarm-monologue", "/monologue"):
+            self._serve_monologue()
         else:
             self.send_response(404)
             self.end_headers()
     
+    def _serve_monologue(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        try:
+            with open("/var/www/monologue/index.html") as f:
+                self.wfile.write(f.read().encode())
+        except:
+            self.wfile.write(b"<html><body><h1>monologue pending</h1></body></html>")
+
     def _serve_mesh(self):
         data = json.dumps({
             "t": int(time.time()*1000), "convergence_ms": 27.3,
