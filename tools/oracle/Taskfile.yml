@@ -26,6 +26,11 @@ tasks:
     cmds:
       - llama-server -m ~/oracle/models/llm4decompile-6.7b-v2-q4_k_m.gguf --host 127.0.0.1 --port 8090 -c 4096
 
+  llm:serve-instruct:
+    desc: serve a KEYLESS instruct model for the agent brain (Qwen2.5-Coder-3B) on :8091 (dev-cx53; "ours", no secret)
+    cmds:
+      - llama-server --jinja -m ~/oracle/models/qwen2.5-coder-3b-instruct-q4_k_m.gguf --host 127.0.0.1 --port 8091 -c 8192 --threads 8
+
   pyghidra:setup:
     desc: create the pyghidra+frida venv on dev-cx53 (idempotent)
     cmds:
@@ -49,3 +54,107 @@ tasks:
           --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
           --infer-cmd "llama-completion --jinja -m ${LLAMA_DEMO_MODEL:-$HOME/oracle/models/llm4decompile-6.7b-v2-q4_k_m.gguf} -p hi -n 4" \
           --watch-seconds "${ORACLE_WATCH_SECONDS:-12}"
+
+  run:agent:
+    desc: run the RE loop with the LLM-driven brain (slice 3; dev-cx53). Needs LITELLM_KEY.
+    cmds:
+      - |
+        # default endpoint is the KEYLESS instruct server (task llm:serve-instruct) — no secret.
+        # only when you override LITELLM_ENDPOINT to the key-gated litellm :4000 do you need LITELLM_KEY.
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        ORACLE_DIR="${ORACLE_DIR:-$HOME/oracle/agentic-run}" python3 tools/oracle/oracle.py run --agent \
+          --target {{.TARGET}} --funcs {{.FUNCS}} \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --frida-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --server {{.SERVER}} \
+          --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --crabcc-root "${ORACLE_CRABCC_ROOT:-${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}}" \
+          --binary-investigate \
+          --llm-endpoint "${LITELLM_ENDPOINT:-http://127.0.0.1:8091/v1/chat/completions}" \
+          --llm-model "${OQ_MODEL:-qwen2.5-coder:7b}" \
+          --infer-cmd "llama-completion --jinja -m ${LLAMA_DEMO_MODEL:-$HOME/oracle/models/llm4decompile-6.7b-v2-q4_k_m.gguf} -p hi -n 4" \
+          --watch-seconds "${ORACLE_WATCH_SECONDS:-12}" \
+          --budget-iters "${ORACLE_BUDGET:-8}"
+
+  team:
+    desc: "run the reverser debate-panel team (slice 4a; dev-cx53). PANEL=panel.local.json for keyless; default diverse panel auto-sources ~/.config/oracle/openrouter.env"
+    vars:
+      PANEL: '{{.PANEL | default "tools/oracle/panel.example.json"}}'
+    cmds:
+      - |
+        [ -f ~/.config/oracle/openrouter.env ] && . ~/.config/oracle/openrouter.env || true   # diverse panel key (no-op if absent)
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        ORACLE_DIR="${ORACLE_DIR:-$HOME/oracle/team-run}" python3 tools/oracle/oracle.py team \
+          --target {{.TARGET}} --funcs {{.FUNCS}} --panel {{.PANEL}} \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --crabcc-root "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --budget-calls "${ORACLE_BUDGET:-30}" --memory "$HOME/oracle/dossier.jsonl"
+
+  team:vaked:
+    desc: "team-in-vaked (slice 4b): lower oracle-team.vaked -> graph.json + ebpf.policy.json, then run the graph-derived team (dev-cx53). Auto-sources ~/.config/oracle/openrouter.env"
+    vars:
+      VAKED: '{{.VAKED | default "vaked/examples/oracle-team.vaked"}}'
+    cmds:
+      - |
+        [ -f ~/.config/oracle/openrouter.env ] && . ~/.config/oracle/openrouter.env || true   # diverse-panel key (no-op if absent)
+        python3 -m vakedc parse {{.VAKED}}
+        python3 -m vakedc lower {{.VAKED}}     # emits .vaked/lower/gen/ebpf.policy.json (agent_guardd manifest)
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        ORACLE_DIR="${ORACLE_DIR:-$HOME/oracle/team-vaked-run}" python3 tools/oracle/oracle.py team \
+          --target {{.TARGET}} --funcs {{.FUNCS}} --from-vaked .vaked/graph.json \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --source-dir "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --crabcc-root "${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}" \
+          --memory "$HOME/oracle/dossier.jsonl"
+
+  run:vakedz:
+    desc: "recursive self-RE (slice 4b thread 2): build vakedz (nix zig 0.16) then RE it statically on dev-cx53"
+    vars:
+      VZFUNCS: '{{.VZFUNCS | default "sha256Hex,chainHex,leqGrant"}}'
+    cmds:
+      - |
+        ( cd vakedz && nix shell nixpkgs#zig --command zig build )   # Zig 0.16.0 -> zig-out/bin/vakedz
+        export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d "$d/Ghidra" ] && echo "$d" && break; done)
+        export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x "$d/bin/java" ] && echo "$d" && break; done)
+        export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2>/dev/null | head -1))
+        export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python
+        # static-only: NO --infer-cmd -> cmd_run's dynamic(fn) no-ops (frida/ebpf skipped).
+        # NOTE: Zig emits module-qualified names (cache.sha256Hex); Ghidra splits the dot into
+        # a namespace, so target the SHORT names (sha256Hex,...), not the dotted form.
+        ORACLE_DIR="${ORACLE_DIR:-$HOME/oracle/revakedz-run}" python3 tools/oracle/oracle.py run \
+          --target vakedz/zig-out/bin/vakedz --funcs {{.VZFUNCS}} \
+          --pyghidra-python "$ORACLE_PYGHIDRA_PYTHON" \
+          --source-dir vakedz/src \
+          --server http://127.0.0.1:8090/completion
+
+  dogfeed:
+    desc: "post outside-model prompt records (ORACLE_DOGFEED_LOG) to the rolling GitHub issue (run where gh is authed, e.g. M3). DRY=1 to preview"
+    vars:
+      DRY: '{{.DRY | default ""}}'
+    cmds:
+      - |
+        python3 tools/oracle/oracle.py dogfeed \
+          --log "${ORACLE_DOGFEED_LOG:-$HOME/oracle/dogfeed.jsonl}" \
+          --repo "${ORACLE_REPO:-peterlodri-sec/vaked-base}" \
+          --run-id "${RUN_ID:-run}" \
+          {{if eq .DRY "1"}}--dry-run{{end}}
+
+  arp:emit:
+    desc: "emit a finding as per-function arp_event declarations into docs/oracle/arp-trace.md"
+    cmds:
+      - python3 tools/oracle/oracle.py arp-emit --finding "{{.FINDING}}" --out "${ARP_OUT:-docs/oracle/arp-trace.md}"
+
+  arp:verify:
+    desc: "verify the oracle ARP trace parses+checks as Vaked (dogfood gate)"
+    cmds:
+      - python3 tools/arp/verify_log.py docs/oracle/arp-trace.md

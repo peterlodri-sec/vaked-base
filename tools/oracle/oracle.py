@@ -28,6 +28,9 @@ import ghidra_frontend as gf  # noqa: E402
 import ledger      # noqa: E402
 import llm_refine  # noqa: E402
 import loop        # noqa: E402
+import memory as team_memory  # noqa: E402
+import panel as panel_mod  # noqa: E402
+import team        # noqa: E402
 import watcher_client as wc  # noqa: E402
 
 ORACLE_DIR = os.environ.get("ORACLE_DIR", ".oracle")
@@ -49,6 +52,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
                    help="eBPF watcher trace window (s); wide enough to catch the model-load mmap")
     r.add_argument("--budget-iters", type=int, default=50)
     r.add_argument("--control", default=None)
+    r.add_argument("--agent", action="store_true", help="LLM-driven brain (default: deterministic policy)")
+    r.add_argument("--llm-endpoint", default="http://127.0.0.1:4000/v1/chat/completions")
+    r.add_argument("--llm-model", default=os.environ.get("OQ_MODEL", "qwen2.5-coder:7b"))
+    r.add_argument("--crabcc-root", default=None, help="crabcc index root (ground-truth source) for investigate")
+    r.add_argument("--binary-investigate", action="store_true", help="allow binutils investigate over --target")
 
     g = sub.add_parser("ground", help="record a finding as an aegis kernel transition")
     g.add_argument("--finding", required=True)
@@ -62,6 +70,31 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     v.add_argument("--finding", required=True)
     v.add_argument("--wal-path", required=True)
     v.add_argument("--ledger", required=True)
+
+    t = sub.add_parser("team", help="reverser debate-panel team (slice 4a/4b)")
+    t.add_argument("--target", required=True)
+    t.add_argument("--funcs", required=True, type=lambda s: [x for x in s.split(",") if x])
+    src = t.add_mutually_exclusive_group(required=True)
+    src.add_argument("--panel", help="roster JSON (see panel.example.json)")
+    src.add_argument("--from-vaked", dest="from_vaked",
+                     help="lowered graph.json — derive roster+budget+egress, with the POLA egress check")
+    t.add_argument("--pyghidra-python", default=os.environ.get("ORACLE_PYGHIDRA_PYTHON", "python3"))
+    t.add_argument("--source-dir", default=None, help="ground-truth source (fidelity + crabcc/ctags investigate)")
+    t.add_argument("--crabcc-root", default=None, help="crabcc/ctags index root (defaults to --source-dir)")
+    t.add_argument("--budget-calls", type=int, default=None)
+    t.add_argument("--max-workers", type=int, default=4)
+    t.add_argument("--memory", default=os.path.join(ORACLE_DIR, "dossier.jsonl"))
+
+    d = sub.add_parser("dogfeed", help="post outside-model prompt records to the rolling GitHub issue")
+    d.add_argument("--log", required=True, help="JSONL written by the panel sink (ORACLE_DOGFEED_LOG)")
+    d.add_argument("--repo", required=True, help="owner/name for the rolling issue")
+    d.add_argument("--run-id", dest="run_id", default="run")
+    d.add_argument("--dry-run", dest="dry_run", action="store_true", help="print the comment; post nothing")
+
+    a = sub.add_parser("arp-emit", help="emit a finding as per-function arp_event Vaked declarations")
+    a.add_argument("--finding", required=True, help="finding JSON (oracle run/team output)")
+    a.add_argument("--out", default="docs/oracle/arp-trace.md", help="ARP trace markdown to append to")
+    a.add_argument("--ts", default=None, help="timestamp string for the arp_event.ts field")
     return p.parse_args(argv)
 
 
@@ -135,13 +168,23 @@ def cmd_run(ns: argparse.Namespace) -> int:
         return (frida, ebpf)
 
     lg = ledger.Ledger(os.path.join(ORACLE_DIR, "events.jsonl"))
+    decide = investigate_fn = None
+    if ns.agent:
+        import agent as _agent
+        import investigate as _inv
+        llm = _agent.LiteLLMClient(endpoint=ns.llm_endpoint, model=ns.llm_model)
+        decide = _agent.make_policy(llm, model=ns.llm_model)
+        investigate_fn = _inv.make_investigator(
+            source_root=ns.crabcc_root,
+            binary=ns.target if ns.binary_investigate else None)
     finding = loop.run_loop(
         functions=ns.funcs,
         target={"path": ns.target, "sha256": _sha256_file(ns.target),
                 "source_ref": ns.source_dir or "unknown"},
         decompiler_meta={"model": "llm4decompile-6.7b-v2", "model_sha256": "unknown", "temperature": 0},
         ledger_=lg, decompile=decompile, refine=refine_fn, dynamic=dynamic,
-        budget_iters=ns.budget_iters, control_path=ns.control)
+        budget_iters=ns.budget_iters, control_path=ns.control,
+        decide=decide, investigate=investigate_fn)
     finding["observed_effects"] = bridge.to_observed_effects(
         finding, files_written=[os.path.join(ORACLE_DIR, "findings")])
     path = persist_finding(finding, findings_dir=os.path.join(ORACLE_DIR, "findings"))
@@ -184,6 +227,67 @@ def cmd_verify_xref(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_team(ns: argparse.Namespace) -> int:
+    import investigate as inv
+    if ns.from_vaked:
+        import roster_from_vaked as rfv
+        graph = rfv.load_graph(ns.from_vaked)
+        violations = rfv.check_roster_egress(graph)
+        if violations:
+            for v in violations:
+                print(f"team: EGRESS VIOLATION node={v['node']} reaches "
+                      f"{v['host']}:{v['port']} — {v['reason']}")
+            return 1
+        panelists, judge, graph_budget = rfv.load_roster_from_graph(graph)
+    else:
+        panelists, judge, graph_budget = (*panel_mod.load_roster(ns.panel), 60)
+    if not panelists:
+        print("team: no usable panelists (check roster / keys)")
+        return 1
+    budget_calls = ns.budget_calls if ns.budget_calls is not None else graph_budget
+    decomp_map = gf.run_ghidra(binary=ns.target, functions=ns.funcs, pyghidra_python=ns.pyghidra_python)
+    src_root = ns.crabcc_root or ns.source_dir
+    investigate = inv.make_investigator(source_root=src_root, binary=ns.target)
+    lg = ledger.Ledger(os.path.join(ORACLE_DIR, "events.jsonl"))
+    mem = team_memory.TeamMemory(ns.memory)
+    finding = team.run_team(
+        functions=ns.funcs,
+        target={"path": ns.target, "sha256": _sha256_file(ns.target), "source_ref": ns.source_dir or "unknown"},
+        decompiler_meta={"model": "reverser-team", "model_sha256": "n/a", "temperature": 0},
+        ledger_=lg, decompile=lambda fn: decomp_map.get(fn, ""),
+        panelists=panelists, judge_client=judge,
+        score=fidelity.score,
+        ground_truth=(lambda fn: _ground_truth(ns.source_dir, fn)) if ns.source_dir else None,
+        investigate=investigate, memory=mem,
+        budget_calls=budget_calls, max_workers=ns.max_workers)
+    path = persist_finding(finding, findings_dir=os.path.join(ORACLE_DIR, "findings"))
+    print(f"team finding: {path}  confidence={finding['confidence']}  "
+          f"funcs={len(finding['functions'])}  chain_ok={lg.verify()}")
+    return 0
+
+
+def cmd_dogfeed(ns: argparse.Namespace) -> int:
+    import dogfeed_prompts as dfp
+    records = dfp.load_records(ns.log)
+    if ns.dry_run:
+        print(dfp.build_comment(records, run_id=ns.run_id))
+        return 0
+    num = dfp.post(records, repo=ns.repo, run_id=ns.run_id, gh=dfp._gh)
+    print("dogfeed: posted %d record(s) to %s issue #%d" % (len(records), ns.repo, num))
+    return 0
+
+
+def cmd_arp_emit(ns: argparse.Namespace) -> int:
+    import arp_emit
+    import datetime
+    with open(ns.finding, encoding="utf-8") as fh:
+        finding = json.load(fh)
+    ts = ns.ts or datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    n = arp_emit.emit(finding, path=ns.out, ts=ts)
+    print("arp-emit: wrote %d arp_event(s) to %s" % (n, ns.out))
+    return 0
+
+
 def main(argv: list[str]) -> int:
     ns = parse_args(argv)
     if ns.cmd == "run":
@@ -192,6 +296,12 @@ def main(argv: list[str]) -> int:
         return cmd_ground(ns)
     if ns.cmd == "verify-xref":
         return cmd_verify_xref(ns)
+    if ns.cmd == "team":
+        return cmd_team(ns)
+    if ns.cmd == "dogfeed":
+        return cmd_dogfeed(ns)
+    if ns.cmd == "arp-emit":
+        return cmd_arp_emit(ns)
     return 2
 
 
