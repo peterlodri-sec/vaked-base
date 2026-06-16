@@ -1,0 +1,36 @@
+# systemd unit for the Vaked CTF live arena (tailnet-only, never public-facing).
+# Copy to /etc/systemd/system/, edit the marked fields, then: systemctl enable --now ctf-arena
+#
+#   sudo cp tools/ctf/ctf-arena.service /etc/systemd/system/
+#   sudoedit /etc/systemd/system/ctf-arena.service   # set User=, WorkingDirectory=, --host
+#   sudo systemctl enable --now ctf-arena
+
+[Unit]
+Description=Vaked CTF live arena (tailnet-only)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# --- EDIT THESE ---
+User=ctf
+WorkingDirectory=/opt/vaked-base/tools/ctf
+# Bind an explicit tailnet (100.64.0.0/10) IP, or use --tailnet to auto-detect.
+ExecStart=/usr/bin/python3 ctf.py arena --with-boxes --host 100.64.0.1 --ledger /var/lib/ctf/submissions.jsonl
+# ------------------
+Restart=on-failure
+RestartSec=3
+
+# Hardening — the process needs only its working dir + the ledger dir.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ctf
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,7 +1,16 @@
-# tools/ctf — deterministic time-boxed CTF simulation
+# tools/ctf — a self-hostable CTF sim + game
 
-2–4 teams race to solve scored challenges within a 20 simulated-minute box. Pure stdlib,
-seeded, **replay-stable** (same seed+config → identical scoreboard + ledger chain hash),
+A small, **open-source, self-hostable CTF project** in pure Python standard library — no
+dependencies, no database, no build step, MIT-licensed (repo root [`LICENSE`](../../LICENSE)):
+
+- a **deterministic simulation** — strategy bots race scored challenges in a time box;
+- **real vulnerable boxes** ([`vulnbox/`](vulnbox/)) — intentionally-vulnerable, contained,
+  loopback-only practice targets;
+- a tailnet-only **web UI** (watch the sim) and a **live playable arena** (humans/bots solve
+  + submit flags, hash-chained scoreboard).
+
+The simulation half: 2–4 teams race to solve scored challenges within a 20 simulated-minute
+box. Seeded, **replay-stable** (same seed+config → identical scoreboard + ledger chain hash),
 game-theoretic (Nash / price-of-anarchy), with a **non-currency** codename-trophy reward.
 
 ```bash
@@ -30,6 +39,25 @@ result: scoreboard, ranking, trophy, and the event feed (first-bloods / captures
 `validate_bind_host` refuses `0.0.0.0` and any public/LAN address — only loopback or the
 Tailscale CGNAT range `100.64.0.0/10` may bind.
 
+### Live playable arena (self-hostable, open-source)
+
+A standalone, **self-hostable CTF game** — humans or bots on your tailnet pick a handle,
+solve the challenges (two are the *real* vulnbox targets, three are self-contained puzzles),
+and submit flags. Correct flags are scored (first-blood bonus, deduped) and appended to a
+**hash-chained submission ledger**; the live scoreboard is a deterministic fold over it.
+
+```bash
+python3 tools/ctf/ctf.py arena --with-boxes               # → http://127.0.0.1:8099 (loopback)
+python3 tools/ctf/ctf.py arena --with-boxes --tailnet     # bind this host's tailnet (100.x) IP
+python3 tools/ctf/ctf.py arena --with-boxes --tailnet --ledger /var/lib/ctf/sub.jsonl  # persist + replay
+python3 tools/ctf/test_live.py                            # 15 stdlib tests (incl. full real-box loop)
+```
+
+Pure stdlib, no deps, no build, MIT-licensed. Routes: `GET /` · `POST /submit` ·
+`GET /scoreboard.json` (bot API) · `GET /healthz`. Same tailnet-only bind guard as the web
+UI. **Full self-host guide:** [`docs/ctf/self-host.md`](../../docs/ctf/self-host.md)
+(quickstart, systemd unit, persistence, adding challenges).
+
 | File | Role |
 |------|------|
 | `arena.py` | challenge board + config + `mode` (`jeopardy`/`koth`) (`default_arena`, `validate_arena`) |
@@ -42,6 +70,10 @@ Tailscale CGNAT range `100.64.0.0/10` may bind.
 | `ledger.py` | hash-chained event timeline (reuses `tools/ralph/ralphcore`) |
 | `ctf.py` | CLI (`run` / `replay` / `tournament` / `season`) |
 | `web.py` | tailnet-only server-rendered web UI (`validate_bind_host` gates the bind to loopback/100.64.0.0/10) |
+| `live_challenges.py` | live-arena challenge catalog (flags + derived puzzle artifacts + box bindings) |
+| `live_scoreboard.py` | deterministic, replay-stable fold of the submission ledger → ranked board |
+| `live_server.py` | the live playable arena server (submit + scoreboard + box launch; tailnet-only) |
+| `ctf-arena.service` | hardened systemd unit for self-hosting the arena |
 
 Design: `docs/superpowers/specs/2026-06-16-ctf-simulation-design.md` · overview: `docs/ctf/v0.md`.
 Determinism: no wall-clock, no unseeded RNG; the "20 minutes" is the simulated box, not wall-time.
