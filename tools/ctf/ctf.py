@@ -122,6 +122,29 @@ def cmd_tournament(ns: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_season(ns: argparse.Namespace) -> int:
+    import season
+    names = [s for s in ns.strategies.split(",") if s] if ns.strategies else TOURNAMENT_DEFAULT
+    res = season.run_season(names, range(1, ns.group_seeds + 1),
+                            range(1, ns.bracket_seeds + 1), box_min=ns.box_min)
+    if ns.json:
+        print(json.dumps(res, indent=2, sort_keys=True))
+        return 0
+    print("=== CTF season (group seeds 1..%d, bracket seeds 1..%d) ==="
+          % (ns.group_seeds, ns.bracket_seeds))
+    print("group stage standings:")
+    for rank, r in enumerate(res["group_standings"], 1):
+        print("  %d. %-20s %.1f%% win" % (rank, r["strategy"], 100 * r["win_rate"]))
+    b = res["bracket"]
+    if b["semifinals"]:
+        for i, sf in enumerate(b["semifinals"], 1):
+            print("semifinal %d: %s vs %s → %s" % (i, sf["a"], sf["b"], sf["winner"]))
+    f = b["final"]
+    print("final: %s vs %s → %s" % (f["a"], f["b"], f["winner"]))
+    print("🏆 season champion: %s  (runner-up: %s)" % (res["champion"], res["runner_up"]))
+    return 0
+
+
 def parse_args(argv):
     p = argparse.ArgumentParser(prog="ctf")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -139,6 +162,12 @@ def parse_args(argv):
     tn.add_argument("--box-min", dest="box_min", type=int, default=20)
     tn.add_argument("--strategies", default=None, help="comma list of 2-4 distinct competitors")
     tn.add_argument("--json", action="store_true")
+    se = sub.add_parser("season", help="group stage → knockout bracket → season champion")
+    se.add_argument("--group-seeds", dest="group_seeds", type=int, default=20)
+    se.add_argument("--bracket-seeds", dest="bracket_seeds", type=int, default=10)
+    se.add_argument("--box-min", dest="box_min", type=int, default=20)
+    se.add_argument("--strategies", default=None, help="comma list of 2-4 distinct competitors")
+    se.add_argument("--json", action="store_true")
     return p.parse_args(argv)
 
 
@@ -150,6 +179,8 @@ def main(argv) -> int:
         return cmd_replay(ns)
     if ns.cmd == "tournament":
         return cmd_tournament(ns)
+    if ns.cmd == "season":
+        return cmd_season(ns)
     return 2
 
 

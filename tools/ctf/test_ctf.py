@@ -275,6 +275,36 @@ def test_tournament_validates_team_count_and_distinctness():
         pass
 
 
+# ---- season / bracket (v0.3) ----
+def test_season_deterministic():
+    import season as S
+    assert S.run_season(DEF, range(1, 6), range(1, 4)) == S.run_season(DEF, range(1, 6), range(1, 4))
+
+
+def test_season_bracket_structure_and_champion():
+    import season as S
+    r = S.run_season(DEF, range(1, 11), range(1, 6))
+    assert len(r["bracket"]["semifinals"]) == 2          # 4 teams → two semifinals
+    assert r["bracket"]["final"] is not None
+    assert r["champion"] == r["bracket"]["final"]["winner"]
+    assert r["champion"] in DEF and r["runner_up"] in DEF and r["champion"] != r["runner_up"]
+    assert r["champion"] in {s["winner"] for s in r["bracket"]["semifinals"]}   # came via a semi
+
+
+def test_season_default_champion_is_box_aware():
+    import season as S
+    r = S.run_season(["greedy_points", "ratio_balanced", "best_response", "box_aware_response"],
+                     range(1, 21), range(1, 11))
+    assert r["champion"] == "box_aware_response"          # observed: dominates group + bracket
+
+
+def test_season_two_strategies_final_only():
+    import season as S
+    r = S.run_season(["greedy_points", "box_aware_response"], range(1, 6), range(1, 4))
+    assert r["bracket"]["semifinals"] == []               # <4 competitors → no semifinals
+    assert r["champion"] in ("greedy_points", "box_aware_response")
+
+
 if __name__ == "__main__":
     tests = sorted((n, f) for n, f in dict(globals()).items()
                    if n.startswith("test_") and callable(f))
