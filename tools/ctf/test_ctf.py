@@ -195,6 +195,44 @@ def test_trophy_is_chained_and_verifies():
     assert res["chain_ok"] is True
 
 
+# ---- box-aware best-response (v0.1) ----
+def test_box_aware_deterministic():
+    ar = A.default_arena()
+    rem = sorted(ar["challenges"], key=lambda c: c["id"])
+    tt = [{"id": "team-1"}, {"id": "team-2"}]
+    ctx = {"tick": 1, "box_min": 20}
+    assert T.box_aware_response({"id": "team-1"}, rem, ar, tt, ctx) == \
+        T.box_aware_response({"id": "team-1"}, rem, ar, tt, ctx)
+
+
+def test_box_aware_respects_feasibility():
+    # one cheap finishable challenge + one rich UNfinishable one; little time left → pick the cheap.
+    ar = {"challenges": [A.challenge("cheap", "web", 100, 2), A.challenge("rich", "crypto", 999, 50)],
+          "time_box_min": 20, "first_blood_bonus": 50, "seed": 1}
+    tt = [{"id": "team-1"}]
+    ctx = {"tick": 18, "box_min": 20}      # 3 ticks left → 'rich' (effort 50) cannot finish
+    assert T.box_aware_response({"id": "team-1"}, ar["challenges"], ar, tt, ctx) == "cheap"
+    # box-blind best_response chases the rich one regardless
+    assert T.best_response({"id": "team-1"}, ar["challenges"], ar, tt, ctx) == "rich"
+
+
+def test_box_aware_beats_box_blind_head_to_head():
+    # team-4 was 0 with box-blind best_response; box_aware lets it bank finishable points.
+    blind = E.run_ctf(A.default_arena(), _teams(["greedy_points", "greedy_easy", "ratio_balanced", "best_response"]))
+    aware = E.run_ctf(A.default_arena(), _teams(["greedy_points", "greedy_easy", "ratio_balanced", "box_aware_response"]))
+    blind_t4 = next(r for r in blind["scoreboard"] if r["team"] == "team-4")["points"]
+    aware_t4 = next(r for r in aware["scoreboard"] if r["team"] == "team-4")["points"]
+    assert blind_t4 == 0 and aware_t4 > 0 and aware_t4 >= blind_t4
+    assert aware["chain_ok"]
+
+
+def test_box_aware_run_replay_stable():
+    strategies = ["greedy_points", "greedy_easy", "ratio_balanced", "box_aware_response"]
+    r1 = E.run_ctf(A.default_arena(), _teams(strategies))
+    r2 = E.run_ctf(A.default_arena(), _teams(strategies))
+    assert r1["scoreboard"] == r2["scoreboard"] and r1["chain_hash"] == r2["chain_hash"]
+
+
 if __name__ == "__main__":
     tests = sorted((n, f) for n, f in dict(globals()).items()
                    if n.startswith("test_") and callable(f))
