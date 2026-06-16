@@ -23,6 +23,25 @@ def default_arena(seed: int = 1337) -> dict:
             "seed": seed, "mode": "jeopardy"}
 
 
+def vuln_arena() -> dict:
+    """A board whose web challenges map to the REAL vulnbox lab targets (tools/ctf/vulnbox/).
+
+    Bridges the abstract sim to hosted, solvable boxes: each `box`-tagged challenge names the
+    vulnbox module, its intended-solution verifier in `solve.py`, and the vuln class. points/
+    effort reflect each box's difficulty. Structurally a normal arena (the extra `box` key is
+    inert to the engine), so it runs through `run_ctf` like any other board."""
+    challenges = [
+        {**challenge("web-traversal-200", "web", 200, 6),
+         "box": {"module": "box_traversal", "solve": "capture_traversal", "vuln": "path-traversal"}},
+        {**challenge("web-idor-150", "web", 150, 4),
+         "box": {"module": "box_idor", "solve": "capture_idor", "vuln": "idor"}},
+        challenge("crypto-200", "crypto", 200, 7),
+        challenge("rev-150", "rev", 150, 5),
+    ]
+    return {"challenges": challenges, "time_box_min": 20, "first_blood_bonus": 50,
+            "seed": 1337, "mode": "jeopardy"}
+
+
 MODES = ("jeopardy", "koth")
 
 
