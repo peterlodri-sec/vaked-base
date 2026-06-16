@@ -107,6 +107,56 @@ One **end-to-end vertical slice** is now closed, though: a `network` egress memb
 
 See [`docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md`](docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md) for the scaffold's design record, and [`CLAUDE.md`](CLAUDE.md) for working conventions (including the environment **patch-doctor** runbook).
 
+## Swarm — the Synapse mesh
+
+A global P2P swarm has been deployed across 3 continents, implementing a layered
+architecture of autonomous daemons:
+
+### Layers
+
+| Layer | Service | Path | Responsibility |
+|-------|---------|------|----------------|
+| **L0** | `vaked-genesis` | `genesisd/` | Bootstrap anchor on `:4433`, SRV-based node discovery, eventd-compatible audit chain |
+| **L1** | `ralph` | `tools/ralph/` | Autonomous decision loop (per-model concept tracks) |
+| **L2** | `meta-ralphd` | `meta-ralphd/` | Recursive observer with circuit breaker (3 restarts/5min → Emergency Hold) |
+| **S** | `synapsed` | `synapsed/` | P2P capability-graph gossip protocol — UDP/TCP, Ed25519 signed, Merkle-tree delta sync |
+| **L3** | `sentinel` | `synapsed/sentinel.py` | Reputation engine — trust scoring, truth-ping cross-reference, DM channel alerts |
+| **G** | `gateway` | `synapsed/gateway.py` | WebSocket + REST gateway, Constellation UI, Caddy reverse proxy |
+| **M** | `mnemosyne` | `tools/mnemosyne/` | Recursive ancestry compactor — 24h squash cycle, preserves critical events |
+| **W** | `wise-node` | `tools/wise/` | Engram strategist — governance heuristics, Node Happiness KPI, Two-Strike Protocol |
+
+### Protocol
+
+Synapse gossip uses Merkle-tree path diffs for O(log N) delta sync.
+Each packet is signed with the node's Ed25519 key. Anti-entropy loop
+resolves conflicts by lowest-hash-wins. See [`docs/swarm/synapse.md`](docs/swarm/synapse.md).
+
+### Governance
+
+The Wise Node binds constitutional directives to swarm logic:
+
+- **H08 — Node Happiness**: Primary KPI: (latency < 50ms) AND (gossip-success > 99%) AND (resource-load < 70%)
+- **H09 — Two-Strike Protocol**: Strike 1 = reconcile+quarantine, Strike 2 = permanent exclusion. No Strike 3.
+- **H10 — Panic Threshold**: >= 50% nodes unreachable → SYSTEM_PANIC, freeze ledger, halt experiments
+- **H11 — Graveyard**: System success measured by graveyard.log growth. Empty = warning.
+- **H12 — Safe Innovation**: Playground nodes restricted. No promotion without operator signature or 24h validation.
+
+### Public endpoints
+
+| URL | Content |
+|-----|---------|
+| `https://constellation.vaked.dev/` | Force-directed graph with live WebSocket telemetry |
+| `https://constellation.vaked.dev/wisdom` | Strategic briefing from the Wise Node |
+| `https://constellation.vaked.dev/registry` | Node registry with trust index |
+
+### Network optimization
+
+- BBR congestion control + fq pacing qdisc for transatlantic throughput
+- TCP Fast Open (3) to reduce handshake latency
+- XDP/BPF gatekeeper dropping non-whitelisted ports at NIC driver level
+- Caddy static caching (max-age=3600) for UI assets
+- Tailscale direct P2P (zero DERP relays across all connected nodes)
+
 ## Dogfooding — the `ralph` decision loop
 
 [`tools/ralph/`](tools/ralph/README.md) is an autonomous, budget-capped loop that
