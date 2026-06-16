@@ -176,7 +176,26 @@ def parse_args(argv):
     se.add_argument("--box-min", dest="box_min", type=int, default=20)
     se.add_argument("--strategies", default=None, help="comma list of 2-4 distinct competitors")
     se.add_argument("--json", action="store_true")
+    ar = sub.add_parser("arena", help="serve the live, playable CTF arena (tailnet-only)")
+    ar.add_argument("--host", default=None, help="bind host (loopback or tailnet 100.x only)")
+    ar.add_argument("--port", type=int, default=8099)
+    ar.add_argument("--tailnet", action="store_true", help="bind the detected tailnet (100.x) IP")
+    ar.add_argument("--ledger", default=None, help="persist + replay the submission ledger here")
+    ar.add_argument("--with-boxes", dest="with_boxes", action="store_true",
+                    help="launch the real vulnbox targets on loopback")
     return p.parse_args(argv)
+
+
+def cmd_arena(ns: argparse.Namespace) -> int:
+    import live_server
+    argv = (["--host", ns.host] if ns.host else []) + ["--port", str(ns.port)]
+    if ns.tailnet:
+        argv.append("--tailnet")
+    if ns.ledger:
+        argv += ["--ledger", ns.ledger]
+    if ns.with_boxes:
+        argv.append("--with-boxes")
+    return live_server.main(argv)
 
 
 def main(argv) -> int:
@@ -189,6 +208,8 @@ def main(argv) -> int:
         return cmd_tournament(ns)
     if ns.cmd == "season":
         return cmd_season(ns)
+    if ns.cmd == "arena":
+        return cmd_arena(ns)
     return 2
 
 
