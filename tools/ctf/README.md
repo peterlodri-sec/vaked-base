@@ -54,9 +54,17 @@ python3 tools/ctf/test_live.py                            # 15 stdlib tests (inc
 ```
 
 Pure stdlib, no deps, no build, MIT-licensed. Routes: `GET /` · `POST /submit` ·
-`GET /scoreboard.json` (bot API) · `GET /healthz`. Same tailnet-only bind guard as the web
-UI. **Full self-host guide:** [`docs/ctf/self-host.md`](../../docs/ctf/self-host.md)
+`GET /challenges.json` + `GET /scoreboard.json` (bot API) · `GET /healthz`. Same tailnet-only
+bind guard as the web UI. **Full self-host guide:** [`docs/ctf/self-host.md`](../../docs/ctf/self-host.md)
 (quickstart, systemd unit, persistence, adding challenges).
+
+An **autonomous bot** demonstrates the API — fetches `challenges.json`, solves the
+self-contained puzzles (ROT13 / base64 / single-byte-XOR brute), and submits:
+
+```bash
+python3 tools/ctf/arena_bot.py --url http://127.0.0.1:8099 --handle autobot
+python3 tools/ctf/test_arena_bot.py               # 4 stdlib tests (bot vs live arena)
+```
 
 | File | Role |
 |------|------|
