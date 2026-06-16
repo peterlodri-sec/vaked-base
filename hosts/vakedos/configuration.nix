@@ -11,39 +11,31 @@
 # §4.3). Boot is Legacy/BIOS GRUB because Vultr bare metal has no EFI.
 { config, lib, pkgs, ... }:
 
-let
-  # MICROARCH (global -march). Confirmed CPU: EPYC 4345P (Zen 5) → AVX-512 capable.
-  # "znver4" unlocks AVX-512 + Zen tuning and is accepted by every recent GCC;
-  # bump to "znver5" only if the stdenv GCC is ≥14 (older GCC rejects the arch
-  # string and the whole build fails). This rebuilds the entire closure FROM
-  # SOURCE (no binary cache) — on 8 cores the first build is long, so install with
-  # `nixos-anywhere --build-on-remote` and let the EPYC build it, not your laptop.
-  vakedCpuArch = "znver4";
-in
 {
   imports = [
     ./disko.nix
   ];
 
-  # Global microarchitecture tuning — the host owns nixpkgs.hostPlatform (hence
-  # no `system` arg in the flake's nixosSystem call).
-  nixpkgs.hostPlatform = {
-    system = "x86_64-linux";
-    gcc.arch = vakedCpuArch;
-    gcc.tune = vakedCpuArch;
-  };
+  # Microarchitecture — use the binary cache for everything. Earlier the config
+  # set gcc.arch/gcc.tune on hostPlatform which rebuilt EVERYTHING from source
+  # (kernel, firmware, ZFS, all libraries) — those kernel-module builds failed.
+  # Python/script daemons gain nothing from -march; when Zig/Rust daemons land,
+  # add a targeted stdenv override for their specific packages.
+  #   nixpkgs.hostPlatform.gcc.arch = "znver4";   # DO NOT — see above
+  #   nixpkgs.hostPlatform.gcc.tune = "znver4";   # DO NOT
+  # Confirmed CPU: EPYC 4345P (Zen 5, AVX-512 capable) — znver4 is safe for
+  # per-package overrides later.
+  nixpkgs.hostPlatform = "x86_64-linux";
 
   # === Boot: Legacy BIOS / GRUB on both mirror members ========================
   boot.loader.grub = {
     enable = true;
     efiSupport = false;
     copyKernels = true;
-    # NB: do NOT set `devices` here. disko adds every disk carrying an EF02
-    # BIOS-boot partition (both mirror members — see disko.nix) to
-    # boot.loader.grub.devices automatically, so GRUB is still installed to both
-    # MBRs (the box boots if one disk dies). Setting `devices` again duplicates
-    # each device and trips the grub "duplicated devices in mirroredBoots"
-    # assertion (nix flake check caught exactly this).
+    # Set the actual disk device(s) for GRUB installation. On the Vultr bare
+    # metal (2× NVMe), disko adds both disks automatically. On the dev-cx53
+    # QEMU VM, set explicitly to the single SCSI disk.
+    devices = lib.mkForce [ "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_118153956" ];
   };
 
   # Kernel: stay on the NixOS default (a recent LTS) — it is guaranteed
@@ -273,6 +265,38 @@ in
     # process/filesystem membrane (sandboxd) — wasm isolation backend (#50)
     wasmtime
   ];
+
+  # === Vaked genesis bootstrap node =========================================
+  # The genesis bootstrap daemon for the Vaked mesh, bound exclusively to the
+  # tailscale0 interface (deny-by-default on all public interfaces).
+  services.vaked-genesis = {
+    enable = true;
+    bindIP = "100.105.72.88";          # tailscale0 IP
+    bindPort = 4433;
+    genesisID = "genesis.vaked.dev";
+    openTailscaleFirewall = true;      # opens tailscale0:4433 only
+  };
+
+  # === Meta-Ralph (L2) recursive observer ===================================
+  # Monitors Ralph (L1) and acts as a reflexive watchdog with recursion
+  # safety (cannot restart itself) and a circuit breaker.
+  services.meta-ralphd = {
+    enable = true;
+    checkInterval = 5;        # health check every 5 seconds
+    journalMaxStale = 10;     # restart L1 if journal stale > 10s
+    memoryMaxMb = 200;        # restart L1 if RSS > 200 MiB
+  };
+
+  # === Synapse P2P gossip protocol ==========================================
+  # Enables the Vaked swarm — nodes discover each other and synchronize
+  # capability-graph state over encrypted P2P gossip.
+  services.synapsed = {
+    enable = true;
+    bindIP = "100.105.72.88";          # tailscale0 IP
+    gossipPort = 4434;
+    genesisPeers = [ "100.105.72.88" ];  # self-reference for now (single node)
+    openTailscaleFirewall = true;      # opens tailscale0:4434
+  };
 
   time.timeZone = "UTC";
 

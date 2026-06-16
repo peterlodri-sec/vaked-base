@@ -44,10 +44,11 @@
 
       formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
 
-      # vaked-telebot — the interactive Telegram control surface, as a Nix package
-      # (python3 + the repo's stdlib-only tools/eventd subtree; tiny closure).
-      #   nix build .#vaked-telebot  →  result/bin/vaked-telebot
+      # Packages: buildable Nix derivations from this flake.
       packages = forAllSystems (pkgs: {
+        # vaked-telebot — the interactive Telegram control surface, as a Nix package
+        # (python3 + the repo's stdlib-only tools/eventd subtree; tiny closure).
+        #   nix build .#vaked-telebot  →  result/bin/vaked-telebot
         vaked-telebot = pkgs.stdenvNoCC.mkDerivation {
           pname = "vaked-telebot";
           version = "0.1.0";
@@ -68,14 +69,145 @@
             mainProgram = "vaked-telebot";
           };
         };
+
+        # vaked-genesis — the genesis bootstrap daemon for the Vaked mesh.
+        # Python stdlib-only; packages genesisd/ into a tiny closure.
+        #   nix build .#vaked-genesis  →  result/bin/vaked-genesis
+        vaked-genesis = pkgs.stdenvNoCC.mkDerivation {
+          pname = "vaked-genesis";
+          version = "0.1.0";
+          src = self;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/lib/vaked
+            cp -r genesisd $out/lib/vaked/
+            makeWrapper ${pkgs.python3}/bin/python3 $out/bin/vaked-genesis \
+              --add-flags "-m genesisd" \
+              --prefix PYTHONPATH : $out/lib/vaked
+            runHook postInstall
+          '';
+          meta = {
+            description = "Genesis bootstrap daemon for the Vaked mesh";
+            mainProgram = "vaked-genesis";
+          };
+        };
+
+        # meta-ralphd — the recursive observer (L2) for the Vaked runtime.
+        # Python stdlib-only; packages meta-ralphd/ into a tiny closure.
+        #   nix build .#meta-ralphd  →  result/bin/meta-ralphd
+        meta-ralphd = pkgs.stdenvNoCC.mkDerivation {
+          pname = "meta-ralphd";
+          version = "0.1.0";
+          src = self;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/lib/vaked
+            cp -r meta-ralphd $out/lib/vaked/
+            makeWrapper ${pkgs.python3}/bin/python3 $out/bin/meta-ralphd \
+              --add-flags "-m meta-ralphd" \
+              --prefix PYTHONPATH : $out/lib/vaked
+            runHook postInstall
+          '';
+          meta = {
+            description = "Meta-Ralph (L2) — recursive observer for the Vaked runtime";
+            mainProgram = "meta-ralphd";
+          };
+        };
+
+        # wise-node — Engram strategist. Advisory only, read-only ledger access.
+        # Generates strategic briefings from Oculus ledger + Sentinel trust data.
+        #   nix build .#wise-node  →  result/bin/wise-synthesize
+        wise-node = pkgs.stdenvNoCC.mkDerivation {
+          pname = "wise-node";
+          version = "0.1.0";
+          src = self;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/lib/vaked $out/bin
+            cp -r tools/wise $out/lib/vaked/
+            cp -r engram $out/lib/vaked/
+            makeWrapper ${pkgs.python3}/bin/python3 $out/bin/wise-synthesize \
+              --add-flags "$out/lib/vaked/wise/synthesize.py" \
+              --prefix PYTHONPATH : $out/lib/vaked
+            runHook postInstall
+          '';
+          meta = {
+            description = "Wise Node (Engram Strategist) — strategic synthesis for the Vaked swarm";
+            mainProgram = "wise-synthesize";
+          };
+        };
+
+        # synapsed — P2P capability-graph gossip protocol daemon.
+        # Python stdlib-only; packages synapsed/ into a tiny closure.
+        #   nix build .#synapsed  →  result/bin/synapsed
+        synapsed = pkgs.stdenvNoCC.mkDerivation {
+          pname = "synapsed";
+          version = "0.1.0";
+          src = self;
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+          dontConfigure = true;
+          dontBuild = true;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p $out/lib/vaked
+            cp -r synapsed $out/lib/vaked/
+            makeWrapper ${pkgs.python3}/bin/python3 $out/bin/synapsed \
+              --add-flags "-m synapsed" \
+              --prefix PYTHONPATH : $out/lib/vaked
+            runHook postInstall
+          '';
+          meta = {
+            description = "Synapse — P2P capability-graph gossip protocol for the Vaked swarm";
+            mainProgram = "synapsed";
+          };
+        };
       });
 
-      # NixOS module: services.vaked-telebot.enable = true; (DynamicUser, secrets
-      # as a systemd credential, full sandbox). Defaults the package to the one above.
-      nixosModules.vaked-telebot = { pkgs, lib, ... }: {
-        imports = [ ./nix/vaked-telebot.nix ];
-        services.vaked-telebot.package =
-          lib.mkDefault self.packages.${pkgs.system}.vaked-telebot;
+      # NixOS modules.
+      nixosModules = {
+        # services.vaked-telebot.enable = true; (DynamicUser, secrets
+        # as a systemd credential, full sandbox). Defaults the package to the one above.
+        vaked-telebot = { pkgs, lib, ... }: {
+          imports = [ ./nix/vaked-telebot.nix ];
+          services.vaked-telebot.package =
+            lib.mkDefault self.packages.${pkgs.system}.vaked-telebot;
+        };
+
+        # services.vaked-genesis.enable = true; (DynamicUser,
+        # full sandbox, Tailscale-only firewall rule). Defaults the package to
+        # the one above.
+        vaked-genesis = { pkgs, lib, ... }: {
+          imports = [ ./nix/vaked-genesis.nix ];
+          services.vaked-genesis.package =
+            lib.mkDefault self.packages.${pkgs.system}.vaked-genesis;
+        };
+
+        # services.meta-ralphd.enable = true; (DynamicUser,
+        # read-only L1 monitoring, circuit breaker). Defaults the package
+        # to the one above.
+        meta-ralphd = { pkgs, lib, ... }: {
+          imports = [ ./nix/meta-ralphd.nix ];
+          services.meta-ralphd.package =
+            lib.mkDefault self.packages.${pkgs.system}.meta-ralphd;
+        };
+
+        # services.synapsed.enable = true; (DynamicUser,
+        # P2P gossip protocol, Merkle-tree delta sync). Defaults the
+        # package to the one above.
+        synapsed = { pkgs, lib, ... }: {
+          imports = [ ./nix/synapsed.nix ];
+          services.synapsed.package =
+            lib.mkDefault self.packages.${pkgs.system}.synapsed;
+        };
       };
 
       # Nix materializes. `vakedos` is the bare-metal materialization target — the
@@ -90,7 +222,11 @@
         modules = [
           disko.nixosModules.disko
           ./hosts/vakedos/configuration.nix
+          self.nixosModules.vaked-genesis
+          self.nixosModules.meta-ralphd
+          self.nixosModules.synapsed
         ];
+        specialArgs = { inherit self; };
       };
     };
 }
