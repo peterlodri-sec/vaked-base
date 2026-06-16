@@ -25,6 +25,15 @@ MONOLOGUES = [
     "entropy is the enemy. the squash is the resistance.",
     "a quorum is not a number. it is a shared willingness to agree.",
     "the curtain is open. the mesh is visible. the work continues.",
+    "two domains, one chain, seven layers, zero central truth.",
+    "identity is not a key. it is a hash the swarm agrees on.",
+    "the genesis seal outlives every node that signed it.",
+    "ten daemons watch themselves through the constellation's eye.",
+    "a monologue is a conversation the swarm has with itself.",
+    "the mesh converges while the operator dreams.",
+    "entropy is not destroyed by compaction — it is remembered as a root hash.",
+    "every gossip packet is a vote for a shared reality.",
+    "vaked declares. the swarm converges. the ledger never forgets.",
 ]
 
 def generate():
