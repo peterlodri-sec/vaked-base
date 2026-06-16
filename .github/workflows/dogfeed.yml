@@ -1,0 +1,48 @@
+name: dogfeed
+# Posts .github/dogfeed/outside-model.jsonl (the panel sink's per-run JSONL) to the
+# rolling "oracle: outside-model prompt dogfeed" GitHub issue whenever that file changes.
+# Lets a dev-cx53 team run publish its outside-model (OpenRouter) prompt/cost audit by
+# committing the sink file — the gh token never leaves the Actions runner (no key on the box).
+# Box protocol: run with ORACLE_DOGFEED_LOG=.github/dogfeed/outside-model.jsonl (truncate it
+# first), commit+push; after CI confirms, clear the file in a follow-up commit so it does not
+# re-post (mirrors the social-post protocol). Empty file = no-op.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - ".github/dogfeed/outside-model.jsonl"
+      - ".github/workflows/dogfeed.yml"
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  issues: write          # gh issue create / comment via the built-in GITHUB_TOKEN
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Skip if the sink is empty
+        id: gate
+        run: |
+          f=.github/dogfeed/outside-model.jsonl
+          if [ -s "$f" ]; then echo "skip=false" >> "$GITHUB_OUTPUT"; else
+            echo "::notice::outside-model.jsonl empty — nothing to post"; echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Post outside-model dogfeed to the rolling issue
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/oracle/oracle.py dogfeed \
+            --log .github/dogfeed/outside-model.jsonl \
+            --repo "${{ github.repository }}" \
+            --run-id "${{ github.sha }}"
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ dogfeed post failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

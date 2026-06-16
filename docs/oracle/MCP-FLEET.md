@@ -61,3 +61,10 @@ prompt sha + first line, completion tokens, cost — **no full prompt/response, 
 local models are never logged). Then, from where `gh` is authed (M3): `task -d tools/oracle
 dogfeed` (or `DRY=1 ... dogfeed` to preview) find-or-creates the issue and appends the run's
 summary. Posting is a deliberate step, never in a run's hot path.
+
+**CI auto-post (fire-and-forget from the box).** For runs on dev-cx53 (no `gh` auth there),
+point the sink at the staging file and push it: `ORACLE_DOGFEED_LOG=.github/dogfeed/outside-model.jsonl`
+(truncate per run), `git commit && git push`. The `dogfeed` workflow (`.github/workflows/dogfeed.yml`)
+fires on that path and posts to the rolling issue via the built-in `GITHUB_TOKEN` (`issues: write`)
+— the token never leaves the runner. Empty staging file = no-op; clear it after CI confirms (the
+social-post protocol). See `.github/dogfeed/README.md`.
