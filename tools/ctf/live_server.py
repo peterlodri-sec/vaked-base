@@ -173,6 +173,11 @@ def make_handler(arena: Arena, bind_host: str):
             if u.path == "/scoreboard.json":
                 body = json.dumps(arena.board(), sort_keys=True).encode()
                 return self._send(200, body, "application/json")
+            if u.path == "/challenges.json":
+                pub = [{"id": c["id"], "category": c["category"], "points": c["points"],
+                        "hint": c["hint"], "artifact": c["artifact"],
+                        "box_url": arena.box_urls.get(c["id"])} for c in LC.CHALLENGES]
+                return self._send(200, json.dumps(pub, sort_keys=True).encode(), "application/json")
             if u.path == "/":
                 q = urllib.parse.parse_qs(u.query)
                 msg = {"ok": q.get("ok", ["1"])[0] == "1", "msg": q["msg"][0]} if "msg" in q else None
