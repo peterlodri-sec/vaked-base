@@ -305,6 +305,51 @@ def test_season_two_strategies_final_only():
     assert r["champion"] in ("greedy_points", "box_aware_response")
 
 
+# ---- game types: king-of-the-hill (v0.4) ----
+def _koth_arena(seed=1337, box=20):
+    ar = A.default_arena(seed=seed)
+    ar["mode"] = "koth"
+    ar["time_box_min"] = box
+    return ar
+
+
+def test_koth_deterministic_and_chain_ok():
+    r1 = E.run_ctf(_koth_arena(), _teams(DEF))
+    r2 = E.run_ctf(_koth_arena(), _teams(DEF))
+    assert r1["scoreboard"] == r2["scoreboard"] and r1["chain_hash"] == r2["chain_hash"]
+    assert r1["chain_ok"] and r1["mode"] == "koth"
+
+
+def test_koth_scoreboard_shape_and_hold_income():
+    r = E.run_ctf(_koth_arena(), _teams(DEF))
+    assert all(set(x.keys()) == {"team", "strategy", "points", "captures"} for x in r["scoreboard"])
+    assert max(x["points"] for x in r["scoreboard"]) > 500   # per-tick hold income >> a single solve
+
+
+def test_koth_steals_recorded_and_boxed():
+    r = E.run_ctf(_koth_arena(), _teams(DEF))
+    caps = [e["payload"] for e in r["timeline"] if e["payload"].get("kind") == "capture"]
+    assert len(caps) >= 1
+    assert any(c.get("stolen_from") for c in caps)           # a hold was stolen from a prior holder
+    assert all(c["tick"] <= 20 for c in caps)                # box enforced
+
+
+def test_koth_validates_mode():
+    bad = A.default_arena()
+    bad["mode"] = "nope"
+    try:
+        A.validate_arena(bad)
+        assert False, "expected ValueError"
+    except ValueError:
+        pass
+
+
+def test_jeopardy_is_default_and_unchanged():
+    r = E.run_ctf(A.default_arena(), _teams(DEF))
+    assert r["mode"] == "jeopardy"
+    assert all("solves" in x and "first_bloods" in x for x in r["scoreboard"])
+
+
 if __name__ == "__main__":
     tests = sorted((n, f) for n, f in dict(globals()).items()
                    if n.startswith("test_") and callable(f))

@@ -19,7 +19,11 @@ def default_arena(seed: int = 1337) -> dict:
         challenge("rev-150", "rev", 150, 5),
         challenge("misc-350", "misc", 350, 12),
     ]
-    return {"challenges": challenges, "time_box_min": 20, "first_blood_bonus": 50, "seed": seed}
+    return {"challenges": challenges, "time_box_min": 20, "first_blood_bonus": 50,
+            "seed": seed, "mode": "jeopardy"}
+
+
+MODES = ("jeopardy", "koth")
 
 
 def validate_arena(arena: dict) -> None:
@@ -38,3 +42,5 @@ def validate_arena(arena: dict) -> None:
         raise ValueError("time_box_min must be positive")
     if arena.get("first_blood_bonus", -1) < 0:
         raise ValueError("first_blood_bonus must be non-negative")
+    if arena.get("mode", "jeopardy") not in MODES:
+        raise ValueError("unknown mode %r (one of %s)" % (arena.get("mode"), ", ".join(MODES)))
