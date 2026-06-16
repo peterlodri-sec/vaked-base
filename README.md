@@ -6,10 +6,20 @@
 
 <p align="center">
   <b>The foundation monorepo for the Vaked agentic-runtime ecosystem.</b><br>
+  <a href="https://vaked.dev"><code>vaked.dev</code></a> · <a href="https://vaked-lang.org"><code>vaked-lang.org</code></a><br>
   <code>✦ Vaked declares · ⚙ Nix materializes · ⏱ OTP supervises · ⚡ Zig enforces · 🔍 eBPF testifies · 🗂 CrabCC indexes · 🖥 Surfaces reveal</code>
 </p>
 
+<p align="center">
+  <a href="https://constellation.vaked.dev/">⬡ Constellation (live)</a> ·
+  <a href="https://constellation.vaked.dev/wisdom">✦ Wisdom</a> ·
+  <a href="https://constellation.vaked.dev/registry">⚙ Registry</a> ·
+  <a href="https://constellation.vaked.dev/swarm-monologue">◌ Monologue</a>
+</p>
+
 <hr>
+
+**Identity hash (domains + ledger):** <code>df6ed074e77e7c97</code>
 
 ## 📰 Recent news
 
