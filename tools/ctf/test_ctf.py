@@ -233,6 +233,48 @@ def test_box_aware_run_replay_stable():
     assert r1["scoreboard"] == r2["scoreboard"] and r1["chain_hash"] == r2["chain_hash"]
 
 
+# ---- tournament (v0.2) ----
+def test_tournament_deterministic():
+    import tournament as TN
+    assert TN.run_tournament(DEF, range(1, 6)) == TN.run_tournament(DEF, range(1, 6))
+
+
+def test_tournament_one_winner_per_match_and_sorted():
+    import tournament as TN
+    r = TN.run_tournament(DEF, range(1, 8))          # 7 seeds × 4 rotations = 28 matches
+    assert sum(x["wins"] for x in r["leaderboard"]) == 7 * 4
+    assert all(x["matches"] == 7 * 4 for x in r["leaderboard"])
+    assert all(0.0 <= x["win_rate"] <= 1.0 for x in r["leaderboard"])
+    wr = [x["win_rate"] for x in r["leaderboard"]]
+    assert wr == sorted(wr, reverse=True)            # sorted by win-rate desc
+
+
+def test_tournament_box_aware_beats_best_response_at_scale():
+    import tournament as TN
+    r = TN.run_tournament(["greedy_points", "ratio_balanced", "best_response", "box_aware_response"],
+                          range(1, 21))
+    lb = {x["strategy"]: x for x in r["leaderboard"]}
+    assert lb["box_aware_response"]["win_rate"] > lb["best_response"]["win_rate"]
+    assert lb["box_aware_response"]["mean_points"] > lb["best_response"]["mean_points"]
+    assert r["leaderboard"][0]["strategy"] == "box_aware_response"   # champion of the field
+
+
+def test_tournament_validates_team_count_and_distinctness():
+    import tournament as TN
+    for bad in (["greedy_points"],
+                ["greedy_points", "greedy_easy", "ratio_balanced", "best_response", "box_aware_response"]):
+        try:
+            TN.run_tournament(bad, [1])
+            assert False, "expected ValueError (team count)"
+        except ValueError:
+            pass
+    try:
+        TN.run_tournament(["greedy_points", "greedy_points"], [1])
+        assert False, "expected ValueError (duplicate)"
+    except ValueError:
+        pass
+
+
 if __name__ == "__main__":
     tests = sorted((n, f) for n, f in dict(globals()).items()
                    if n.startswith("test_") and callable(f))

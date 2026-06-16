@@ -101,6 +101,27 @@ def cmd_replay(ns: argparse.Namespace) -> int:
     return 0
 
 
+TOURNAMENT_DEFAULT = ["greedy_points", "ratio_balanced", "best_response", "box_aware_response"]
+
+
+def cmd_tournament(ns: argparse.Namespace) -> int:
+    import tournament
+    names = [s for s in ns.strategies.split(",") if s] if ns.strategies else TOURNAMENT_DEFAULT
+    res = tournament.run_tournament(names, range(1, ns.seeds + 1), box_min=ns.box_min)
+    if ns.json:
+        print(json.dumps(res, indent=2, sort_keys=True))
+        return 0
+    print("=== CTF strategy tournament (seeds 1..%d, box=%dmin, %d matches/strategy) ==="
+          % (ns.seeds, ns.box_min, res["matches_per_strategy"]))
+    print("  %-20s %8s %8s %12s %12s" % ("strategy", "win%", "podium%", "mean_pts", "mean_fb"))
+    mps = res["matches_per_strategy"] or 1
+    for r in res["leaderboard"]:
+        print("  %-20s %7.1f%% %7.1f%% %12.1f %12.3f"
+              % (r["strategy"], 100 * r["win_rate"], 100 * r["podium"] / mps,
+                 r["mean_points"], r["mean_first_bloods"]))
+    return 0
+
+
 def parse_args(argv):
     p = argparse.ArgumentParser(prog="ctf")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -113,6 +134,11 @@ def parse_args(argv):
     r.add_argument("--out", default=None, help="persist the timeline JSONL here")
     rp = sub.add_parser("replay", help="verify + recompute a persisted timeline")
     rp.add_argument("--events", required=True)
+    tn = sub.add_parser("tournament", help="round-robin strategy sweep → leaderboard")
+    tn.add_argument("--seeds", type=int, default=20, help="sweep seeds 1..N")
+    tn.add_argument("--box-min", dest="box_min", type=int, default=20)
+    tn.add_argument("--strategies", default=None, help="comma list of 2-4 distinct competitors")
+    tn.add_argument("--json", action="store_true")
     return p.parse_args(argv)
 
 
@@ -122,6 +148,8 @@ def main(argv) -> int:
         return cmd_run(ns)
     if ns.cmd == "replay":
         return cmd_replay(ns)
+    if ns.cmd == "tournament":
+        return cmd_tournament(ns)
     return 2
 
 
