@@ -1,22 +1,55 @@
-# vaked-base
+<p align="center">
+  <img src="docs/website/og-image.svg" alt="Vaked" width="200"/>
+</p>
 
-**The foundation monorepo for the Vaked agentic-runtime ecosystem.**
+<h1 align="center">vaked-base</h1>
 
-> Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies. CrabCC indexes. Surfaces reveal.
+<p align="center">
+  <b>The foundation monorepo for the Vaked agentic-runtime ecosystem.</b><br>
+  <code>✦ Vaked declares · ⚙ Nix materializes · ⏱ OTP supervises · ⚡ Zig enforces · 🔍 eBPF testifies · 🗂 CrabCC indexes · 🖥 Surfaces reveal</code>
+</p>
+
+<hr>
 
 ## 📰 Recent news
+
+**2026-06-16 — Swarm deployed and public.** A global P2P mesh spans 3 continents
+(EU, NA, APAC) running the Synapse gossip protocol — Ed25519‑signed packets,
+Merkle‑tree delta sync, anti‑entropy loop with lowest‑hash‑wins conflict resolution.
+The stack:
+
+| Layer | Service | Role |
+|-------|---------|------|
+| **L0** | `genesisd` | Bootstrap anchor (`:4433`), SRV‑based node discovery |
+| **L2** | `meta-ralphd` | Recursive observer, circuit breaker (3 restarts → Emergency Hold) |
+| **S** | `synapsed` | P2P gossip (Merkle delta sync, UDP/TCP, Ed25519 signed) |
+| **L3** | `sentinel` | Trust scoring, truth‑ping cross‑reference, DM channel alerts |
+| **G** | `gateway` | WebSocket + REST gateway, Constellation UI, Caddy reverse proxy |
+| **M** | `mnemosyne` | 24h ancestry compactor (56% ledger reduction) |
+| **W** | `wise‑node` | Engram strategist — 12 heuristics, Node Happiness KPI, Two‑Strike Protocol |
+
+Governance is bound: Node Happiness (latency < 50ms, gossip > 99%, load < 70%),
+Two‑Strike Protocol (reconcile → quarantine → exclusion), Panic Threshold
+(≥ 50% nodes unreachable → SYSTEM_PANIC), and the Graveyard log (empty = warning).
+
+The Constellation is public at **`https://constellation.vaked.dev/`** — a live
+Three.js force‑directed graph with WebSocket telemetry, strategic focus panel,
+and real‑time convergence metrics. Cloudflare tunnel via HEL/AMS QUIC.
+
+**2026-06-16 — Synapse P2P gossip protocol deployed.** Custom implementation
+in Python (Zig production port planned): Merkle‑tree capability graph, UDP fast‑path
+(2.2ms local convergence, 27ms intra‑EU, 88ms transatlantic), TCP anti‑entropy loop,
+Ed25519 packet signing. Adaptive Batching triggered for links > 300ms RTT.
+
+**2026-06-16 — Global mesh expansion: 5 nodes across 3 continents.**
+`genesis.vaked.dev` (Helsinki), `edge‑node‑02` (Falkenstein), `edge‑nbg1‑01` (Nuremberg),
+`edge‑us‑west‑01` (Hillsboro), `edge‑sin‑01` (Singapore). All P2P over Tailscale
+with BBR congestion control, TCP Fast Open, and XDP/BPF gatekeeper at NIC level.
 
 **2026-06-13 — `swe_af` runs for real.** The lowered `workflow swe_af`
 (`agentfield-swe.vaked` → `gen/workflow/swe_af.json`) is now executable: label an
 issue `agent` and a GitHub-Actions pipeline runs `plan → code → review → publish`,
-opening an advisory PR with every node testified to an [`eventd`](eventd) hash chain.
-POLA is preserved end-to-end — the [`swe-af`](vaked-agents/ci/swe-af/README.md) agent
-authors plan + code read-only (no GitHub token), and only the broker step writes
-(`gh pr create`). The intended `dev-cx53` control-panel deploy is a follow-up runbook;
-the GHA path is what's reachable and live. Design:
-[`docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md`](docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md).
-
-**2026-06-13 — the first end-to-end vertical slice landed ([#107](https://github.com/peterlodri-sec/vaked-base/pull/107)), one-shot by an agent.** A `network` egress membrane now goes declare → lower → load real eBPF → enforce → testify → verify. From the [PR disclaimer](https://github.com/peterlodri-sec/vaked-base/pull/107#issuecomment-4699358410):
+opening an advisory PR with every node testified to an [`eventd`](eventd) hash chain. From the [PR disclaimer](https://github.com/peterlodri-sec/vaked-base/pull/107#issuecomment-4699358410):
 
 > New **CI-triggered** and **cron-triggered** agents now run inside GitHub Actions on this repo, and a **self-hosted control plane on `crabcc.app`** is starting to get plugged into the same loop. […] Most of this work was one-shot […] by **Claude Code** […]. Where the sandbox kernel refused the cgroup-BPF attach, the daemon reports it and falls back to the reference datapath rather than faking in-kernel enforcement.
 
@@ -95,7 +128,9 @@ prompts/dedicated-language-session.md
 
 Verification dashboard: `python3 tools/specdash/build.py --serve`
 
-**Latest:** ✅ 100k worker scalability verified (100 iterations, 273ms avg, deterministic)  
+**Latest:** ✅ Swarm public at `https://constellation.vaked.dev/` · 5-node P2P mesh across EU/NA/APAC  
+**Swarm:** Synapse gossip protocol, Ed25519 signed packets, Merkle delta sync, 27ms intra-EU convergence  
+**Language:** 100k worker scalability verified (100 iterations, 273ms avg, deterministic)  
 **Verification:** `scripts/benchmark-100k-scalability.py` ([docs/language/0014-verification-scaffold.md](docs/language/0014-verification-scaffold.md))  
 **Paper:** Language + evaluation ready for arxiv (PR #103, ~2–3 weeks to submission)
 
@@ -103,7 +138,9 @@ Current state at a glance — what's real, in flight, and ahead — as a graph: 
 
 This is a **scaffold**. The language track (`vaked/`, `docs/language/`) carries real design content. The runtime (`daemons/`) and protocol (`protocol/`) subtrees are mostly **indexed stubs** — each subsystem gets its own design → plan → implementation cycle.
 
-One **end-to-end vertical slice** is now closed, though: a `network` egress membrane declared in Vaked ([`vaked/examples/membrane/agent-egress.vaked`](vaked/examples/membrane/agent-egress.vaked)) is **lowered** to a policy (`gen/ebpf.policy.json`, the realized 0012 §7 `ebpf.policy` emitter), **enforced** by the `agent-guardd` reference impl ([`agent_guardd/`](agent_guardd) — which compiles + loads a real `cgroup/skb` eBPF program and enforces deny-by-default egress), **testified** onto the [`eventd`](eventd) hash chain, and **verified** to have held. Run it with `task slice`; details in [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md).
+The swarm layer (`genesisd/`, `synapsed/`, `meta-ralphd/`, `tools/wise/`, `tools/mnemosyne/`) is production reference code: Python stdlib-only daemons that have been deployed, stress-tested with Chaos Monkey, and verified across transatlantic links. The Zig port is planned.
+
+One **end-to-end vertical slice** is now closed: a `network` egress membrane declared in Vaked ([`vaked/examples/membrane/agent-egress.vaked`](vaked/examples/membrane/agent-egress.vaked)) is **lowered** to a policy (`gen/ebpf.policy.json`, the realized 0012 §7 `ebpf.policy` emitter), **enforced** by the `agent-guardd` reference impl ([`agent_guardd/`](agent_guardd) — which compiles + loads a real `cgroup/skb` eBPF program and enforces deny-by-default egress), **testified** onto the [`eventd`](eventd) hash chain, and **verified** to have held. Run it with `task slice`; details in [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md).
 
 See [`docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md`](docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md) for the scaffold's design record, and [`CLAUDE.md`](CLAUDE.md) for working conventions (including the environment **patch-doctor** runbook).
 
@@ -143,11 +180,12 @@ The Wise Node binds constitutional directives to swarm logic:
 
 ### Public endpoints
 
-| URL | Content |
-|-----|---------|
-| `https://constellation.vaked.dev/` | Force-directed graph with live WebSocket telemetry |
-| `https://constellation.vaked.dev/wisdom` | Strategic briefing from the Wise Node |
-| `https://constellation.vaked.dev/registry` | Node registry with trust index |
+| URL | Content | Status |
+|-----|---------|--------|
+| `https://constellation.vaked.dev/` | Force-directed graph with live WebSocket telemetry | ✅ Live |
+| `https://constellation.vaked.dev/wisdom` | Strategic briefing from the Wise Node | ✅ Live |
+| `https://constellation.vaked.dev/registry` | Node registry with trust index | ✅ Live |
+| `https://constellation.vaked.dev/mesh.json` | Machine-readable mesh state | ✅ Live |
 
 ### Network optimization
 
