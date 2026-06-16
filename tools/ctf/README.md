@@ -12,8 +12,23 @@ python3 tools/ctf/ctf.py run --json --out t.jsonl # machine-readable + persist t
 python3 tools/ctf/ctf.py replay --events t.jsonl  # verify the chain + recompute the scoreboard
 python3 tools/ctf/ctf.py tournament --seeds 20    # round-robin sweep → strategy leaderboard
 python3 tools/ctf/ctf.py season                   # group stage → knockout bracket → champion
-python3 tools/ctf/test_ctf.py                     # 34 stdlib tests
+python3 tools/ctf/test_ctf.py                     # 36 stdlib tests
 ```
+
+### Web UI (tailnet-only)
+
+```bash
+python3 tools/ctf/web.py                          # binds 127.0.0.1:8088 (safe default)
+python3 tools/ctf/web.py --tailnet                # binds the host's tailnet (100.x) IP
+python3 tools/ctf/web.py --host 100.105.72.88     # bind an explicit tailnet IP
+python3 tools/ctf/test_web.py                     # 11 stdlib tests
+```
+
+Server-rendered (no JS framework). `GET /` is a run-form that renders the deterministic
+result: scoreboard, ranking, trophy, and the event feed (first-bloods / captures). Pick
+`board=vuln` to run against the real [`vulnbox/`](vulnbox/) targets. **Not public-facing:**
+`validate_bind_host` refuses `0.0.0.0` and any public/LAN address — only loopback or the
+Tailscale CGNAT range `100.64.0.0/10` may bind.
 
 | File | Role |
 |------|------|
@@ -26,6 +41,7 @@ python3 tools/ctf/test_ctf.py                     # 34 stdlib tests
 | `season.py` | group stage → single-elimination bracket → season champion |
 | `ledger.py` | hash-chained event timeline (reuses `tools/ralph/ralphcore`) |
 | `ctf.py` | CLI (`run` / `replay` / `tournament` / `season`) |
+| `web.py` | tailnet-only server-rendered web UI (`validate_bind_host` gates the bind to loopback/100.64.0.0/10) |
 
 Design: `docs/superpowers/specs/2026-06-16-ctf-simulation-design.md` · overview: `docs/ctf/v0.md`.
 Determinism: no wall-clock, no unseeded RNG; the "20 minutes" is the simulated box, not wall-time.
