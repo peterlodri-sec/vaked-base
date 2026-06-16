@@ -34,6 +34,7 @@ MONOLOGUES = [
     "entropy is not destroyed by compaction — it is remembered as a root hash.",
     "every gossip packet is a vote for a shared reality.",
     "vaked declares. the swarm converges. the ledger never forgets.",
+    "time is not a constraint to optimize; it is a container to fill with honesty.",
 ]
 
 def generate():
