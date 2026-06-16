@@ -35,6 +35,7 @@ def build_teams(n: int, strategies: list[str]) -> list[dict]:
 def cmd_run(ns: argparse.Namespace) -> int:
     ar = arena_mod.default_arena(seed=ns.seed)
     ar["time_box_min"] = ns.box_min
+    ar["mode"] = ns.mode
     strategies = [s for s in ns.strategies.split(",") if s] if ns.strategies else DEFAULT_STRATEGIES
     if not strategies:
         print("ctf: --strategies had no usable names"); return 2
@@ -42,14 +43,19 @@ def cmd_run(ns: argparse.Namespace) -> int:
     res = engine.run_ctf(ar, teams, ledger_path=ns.out)
     if ns.json:
         view = {k: res[k] for k in ("scoreboard", "ranking", "nash", "trophy", "chain_ok", "chain_hash")}
+        view["mode"] = res.get("mode", "jeopardy")
         print(json.dumps(view, indent=2, sort_keys=True))
         return 0
-    print("=== CTF scoreboard (seed=%d, box=%dmin, %d teams) ===" % (ns.seed, ns.box_min, ns.teams))
+    print("=== CTF scoreboard (mode=%s, seed=%d, box=%dmin, %d teams) ==="
+          % (res.get("mode", "jeopardy"), ns.seed, ns.box_min, ns.teams))
     sb = {r["team"]: r for r in res["scoreboard"]}
     for rank, tid in enumerate(res["ranking"], 1):
         r = sb[tid]
-        print("  %d. %-8s %-18s %4d pts  %d solves  %d first-blood"
-              % (rank, tid, r["strategy"], r["points"], r["solves"], r["first_bloods"]))
+        if "captures" in r:    # koth
+            print("  %d. %-8s %-18s %5d pts  %d captures" % (rank, tid, r["strategy"], r["points"], r["captures"]))
+        else:                  # jeopardy
+            print("  %d. %-8s %-18s %5d pts  %d solves  %d first-blood"
+                  % (rank, tid, r["strategy"], r["points"], r["solves"], r["first_bloods"]))
     n = res["nash"]
     print("game theory: nash_equilibrium=%s  price_of_anarchy=%s  welfare=%d (optimum %d)"
           % (n["is_nash"], n["price_of_anarchy"], n["social_welfare"], n["optimum"]))
@@ -152,6 +158,8 @@ def parse_args(argv):
     r.add_argument("--teams", type=int, default=4)
     r.add_argument("--seed", type=int, default=1337)
     r.add_argument("--box-min", dest="box_min", type=int, default=20)
+    r.add_argument("--mode", default="jeopardy", choices=["jeopardy", "koth"],
+                   help="jeopardy (one-shot solves) or koth (hold-and-steal per-tick income)")
     r.add_argument("--strategies", default=None, help="comma list; default cycles 4 strategies")
     r.add_argument("--json", action="store_true")
     r.add_argument("--out", default=None, help="persist the timeline JSONL here")
