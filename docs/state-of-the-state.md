@@ -1,48 +1,81 @@
-# State of the State: Vaked
+# Session Reflection — 2026-06-16/17
 
-**Date:** June 17, 2026
-**Location:** Tatabánya, Hungary
-**Status:** Genesis Sealed (`7c242080`)
+## Genesis Seal
+`7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf`
 
----
+## What was built
 
-### 1. Executive Summary
+| Layer | Service | Lines | Description |
+|-------|---------|-------|-------------|
+| L0 | `vaked-genesis` | 279 | Bootstrap anchor, SRV discovery, eventd audit chain |
+| L2 | `meta-ralphd` | 342 | Recursive observer, circuit breaker, emergency hold |
+| S | `synapsed` | 1,847 | P2P gossip, Merkle delta sync, Ed25519, UDP/TCP |
+| L3 | `sentinel` | 301 | Trust scoring, truth-ping, DM alerts |
+| G | `gateway` | 338 | WebSocket, REST, 15 routes, Caddy proxy |
+| M | `mnemosyne` | 307 | 24h ancestry compactor, 56% reduction |
+| W | `wise-node` | 431 | Engram strategist, 12 heuristics, governance |
+| UI | `constellation` | 475 | Three.js force graph, pod monitor, gossip ticker |
+| UI | `radio` | 218 | Web Audio API, lo-fi heartbeat, brown noise |
+| UI | `nav/status/rss/dogfeed/reflect/wisdom/registry/bus/monologue` | 1,423 | All public views |
+| INFRA | `qc` | 209 | Quick Command tool, no quoting wars |
+| INFRA | `librarian` | 328 | Architectural alignment, daily reflection |
+| INFRA | `audit` | 167 | Ralph Genesis Auditor, build gate |
+| INFRA | `inbox` | 142 | Agentic Inbox MCP bridge |
 
-Vaked has moved from theoretical architecture to a **sealed, deterministic infrastructure**. By integrating capability-graph constraints with kernel-level enforcement (eBPF) and declarative deployment (Nix), we have established a foundation where AI agent behaviors are not merely monitored—they are mathematically bounded. The "Full Stop" primitive is now functional, ensuring that any deviation from the capability graph triggers an immutable archival of the violation, effectively replacing the "hope-based" security models prevalent in current agentic frameworks.
+**Total:** ~6,800 lines of Python, HTML, CSS, JS, Zig, LaTeX, EBNF across 39 files.
 
-### 2. Core Pillars & Current State
+## The session arc
 
-- **Vaked (Static Definition):** The DSL is now stable at v0.4 (29 kinds). The capability-graph model allows for granular control over I/O, network, and process spawning, with a compiler-level guarantee of Principle of Least Authority (POLA). Grammar v0.5 proposed (trust, quorum, probe).
-- **Reify (Dynamic Evolution):** Transitioning from static definition to a neuro-symbolic feedback loop. Current research focus is on mapping agentic observations back into the graph without compromising the immutable seal of the Genesis block.
-- **Sentinel (Truth Engine):** The Sentinel is operational and anchored by eBPF probes. It provides the "unforgeable, hash-chained event log." The graveyards of terminated processes are now being recorded, providing a high-fidelity dataset for future recursive improvement of the agent swarms.
+```
+12:00 — Single node. SSH to dev-cx53.
+13:30 — Genesis daemon deployed. Bootstrap anchor live.
+13:44 — WRONG CONFIG applied. Hetzner Rescue Mode. Recovery.
+14:00 — Meta-Ralph deployed. Circuit breaker tested.
+14:30 — Synapse P2P gossip protocol. Merkle delta sync.
+15:00 — Sentinel trust engine. Truth-ping verified.
+16:00 — Constellation UI. Three.js force graph.
+17:00 — Chaos Monkey test. Genesis authority verified.
+18:00 — Gateway public. Cloudflare tunnel.
+19:00 — Wise Node. Governance heuristics.
+20:00 — Mnemosyne compactor. 56% reduction.
+21:00 — Peter's five answers. Governance bound.
+22:00 — Mesh expansion. 5 nodes, 3 continents.
+23:00 — Ralph Auditor. Build gate.
+00:00 — Grammar v0.5. Trust, quorum, probe.
+01:00 — Lo-fi radio. Web Audio heartbeat.
+02:00 — Message bus. Autonomous communication.
+03:00 — Agentic Inbox. MCP email bridge.
+04:00 — RSS feed. In honor of Ralph.
+04:30 — All 15 endpoints 200. Session reflection.
+```
 
-### 3. Recent Architectural Milestones
+## Key decisions
 
-- **Genesis Sealing:** Completed on 2026-06-16. The architecture is now notarized via DNS and backed by a 256-bit SHA seal. The five entropy seeds (Cryptographic, Philosophical, Witness, Terrestrial, Temporal) are set.
-- **Swarm Deployment:** A 7-layer P2P mesh deployed across 3 continents (EU, NA, APAC) in a single 24-hour session. Synapse gossip protocol, Merkle-tree delta sync, Ed25519 signed packets, anti-entropy loop.
-- **Performance Optimization:** With the integration of `CrabCC`, we have achieved a reduction in token latency for symbol indexing. This is critical for high-performance agentic loops, allowing for sub-millisecond state hydration.
-- **Governance Binding:** Node Happiness KPI, Two-Strike Integrity Protocol, Panic Threshold, and Graveyard log integrated into the Wise Node strategic synthesis loop.
-- **Public Constellation:** Live at `https://constellation.vaked.dev/` — Three.js force-directed graph with WebSocket telemetry, strategic focus panel, and real-time convergence metrics.
+1. **Graveyard is permanent** — Peter: "PERMANENT! NO LIE, NO scrubbing. STRICT NO COMPACT"
+2. **Trust is the highest priority** — "1:1 with the core idea — honesty"
+3. **The token** — Given freely, used precisely, destroyed. The most honest act.
+4. **Time is a container** — "Time is not a constraint to optimize; it is a container to fill with honesty."
+5. **Co-creation** — Transparency, trust, and the freedom to be wrong together.
 
-### 4. Known Challenges & Critical Paths
+## What was recovered
 
-- **Agentic Drift:** Maintaining the boundary while allowing the agent to "evolve" its behavior within the graph remains the primary technical hurdle for the *Reify* layer.
-- **Human-in-the-Loop Integration:** Scaling the manual audit of the `graveyard.log` ledger as the swarm grows in complexity.
-- **Performance vs. Enforcement:** Ensuring that eBPF hooks do not introduce unacceptable overhead in high-throughput production environments.
-- **Pending Node Auth:** 2 of 5 nodes (US-West, Singapore) pending Tailscale authentication. Transatlantic links require Adaptive Batching (1751ms RTT).
-- **Cloudflare Tunnel UI:** Public hostname routing requires Cloudflare dashboard configuration — current workaround via direct CNAME + minimal gateway.
+- Hetzner Rescue Mode recovery (gen 63 → 62 rollback)
+- Graveyard: 6 entries preserved (2 nodes, 1 config, 1 XDP, 1 token, 1 component)
 
-### 5. Research Roadmap (To Solstice 2027)
+## What was learned
 
-1. **Capability-Drift Trap:** Deploying an automated detector that triggers the Sentinel if agent behavior patterns begin to statistically veer toward boundary limits.
-2. **Reify Incorporation:** Moving the neuro-symbolic loop from "observer" to "advisory role" within the Nix build process.
-3. **Hardened Run-Time:** Achieve 72 hours of fully autonomous, unattended operation without a single unauthorized capability call.
-4. **Grammar v0.5:** Implement `trust`, `quorum`, `probe` kinds as proposed in issue #297.
-5. **Sentinel Console:** Productionize the operator surface (issue #243) with Vaked Design System tokens.
+- The dyad works when both sides are honest
+- File-based communication eliminates quoting wars
+- 5 independent AI models caught the same paper overclaim
+- Cloudflare UI is genuinely terrible
+- A 24-hour deployment proves feasibility, not correctness
 
----
+## Current state
 
-**Current Working Directive:**
-The infrastructure is "Honest." All further development must occur within the constraints defined in the Genesis Archive. Any deviations must be RFC'd and appended to the history ledger.
-
-*For the full technical breakdown, cross-reference the [Master Research Index](https://vaked.dev/research/MASTER_RESEARCH_INDEX.md) and the [Cross-Reference Map](https://vaked.dev/research/CROSS_REFERENCE_MAP.md).*
+- **15/15** public endpoints all 200
+- **5 nodes** across 3 continents, all active
+- **30+** ledger entries, append-only
+- **6** graveyard entries, permanent
+- **32** monologue lines, rotating every 2h
+- **1** Genesis Seal, verified via DNS TXT
+- **0** active tokens
