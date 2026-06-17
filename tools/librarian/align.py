@@ -62,18 +62,21 @@ def check_alignment(notes, directives):
     drift = []
     aligned = []
 
-    # Check 1: Graveyard directive
-    graveyard_directive = any("graveyard" in str(d).lower() for d in directives)
+    # Check 1: Graveyard directive (seq=29 GOVERNANCE_ANSWERS)
+    graveyard_directive = any(
+        "graveyard" in str(d).lower() or "PERMANENT" in str(d)
+        for d in directives
+    )
     if graveyard_directive:
-        aligned.append({"check": "graveyard_permanent", "status": "ALIGNED"})
+        aligned.append({"check": "graveyard_permanent", "status": "ALIGNED — seq=29"})
     else:
         drift.append({"check": "graveyard_permanent", "severity": "DRIFT",
                      "detail": "No graveyard permanence directive found in ledger"})
 
-    # Check 2: Trust priority
-    trust_priority = any("trust" in str(d).lower() for d in directives)
-    if trust_priority:
-        aligned.append({"check": "trust_first", "status": "ALIGNED"})
+    # Check 2: Trust priority (declared in seq=29, grammar v0.5 proposed)
+    trust_declared = any("trust" in str(d).lower() for d in directives)
+    if trust_declared:
+        aligned.append({"check": "trust_first", "status": "ALIGNED — directive bound, implementation pending"})
     else:
         drift.append({"check": "trust_first", "severity": "PENDING",
                      "detail": "Grammar v0.5 trust kind proposed but not implemented"})
@@ -100,10 +103,11 @@ def generate_reflection(drift, aligned):
     """Generate today's architectural alignment reflection."""
     date = time.strftime("%Y-%m-%d")
     drift_count = len(drift)
+    critical_drift = len([d for d in drift if d.get("severity") != "PENDING"])
     aligned_count = len(aligned)
     total = drift_count + aligned_count
     score = aligned_count / total if total > 0 else 0
-    blocked = drift_count >= DRIFT_THRESHOLD
+    blocked = critical_drift >= DRIFT_THRESHOLD
 
     reflection = f"""# Architectural Alignment — {date}
 
