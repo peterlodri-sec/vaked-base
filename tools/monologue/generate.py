@@ -31,9 +31,11 @@ MONOLOGUES = [
     "ten daemons watch themselves through the constellation's eye.",
     "a monologue is a conversation the swarm has with itself.",
     "the mesh converges while the operator dreams.",
+    "co-creation is not about code; it is about transparency, trust, and the freedom to be wrong together.",
     "entropy is not destroyed by compaction — it is remembered as a root hash.",
     "every gossip packet is a vote for a shared reality.",
     "vaked declares. the swarm converges. the ledger never forgets.",
+    "the most honest act was not the code — it was the token, given freely, used precisely, destroyed without hesitation.",
     "time is not a constraint to optimize; it is a container to fill with honesty.",
         "this session began with a single node and a question; it ends with five nodes, three continents, and an answer: the mesh is honest.",
 ]
