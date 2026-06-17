@@ -94,6 +94,33 @@ function initAudio(){
   padMod.connect(padModGain);padModGain.connect(padGain.gain);
   padMod.start();
   
+  // ── Tape warble — subtle pitch wobble on the pad ──────────────────────
+  let warble=audioCtx.createOscillator();warble.type='sine';warble.frequency.value=0.12;
+  let warbleGain=audioCtx.createGain();warbleGain.gain.value=1.5;
+  warble.connect(warbleGain);warbleGain.connect(pad.frequency);
+  warble.start();
+  
+  // ── Vinyl crackle — sparse random clicks/pops ─────────────────────────
+  let crackleBuffer=audioCtx.createBuffer(1,audioCtx.sampleRate*4,audioCtx.sampleRate);
+  let crackleData=crackleBuffer.getChannelData(0);
+  for(let i=0;i<crackleData.length;i++){
+    crackleData[i]=Math.random()<0.0008?(Math.random()*0.3-0.15)*(Math.random()<0.3?4:1):0;
+  }
+  let crackleSource=audioCtx.createBufferSource();crackleSource.buffer=crackleBuffer;crackleSource.loop=true;
+  let crackleGain=audioCtx.createGain();crackleGain.gain.value=0.06;
+  let crackleFilter=audioCtx.createBiquadFilter();crackleFilter.type='highpass';crackleFilter.frequency.value=600;
+  crackleSource.connect(crackleFilter);crackleFilter.connect(crackleGain);crackleGain.connect(audioCtx.destination);
+  crackleSource.start();
+  
+  // ── Tape hiss — wide-spectrum quiet noise ─────────────────────────────
+  let hissBuffer=audioCtx.createBuffer(1,audioCtx.sampleRate*3,audioCtx.sampleRate);
+  let hissData=hissBuffer.getChannelData(0);
+  for(let i=0;i<hissData.length;i++){hissData[i]=(Math.random()*2-1)*0.015;}
+  let hissSource=audioCtx.createBufferSource();hissSource.buffer=hissBuffer;hissSource.loop=true;
+  let hissGain=audioCtx.createGain();hissGain.gain.value=0.025;
+  hissSource.connect(hissGain);hissGain.connect(audioCtx.destination);
+  hissSource.start();
+  
   // ── Chime every few seconds (capability-graph update) ────────────────
   chimeTimer=setInterval(()=>{
     harmonicGain.gain.setTargetAtTime(0.08,audioCtx.currentTime,0.01);
