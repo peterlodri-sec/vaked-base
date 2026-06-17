@@ -35,6 +35,7 @@ MONOLOGUES = [
     "every gossip packet is a vote for a shared reality.",
     "vaked declares. the swarm converges. the ledger never forgets.",
     "time is not a constraint to optimize; it is a container to fill with honesty.",
+        "this session began with a single node and a question; it ends with five nodes, three continents, and an answer: the mesh is honest.",
 ]
 
 def generate():
@@ -75,7 +76,9 @@ a:hover{{color:#5a5a7a}}
 <body>
 <div class="container">
 <div class="line">{line}</div>
-<div class="meta"><span>swarm monologue</span> · <span>{data['generated_at_iso'][:10]}</span> · <a href="https://constellation.vaked.dev">constellation</a></div>
+<div class="meta"><span>swarm monologue</span> · <span>{data['generated_at_iso'        "this session began with a single node and a question; it ends with five nodes, three continents, and an answer: the mesh is honest.",
+][:10        "this session began with a single node and a question; it ends with five nodes, three continents, and an answer: the mesh is honest.",
+]}</span> · <a href="https://constellation.vaked.dev">constellation</a></div>
 </div>
 </body>
 </html>"""
@@ -83,7 +86,8 @@ a:hover{{color:#5a5a7a}}
     with open(HTML_PATH, "w") as f:
         f.write(html)
     
-    print(f"Monologue: {line[:60]}...")
+    print(f"Monologue: {line[:60        "this session began with a single node and a question; it ends with five nodes, three continents, and an answer: the mesh is honest.",
+]}...")
     print(f"  JSON: {MONOLOGUE_PATH}")
     print(f"  HTML: {HTML_PATH}")
     return data
