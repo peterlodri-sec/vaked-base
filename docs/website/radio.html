@@ -57,7 +57,37 @@ function initAudio(){
   harmonic.connect(harmonicGain);harmonicGain.connect(audioCtx.destination);
   harmonic.start();
   
-  // Chime every few seconds (capability-graph update)
+  // ── Lo-fi texture layer ─────────────────────────────────────────────
+  // Brown noise → heavy lowpass → subtle warmth under everything
+  
+  // Brown noise (filtered white noise, deeper than pink)
+  let bufferSize=audioCtx.sampleRate*2,noiseBuffer=audioCtx.createBuffer(1,bufferSize,audioCtx.sampleRate);
+  let data=noiseBuffer.getChannelData(0);let lastOut=0;
+  for(let i=0;i<bufferSize;i++){let white=Math.random()*2-1;data[i]=(lastOut+(0.02*white))/1.02;lastOut=data[i];}
+  let noiseSource=audioCtx.createBufferSource();noiseSource.buffer=noiseBuffer;noiseSource.loop=true;
+  let noiseFilter=audioCtx.createBiquadFilter();noiseFilter.type='lowpass';noiseFilter.frequency.value=80;
+  let noiseGain=audioCtx.createGain();noiseGain.gain.value=0.04;
+  noiseSource.connect(noiseFilter);noiseFilter.connect(noiseGain);noiseGain.connect(audioCtx.destination);
+  noiseSource.start();
+  
+  // Warm pad — slow triangle wave, filtered, detuned slightly
+  let pad=audioCtx.createOscillator();pad.type='triangle';pad.frequency.value=65.4; // C2
+  let padDetune=audioCtx.createOscillator();padDetune.type='sine';padDetune.frequency.value=0.08;
+  let padDetuneGain=audioCtx.createGain();padDetuneGain.gain.value=2;
+  padDetune.connect(padDetuneGain);padDetuneGain.connect(pad.frequency);
+  padDetune.start();
+  let padFilter=audioCtx.createBiquadFilter();padFilter.type='lowpass';padFilter.frequency.value=300;padFilter.Q.value=0.5;
+  let padGain=audioCtx.createGain();padGain.gain.value=0.06;
+  pad.connect(padFilter);padFilter.connect(padGain);padGain.connect(audioCtx.destination);
+  pad.start();
+  
+  // Slow AM modulation on the pad
+  let padMod=audioCtx.createOscillator();padMod.type='sine';padMod.frequency.value=0.15;
+  let padModGain=audioCtx.createGain();padModGain.gain.value=0.03;
+  padMod.connect(padModGain);padModGain.connect(padGain.gain);
+  padMod.start();
+  
+  // ── Chime every few seconds (capability-graph update) ────────────────
   chimeTimer=setInterval(()=>{
     harmonicGain.gain.setTargetAtTime(0.08,audioCtx.currentTime,0.01);
     harmonicGain.gain.setTargetAtTime(0,audioCtx.currentTime+0.3,0.05);
