@@ -51,23 +51,18 @@ def scan_notes():
 
 
 def scan_ledger():
-    """Extract governance directives from Oculus ledger."""
+    """Extract governance directives from Oculus ledger — full entries."""
     if not os.path.isfile(LEDGER_SRC):
         return []
 
-    directives = []
+    entries = []
     with open(LEDGER_SRC) as f:
         for line in f:
             if not line.strip(): continue
             try:
-                e = json.loads(line)
-                k = e.get("payload", {}).get("kind", "")
-                if k in ("GOVERNANCE_ANSWERS", "GOVERNANCE_BOUND",
-                         "DOMAIN_BINDING", "RALPH_AUDIT", "MESH_COMPLETE"):
-                    directives.append({"kind": k, "seq": e.get("seq"),
-                                       "hash": e.get("hash", "")[:16]})
+                entries.append(json.loads(line))
             except: pass
-    return directives
+    return entries
 
 
 def check_governance(ledger):
@@ -76,10 +71,19 @@ def check_governance(ledger):
     aligned = []
 
     checks = {
-        "graveyard_permanent": lambda l: any("PERMANENT" in json.dumps(e) or "graveyard" in json.dumps(e).lower() for e in l),
-        "trust_priority": lambda l: any("trust" in json.dumps(e).lower() for e in l),
-        "mesh_complete": lambda l: any(e.get("payload", {}).get("kind") == "MESH_COMPLETE" for e in l),
-        "genesis_seal": lambda l: True,  # verified via DNS
+        "graveyard_permanent": lambda l: any(
+            "graveyard" in str(e.get("payload", {})).lower()
+            for e in l
+        ),
+        "trust_priority": lambda l: any(
+            "trust" in str(e.get("payload", {})).lower()
+            for e in l
+        ),
+        "mesh_complete": lambda l: any(
+            e.get("payload", {}).get("kind") == "MESH_COMPLETE"
+            for e in l
+        ),
+        "genesis_seal": lambda l: True,
     }
 
     for name, check in checks.items():
