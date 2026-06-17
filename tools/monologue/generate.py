@@ -78,7 +78,7 @@ a:hover{{color:#5a5a7a}}
 <div class="line">{line}</div>
 <div class="meta"><span>swarm monologue</span> · <span>{data['generated_at_iso'        "this session began with a single node and a question; it ends with five nodes, three continents, and an answer: the mesh is honest.",
 ][:10        "this session began with a single node and a question; it ends with five nodes, three continents, and an answer: the mesh is honest.",
-]}</span> · <a href="https://constellation.vaked.dev">constellation</a></div>
+]}</span> · <a href="https://constellation.vaked.dev">constellation</a> · <a href="https://peterl.dev" style="color:#3a3a5a">peterl.dev</a></div>
 </div>
 </body>
 </html>"""
