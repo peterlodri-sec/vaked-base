@@ -3,88 +3,151 @@
 <title>Vaked-FM — Pulse Edition</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#08081a;color:#c8d0e0;font-family:'Inter','SF Pro',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:40px;padding:40px}
+body{background:#08081a;color:#c8d0e0;font-family:'Inter','SF Pro',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:30px;padding:40px;user-select:none}
 .header{text-align:center}
 .header h1{font-size:11px;color:#4060a0;letter-spacing:4px;text-transform:uppercase;margin-bottom:8px}
-.header .title{font-size:32px;font-weight:200;color:#e0e8f0;letter-spacing:8px;text-transform:uppercase}
+.header .title{font-size:36px;font-weight:100;color:#e0e8f0;letter-spacing:12px;text-transform:uppercase}
 .header .sub{font-size:10px;color:#5a5a7a;margin-top:4px}
-#scope{width:100%;max-width:600px;height:120px;border:1px solid rgba(48,96,255,0.15);border-radius:6px;background:#0c0c20;position:relative;overflow:hidden}
-#scope canvas{width:100%;height:100%}
+#scope{width:100%;max-width:600px;height:100px;border:1px solid rgba(48,96,255,0.12);border-radius:6px;background:#0c0c20;position:relative;overflow:hidden}
+.bar{width:100%;max-width:600px;height:2px;background:#1a2a3a;border-radius:1px;overflow:hidden}
+.bar-fill{height:100%;background:linear-gradient(90deg,#3060ff,#8060c0);transition:width .5s}
 .meta{text-align:center;font-size:10px;color:#5a5a7a}
 .meta span{color:#90a0c0}
-.bar{width:100%;max-width:600px;height:2px;background:#1a2a3a;border-radius:1px;overflow:hidden;margin-top:-20px}
-.bar-fill{height:100%;background:linear-gradient(90deg,#3060ff,#8060c0);transition:width .5s}
+.controls{display:flex;gap:12px}
+.btn{padding:6px 16px;border:1px solid rgba(48,96,255,0.2);border-radius:4px;background:rgba(48,96,255,0.06);color:#4060a0;font-size:9px;letter-spacing:1px;cursor:pointer;transition:.3s}
+.btn:hover{border-color:#4060a0;color:#80b0ff}
+.btn.active{border-color:#20c060;color:#20c060;background:rgba(0,200,100,0.06)}
 a{color:#4060a0;text-decoration:none;font-size:10px;position:absolute;top:20px;right:20px}
 </style>
 </head><body>
 <a href="https://constellation.vaked.dev">← constellation</a>
-<div class="header">
-<h1>Vaked-FM</h1>
-<div class="title">Pulse Edition</div>
-<div class="sub">24/7 ambient soundscape · heartbeat of the truth engine · <span id="status-text">synced</span></div>
-</div>
+<div class="header"><h1>Vaked-FM</h1><div class="title">PULSE</div><div class="sub">24/7 ambient soundscape · heartbeat of the truth engine · <span id="status-text" style="color:#20b0ff">INITIALIZING</span></div></div>
 <canvas id="scope"></canvas>
 <div class="bar"><div class="bar-fill" id="health-bar" style="width:100%"></div></div>
-<div class="meta">
-<span id="bpm-display">60 BPM</span> · genesis seal <span id="seal-status">holds</span> · trust <span id="trust-display">1.000</span> · nodes <span id="nodes-display">5</span>
+<div class="meta"><span id="bpm-display">60 BPM</span> · seal <span id="seal-status">holds</span> · trust <span id="trust-display">1.000</span> · nodes <span id="nodes-display">5</span></div>
+<div class="controls">
+<button class="btn active" id="audio-toggle" onclick="toggleAudio()">◉ STREAMING</button>
+<button class="btn" onclick="window.open('https://constellation.vaked.dev/mesh.json')">◇ JSON</button>
 </div>
-<script>
-const canvas=document.getElementById('scope');
-const ctx=canvas.getContext('2d');
-canvas.width=600;canvas.height=120;
 
-let phase=0,bpm=60,pulseWidth=1.0;
-function draw(){
-  ctx.fillStyle='#08081a';ctx.fillRect(0,0,canvas.width,canvas.height);
-  // Sweep line
-  const sweep=(phase%600);
-  ctx.strokeStyle='rgba(48,96,255,0.08)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(sweep,0);ctx.lineTo(sweep,canvas.height);ctx.stroke();
-  // Heartbeat pulse
-  const center=canvas.height/2;
-  const beatPhase=(phase%(60000/bpm))*(bpm/60000);
-  const pulse=Math.sin(beatPhase*Math.PI);
-  const amp=Math.abs(pulse)*60*pulseWidth;
-  ctx.strokeStyle=pulse>0?'rgba(48,96,255,'+(0.3+amp/60*0.5)+')':'rgba(128,96,192,'+(0.2+amp/60*0.3)+')';
-  ctx.lineWidth=2+amp/30;
-  ctx.beginPath();ctx.moveTo(0,center);ctx.lineTo(canvas.width,center);
-  // Wave
-  for(let x=0;x<canvas.width;x+=2){
-    const y=center+Math.sin((x+phase)*0.03)*amp*0.5;
-    ctx.lineTo(x,y);
-  }
-  ctx.stroke();
-  // Sub-bass wave
-  ctx.strokeStyle='rgba(32,64,128,0.15)';ctx.lineWidth=1;
-  ctx.beginPath();
-  for(let x=0;x<canvas.width;x+=4){
-    const y=center+Math.sin((x-phase)*0.08)*20;
-    ctx.lineTo(x,y);
-  }
-  ctx.stroke();
-  phase+=2;
-  requestAnimationFrame(draw);
+<script>
+// ── Web Audio Engine ──────────────────────────────────────────────────
+let audioCtx=null,subBass=null,harmonic=null,gainNode=null,filterNode=null;
+let bpm=60,trust=1.0,sealHolds=true,nextBeat=0;
+let chimeTimer=null;
+
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new AudioContext();
+  
+  // Sub-bass heartbeat (sine, 41.2Hz = E1)
+  subBass=audioCtx.createOscillator();subBass.type='sine';subBass.frequency.value=41.2;
+  gainNode=audioCtx.createGain();gainNode.gain.value=0;
+  filterNode=audioCtx.createBiquadFilter();filterNode.type='lowpass';filterNode.frequency.value=200;filterNode.Q.value=1;
+  subBass.connect(filterNode);filterNode.connect(gainNode);gainNode.connect(audioCtx.destination);
+  subBass.start();
+  
+  // Harmonic chime (sine, 220Hz = A3 — Genesis Seal)
+  harmonic=audioCtx.createOscillator();harmonic.type='sine';harmonic.frequency.value=220;
+  let harmonicGain=audioCtx.createGain();harmonicGain.gain.value=0;
+  harmonic.connect(harmonicGain);harmonicGain.connect(audioCtx.destination);
+  harmonic.start();
+  
+  // Chime every few seconds (capability-graph update)
+  chimeTimer=setInterval(()=>{
+    harmonicGain.gain.setTargetAtTime(0.08,audioCtx.currentTime,0.01);
+    harmonicGain.gain.setTargetAtTime(0,audioCtx.currentTime+0.3,0.05);
+  },5000);
 }
 
-// Fetch live telemetry
+function heartbeatPulse(){
+  if(!audioCtx||!gainNode)return;
+  const now=audioCtx.currentTime;
+  const beatInterval=60/bpm;
+  if(now>=nextBeat){
+    // Sub-bass thump
+    gainNode.gain.setTargetAtTime(0.6,now,0.005);
+    gainNode.gain.setTargetAtTime(0,now+beatInterval*0.15,beatInterval*0.3);
+    nextBeat=now+beatInterval;
+  }
+}
+
+function updateTelemetry(d){
+  bpm=d.status==='divergence'?90:d.drift_detected?140:60+Math.min(d.convergence_ms||0,500)/10;
+  trust=d.trust_index||1;
+  sealHolds=!d.drift_detected;
+  
+  // Filter resonance shifts with drift
+  if(filterNode){
+    filterNode.frequency.setTargetAtTime(200+(d.convergence_ms||0)*2,audioCtx.currentTime,0.5);
+    filterNode.Q.setTargetAtTime(sealHolds?1:8,audioCtx.currentTime,0.5);
+  }
+  if(sealHolds){
+    document.getElementById('seal-status').style.color='#20c060';
+  }else{
+    document.getElementById('seal-status').style.color='#ff4242';
+  }
+}
+
+// ── Oscilloscope ──────────────────────────────────────────────────────
+const canvas=document.getElementById('scope');
+const ctx=canvas.getContext('2d');canvas.width=600;canvas.height=100;
+let phase=0;
+function drawScope(){
+  ctx.fillStyle='#08081a';ctx.fillRect(0,0,canvas.width,canvas.height);
+  const beatPhase=(phase%Math.floor(60000/bpm))/(60000/bpm);
+  const beat=Math.sin(beatPhase*Math.PI);
+  const amp=Math.abs(beat);
+  const center=canvas.height/2;
+  
+  // Waveform
+  ctx.strokeStyle='rgba(48,96,255,'+(0.15+amp*0.3)+')';ctx.lineWidth=2+amp;
+  ctx.beginPath();ctx.moveTo(0,center);
+  for(let x=0;x<canvas.width;x+=2){
+    ctx.lineTo(x,center+Math.sin((x+phase)*0.03)*amp*40);
+  }
+  ctx.stroke();
+  
+  // Sub-bass trace
+  ctx.strokeStyle='rgba(32,64,128,0.1)';ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let x=0;x<canvas.width;x+=4){
+    ctx.lineTo(x,center+Math.sin((x-phase)*0.08)*15);
+  }
+  ctx.stroke();
+  phase+=2;requestAnimationFrame(drawScope);
+}
+
+// ── Telemetry fetch ────────────────────────────────────────────────────
 async function fetchTelemetry(){
   try{
     const r=await fetch('mesh.json');
+    if(!r.ok)return;
     const d=await r.json();
-    document.getElementById('bpm-display').textContent=Math.round(d.convergence_ms>300?60+d.convergence_ms/10:60)+' BPM';
-    document.getElementById('trust-display').textContent=(d.trust_index||1).toFixed(3);
-    document.getElementById('nodes-display').textContent=d.nodes||5;
     document.getElementById('status-text').textContent=d.status||'synced';
-    document.getElementById('seal-status').textContent=d.drift_detected?'drift':'holds';
-    document.getElementById('health-bar').style.width=((d.trust_index||1)*100)+'%';
-    if(d.status==='divergence')bpm=90;pulseWidth=0.6;
-    else if(d.drift_detected)bpm=140;pulseWidth=0.3;
-    else{bpm=60+Math.min(d.convergence_ms||0,500)/10;pulseWidth=1.0-(d.convergence_ms||0)/2000;}
+    document.getElementById('bpm-display').textContent=Math.round(bpm)+' BPM';
+    document.getElementById('trust-display').textContent=trust.toFixed(3);
+    document.getElementById('nodes-display').textContent=d.nodes||5;
+    document.getElementById('health-bar').style.width=(trust*100)+'%';
+    updateTelemetry(d);
   }catch(e){}
 }
-setInterval(fetchTelemetry,5000);
-draw();
-fetchTelemetry();
+
+// ── Audio toggle ────────────────────────────────────────────────────────
+function toggleAudio(){
+  const btn=document.getElementById('audio-toggle');
+  if(!audioCtx){initAudio();btn.classList.add('active');btn.textContent='◉ STREAMING';return;}
+  if(audioCtx.state==='running'){audioCtx.suspend();btn.classList.remove('active');btn.textContent='○ PAUSED';}
+  else{audioCtx.resume();btn.classList.add('active');btn.textContent='◉ STREAMING';}
+}
+
+// ── Main loop ───────────────────────────────────────────────────────────
+fetchTelemetry();setInterval(fetchTelemetry,5000);
+drawScope();
+setInterval(()=>{if(audioCtx&&audioCtx.state==='running')heartbeatPulse();},50);
+
+// Click to start audio
+document.body.addEventListener('click',()=>{if(!audioCtx)initAudio();}, {once:true});
 </script>
 </body>
 </html>
