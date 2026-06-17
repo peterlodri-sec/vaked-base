@@ -66,6 +66,9 @@ body{background:#06060c;overflow:hidden;font-family:'Inter','SF Pro',sans-serif;
 <span style="font-size:9px;color:#4060a0;letter-spacing:2px;text-transform:uppercase">◇ POD STATE</span>
 <span id="pod-status-dot" style="color:#20b0ff;font-size:8px">● LIVE</span>
 </div>
+<div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#5a6a7a">GOSSIP</span><span id="gossip-counter" style="color:#e0e8f0;font-weight:600">0</span><span style="color:#3a4a5a;font-size:8px">pkts</span></div>
+<div style="height:2px;background:#1a2a3a;border-radius:1px;margin:2px 0"><div id="gossip-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#3060ff,#8060c0);border-radius:1px;transition:width.3s"></div></div>
+</div>
 <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#5a6a7a">ARENA</span><span><span id="pod-arena" style="color:#e0e8f0">12.4</span>/64MB</span></div>
 <div class="meter" style="height:2px;background:#1a2a3a;border-radius:1px"><div id="pod-arena-bar" style="height:100%;width:19%;background:#3060ff;border-radius:1px;transition:width.3s"></div></div>
 <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:#5a6a7a">eBPF</span><span id="pod-ebpf" style="color:#20c060">3/4</span><span style="color:#3a4a5a">active</span></div>
@@ -236,6 +239,14 @@ else{line.material.color.setHex(0x1a3a5a);glow.material.color.setHex(0x1a3a5a);}
 }
 });
 
+// Gossip counter — live inter-message pulse
+let gossipBase=0;
+if(frame%30===0){
+  const rate=27.3+(Math.random()*10); // convergence-driven
+  gossipBase+=Math.floor(rate/10);
+  document.getElementById('gossip-counter').textContent=gossipBase;
+  document.getElementById('gossip-bar').style.width=(Math.min(gossipBase%100,100))+'%';
+}
 // Pod monitor metrics (jittered for live feel)
 if(frame%60===0){
   const arenaUsed=(12.4+Math.sin(frame*0.01)*3).toFixed(1);
