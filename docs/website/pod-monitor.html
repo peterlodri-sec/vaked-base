@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#080c10] text-[#a0b8d0]">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked Pod Monitor — v0.1</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @font-face{font-family:'JetBrains';src:local('JetBrains Mono'),local('Courier New');font-display:swap}
+  *{scrollbar-width:thin;scrollbar-color:#1a2a3a #080c10}
+  body{font-family:'JetBrains','SF Mono','Courier New',monospace;font-size:11px;line-height:1.5}
+  .grid-cols-m>{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .animate-pulse-fast{animation:pulse .8s cubic-bezier(.4,0,.6,1) infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  .log-line{border-left:2px solid transparent;padding:2px 8px;transition:border-color .3s}
+  .log-line.error{border-left-color:#ff4242;color:#ff6060}
+  .log-line.warn{border-left-color:#ffb020;color:#ffc040}
+  .log-line.info{border-left-color:#20b0ff;color:#60d0ff}
+  .log-line.success{border-left-color:#20c060;color:#40e080}
+  .meter{height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden}
+  .meter-fill{height:100%;transition:width .3s;border-radius:2px}
+  .tab{border-bottom:1px solid transparent;cursor:pointer;transition:all .2s}
+  .tab.active{border-bottom-color:#3060ff;color:#e0e8f0}
+  #arena-blocks{display:grid;grid-template-columns:repeat(32,1fr);gap:1px}
+  .block{aspect-ratio:1;border-radius:1px;transition:background .3s}
+</style>
+</head>
+<body class="p-4 flex flex-col gap-3 h-screen overflow-hidden">
+  <!-- HEADER -->
+  <header class="flex items-center justify-between border-b border-[#1a2a3a] pb-2">
+    <div class="flex items-center gap-3">
+      <span class="text-[#3060ff] font-bold text-xs tracking-[.15em]">◇ VAKED</span>
+      <span class="text-[#3a4a5a] text-[10px]">POD MONITOR v0.1</span>
+      <span class="px-2 py-0.5 text-[9px] rounded border border-[#20b0ff20] text-[#20b0ff] bg-[#20b0ff08]" id="pod-status">● LIVE</span>
+      <span class="text-[#3a4a5a] text-[10px]">UPTIME <span class="text-[#a0b8d0]" id="uptime">0:00:00</span></span>
+    </div>
+    <div class="flex gap-3 text-[10px] text-[#5a6a7a]">
+      <span>PID <span class="text-[#a0b8d0]" id="pid">—</span></span>
+      <span>SYS <span class="text-[#a0b8d0]" id="syscalls">—</span>/s</span>
+      <span>NIC <span class="text-[#a0b8d0]" id="net-tx">—</span>tx</span>
+    </div>
+  </header>
+
+  <!-- MAIN GRID -->
+  <div class="flex-1 grid gap-3 overflow-hidden" style="grid-template-columns:2fr 1fr 1fr;grid-template-rows:1fr 1fr">
+
+    <!-- [1] TOOL-CALLING LOG (streaming) -->
+    <section class="border border-[#1a2a3a] rounded flex flex-col overflow-hidden" style="grid-row:span 2">
+      <div class="bg-[#0c141c] px-3 py-2 border-b border-[#1a2a3a] flex items-center justify-between">
+        <span class="text-[10px] tracking-[.1em] text-[#4060a0]">▶ TOOL-CALL STREAM</span>
+        <div class="flex gap-2 text-[9px]">
+          <span class="tab active px-1 text-[#e0e8f0]" data-filter="all">ALL</span>
+          <span class="tab px-1 text-[#5a6a7a]" data-filter="error">ERR</span>
+          <span class="tab px-1 text-[#5a6a7a]" data-filter="warn">WARN</span>
+          <span class="tab px-1 text-[#5a6a7a]" data-filter="info">INFO</span>
+        </div>
+      </div>
+      <div id="log-panel" class="flex-1 overflow-y-auto p-2 font-mono text-[10px] leading-relaxed">
+        <div class="log-line info"><span class="text-[#3a4a5a]">0001</span> <span class="text-[#4060a0]">agent.init</span> <span class="text-[#5a6a7a]">pod=vaked-01 arena=64MB eBPF=4blocks</span></div>
+        <div class="log-line success"><span class="text-[#3a4a5a]">0002</span> <span class="text-[#4060a0]">capability.grant</span> <span class="text-[#5a6a7a]">network:egress:deny → 127.0.0.1:4433</span></div>
+        <div class="log-line info"><span class="text-[#3a4a5a]">0003</span> <span class="text-[#4060a0]">synapse.connect</span> <span class="text-[#5a6a7a]">peer=genesis.vaked.dev:4434</span></div>
+        <div class="log-line info"><span class="text-[#3a4a5a]">0004</span> <span class="text-[#4060a0]">model.invoke</span> <span class="text-[#5a6a7a]">tokens=4096 budget=0.02USD</span></div>
+      </div>
+    </section>
+
+    <!-- [2] ARENA MEMORY MONITOR -->
+    <section class="border border-[#1a2a3a] rounded flex flex-col overflow-hidden">
+      <div class="bg-[#0c141c] px-3 py-2 border-b border-[#1a2a3a] text-[10px] tracking-[.1em] text-[#4060a0]">⏣ MEMORY ARENA</div>
+      <div class="p-3 flex flex-col gap-2 flex-1">
+        <div class="flex justify-between text-[10px]">
+          <span class="text-[#5a6a7a]">ALLOCATED</span>
+          <span><span class="text-[#e0e8f0]" id="arena-used">12.4</span><span class="text-[#3a4a5a]"> / 64 MB</span></span>
+        </div>
+        <div class="meter"><div class="meter-fill bg-[#3060ff]" id="arena-bar" style="width:19%"></div></div>
+        <div id="arena-blocks" class="mt-1"></div>
+        <div class="flex justify-between text-[9px] mt-2">
+          <span class="text-[#5a6a7a]">FREE</span><span class="text-[#e0e8f0]" id="arena-free">51.6</span><span class="text-[#3a4a5a]">MB</span>
+        </div>
+        <div class="grid grid-cols-2 gap-1 text-[9px] mt-2">
+          <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a]"><span class="text-[#5a6a7a] block">PEAK</span><span class="text-[#e0e8f0]" id="arena-peak">18.2</span> MB</div>
+          <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a]"><span class="text-[#5a6a7a] block">FRAG</span><span class="text-[#e0e8f0]" id="arena-frag">3.1</span> %</div>
+          <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a]"><span class="text-[#5a6a7a] block">ALLOC</span><span class="text-[#e0e8f0]" id="arena-alloc">247</span> ops</div>
+          <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a]"><span class="text-[#5a6a7a] block">FREE</span><span class="text-[#e0e8f0]" id="arena-dealloc">198</span> ops</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- [3] eBPF CAPABILITY BLOCKS -->
+    <section class="border border-[#1a2a3a] rounded flex flex-col overflow-hidden">
+      <div class="bg-[#0c141c] px-3 py-2 border-b border-[#1a2a3a] text-[10px] tracking-[.1em] text-[#4060a0]">🔍 eBPF CAPABILITY BLOCKS</div>
+      <div class="p-3 flex flex-col gap-2 flex-1 text-[10px]">
+        <div class="border border-[#1a2a3a] rounded p-2 bg-[#0c141c]">
+          <div class="flex justify-between"><span class="text-[#20c060]">▣ network/egress</span><span class="text-[#5a6a7a]">ATTACHED</span></div>
+          <div class="text-[#5a6a7a] mt-1">default:deny · allow:127.0.0.1:4433</div>
+          <div class="text-[#3a4a5a] text-[9px]">BPF_PROG_TYPE_CGROUP_SKB</div>
+        </div>
+        <div class="border border-[#1a2a3a] rounded p-2 bg-[#0c141c]">
+          <div class="flex justify-between"><span class="text-[#20c060]">▣ filesystem/write</span><span class="text-[#5a6a7a]">ATTACHED</span></div>
+          <div class="text-[#5a6a7a] mt-1">paths:/var/lib/vaked · budget:8MB</div>
+          <div class="text-[#3a4a5a] text-[9px]">LSM_HOOK</div>
+        </div>
+        <div class="border border-[#1a2a3a] rounded p-2 bg-[#0c141c]">
+          <div class="flex justify-between"><span class="text-[#20b0ff]">▣ process/spawn</span><span class="text-[#5a6a7a]">ENABLED</span></div>
+          <div class="text-[#5a6a7a] mt-1">max_children:4 · sandbox:wasmtime</div>
+          <div class="text-[#3a4a5a] text-[9px]">CGROUP_V2</div>
+        </div>
+        <div class="border border-[#1a2a3a] rounded p-2 bg-[#0c141c] opacity-40">
+          <div class="flex justify-between"><span class="text-[#5a6a7a]">▣ mcp/broker</span><span class="text-[#ffb020]">DISCONNECTED</span></div>
+          <div class="text-[#5a6a7a] mt-1">pending reconnect...</div>
+          <div class="text-[#3a4a5a] text-[9px]">HCP:LITANY_WIRE</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- [4] REAL-TIME METRICS -->
+    <section class="border border-[#1a2a3a] rounded flex flex-col overflow-hidden">
+      <div class="bg-[#0c141c] px-3 py-2 border-b border-[#1a2a3a] text-[10px] tracking-[.1em] text-[#4060a0]">⚡ REAL-TIME METRICS</div>
+      <div class="p-3 grid grid-cols-2 gap-2 flex-1 text-[9px]">
+        <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a] flex flex-col"><span class="text-[#5a6a7a]">LATENCY</span><span class="text-[#e0e8f0] text-[16px] font-light" id="latency">2.3</span><span class="text-[#3a4a5a]">ms p50</span></div>
+        <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a] flex flex-col"><span class="text-[#5a6a7a]">THROUGHPUT</span><span class="text-[#e0e8f0] text-[16px] font-light" id="throughput">847</span><span class="text-[#3a4a5a]">ops/s</span></div>
+        <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a] flex flex-col"><span class="text-[#5a6a7a]">CPU</span><span class="text-[#e0e8f0] text-[16px] font-light" id="cpu">12</span><span class="text-[#3a4a5a]">%</span></div>
+        <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a] flex flex-col"><span class="text-[#5a6a7a]">FD</span><span class="text-[#e0e8f0] text-[16px] font-light" id="fds">34</span><span class="text-[#3a4a5a]">open</span></div>
+        <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a] flex flex-col"><span class="text-[#5a6a7a]">LOGS/S</span><span class="text-[#e0e8f0] text-[16px] font-light" id="log-rate">142</span><span class="text-[#3a4a5a]">events</span></div>
+        <div class="bg-[#0c141c] p-1.5 rounded border border-[#1a2a3a] flex flex-col"><span class="text-[#5a6a7a]">CAPS</span><span class="text-[#e0e8f0] text-[16px] font-light">4</span><span class="text-[#3a4a5a]">active</span></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+  // ── Live simulation (replace with actual WebSocket/SSE) ──────────────────
+  const log = document.getElementById('log-panel');
+  const arenaBlocks = document.getElementById('arena-blocks');
+  
+  // Generate 32 arena blocks (each = 2MB)
+  for(let i=0;i<32;i++){
+    const b=document.createElement('div');
+    b.className='block';
+    b.style.background=i<6?'#3060ff40':i<8?'#3a4a5a':'#1a2a3a';
+    arenaBlocks.appendChild(b);
+  }
+
+  let seq=4;
+  const kinds=['agent.init','capability.grant','synapse.connect','model.invoke','ebpf.load','eventd.append','sentinel.check','memory.alloc','gossip.hello','gossip.ack'];
+  const statuses=['info','info','info','success','success','info','success','info','info','success'];
+  
+  setInterval(()=>{
+    seq++;
+    const idx=seq%kinds.length;
+    const line=document.createElement('div');
+    line.className='log-line '+statuses[idx];
+    line.innerHTML='<span class="text-[#3a4a5a]">'+String(seq).padStart(4,'0')+'</span> <span class="text-[#4060a0]">'+kinds[idx]+'</span> <span class="text-[#5a6a7a]">'+['peer connected','256B written','grant accepted','model response 2048t','loaded at /sys/fs/bpf/','appended seq='+seq,'trust=1.000','arena[3] ← 128B','peer=genesis','delta=2 caps'][idx]+'</span>';
+    log.appendChild(line);
+    if(log.children.length>200) log.removeChild(log.firstChild);
+    log.scrollTop=log.scrollHeight;
+    
+    // Jitter metrics
+    document.getElementById('latency').textContent=(1.8+Math.random()*1.5).toFixed(1);
+    document.getElementById('throughput').textContent=Math.floor(700+Math.random()*300);
+    document.getElementById('cpu').textContent=Math.floor(8+Math.random()*16);
+    document.getElementById('fds').textContent=Math.floor(28+Math.random()*15);
+    document.getElementById('log-rate').textContent=Math.floor(100+Math.random()*80);
+    document.getElementById('syscalls').textContent=Math.floor(400+Math.random()*200);
+    document.getElementById('net-tx').textContent=(Math.random()*10).toFixed(1);
+    
+    // Arena jitter
+    const used=(12.4+Math.sin(seq*0.1)*3).toFixed(1);
+    document.getElementById('arena-used').textContent=used;
+    document.getElementById('arena-free').textContent=(64-parseFloat(used)).toFixed(1);
+    document.getElementById('arena-bar').style.width=(parseFloat(used)/64*100)+'%';
+  },800);
+
+  // Tab filtering
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click',()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active','text-[#e0e8f0]'));
+      t.classList.add('active','text-[#e0e8f0]');
+    });
+  });
+
+  // Uptime counter
+  const start=Date.now();
+  setInterval(()=>{
+    const s=Math.floor((Date.now()-start)/1000);
+    const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+    document.getElementById('uptime').textContent=h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  },1000);
+  </script>
+</body>
+</html>
