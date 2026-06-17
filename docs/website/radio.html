@@ -23,6 +23,13 @@ a{color:#4060a0;text-decoration:none;font-size:10px;position:absolute;top:20px;r
 </head><body>
 <a href="https://constellation.vaked.dev">← constellation</a>
 <div class="header"><h1>Vaked-FM</h1><div class="title">PULSE</div><div class="sub">24/7 ambient soundscape · heartbeat of the truth engine · <span id="status-text" style="color:#20b0ff">INITIALIZING</span></div></div>
+
+<div style="display:flex;gap:48px;margin-top:16px;font-size:10px;color:#5a5a7a">
+<div style="text-align:center"><span style="color:#e0e8f0" id="time-display">--:--:--</span><br>UTC</div>
+<div style="text-align:center"><span style="color:#e0e8f0" id="nodes-display2">5</span><br>NODES</div>
+<div style="text-align:center"><span style="color:#e0e8f0" id="conv-display">27</span><br>MS CONV</div>
+<div style="text-align:center"><span style="color:#5a5a7a;font-family:monospace;font-size:9px" id="genesis-display">7c242080</span><br>SEAL</div>
+</div>
 <canvas id="scope"></canvas>
 <div class="bar"><div class="bar-fill" id="health-bar" style="width:100%"></div></div>
 <div class="meta"><span id="bpm-display">60 BPM</span> · seal <span id="seal-status">holds</span> · trust <span id="trust-display">1.000</span> · nodes <span id="nodes-display">5</span></div>
@@ -162,10 +169,22 @@ async function fetchTelemetry(){
     document.getElementById('bpm-display').textContent=Math.round(bpm)+' BPM';
     document.getElementById('trust-display').textContent=trust.toFixed(3);
     document.getElementById('nodes-display').textContent=d.nodes||5;
+    document.getElementById('nodes-display2').textContent=d.nodes||5;
+    document.getElementById('conv-display').textContent=Math.round(d.convergence_ms||27);
+    document.getElementById('genesis-display').textContent='7c242080';
     document.getElementById('health-bar').style.width=(trust*100)+'%';
     updateTelemetry(d);
   }catch(e){}
 }
+// ── Clock ──────────────────────────────────────────────────────────────
+function updateClock(){
+  const d=new Date();
+  document.getElementById('time-display').textContent=
+    d.getUTCHours().toString().padStart(2,'0')+':'+
+    d.getUTCMinutes().toString().padStart(2,'0')+':'+
+    d.getUTCSeconds().toString().padStart(2,'0');
+}
+setInterval(updateClock,1000);updateClock();
 
 // ── Audio toggle ────────────────────────────────────────────────────────
 function toggleAudio(){
