@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""qc — Quick Command: write once, run anywhere. No quoting wars.
+
+Syntax in the target file:
+    #> @
+    ...Python code...       → runs on dev-cx53
+
+    #> @@
+    ...Python code...       → runs on dev-cx53 with sudo
+
+    #> @bench
+    ...Python code...       → runs on bench-node (root@178.105.245.135)
+
+    #> @us-west
+    ...Python code...       → runs on us-west (root@5.78.122.125)
+
+    #> @sin
+    ...Python code...       → runs on Singapore (root@5.223.79.65)
+
+    #> @local
+    ...Shell code...        → runs locally (bash)
+
+    #> ROW
+    ...text...              → appends to Oculus ledger (via dev-cx53 sudo)
+
+Usage:
+    qc tools/qc_scripts/ledger_note.py
+    qc tools/qc_scripts/gateway_restart.py
+    qc tools/qc_scripts/mesh_status.py
+
+The only escape you'll ever need is the one from this tool.
+"""
+import sys, os, subprocess, json, tempfile, time
+
+HOSTS = {
+    "@":     "dev-cx53",       # main genesis node
+    "@@":    "dev-cx53:sudo",  # with sudo
+    "@bench": "root@178.105.245.135",
+    "@usw":   "root@5.78.122.125",
+    "@sin":   "root@5.223.79.65",
+    "@nbg":   "root@167.233.148.20",
+    "@local": "localhost",
+    "ROW":   "dev-cx53:sudo:ledger",  # special: appends to Oculus ledger
+}
+
+
+def run(target: str, script: str):
+    """Execute a script on the specified target."""
+    if target == "localhost":
+        # Run locally as bash
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, end="")
+        return result.returncode
+
+    if target.startswith("dev-cx53"):
+        ssh_host = "dev-cx53"
+        # Write to temp file, scp, execute
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, dir="/tmp") as f:
+            f.write(script)
+            tmp_path = f.name
+
+        try:
+            remote_path = f"/tmp/qc_{os.path.basename(tmp_path)}"
+            subprocess.run(["scp", tmp_path, f"{ssh_host}:{remote_path}"],
+                         capture_output=True, check=True)
+
+            sudo = ":sudo" in target
+            cmd = ["ssh", ssh_host]
+            if sudo:
+                cmd.extend(["sudo", "python3", remote_path])
+            else:
+                cmd.extend(["python3", remote_path])
+
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            print(result.stdout, end="")
+            if result.stderr:
+                print(result.stderr, file=sys.stderr, end="")
+
+            # Cleanup remote file
+            subprocess.run(["ssh", ssh_host, "rm", "-f", remote_path],
+                         capture_output=True)
+            return result.returncode
+        finally:
+            os.unlink(tmp_path)
+
+    # Generic SSH host
+    cmd = ["ssh", target, "python3", "-c", script] if "@" in target else ["bash"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, file=sys.stderr, end="")
+    return result.returncode
+
+
+def run_ledger(script: str):
+    """Append to Oculus ledger — specialized path."""
+    # Build a proper Python script that appends to ledger
+    full_script = f'''"""Auto-generated ledger append."""
+import json, time, os, hashlib
+
+# User payload from the ROW block
+PAYLOAD = {script}
+
+p = "/var/lib/private/meta-ralphd/oculus.jsonl"
+prev = "0" * 64
+seq = -1
+if os.path.isfile(p):
+    with open(p) as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                e = json.loads(line)
+                seq = e.get("seq", -1)
+                prev = e.get("hash", "0" * 64)
+            except:
+                pass
+
+seq += 1
+pb = json.dumps(PAYLOAD, sort_keys=True, separators=(",", ":")).encode()
+h = hashlib.sha256(prev.encode() + pb).hexdigest()
+e = {{"seq": seq, "prev": prev, "payload": PAYLOAD, "hash": h}}
+
+with open(p, "ab") as f:
+    f.write(json.dumps(e, sort_keys=True).encode() + b"\\n")
+    f.flush()
+    os.fsync(f.fileno())
+
+print(f"ROW seq={{seq}}  hash={{h[:16]}}")
+'''
+
+    # Write, scp, sudo run
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, dir="/tmp") as f:
+        f.write(full_script)
+        tmp_path = f.name
+
+    try:
+        remote_path = f"/tmp/qc_row_{os.path.basename(tmp_path)}"
+        subprocess.run(["scp", tmp_path, f"dev-cx53:{remote_path}"],
+                     capture_output=True, check=True)
+        result = subprocess.run(
+            ["ssh", "dev-cx53", "sudo", "python3", remote_path],
+            capture_output=True, text=True)
+        print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, end="")
+        subprocess.run(["ssh", "dev-cx53", "rm", "-f", remote_path],
+                     capture_output=True)
+        return result.returncode
+    finally:
+        os.unlink(tmp_path)
+
+
+def parse_and_run(filepath: str):
+    """Parse a qc script file and run each block."""
+    with open(filepath) as f:
+        content = f.read()
+
+    blocks = []
+    current_target = None
+    current_code = []
+
+    for line in content.split("\n"):
+        if line.startswith("#> "):
+            if current_target and current_code:
+                blocks.append((current_target, "\n".join(current_code)))
+            current_target = line[3:].strip()
+            current_code = []
+        else:
+            if current_target:
+                current_code.append(line)
+
+    if current_target and current_code:
+        blocks.append((current_target, "\n".join(current_code)))
+
+    if not blocks:
+        print(f"qc: no '#> @' blocks found in {filepath}")
+        print("  Add '#> @' for dev-cx53, '#> @@' for sudo, '#> ROW' for ledger")
+        return 1
+
+    for target, code in blocks:
+        print(f"\n{'='*40}\n[{target}] → {HOSTS.get(target, target)}")
+        if target == "ROW":
+            ret = run_ledger(code.strip())
+        else:
+            host = HOSTS.get(target, target)
+            ret = run(host, code.strip())
+        if ret != 0:
+            print(f"FAILED (exit {ret})")
+            return ret
+
+    return 0
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        print("Available hosts:")
+        for k, v in HOSTS.items():
+            print(f"  {k:8s} → {v}")
+        return 0
+
+    return parse_and_run(sys.argv[1])
+
+
+if __name__ == "__main__":
+    sys.exit(main())
