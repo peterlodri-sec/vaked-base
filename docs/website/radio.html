@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked-FM — Pulse Edition</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#08081a;color:#c8d0e0;font-family:'Inter','SF Pro',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:40px;padding:40px}
+.header{text-align:center}
+.header h1{font-size:11px;color:#4060a0;letter-spacing:4px;text-transform:uppercase;margin-bottom:8px}
+.header .title{font-size:32px;font-weight:200;color:#e0e8f0;letter-spacing:8px;text-transform:uppercase}
+.header .sub{font-size:10px;color:#5a5a7a;margin-top:4px}
+#scope{width:100%;max-width:600px;height:120px;border:1px solid rgba(48,96,255,0.15);border-radius:6px;background:#0c0c20;position:relative;overflow:hidden}
+#scope canvas{width:100%;height:100%}
+.meta{text-align:center;font-size:10px;color:#5a5a7a}
+.meta span{color:#90a0c0}
+.bar{width:100%;max-width:600px;height:2px;background:#1a2a3a;border-radius:1px;overflow:hidden;margin-top:-20px}
+.bar-fill{height:100%;background:linear-gradient(90deg,#3060ff,#8060c0);transition:width .5s}
+a{color:#4060a0;text-decoration:none;font-size:10px;position:absolute;top:20px;right:20px}
+</style>
+</head><body>
+<a href="https://constellation.vaked.dev">← constellation</a>
+<div class="header">
+<h1>Vaked-FM</h1>
+<div class="title">Pulse Edition</div>
+<div class="sub">24/7 ambient soundscape · heartbeat of the truth engine · <span id="status-text">synced</span></div>
+</div>
+<canvas id="scope"></canvas>
+<div class="bar"><div class="bar-fill" id="health-bar" style="width:100%"></div></div>
+<div class="meta">
+<span id="bpm-display">60 BPM</span> · genesis seal <span id="seal-status">holds</span> · trust <span id="trust-display">1.000</span> · nodes <span id="nodes-display">5</span>
+</div>
+<script>
+const canvas=document.getElementById('scope');
+const ctx=canvas.getContext('2d');
+canvas.width=600;canvas.height=120;
+
+let phase=0,bpm=60,pulseWidth=1.0;
+function draw(){
+  ctx.fillStyle='#08081a';ctx.fillRect(0,0,canvas.width,canvas.height);
+  // Sweep line
+  const sweep=(phase%600);
+  ctx.strokeStyle='rgba(48,96,255,0.08)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(sweep,0);ctx.lineTo(sweep,canvas.height);ctx.stroke();
+  // Heartbeat pulse
+  const center=canvas.height/2;
+  const beatPhase=(phase%(60000/bpm))*(bpm/60000);
+  const pulse=Math.sin(beatPhase*Math.PI);
+  const amp=Math.abs(pulse)*60*pulseWidth;
+  ctx.strokeStyle=pulse>0?'rgba(48,96,255,'+(0.3+amp/60*0.5)+')':'rgba(128,96,192,'+(0.2+amp/60*0.3)+')';
+  ctx.lineWidth=2+amp/30;
+  ctx.beginPath();ctx.moveTo(0,center);ctx.lineTo(canvas.width,center);
+  // Wave
+  for(let x=0;x<canvas.width;x+=2){
+    const y=center+Math.sin((x+phase)*0.03)*amp*0.5;
+    ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  // Sub-bass wave
+  ctx.strokeStyle='rgba(32,64,128,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let x=0;x<canvas.width;x+=4){
+    const y=center+Math.sin((x-phase)*0.08)*20;
+    ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  phase+=2;
+  requestAnimationFrame(draw);
+}
+
+// Fetch live telemetry
+async function fetchTelemetry(){
+  try{
+    const r=await fetch('mesh.json');
+    const d=await r.json();
+    document.getElementById('bpm-display').textContent=Math.round(d.convergence_ms>300?60+d.convergence_ms/10:60)+' BPM';
+    document.getElementById('trust-display').textContent=(d.trust_index||1).toFixed(3);
+    document.getElementById('nodes-display').textContent=d.nodes||5;
+    document.getElementById('status-text').textContent=d.status||'synced';
+    document.getElementById('seal-status').textContent=d.drift_detected?'drift':'holds';
+    document.getElementById('health-bar').style.width=((d.trust_index||1)*100)+'%';
+    if(d.status==='divergence')bpm=90;pulseWidth=0.6;
+    else if(d.drift_detected)bpm=140;pulseWidth=0.3;
+    else{bpm=60+Math.min(d.convergence_ms||0,500)/10;pulseWidth=1.0-(d.convergence_ms||0)/2000;}
+  }catch(e){}
+}
+setInterval(fetchTelemetry,5000);
+draw();
+fetchTelemetry();
+</script>
+</body>
+</html>
