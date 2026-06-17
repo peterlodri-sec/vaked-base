@@ -45,12 +45,17 @@ def scan_ledger():
                 try:
                     e = json.loads(line)
                     kind = e.get("payload", {}).get("kind", "")
+                    payload = e.get("payload", {})
+                    # Include full payload text for broader matching
+                    payload_text = json.dumps(payload)
                     if kind in ("GOVERNANCE_ANSWERS", "GOVERNANCE_BOUND",
-                               "DOMAIN_BINDING", "RALPH_AUDIT"):
+                               "DOMAIN_BINDING", "RALPH_AUDIT", "MESH_COMPLETE",
+                               "SESSION_COMPLETE", "OPTIMIZATIONS_APPLIED"):
                         directives.append({
                             "kind": kind,
                             "seq": e.get("seq"),
                             "hash": e.get("hash", "")[:16],
+                            "text": payload_text,
                         })
                 except:
                     pass
