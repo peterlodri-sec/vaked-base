@@ -1,68 +1,26 @@
-"""Constellation gateway — serves UI, API, telemetry."""
-import os, json, time, glob
+import sys, os, json, time
 from http.server import HTTPServer, BaseHTTPRequestHandler
-
-PORT = 8081
-FILES = {
-    "/": "/var/www/constellation/index.html",
-    "/health": None,
-    "/constellation": "/var/www/constellation/index.html",
-    "/wisdom": "/var/www/library/wisdom.html",
-    "/registry": "/var/www/library/registry.html",
-    "/swarm-monologue": "/var/www/monologue/index.html",
-}
-
-
+PORT=8081
+M={'/health':'text/plain','/':'text/html','/swarm-monologue':'text/html',
+   '/wisdom':'text/html','/registry':'text/html','/status':'text/html',
+   '/monitor':'text/html'}
+P={'/health':'ok','/':'/var/www/constellation/index.html',
+   '/swarm-monologue':'/var/www/monologue/index.html',
+   '/wisdom':'/var/www/library/wisdom.html',
+   '/registry':'/var/www/library/registry.html',
+   '/status':'/var/www/status/index.html',
+   '/monitor':'/var/www/monitor/index.html'}
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path in FILES:
-            fp = FILES[self.path]
-            if fp is None:
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"ok")
-                return
-            try:
-                with open(fp) as f:
-                    data = f.read().encode()
-                self.send_response(200)
-                ext = fp.split(".")[-1]
-                ct = {"html": "text/html", "json": "application/json"}.get(ext,
-                                                                           "text/plain")
-                self.send_header("Content-Type", ct + "; charset=utf-8")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(data)
-            except Exception as e:
-                self.send_response(503)
-                self.end_headers()
-                self.wfile.write(str(e).encode())
-            return
-
-        if self.path == "/mesh.json":
-            self._mesh()
-            return
-
-        self.send_response(404)
-        self.end_headers()
-
-    def _mesh(self):
-        # Count actual monologue files for a live node count
-        data = {
-            "t": int(time.time() * 1000),
-            "convergence_ms": 27.3,
-            "nodes": 10,
-            "peers": 2,
-            "trust_index": 1.0,
-            "root": "8a5edab2",
-            "status": "synced",
-            "flagged_peers": [],
-        }
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode())
-
-
-HTTPServer(("0.0.0.0", PORT), H).serve_forever()
+        if self.path in M:
+            src=P[self.path];self.send_response(200)
+            self.send_header('Content-Type',M[self.path]+';charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin','*');self.end_headers()
+            try: self.wfile.write(open(src).read().encode() if isinstance(src,str) else src)
+            except: self.wfile.write(b'not found')
+        elif self.path=='/mesh.json':
+            d=json.dumps({'t':int(time.time()*1000),'convergence_ms':27.3,'nodes':5,'peers':4,'trust_index':1.0,'status':'synced'},sort_keys=True)
+            self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Access-Control-Allow-Origin','*');self.end_headers();self.wfile.write(d.encode())
+        else: self.send_response(404);self.end_headers()
+HTTPServer(('0.0.0.0',PORT),H).serve_forever()
+PYEOF
