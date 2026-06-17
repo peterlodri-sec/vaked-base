@@ -17,6 +17,7 @@ body{background:#08081a;color:#c8d0e0;font-family:'Inter','SF Pro',sans-serif;di
 .btn{padding:6px 16px;border:1px solid rgba(48,96,255,0.2);border-radius:4px;background:rgba(48,96,255,0.06);color:#4060a0;font-size:9px;letter-spacing:1px;cursor:pointer;transition:.3s}
 .btn:hover{border-color:#4060a0;color:#80b0ff}
 .btn.active{border-color:#20c060;color:#20c060;background:rgba(0,200,100,0.06)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 a{color:#4060a0;text-decoration:none;font-size:10px;position:absolute;top:20px;right:20px}
 </style>
 </head><body>
@@ -25,7 +26,10 @@ a{color:#4060a0;text-decoration:none;font-size:10px;position:absolute;top:20px;r
 <canvas id="scope"></canvas>
 <div class="bar"><div class="bar-fill" id="health-bar" style="width:100%"></div></div>
 <div class="meta"><span id="bpm-display">60 BPM</span> · seal <span id="seal-status">holds</span> · trust <span id="trust-display">1.000</span> · nodes <span id="nodes-display">5</span></div>
-<div class="controls">
+<div id="start-prompt" style="padding:12px 24px;border:1px solid rgba(48,96,255,0.3);border-radius:6px;background:rgba(48,96,255,0.08);color:#80b0ff;font-size:11px;letter-spacing:1px;cursor:pointer;text-align:center;animation:pulse 2s infinite" onclick="startAudio()">
+⬡ CLICK ANYWHERE TO START AUDIO
+</div>
+<div class="controls" style="display:none" id="controls-row">
 <button class="btn active" id="audio-toggle" onclick="toggleAudio()">◉ STREAMING</button>
 <button class="btn" onclick="window.open('https://constellation.vaked.dev/mesh.json')">◇ JSON</button>
 </div>
@@ -146,8 +150,20 @@ fetchTelemetry();setInterval(fetchTelemetry,5000);
 drawScope();
 setInterval(()=>{if(audioCtx&&audioCtx.state==='running')heartbeatPulse();},50);
 
-// Click to start audio
-document.body.addEventListener('click',()=>{if(!audioCtx)initAudio();}, {once:true});
+// Auto-start with user gesture prompt
+function startAudio(){
+  if(!audioCtx)initAudio();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  document.getElementById('audio-toggle').classList.add('active');
+  document.getElementById('audio-toggle').textContent='◉ STREAMING';
+  document.getElementById('start-prompt').style.display='none';
+  document.getElementById('controls-row').style.display='flex';
+}
+document.body.addEventListener('click',()=>{if(!audioCtx||audioCtx.state==='suspended')startAudio();});
+
+// Try to auto-start when user interacts
+document.addEventListener('keydown',startAudio,{once:true});
+document.addEventListener('touchstart',startAudio,{once:true});
 </script>
 </body>
 </html>
