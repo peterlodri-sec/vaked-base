@@ -21,6 +21,23 @@ import { z } from "zod";
 import { tool } from "@openrouter/agent";
 import type { Tool } from "@openrouter/agent";
 
+// Local doc cache — pre-fetched at build time by tools/ctx7cache/sync.ts
+// Ship with the package. Zero runtime API calls when populated.
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+function loadLocalCache(): any {
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const cachePath = join(__dirname, "ctx7cache.json");
+    if (existsSync(cachePath)) {
+      return JSON.parse(readFileSync(cachePath, "utf-8"));
+    }
+  } catch {}
+  return null;
+}
+
 // ── Configuration ───────────────────────────────────────────────────────────
 
 const BASE_URL = "https://context7.com/api/v2";
@@ -202,6 +219,19 @@ export async function resolveLibraryId(libraryName: string): Promise<Library | n
 
 export async function queryDocs(libraryName: string, query: string): Promise<ContextResponse> {
   const ck = libraryName + "::" + query;
+
+  // 1. Local cache (pre-fetched, zero API calls, always works)
+  const localCache = loadLocalCache();
+  if (localCache && Array.isArray(localCache)) {
+    const entries = localCache as Array<any>;
+    const match = entries.find((e: any) => e.library === libraryName && e.query === query);
+    if (match) {
+      console.error("[ctx7:local] " + libraryName + "/" + query.slice(0, 40));
+      return { codeSnippets: [], infoSnippets: match.snippets.map((s: any) => ({ content: s.code ?? s.content ?? "" })) } as ContextResponse;
+    }
+  }
+
+  // 2. Runtime cache (LRU, same-session dedup)
   const cached = ctx7cacheGet(ck);
   if (cached) { console.error("[ctx7:cache] " + libraryName); return cached; }
   if (_ctx7limited) throw new Context7Error("Rate limited (500/mo free tier). Cached exhausted.", 429);
