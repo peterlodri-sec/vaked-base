@@ -1,4 +1,3 @@
-#!/bin/sh
 # Blogger — CI fleet agent for vaked.dev
 # Triggered on push to main when blog/ changes
 # GENESIS_SEAL: 7c242080

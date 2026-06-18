@@ -2,9 +2,7 @@ const std = @import("std");
 const linux = std.os.linux;
 const REDACTED = "[REDACTED]";
 const PII = [_][]const u8{ "SECRET_KEY","CONFIDENTIAL","API_KEY","PASSWORD","TOKEN","CREDENTIAL","sk-or-v1-","sk-lf-","ctx7sk-","pk-lf-","gho_","ssh-","-----BEGIN","-----END" };
-
 fn isPII(line: []const u8) bool { for (PII) |p| { if (std.mem.indexOf(u8,line,p)!=null) return true; } return false; }
-
 fn scrub(a: std.mem.Allocator, input: []const u8) ![]u8 {
     var out: std.ArrayListUnmanaged(u8) = .{.items=&.{},.capacity=0};
     errdefer out.deinit(a);
@@ -15,7 +13,6 @@ fn scrub(a: std.mem.Allocator, input: []const u8) ![]u8 {
     }
     return out.toOwnedSlice(a);
 }
-
 pub fn main() !void {
     var ar = std.heap.ArenaAllocator.init(std.heap.page_allocator); defer ar.deinit();
     const a = ar.allocator();

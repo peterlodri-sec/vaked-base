@@ -49,3 +49,31 @@
 | Standard | 8MB | 1.1ms | 12% |
 
 GENESIS_SEAL: 7c242080
+
+## Final Round (new files)
+
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| cube.ts | 114 | 88 | -22.8% |
+| memory.ts | 157 | 127 | -19.1% |
+| vault.zig | 111 | 78 | -29.7% |
+| context7.zig | 64 | 61 | -4.7% |
+| vastai.py | 86 | 73 | -15.1% |
+| quickjs_embed.zig | 85 | 58 | -31.8% |
+| seccomp.zig | 43 | 20 | -53.5% |
+| scrubber.zig | 27 | 23 | -14.8% |
+| blogger.sh | 15 | 13 | -13.3% |
+| blogger.yml | 20 | 19 | -5.0% |
+| **Total** | **722** | **560** | **-22.4%** |
+
+## Session Totals
+
+| Metric | Value |
+|--------|-------|
+| Total files compacted | 47 |
+| Total lines removed | ~10,000 |
+| Overall compression | ~22% |
+| DeepSeek API calls | 4,645 |
+| DeepSeek tokens | 1.84 billion |
+| DeepSeek cost | ~$422 |
+| Claude equivalent | ~$27,500 (65x more) |

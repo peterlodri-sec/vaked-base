@@ -28,8 +28,6 @@ fn fetchJson(io: std.Io,comptime T: type, allocator: std.mem.Allocator, url: []c
     return std.json.parseFromSlice(T, allocator, body.items, .{ .ignore_unknown_fields = true }) catch
         return Context7Error.ParseError;
 }
-
-/// Fetch with 5-second timeout. Returns error.Timeout if Context7 hangs.
 fn fetchWithTimeout(comptime T: type, io: std.Io, allocator: std.mem.Allocator, url: []const u8, api_key: []const u8) !T {
     const start = std.time.milliTimestamp();
     const result = fetchJson(io, T, allocator, url, api_key);
@@ -39,7 +37,6 @@ fn fetchWithTimeout(comptime T: type, io: std.Io, allocator: std.mem.Allocator, 
     }
     return result;
 }
-
 pub fn searchLibrary(io: std.Io,allocator: std.mem.Allocator, library_name: []const u8, query: []const u8) !models.SearchResponse {
     const api_key = try getApiKey();
         const endpoint = if (getenv("CONTEXT7_ENDPOINT")) |ep| std.mem.span(ep) else "https://context7.com/api/v2";

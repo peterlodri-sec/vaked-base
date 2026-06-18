@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
 """ralph-vastai — GPU cloud client for the ralph decision loop.
   1:1 API with @vaked/openrouter-ts/src/vastai.ts
   Python stdlib only. Guarded — no-op when VAST_API_KEY is unset.
   GENESIS_SEAL: 7c242080
 """
 import json, os, urllib.request, urllib.parse, ssl, time
-
 BASE = "https://console.vast.ai/api/v0"
 API_KEY = os.environ.get("VAST_API_KEY", "")
-
 def _api(method: str, path: str, body: dict | None = None) -> dict:
     if not API_KEY:
         return {"error": "VAST_API_KEY not set", "offers": []}
@@ -21,16 +18,13 @@ def _api(method: str, path: str, body: dict | None = None) -> dict:
             return json.loads(resp.read())
     except Exception as e:
         return {"error": str(e), "offers": [], "instances": []}
-
 def search_offers(query: str, limit: int = 5) -> list[dict]:
     q = urllib.parse.quote(f"{query} verified=true")
     result = _api("GET", f"/bundles/?q={q}&limit={limit}")
     return result.get("offers", [])
-
 def show_instances() -> list[dict]:
     result = _api("GET", "/instances/")
     return result.get("instances", [])
-
 def create_instance(offer_id: int, image: str = "pytorch/pytorch", disk: int = 32) -> dict:
     return _api("POST", "/asks/", {
         "client_id": "ralph-vaked",
@@ -38,23 +32,18 @@ def create_instance(offer_id: int, image: str = "pytorch/pytorch", disk: int = 3
         "disk": disk,
         "ask_contract_id": offer_id,
     })
-
 def destroy_instance(instance_id: int) -> dict:
     return _api("DELETE", f"/instances/{instance_id}/")
-
 def start_instance(instance_id: int) -> dict:
     return _api("PUT", f"/instances/{instance_id}/", {"actual_status": "running"})
-
 def stop_instance(instance_id: int) -> dict:
     return _api("PUT", f"/instances/{instance_id}/", {"actual_status": "stopped"})
-
 def cheapest_gpu(gpu_name: str = "RTX_4090", min_gpus: int = 1) -> dict | None:
     """Ralph-specific: find the cheapest GPU offer for a given GPU name."""
     offers = search_offers(f"gpu_name={gpu_name} num_gpus>={min_gpus}")
     if not offers:
         return None
     return min(offers, key=lambda o: o.get("dph_total", float("inf")))
-
 def launch_cheapest(gpu_name: str = "RTX_4090", image: str = "pytorch/pytorch", disk: int = 32) -> dict:
     """Ralph-specific: find and launch the cheapest GPU in one call."""
     offer = cheapest_gpu(gpu_name)
@@ -63,7 +52,6 @@ def launch_cheapest(gpu_name: str = "RTX_4090", image: str = "pytorch/pytorch", 
     result = create_instance(offer["id"], image, disk)
     result["offer"] = {"gpu_name": offer.get("gpu_name"), "dph_total": offer.get("dph_total")}
     return result
-
 # ── CLI for testing ─────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import sys

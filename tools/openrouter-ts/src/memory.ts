@@ -1,22 +1,14 @@
 "use strict";
-
 /**
  * Memory Plane — Vaked-native, event-sourced, deterministic agent memory.
  * Backed by agent_memoryd. Store → recall → forget → verify.
  *
  * GENESIS_SEAL: 7c242080
  */
-
 import { tool } from "@openrouter/agent";
 import type { Tool } from "@openrouter/agent";
 import { z } from "zod";
-
 const MEM_URL = process.env["MEMORYD_URL"] ?? "http://localhost:8420";
-
-// ═══════════════════════════════════════════════════════════════
-// Types
-// ═══════════════════════════════════════════════════════════════
-
 interface MemoryEntry {
   key: string;
   content: string;
@@ -25,11 +17,6 @@ interface MemoryEntry {
   hash: string;
   timestamp: string;
 }
-
-// ═══════════════════════════════════════════════════════════════
-// API client
-// ═══════════════════════════════════════════════════════════════
-
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${MEM_URL}${path}`, {
     method,
@@ -39,11 +26,9 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
   if (!res.ok) throw new Error(`Memoryd HTTP ${res.status}`);
   return res.json() as T;
 }
-
 export async function storeMemory(key: string, content: string, agent = "vaked-agent", scope = "default"): Promise<MemoryEntry> {
   return api("POST", "/store", { key, content, agent, scope });
 }
-
 export async function recallMemories(agent?: string, scope?: string, keyPrefix?: string): Promise<MemoryEntry[]> {
   const params = new URLSearchParams();
   if (agent) params.set("agent", agent);
@@ -51,35 +36,25 @@ export async function recallMemories(agent?: string, scope?: string, keyPrefix?:
   if (keyPrefix) params.set("key-prefix", keyPrefix);
   return api("GET", `/recall?${params.toString()}`);
 }
-
 export async function forgetMemory(hash: string, agent: string): Promise<void> {
   await api("POST", "/forget", { hash, agent });
 }
-
 export async function verifyMemory(): Promise<{ intact: boolean; entries: number }> {
   return api("GET", "/verify");
 }
-
-// ═══════════════════════════════════════════════════════════════
-// Agent tools
-// ═══════════════════════════════════════════════════════════════
-
 const storeInput = z.object({
   key: z.string().describe("Memory key — unique identifier"),
   content: z.string().describe("Content to store"),
   scope: z.string().optional().default("default"),
 });
-
 const recallInput = z.object({
   agent: z.string().optional().describe("Filter by agent name"),
   scope: z.string().optional().describe("Filter by scope"),
   keyPrefix: z.string().optional().describe("Filter by key prefix"),
 });
-
 const forgetInput = z.object({
   hash: z.string().describe("Content hash from recall results"),
 });
-
 export function createMemoryTools(): Tool[] {
   return [
     tool({
@@ -95,7 +70,6 @@ export function createMemoryTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "memory_recall",
       description: "Recall facts from the Vaked memory plane. Query by agent, scope, or key prefix.",
@@ -110,7 +84,6 @@ export function createMemoryTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "memory_forget",
       description: "Remove a fact from the Vaked memory plane by content hash. Audit-logged.",
@@ -124,7 +97,6 @@ export function createMemoryTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "memory_verify",
       description: "Verify the memory plane event chain integrity.",
@@ -140,7 +112,6 @@ export function createMemoryTools(): Tool[] {
     }),
   ];
 }
-
 export function memorySystemPrompt(): string {
   return [
     "## Vaked Memory Plane",
