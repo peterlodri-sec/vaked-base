@@ -272,3 +272,25 @@ bun run dist/cli.js "prompt"
 # Deno
 deno run --allow-env --allow-net --allow-read dist/cli.js "prompt"
 ```
+
+## Tuning
+
+| Resource | Purpose |
+|----------|---------|
+| [RUNTIME.md](./RUNTIME.md) | Full runtime tuning — Node, Bun, Deno |
+| [MIMALLOC.md](./MIMALLOC.md) | Mimalloc allocator tuning (built into Bun) |
+| [.env.example](./.env.example) | All supported environment variables |
+| [.node-options](./.node-options) | Default Node.js V8 flags |
+| [bunfig.toml](./bunfig.toml) | Bun configuration |
+| [deno.json](./deno.json) | Deno configuration |
+
+### Quick benchmarks
+
+```bash
+npm run bench              # Node.js — tuned V8
+npm run bench:bun           # Bun — mimalloc built-in
+npm run bench:deno          # Deno — jemalloc
+npm run bench:heap          # Node.js + heap profiling
+npm run profile:cpu         # CPU profile
+npm run profile:heap        # Heap profile
+```

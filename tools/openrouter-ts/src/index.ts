@@ -54,7 +54,7 @@ export {
 // ── Client factory ──────────────────────────────────────────────────────────
 
 function getClient(): OpenRouter {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY not set");
   }
@@ -371,8 +371,8 @@ export interface VakedAgentOptions {
  */
 export function createVakedAgent(options: VakedAgentOptions = {}) {
   const {
-    apiKey = process.env.OPENROUTER_API_KEY,
-    defaultModel = MODELS.deepseek?.id ?? "deepseek/deepseek-v4-pro",
+    apiKey = process.env["OPENROUTER_API_KEY"],
+    defaultModel = MODELS["deepseek"]?.id ?? "deepseek/deepseek-v4-pro",
     context7 = true,
     extraTools = [],
     defaultStopWhen,
@@ -465,7 +465,7 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      */
     async code(prompt: string, maxTokens?: number): Promise<string> {
       const result = client.callModel({
-        model: MODELS.claude?.id ?? "anthropic/claude-opus-4-8-fast",
+        model: MODELS["claude"]?.id ?? "anthropic/claude-opus-4-8-fast",
         input: [{ role: "user", content: prompt }],
         instructions: `${baseInstructions}\n\nZig 0.16 systems programmer. Write production code. No explanations, only code.`,
         tools: allTools.length > 0 ? allTools : undefined,
@@ -481,7 +481,7 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      */
     async review(prompt: string, maxTokens?: number): Promise<string> {
       const result = client.callModel({
-        model: MODELS.claude?.id ?? "anthropic/claude-opus-4-8-fast",
+        model: MODELS["claude"]?.id ?? "anthropic/claude-opus-4-8-fast",
         input: [{ role: "user", content: prompt }],
         instructions: `${baseInstructions}\n\nCritical reviewer. 3-5 specific suggestions. Be direct.`,
         tools: allTools.length > 0 ? allTools : undefined,

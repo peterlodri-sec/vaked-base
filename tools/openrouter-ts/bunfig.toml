@@ -1,10 +1,30 @@
-# Bun runtime config for @vaked/openrouter-ts
-# Bun uses mimalloc as its default allocator — no config needed.
+# ═══════════════════════════════════════════════════════════════
+# Bun Runtime Config for @vaked/openrouter-ts
+# Bun uses mimalloc as its default allocator — no separate config.
+# ═══════════════════════════════════════════════════════════════
 
 [install]
-# Use exact versions
 exact = true
+# Use Bun's native lockfile (faster than npm)
+lockfile = "bun.lockb"
+# Production install (no dev deps) by default
+production = false
 
 [run]
-# Smol mode: optimize for memory over speed (good for long-running agents)
+# Smol mode: optimize for memory (recommended for long agents)
 smol = false
+# Preload modules for faster startup (list of modules to preload)
+# preload = ["./dist/index.js"]
+# Silent: suppress Bun banner
+silent = true
+
+[test]
+# Test runner: Bun's built-in (faster than Jest/Vitest)
+preload = []
+
+# ── mimalloc env vars (honored by Bun's built-in mimalloc) ──
+# Set via environment, not bunfig:
+#   MIMALLOC_PAGE_RESET=1         # Return dirty pages to OS
+#   MIMALLOC_LARGE_OS_PAGES=1     # Use 2MB hugepages
+#   MIMALLOC_RESERVE_HUGE_OS_PAGES=4
+#   MIMALLOC_PURGE_DELAY=10000    # 10s delay before purging

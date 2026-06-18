@@ -35,7 +35,7 @@ export interface DeliberationResult {
 }
 
 function getClient(): OpenRouter {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) throw new Error("OPENROUTER_API_KEY not set");
   return new OpenRouter({ apiKey });
 }

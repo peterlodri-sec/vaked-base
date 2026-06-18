@@ -56,29 +56,30 @@ function parseArgs(args: string[]): {
   let i = 2;
   while (i < args.length) {
     const arg = args[i];
+    if (arg === undefined) break;
     switch (arg) {
       case "--model":
       case "-m": {
         i++;
-        if (i < args.length) model = args[i];
+        if (i < args.length) { const v = args[i]; if (v !== undefined) model = v; }
         break;
       }
       case "--system":
       case "-s": {
         i++;
-        if (i < args.length) system = args[i];
+        if (i < args.length) { const v = args[i]; if (v !== undefined) system = v; }
         break;
       }
       case "--file":
       case "-f": {
         i++;
-        if (i < args.length) file = args[i];
+        if (i < args.length) { const v = args[i]; if (v !== undefined) file = v; }
         break;
       }
       case "--max-tokens":
       case "-t": {
         i++;
-        if (i < args.length) maxTokens = parseInt(args[i], 10);
+        if (i < args.length) { const v = args[i]; if (v !== undefined) maxTokens = parseInt(v, 10); }
         break;
       }
       case "--stream":
@@ -87,7 +88,7 @@ function parseArgs(args: string[]): {
       case "--budget":
       case "-b": {
         i++;
-        if (i < args.length) budgetCap = parseFloat(args[i]);
+        if (i < args.length) { const v = args[i]; if (v !== undefined) budgetCap = parseFloat(v); }
         break;
       }
       case "--list":
@@ -166,7 +167,7 @@ async function main(): Promise<void> {
   }
 
   const entry = resolveModel(args.model);
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
     console.error("Error: OPENROUTER_API_KEY not set");
     process.exit(1);

@@ -26,7 +26,7 @@ import type { Tool } from "@openrouter/agent";
 const BASE_URL = "https://context7.com/api/v2";
 
 function getApiKey(): string {
-  const key = process.env.CONTEXT7_API_KEY;
+  const key = process.env["CONTEXT7_API_KEY"];
   if (!key) throw new Error("CONTEXT7_API_KEY not set. Get one at https://context7.com/dashboard");
   return key;
 }
@@ -194,7 +194,7 @@ export async function resolveLibraryId(libraryName: string): Promise<Library | n
   try {
     const result = await searchLibrary(libraryName, "documentation");
     if (result.results.length === 0) return null;
-    return result.results[0];
+    return result.results[0] ?? null;
   } catch {
     return null;
   }
