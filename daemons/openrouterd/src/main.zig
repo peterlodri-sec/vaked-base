@@ -156,6 +156,64 @@ fn verifyBinary(a: std.mem.Allocator) !void {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════
+// Big Memory Arena — hugepage-backed (Linux) / large pre-alloc (macOS)
+// ═══════════════════════════════════════════════════════════════════
+
+const ARENA_SIZE = 256 * 1024 * 1024; // 256MB
+
+const BigArena = struct {
+    buffer: []align(std.mem.page_size) u8,
+    arena: std.heap.ArenaAllocator,
+
+    fn init() !BigArena {
+        const page_size = std.mem.page_size;
+        const hugepage_size = if (@import("builtin").os.tag == .linux) 2 * 1024 * 1024 else page_size;
+        const aligned_size = std.mem.alignForward(usize, ARENA_SIZE, hugepage_size);
+
+        // Try hugepages on Linux
+        const buffer = if (@import("builtin").os.tag == .linux) blk: {
+            const ptr = std.os.linux.mmap(
+                null, aligned_size,
+                std.os.linux.PROT.READ | std.os.linux.PROT.WRITE,
+                std.os.linux.MAP.PRIVATE | std.os.linux.MAP.ANONYMOUS | std.os.linux.MAP.HUGETLB | std.os.linux.MAP.POPULATE,
+                -1, 0,
+            );
+            if (ptr == std.os.linux.MAP.FAILED) {
+                std.log.warn("hugepages unavailable — falling back to standard pages", .{});
+                break :blk try std.heap.page_allocator.alignedAlloc(u8, hugepage_size, aligned_size);
+            }
+            std.log.info("big arena: {d}MB hugepages (2MB pages)", .{aligned_size / 1024 / 1024});
+            break :blk @as([*]align(std.mem.page_size) u8, @ptrCast(@alignCast(ptr)))[0..aligned_size];
+        } else blk: {
+            // macOS: pre-allocate large aligned buffer
+            const buf = try std.heap.page_allocator.alignedAlloc(u8, hugepage_size, aligned_size);
+            std.log.info("big arena: {d}MB pre-allocated", .{aligned_size / 1024 / 1024});
+            break :blk buf;
+        };
+
+        return BigArena{
+            .buffer = buffer,
+            .arena = std.heap.ArenaAllocator.init(std.heap.page_allocator),
+        };
+    }
+
+    fn allocator(self: *BigArena) std.mem.Allocator {
+        return self.arena.allocator();
+    }
+
+    fn deinit(self: *BigArena) void {
+        self.arena.deinit();
+        if (@import("builtin").os.tag == .linux) {
+            _ = std.os.linux.munmap(@ptrCast(self.buffer.ptr), self.buffer.len);
+        } else {
+            std.heap.page_allocator.free(self.buffer);
+        }
+    }
+};
+
+
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const allocator = init.arena.allocator();
