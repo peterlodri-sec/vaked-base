@@ -356,3 +356,99 @@ export function context7SystemPrompt(): string {
     "Cloudflare Workers, Node.js, Python, Go, and 100,000+ more.",
   ].join("\n");
 }
+
+// ── Conductor: Context7 pre-scan injection ──────────────────────────────────
+
+const API_PATTERNS: Array<{ pattern: RegExp; library: string }> = [
+  { pattern: /\b(std\.Build|zig build|zig\s+0\.\d+|@import\("std"\))/i, library: "zig" },
+  { pattern: /\b(nixpkgs|nixos|nix develop|nix build|nix flake|buildRustPackage|mkDerivation)/i, library: "nixpkgs" },
+  { pattern: /\b(tauri|@tauri-apps|tauri\.conf|tauri::)/i, library: "tauri" },
+  { pattern: /\b(useState|useEffect|useCallback|JSX|React\.|react)/i, library: "react" },
+  { pattern: /\b(cloudflare|wrangler|workers|DurableObject|DO\b|R2\b|KV store)/i, library: "cloudflare" },
+  { pattern: /\b(node:fs|node:path|node:http|node\.js|Node\.js)/i, library: "nodejs" },
+  { pattern: /\b(serde|tokio|async fn|cargo build|cargo\.toml)/i, library: "rust" },
+  { pattern: /\b(eBPF|bpf\b|BPF_PROG|bpf_trace|XDP)/i, library: "ebpf" },
+  { pattern: /\b(Monaco|monaco-editor|@monaco-editor)/i, library: "monaco" },
+];
+
+export interface PreScanResult {
+  detected: boolean;
+  libraries: string[];
+  injected: string | null;
+  tokenEstimate: number;
+}
+
+export async function context7PreScan(prompt: string): Promise<PreScanResult> {
+  const detectedLibs: string[] = [];
+
+  for (const { pattern, library } of API_PATTERNS) {
+    if (pattern.test(prompt) && !detectedLibs.includes(library)) {
+      detectedLibs.push(library);
+    }
+  }
+
+  if (detectedLibs.length === 0) {
+    return { detected: false, libraries: [], injected: null, tokenEstimate: 0 };
+  }
+
+  const libs = detectedLibs.slice(0, 3);
+  const injectParts: string[] = [];
+
+  for (const lib of libs) {
+    try {
+      const docs = await queryDocs(lib, prompt.slice(0, 300));
+      const formatted = formatContextForInjection(docs, lib);
+      injectParts.push(formatted);
+    } catch (err) {
+      console.error("[ctx7:prescan] " + lib + ": " + (err instanceof Error ? err.message : String(err)));
+    }
+  }
+
+  if (injectParts.length === 0) {
+    return { detected: true, libraries: libs, injected: null, tokenEstimate: 0 };
+  }
+
+  const combined = injectParts.join("\n");
+  const tokenEstimate = Math.ceil(combined.length / 4);
+  const MAX_TOKENS = 2048;
+  const MAX_CHARS = MAX_TOKENS * 4;
+  const truncated = combined.length > MAX_CHARS
+    ? combined.slice(0, MAX_CHARS) + "\n... [truncated at 2K tokens]"
+    : combined;
+
+  return {
+    detected: true,
+    libraries: libs,
+    injected: truncated,
+    tokenEstimate: Math.min(tokenEstimate, MAX_TOKENS),
+  };
+}
+
+function formatContextForInjection(result: ContextResponse, libName: string): string {
+  const parts: string[] = ["## Context7: " + libName + " (live docs - authoritative)\n"];
+
+  for (const s of result.codeSnippets.slice(0, 3)) {
+    if (s.codeListCodeExample) {
+      for (const ex of s.codeListCodeExample.slice(0, 2)) {
+        parts.push(ex.code + "\n");
+      }
+    }
+  }
+
+  for (const info of result.infoSnippets.slice(0, 2)) {
+    const t = info.content.length > 500 ? info.content.slice(0, 500) + "..." : info.content;
+    parts.push(t + "\n");
+  }
+
+  return parts.join("\n");
+}
+
+export function logPreScanInjection(result: PreScanResult): void {
+  if (!result.detected || !result.injected) return;
+  const libList = result.libraries.join(", ");
+  const kbEstimate = (result.tokenEstimate / 250).toFixed(1);
+  console.error(
+    "[ctx7:prescan] detected: " + libList +
+    " -> injected " + result.tokenEstimate + " tokens (~" + kbEstimate + "K)",
+  );
+}

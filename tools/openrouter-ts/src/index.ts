@@ -18,7 +18,7 @@
 
 import { OpenRouter } from "@openrouter/agent";
 import type { CallModelInput, Tool, ToolWithExecute, StopCondition, TurnContext } from "@openrouter/agent";
-import { createContext7Tools, context7SystemPrompt } from "./context7.js";
+import { createContext7Tools, context7SystemPrompt, context7PreScan, logPreScanInjection } from "./context7.js";
 import { traceCallModelResult, flushLangfuse, isLangfuseEnabled } from "./langfuse.js";
 import {
   MODELS,
@@ -554,9 +554,19 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
         completionCost: 0,
       };
 
+      // Conductor: Context7 pre-scan injection
+      let enrichedPrompt = prompt;
+      if (context7) {
+        const scan = await context7PreScan(prompt);
+        if (scan.injected) {
+          logPreScanInjection(scan);
+          enrichedPrompt = scan.injected + "\n\n---\n\nUser: " + prompt;
+        }
+      }
+
       const result = client.callModel({
         model: entry.id,
-        input: [{ role: "user", content: prompt }],
+        input: [{ role: "user", content: enrichedPrompt }],
         instructions: baseInstructions,
         tools: allTools.length > 0 ? allTools : undefined,
         maxOutputTokens: maxTokens ?? 500,
