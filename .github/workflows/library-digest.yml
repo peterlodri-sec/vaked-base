@@ -13,9 +13,15 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with: {python-version: '3.12'}
+      - name: Mint GitHub App token
+        id: ghapp
+        uses: ./.github/actions/ghapp-token
+        with:
+          app-id: ${{ secrets.VAKED_CI_APP_ID }}
+          private-key: ${{ secrets.VAKED_CI_APP_PRIVATE_KEY }}
       - name: Generate library digest
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GH_PERSONAL_TOKEN: ${{ secrets.GH_PERSONAL_TOKEN }}
+          GH_TOKEN: ${{ steps.ghapp.outputs.token }}
           TOPIC: ${{ github.event.inputs.topic }}
         run: python3 .github/scripts/library-digest.py

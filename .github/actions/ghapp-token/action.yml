@@ -1,0 +1,44 @@
+# ghapp-token — composite action
+#
+# Wraps `actions/create-github-app-token@v1` to produce an installation access
+# token for the vaked-ci GitHub App. Delegates ALL JWT logic to the official
+# action — no hand-rolled crypto here.
+#
+# Usage:
+#   - name: Mint App token
+#     id: ghapp
+#     uses: ./.github/actions/ghapp-token
+#     with:
+#       app-id:      ${{ secrets.VAKED_CI_APP_ID }}
+#       private-key: ${{ secrets.VAKED_CI_APP_PRIVATE_KEY }}
+#
+#   - name: Use token
+#     env:
+#       GH_TOKEN: ${{ steps.ghapp.outputs.token }}
+#     run: gh ...
+
+name: "ghapp-token"
+description: "Mint an installation access token for the vaked-ci GitHub App via actions/create-github-app-token."
+
+inputs:
+  app-id:
+    description: "GitHub App numeric ID (store in secrets.VAKED_CI_APP_ID)"
+    required: true
+  private-key:
+    description: "GitHub App private key PEM contents (store in secrets.VAKED_CI_APP_PRIVATE_KEY)"
+    required: true
+
+outputs:
+  token:
+    description: "Installation access token for the GitHub App"
+    value: ${{ steps.mint.outputs.token }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Mint installation token
+      id: mint
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.private-key }}

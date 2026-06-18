@@ -196,3 +196,32 @@ The following steps **must be performed manually** (not automated, not by script
 - [ ] **Add `VAKED_CI_APP_PRIVATE_KEY` secret** to the `ci` environment with the full PEM file contents.
 
 Once all five steps are complete, the App is ready for use in workflows and local scripts.
+
+---
+
+## 9. Remaining Workflows to Migrate
+
+`library-digest.yml` was the pilot migration (Task 3). The following workflows still use `GITHUB_TOKEN`, `GH_TOKEN`, or a PAT and should be migrated to `./.github/actions/ghapp-token` in subsequent rollout steps.
+
+> **Excluded per policy:** `nocturne.yml` and `swe-af*.yml` — do not migrate these.
+
+- [ ] `auto-rebase.yml`
+- [ ] `cleanup.yml`
+- [ ] `claude.yml`
+- [ ] `dogfeed.yml`
+- [ ] `expert-panel.yml`
+- [ ] `fleet-introspect.yml`
+- [ ] `label-tagger-build.yml`
+- [ ] `label-tagger.yml`
+- [ ] `landing-guru.yml`
+- [ ] `merge-train.yml`
+- [ ] `optitron-crawl.yml`
+- [ ] `pr-review-build.yml`
+- [ ] `pr-review.yml`
+- [ ] `pr-self-checkin.yml`
+- [ ] `provost-build.yml`
+- [ ] `provost.yml`
+- [ ] `ralph-tracks.yml`
+- [ ] `swe-af-orchestrator-build.yml`
+- [ ] `telebot.yml`
+- [ ] `vaked-ci-respond.yml`
