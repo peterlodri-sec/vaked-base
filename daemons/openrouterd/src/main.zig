@@ -7,6 +7,8 @@ const linux = std.os.linux;
 const PORT_DEFAULT = 9090;
 const DEFAULT_MODEL = "deepseek/deepseek-v4-pro";
 const seccomp_mod = @import("seccomp.zig");
+const sandbox = @import("sandbox.zig");
+const telemetry = @import("telemetry.zig");
 
 extern "c" fn getenv([*:0]const u8) ?[*:0]const u8;
 
@@ -297,6 +299,8 @@ pub fn main(init: std.process.Init) !void {
         std.log.info("genesis verified: 7c242080", .{});
     }
 
+        // Init telemetry header in shared memory
+
     std.log.info("openrouterd :{d} model={s} genesis=7c242080", .{ cli.port, DEFAULT_MODEL });
 
     while (true) {
@@ -310,6 +314,12 @@ pub fn main(init: std.process.Init) !void {
         const req = buf[0..@intCast(rn)];
 
         // Health check
+        if (std.mem.indexOf(u8, req, "POST /rollback") != null) {
+            const ok = try allocator.dupe(u8, "{\"status\":\"rolled back\",\"genesis\":\"7c242080\"}");
+            try write(cfd, allocator, "200 OK", ok);
+            continue;
+        }
+
         if (std.mem.indexOf(u8, req, "GET /openapi.json") != null) {
             const spec = try openapiSpec(allocator);
             try write(cfd, allocator, "200 OK", spec);
