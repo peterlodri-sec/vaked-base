@@ -87,6 +87,59 @@ fn write(fd: i32, allocator: std.mem.Allocator, code: []const u8, body: []const 
 
 // ── Main ────────────────────────────────────────────────────────────────────
 
+
+// ═══════════════════════════════════════════════════════════════════
+// Binary self-verification
+// ═══════════════════════════════════════════════════════════════════
+
+fn verifyBinary(a: std.mem.Allocator) !void {
+    if (@import("builtin").os.tag != .linux) return; // Linux-only for now
+    // Read our own binary
+    const self_path = try std.fs.readLinkAlloc(a, "/proc/self/exe");
+    defer a.free(self_path);
+
+    const bin = try std.fs.openFileAbsolute(self_path, .{});
+    defer bin.close();
+
+    const content = try bin.readToEndAlloc(a, 100 * 1024 * 1024);
+    defer a.free(content);
+
+    // Compute SHA256
+    var h = std.crypto.hash.sha2.Sha256.init(.{});
+    h.update(content);
+    var digest: [32]u8 = undefined;
+    h.final(&digest);
+
+    // Look for burned signature in binary
+    const sig_marker = "VAKED_SIGN:";
+    if (std.mem.indexOf(u8, content, sig_marker)) |idx| {
+        const sig_start = idx + sig_marker.len;
+        const sig_end = std.mem.indexOfScalar(u8, content[sig_start..], ':') orelse return error.InvalidSignature;
+        const burned_hash = content[sig_start .. sig_start + sig_end];
+
+        const computed_hex = try std.fmt.allocPrint(a, "{}", .{std.fmt.fmtSliceHexLower(&digest)});
+        defer a.free(computed_hex);
+
+        if (!std.mem.eql(u8, burned_hash, computed_hex)) {
+            std.log.err("hash mismatch:", .{});
+            std.log.err("  burned:  {s}", .{burned_hash});
+            std.log.err("  computed: {s}", .{computed_hex});
+            return error.HashMismatch;
+        }
+
+        // Also verify genesis seal
+        if (std.mem.indexOf(u8, content[sig_start..], "7c242080") == null) {
+            return error.InvalidGenesis;
+        }
+
+        std.log.info("self-verify: OK (burned={s})", .{burned_hash[0..8]});
+        return;
+    }
+
+    return error.NoSignature; // dev builds don't have burned signature
+}
+
+
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const allocator = init.arena.allocator();
