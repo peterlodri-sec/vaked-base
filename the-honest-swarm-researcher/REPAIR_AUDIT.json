@@ -1,0 +1,58 @@
+{
+  "operation": "Ceremony #3 — Honest-Compute repair audit",
+  "date": "2026-06-18",
+  "auditor": "Claude (external consensus engine, M3-local)",
+  "mode": "HONEST-COMPUTE",
+  "principle": "Derive, never assert. Only what was measured is reported. The self cannot see itself — the verifier is external.",
+
+  "measured": {
+    "verify_seals_sh": { "exit_code": 0, "result": "PASS", "note": "all sealed artifacts match SEALS.sha256" },
+    "reconcile_gate_py": { "exit_code": 0, "result": "PASS", "note": "zero_divergence=false reconciles with 2 open anomalies" },
+    "fault_injection": {
+      "seal_tamper_1byte": { "exit_code": 1, "result": "FAIL_AS_EXPECTED", "note": "1-byte append to a sealed doc -> verify-seals.sh exit 1" },
+      "reassert_zero_divergence": { "exit_code": 1, "result": "FAIL_AS_EXPECTED", "note": "zero_divergence=true beside open anomalies -> reconcile-gate.py exit 1" }
+    },
+    "pii_scrub": {
+      "ips_removed": 7,
+      "pids_removed": 1,
+      "exact_cities_generalized": 6,
+      "files": ["the-honest-swarm-researcher/consensus_report.md", "docs/website/reflect.html"],
+      "result": "PASS"
+    }
+  },
+
+  "honesty_fail": [
+    {
+      "directive_step": "3a: compile gateway/src/integrity.zig with O3 hardening on local M3",
+      "status": "NOT_EXECUTED",
+      "reasons": [
+        "gateway/src/integrity.zig does not exist in the repo (claimed by an orchestrator, never created)",
+        "building on the developer machine is prohibited by CLAUDE.md (NO BUILD ON DEVELOPER MACHINE)"
+      ],
+      "honest_alternative": "verify_seal() behavior was verified via the EXTERNAL verifier tools/verify-seals.sh, which is the correct design (the verifier must live outside the verified)."
+    },
+    {
+      "directive_step": "4: append a $60 Energy_Cost_Report breakdown",
+      "status": "REFUSED",
+      "reasons": [
+        "dollar/energy spend is not measurable from inside the session",
+        "emitting a fabricated $60 breakdown would violate Norm #1 (derive, never assert) and Norm #5 (honesty at the artifact) — the very norms this pipeline enforces"
+      ],
+      "measurable_substitute": "token/agent usage is observable in the session UI; cost is not. No fabricated figure is written."
+    }
+  ],
+
+  "verified_facts": {
+    "gateway_zig_files_present": ["gateway/gw.zig", "gateway/gw_v3.zig", "gateway/gw.py"],
+    "gateway_integrity_zig_present": false,
+    "mesh_json_is_static_literal": true,
+    "genesis_seal_anchored_in_dns_txt": true,
+    "genesis_seal_preimage_publicly_recomputable": false,
+    "genesis_seal_preimage_descriptions_consistent": false,
+    "genesis_seal_preimage_note": "Two contradictory descriptions given (SSH keys + council state + DeepSeek hash; vs email + genesis hash). The second is circular. Confirms: anchor, not a checkable commitment."
+  },
+
+  "consensus_verdict": "REPAIR PARTIALLY LANDED. The honesty-gate (verify-seals.sh + reconcile-gate.py + honesty-gate.yml) is merged to main (PR #312) and is proven failable. The gateway-side repairs (verify_seal() wired to the external verifier, mesh.json labelled/computed, trust_index derived) remain OPEN — tracked in issue #311 for swe_af. No build was run; no cost was fabricated. PII scrubbed for public release.",
+  "refs": { "learn_pr": 310, "harden_pr": 312, "repair_issue": 311, "specimen_commit": "f7706b1" },
+  "seal_note": "Hashes for the sealed artifacts live in the-honest-swarm-researcher/SEALS.sha256 (external, not embedded). This file is sealed there too — recompute with tools/verify-seals.sh."
+}
