@@ -2,23 +2,24 @@
 <html lang="en" class="h-full bg-[#080c10] text-[#a0b8d0]">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Vaked Pod Monitor — v0.1</title>
+<link rel="stylesheet" href="/vaked-theme.css">
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
   @font-face{font-family:'JetBrains';src:local('JetBrains Mono'),local('Courier New');font-display:swap}
-  *{scrollbar-width:thin;scrollbar-color:#1a2a3a #080c10}
-  body{font-family:'JetBrains','SF Mono','Courier New',monospace;font-size:11px;line-height:1.5}
+  *{scrollbar-width:thin;scrollbar-color:#1a2a3a var(--bg-deep)}
+  body{background:var(--bg-deep);color:var(--text-secondary);font-family:var(--font-mono);font-size:11px;line-height:1.5}
   .grid-cols-m>{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
   .animate-pulse-fast{animation:pulse .8s cubic-bezier(.4,0,.6,1) infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
   .log-line{border-left:2px solid transparent;padding:2px 8px;transition:border-color .3s}
-  .log-line.error{border-left-color:#ff4242;color:#ff6060}
+  .log-line.error{border-left-color:var(--accent-red);color:#ff6060}
   .log-line.warn{border-left-color:#ffb020;color:#ffc040}
-  .log-line.info{border-left-color:#20b0ff;color:#60d0ff}
+  .log-line.info{border-left-color:var(--accent-cyan);color:#60d0ff}
   .log-line.success{border-left-color:#20c060;color:#40e080}
   .meter{height:3px;background:#1a2a3a;border-radius:2px;overflow:hidden}
   .meter-fill{height:100%;transition:width .3s;border-radius:2px}
   .tab{border-bottom:1px solid transparent;cursor:pointer;transition:all .2s}
-  .tab.active{border-bottom-color:#3060ff;color:#e0e8f0}
+  .tab.active{border-bottom-color:var(--accent-blue);color:var(--text-primary)}
   #arena-blocks{display:grid;grid-template-columns:repeat(32,1fr);gap:1px}
   .block{aspect-ratio:1;border-radius:1px;transition:background .3s}
 </style>
@@ -128,7 +129,7 @@
   // ── Live simulation (replace with actual WebSocket/SSE) ──────────────────
   const log = document.getElementById('log-panel');
   const arenaBlocks = document.getElementById('arena-blocks');
-  
+
   // Generate 32 arena blocks (each = 2MB)
   for(let i=0;i<32;i++){
     const b=document.createElement('div');
@@ -140,7 +141,7 @@
   let seq=4;
   const kinds=['agent.init','capability.grant','synapse.connect','model.invoke','ebpf.load','eventd.append','sentinel.check','memory.alloc','gossip.hello','gossip.ack'];
   const statuses=['info','info','info','success','success','info','success','info','info','success'];
-  
+
   setInterval(()=>{
     seq++;
     const idx=seq%kinds.length;
@@ -150,7 +151,7 @@
     log.appendChild(line);
     if(log.children.length>200) log.removeChild(log.firstChild);
     log.scrollTop=log.scrollHeight;
-    
+
     // Jitter metrics
     document.getElementById('latency').textContent=(1.8+Math.random()*1.5).toFixed(1);
     document.getElementById('throughput').textContent=Math.floor(700+Math.random()*300);
@@ -159,7 +160,7 @@
     document.getElementById('log-rate').textContent=Math.floor(100+Math.random()*80);
     document.getElementById('syscalls').textContent=Math.floor(400+Math.random()*200);
     document.getElementById('net-tx').textContent=(Math.random()*10).toFixed(1);
-    
+
     // Arena jitter
     const used=(12.4+Math.sin(seq*0.1)*3).toFixed(1);
     document.getElementById('arena-used').textContent=used;
