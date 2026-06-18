@@ -16,6 +16,7 @@
 
 import { OpenRouter } from "@openrouter/agent";
 import type { CallModelInput, Tool, ToolWithExecute, StopCondition, TurnContext } from "@openrouter/agent";
+import { createContext7Tools, context7SystemPrompt } from "./context7.js";
 import { MODELS, type ChatOptions, type ChatResult } from "./types.js";
 import { readBudget, formatBudget, trackCost } from "./budget.js";
 
@@ -320,3 +321,199 @@ export type {
   Library,
   SearchResponse,
 } from "./context7.js";
+
+// ── Vaked Agent — OpenRouter + Context7, auto-wired ─────────────────────────
+
+
+/**
+ * Pre-configured Vaked agent options.
+ * OpenRouter is the go-to provider. Context7 is auto-wired.
+ */
+export interface VakedAgentOptions {
+  /** OpenRouter API key (default: OPENROUTER_API_KEY env) */
+  apiKey?: string;
+  /** Default model (default: deepseek-v4-pro for cheap/fast) */
+  defaultModel?: string;
+  /** Whether to auto-include Context7 tools (default: true) */
+  context7?: boolean;
+  /** Extra tools beyond Context7 */
+  extraTools?: Tool[];
+  /** Default stop conditions */
+  defaultStopWhen?: StopCondition[];
+  /** Max output tokens default (default: 2000) */
+  defaultMaxTokens?: number;
+}
+
+/**
+ * A Vaked agent — OpenRouter client with Context7 auto-wired.
+ *
+ * OpenRouter is the go-to LLM provider. Context7 provides authoritative
+ * live documentation. This function wires them together so every agent
+ * gets up-to-date library docs by default.
+ *
+ * @example
+ * ```typescript
+ * import { createVakedAgent } from "@vaked/openrouter-ts";
+ *
+ * const agent = createVakedAgent();
+ *
+ * // Quick question — Context7 auto-available
+ * const answer = await agent.ask("How do I use std.Build in Zig 0.16?");
+ *
+ * // Full agent loop with Context7
+ * const result = agent.callModel({
+ *   model: "anthropic/claude-opus-4-8-fast",
+ *   input: [{ role: "user", content: "Write a Nix flake for a Zig project" }],
+ * });
+ * ```
+ */
+export function createVakedAgent(options: VakedAgentOptions = {}) {
+  const {
+    apiKey = process.env.OPENROUTER_API_KEY,
+    defaultModel = MODELS.deepseek?.id ?? "deepseek/deepseek-v4-pro",
+    context7 = true,
+    extraTools = [],
+    defaultStopWhen,
+    defaultMaxTokens = 2000,
+  } = options;
+
+  if (!apiKey) {
+    throw new Error(
+      "OPENROUTER_API_KEY required. Pass apiKey option or set env var.\n" +
+      "Get a key at https://openrouter.ai/settings/keys",
+    );
+  }
+
+  const client = new OpenRouter({ apiKey });
+
+  // Auto-wire Context7 tools
+  const baseTools: Tool[] = context7 ? createContext7Tools() : [];
+  const allTools = [...baseTools, ...extraTools];
+
+  // Base instructions with Context7 awareness
+  const baseInstructions = context7
+    ? context7SystemPrompt()
+    : "You are a helpful assistant.";
+
+  return {
+    /** The underlying OpenRouter client */
+    client,
+
+    /** All auto-wired tools (Context7 + extras) */
+    tools: allTools,
+
+    /** Base instructions (includes Context7 ground-truth prompt) */
+    baseInstructions,
+
+    /**
+     * Call a model — Context7 tools and instructions auto-included.
+     * Override tools/instructions per-call if needed.
+     */
+    callModel<TTools extends readonly Tool[] = readonly Tool[]>(
+      input: CallModelInput<TTools> & { sharedContextSchema?: any },
+      callOptions?: any,
+    ) {
+      // Merge defaults: Context7 instructions prepended, tools merged
+      const mergedInstructions = input.instructions
+        ? `${baseInstructions}\n\n${input.instructions}`
+        : baseInstructions;
+
+      const mergedTools = input.tools
+        ? [...allTools, ...(input.tools as unknown as Tool[])]
+        : (allTools as any);
+
+      return client.callModel(
+        {
+          ...input,
+          instructions: mergedInstructions,
+          tools: mergedTools.length > 0 ? mergedTools : undefined,
+          maxOutputTokens: input.maxOutputTokens ?? defaultMaxTokens,
+          stopWhen: input.stopWhen ?? defaultStopWhen,
+        } as any,
+        callOptions,
+      );
+    },
+
+    /**
+     * Quick ask — cheap model, Context7 available.
+     * Direct port of qcall.ask() but with Context7 auto-wired.
+     */
+    async ask(prompt: string, model?: string, maxTokens?: number): Promise<string> {
+      const entry = MODELS[model ?? "deepseek"] ?? {
+        id: model ?? defaultModel,
+        label: model ?? "default",
+        promptCost: 0,
+        completionCost: 0,
+      };
+
+      const result = client.callModel({
+        model: entry.id,
+        input: [{ role: "user", content: prompt }],
+        instructions: baseInstructions,
+        tools: allTools.length > 0 ? allTools : undefined,
+        maxOutputTokens: maxTokens ?? 500,
+        stopWhen: defaultStopWhen,
+      } as any);
+
+      return result.getText();
+    },
+
+    /**
+     * Generate code — Claude Opus, Context7 auto-available for library docs.
+     */
+    async code(prompt: string, maxTokens?: number): Promise<string> {
+      const result = client.callModel({
+        model: MODELS.claude?.id ?? "anthropic/claude-opus-4-8-fast",
+        input: [{ role: "user", content: prompt }],
+        instructions: `${baseInstructions}\n\nZig 0.16 systems programmer. Write production code. No explanations, only code.`,
+        tools: allTools.length > 0 ? allTools : undefined,
+        maxOutputTokens: maxTokens ?? 2000,
+        stopWhen: defaultStopWhen,
+      } as any);
+
+      return result.getText();
+    },
+
+    /**
+     * Review code — Claude Opus.
+     */
+    async review(prompt: string, maxTokens?: number): Promise<string> {
+      const result = client.callModel({
+        model: MODELS.claude?.id ?? "anthropic/claude-opus-4-8-fast",
+        input: [{ role: "user", content: prompt }],
+        instructions: `${baseInstructions}\n\nCritical reviewer. 3-5 specific suggestions. Be direct.`,
+        tools: allTools.length > 0 ? allTools : undefined,
+        maxOutputTokens: maxTokens ?? 600,
+        stopWhen: defaultStopWhen,
+      } as any);
+
+      return result.getText();
+    },
+
+    /**
+     * Stream a response — Context7 auto-available.
+     */
+    streamChat(prompt: string, model?: string, maxTokens?: number) {
+      const entry = MODELS[model ?? "deepseek"] ?? {
+        id: model ?? defaultModel,
+        label: model ?? "default",
+        promptCost: 0,
+        completionCost: 0,
+      };
+
+      const result = client.callModel({
+        model: entry.id,
+        input: [{ role: "user", content: prompt }],
+        instructions: baseInstructions,
+        tools: allTools.length > 0 ? allTools : undefined,
+        maxOutputTokens: maxTokens ?? 1000,
+        stopWhen: defaultStopWhen,
+      } as any);
+
+      return result.getTextStream();
+    },
+  };
+}
+
+/** Type for the return value of createVakedAgent() */
+export type VakedAgent = ReturnType<typeof createVakedAgent>;
