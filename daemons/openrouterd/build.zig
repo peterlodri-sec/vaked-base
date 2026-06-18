@@ -14,6 +14,10 @@ pub fn build(b: *std.Build) void {
         }),
     });
     exe.pie = true;  // position-independent executable
+        // QuickJS — opt-in logic sandbox (brew install quickjs)
+    if (target.result.os.tag != .linux or @import("builtin").os.tag != .linux) {
+        // On macOS, QuickJS is available via brew
+    }
     b.installArtifact(exe);
 
     const unit_step = b.addInstallFile(
