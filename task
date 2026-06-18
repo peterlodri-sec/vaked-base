@@ -1,6 +1,72 @@
 #!/bin/bash
 set -e
-case "${1:-help}" in
-  mpr) gh pr merge "${2:-341}" --squash --admin && echo "✅ Merged. 7c242080" ;;
-  *) echo "./task mpr 341" ;;
+CMD="${1:-help}"
+
+case "$CMD" in
+  cloud|gcp)
+    echo "=== GCP Cloud Build — ACTIVATE ==="
+    echo ""
+    echo "Step 1: SSH into GCP project (datapy-spider)"
+    echo "  No SSH needed — Cloud Build runs in GCP."
+    echo ""
+    echo "Step 2: Enable Cloud Build trigger"
+    echo "  https://console.cloud.google.com/cloud-build/triggers?project=datapy-spider"
+    echo "  → Add trigger for vaked-base (push to main)"
+    echo "  → Point at cloudbuild.yaml"
+    echo "  → Use c3-standard-8 private pool"
+    echo ""
+    echo "Step 3: Add secret"
+    echo "  https://console.cloud.google.com/security/secret-manager?project=datapy-spider"
+    echo "  → ATTIC_TOKEN (push token for binary cache)"
+    echo ""
+    echo "Step 4: Confirm values in cloudbuild.yaml:"
+    grep '_ATTIC_ENDPOINT\|_ATTIC_CACHE' cloudbuild.yaml | head -2
+    echo ""
+    echo "Step 5: Push to main → triggers build → attic cache → nixos-rebuild"
+    echo ""
+    echo "GENESIS_SEAL: 7c242080"
+    ;;
+
+  nix|build)
+    echo "=== Nix Build ==="
+    echo ""
+    if ! command -v nix &> /dev/null; then
+      echo "  Nix not installed."
+      echo "  Install: curl -L https://nixos.org/nix/install | sh"
+      echo "  Then: nix develop"
+      echo "  Then: nix build .#vakedos"
+      exit 1
+    fi
+    nix develop --command "zig build" 2>/dev/null || nix develop --impure
+    echo "  ✅ Nix shell active. Zig version: $(zig version 2>/dev/null || echo 'check PATH')"
+    ;;
+
+  zone)
+    echo "=== ZONE STATUS ==="
+    echo "  Layer: $(basename $(pwd))"
+    echo "  Branch: $(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo 'N/A')"
+    echo "  Last commit: $(git log --oneline -1 2>/dev/null || echo 'N/A')"
+    echo "  Daemon: $(curl -sf http://localhost:9090/health | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get(\"status\",\"DOWN\"))' 2>/dev/null || echo 'DOWN')"
+    echo "  Memory: $(curl -sf http://localhost:8420/health | python3 -c 'import json,sys; d=json.load(sys.stdin); print(str(d.get(\"entries\",\"?\"))+\" entries\")' 2>/dev/null || echo 'DOWN')"
+    echo "  GENESIS_SEAL: 7c242080"
+    ;;
+
+  deploy)
+    echo "=== DEPLOY FLOW ==="
+    echo "  git add -A"
+    echo "  git commit -m 'your message'"
+    echo "  git push"
+    echo "  → Cloud Build picks up (if trigger enabled)"
+    echo "  → NixOS rebuild on vakedos"
+    echo "  → Swarm updates"
+    ;;
+
+  help|*)
+    echo "Usage: ./task <command>"
+    echo "  cloud|gcp — activate GCP Cloud Build"
+    echo "  nix|build — enter Nix dev shell"
+    echo "  zone      — show current zone status"
+    echo "  deploy    — push to production"
+    echo "  help      — this"
+    ;;
 esac
