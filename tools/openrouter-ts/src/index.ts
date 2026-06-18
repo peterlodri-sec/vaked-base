@@ -373,7 +373,7 @@ export type {
 
 
 
-// ── Model self-selection — models choose their own ──────────────────────────
+// ── Conductor — model self-selection, models choose their own ───────────────
 
 /**
  * Route a prompt to the best model based on task analysis.

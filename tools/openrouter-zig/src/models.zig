@@ -183,7 +183,7 @@ pub const LangfuseTrace = struct {
 };
 
 
-/// Route a prompt to the best model based on task keywords.
+/// Conductor — route a prompt to the best model based on task keywords.
 /// "auto" strategy — models choose their own.
 pub fn routeModel(prompt: []const u8, cheap_id: []const u8, quality_id: []const u8, creative_id: []const u8) []const u8 {
     const lower = std.ascii.lowerString(prompt);
