@@ -28,6 +28,57 @@ const routes = [_]Route{
     .{ .path = "/mesh.json",        .content_type = "application/json", .file_path = null, .inline_content = null },
 };
 
+
+// ── Proof-of-Work gate ───────────────────────────────────────────────
+const POW_DIFFICULTY = 4; // 4 leading zero bytes in SHA256 = ~1s on modern CPU
+const POW_PROTECTED = [_][]const u8{ "/dogfeed", "/chat" };
+
+fn isProtected(path: []const u8) bool {
+    for (POW_PROTECTED) |p| { if (std.mem.eql(u8, path, p)) return true; }
+    return false;
+}
+
+fn verifyPow(req: []const u8) bool {
+    // Look for X-PoW-Nonce header
+    const nonce_start = std.mem.indexOf(u8, req, "X-PoW-Nonce: ") orelse return false;
+    const nonce_val_start = nonce_start + 13;
+    const nonce_end = std.mem.indexOfScalar(u8, req[nonce_val_start..], '\r') orelse (req.len - nonce_val_start);
+    const nonce_str = req[nonce_val_start .. nonce_val_start + nonce_end];
+    
+    // Look for X-PoW-Challenge header
+    const chall_start = std.mem.indexOf(u8, req, "X-PoW-Challenge: ") orelse return false;
+    const chall_val_start = chall_start + 18;
+    const chall_end = std.mem.indexOfScalar(u8, req[chall_val_start..], '\r') orelse (req.len - chall_val_start);
+    const challenge = req[chall_val_start .. chall_val_start + chall_end];
+    
+    // Verify: SHA256(challenge + nonce) must start with POW_DIFFICULTY zero bytes
+    var buf: [128]u8 = undefined;
+    const input = std.fmt.bufPrint(&buf, "{s}{s}", .{challenge, nonce_str}) catch return false;
+    
+    var hash: [32]u8 = undefined;
+    std.crypto.hash.sha2.Sha256.hash(input, &hash, .{});
+    
+    // Check leading zero bytes
+    for (0..POW_DIFFICULTY) |i| {
+        if (hash[i] != 0) return false;
+    }
+    return true;
+}
+
+fn servePowChallenge(cfd: i32, _: []const u8) !void {
+    const challenge = "7c242080:"; // genesis-seeded challenge prefix
+    var body_buf: [256]u8 = undefined;
+    const body = std.fmt.bufPrint(&body_buf,
+        "{{\"pow\":true,\"difficulty\":{d},\"challenge\":\"{s}\"}}",
+        .{POW_DIFFICULTY, challenge}) catch unreachable;
+    var hdr: [256]u8 = undefined;
+    const h = std.fmt.bufPrint(&hdr, 
+        "HTTP/1.1 402 Payment Required\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nAccess-Control-Allow-Origin: *\r\nX-PoW-Challenge: {s}\r\nConnection: close\r\n\r\n",
+        .{body.len, challenge}) catch unreachable;
+    _ = linux.write(cfd, h.ptr, h.len);
+    _ = linux.write(cfd, body.ptr, body.len);
+}
+
 pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -69,6 +120,12 @@ pub fn main() !void {
         if (std.mem.eql(u8, path, "/mesh.json")) {
             const json = "{\"t\":0,\"nodes\":6,\"status\":\"synced\"}";
             _ = respond(cfd, "200 OK", "application/json", json) catch {};
+            continue;
+        }
+
+        // PoW check for protected routes
+        if (isProtected(path) and !verifyPow(req)) {
+            try servePowChallenge(cfd, path);
             continue;
         }
 
