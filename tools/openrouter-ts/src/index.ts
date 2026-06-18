@@ -20,6 +20,7 @@ import { OpenRouter } from "@openrouter/agent";
 import type { CallModelInput, Tool, ToolWithExecute, StopCondition, TurnContext } from "@openrouter/agent";
 import { createContext7Tools, context7SystemPrompt, context7PreScan, logPreScanInjection } from "./context7.js";
 import { createVastaiTools, vastaiSystemPrompt } from "./vastai.js";
+import { createBaoTools, baoSystemPrompt } from "./bao.js";
 import { traceCallModelResult, flushLangfuse, isLangfuseEnabled } from "./langfuse.js";
 import {
   MODELS,
@@ -490,11 +491,11 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
   const client = new OpenRouter({ apiKey });
 
   // Auto-wire Context7 tools
-  const baseTools: Tool[] = context7 ? [...createContext7Tools(), ...createVastaiTools()] : createVastaiTools();
+  const baseTools: Tool[] = context7 ? [...createContext7Tools(), ...createVastaiTools(), ...createBaoTools()] : [...createVastaiTools(), ...createBaoTools()];
   const allTools = [...baseTools, ...extraTools];
 
   // Base instructions with Context7 awareness
-  const baseInstructions = (context7 ? context7SystemPrompt() + "\n\n" : "") + vastaiSystemPrompt();
+  const baseInstructions = (context7 ? context7SystemPrompt() + "\n\n" : "") + vastaiSystemPrompt() + "\n\n" + baoSystemPrompt();
   const router = options.modelRouting ?? DEFAULT_ROUTER;
 
   return {
