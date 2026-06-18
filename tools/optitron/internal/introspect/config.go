@@ -1,60 +1,38 @@
-// Package introspect is the fleet self-improvement agent — a second binary in the
-// optitron Go module that REUSES optitron's core (internal/ledger, internal/llm)
-// rather than re-implementing it. It mines the fleet's OWN telemetry — the live
-// Langfuse traces plus the hash-chained ledgers (ralph's is read-only: it is a
-// live agent we never modify) — over the last ≤2 days, auto-detects the most
-// salient finding, ideates ONE novel solution, REVIEWS it behind a fail-closed
-// gate, and hands a survivor to swe_af via an `agent`-labelled issue.
 package introspect
-
 import (
 	"os"
 	"path/filepath"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/llm"
 )
-
-// Config is the fully-resolved runtime configuration for one introspect run.
 type Config struct {
 	RepoRoot string
-
 	EventsPath         string // introspect's OWN hash-chained ledger
 	RalphEventsPath    string // ralph's live ledger — READ ONLY
 	OptitronEventsPath string // optitron's crawl ledger — READ ONLY
 	PurposePath        string
 	TootPath           string
 	TelegramPath       string
-
 	APIKey  string
 	BaseURL string
-
 	DetectModel string
 	IdeateModel string
 	ReviewModel string
-
 	WindowDays    float64
 	Budget        float64
 	Focus         string
 	MinConfidence float64
 	DryAct        bool
-
 	LangfuseHost   string
 	LangfusePublic string
 	LangfuseSecret string
-
 	Prices map[string]llm.Price
 }
-
 const openrouterV1 = "https://openrouter.ai/api/v1/chat/completions"
-
-// June-2026 defaults: cheap triage to detect, the frontier reasoner to ideate +
-// review (the anti-hallucination crux). All env-overridable; the budget is the guard.
 const (
 	defaultDetectModel = "deepseek/deepseek-v4-flash"
 	defaultIdeateModel = "anthropic/claude-opus-4.8"
 	defaultReviewModel = "anthropic/claude-opus-4.8"
 )
-
 func defaultPrices() map[string]llm.Price {
 	return map[string]llm.Price{
 		"deepseek/deepseek-v4-flash": {In: 0.2, Out: 0.4},
@@ -65,15 +43,12 @@ func defaultPrices() map[string]llm.Price {
 		"openai/gpt-oss-120b":        {In: 0.1, Out: 0.5},
 	}
 }
-
 func env(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return def
 }
-
-// LoadConfig resolves paths, env, and models into a Config.
 func LoadConfig(windowDays, budget float64, focus string) *Config {
 	root := findRepoRoot()
 	return &Config{
@@ -100,14 +75,12 @@ func LoadConfig(windowDays, budget float64, focus string) *Config {
 		Prices:             defaultPrices(),
 	}
 }
-
 func readFileOr(path, def string) string {
 	if b, err := os.ReadFile(path); err == nil {
 		return string(b)
 	}
 	return def
 }
-
 func findRepoRoot() string {
 	if r := os.Getenv("OPTITRON_REPO"); r != "" {
 		return r

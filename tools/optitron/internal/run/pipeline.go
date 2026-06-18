@@ -1,5 +1,4 @@
 package run
-
 import (
 	"context"
 	"fmt"
@@ -7,20 +6,12 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-
 	"golang.org/x/sync/errgroup"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/gate"
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/ledger"
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/llm"
 )
-
-// crawlFanout controls how many source families crawl concurrently; candidateWorkers
-// caps how many candidates are verified/benched/adjudicated in parallel.
 const candidateWorkers = 4
-
-// sourceFamilies are the in-scope crawl lanes fanned out across goroutines — each
-// gets the shared hint plus a lane focus, broadening recall within one budget.
 var sourceFamilies = []string{
 	"arXiv compiler & PL papers (cs.PL/cs.DC) and recent LLVM/MLIR optimization-pass work",
 	"LLVM / Cranelift / GCC release notes, RFCs, and codegen changelogs",
@@ -28,26 +19,17 @@ var sourceFamilies = []string{
 	"Rust compiler/codegen: rustc-perf, MIR opt, LLVM bumps, and the Rust performance book",
 	"Memory-allocator literature: mimalloc, snmalloc, tcmalloc, jemalloc papers & benchmarks",
 }
-
-// Logger is the CI-facing logger (::notice:: / ::warning:: in Actions).
 type Logger struct {
 	Notice  func(string)
 	Warn    func(string)
 	Summary func(string)
 }
-
-// Funnel is the per-run accounting printed to the CI step summary.
 type Funnel struct {
 	Crawled, Novel, Confirmed, Found int32
 }
-
-// Crawl runs one full crawl→novelty→verify→bench→adjudicate→act cycle. It is
-// fail-closed and advisory: any stage short of the bar discards the candidate,
-// and an empty result (abstain) is the designed, correct outcome.
 func Crawl(ctx context.Context, cfg *Config, log *Logger, dryRun bool) error {
 	skill := ReadFileOr(cfg.SkillPath, "You are vaked-optitron, a strict optimization crawler.")
 	purpose := ReadFileOr(cfg.PurposePath, "Find ONE novel, proven optimization or nothing.")
-
 	if dryRun {
 		return dryRunReport(cfg, skill, purpose, log)
 	}
@@ -55,7 +37,6 @@ func Crawl(ctx context.Context, cfg *Config, log *Logger, dryRun bool) error {
 		log.Notice("no API key (OPENROUTER_API_KEY/RALPH_API_KEY) — skipping")
 		return nil
 	}
-
 	lw, err := ledger.Open(cfg.EventsPath)
 	if err != nil {
 		return fmt.Errorf("open ledger: %w", err)
@@ -64,9 +45,6 @@ func Crawl(ctx context.Context, cfg *Config, log *Logger, dryRun bool) error {
 	client.Notice, client.Warn = log.Notice, log.Warn
 	budget := NewBudget(cfg.BudgetTotal)
 	var funnel Funnel
-
-	// --- Stage 1: crawl fan-out (Generator). One concurrent call per source
-	// family; merge + de-dupe candidates by title. ---
 	candidates, crawlCost := crawlFanout(ctx, cfg, client, skill, purpose, lw.PriorTitles(), budget, log)
 	budget.Spend(crawlCost)
 	inScope := candidates[:0]
@@ -80,8 +58,6 @@ func Crawl(ctx context.Context, cfg *Config, log *Logger, dryRun bool) error {
 	atomic.StoreInt32(&funnel.Crawled, int32(len(inScope)))
 	mustAppend(lw, log, map[string]any{"event": "crawl", "candidates": len(inScope), "cost": round(budget.Spent())})
 	log.Notice(fmt.Sprintf("crawled %d in-scope candidates ($%.4f)", len(inScope), budget.Spent()))
-
-	// --- Stage 2: deterministic novelty (Parser, cheap, sequential). ---
 	prior := strset(lw.PriorTitles())
 	var survivors []gate.Candidate
 	for _, c := range inScope {
@@ -97,16 +73,11 @@ func Crawl(ctx context.Context, cfg *Config, log *Logger, dryRun bool) error {
 			survivors = append(survivors, c)
 		}
 	}
-
-	// --- Stage 3-6: bounded worker-pool. Each candidate runs verify→bench→
-	// adjudicate→gate concurrently; the FIRST to clear the gate wins, acts, and
-	// cancels the rest (one finding per run, parallelized). ---
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var winOnce sync.Once
 	g, gctx := errgroup.WithContext(runCtx)
 	g.SetLimit(candidateWorkers)
-
 	for _, c := range survivors {
 		c := c
 		g.Go(func() error {
@@ -118,7 +89,6 @@ func Crawl(ctx context.Context, cfg *Config, log *Logger, dryRun bool) error {
 		})
 	}
 	_ = g.Wait()
-
 	if atomic.LoadInt32(&funnel.Found) == 0 {
 		mustAppend(lw, log, map[string]any{"event": "none", "crawled": int(funnel.Crawled), "cost": round(budget.Spent())})
 		log.Notice("no finding cleared the gate today (abstaining — that is success)")
@@ -127,14 +97,8 @@ func Crawl(ctx context.Context, cfg *Config, log *Logger, dryRun bool) error {
 		funnel.Crawled, funnel.Novel, funnel.Confirmed, funnel.Found, budget.Spent(), cfg.BudgetTotal))
 	return nil
 }
-
-// processCandidate is one worker: the skeptical Reasoner cross-check, the
-// Generator's reproduced benchmark, the Reasoner's adjudication, then the Parser
-// gate. On a pass it claims the single win via winOnce.
 func processCandidate(ctx context.Context, cfg *Config, client *llm.Client, lw *ledger.Writer, log *Logger,
 	skill string, c gate.Candidate, budget *Budget, funnel *Funnel, winOnce *sync.Once, cancel context.CancelFunc) {
-
-	// 3. adversarial cross-check (Reasoner, with reasoning effort).
 	var v gate.Verify
 	cost, err := client.CallJSON(ctx, cfg.VerifyModel, llm.BuildVerifyMessages(skill, c), llm.VerifySchema, 2000, "medium", &v)
 	budget.Spend(cost)
@@ -149,8 +113,6 @@ func processCandidate(ctx context.Context, cfg *Config, client *llm.Client, lw *
 		return
 	}
 	atomic.AddInt32(&funnel.Confirmed, 1)
-
-	// 4. benchmark (Generator emits, the harness compiles + runs).
 	var bench *gate.BenchResult
 	var spec gate.BenchSpec
 	cost, err = client.CallJSON(ctx, cfg.BenchModel, llm.BuildBenchMessages(skill, c), llm.BenchSchema, 3000, "", &spec)
@@ -162,8 +124,6 @@ func processCandidate(ctx context.Context, cfg *Config, client *llm.Client, lw *
 			bench = res
 		}
 	}
-
-	// 5. adjudicate (Reasoner certainty score).
 	var adj gate.Adjudication
 	cost, err = client.CallJSON(ctx, cfg.VerifyModel, llm.BuildAdjudicateMessages(skill, c, v, bench), llm.AdjudicateSchema, 1200, "medium", &adj)
 	budget.Spend(cost)
@@ -173,8 +133,6 @@ func processCandidate(ctx context.Context, cfg *Config, client *llm.Client, lw *
 		}
 		return
 	}
-
-	// 6. strict gate.
 	passed, reason := gate.PassesGate(v, bench, adj, cfg.MinSources, cfg.MinConfidence, cfg.MinDelta)
 	if !passed {
 		rej := rejected(c.Title, reason)
@@ -183,8 +141,6 @@ func processCandidate(ctx context.Context, cfg *Config, client *llm.Client, lw *
 		log.Notice(fmt.Sprintf("rejected '%s': %s", c.Title, reason))
 		return
 	}
-
-	// Claim the single win. Only the first passer acts.
 	acted := false
 	winOnce.Do(func() {
 		acted = true
@@ -204,12 +160,8 @@ func processCandidate(ctx context.Context, cfg *Config, client *llm.Client, lw *
 	})
 	_ = acted
 }
-
-// crawlFanout issues one crawl call per source family concurrently and merges the
-// candidates. Budget is checked per lane; the shared client tracks token spend.
 func crawlFanout(ctx context.Context, cfg *Config, client *llm.Client, skill, purpose string,
 	priorTitles []string, budget *Budget, log *Logger) ([]gate.Candidate, float64) {
-
 	var (
 		mu   sync.Mutex
 		all  []gate.Candidate
@@ -240,11 +192,9 @@ func crawlFanout(ctx context.Context, cfg *Config, client *llm.Client, skill, pu
 		})
 	}
 	_ = g.Wait()
-	// stable order for determinism in logs/tests
 	sort.SliceStable(all, func(i, j int) bool { return all[i].Title < all[j].Title })
 	return all, cost
 }
-
 func dryRunReport(cfg *Config, skill, purpose string, log *Logger) error {
 	client := llm.New(cfg.APIKey, cfg.BaseURL, cfg.Prices)
 	est := 0.0
@@ -266,19 +216,14 @@ func dryRunReport(cfg *Config, skill, purpose string, log *Logger) error {
 	fmt.Println(body)
 	return nil
 }
-
-// --- helpers ---
-
 func rejected(title, reason string) map[string]any {
 	return map[string]any{"event": "rejected", "title": title, "reason": reason}
 }
-
 func mustAppend(lw *ledger.Writer, log *Logger, payload map[string]any) {
 	if _, err := lw.Append(payload); err != nil {
 		log.Warn("ledger append: " + err.Error())
 	}
 }
-
 func strset(ss []string) map[string]bool {
 	m := make(map[string]bool, len(ss))
 	for _, s := range ss {
@@ -286,11 +231,7 @@ func strset(ss []string) map[string]bool {
 	}
 	return m
 }
-
 func round(f float64) float64 { return float64(int64(f*1e5)) / 1e5 }
-
-// baseChatURL normalises a configured base URL to the chat-completions endpoint
-// Eino's component expects (it appends /chat/completions to the v1 root itself).
 func baseChatURL(u string) string {
 	return strings.TrimSuffix(u, "/chat/completions")
 }

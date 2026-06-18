@@ -1,5 +1,4 @@
 package introspect
-
 import (
 	"context"
 	"fmt"
@@ -7,33 +6,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/ledger"
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/llm"
 )
-
 const repoGH = "peterlodri-sec/vaked-base"
-
-// Run executes one introspect cycle: ingest → detect → ideate → review → act.
-// Advisory and fail-closed: any error logs and returns nil so CI never goes red,
-// and nothing is posted unless the review gate passes.
 func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 	purpose := readFileOr(cfg.PurposePath,
 		"You are the fleet introspect agent. Surface ONE novel, grounded improvement from the "+
 			"fleet's own telemetry, or nothing.")
-
 	client := llm.New(cfg.APIKey, strings.TrimSuffix(cfg.BaseURL, "/chat/completions"), cfg.Prices)
 	costFn := func(model string, pin, pout int) float64 { return client.CostOf(model, pin, pout) }
-
-	// A live run needs the key — guard before the read-only ingest so we don't page
-	// Langfuse + load the ledgers + list CI for nothing. (--dry-run still ingests to
-	// render the digest.)
 	if !dryRun && cfg.APIKey == "" {
 		fmt.Println("::notice::introspect: no API key (OPENROUTER_API_KEY/RALPH_API_KEY) — skipping")
 		return nil
 	}
-
-	// --- Ingest (read-only): Langfuse + the ledgers (ralph is live, read only) + CI ---
 	lf := NewLangfuse(cfg.LangfuseHost, cfg.LangfusePublic, cfg.LangfuseSecret)
 	from, to := IngestWindow(cfg.WindowDays)
 	obs := lf.Query("/api/public/observations",
@@ -43,18 +29,14 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 	ledgerStats := LedgerStats(cfg.RalphEventsPath, cfg.OptitronEventsPath)
 	ciStats := CIStats(ctx, cfg.RepoRoot, repoGH)
 	digest, econ := BuildDigest(byModel, spans, ledgerStats, ciStats, cfg.WindowDays)
-
 	if dryRun {
 		return dryReport(cfg, client, digest, econ)
 	}
-
 	lw, err := ledger.Open(cfg.EventsPath)
 	if err != nil {
 		return fmt.Errorf("open introspect ledger: %w", err)
 	}
 	spent := 0.0
-
-	// 1. detect the single most salient finding
 	var finding Finding
 	c, e := client.CallJSON(ctx, cfg.DetectModel, DetectMessages(purpose, digest, cfg.Focus),
 		DetectSchema, 1200, "", &finding)
@@ -70,8 +52,6 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 		summary(introSummary(econ, &finding, false, spent, "", ""))
 		return nil
 	}
-
-	// 2. ideate ONE novel solution
 	var idea Idea
 	c, e = client.CallJSON(ctx, cfg.IdeateModel, IdeateMessages(purpose, finding, digest),
 		IdeateSchema, 2500, "medium", &idea)
@@ -85,8 +65,6 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 		appendEvent(lw, map[string]any{"event": "none", "reason": "no-idea", "cost": round(spent, 5)})
 		return nil
 	}
-
-	// deterministic novelty before spending on review
 	for _, t := range PriorTitles(cfg.EventsPath) {
 		if t == title {
 			appendEvent(lw, map[string]any{"event": "rejected", "title": title, "reason": "already-filed"})
@@ -103,8 +81,6 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 		appendEvent(lw, map[string]any{"event": "none", "reason": "budget", "cost": round(spent, 5)})
 		return nil
 	}
-
-	// 3. always review (skeptical, fail-closed gate)
 	var review Review
 	c, e = client.CallJSON(ctx, cfg.ReviewModel, ReviewMessages(purpose, finding, idea, digest),
 		ReviewSchema, 1500, "medium", &review)
@@ -120,8 +96,6 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 		summary(introSummary(econ, &finding, false, spent, title, ""))
 		return nil
 	}
-
-	// 4. act — hand off to swe_af + announce (gated behind the passing review)
 	issueURL := "(dry-act)"
 	if !cfg.DryAct {
 		issueURL = createAgentIssue(ctx, cfg, finding, idea, review, econ)
@@ -133,7 +107,6 @@ func Run(ctx context.Context, cfg *Config, dryRun bool) error {
 	summary(introSummary(econ, &finding, true, spent, title, issueURL))
 	return nil
 }
-
 func dryReport(cfg *Config, client *llm.Client, digest string, econ Economy) error {
 	est := client.CostOf(cfg.DetectModel, 12000, 3000) +
 		client.CostOf(cfg.IdeateModel, 12000, 3000) +
@@ -150,9 +123,6 @@ func dryReport(cfg *Config, client *llm.Client, digest string, econ Economy) err
 	fmt.Println(digest)
 	return nil
 }
-
-// --- act helpers ---
-
 func createAgentIssue(ctx context.Context, cfg *Config, f Finding, idea Idea, r Review, econ Economy) string {
 	body := issueBody(f, idea, r, econ)
 	bf := filepath.Join(filepath.Dir(cfg.EventsPath), ".introspect-issue.md")
@@ -169,7 +139,6 @@ func createAgentIssue(ctx context.Context, cfg *Config, f Finding, idea Idea, r 
 	}
 	return strings.TrimSpace(string(out))
 }
-
 func issueBody(f Finding, idea Idea, r Review, econ Economy) string {
 	var tf strings.Builder
 	for _, t := range idea.TargetFiles {
@@ -195,7 +164,6 @@ func issueBody(f Finding, idea Idea, r Review, econ Economy) string {
 		r.Approved, r.Novel, r.Grounded, r.Confidence, r.Critique,
 		econ.WindowDays, econ.WindowCost, econ.PerDay, econ.PerWeek, econ.PerMonth)
 }
-
 func stageAnnounce(cfg *Config, idea Idea, econ Economy, issueURL string) {
 	toot := fmt.Sprintf("introspect filed a fleet improvement: %s. Grounded in 2 days of our own "+
 		"Langfuse traces. Fleet spend ~$%.0f/mo. Handed to swe_af. %s", idea.Title, econ.PerMonth, issueURL)
@@ -211,7 +179,6 @@ func stageAnnounce(cfg *Config, idea Idea, econ Economy, issueURL string) {
 		}
 	}
 }
-
 func knownInRepo(repoRoot, signature string) bool {
 	sig := strings.TrimSpace(signature)
 	if len(sig) < 4 {
@@ -220,13 +187,11 @@ func knownInRepo(repoRoot, signature string) bool {
 	cmd := exec.Command("git", "-C", repoRoot, "grep", "-qiF", sig)
 	return cmd.Run() == nil
 }
-
 func appendEvent(lw *ledger.Writer, payload map[string]any) {
 	if _, err := lw.Append(payload); err != nil {
 		fmt.Printf("::warning::introspect: ledger append: %v\n", err)
 	}
 }
-
 func introSummary(econ Economy, f *Finding, found bool, spent float64, title, url string) string {
 	verdict := "no (abstained)"
 	if found {
@@ -245,7 +210,6 @@ func introSummary(econ Economy, f *Finding, found bool, spent float64, title, ur
 	return fmt.Sprintf("%s%s\n\neconomy (normal, last %gd): /day $%.4f · /week $%.2f · /month $%.2f\n\nspend this run: $%.4f",
 		head, fin, econ.WindowDays, econ.PerDay, econ.PerWeek, econ.PerMonth, spent)
 }
-
 func summary(md string) {
 	path := os.Getenv("GITHUB_STEP_SUMMARY")
 	if path == "" {
@@ -256,7 +220,6 @@ func summary(md string) {
 		_, _ = f.WriteString(md + "\n")
 	}
 }
-
 func short(e error) string {
 	s := e.Error()
 	if len(s) > 160 {

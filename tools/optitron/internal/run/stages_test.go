@@ -1,16 +1,10 @@
 package run
-
 import (
 	"context"
 	"os/exec"
 	"testing"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/gate"
 )
-
-// TestRunBenchRealCompile exercises the full benchmark gate: a self-contained C
-// program is compiled with `cc -O2`, executed, and its sentinel parsed. This is
-// the reproduction leg that keeps optitron honest.
 func TestRunBenchRealCompile(t *testing.T) {
 	if _, err := exec.LookPath("cc"); err != nil {
 		t.Skip("cc not available")
@@ -32,16 +26,12 @@ int main(void){
 		t.Errorf("delta = %v, want ~0.20", res.Delta)
 	}
 }
-
-// TestRunBenchDisabled confirms the honest gate: disabled ⇒ nil (finding abstains).
 func TestRunBenchDisabled(t *testing.T) {
 	res, err := RunBench(context.Background(), gate.BenchSpec{Lang: "c", Source: "int main(){}"}, false)
 	if err != nil || res != nil {
 		t.Fatalf("disabled bench must return (nil,nil), got (%v,%v)", res, err)
 	}
 }
-
-// TestBudgetGuard asserts the goroutine-safe cap.
 func TestBudgetGuard(t *testing.T) {
 	b := NewBudget(1.0)
 	if b.Over() {

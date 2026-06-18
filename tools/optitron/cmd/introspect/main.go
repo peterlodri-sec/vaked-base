@@ -1,28 +1,14 @@
-// Command introspect is the fleet self-improvement agent — a second binary in the
-// optitron Go module that REUSES optitron's core (internal/ledger, internal/llm).
-// It mines the fleet's own Langfuse telemetry (+ the hash-chained ledgers; ralph's
-// is read-only — a live agent we never modify) over the last ≤2 days, auto-detects
-// the most salient finding, ideates ONE novel solution, REVIEWS it (fail-closed),
-// and hands a survivor to swe_af via an `agent`-labelled issue. Advisory: any
-// failure logs and exits 0.
-//
-//	introspect run [--once] [--dry-run] [--window-days N] [--focus "…"] [--budget-total N]
-//	introspect events [--replay]
 package main
-
 import (
 	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/introspect"
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/ledger"
 )
-
 func main() { os.Exit(realMain()) }
-
 func realMain() int {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: introspect <run|events> [flags]")
@@ -38,7 +24,6 @@ func realMain() int {
 		return 2
 	}
 }
-
 func cmdRun(args []string) int {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	_ = fs.Bool("once", false, "single cycle (default)")
@@ -59,7 +44,6 @@ func cmdRun(args []string) int {
 	}
 	return 0 // advisory — never hard-fail CI
 }
-
 func cmdEvents(args []string) int {
 	fs := flag.NewFlagSet("events", flag.ContinueOnError)
 	replay := fs.Bool("replay", false, "print each finding")
@@ -92,7 +76,6 @@ func cmdEvents(args []string) int {
 	}
 	return 0
 }
-
 func envOr(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v

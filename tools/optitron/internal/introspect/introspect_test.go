@@ -1,12 +1,9 @@
 package introspect
-
 import (
 	"math"
 	"testing"
 )
-
 func approx(a, b float64) bool { return math.Abs(a-b) < 1e-6 }
-
 func TestAggregateByModelClientSideCost(t *testing.T) {
 	obs := []map[string]any{
 		{"model": "deepseek/deepseek-v4-flash", "promptTokens": float64(1000), "completionTokens": float64(500), "latency": 1.0, "level": "DEFAULT"},
@@ -30,14 +27,12 @@ func TestAggregateByModelClientSideCost(t *testing.T) {
 		t.Fatalf("opus: trunc=%d pin=%d", op.Truncated, op.PromptTokens)
 	}
 }
-
 func TestSpanCounts(t *testing.T) {
 	c := SpanCounts([]map[string]any{{"name": "gen_ai.generate"}, {"name": "gen_ai.generate"}, {"name": "pr_review"}})
 	if c["gen_ai.generate"] != 2 || c["pr_review"] != 1 {
 		t.Fatalf("span counts: %v", c)
 	}
 }
-
 func TestProjectLinear(t *testing.T) {
 	e := Project(0.34, 2.0)
 	if !approx(e.PerDay, 0.17) {
@@ -47,7 +42,6 @@ func TestProjectLinear(t *testing.T) {
 		t.Fatalf("week/month = %v/%v", e.PerWeek, e.PerMonth)
 	}
 }
-
 func TestBuildDigestEconomy(t *testing.T) {
 	by := map[string]*ModelStats{"m": {Calls: 1, Cost: 1.0, PromptTokens: 10, CompletionTokens: 5}}
 	md, econ := BuildDigest(by, map[string]int{"m": 1}, map[string]any{"ralph": map[string]any{"events": 0}}, nil, 2.0)
@@ -58,7 +52,6 @@ func TestBuildDigestEconomy(t *testing.T) {
 		t.Fatal("empty digest")
 	}
 }
-
 func TestPassesGate(t *testing.T) {
 	ok := Review{Approved: true, Novel: true, Grounded: true, Actionable: true, Confidence: 0.9}
 	if p, r := PassesGate(ok, 0.75); !p || r != "" {

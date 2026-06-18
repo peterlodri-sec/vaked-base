@@ -1,15 +1,9 @@
 package introspect
-
 import (
 	"encoding/json"
-
 	"github.com/cloudwego/eino/schema"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/llm"
 )
-
-// Domain types — the typed outputs of the three loop stages.
-
 type Finding struct {
 	Finding   string `json:"finding"`
 	Bot       string `json:"bot"`
@@ -17,7 +11,6 @@ type Finding struct {
 	Severity  string `json:"severity"`
 	Rationale string `json:"rationale"`
 }
-
 type Idea struct {
 	Title            string   `json:"title"`
 	Mechanism        string   `json:"mechanism"`
@@ -28,7 +21,6 @@ type Idea struct {
 	Signature        string   `json:"signature"`
 	Confidence       float64  `json:"confidence"`
 }
-
 type Review struct {
 	Approved   bool    `json:"approved"`
 	Novel      bool    `json:"novel"`
@@ -37,9 +29,6 @@ type Review struct {
 	Confidence float64 `json:"confidence"`
 	Critique   string  `json:"critique"`
 }
-
-// Strict json_schema response formats — built via the exported llm.NewSchema, so
-// the agent reuses optitron's CallJSON unchanged.
 var (
 	DetectSchema = llm.NewSchema("introspect_detect", `{
       "type":"object","additionalProperties":false,
@@ -49,7 +38,6 @@ var (
         "evidence":{"type":"string"},
         "severity":{"type":"string","enum":["low","medium","high"]},
         "rationale":{"type":"string"}}}`)
-
 	IdeateSchema = llm.NewSchema("introspect_idea", `{
       "type":"object","additionalProperties":false,
       "required":["title","mechanism","novelty_rationale","target_files","expected_effect","evidence","signature","confidence"],
@@ -59,7 +47,6 @@ var (
         "target_files":{"type":"array","items":{"type":"string"}},
         "expected_effect":{"type":"string"},"evidence":{"type":"string"},
         "signature":{"type":"string"},"confidence":{"type":"number"}}}`)
-
 	ReviewSchema = llm.NewSchema("introspect_review", `{
       "type":"object","additionalProperties":false,
       "required":["approved","novel","grounded","actionable","confidence","critique"],
@@ -68,10 +55,7 @@ var (
         "grounded":{"type":"boolean"},"actionable":{"type":"boolean"},
         "confidence":{"type":"number"},"critique":{"type":"string"}}}`)
 )
-
 func sys(purpose string) *schema.Message { return schema.SystemMessage(purpose) }
-
-// DetectMessages — find the single most salient finding, grounded in real numbers.
 func DetectMessages(purpose, digest, focus string) []*schema.Message {
 	user := "Below is the fleet's own telemetry digest (Langfuse traces + ledgers + CI) for the " +
 		"recent window. Identify the SINGLE most salient finding worth improving — an error/retry " +
@@ -83,8 +67,6 @@ func DetectMessages(purpose, digest, focus string) []*schema.Message {
 	user += "DIGEST:\n" + digest
 	return []*schema.Message{sys(purpose), schema.UserMessage(user)}
 }
-
-// IdeateMessages — design ONE novel, grounded, actionable solution.
 func IdeateMessages(purpose string, finding Finding, digest string) []*schema.Message {
 	fb, _ := json.MarshalIndent(finding, "", "  ")
 	user := "Design ONE novel, concrete solution/idea for the finding below. It must be actionable " +
@@ -94,8 +76,6 @@ func IdeateMessages(purpose string, finding Finding, digest string) []*schema.Me
 		"honest about `confidence`.\n\nFINDING:\n" + string(fb) + "\n\nDIGEST (for grounding):\n" + digest
 	return []*schema.Message{sys(purpose), schema.UserMessage(user)}
 }
-
-// ReviewMessages — the always-on skeptical gate.
 func ReviewMessages(purpose string, finding Finding, idea Idea, digest string) []*schema.Message {
 	fb, _ := json.MarshalIndent(finding, "", "  ")
 	ib, _ := json.MarshalIndent(idea, "", "  ")

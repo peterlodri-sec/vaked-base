@@ -1,11 +1,9 @@
 package ledger
-
 import (
 	"path/filepath"
 	"sync"
 	"testing"
 )
-
 func TestChainAppendVerify(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "events.jsonl")
@@ -29,7 +27,6 @@ func TestChainAppendVerify(t *testing.T) {
 		t.Fatal("freshly written chain should verify")
 	}
 }
-
 func TestTornTailRecovery(t *testing.T) {
 	entries := make([]Entry, 0)
 	prev := GenesisHash
@@ -38,7 +35,6 @@ func TestTornTailRecovery(t *testing.T) {
 		entries = append(entries, e)
 		prev = e.Hash
 	}
-	// Tamper the last entry's payload — chain must now fail, prefix is the first 2.
 	entries[2].Payload = map[string]any{"i": 999}
 	if VerifyChain(entries) {
 		t.Fatal("tampered chain must not verify")
@@ -47,9 +43,6 @@ func TestTornTailRecovery(t *testing.T) {
 		t.Fatalf("want valid prefix of 2, got %d", len(got))
 	}
 }
-
-// TestConcurrentAppend asserts the single-writer invariant holds under
-// concurrency: N goroutines append and the resulting chain still verifies.
 func TestConcurrentAppend(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "events.jsonl")
 	w, err := Open(path)

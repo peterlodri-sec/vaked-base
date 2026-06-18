@@ -1,26 +1,10 @@
 #!/usr/bin/env node
 "use strict";
-/**
- * orcli — OpenRouter CLI. Port of tools/openrouter/cli.py.
- *
- * Usage:
- *   orcli "your prompt"
- *   orcli --model claude "your prompt"
- *   orcli --model gemini "your prompt"
- *   orcli --file input.txt "system prompt"
- *   orcli --budget 0.50 "prompt"
- *   orcli --stream "prompt"
- *   orcli --list
- *   orcli --status
- *   orcli --deliberate "your question"
- */
-
 import { readFileSync } from "node:fs";
 import { OpenRouter } from "@openrouter/agent";
 import { MODELS, type ModelEntry } from "./types.js";
 import { readBudget, writeBudget, trackCost } from "./budget.js";
 import { deliberate } from "./deliberate.js";
-
 function resolveModel(name: string): ModelEntry {
   return MODELS[name] ?? {
     id: name,
@@ -29,7 +13,6 @@ function resolveModel(name: string): ModelEntry {
     completionCost: 0,
   };
 }
-
 function parseArgs(args: string[]): {
   prompt: string;
   model: string;
@@ -52,7 +35,6 @@ function parseArgs(args: string[]): {
   let budgetCap: number | undefined;
   let deliberate_mode = false;
   const promptParts: string[] = [];
-
   let i = 2;
   while (i < args.length) {
     const arg = args[i];
@@ -108,14 +90,11 @@ function parseArgs(args: string[]): {
     }
     i++;
   }
-
   const prompt = promptParts.join(" ");
   return { prompt, model, system, maxTokens, stream, list, status, file, budgetCap, deliberate_mode };
 }
-
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
-
   if (args.list) {
     console.log("Available models:");
     for (const [name, entry] of Object.entries(MODELS)) {
@@ -125,33 +104,26 @@ async function main(): Promise<void> {
     }
     return;
   }
-
   if (args.status) {
     console.log(`Budget remaining: $${readBudget().remaining.toFixed(4)}`);
     return;
   }
-
-  // Get prompt
   let userPrompt: string;
   if (args.file) {
     userPrompt = readFileSync(args.file, "utf-8");
   } else if (args.prompt) {
     userPrompt = args.prompt;
   } else {
-    // Read from stdin
     const chunks: Buffer[] = [];
     for await (const chunk of process.stdin) {
       chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
     }
     userPrompt = Buffer.concat(chunks).toString("utf-8");
   }
-
   if (!userPrompt.trim()) {
     console.error("Error: no prompt provided");
     process.exit(1);
   }
-
-  // --deliberate mode
   if (args.deliberate_mode) {
     const result = await deliberate(userPrompt, args.budgetCap);
     console.log("\n" + "=".repeat(60));
@@ -160,28 +132,22 @@ async function main(): Promise<void> {
     console.log(result.consensus);
     return;
   }
-
-  // Set budget cap if provided
   if (args.budgetCap !== undefined) {
     writeBudget(args.budgetCap);
   }
-
   const entry = resolveModel(args.model);
   const apiKey = process.env["OPENROUTER_API_KEY"];
   if (!apiKey) {
     console.error("Error: OPENROUTER_API_KEY not set");
     process.exit(1);
   }
-
   const client = new OpenRouter({ apiKey });
-
   const result = client.callModel({
     model: entry.id,
     input: [{ role: "user", content: userPrompt }],
     instructions: args.system,
     maxOutputTokens: args.maxTokens,
   });
-
   if (args.stream) {
     for await (const delta of result.getTextStream()) {
       process.stdout.write(delta);
@@ -192,7 +158,6 @@ async function main(): Promise<void> {
       result.getText(),
       result.getResponse(),
     ]);
-
     const usage = response.usage ?? { inputTokens: 0, outputTokens: 0 };
     const budget = trackCost(
       usage.inputTokens,
@@ -200,14 +165,12 @@ async function main(): Promise<void> {
       entry.promptCost,
       entry.completionCost,
     );
-
     console.log(text);
     console.error(
       `\n── ${entry.id} · ${usage.inputTokens}→${usage.outputTokens} tok · $${budget.spent.toFixed(4)} · $${budget.remaining.toFixed(2)} left`,
     );
   }
 }
-
 main().catch((err) => {
   console.error(`Error: ${err.message ?? err}`);
   process.exit(1);
