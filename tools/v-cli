@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""v-cli — compressed. deploy | build | routes | run.
+Genesis: 7c242080"""
+import json, os, subprocess, sys, time
+
+T = "dev-cx53"
+
+SITES = {
+    "c":"/var/www/constellation/index.html","r":"/var/www/radio/index.html",
+    "s":"/var/www/status/index.html","n":"/var/www/nav/index.html",
+    "d":"/var/www/donate/index.html","b":"/var/www/bus/index.html",
+    "m":"/var/www/monitor/index.html","f":"/var/www/reflect/index.html",
+    "df":"/var/www/dogfeed/index.html","rs":"/var/www/rss/index.html",
+    "rx":"/var/www/rss/index.xml",
+}
+SRC = {"c":"constellation","r":"radio","s":"status","n":"nav","d":"donate","b":"bus","m":"monitor","f":"reflect","df":"dogfeed","rs":"rss","rx":"rss"}
+
+def sh(c,sudo=0):
+    cmd = ["ssh",T]
+    if sudo: cmd.append("sudo")
+    cmd.extend(["bash","-c",c])
+    return subprocess.run(cmd,capture_output=True,text=True,timeout=30)
+
+def deploy_web():
+    for k,v in SITES.items():
+        f=f"docs/website/{SRC[k]}.html"
+        if k=="rx": f="docs/website/rss.xml"
+        if not os.path.isfile(f): continue
+        subprocess.run(["ssh",T,f"sudo mkdir -p {os.path.dirname(v)}"],capture_output=True)
+        subprocess.run(["ssh",T,f"sudo tee {v} >/dev/null"],input=open(f,"rb").read(),capture_output=True)
+        print(f"  {f.split('/')[-1]:20s} → {v}")
+
+def build(name):
+    src_map={"gw":"gateway/gw_v3.zig","mono":"tools/monologue/monologue.zig","chat":"chat-gateway/src/main.zig"}
+    s=src_map.get(name,name)
+    subprocess.run(["scp",s,f"{T}:/tmp/b.zig"],capture_output=True)
+    r=subprocess.run(["ssh",T,f"cd /tmp && zig build-exe b.zig -OReleaseFast -fstrip --name v-{name} 2>&1"],capture_output=True,text=True,timeout=120)
+    if r.returncode==0:
+        sz=r.stdout.strip().split()[-1] if r.stdout else "?"
+        print(f"✅ v-{name}")
+    else:
+        err=r.stderr.split("\n")[-2] if r.stderr else "?"
+        print(f"❌ {err[:80]}")
+
+def routes():
+    with open("gateway/gw_v3.zig") as f:
+        import re
+        for r in re.findall(r'\.path = "([^"]+)"',f.read()): print(f"  {r}")
+
+def test(path):
+    r=subprocess.run(["curl","-s","-o","/dev/null","-w","%{http_code}",f"https://constellation.vaked.dev{path}"],capture_output=True,text=True,timeout=10)
+    print(f"{r.stdout.strip()} {path}")
+
+if __name__=="__main__":
+    if len(sys.argv)<2:
+        print("Usage: v-cli deploy|build gw|chat|mono|routes|test /path")
+        sys.exit(1)
+    c=sys.argv[1]
+    if c=="deploy": deploy_web()
+    elif c=="build": build(sys.argv[2] if len(sys.argv)>2 else "gw")
+    elif c=="routes": routes()
+    elif c=="test": test(sys.argv[2])
+    else: print(f"unknown: {c}")

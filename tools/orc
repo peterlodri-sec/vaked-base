@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""orc — OpenRouter CLI. Genesis:7c242080"""
+import json,os,sys,ssl,urllib.request as U
+K=os.environ.get("OPENROUTER_API_KEY","")
+E="https://openrouter.ai/api/v1/chat/completions"
+M={"deepseek":"deepseek/deepseek-v4-pro","claude":"anthropic/claude-opus-4.8-fast","gemini":"google/gemini-2.5-flash"}
+
+def call(m,s,u,t=1000):
+    p=json.dumps({"model":M.get(m,m),"messages":[{"role":"system","content":s},{"role":"user","content":u}],"max_tokens":t}).encode()
+    c=ssl.create_default_context();c.check_hostname=0;c.verify_mode=ssl.CERT_NONE
+    r=U.Request(E,data=p,headers={"Authorization":f"Bearer {K}","Content-Type":"application/json"})
+    return json.loads(U.urlopen(r,timeout=90,context=c).read())["choices"][0]["message"]["content"]
+
+if __name__=="__main__":
+    if len(sys.argv)<2: print("Usage: orc 'prompt' [-m model]");sys.exit(1)
+    m="deepseek"
+    for i,a in enumerate(sys.argv):
+        if a=="-m": m=sys.argv[i+1]
+    p=" ".join(sys.argv[1:]) if sys.argv[1]!="-m" else " ".join(sys.argv[3:])
+    print(call(m,"You are a helpful assistant.",p))
