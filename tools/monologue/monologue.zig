@@ -48,43 +48,20 @@ const monologue_lines = [_][]const u8{
     "When the nodes align, the constellation sings.",
 };
 
-pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
+pub fn main(init: std.process.Init) !void {
+    const a = init.arena.allocator();
 
-    var daemon = false;
-    var args = std.process.args();
-    _ = args.next();
-    while (args.next()) |arg| {
-        if (std.mem.eql(u8, arg, "--daemon")) daemon = true;
-    }
+    // Simple deterministic seed
+    var state: u64 = 42;
 
-    // Simple LCG seed (Linux gettimeofday via syscall)
-    var tv: linux.timeval = undefined;
-    _ = linux.gettimeofday(&tv, null);
-    var state: u64 = @intCast(@as(u64, @bitCast(tv.tv_sec)) ^ @as(u64, @bitCast(tv.tv_usec)));
-
-    if (daemon) {
-        std.log.info("Vaked Monologue daemon (Zig) — regenerating every 2h", .{});
-        std.log.info("Genesis seal: 7c242080", .{});
-        while (true) {
-            generate(a, &state) catch |err| {
-                std.log.err("generate failed: {s}", .{@errorName(err)});
-            };
-            // Reset arena between iterations to avoid unbounded growth
-            _ = arena.reset(.retain_capacity);
-            linux.nanosleep(2 * 60 * 60 * 1_000_000_000);
-        }
-    } else {
-        try generate(a, &state);
-        std.log.info("Monologue written. Genesis seal: 7c242080", .{});
-    }
+    // Generate once
+    try generate(a, &state);
+    std.log.info("Monologue written. Genesis seal: 7c242080", .{});
 }
 
 fn generate(a: std.mem.Allocator, state: *u64) !void {
-    state = state *% 6364136223846793005 +% 1442695040888963407;
-    const idx = state % monologue_lines.len;
+    state.* = state.* *% 6364136223846793005 +% 1442695040888963407;
+    const idx = state.* % monologue_lines.len;
     const line = monologue_lines[idx];
 
     const html = try std.fmt.allocPrint(a,

@@ -8,8 +8,8 @@ Goal: Zero Python in production. Pure native Zig mesh.
 
 | Python file | Lines | Status |
 |-------------|-------|--------|
-| gateway/gw.py | 101 | ▢ |
-| tools/monologue/generate.py | 98 | ▢ |
+| gateway/gw.py | 101 | ✅ Zig LIVE (213K) |
+| tools/monologue/generate.py | 98 | ✅ Zig LIVE (227K) |
 | tools/dogfeed/build.py | 109 | ▢ |
 | tools/inbox/bridge.py | 163 | ▢ |
 | tools/librarian/align.py | 179 | ▢ |
