@@ -30,11 +30,11 @@ on:
       max_minutes:
         description: "hard self-destruct deadline for the rented box (cost cap)"
         type: string
-        default: "180"
+        default: "75"
       max_dph:
         description: "max $/hr bid for the GPU (abort if nothing under it)"
         type: string
-        default: "3.0"
+        default: "0.55"
 
 permissions:
   contents: write # commit the hash-chained ledger + promoted baseline
@@ -106,9 +106,9 @@ jobs:
           VAST_API_KEY: ${{ secrets.VAST_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           LLM_MODEL: ${{ vars.NOCTURNE_LLM_MODEL || 'deepseek/deepseek-chat' }}
-          GPU_NAME: ${{ vars.NOCTURNE_GPU_NAME || 'H100_SXM' }}
-          MAX_DPH: ${{ github.event.inputs.max_dph || '3.0' }}
-          MAX_MINUTES: ${{ github.event.inputs.max_minutes || '180' }}
+          GPU_NAME: ${{ vars.NOCTURNE_GPU_NAME || 'RTX_4090' }}
+          MAX_DPH: ${{ github.event.inputs.max_dph || '0.55' }}
+          MAX_MINUTES: ${{ github.event.inputs.max_minutes || '75' }}
         run: python3 tools/nocturne/nocturne.py run
 
       - name: Commit ledger + promoted baseline
