@@ -1,0 +1,54 @@
+name: docs-regenerate
+
+# Regenerate wisdom, registry, dogfeed from live state
+# Runs every 6 hours and on push to main
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # every 6 hours
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/decisions/*.ralph-log.md'
+      - 'tools/wise/**'
+      - 'tools/library/**'
+      - 'tools/dogfeed/**'
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Regenerate Wisdom
+        run: |
+          cd tools/wise && python3 synthesize.py
+          echo "Wisdom regenerated"
+      
+      - name: Regenerate Registry
+        run: |
+          cd tools/library && python3 build.py
+          echo "Registry regenerated"
+      
+      - name: Regenerate Dogfeed
+        run: |
+          cd tools/dogfeed && python3 build.py
+          echo "Dogfeed regenerated"
+      
+      - name: Commit changes
+        run: |
+          git config user.name "vaked-ci"
+          git config user.email "ci@vaked.dev"
+          git add docs/website/dogfeed.html 2>/dev/null || true
+          git add -A
+          git diff --staged --quiet || git commit -m "docs: auto-regenerate wisdom, registry, dogfeed [skip ci]"
+          git push
