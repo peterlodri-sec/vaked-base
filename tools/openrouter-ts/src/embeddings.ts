@@ -51,3 +51,51 @@ export async function autoEmbed(text: string, opts?: { model?: string; collectio
   const result = await embed([text], opts?.model ?? "openai-small");
   return { vector: result.vectors[0]!, tokens: result.tokens, cost: result.cost };
 }
+
+
+// ═══════════════════════════════════════════════════════════
+// Local embedding provider — Ollama (zero API cost, offline)
+// ═══════════════════════════════════════════════════════════
+
+export const LOCAL_MODELS: Record<string, EmbeddingModel> = {
+  "nomic":     { id: "nomic-embed-text",     dim: 768,  cost_per_1m: 0 },
+  "all-minilm":{ id: "all-minilm",           dim: 384,  cost_per_1m: 0 },
+  "bge-m3":    { id: "bge-m3",              dim: 1024, cost_per_1m: 0 },
+};
+
+const OLLAMA_URL = process.env["OLLAMA_HOST"] ?? "http://localhost:11434";
+
+export async function embedLocal(
+  texts: string[],
+  model: string = "nomic",
+): Promise<{ vectors: number[][]; model: string; tokens: number; cost: number }> {
+  const m = LOCAL_MODELS[model] ?? LOCAL_MODELS["nomic"]!;
+  const vectors: number[][] = [];
+
+  for (const text of texts) {
+    const res = await fetch(`${OLLAMA_URL}/api/embeddings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: m.id, prompt: text }),
+    });
+    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+    const data = await res.json() as any;
+    vectors.push(data.embedding);
+  }
+
+  return { vectors, model: m.id, tokens: 0, cost: 0 };
+}
+
+/** Smart embed: local first, OpenRouter fallback */
+export async function smartEmbed(
+  texts: string[],
+  model?: string,
+): Promise<{ vectors: number[][]; model: string; tokens: number; cost: number; source: "local" | "openrouter" }> {
+  try {
+    const r = await embedLocal(texts, model ?? "nomic");
+    return { ...r, source: "local" };
+  } catch {
+    const r = await embed(texts, model ?? "openai-small");
+    return { ...r, source: "openrouter" };
+  }
+}
