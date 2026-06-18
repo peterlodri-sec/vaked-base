@@ -38,6 +38,13 @@ runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE
 [`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md). **Self-hosted runners
 (opt-in):** [`docs/agents/self-hosted-runners.md`](docs/agents/self-hosted-runners.md).
 
+## Surfaces
+
+| Surface | Kind | Purpose |
+|---------|------|---------|
+| **`vaked` TUI** | Terminal agent | Primary coding interface — chat, Context7, file context, CI mode. Works over SSH, in tmux, anywhere. ([`tools/vaked-tui/`](tools/vaked-tui/)) |
+| **Vaked IDE** | GUI | Visual graph editor for `.vaked` declaration files. Monaco + React + Tauri. ([`ide/vaked-ide/`](ide/vaked-ide/)) |
+
 ## Active agents
 
 | Agent | Kind | Trigger | Lives in | Model | Does |

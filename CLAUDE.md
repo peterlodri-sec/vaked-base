@@ -93,6 +93,7 @@ Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external d
 | `provost` | multi-step automation |
 | `social-post` | Mastodon dev-feed (Carcin persona) |
 | `label-tagger` | auto-labels PRs/issues |
+| `vaked-tui` | primary coding agent — terminal, CI mode, Context7-native |
 
 ## LLM Provider — OpenRouter (swarm default)
 
