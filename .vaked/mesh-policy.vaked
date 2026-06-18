@@ -1,0 +1,30 @@
+(* Vaked Mesh Policy Grammar v0.2 *)
+(* GENESIS_SEAL: 7c242080 *)
+
+source_file ::= statement*
+
+statement ::= capability_def | mesh_policy | node_routing | constraint_rule
+
+capability_def ::= "cap" identifier "{" capability_property* "}"
+capability_property ::= "enforce" ":" ("ebpf" | "xdp" | "posix") ";"
+                      | "memory_arena" ":" integer "MB" ";"
+                      | "allow_ingress" ":" boolean ";"
+
+mesh_policy ::= "policy" identifier "{" policy_directive* "}"
+policy_directive ::= "on_heavy_payload" "->" strategy ";"
+                    | "concurrency" ":" integer ";"
+                    | "reduction" ":" ("asymmetric" | "monoid" | "flat") ";"
+
+strategy ::= "SUBAGENT_PARALLEL" | "MESH_NATIVE_SHRED" | "BYPASS_STREAMING"
+
+node_routing ::= "node" identifier "{" node_property* "}"
+node_property ::= "arch" ":" ("aarch64" | "armv7l" | "x86_64") ";"
+                | "bus_limit" ":" integer "Mbps" ";"
+                | "role" ":" ("edge_gateway" | "state_anchor" | "compute_pool") ";"
+
+constraint_rule ::= "ensure" expression ";"
+
+identifier ::= [a-zA-Z_][a-zA-Z0-9_-]*
+integer ::= [0-9]+
+boolean ::= "true" | "false"
+expression ::= identifier ("==" | "!=" | "<" | ">") (identifier | integer | boolean)

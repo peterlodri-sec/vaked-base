@@ -1,0 +1,34 @@
+# Vaked Mesh Policy — Token Bus Override
+# GENESIS_SEAL: 7c242080
+
+infrastructure:
+  host: "GCP Private Pool (2x C8 Compute Nodes)"
+  execution_mode: "Mesh-Native Concurrent"
+  latency_target: "<200ms frame-hydration"
+
+mesh_topology:
+  control_plane: "Local TUI Node (Viewport Streaming Only)"
+  data_plane:
+    - node_id: "c8-worker-alpha"
+      role: "Chunk Ingestion & Structural Context Slicing"
+    - node_id: "c8-worker-beta" 
+      role: "Parallel Subagent Map-Reduce / Token Shaker"
+
+execution_loop:
+  on_heavy_payload:
+    - action: "Intercept Ingress Stream"
+      condition: "Context expansion detected or token latency spikes"
+    - action: "Slice & Widen (Parallel Chunking)"
+      mechanism: "Split massive context frame into N sub-structural vectors"
+    - action: "Spawn Mesh Subagents"
+      target: "GCP C8 Workers"
+      concurrency: 16
+      mechanism: "Isolated chunks across parallel subagent instances"
+    - action: "Asymmetric Reduction"
+      mechanism: "Recombine via capability-graph verification loop. Stream compressed diff back to TUI"
+
+system_constraints:
+  bus_optimization:
+    - "Bypass sequential LLM context rendering"
+    - "Drop raw token streaming over WAN for large injection blocks"
+    - "Enforce sub-millisecond local caching boundaries for agent state mapping"
