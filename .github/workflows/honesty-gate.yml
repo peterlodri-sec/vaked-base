@@ -1,0 +1,35 @@
+name: honesty-gate
+
+# The external POV. A system cannot verify its own honesty from within — so CI,
+# which is not the artifact, does it. Declaring a norm does not implement it;
+# this workflow does. Fails the build on a broken seal or an unreconciled claim.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "the-honest-swarm-researcher/**"
+      - "docs/reports/**"
+      - "tools/verify-seals.sh"
+      - "tools/reconcile-gate.py"
+      - ".github/workflows/honesty-gate.yml"
+  pull_request:
+    paths:
+      - "the-honest-swarm-researcher/**"
+      - "docs/reports/**"
+      - "tools/verify-seals.sh"
+      - "tools/reconcile-gate.py"
+      - ".github/workflows/honesty-gate.yml"
+  workflow_dispatch:
+
+jobs:
+  honesty-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify external seals (failable)
+        run: bash tools/verify-seals.sh
+
+      - name: Reconcile divergence claims with anomaly ledger (Norm #4)
+        run: python3 tools/reconcile-gate.py
