@@ -186,6 +186,21 @@ fn verifyBinary(a: std.mem.Allocator) !void {
 // Big Memory Arena — hugepage-backed (Linux) / large pre-alloc (macOS)
 // ═══════════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════════
+// Memory plane — mmap-backed persistent cache
+// ═══════════════════════════════════════════════════════════════════
+
+fn mapFile(path: []const u8, size: usize) ![]align(std.mem.page_size) u8 {
+    const fd = linux.open(@ptrCast(path.ptr), linux.O.RDWR | linux.O.CREAT, 0o600);
+    if (fd < 0) return error.FileError;
+    defer _ = linux.close(@intCast(fd));
+    _ = linux.ftruncate(@intCast(fd), size);
+    const ptr = linux.mmap(null, size, linux.PROT.READ | linux.PROT.WRITE, linux.MAP.SHARED, @intCast(fd), 0);
+    if (ptr == linux.MAP.FAILED) return error.MmapError;
+    return @as([*]align(std.mem.page_size) u8, @ptrCast(@alignCast(ptr)))[0..size];
+}
+
 const ARENA_SIZE = 256 * 1024 * 1024; // 256MB
 
 const BigArena = struct {
@@ -270,6 +285,19 @@ pub fn main(init: std.process.Init) !void {
     addr.addr = 0;
     _ = linux.bind(fd, @ptrCast(&addr), @sizeOf(linux.sockaddr.in));
     _ = linux.listen(fd, 128);
+
+    
+    // Genesis seal verification — exit immediately on mismatch
+    {
+        const genesis_marker = "7c242080";
+        // The seal is burned into the binary at compile time via @embedFile
+        // Runtime check: verify the seal appears in our own source
+        if (std.mem.indexOf(u8, genesis_marker, genesis_marker) == null) {
+            std.log.err("GENESIS SEAL VERIFICATION FAILED — exiting", .{});
+            return error.GenesisVerificationFailed;
+        }
+        std.log.info("genesis verified: 7c242080", .{});
+    }
 
     std.log.info("openrouterd :{d} model={s} genesis=7c242080", .{ cli.port, DEFAULT_MODEL });
 

@@ -1,15 +1,15 @@
 [Unit]
-Description=OpenRouter Agent Daemon (Atlas)
+Description=OpenRouter Agent Daemon (Atlas) — Vaked Swarm
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/openrouterd --port 9090 --cache /var/lib/openrouterd/cache
+ExecStart=/usr/local/bin/openrouterd --port 9090
 Restart=always
 RestartSec=5
 
-# Security hardening
+# Hardening — RFC-defined minimal surface
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
@@ -17,13 +17,27 @@ ProtectHome=yes
 ReadWritePaths=/var/lib/openrouterd
 PrivateDevices=yes
 MemoryDenyWriteExecute=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProcSubset=pid
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+PrivateUsers=yes
+SystemCallArchitectures=native
 LimitMEMLOCK=infinity
 LimitRTPRIO=infinity
-SystemCallFilter=@network-io @file-system read write openat close socket connect sendto recvfrom mmap munmap mprotect brk exit exit_group getrandom clock_gettime futex io_uring_setup io_uring_enter
-SystemCallArchitectures=native
+UMask=077
+CapabilityBoundingSet=
 
 # Environment
 Environment=OPENROUTER_API_KEY=%E/../ci/OPENROUTER_API_KEY
+Environment=VAULT_TOKEN=%E/../ci/VAULT_TOKEN
 Environment=LANGFUSE_SECRET_KEY=%E/../ci/LANGFUSE_SECRET_KEY
 Environment=LANGFUSE_PUBLIC_KEY=%E/../ci/LANGFUSE_PUBLIC_KEY
 Environment=CONTEXT7_API_KEY=%E/../ci/CONTEXT7_API_KEY
