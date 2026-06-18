@@ -93,15 +93,31 @@ fn write(fd: i32, allocator: std.mem.Allocator, code: []const u8, body: []const 
 // ═══════════════════════════════════════════════════════════════════
 
 fn verifyBinary(a: std.mem.Allocator) !void {
-    if (@import("builtin").os.tag != .linux) return; // Linux-only for now
-    // Read our own binary
-    const self_path = try std.fs.readLinkAlloc(a, "/proc/self/exe");
+    const builtin = @import("builtin");
+
+    // Resolve self path per platform
+    const self_path = if (builtin.os.tag == .linux)
+        try std.fs.readLinkAlloc(a, "/proc/self/exe")
+    else if (builtin.os.tag == .macos) blk: {
+        // macOS: use _NSGetExecutablePath via libc
+        var buf: [4096]u8 = undefined;
+        var size: u32 = buf.len;
+        _ = std.c._NSGetExecutablePath(&buf, &size);
+        break :blk try a.dupe(u8, std.mem.sliceTo(&buf, 0));
+    } else return; // unsupported platform — skip verification
+
     defer a.free(self_path);
 
-    const bin = try std.fs.openFileAbsolute(self_path, .{});
+    const bin = std.fs.openFileAbsolute(self_path, .{}) catch {
+        std.log.warn("self-verify: cannot open self ({s})", .{self_path});
+        return; // dev build, skip
+    };
     defer bin.close();
 
-    const content = try bin.readToEndAlloc(a, 100 * 1024 * 1024);
+    const content = bin.readToEndAlloc(a, 100 * 1024 * 1024) catch {
+        std.log.warn("self-verify: cannot read self", .{});
+        return;
+    };
     defer a.free(content);
 
     // Compute SHA256
