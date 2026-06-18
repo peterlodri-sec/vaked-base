@@ -1,69 +1,49 @@
 # openrouterd — OpenRouter Agent Daemon (Atlas)
 
-Production agent daemon for the Vaked swarm. Zig 0.16 native.
-io_uring async I/O. mimalloc. seccomp BPF. SHA256 cache.
+Zig 0.16 native. Raw sockets. Conductor routing. OpenRouter wired.
 
-**Supersedes the Node.js/Bun/Deno TUI for deployed agents.**
+## API
+
+```bash
+# Health
+curl localhost:9090/health
+# {"status":"ok","genesis":"7c242080","nickname":"Atlas","defaultModel":"deepseek/deepseek-v4-pro"}
+
+# List models
+curl localhost:9090/models
+# {"models":["deepseek/deepseek-v4-pro","deepseek/deepseek-v4-flash",...]}
+
+# Prompt (DeepSeek default)
+curl -X POST localhost:9090/ -d '{"prompt":"What is Zig?"}'
+# {"genesis":"7c242080","model":"deepseek/deepseek-v4-pro","content":"Zig is..."}
+
+# Specific model
+curl -X POST localhost:9090/ -d '{"prompt":"Write a sorting fn","model":"anthropic/claude-opus-4-8-fast"}'
+
+# Auto-routing (Conductor)
+curl -X POST localhost:9090/ -d '{"prompt":"Write a sorting fn","auto":true}'
+# → routes to Claude (code task)
+
+# Streaming (SSE)
+curl -X POST localhost:9090/ -d '{"prompt":"Tell me a story","stream":true}'
+# data: Once upon a time...
+```
+
+## Conductor Routing
+
+| Keywords | Model |
+|----------|-------|
+| code, write, implement, fix, debug, test, refactor, optimize, review | Claude Opus |
+| creative, brainstorm, design, story | Gemini Flash |
+| everything else | DeepSeek V4 Pro |
 
 ## Build
 
 ```bash
 zig build -Doptimize=ReleaseSafe
-# → zig-out/bin/openrouterd (strippable to ~2MB)
-```
-
-## Run
-
-```bash
-OPENROUTER_API_KEY=sk-or-v1-... ./zig-out/bin/openrouterd --port 9090
-```
-
-## Deploy (systemd)
-
-```bash
-sudo cp zig-out/bin/openrouterd /usr/local/bin/
-sudo cp openrouterd.service /etc/systemd/system/
-sudo mkdir -p /var/lib/openrouterd/cache
-sudo systemctl enable --now openrouterd
-```
-
-## API
-
-```bash
-# POST prompt → response
-curl -X POST http://localhost:9090/ \
-  -d '{"prompt":"How do I use std.Build in Zig 0.16?","model":"deepseek/deepseek-v4-pro"}'
-
-# Response
-{"genesis":"7c242080","content":"const std = @import(\"std\");\n\npub fn build..."}
-```
-
-## Security
-
-| Layer | Mechanism |
-|-------|-----------|
-| **Allocator** | mimalloc (static link, Linux) |
-| **Syscalls** | seccomp BPF — 22 allowed, everything else SIGKILL |
-| **Memory** | arena allocator, zero fragmentation |
-| **Cache** | SHA256 content-addressed (ralph-loop pattern) |
-| **TLS** | system CA bundle (not ssl.CERT_NONE) |
-| **Privileges** | NoNewPrivileges, PrivateTmp, ProtectSystem=strict |
-
-## Seccomp Allowlist
-
-```
-read write openat close socket connect sendto recvfrom
-epoll_create1 epoll_ctl epoll_wait mmap munmap mprotect
-brk exit exit_group getrandom clock_gettime futex
-io_uring_setup io_uring_enter
 ```
 
 ## Nickname: Atlas
 
-Carries the swarm's LLM load. Named after the Titan who holds up the sky.
-
-## Genesis
-
-```
+Carries the swarm's LLM load.
 GENESIS_SEAL: 7c242080
-```
