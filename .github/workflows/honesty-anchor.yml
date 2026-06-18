@@ -49,9 +49,12 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add the-honest-swarm-researcher/SEALS.sha256.cosign.bundle
-          git diff --cached --quiet && echo "bundle unchanged — nothing to commit" && exit 0
-          git commit -m "chore(anchor): update SEALS.sha256.cosign.bundle [skip ci]"
-          git push
+          if git diff --cached --quiet; then
+            echo "bundle unchanged — nothing to commit"
+          else
+            git commit -m "chore(anchor): update SEALS.sha256.cosign.bundle [skip ci]"
+            git push
+          fi
 
       - name: Upload anchor bundle (Rekor entry is the durable witness)
         uses: actions/upload-artifact@v4
