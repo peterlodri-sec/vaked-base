@@ -91,6 +91,17 @@ case "$CMD" in
     [[ "${STATUS:-}" == "running" ]] || { log "instance never reached running — destroying"; vastai destroy instance "$NEW" -y || true; exit 1; }
     printf '%s %s %s\n' "$NEW" "$SSH_HOST" "$SSH_PORT" > "$INST_FILE"
     log "running: ssh -p $SSH_PORT root@$SSH_HOST"
+    # sshd-readiness gate — 'running' != sshd accepting (image pull/onstart/bind lag 30-120s).
+    # Don't return until ssh actually answers, so callers never hit a not-yet-listening port
+    # (this is the gap that burned $$ last week: poll broke on 'running', then ssh fired blind).
+    READY=0
+    for _ in $(seq 1 24); do
+      ssh -o ConnectTimeout=15 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+          -o LogLevel=ERROR -p "$SSH_PORT" "root@$SSH_HOST" true 2>/dev/null && { READY=1; break; }
+      sleep 5
+    done
+    [[ $READY -eq 1 ]] || { log "sshd never became ready (~2min) — destroying $NEW to stop billing"; vastai destroy instance "$NEW" -y || true; exit 1; }
+    log "sshd ready"
     # arm the self-destruct watchdog (detached; survives orchestrator death)
     ( sleep "$((MAX_MINUTES*60))"; vastai set api-key "$VAST_API_KEY" >/dev/null 2>&1; \
       vastai destroy instance "$NEW" -y >/dev/null 2>&1; echo "[watchdog] destroyed $NEW after ${MAX_MINUTES}min" >&2 ) &
@@ -101,7 +112,7 @@ case "$CMD" in
   ssh|put|get)
     [[ -f "$INST_FILE" ]] || { log "no instance"; exit 1; }
     read -r _ HOST PORT < "$INST_FILE"
-    SSHOPT="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+    SSHOPT="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=4"
     case "$CMD" in
       ssh)  ssh $SSHOPT -p "$PORT" "root@$HOST" "$@" ;;
       put)  scp $SSHOPT -P "$PORT" -r "$1" "root@$HOST:$2" ;;
