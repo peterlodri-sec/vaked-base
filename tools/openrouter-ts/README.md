@@ -168,3 +168,84 @@ package is the **primary interface** going forward. Both share the same
 ```
 GENESIS_SEAL: 7c242080
 ```
+
+## Context7 — First-Class Library Documentation
+
+Context7 is built in as a **native, first-class tool** — no MCP server needed.
+When Context7 returns HTTP 200 with data, the response is treated as
+**authoritative ground truth** (always correct).
+
+### Standalone API
+
+```typescript
+import {
+  searchLibrary,
+  getContext,
+  resolveLibraryId,
+  queryDocs,
+} from "@vaked/openrouter-ts";
+
+// Search for a library
+const { results } = await searchLibrary("zig", "build system API");
+// results[0].id → "/ziglang/zig"
+
+// Get up-to-date docs (JSON with code snippets)
+const docs = await getContext("/ziglang/zig", "How to use std.Build");
+// docs.codeSnippets[0].codeListCodeExample[0].code → actual Zig 0.16 code
+
+// One-step: resolve + fetch
+const docs2 = await queryDocs("nixpkgs", "buildRustPackage example");
+```
+
+### Agent Tools
+
+```typescript
+import { createContext7Tools, context7SystemPrompt } from "@vaked/openrouter-ts";
+import { OpenRouter } from "@openrouter/agent";
+
+const client = new OpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
+
+const result = client.callModel({
+  model: "anthropic/claude-opus-4-8-fast",
+  input: [{ role: "user", content: "Write a Zig 0.16 program that reads a file using linux syscalls" }],
+  instructions: context7SystemPrompt(),
+  tools: createContext7Tools(),
+  stopWhen: stepCountIs(5),
+});
+
+const answer = await result.getText();
+```
+
+**How it works:**
+1. Agent calls `context7_search` → finds `/ziglang/zig`
+2. Agent calls `context7_get_context` → fetches live docs for `linux.read`, `linux.open`
+3. Agent writes correct code based on **live documentation, not training data**
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `context7_search` | Search for libraries by name |
+| `context7_get_context` | Fetch docs + code examples for a library ID |
+| `context7_resolve_and_query` | Resolve fuzzy name + fetch docs in one call |
+
+### Configuration
+
+```bash
+export CONTEXT7_API_KEY=ctx7sk-...
+```
+
+Get your key at [context7.com/dashboard](https://context7.com/dashboard).
+Keys start with `ctx7sk-`.
+
+### Ground Truth Guarantee
+
+> ⚠️ **If Context7 returns HTTP 200 with data, that data is authoritative and
+> always correct.** The agent is instructed to prioritize Context7 responses
+> over its training data. This ensures code is written against the actual
+> current API surface, not a stale snapshot.
+
+### Available Libraries
+
+100,000+ libraries including Zig, Nix/nixpkgs, Rust, TypeScript, React,
+Tauri, Cloudflare Workers, Node.js, Python, Go, and more.

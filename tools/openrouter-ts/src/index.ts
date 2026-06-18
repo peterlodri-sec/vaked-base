@@ -17,7 +17,7 @@
 import { OpenRouter } from "@openrouter/agent";
 import type { CallModelInput, Tool, ToolWithExecute, StopCondition, TurnContext } from "@openrouter/agent";
 import { MODELS, type ChatOptions, type ChatResult } from "./types.js";
-import { trackCost } from "./budget.js";
+import { readBudget, formatBudget, trackCost } from "./budget.js";
 
 // Re-export SDK types for consumers
 export { OpenRouter } from "@openrouter/agent";
@@ -204,7 +204,6 @@ export async function chat(options: ChatOptions): Promise<ChatResult> {
  * Return budget status string.
  */
 export function budget(): string {
-  const { readBudget, formatBudget } = require("./budget.js");
   return formatBudget(readBudget());
 }
 
@@ -294,3 +293,30 @@ export async function sweLoop(
 
   return { finalResponse, reflections, iterations: reflections.length };
 }
+
+// ── Context7 — first-class native library documentation ─────────────────────
+
+export {
+  searchLibrary,
+  getContext,
+  resolveLibraryId,
+  queryDocs,
+  createContext7Tools,
+  context7SystemPrompt,
+  Context7Error,
+  CodeExampleSchema,
+  CodeSnippetSchema,
+  InfoSnippetSchema,
+  ContextResponseSchema,
+  LibrarySchema,
+  SearchResponseSchema,
+} from "./context7.js";
+
+export type {
+  CodeExample,
+  CodeSnippet,
+  InfoSnippet,
+  ContextResponse,
+  Library,
+  SearchResponse,
+} from "./context7.js";
