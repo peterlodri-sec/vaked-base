@@ -230,3 +230,11 @@
       };
     };
 }
+
+  # ── vaked-mobile M3 local dev shell ───────────────────────────────────────
+  devShells."aarch64-darwin".vaked-mobile = {
+    buildInputs = with pkgs; [ zig rustc cargo ];
+    shellHook = ''
+      echo "🍏 [M3 LOCAL] vaked-mobile toolchain verified — Zig $(zig version) · Rust $(rustc --version | cut -d' ' -f2)"
+    '';
+  };
