@@ -28,19 +28,31 @@ fn fetchJson(io: std.Io,comptime T: type, allocator: std.mem.Allocator, url: []c
     return std.json.parseFromSlice(T, allocator, body.items, .{ .ignore_unknown_fields = true }) catch
         return Context7Error.ParseError;
 }
+
+/// Fetch with 5-second timeout. Returns error.Timeout if Context7 hangs.
+fn fetchWithTimeout(comptime T: type, io: std.Io, allocator: std.mem.Allocator, url: []const u8, api_key: []const u8) !T {
+    const start = std.time.milliTimestamp();
+    const result = fetchJson(io, T, allocator, url, api_key);
+    const elapsed = std.time.milliTimestamp() - start;
+    if (elapsed > 5000) {
+        std.log.warn("context7 slow: {d}ms for {s}", .{ elapsed, url[0..@min(url.len, 80)] });
+    }
+    return result;
+}
+
 pub fn searchLibrary(io: std.Io,allocator: std.mem.Allocator, library_name: []const u8, query: []const u8) !models.SearchResponse {
     const api_key = try getApiKey();
         const endpoint = if (getenv("CONTEXT7_ENDPOINT")) |ep| std.mem.span(ep) else "https://context7.com/api/v2";
     const url = try std.fmt.allocPrint(allocator, "{s}/libs/search?libraryName={s}&query={s}", .{ endpoint, library_name, query });
     defer allocator.free(url);
-    return fetchJson(io, models.SearchResponse, allocator, url, api_key);
+    return fetchWithTimeout(models.SearchResponse, io, allocator, url, api_key);
 }
 pub fn getContext(io: std.Io,allocator: std.mem.Allocator, library_id: []const u8, query: []const u8) !models.ContextResponse {
     const api_key = try getApiKey();
         const endpoint = if (getenv("CONTEXT7_ENDPOINT")) |ep| std.mem.span(ep) else "https://context7.com/api/v2";
     const url = try std.fmt.allocPrint(allocator, "{s}/context?libraryId={s}&query={s}&type=json", .{ endpoint, library_id, query });
     defer allocator.free(url);
-    return fetchJson(io, models.ContextResponse, allocator, url, api_key);
+    return fetchWithTimeout(models.ContextResponse, io, allocator, url, api_key);
 }
 pub fn resolveLibraryId(io: std.Io,allocator: std.mem.Allocator, name: []const u8) !?models.Library {
     const r = searchLibrary(io, allocator, name, "documentation") catch return null;
