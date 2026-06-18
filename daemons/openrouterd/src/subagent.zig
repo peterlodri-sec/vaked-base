@@ -2,8 +2,8 @@ const std=@import("std");
 pub const SubagentKind=enum(u8){hydrator=0,verifier=1,synthesizer=2};
 pub const ArenaMsg=extern struct{kind:SubagentKind align(64),id:u32,status:u8,payload_len:u32,payload:[4096]u8,result_len:u32,result:[8192]u8,_pad:[56]u8};
 pub const ArenaHeader=extern struct{magic:u32 align(64),msg_count:u16,active_hydrators:u8,active_verifiers:u8,active_synthesizers:u8,msgs:[256]ArenaMsg};
-pub const WorkerPool=struct{arena:*ArenaHeader,allocator:std.mem.Allocator,
-pub fn init(a:std.mem.Allocator,mmap:[]align(std.mem.page_size)u8)WorkerPool{const h=@as(*ArenaHeader,@ptrCast(@alignCast(mmap.ptr)));h.magic=0x7C242080;return WorkerPool{.arena=h,.allocator=a};}
+pub const WorkerPool=struct{arena:*ArenaHeader,allocator:std.mem.Allocator,max_tool_calls:u32,
+pub fn init(a:std.mem.Allocator,mmap:[]align(std.mem.page_size)u8)WorkerPool{const h=@as(*ArenaHeader,@ptrCast(@alignCast(mmap.ptr)));h.magic=0x7C242080;return WorkerPool{.arena=h,.allocator=a,.max_tool_calls=500};}
 pub fn spawnHydrator(self:*WorkerPool,p:[]const u8)!u32{return self._spawn(.hydrator,p);}
 pub fn spawnVerifier(self:*WorkerPool,d:[]const u8)!u32{return self._spawn(.verifier,d);}
 pub fn spawnSynthesizer(self:*WorkerPool,t:[]const u8)!u32{return self._spawn(.synthesizer,t);}
