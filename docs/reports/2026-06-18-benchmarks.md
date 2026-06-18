@@ -102,3 +102,42 @@ All builds pass: zig ✅ python ✅ rust ✅
 | Session cost | ~$422 |
 | PRs merged | 5 |
 | Builds passing | 5/5 |
+
+
+## Subagent Performance (DYAD Session)
+
+| Subagent | Steps | Tools Used | Duration | Model |
+|----------|-------|------------|----------|-------|
+| **Kernel Engineer** | 27 | list_dir, search_files, read_file, shell_run | 72.8s | deepseek-v4-flash |
+| **Security Auditor** | 46 | read_file, shell_run, search_files | 106.7s | deepseek-v4-flash |
+| **Combined** | 73 | 6 tool types | 179.5s | — |
+
+### Per-Step Latency
+
+| Metric | Kernel Engineer | Security Auditor |
+|--------|----------------|-----------------|
+| Avg step time | 2.7s | 2.3s |
+| Tool calls | 25 | 38 |
+| Files read | 23 | 28 |
+| Shell commands | 2 | 18 |
+
+### Tool Breakdown
+
+| Tool | Kernel | Security | Total |
+|------|--------|----------|-------|
+| read_file | 17 | 18 | 35 |
+| list_dir | 4 | 3 | 7 |
+| search_files | 4 | 2 | 6 |
+| shell_run | 2 | 15 | 17 |
+| shell_wait | 0 | 3 | 3 |
+| grep | 0 | 5 | 5 |
+
+### Cost
+
+| Subagent | Tokens | Estimated Cost |
+|----------|--------|----------------|
+| Kernel Engineer | ~40K | ~$0.01 |
+| Security Auditor | ~151K | ~$0.04 |
+| **Total** | **~191K** | **~$0.05** |
+
+Two professional-grade code reviews for $0.05. DeepSeek V4 Flash.
