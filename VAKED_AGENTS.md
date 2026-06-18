@@ -26,6 +26,10 @@ requires explicit justification. See `CLAUDE.md` for migration guide.
 
 ---
 
+**Full SDK documentation:** [`docs/agents/openrouter-agent-sdk.md`](docs/agents/openrouter-agent-sdk.md)
+
+---
+
 Shared conventions: all credentials live in the **`ci` GitHub Environment**
 (`environment: ci`); agents **guard on secrets** and no-op cleanly when unset; they
 are **advisory / never block** a merge; failures route to **Telegram**; LLM-driven

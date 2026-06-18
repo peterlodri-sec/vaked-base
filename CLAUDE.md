@@ -114,6 +114,8 @@ Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external d
 4. **No TLS-disable hacks** — the Python fallback tools previously used `ssl.CERT_NONE`. The TypeScript SDK uses proper TLS.
 5. **Context7 native** — `@vaked/openrouter-ts` auto-wires Context7 for live library docs.
 
+**Full SDK docs:** [`docs/agents/openrouter-agent-sdk.md`](docs/agents/openrouter-agent-sdk.md)
+
 ### Migrating to OpenRouter
 
 | From | To |
