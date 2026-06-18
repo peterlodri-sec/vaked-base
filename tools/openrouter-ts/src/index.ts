@@ -327,7 +327,7 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
     );
   }
   const client = new OpenRouter({ apiKey });
-  const baseTools: Tool[] = context7 ? [...createContext7Tools(), ...createVastaiTools(), ...createBaoTools(), ...createCubeTools(), ...createMemoryTools()] : [...createVastaiTools(), ...createBaoTools()];
+  const baseTools: Tool[] = context7 ? [...createContext7Tools(), ...createVastaiTools(), ...createBaoTools(), ...createCubeTools(), ...createMemoryTools()] : [...createVastaiTools(), ...createBaoTools(), ...createCubeTools(), ...createMemoryTools(), ...createMilvusTools()];
   const allTools = [...baseTools, ...extraTools];
   const baseInstructions = (context7 ? context7SystemPrompt() + "\n\n" : "") + vastaiSystemPrompt() + "\n\n" + baoSystemPrompt() + "\n\n" + cubeSystemPrompt() + "\n\n" + memorySystemPrompt();
   const router = options.modelRouting ?? DEFAULT_ROUTER;
