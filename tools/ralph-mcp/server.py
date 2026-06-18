@@ -236,3 +236,186 @@ if __name__ == "__main__":
         print(json.dumps(tool_daily_reflection(), indent=2))
     else:
         handle_mcp()
+
+
+# ── GitHub Voteable Governance ─────────────────────────────────────────
+import urllib.request, ssl
+
+GH_REPO = "peterlodri-sec/vaked-base"
+GH_API = f"https://api.github.com/repos/{GH_REPO}/issues"
+GH_TOKEN = os.environ.get("GH_PERSONAL_TOKEN", "")
+
+def create_governance_issue(title: str, body: str, labels: list = None) -> dict:
+    """Create a GitHub issue for a governance decision."""
+    if not GH_TOKEN:
+        return {"error": "GH_PERSONAL_TOKEN not set"}
+    
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "labels": labels or ["governance", "ralph-audit"],
+    }).encode()
+    
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
+    req = urllib.request.Request(
+        GH_API,
+        data=payload,
+        headers={
+            "Authorization": f"token {GH_TOKEN}",
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+        }
+    )
+    
+    try:
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+            issue = json.loads(resp.read())
+            return {
+                "number": issue.get("number"),
+                "url": issue.get("html_url"),
+                "title": issue.get("title"),
+                "state": issue.get("state"),
+            }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def propose_governance_vote(decision: str, context: dict) -> dict:
+    """Propose a governance decision for voting via GitHub issue.
+    
+    The issue body includes:
+    - The decision to be made
+    - Current system state
+    - Voting instructions (👍 = approve, 👎 = reject)
+    - Genesis seal verification
+    """
+    audit = tool_audit_governance()
+    
+    title = f"[RALPH VOTE] {decision}"
+    body = f"""## Ralph Governance Vote
+
+**Decision:** {decision}
+
+### Current State
+- Genesis Seal: `{GENESIS_SEAL[:8]}`
+- Audit status: {audit['verdict']} ({audit['aligned']}/{audit['total']} aligned)
+- Ledger entries: {len(load_ledger())}
+- Graveyard entries: {count_graveyard()}
+
+### Context
+```json
+{json.dumps(context, indent=2)}
+```
+
+### Voting
+- 👍 = Approve this decision
+- 👎 = Reject this decision
+- Threshold: >50% of votes cast within 24h
+
+### Governance Directives
+| ID | Rule | Status |
+|----|------|--------|
+"""
+    for check in audit['checks']:
+        body += f"| {check['id']} | {check['rule']} | {check['status']} |\n"
+    
+    body += f"""
+---
+*Created by Ralph, Genesis Auditor · Genesis Seal: {GENESIS_SEAL[:8]}*
+"""
+    
+    result = create_governance_issue(title, body, ["governance", "ralph-vote"])
+    return {
+        "decision": decision,
+        "issue": result,
+        "audit": audit,
+        "voting_instructions": "👍 approve · 👎 reject · threshold >50% in 24h",
+    }
+
+
+def tool_propose_vote():
+    """Create a governance vote as a GitHub issue.
+    
+    Example decisions Ralph can propose:
+    - "Promote edge-par-01 from observer to full mesh peer"
+    - "Increase Truth Threshold from 2 to 3 drifts"
+    - "Authorize Big Bang Phase 2 (synapsed Python→Zig)"
+    - "Accept grammar v0.6 proposal"
+    """
+    # Find the most recent pending decision
+    audit = tool_audit_governance()
+    drifts = [c for c in audit['checks'] if c['status'] == 'DRIFT']
+    
+    if drifts:
+        decision = f"Resolve {len(drifts)} governance drift(s): {', '.join(d['rule'] for d in drifts)}"
+    else:
+        decision = "All directives aligned. No drift to resolve."
+    
+    return propose_governance_vote(decision, {
+        "audit_result": audit,
+        "drifts": drifts,
+        "timestamp": datetime.utcnow().isoformat(),
+    })
+
+
+def tool_check_vote(issue_number: int) -> dict:
+    """Check the current vote tally on a governance issue."""
+    if not GH_TOKEN:
+        return {"error": "GH_PERSONAL_TOKEN not set"}
+    
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
+    # Get issue
+    req = urllib.request.Request(
+        f"{GH_API}/{issue_number}",
+        headers={
+            "Authorization": f"token {GH_TOKEN}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+    )
+    
+    try:
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+            issue = json.loads(resp.read())
+    except Exception as e:
+        return {"error": str(e)}
+    
+    # Get reactions
+    req2 = urllib.request.Request(
+        f"{GH_API}/{issue_number}/reactions",
+        headers={
+            "Authorization": f"token {GH_TOKEN}",
+            "Accept": "application/vnd.github.squirrel-girl-preview+json",
+        }
+    )
+    
+    try:
+        with urllib.request.urlopen(req2, timeout=15, context=ctx) as resp:
+            reactions = json.loads(resp.read())
+    except:
+        reactions = []
+    
+    thumbs_up = sum(1 for r in reactions if r.get("content") == "+1")
+    thumbs_down = sum(1 for r in reactions if r.get("content") == "-1")
+    total = thumbs_up + thumbs_down
+    passed = thumbs_up > thumbs_down if total > 0 else False
+    
+    return {
+        "issue": issue_number,
+        "title": issue.get("title"),
+        "state": issue.get("state"),
+        "url": issue.get("html_url"),
+        "votes": {"approve": thumbs_up, "reject": thumbs_down, "total": total},
+        "verdict": "APPROVED" if passed else "REJECTED" if total > 0 else "PENDING",
+        "threshold_met": total > 0,
+    }
+
+
+# Add to tools
+TOOLS["propose_vote"] = tool_propose_vote
+TOOLS["check_vote"] = tool_check_vote
