@@ -2,7 +2,10 @@ export type SessionKind = "human" | "a2a" | "gateway";
 
 export type AgentRole =
   | "user"
+  | "openrouter"
+  | "deepseek"
   | "claude"
+  | "gemini"
   | "schema-advisor"
   | "capability-expert"
   | "lowering-guide"
@@ -57,7 +60,10 @@ export interface Session {
 
 export const AGENT_LABELS: Record<AgentRole, string> = {
   "user": "You",
-  "claude": "Claude",
+  "openrouter": "OpenRouter",
+  "deepseek": "DeepSeek V4",
+  "claude": "Claude Opus",
+  "gemini": "Gemini Flash",
   "schema-advisor": "Schema Advisor",
   "capability-expert": "Capability Expert",
   "lowering-guide": "Lowering Guide",
@@ -66,7 +72,10 @@ export const AGENT_LABELS: Record<AgentRole, string> = {
 
 export const AGENT_COLORS: Record<AgentRole, string> = {
   "user": "#6366f1",
+  "openrouter": "#f97316",
+  "deepseek": "#10b981",
   "claude": "#f97316",
+  "gemini": "#3b82f6",
   "schema-advisor": "#14b8a6",
   "capability-expert": "#a855f7",
   "lowering-guide": "#22c55e",

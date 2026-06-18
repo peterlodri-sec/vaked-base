@@ -4,7 +4,8 @@ import { listen } from "@tauri-apps/api/event";
 import type { SessionKind, AgentRole, GatewayRoute } from "@/types/session";
 import { useSessionStore } from "@/store";
 import { useGraphStore } from "@/store";
-import { graphContextString } from "@/lib/anthropic";
+// Migrated from @/lib/anthropic → @/lib/openrouter
+import { graphContextString } from "@/lib/openrouter";
 
 export function useSession() {
   const {
