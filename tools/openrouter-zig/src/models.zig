@@ -14,6 +14,11 @@ pub const MODELS = [_]ModelEntry{
     .{ .id = "meta-llama/llama-4-maverick",      .label = "Llama 4 Maverick",    .prompt_cost = 0.20,  .completion_cost = 0.60  },
     .{ .id = "anthropic/claude-haiku-4-5",       .label = "Claude Haiku 4.5",    .prompt_cost = 0.25,  .completion_cost = 1.25  },
     .{ .id = "deepseek/deepseek-v4-flash",       .label = "DeepSeek V4 Flash",   .prompt_cost = 0.14,  .completion_cost = 0.14  },
+    .{ .id = "minimax/minimax-m3",               .label = "MiniMax M3",             .prompt_cost = 0.30,  .completion_cost = 1.20  },
+    .{ .id = "qwen/qwen3-coder",                 .label = "Qwen3 Coder (1M ctx)",   .prompt_cost = 0.22,  .completion_cost = 1.80  },
+    .{ .id = "nvidia/nemotron-3-ultra-550b-a55b",.label = "Nemotron 550B (1M ctx)", .prompt_cost = 0.50,  .completion_cost = 2.20  },
+    .{ .id = "qwen/qwen3.6-flash",               .label = "Qwen3.6 Flash (1M ctx)", .prompt_cost = 0.19,  .completion_cost = 1.12  },
+    .{ .id = "minimax/minimax-01",               .label = "MiniMax 01 (1M ctx)",   .prompt_cost = 0.20,  .completion_cost = 1.10  },
 };
 pub fn resolveModel(alias: []const u8) ?ModelEntry {
     // Check aliases
