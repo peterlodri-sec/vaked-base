@@ -29,6 +29,7 @@ const routes = [_]Route{
     .{ .path = "/bus", .content_type = "text/html", .file_path = "/var/www/bus/index.html", .inline_content = null },
     .{ .path = "/radio", .content_type = "text/html", .file_path = "/var/www/radio/index.html", .inline_content = null },
     .{ .path = "/nav", .content_type = "text/html", .file_path = "/var/www/nav/index.html", .inline_content = null },
+    .{ .path = "/chat", .content_type = "text/html", .file_path = "/var/www/chat/index.html", .inline_content = null },
     .{ .path = "/donate", .content_type = "text/html", .file_path = "/var/www/donate/index.html", .inline_content = null },
     .{ .path = "/rss", .content_type = "text/html", .file_path = "/var/www/rss/index.html", .inline_content = null },
     .{ .path = "/rss.xml", .content_type = "application/xml", .file_path = "/var/www/rss/index.xml", .inline_content = null },
