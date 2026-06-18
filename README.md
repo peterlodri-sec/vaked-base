@@ -136,6 +136,7 @@
 - **Oculus Ledger:** SHA-256 hash-chained, append-only (35 entries)
 - **Ralph Auditor:** G01–G04 directives, Truth Threshold 2
 - **Genesis Seal:** DNS TXT at `vaked-genesis-seal.vaked.dev`
+- **Honesty gate:** external, *failable* verification of artifacts — `tools/verify-seals.sh` (recompute SHA-256 vs an external manifest, exit 1 on tamper; coverage + GPG-signed-tag anchor) + `tools/reconcile-gate.py` (derive-don't-assert: open anomaly ⇒ no `zero_divergence` claim), run in CI by `.github/workflows/honesty-gate.yml`. Seals are anchored by a GPG-signed `seals-anchor-*` tag (key the repo can't rewrite). Principle: *the self cannot see itself* — the verifier is not the verified. Open-sourced (MIT) at [`oss/honesty-gate/`](oss/honesty-gate/).
 
 ## 📐 Conventions
 
