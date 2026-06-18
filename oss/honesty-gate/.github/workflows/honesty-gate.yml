@@ -1,0 +1,37 @@
+name: honesty-gate
+
+# The external POV. CI — which is not the artifact — verifies the artifacts on
+# every push and PR. Runs the verifier from TRUSTED main against the PR tree, so a
+# PR cannot neuter its own gate. Drop this into your repo's .github/workflows/.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  honesty-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR tree (artifacts under test)
+        uses: actions/checkout@v4
+        with: { path: pr }
+
+      - name: Checkout trusted main (verifier of record)
+        uses: actions/checkout@v4
+        with: { ref: main, path: trusted, fetch-tags: true }
+
+      - name: Verify seals (failable)
+        env:
+          HONESTY_MANIFEST: ${{ github.workspace }}/pr/SEALS.sha256
+          HONESTY_ROOT: ${{ github.workspace }}/pr
+          # HONESTY_COVER: "docs/*.md *.json"          # optional coverage gate
+          # HONESTY_ANCHOR_TAG: "seals-anchor-*"        # optional signed-tag anchor
+        run: bash trusted/oss/honesty-gate/verify-seals.sh
+
+      - name: Reconcile claims with state (optional)
+        env:
+          HONESTY_LEDGER: ${{ github.workspace }}/pr/ledger.json
+        run: |
+          [ -f "$HONESTY_LEDGER" ] && python3 trusted/oss/honesty-gate/reconcile-gate.py || echo "no ledger — skip"
