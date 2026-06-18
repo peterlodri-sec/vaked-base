@@ -400,3 +400,50 @@ When creating a new Vaked agent:
 ```
 GENESIS_SEAL: 7c242080
 ```
+
+## NullClaw Runtime
+
+For production deployments, the Vaked swarm recommends [NullClaw](https://github.com/nullclaw/nullclaw)
+as the agent runtime — a 678KB Zig 0.16 binary that provides:
+
+| Feature | NullClaw | Our Daemon |
+|---------|----------|------------|
+| Binary size | 678KB | 5.4MB |
+| Providers | 50+ (OpenRouter native) | OpenRouter only |
+| Tools | 35+ (shell, file, web, MCP) | 4 (Context7, Vast, Bao, Docs) |
+| Memory | 10 engines (SQLite, LanceDB, etc.) | None |
+| Gateway | HTTP + A2A + Webhook | HTTP only |
+| Boot time | <2ms | ~10ms |
+| Tests | 5,300+ | 4 |
+| Heap | ~1MB RSS | 256MB (BigArena) |
+
+### Integration
+
+```bash
+# Install
+brew install nullclaw
+
+# Onboard with OpenRouter
+nullclaw onboard --api-key $OPENROUTER_API_KEY --provider openrouter --model deepseek/deepseek-v4-pro
+
+# Chat
+nullclaw agent -m "How do I use std.Build in Zig 0.16?"
+
+# Gateway (replaces openrouterd)
+nullclaw gateway --port 9090
+```
+
+### Why NullClaw over openrouterd
+
+openrouterd was a prototype. NullClaw is production-grade:
+- 5,300+ tests vs our 4
+- 50 providers vs our 1
+- 35 tools vs our 4
+- 10 memory backends vs our 0
+- A2A protocol v0.3.0 (Google standard)
+- 8x smaller binary, 256x less RAM
+
+**Recommendation:** Adopt NullClaw as the swarm runtime. Deprecate openrouterd.
+Our TypeScript SDK remains as the programmatic interface. NullClaw becomes
+the daemon layer.
+

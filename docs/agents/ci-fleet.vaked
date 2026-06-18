@@ -1,0 +1,173 @@
+// Vaked CI Fleet Declaration
+// Compile: vakedc lower docs/agents/ci-fleet.vaked
+// GENESIS_SEAL: 7c242080
+
+declaration ci_fleet {
+
+  // ── Secrets ──────────────────────────────────────────────
+  secret openrouter_api_key {
+    provider: "OpenRouter"
+    env: "OPENROUTER_API_KEY"
+    used_by: [ralph, pr_review, provost, label_tagger, optitron, introspect, nocturne, swe_af, openrouterd]
+  }
+
+  secret langfuse_secret {
+    provider: "Langfuse"
+    env: "LANGFUSE_SECRET_KEY"
+    used_by: [pr_review, ralph, ts_sdk]
+  }
+
+  secret context7_key {
+    provider: "Context7"
+    env: "CONTEXT7_API_KEY"
+    used_by: [ts_sdk]
+    status: "new"
+  }
+
+  secret vast_key {
+    provider: "Vast.ai"
+    env: "VAST_API_KEY"
+    used_by: [ts_sdk]
+    status: "new"
+  }
+
+  // ── Agents ───────────────────────────────────────────────
+  agent ralph {
+    kind: "cron"
+    trigger: "3h + 23:00 UTC"
+    runtime: "python-stdlib"
+    model: "deepseek/deepseek-v4-pro"
+    budget: { daily: 0.05, currency: "USD" }
+    outputs: [ledger, mastodon]
+  }
+
+  agent pr_review {
+    kind: "event"
+    trigger: "pull_request"
+    runtime: "adk-rust"
+    allocator: "mimalloc"
+    model: "deepseek/deepseek-v4-flash"
+    budget: { per_pr: 0.10, currency: "USD" }
+    advisory: true
+    outputs: [github_comment]
+  }
+
+  agent provost {
+    kind: "event"
+    trigger: "issue_comment @vaked-ci"
+    runtime: "adk-rust"
+    model: "deepseek/deepseek-v4-flash"
+    budget: { per_run: 0.05, currency: "USD" }
+  }
+
+  agent label_tagger {
+    kind: "event"
+    trigger: "pull_request"
+    runtime: "adk-rust"
+    model: "deepseek/deepseek-v4-flash"
+    budget: { per_pr: 0.01, currency: "USD" }
+  }
+
+  agent optitron {
+    kind: "cron"
+    trigger: "daily 05:33 UTC"
+    runtime: "go-eino"
+    model: "deepseek/deepseek-v4-pro"
+    budget: { daily: 0.30, currency: "USD" }
+    outputs: [github_issue]
+  }
+
+  agent fleet_introspect {
+    kind: "cron"
+    trigger: "daily 06:00 UTC"
+    runtime: "go-eino"
+    model: "deepseek/deepseek-v4-pro"
+    budget: { daily: 0.20, currency: "USD" }
+    reads: [ralph_ledger]
+  }
+
+  agent nocturne {
+    kind: "cron"
+    trigger: "nightly 02:00 UTC"
+    runtime: "python-vastai"
+    model: "anthropic/claude-opus-4-8-fast"
+    budget: { nightly: 2.00, currency: "USD" }
+    gpu: true
+  }
+
+  agent swe_af {
+    kind: "event"
+    trigger: "issue_label=agent"
+    runtime: "adk-rust"
+    model: "deepseek/deepseek-v4-flash"
+    budget: { per_run: 0.50, currency: "USD" }
+  }
+
+  // ── Daemons ──────────────────────────────────────────────
+  daemon openrouterd {
+    name: "Atlas"
+    runtime: "zig-0.16"
+    port: 9090
+    security: [seccomp, hugepages, binary_verify]
+    model: "deepseek/deepseek-v4-pro"
+    endpoints: ["/health", "/models", "/openapi.json", "/"]
+  }
+
+  daemon vault {
+    name: "OpenBao"
+    url: "bao.crabcc.app"
+    version: "2.5.4"
+    status: "unsealed"
+  }
+
+  // ── SDKs ─────────────────────────────────────────────────
+  surface ts_sdk {
+    name: "@vaked/openrouter-ts"
+    lang: "typescript"
+    tools: [context7, vastai, bao, vaked_docs, langfuse, conductor]
+  }
+
+  surface zig_sdk {
+    name: "openrouter-zig"
+    lang: "zig-0.16"
+    status: "supersedes_ts"
+  }
+
+  surface tui {
+    name: "vaked"
+    style: "aider"
+    lang: "typescript"
+    runtime: "node-readline"
+  }
+
+  surface vaked_docs {
+    name: "Vaked Docs"
+    lang: "go"
+    port: 9845
+    status: "context7_alternative"
+  }
+
+  // ── Observability ────────────────────────────────────────
+  surface langfuse {
+    kind: "tracing"
+    protocol: "OTLP"
+    host: "self-hosted"
+  }
+
+  surface telegram {
+    kind: "alerting"
+    trigger: "failure"
+    targets: ["all_agents"]
+  }
+
+  // ── Relationships ────────────────────────────────────────
+  edge ralph -> mastodon { label: "announce" }
+  edge ralph -> ledger { label: "commit" }
+  edge pr_review -> github_comment { label: "advisory" }
+  edge optitron -> swe_af { label: "trigger" }
+  edge nocturne -> swe_af { label: "trigger_on_win" }
+  edge nocturne -> vastai { label: "rent_gpu" }
+  edge fleet_introspect -> ralph { label: "read_ledger" }
+  edge ts_sdk -> openrouterd { label: "powers" }
+  edge vault -> openrouterd { label: "secrets" }
+}

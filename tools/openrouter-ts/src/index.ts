@@ -3,6 +3,8 @@ import { OpenRouter } from "@openrouter/agent";
 import type { CallModelInput, Tool, ToolWithExecute, StopCondition, TurnContext } from "@openrouter/agent";
 import { createContext7Tools, context7SystemPrompt, context7PreScan, logPreScanInjection } from "./context7.js";
 import { createVastaiTools, vastaiSystemPrompt } from "./vastai.js";
+import { createCubeTools, cubeSystemPrompt } from "./cube.js";
+import { createMemoryTools, memorySystemPrompt } from "./memory.js";
 import { createBaoTools, baoSystemPrompt } from "./bao.js";
 import { traceCallModelResult, flushLangfuse, isLangfuseEnabled } from "./langfuse.js";
 import {
@@ -325,9 +327,9 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
     );
   }
   const client = new OpenRouter({ apiKey });
-  const baseTools: Tool[] = context7 ? [...createContext7Tools(), ...createVastaiTools(), ...createBaoTools()] : [...createVastaiTools(), ...createBaoTools()];
+  const baseTools: Tool[] = context7 ? [...createContext7Tools(), ...createVastaiTools(), ...createBaoTools(), ...createCubeTools(), ...createMemoryTools()] : [...createVastaiTools(), ...createBaoTools()];
   const allTools = [...baseTools, ...extraTools];
-  const baseInstructions = (context7 ? context7SystemPrompt() + "\n\n" : "") + vastaiSystemPrompt() + "\n\n" + baoSystemPrompt();
+  const baseInstructions = (context7 ? context7SystemPrompt() + "\n\n" : "") + vastaiSystemPrompt() + "\n\n" + baoSystemPrompt() + "\n\n" + cubeSystemPrompt() + "\n\n" + memorySystemPrompt();
   const router = options.modelRouting ?? DEFAULT_ROUTER;
   return {
     client,
