@@ -23,8 +23,6 @@ const routes = [_]Route{
     .{ .path = "/nav",              .content_type = "text/html",        .file_path = "/var/www/nav/index.html", .inline_content = null },
     .{ .path = "/rss",              .content_type = "text/html",        .file_path = "/var/www/rss/index.html", .inline_content = null },
     .{ .path = "/rss.xml",          .content_type = "application/xml",  .file_path = "/var/www/rss/index.xml", .inline_content = null },
-    .{ .path = "/donate",           .content_type = "text/html",        .file_path = "/var/www/donate/index.html", .inline_content = null },
-    .{ .path = "/chat",             .content_type = "text/html",        .file_path = "/var/www/chat/index.html", .inline_content = null },
     .{ .path = "/mesh.json",        .content_type = "application/json", .file_path = null, .inline_content = null },
 };
 
@@ -116,6 +114,8 @@ pub fn main() !void {
         _ = parts.first();
         const path = parts.next() orelse "/";
 
+
+
         // /mesh.json
         if (std.mem.eql(u8, path, "/mesh.json")) {
             const json = "{\"t\":0,\"nodes\":6,\"status\":\"synced\"}";
@@ -134,6 +134,7 @@ pub fn main() !void {
         for (routes) |r| {
             if (std.mem.eql(u8, r.path, path)) { found = r; break; }
         }
+
 
         if (found) |r| {
             if (r.inline_content) |c| {
