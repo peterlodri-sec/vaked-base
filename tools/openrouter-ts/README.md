@@ -249,3 +249,26 @@ Keys start with `ctx7sk-`.
 
 100,000+ libraries including Zig, Nix/nixpkgs, Rust, TypeScript, React,
 Tauri, Cloudflare Workers, Node.js, Python, Go, and more.
+
+## Runtime
+
+Supports **Node.js ≥20**, **Bun ≥1.1**, and **Deno ≥2.0**.
+
+| Runtime | Allocator | Best for |
+|---------|-----------|----------|
+| **Bun** | mimalloc (built-in) | Production agents, long loops |
+| **Node.js** | system malloc | General use |
+| **Deno** | jemalloc (Linux) | Sandboxed agents |
+
+See [RUNTIME.md](./RUNTIME.md) for full tuning guide.
+
+```bash
+# Node.js
+npm run orcli "prompt"
+
+# Bun (mimalloc, faster startup)
+bun run dist/cli.js "prompt"
+
+# Deno
+deno run --allow-env --allow-net --allow-read dist/cli.js "prompt"
+```
