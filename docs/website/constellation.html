@@ -31,8 +31,478 @@ body{background:#06060c;overflow:hidden;font-family:'Inter','SF Pro',sans-serif;
 
   /* CrabCC alignment — orange accents, monospace, compact */
   .crabcc-accent { color: #ff8c42; }
+/* Vaked Swarm Design System v1.0
+   Genesis: 7c242080 · Ultimate: 81aa1c0b
+   
+   ROUND 1: Unified dark palette
+   ROUND 2: Typography (JetBrains Mono + Inter)
+   ROUND 3: Subtle animations
+   ROUND 4: Mobile-first responsive
+   ROUND 5: Accessibility (WCAG AA)
+   ROUND 6: Swarm magic (genesis glow, convergence pulse)
+*/
+
+/* ── Design Tokens ──────────────────────────────────────────────────── */
+:root {
+  /* Core palette */
+  --bg-deep:      #08081a;
+  --bg-card:      rgba(14,14,34,0.6);
+  --bg-header:    linear-gradient(180deg, #0c0c24, #08081a);
+  
+  /* Accent colors — used ONLY for state changes */
+  --accent-blue:   #3060ff;
+  --accent-cyan:   #20b0ff;
+  --accent-green:  #00c864;
+  --accent-gold:   #c8a000;
+  --accent-purple: #8060c0;
+  --accent-red:    #ff4242;
+  
+  /* Text hierarchy */
+  --text-primary:   #e0e8f0;
+  --text-secondary: #90a0c0;
+  --text-muted:     #5a5a7a;
+  --text-subtle:    #3a4a5a;
+  
+  /* Borders & dividers */
+  --border-subtle:  rgba(48,96,255,0.08);
+  --border-card:    rgba(48,96,255,0.12);
+  --border-active:  rgba(48,96,255,0.25);
+  
+  /* Typography */
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --font-sans: 'Inter', 'SF Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --space-2xl: 60px;
+  
+  /* Animation */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  
+  /* Genesis glow — recursive swarm magic */
+  --genesis-glow: 0 0 20px rgba(48,96,255,0.08), 0 0 40px rgba(48,96,255,0.04);
+  --genesis-glow-active: 0 0 30px rgba(48,96,255,0.15), 0 0 60px rgba(48,96,255,0.08);
+}
+
+/* ── Base Reset ─────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Typography ─────────────────────────────────────────────────────── */
+h1, h2, h3, h4 { font-weight: 600; color: var(--text-primary); }
+h1 { font-size: 1.75rem; letter-spacing: -0.02em; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1rem; }
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+a:hover { color: #80b0ff; }
+a:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ── Selection ──────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(48,96,255,0.2);
+  color: var(--text-primary);
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--text-subtle); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Cards ──────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 10px;
+  padding: var(--space-md);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+.card:hover {
+  border-color: var(--border-active);
+  box-shadow: var(--genesis-glow);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+  background: rgba(48,96,255,0.06);
+  color: var(--accent-blue);
+  font-size: 0.75rem;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  user-select: none;
+}
+.btn:hover {
+  background: rgba(48,96,255,0.12);
+  border-color: var(--border-active);
+  color: #80b0ff;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+.btn.active {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(0,200,100,0.06);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+th {
+  color: var(--accent-blue);
+  font-weight: 500;
+  font-size: 0.625rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  text-align: left;
+}
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+tr:hover td {
+  background: rgba(48,96,255,0.04);
+}
+
+/* ── Status badges ──────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 0.5625rem;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+.badge-ok    { background: rgba(0,200,100,0.1); border:1px solid rgba(0,200,100,0.2); color: var(--accent-green); }
+.badge-warn  { background: rgba(255,200,0,0.1);  border:1px solid rgba(255,200,0,0.2);  color: #ffc800; }
+.badge-crit  { background: rgba(255,66,66,0.1);  border:1px solid rgba(255,66,66,0.2);  color: var(--accent-red); }
+.badge-info  { background: rgba(32,176,255,0.1); border:1px solid rgba(32,176,255,0.2); color: var(--accent-cyan); }
+
+/* ── Section header ─────────────────────────────────────────────────── */
+.section-header {
+  font-size: 0.6875rem;
+  color: var(--accent-blue);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin: var(--space-xl) 0 var(--space-sm);
+}
+
+/* ── Header bar ─────────────────────────────────────────────────────── */
+.site-header {
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: var(--space-xl) 48px var(--space-lg);
+}
+.site-header h1 {
+  font-size: 0.6875rem;
+  color: var(--accent-blue);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+.site-header .title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: var(--space-xs);
+}
+.site-header .sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: var(--space-xs);
+}
+
+/* ── Genesis seal glow — recursive magic ────────────────────────────── */
+.genesis-seal {
+  position: relative;
+}
+.genesis-seal::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 50%, rgba(48,96,255,0.06) 0%, transparent 70%);
+  pointer-events: none;
+  animation: genesisPulse 4s ease-in-out infinite;
+}
+@keyframes genesisPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* ── Convergence indicator ──────────────────────────────────────────── */
+.convergence-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  animation: convergePulse 2s ease-in-out infinite;
+}
+@keyframes convergePulse {
+  0%, 100% { box-shadow: 0 0 4px var(--accent-green); }
+  50% { box-shadow: 0 0 12px var(--accent-green), 0 0 24px rgba(0,200,100,0.3); }
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .site-header { padding: var(--space-lg) var(--space-md); }
+  .site-header .title { font-size: 1.25rem; }
+  body { font-size: 0.875rem; }
+  table { font-size: 0.6875rem; }
+  th, td { padding: 8px; }
+}
+
+
+/* ── Light Theme (data-theme="light") ────────────────────────────────── */
+[data-theme="light"] {
+  --bg-deep:      #f0f2f5;
+  --bg-card:      rgba(255,255,255,0.8);
+  --bg-header:    linear-gradient(180deg, #e8ecf0, #f0f2f5);
+  
+  --text-primary:   #1a1a2e;
+  --text-secondary: #4a4a6a;
+  --text-muted:     #8a8aaa;
+  --text-subtle:    #babbcc;
+  
+  --border-subtle:  rgba(0,0,0,0.06);
+  --border-card:    rgba(0,0,0,0.1);
+  --border-active:  rgba(48,96,255,0.2);
+  
+  --accent-blue:   #2040d0;
+  --accent-green:  #108040;
+  --accent-red:    #c02020;
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(48,96,255,0.15);
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .btn {
+  background: rgba(48,96,255,0.04);
+}
+[data-theme="light"] .btn:hover {
+  background: rgba(48,96,255,0.08);
+}
+
+[data-theme="light"] .card:hover {
+  box-shadow: 0 0 20px rgba(48,96,255,0.06);
+}
+
+
+/* ── CrabCC-Site Design System (80% merge) ────────────────────────────
+   Source: github.com/peterlodri-sec/crabcc-site (private)
+   Merged tokens: spacing, fonts, borders, accents, animation
+*/
+
+:root {
+  /* ── CrabCC accent — warm rust for hot paths ────────────────────── */
+  --crab-hot:         #ff8c42;
+  --crab-glow:        0 0 20px rgba(255,140,66,0.15);
+  --crab-wash:        rgba(255,140,66,0.08);
+  
+  /* ── CrabCC terminal palette ─────────────────────────────────────── */
+  --term-bg:          #0e0e10;
+  --term-bd:          #26262a;
+  --term-ink:         #e8e8ea;
+  --c-key:            #6fb2e8;
+  --c-str:            #5fd08a;
+  --c-num:            var(--crab-hot);
+  --c-punc:           #74747a;
+  --c-dim:            #8a8a90;
+  
+  /* ── CrabCC border system ────────────────────────────────────────── */
+  --border-hair:      0.5px;
+  --border-strong:    rgba(255,255,255,0.12);
+  --border-subtle:    rgba(48,96,255,0.06);
+  
+  /* ── CrabCC font weights ─────────────────────────────────────────── */
+  --fw-black:         900;
+  --fw-bold:          700;
+  --fw-semibold:      600;
+  --fw-medium:        500;
+  
+  /* ── CrabCC spacing scale (adopted) ──────────────────────────────── */
+  --space-2:          8px;
+  --space-2_5:        10px;
+  --space-4:          16px;
+  --space-6:          24px;
+  --space-10:         40px;
+  --container-max:    1280px;
+  
+  /* ── CrabCC animation tokens ─────────────────────────────────────── */
+  --dur-fast:         0.15s;
+  --dur-medium:       0.3s;
+  --ease-out:         cubic-bezier(0.16, 1, 0.3, 1);
+  
+  /* ── CrabCC accent with wash/hover states ────────────────────────── */
+  --accent:           var(--crab-hot);
+  --accent-hover:     #ffa266;
+  --accent-wash:      var(--crab-wash);
+  
+  /* ── Status colors (crabcc-aligned) ──────────────────────────────── */
+  --ok:               #2ecc71;
+  --ok-wash:          rgba(46,204,113,0.1);
+  --danger:           #e74c3c;
+}
+
+/* ── Crabcc-style sticky blur header ───────────────────────────────── */
+.site-header--crabcc {
+  position: sticky; top: 0; z-index: 50;
+  height: 56px;
+  display: flex; align-items: center;
+  background: color-mix(in oklab, var(--bg-deep) 86%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: var(--border-hair) solid var(--border-subtle);
+}
+
+/* ── Crabcc eyebrow pattern ────────────────────────────────────────── */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  margin-bottom: var(--space-4);
+}
+.eyebrow::before {
+  content: ""; width: 18px; height: 1px; background: currentColor; opacity: .6;
+}
+
+/* ── Crabcc container ──────────────────────────────────────────────── */
+.wrap {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+
+/* ── Liquid Glass Theme (data-theme="liquid") ────────────────────────── */
+[data-theme="liquid"] {
+  --bg-deep:      #050505;
+  --bg-card:      rgba(255, 255, 255, 0.03);
+  --bg-header:    linear-gradient(180deg, #080810, #050505);
+  
+  --text-primary:   #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --text-muted:     #606060;
+  --text-subtle:    #404040;
+  
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-card:    rgba(255, 255, 255, 0.1);
+  --border-active:  rgba(0, 255, 157, 0.3);
+  
+  --accent-blue:   #00FF9D;
+  --accent-cyan:   #00FF9D;
+  --accent-green:  #00FF9D;
+  --accent-orange:  #00FF9D;
+  --accent-purple: #00cc7a;
+  --accent-red:    #ff3366;
+  
+  --genesis-glow:        0 0 20px rgba(0, 255, 157, 0.06);
+  --genesis-glow-active: 0 0 30px rgba(0, 255, 157, 0.12);
+}
+
+[data-theme="liquid"] .card {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="liquid"] .btn {
+  border: 1px solid rgba(0, 255, 157, 0.2);
+}
+[data-theme="liquid"] .btn:hover {
+  background: rgba(0, 255, 157, 0.08);
+}
+
+[data-theme="liquid"] .site-header {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(5, 5, 5, 0.86);
+}
+
+/* Vaked Pulse indicator (bottom-right) */
+#vaked-pulse {
+  position: fixed; bottom: 20px; right: 20px; z-index: 99;
+  width: 60px; height: 60px; border-radius: 50%;
+  border: 2px solid var(--accent-green);
+  background: transparent;
+  animation: vakedPulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes vakedPulse {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-green); transform: scale(1); }
+  50% { box-shadow: 0 0 24px var(--accent-green), 0 0 48px rgba(0, 255, 157, 0.2); transform: scale(1.05); }
+}
+
+/* ── Print ──────────────────────────────────────────────────────────── */
+@media print {
+  body { background: white; color: black; }
+  .site-header { background: none; border-bottom: 1px solid #ccc; }
+  .btn, .card { border: 1px solid #ccc; box-shadow: none; }
+}
+
 </style>
-<link rel="stylesheet" href="/vaked-theme.css">
+
 </head>
 <body>
 <div id="curtain" class="open"></div>
