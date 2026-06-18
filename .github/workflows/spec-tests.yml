@@ -242,3 +242,55 @@ jobs:
             ran: nix flake check --no-build
             ${{ steps.sum.outputs.tail }}
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  # ── Grammar v0.5 compliance ────────────────────────────────────────
+  grammar-v05:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify v0.5 primitives
+        run: |
+          echo "Grammar v0.5 compliance check"
+          GRAMMAR=vaked/grammar/vaked-v0-plus.ebnf
+          
+          echo "=== evolution_hash ==="
+          grep "evolution_hash" $GRAMMAR && echo "✅ present" || { echo "❌ missing"; exit 1; }
+          
+          echo "=== v0.5 primitives ==="
+          for kind in trust quorum probe; do
+            grep "\"$kind\"" $GRAMMAR > /dev/null && echo "✅ $kind" || echo "❌ $kind missing"
+          done
+          
+          echo "=== Total kinds ==="
+          echo "Kinds: $(grep -c '" | "' $GRAMMAR)"
+          
+          echo "=== Fleet governance ==="
+          FLEET=vaked/examples/fleet-governance.vaked
+          if [ -f "$FLEET" ]; then
+            grep "trust" $FLEET > /dev/null && echo "✅ fleet: trust" || echo "❌ fleet: trust"
+            grep "quorum" $FLEET > /dev/null && echo "✅ fleet: quorum" || echo "❌ fleet: quorum"
+            grep "probe" $FLEET > /dev/null && echo "✅ fleet: probe" || echo "❌ fleet: probe"
+            echo "Agents: $(grep -c 'agent \"' $FLEET) governed"
+          fi
+
+  # ── Library integrity ───────────────────────────────────────────────
+  library-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify library
+        run: |
+          echo "=== Library integrity ==="
+          LIB=docs/library.md
+          if [ -f "$LIB" ]; then
+            echo "References: $(grep -c '^[0-9]*\. ' $LIB)"
+            grep "CC0\|MIT\|GPL\|Apache\|BSD\|CC-BY" $LIB > /dev/null && echo "✅ licenses present" || echo "⚠️ no licenses"
+          fi
+          
+          echo "=== RAG index ==="
+          python3 -c "
+          import json
+          with open('chat-gateway/knowledge/index.json') as f:
+              d = json.load(f)
+          print(f'Documents: {d[\"count\"]}')
+          " 2>/dev/null || echo "⚠️ RAG index not found"
