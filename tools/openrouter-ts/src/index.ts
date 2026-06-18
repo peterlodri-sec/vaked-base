@@ -441,12 +441,6 @@ export type VakedAgent = ReturnType<typeof createVakedAgent>;
 // ── Speculative RAG — race LLM vs Vaked Docs, fastest wins ────────────────
 
 /**
- * Fire OpenRouter + Vaked Docs in parallel. Whichever returns first wins.
- * If RAG wins: inject docs into the prompt before LLM sees it.
- * If LLM wins: RAG result enriches the next turn.
- *
- * This makes every prompt "Context7-native" without the pre-scan latency.
- */
 export async function speculativeAsk(
   agent: VakedAgent,
   prompt: string,
