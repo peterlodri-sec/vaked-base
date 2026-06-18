@@ -1,0 +1,38 @@
+declaration swarm_cmds {
+  kind: "cmd"
+  name: "zone"
+  props: {
+    runner: "sh"
+    args: '''
+      git rev-parse --abbrev-ref HEAD
+      curl -sf http://localhost:9090/health && echo UP || echo DOWN
+    '''
+  }
+}
+
+declaration swarm_cmds {
+  kind: "cmd"
+  name: "build"
+  props: {
+    runner: "sh"
+    args: "cd daemons/openrouterd && zig build && cd tools/openrouter-zig && zig build && cd tools/openrouter-ts && npm run build"
+  }
+}
+
+declaration swarm_cmds {
+  kind: "cmd"
+  name: "test"
+  props: {
+    runner: "sh"
+    args: "cd daemons/openrouterd && zig build test && cd daemons/synapsed && zig build test"
+  }
+}
+
+declaration swarm_cmds {
+  kind: "cmd"
+  name: "deploy"
+  props: {
+    runner: "git"
+    args: "add -A && git commit -m 'swarm update' && git push"
+  }
+}
