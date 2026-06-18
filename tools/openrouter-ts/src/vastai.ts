@@ -150,19 +150,81 @@ const instanceInput = z.object({
   instanceId: z.number().describe("Instance ID"),
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// Serverless client (inference without managing instances)
+// ═══════════════════════════════════════════════════════════════════
+
+export interface ServerlessEndpoint {
+  endpoint_id: string;
+  name: string;
+  model: string;
+  status: string;
+}
+
+export interface ServerlessResponse {
+  response: {
+    choices: Array<{ text: string }>;
+  };
+}
+
+export async function getEndpoint(name: string): Promise<ServerlessEndpoint> {
+  return api("GET", `/serverless/endpoints/${name}/`);
+}
+
+export async function serverlessRequest(
+  endpointName: string,
+  model: string,
+  prompt: string,
+  maxTokens = 100,
+  temperature = 0.7,
+): Promise<string> {
+  const result = await api<ServerlessResponse>("POST", `/serverless/endpoints/${endpointName}/request/`, {
+    model,
+    prompt,
+    max_tokens: maxTokens,
+    temperature,
+  });
+  return result.response?.choices?.[0]?.text ?? "";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SSH
+// ═══════════════════════════════════════════════════════════════════
+
+export async function getSshUrl(instanceId: number): Promise<string> {
+  const result = await api<{ ssh_url: string }>("GET", `/instances/${instanceId}/ssh-url/`);
+  return result.ssh_url ?? `ssh -p 22 root@instance-${instanceId}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// More agent tools
+// ═══════════════════════════════════════════════════════════════════
+
+const serverlessInput = z.object({
+  endpoint: z.string().describe("Serverless endpoint name"),
+  model: z.string().describe("Model ID, e.g. 'Qwen/Qwen3-8B'"),
+  prompt: z.string().describe("Inference prompt"),
+  maxTokens: z.number().optional().default(100),
+  temperature: z.number().optional().default(0.7),
+});
+
+const sshInput = z.object({
+  instanceId: z.number().describe("Instance ID"),
+});
+
 export function createVastaiTools(): Tool[] {
   return [
     tool({
       name: "vastai_search",
-      description: "Search Vast.ai for GPU offers. Filter by GPU name, count, price. Returns cheapest offers first.",
+      description: "Search Vast.ai GPU cloud for offers. Filter: 'gpu_name=RTX_4090 num_gpus=1'. Returns cheapest first.",
       inputSchema: searchInput,
       execute: async (params) => {
         try {
           const offers = await searchOffers(params.query, params.limit);
           if (offers.length === 0) return "No GPU offers found.";
           return "## Vast.ai GPU Offers\n\n" + offers.map((o) =>
-            `- **${o.gpu_name}** ×${o.num_gpus} — ${o.gpu_ram}GB VRAM · ${o.disk_space}GB disk · **$${o.dph_total.toFixed(2)}/hr** · ${o.geolocation} · id:${o.id}`
-          ).join("\n");
+            `- **${o.gpu_name}** ×${o.num_gpus} — ${o.gpu_ram}GB VRAM · ${o.disk_space}GB disk · **$${o.dph_total.toFixed(3)}/hr** · ${o.geolocation} · id:${o.id}${o.verified ? " ✅" : ""}`
+          ).join("\n") + "\n\nUse `vastai_launch` with an offer ID to start an instance.";
         } catch (err) {
           return `Vast.ai error: ${err instanceof Error ? err.message : String(err)}`;
         }
@@ -171,12 +233,12 @@ export function createVastaiTools(): Tool[] {
 
     tool({
       name: "vastai_launch",
-      description: "Launch a GPU instance on Vast.ai. Returns instance ID for tracking.",
+      description: "Launch GPU instance. Starts billing immediately. Confirm with user first.",
       inputSchema: createInput,
       execute: async (params) => {
         try {
           const result = await createInstance(params.offerId, { image: params.image, disk: params.disk });
-          return `GPU instance launched. ID: ${result.instance_id}. Check status with vastai_status. Cost: ~$${params.disk ? "varies" : "see offer"}/hr.`;
+          return `## GPU Launched\nInstance #${result.instance_id}\nImage: ${params.image}\nDisk: ${params.disk}GB\n\nCheck status: vastai_status\nGet SSH: vastai_ssh_url\nDestroy: vastai_destroy #${result.instance_id}`;
         } catch (err) {
           return `Vast.ai error: ${err instanceof Error ? err.message : String(err)}`;
         }
@@ -185,14 +247,14 @@ export function createVastaiTools(): Tool[] {
 
     tool({
       name: "vastai_status",
-      description: "Check status of all Vast.ai GPU instances.",
+      description: "Check all GPU instances and their current status.",
       inputSchema: z.object({}),
       execute: async () => {
         try {
           const instances = await showInstances();
-          if (instances.length === 0) return "No running GPU instances.";
+          if (instances.length === 0) return "No GPU instances running.";
           return "## Vast.ai Instances\n\n" + instances.map((i) =>
-            `- **#${i.id}** — ${i.gpu_name} — ${i.actual_status} — $${i.dph_total.toFixed(2)}/hr — ${i.ssh_host}:${i.ssh_port}`
+            `- **#${i.id}** — ${i.gpu_name} — \`${i.actual_status}\` — $${i.dph_total.toFixed(3)}/hr — ssh ${i.ssh_host}:${i.ssh_port}`
           ).join("\n");
         } catch (err) {
           return `Vast.ai error: ${err instanceof Error ? err.message : String(err)}`;
@@ -202,7 +264,7 @@ export function createVastaiTools(): Tool[] {
 
     tool({
       name: "vastai_destroy",
-      description: "Destroy a Vast.ai GPU instance. Stops billing immediately.",
+      description: "Destroy GPU instance. Stops billing immediately. Confirm with user first.",
       inputSchema: instanceInput,
       execute: async (params) => {
         try {
@@ -213,24 +275,53 @@ export function createVastaiTools(): Tool[] {
         }
       },
     }),
+
+    tool({
+      name: "vastai_ssh_url",
+      description: "Get SSH connection string for a running instance.",
+      inputSchema: sshInput,
+      execute: async (params) => {
+        try {
+          const url = await getSshUrl(params.instanceId);
+          return `SSH command:\n\`\`\`\n${url}\n\`\`\`\n\nOr: \`ssh $(vastai ssh-url ${params.instanceId})\``;
+        } catch (err) {
+          return `Vast.ai error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      },
+    }),
+
+    tool({
+      name: "vastai_serverless",
+      description: "Run inference on a serverless endpoint. No GPU management needed.",
+      inputSchema: serverlessInput,
+      execute: async (params) => {
+        try {
+          const text = await serverlessRequest(params.endpoint, params.model, params.prompt, params.maxTokens, params.temperature);
+          return `## Serverless Inference\nModel: ${params.model}\n\n${text}`;
+        } catch (err) {
+          return `Vast.ai error: ${err instanceof Error ? err.message : String(err)}`;
+        }
+      },
+    }),
   ];
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// System prompt fragment
-// ═══════════════════════════════════════════════════════════════════
-
 export function vastaiSystemPrompt(): string {
   return [
-    "## Vast.ai — GPU Cloud",
+    "## Vast.ai — GPU Cloud ($7.68 credit available)",
     "",
-    "You have access to Vast.ai GPU cloud tools:",
-    "- **vastai_search**: Find GPU offers by name, count, price",
-    "- **vastai_launch**: Start a GPU instance (starts billing!)",
-    "- **vastai_status**: Check running instances",
-    "- **vastai_destroy**: Stop and destroy an instance (stops billing)",
+    "You have access to Vast.ai GPU cloud. Always confirm with user before",
+    "launching (starts billing) or destroying (kills work) instances.",
     "",
-    "Always confirm with the user before launching or destroying instances.",
+    "Tools:",
+    "- **vastai_search** — Find GPUs: 'gpu_name=RTX_4090 num_gpus=1'",
+    "- **vastai_launch** — Start instance (STARTS BILLING!)",
+    "- **vastai_status** — Check running instances + costs",
+    "- **vastai_destroy** — Teardown (stops billing)",
+    "- **vastai_ssh_url** — Get SSH connection string",
+    "- **vastai_serverless** — Inference without managing GPUs",
+    "",
     "Default image: pytorch/pytorch. Default disk: 32GB.",
+    "For model inference without GPU management, prefer vastai_serverless.",
   ].join("\n");
 }
