@@ -580,9 +580,15 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      * Generate code — Claude Opus, Context7 auto-available for library docs.
      */
     async code(prompt: string, maxTokens?: number): Promise<string> {
+      const selectedModel = routeModel(prompt, router);
+      let enrichedPrompt = prompt;
+      if (context7) {
+        const scan = await context7PreScan(prompt);
+        if (scan.injected) { logPreScanInjection(scan); enrichedPrompt = scan.injected + "\n\n---\n\nUser: " + prompt; }
+      }
       const result = client.callModel({
-        model: MODELS["claude"]?.id ?? "anthropic/claude-opus-4-8-fast",
-        input: [{ role: "user", content: prompt }],
+        model: selectedModel,
+        input: [{ role: "user", content: enrichedPrompt }],
         instructions: `${baseInstructions}\n\nZig 0.16 systems programmer. Write production code. No explanations, only code.`,
         tools: allTools.length > 0 ? allTools : undefined,
         maxOutputTokens: maxTokens ?? 2000,
@@ -596,9 +602,15 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      * Review code — Claude Opus.
      */
     async review(prompt: string, maxTokens?: number): Promise<string> {
+      const selectedModel = routeModel(prompt, router);
+      let enrichedPrompt = prompt;
+      if (context7) {
+        const scan = await context7PreScan(prompt);
+        if (scan.injected) { logPreScanInjection(scan); enrichedPrompt = scan.injected + "\n\n---\n\nUser: " + prompt; }
+      }
       const result = client.callModel({
-        model: MODELS["claude"]?.id ?? "anthropic/claude-opus-4-8-fast",
-        input: [{ role: "user", content: prompt }],
+        model: selectedModel,
+        input: [{ role: "user", content: enrichedPrompt }],
         instructions: `${baseInstructions}\n\nCritical reviewer. 3-5 specific suggestions. Be direct.`,
         tools: allTools.length > 0 ? allTools : undefined,
         maxOutputTokens: maxTokens ?? 600,

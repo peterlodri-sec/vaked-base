@@ -222,6 +222,51 @@ await flushLangfuse();
 | `provider` | Always `openrouter` |
 | `generationId` | OpenRouter generation ID for trace linking |
 
+
+## Conductor — Model Self-Selection + Context7 Pre-Scan
+
+Models choose their own per-task. Context7 auto-injects live docs when
+APIs/libraries are mentioned. Zero configuration needed.
+
+### Model Routing
+
+```typescript
+const agent = createVakedAgent({
+  modelRouting: { strategy: "auto" },
+});
+// code → claude, explain → deepseek, creative → gemini
+```
+
+| Strategy | Behavior |
+|----------|----------|
+| `auto` | Keyword-based task routing (18 keywords) |
+| `cost-optimized` | Always cheapest model |
+| `quality` | Always best model |
+| `fixed` | User-specified (legacy) |
+
+### Context7 Pre-Scan
+
+Every prompt is scanned for API/library mentions. When detected, up to
+2K tokens of live Context7 docs are injected before the prompt reaches
+the model. Verbose transparent logging:
+
+```
+[ctx7:prescan] detected: zig, nixpkgs → injected 1847 tokens (~7.4K)
+```
+
+**20 library patterns:** zig, nixpkgs, tauri, react, cloudflare, nodejs,
+rust, ebpf, monaco, python, go, docker, kubernetes, typescript, git, sql,
+vite, langchain + 2 more.
+
+### Model Fallback Chain
+
+```typescript
+modelFallbackChain("anthropic/claude-opus-4-8-fast")
+// → ["anthropic/claude-opus-4-8-fast", "deepseek/deepseek-v4-pro", "google/gemini-2.5-flash"]
+```
+
+Primary fails → next in chain. OpenRouter handles the fallback automatically.
+
 ## Budget Tracking
 
 

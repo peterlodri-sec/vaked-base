@@ -335,9 +335,10 @@ async function tuiMode(args: Args, agent: VakedAgent): Promise<void> {
       if (state.stream) {
         let firstChunk = true;
         const routedModel = state.model === "auto" ? routeModel(trimmed) : state.model;
+          if (state.context7) process.stdout.write("\x1b[90m[ctx7] scanning...\x1b[0m\r");
           for await (const chunk of agent.streamChat(prompt, routedModel)) {
           if (firstChunk) {
-            process.stdout.write("\x1b[90m──\x1b[0m\n");
+            process.stdout.write("\x1b[K\x1b[90m──\x1b[0m\n");
             firstChunk = false;
           }
           process.stdout.write(chunk);

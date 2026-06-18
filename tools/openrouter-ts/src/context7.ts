@@ -368,7 +368,16 @@ const API_PATTERNS: Array<{ pattern: RegExp; library: string }> = [
   { pattern: /\b(node:fs|node:path|node:http|node\.js|Node\.js)/i, library: "nodejs" },
   { pattern: /\b(serde|tokio|async fn|cargo build|cargo\.toml)/i, library: "rust" },
   { pattern: /\b(eBPF|bpf\b|BPF_PROG|bpf_trace|XDP)/i, library: "ebpf" },
-  { pattern: /\b(Monaco|monaco-editor|@monaco-editor)/i, library: "monaco" },
+  { pattern: /(Monaco|monaco-editor|@monaco-editor)/i, library: "monaco" },
+  { pattern: /(python|pip install|venv|pytest|asyncio|FastAPI|Django)/i, library: "python" },
+  { pattern: /(golang|go mod|go build|goroutine|go\s+1\.\d+)/i, library: "go" },
+  { pattern: /(docker|dockerfile|docker-compose|container|podman)/i, library: "docker" },
+  { pattern: /(kubernetes|k8s|kubectl|pod|deployment\.yaml)/i, library: "kubernetes" },
+  { pattern: /(typescript|tsconfig|\.ts|\.tsx|TypeScript)/i, library: "typescript" },
+  { pattern: /(git|github|pull request|merge conflict|rebase)/i, library: "git" },
+  { pattern: /(sql|postgres|mysql|sqlite|prisma|drizzle)/i, library: "sql" },
+  { pattern: /(vite|esbuild|webpack|rollup|bundler)/i, library: "vite" },
+  { pattern: /(llm|langchain|langfuse|prompt engineering|token)/i, library: "langchain" },
 ];
 
 export interface PreScanResult {
@@ -379,6 +388,9 @@ export interface PreScanResult {
 }
 
 export async function context7PreScan(prompt: string): Promise<PreScanResult> {
+  if (!prompt || prompt.trim().length === 0) {
+    return { detected: false, libraries: [], injected: null, tokenEstimate: 0 };
+  }
   const detectedLibs: string[] = [];
 
   for (const { pattern, library } of API_PATTERNS) {
@@ -396,7 +408,7 @@ export async function context7PreScan(prompt: string): Promise<PreScanResult> {
 
   for (const lib of libs) {
     try {
-      const docs = await queryDocs(lib, prompt.slice(0, 300));
+      const docs = await Promise.race([queryDocs(lib, prompt.slice(0, 300)), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000))]);
       const formatted = formatContextForInjection(docs, lib);
       injectParts.push(formatted);
     } catch (err) {

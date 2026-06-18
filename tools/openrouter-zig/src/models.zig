@@ -186,28 +186,20 @@ pub const LangfuseTrace = struct {
 /// Conductor — route a prompt to the best model based on task keywords.
 /// "auto" strategy — models choose their own.
 pub fn routeModel(prompt: []const u8, cheap_id: []const u8, quality_id: []const u8, creative_id: []const u8) []const u8 {
-    const lower = std.ascii.lowerString(prompt);
-    // code/review/debug → quality model  
-    if (std.mem.indexOf(u8, lower, "code") != null or
-        std.mem.indexOf(u8, lower, "review") != null or
-        std.mem.indexOf(u8, lower, "write") != null or
-        std.mem.indexOf(u8, lower, "implement") != null or
-        std.mem.indexOf(u8, lower, "fix") != null or
-        std.mem.indexOf(u8, lower, "debug") != null or
-        std.mem.indexOf(u8, lower, "test") != null or
-        std.mem.indexOf(u8, lower, "optimize") != null or
-        std.mem.indexOf(u8, lower, "refactor") != null) return quality_id;
+    if (prompt.len == 0) return cheap_id;
+    // code/review/debug → quality model (case-insensitive via std.ascii)
+    const code_kw = [_][]const u8{ "code", "review", "write", "implement", "fix", "debug", "test", "optimize", "refactor" };
+    for (code_kw) |kw| { if (std.ascii.indexOfIgnoreCase(prompt, kw) != null) return quality_id; }
     // creative/design → creative model
-    if (std.mem.indexOf(u8, lower, "creative") != null or
-        std.mem.indexOf(u8, lower, "brainstorm") != null or
-        std.mem.indexOf(u8, lower, "design") != null) return creative_id;
-    // default → cheap model
+    const creative_kw = [_][]const u8{ "creative", "brainstorm", "design" };
+    for (creative_kw) |kw| { if (std.ascii.indexOfIgnoreCase(prompt, kw) != null) return creative_id; }
     return cheap_id;
 }
 
 /// Build model fallback chain for OpenRouter's models[] parameter.
 pub fn modelFallbackChain(allocator: std.mem.Allocator, primary: []const u8) ![][]const u8 {
-    var chain = std.ArrayListUnmanaged([]const u8){ .items = &.{}, .capacity = 0 };
+    var chain: std.ArrayListUnmanaged([]const u8) = .{ .items = &.{}, .capacity = 0 };
+    errdefer chain.deinit(allocator);
     try chain.append(allocator, primary);
     if (std.mem.indexOf(u8, primary, "claude") != null) {
         try chain.append(allocator, "deepseek/deepseek-v4-pro");
