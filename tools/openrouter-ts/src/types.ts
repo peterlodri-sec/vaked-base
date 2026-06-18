@@ -113,3 +113,49 @@ export const PANEL_MODELS: PanelModel[] = [
 ];
 
 export const JUDGE_MODEL = "anthropic/claude-opus-4-8-fast";
+
+
+// ── Model self-selection ───────────────────────────────────────────────
+
+export type ModelRoutingStrategy = "auto" | "cost-optimized" | "quality" | "fixed";
+
+export interface ModelRouterConfig {
+  /** Routing strategy */
+  strategy: ModelRoutingStrategy;
+  /** Fixed model (when strategy is "fixed") */
+  fixedModel?: string;
+  /** Cheap model for simple tasks */
+  cheapModel?: string;
+  /** Quality model for complex tasks */
+  qualityModel?: string;
+  /** Creative/balanced model */
+  creativeModel?: string;
+}
+
+export const DEFAULT_ROUTER: ModelRouterConfig = {
+  strategy: "auto",
+  cheapModel: "deepseek/deepseek-v4-pro",
+  qualityModel: "anthropic/claude-opus-4-8-fast",
+  creativeModel: "google/gemini-2.5-flash",
+};
+
+/** Heuristic task → model mapping */
+export const TASK_MODEL_MAP: Record<string, string> = {
+  "code": "anthropic/claude-opus-4-8-fast",
+  "review": "anthropic/claude-opus-4-8-fast",
+  "write": "anthropic/claude-opus-4-8-fast",
+  "implement": "anthropic/claude-opus-4-8-fast",
+  "fix": "anthropic/claude-opus-4-8-fast",
+  "explain": "deepseek/deepseek-v4-pro",
+  "what": "deepseek/deepseek-v4-pro",
+  "how": "deepseek/deepseek-v4-pro",
+  "summarize": "deepseek/deepseek-v4-pro",
+  "creative": "google/gemini-2.5-flash",
+  "brainstorm": "google/gemini-2.5-flash",
+  "design": "google/gemini-2.5-flash",
+  "translate": "deepseek/deepseek-v4-pro",
+  "refactor": "anthropic/claude-opus-4-8-fast",
+  "debug": "anthropic/claude-opus-4-8-fast",
+  "test": "anthropic/claude-opus-4-8-fast",
+  "optimize": "anthropic/claude-opus-4-8-fast",
+};
