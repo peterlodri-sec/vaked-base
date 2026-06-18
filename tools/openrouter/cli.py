@@ -27,7 +27,7 @@ ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 BUDGET_FILE = Path.home() / ".orcli_budget"
 
 MODELS = {
-    "deepseek": "deepseek/deepseek-v4-flash",
+    "deepseek": "deepseek/deepseek-v4-pro",
     "claude":   "anthropic/claude-opus-4.8-fast",
     "gemini":   "google/gemini-2.5-flash",
     "qwen":     "qwen/qwen3-235b-a22b-thinking",

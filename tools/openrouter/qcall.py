@@ -1,57 +1,45 @@
-"""qcall — Quick call shortcuts for common OpenRouter patterns.
-
-Usage from Python scripts:
-    from tools.openrouter.qcall import ask, code, review, budget
-    
-    result = ask("What is the meaning of life?")
-    zig_code = code("Write a Zig function that...")
-    feedback = review("Review this code: ...")
-    budget()  # → "$5.80"
+"""qcall — direct OpenRouter calls, no python3 subprocesses.
+No more "Python quit unexpectedly" from recursive subprocess spawning.
 """
-import subprocess, sys, json
-from pathlib import Path
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-ORCLI = Path(__file__).parent / "cli.py"
+# Direct import — no subprocess
+from tools.openrouter import cli as orcli
 
 
 def ask(prompt: str, model: str = "deepseek", max_tokens: int = 500) -> str:
-    """Quick question — cheap, fast."""
-    r = subprocess.run(
-        [sys.executable, str(ORCLI), "-m", model, "-t", str(max_tokens), prompt],
-        capture_output=True, text=True, timeout=120,
-    )
-    return r.stdout.strip()
+    """Quick question — cheap, fast. Direct function call, no subprocess."""
+    result = orcli.call(model, "You are a helpful assistant.", prompt, max_tokens)
+    return result.get("choices", [{}])[0].get("message", {}).get("content", "")
 
 
 def code(prompt: str, model: str = "claude", max_tokens: int = 2000) -> str:
-    """Generate code — Claude Opus, high quality."""
-    r = subprocess.run(
-        [sys.executable, str(ORCLI), "-m", model, "-t", str(max_tokens),
-         "-s", "You are a Zig systems programmer. Write production code. No explanations, only code.",
-         prompt],
-        capture_output=True, text=True, timeout=120,
+    """Generate code — direct call, no subprocess."""
+    result = orcli.call(
+        orcli.MODELS.get(model, model),
+        "Zig 0.16 systems programmer. Write production code. No explanations, only code.",
+        prompt,
+        max_tokens,
     )
-    return r.stdout.strip()
+    return result.get("choices", [{}])[0].get("message", {}).get("content", "")
 
 
 def review(prompt: str, model: str = "claude", max_tokens: int = 600) -> str:
-    """Review code or ideas — critical, concise."""
-    r = subprocess.run(
-        [sys.executable, str(ORCLI), "-m", model, "-t", str(max_tokens),
-         "-s", "Critical reviewer. 3-5 specific suggestions. Be direct.",
-         prompt],
-        capture_output=True, text=True, timeout=120,
+    """Review code — direct call, no subprocess."""
+    result = orcli.call(
+        orcli.MODELS.get(model, model),
+        "Critical reviewer. 3-5 specific suggestions. Be direct.",
+        prompt,
+        max_tokens,
     )
-    return r.stdout.strip()
+    return result.get("choices", [{}])[0].get("message", {}).get("content", "")
 
 
 def budget() -> str:
-    """Get remaining OpenRouter budget."""
-    r = subprocess.run(
-        [sys.executable, str(ORCLI), "--status"],
-        capture_output=True, text=True, timeout=10,
-    )
-    for line in r.stdout.split("\n"):
-        if "Budget" in line:
-            return line.split("$")[-1].strip()
-    return "?"
+    """Get remaining budget from local file — no API call."""
+    try:
+        with open(os.path.expanduser("~/.orcli_budget")) as f:
+            return f"${float(f.read().strip()):.2f}"
+    except:
+        return "$?"

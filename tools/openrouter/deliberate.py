@@ -20,7 +20,7 @@ PANEL = [
     ("anthropic/claude-sonnet-4.6", "Claude Sonnet 4.6"),
     ("google/gemini-2.5-flash", "Gemini 2.5 Flash"),
     # Strong reasoners
-    ("deepseek/deepseek-v4-flash", "DeepSeek V4"),
+    ("deepseek/deepseek-v4-pro", "DeepSeek V4"),
     ("qwen/qwen3-235b-a22b-thinking", "Qwen3 235B"),
     ("meta-llama/llama-4-maverick", "Llama 4 Maverick"),
     ("anthropic/claude-opus-4.7-fast", "Claude Opus 4.7"),
@@ -47,7 +47,7 @@ PRICES = {
     "google/gemini-2.5-pro": (1.25, 5),
     "anthropic/claude-sonnet-4.6": (3, 15),
     "google/gemini-2.5-flash": (0.15, 0.60),
-    "deepseek/deepseek-v4-flash": (0.27, 0.27),
+    "deepseek/deepseek-v4-pro": (0.27, 0.27),
     "qwen/qwen3-235b-a22b-thinking": (2.5, 5),
     "meta-llama/llama-4-maverick": (0.2, 0.6),
     "anthropic/claude-opus-4.7-fast": (15, 75),

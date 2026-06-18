@@ -29,12 +29,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: pr
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Checkout trusted main (the verifier of record)
         uses: actions/checkout@v4
         with:
           ref: main
           path: trusted
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
 
       - name: Verify external seals — trusted verifier vs PR artifacts (failable)
         run: HONESTY_REPO_ROOT="$GITHUB_WORKSPACE/pr" bash trusted/tools/verify-seals.sh
