@@ -42,7 +42,7 @@ pub fn complete(self:*WorkerPool,id:u32,r:[]const u8)void{
     }
 }
 pub fn tuiPoll(arena:*ArenaHeader,w:anytype)!void{
-  try w.print("[H:{d} V:{d} S:{d}] ",.{@atomicLoad(u8,&arena.active_hydrators,.acquire),@atomicLoad(u8,&arena.active_verifiers,.acquire),@atomicLoad(u8,&arena.active_synthesizers,.acquire)});
+  try w.print("\r[H:{d} V:{d} S:{d}] ",.{@atomicLoad(u8,&arena.active_hydrators,.acquire),@atomicLoad(u8,&arena.active_verifiers,.acquire),@atomicLoad(u8,&arena.active_synthesizers,.acquire)});
   var j:usize=0;while(j<256):(j+=1){var m=&arena.msgs[j];if(@atomicLoad(u8,&m.status,.acquire)==2){
     switch(m.kind){
       .hydrator=>{try w.print("[Ctx7:{d}KB] ",.{m.result_len/1024});},
