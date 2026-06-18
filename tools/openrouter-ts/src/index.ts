@@ -5,6 +5,7 @@ import { createContext7Tools, context7SystemPrompt, context7PreScan, logPreScanI
 import { createVastaiTools, vastaiSystemPrompt } from "./vastai.js";
 import { createCubeTools, cubeSystemPrompt } from "./cube.js";
 import { createMilvusTools, milvusSystemPrompt } from "./milvus.js";
+export { embed, autoEmbed, MODELS as EMBEDDING_MODELS } from "./embeddings.js";
 import { createMemoryTools, memorySystemPrompt } from "./memory.js";
 import { createBaoTools, baoSystemPrompt } from "./bao.js";
 import { traceCallModelResult, flushLangfuse, isLangfuseEnabled } from "./langfuse.js";

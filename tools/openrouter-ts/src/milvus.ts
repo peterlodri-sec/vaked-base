@@ -1,4 +1,5 @@
 "use strict";
+import { autoEmbed } from "./embeddings.js";
 
 /**
  * Milvus — Vector database for the Vaked swarm.
@@ -98,8 +99,8 @@ export function createMilvusTools(): Tool[] {
       }),
       execute: async (params) => {
         try {
-          await insert(params.collection, [new Array(1536).fill(0)]);
-          return `Stored in ${params.collection}. Ready for semantic search.`;
+          const emb = await autoEmbed(params.content); await insert(params.collection, [emb.vector]);
+          return "Stored in " + params.collection + ". " + emb.tokens + " tokens, $" + emb.cost.toFixed(4) + ".";;
         } catch (err) {
           return `Milvus error: ${err instanceof Error ? err.message : String(err)}`;
         }
