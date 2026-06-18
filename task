@@ -1,31 +1,6 @@
 #!/bin/bash
-# task mpr — merge PR with GPG sign. Handles dirty state.
 set -e
-CMD="${1:-help}"
-PR="${2:-341}"
-BRANCH="${3:-feat/dyad}"
-
-case "$CMD" in
-  mpr)
-    echo "=== MPR: Sign + Merge PR #$PR ($BRANCH) ==="
-    echo ""
-    echo "Step 1/5: Stash + Checkout..."
-    git stash 2>/dev/null && echo "  (stashed changes)" || true
-    git checkout "$BRANCH" && git pull origin "$BRANCH" 2>/dev/null || true
-    echo "Step 2/5: GPG rebase..."
-    git rebase --gpg-sign main
-    echo "Step 3/5: Push signed..."
-    git push --force-with-lease origin "$BRANCH"
-    echo "Step 4/5: Tag..."
-    git tag -s "v0.1.0-genesis" -m "The Big Breath" 2>/dev/null && git push origin "v0.1.0-genesis" 2>/dev/null || echo "  (tag exists)"
-    echo "Step 5/5: Merge PR..."
-    gh pr merge "$PR" --squash --admin
-    echo ""
-    echo "✅ PR #$PR merged. Restoring stash..."
-    git stash pop 2>/dev/null || true
-    echo "GENESIS_SEAL: 7c242080"
-    ;;
-  *)
-    echo "usage: ./task mpr [pr] [branch]"
-    ;;
+case "${1:-help}" in
+  mpr) gh pr merge "${2:-341}" --squash --admin && echo "✅ Merged. 7c242080" ;;
+  *) echo "./task mpr 341" ;;
 esac
