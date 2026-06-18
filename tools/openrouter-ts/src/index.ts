@@ -18,9 +18,17 @@
 
 import { OpenRouter } from "@openrouter/agent";
 import type { CallModelInput, Tool, ToolWithExecute, StopCondition, TurnContext } from "@openrouter/agent";
-import { createContext7Tools, context7SystemPrompt } from "./context7.js";
+import { createContext7Tools, context7SystemPrompt, context7PreScan, logPreScanInjection } from "./context7.js";
 import { traceCallModelResult, flushLangfuse, isLangfuseEnabled } from "./langfuse.js";
-import { MODELS, type ChatOptions, type ChatResult } from "./types.js";
+import {
+  MODELS,
+  DEFAULT_ROUTER,
+  TASK_MODEL_MAP,
+  type ChatOptions,
+  type ChatResult,
+  type ModelRouterConfig,
+  type ModelRoutingStrategy,
+} from "./types.js";
 import { readBudget, formatBudget, trackCost } from "./budget.js";
 
 // Re-export SDK types for consumers
@@ -62,6 +70,7 @@ export {
 } from "./langfuse.js";
 
 export type { LlmCallTrace } from "./langfuse.js";
+export type { ModelRouterConfig, ModelRoutingStrategy } from "./types.js";
 
 // ── Client factory ──────────────────────────────────────────────────────────
 
@@ -363,6 +372,59 @@ export type {
 // ── Vaked Agent — OpenRouter + Context7, auto-wired ─────────────────────────
 
 
+
+// ── Conductor — model self-selection, models choose their own ───────────────
+
+/**
+ * Route a prompt to the best model based on task analysis.
+ * Heuristic: keyword matching for instant routing (no API call needed).
+ * Falls back to default model if no match.
+ */
+export function routeModel(
+  prompt: string,
+  config: ModelRouterConfig = DEFAULT_ROUTER,
+): string {
+  if (config.strategy === "fixed") {
+    return config.fixedModel ?? config.qualityModel ?? "deepseek/deepseek-v4-pro";
+  }
+
+  if (config.strategy === "quality") {
+    return config.qualityModel ?? "anthropic/claude-opus-4-8-fast";
+  }
+
+  if (config.strategy === "cost-optimized") {
+    return config.cheapModel ?? "deepseek/deepseek-v4-pro";
+  }
+
+  // "auto" — keyword-based task routing
+  const lower = prompt.toLowerCase();
+  for (const [keyword, model] of Object.entries(TASK_MODEL_MAP)) {
+    if (lower.includes(keyword)) {
+      return model;
+    }
+  }
+
+  // Default: cheap model for unknown tasks
+  return config.cheapModel ?? "deepseek/deepseek-v4-pro";
+}
+
+/**
+ * Get the model fallback array for OpenRouter's `models` parameter.
+ * OpenRouter will try models in order if the primary fails.
+ */
+export function modelFallbackChain(primaryModel: string): string[] {
+  // If primary is Claude, fallback to DeepSeek → Gemini
+  if (primaryModel.includes("claude")) {
+    return [primaryModel, "deepseek/deepseek-v4-pro", "google/gemini-2.5-flash"];
+  }
+  // If primary is DeepSeek, fallback to Gemini → Claude
+  if (primaryModel.includes("deepseek")) {
+    return [primaryModel, "google/gemini-2.5-flash", "anthropic/claude-haiku-4-5"];
+  }
+  // Generic fallback
+  return [primaryModel, "deepseek/deepseek-v4-pro", "google/gemini-2.5-flash"];
+}
+
 /**
  * Pre-configured Vaked agent options.
  * OpenRouter is the go-to provider. Context7 is auto-wired.
@@ -380,6 +442,8 @@ export interface VakedAgentOptions {
   defaultStopWhen?: StopCondition[];
   /** Max output tokens default (default: 2000) */
   defaultMaxTokens?: number;
+  /** Model routing strategy (default: "auto") */
+  modelRouting?: ModelRouterConfig;
 }
 
 /**
@@ -433,9 +497,14 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
     ? context7SystemPrompt()
     : "You are a helpful assistant.";
 
+  const router = options.modelRouting ?? DEFAULT_ROUTER;
+
   return {
     /** The underlying OpenRouter client */
     client,
+
+    /** Model router config */
+    router,
 
     /** All auto-wired tools (Context7 + extras) */
     tools: allTools,
@@ -477,16 +546,27 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      * Direct port of qcall.ask() but with Context7 auto-wired.
      */
     async ask(prompt: string, model?: string, maxTokens?: number): Promise<string> {
-      const entry = MODELS[model ?? "deepseek"] ?? {
-        id: model ?? defaultModel,
+      const selectedModel = model ?? routeModel(prompt, router);
+      const entry = MODELS[selectedModel] ?? {
+        id: selectedModel,
         label: model ?? "default",
         promptCost: 0,
         completionCost: 0,
       };
 
+      // Conductor: Context7 pre-scan injection
+      let enrichedPrompt = prompt;
+      if (context7) {
+        const scan = await context7PreScan(prompt);
+        if (scan.injected) {
+          logPreScanInjection(scan);
+          enrichedPrompt = scan.injected + "\n\n---\n\nUser: " + prompt;
+        }
+      }
+
       const result = client.callModel({
         model: entry.id,
-        input: [{ role: "user", content: prompt }],
+        input: [{ role: "user", content: enrichedPrompt }],
         instructions: baseInstructions,
         tools: allTools.length > 0 ? allTools : undefined,
         maxOutputTokens: maxTokens ?? 500,
@@ -500,9 +580,15 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      * Generate code — Claude Opus, Context7 auto-available for library docs.
      */
     async code(prompt: string, maxTokens?: number): Promise<string> {
+      const selectedModel = routeModel(prompt, router);
+      let enrichedPrompt = prompt;
+      if (context7) {
+        const scan = await context7PreScan(prompt);
+        if (scan.injected) { logPreScanInjection(scan); enrichedPrompt = scan.injected + "\n\n---\n\nUser: " + prompt; }
+      }
       const result = client.callModel({
-        model: MODELS["claude"]?.id ?? "anthropic/claude-opus-4-8-fast",
-        input: [{ role: "user", content: prompt }],
+        model: selectedModel,
+        input: [{ role: "user", content: enrichedPrompt }],
         instructions: `${baseInstructions}\n\nZig 0.16 systems programmer. Write production code. No explanations, only code.`,
         tools: allTools.length > 0 ? allTools : undefined,
         maxOutputTokens: maxTokens ?? 2000,
@@ -516,9 +602,15 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      * Review code — Claude Opus.
      */
     async review(prompt: string, maxTokens?: number): Promise<string> {
+      const selectedModel = routeModel(prompt, router);
+      let enrichedPrompt = prompt;
+      if (context7) {
+        const scan = await context7PreScan(prompt);
+        if (scan.injected) { logPreScanInjection(scan); enrichedPrompt = scan.injected + "\n\n---\n\nUser: " + prompt; }
+      }
       const result = client.callModel({
-        model: MODELS["claude"]?.id ?? "anthropic/claude-opus-4-8-fast",
-        input: [{ role: "user", content: prompt }],
+        model: selectedModel,
+        input: [{ role: "user", content: enrichedPrompt }],
         instructions: `${baseInstructions}\n\nCritical reviewer. 3-5 specific suggestions. Be direct.`,
         tools: allTools.length > 0 ? allTools : undefined,
         maxOutputTokens: maxTokens ?? 600,
@@ -532,8 +624,9 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
      * Stream a response — Context7 auto-available.
      */
     streamChat(prompt: string, model?: string, maxTokens?: number) {
-      const entry = MODELS[model ?? "deepseek"] ?? {
-        id: model ?? defaultModel,
+      const selectedModel = model ?? routeModel(prompt, router);
+      const entry = MODELS[selectedModel] ?? {
+        id: selectedModel,
         label: model ?? "default",
         promptCost: 0,
         completionCost: 0,

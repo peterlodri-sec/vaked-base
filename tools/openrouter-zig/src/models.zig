@@ -181,3 +181,32 @@ pub const LangfuseTrace = struct {
     latency_ms: ?u64 = null,
     agent_name: []const u8 = "vaked-openrouter-zig",
 };
+
+
+/// Conductor — route a prompt to the best model based on task keywords.
+/// "auto" strategy — models choose their own.
+pub fn routeModel(prompt: []const u8, cheap_id: []const u8, quality_id: []const u8, creative_id: []const u8) []const u8 {
+    if (prompt.len == 0) return cheap_id;
+    // code/review/debug → quality model (case-insensitive via std.ascii)
+    const code_kw = [_][]const u8{ "code", "review", "write", "implement", "fix", "debug", "test", "optimize", "refactor" };
+    for (code_kw) |kw| { if (std.ascii.indexOfIgnoreCase(prompt, kw) != null) return quality_id; }
+    // creative/design → creative model
+    const creative_kw = [_][]const u8{ "creative", "brainstorm", "design" };
+    for (creative_kw) |kw| { if (std.ascii.indexOfIgnoreCase(prompt, kw) != null) return creative_id; }
+    return cheap_id;
+}
+
+/// Build model fallback chain for OpenRouter's models[] parameter.
+pub fn modelFallbackChain(allocator: std.mem.Allocator, primary: []const u8) ![][]const u8 {
+    var chain: std.ArrayListUnmanaged([]const u8) = .{ .items = &.{}, .capacity = 0 };
+    errdefer chain.deinit(allocator);
+    try chain.append(allocator, primary);
+    if (std.mem.indexOf(u8, primary, "claude") != null) {
+        try chain.append(allocator, "deepseek/deepseek-v4-pro");
+        try chain.append(allocator, "google/gemini-2.5-flash");
+    } else {
+        try chain.append(allocator, "google/gemini-2.5-flash");
+        try chain.append(allocator, "anthropic/claude-haiku-4-5");
+    }
+    return chain.items;
+}

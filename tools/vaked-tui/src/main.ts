@@ -17,7 +17,7 @@
 
 import * as readline from "node:readline";
 import { readFileSync, existsSync } from "node:fs";
-import { createVakedAgent, MODELS, formatBudget, readBudget } from "@vaked/openrouter-ts";
+import { createVakedAgent, MODELS, formatBudget, readBudget, routeModel } from "@vaked/openrouter-ts";
 import type { VakedAgent } from "@vaked/openrouter-ts";
 
 // ── Arg parsing ─────────────────────────────────────────────────────────────
@@ -218,8 +218,8 @@ async function tuiMode(args: Args, agent: VakedAgent): Promise<void> {
   }
 
   function header(): string {
-    const model = MODELS[state.model];
-    const modelName = model?.id ?? state.model;
+    const model = state.model === "auto" ? null : MODELS[state.model];
+    const modelName = state.model === "auto" ? "auto-routing" : (model?.id ?? state.model);
     const budget = formatBudget(readBudget());
     const ctx7 = state.context7 ? "ctx7" : "";
     const str = state.stream ? "stream" : "";
@@ -250,14 +250,18 @@ async function tuiMode(args: Args, agent: VakedAgent): Promise<void> {
 
       switch (cmd) {
         case "/help":
-          console.log("\n/help · /model <name> · /file <path> · /context7 · /budget · /clear · /history · /stream · /quit\n");
+          console.log("\n/help · /model <name|auto> · /file <path> · /context7 · /budget · /clear · /history · /stream · /quit\n");
           break;
         case "/model":
-          if (arg && MODELS[arg]) {
+          if (arg === "auto") {
+            state.model = "auto";
+            console.log("[model] auto — models choose their own based on task");
+            console.log(`  code/review/debug → claude · explain/summarize → deepseek · creative → gemini`);
+          } else if (arg && MODELS[arg]) {
             state.model = arg;
             console.log(`[model] switched to ${MODELS[arg]?.label ?? arg} (${MODELS[arg]?.id})`);
           } else {
-            console.log("[model] available: " + Object.keys(MODELS).join(", "));
+            console.log("[model] available: auto, " + Object.keys(MODELS).join(", "));
           }
           break;
         case "/file":
@@ -330,18 +334,22 @@ async function tuiMode(args: Args, agent: VakedAgent): Promise<void> {
     try {
       if (state.stream) {
         let firstChunk = true;
-        for await (const chunk of agent.streamChat(prompt, state.model)) {
+        const routedModel = state.model === "auto" ? routeModel(trimmed) : state.model;
+          if (state.context7) process.stdout.write("\x1b[90m[ctx7] scanning...\x1b[0m\r");
+          for await (const chunk of agent.streamChat(prompt, routedModel)) {
           if (firstChunk) {
-            process.stdout.write("\x1b[90m──\x1b[0m\n");
+            process.stdout.write("\x1b[K\x1b[90m──\x1b[0m\n");
             firstChunk = false;
           }
           process.stdout.write(chunk);
         }
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        process.stdout.write(`\n\x1b[90m── ${elapsed}s · ${formatBudget(readBudget())}\x1b[0m\n\n`);
+        const routedLabel = state.model === "auto" ? "auto→" + routedModel.split("/").pop() : "";
+          process.stdout.write(`\n\x1b[90m── ${elapsed}s ${routedLabel ? "· " + routedLabel + " · " : "· "}${formatBudget(readBudget())}\x1b[0m\n\n`);
       } else {
         process.stdout.write("\x1b[90m── thinking...\x1b[0m\r");
-        const response = await agent.ask(prompt, state.model);
+        const routedModel = state.model === "auto" ? routeModel(trimmed) : state.model;
+        const response = await agent.ask(prompt, routedModel);
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         process.stdout.write("\x1b[K"); // clear "thinking..."
         console.log(response);
