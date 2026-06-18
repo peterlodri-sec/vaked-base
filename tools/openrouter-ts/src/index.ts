@@ -19,6 +19,7 @@
 import { OpenRouter } from "@openrouter/agent";
 import type { CallModelInput, Tool, ToolWithExecute, StopCondition, TurnContext } from "@openrouter/agent";
 import { createContext7Tools, context7SystemPrompt } from "./context7.js";
+import { traceCallModelResult, flushLangfuse, isLangfuseEnabled } from "./langfuse.js";
 import { MODELS, type ChatOptions, type ChatResult } from "./types.js";
 import { readBudget, formatBudget, trackCost } from "./budget.js";
 
@@ -50,6 +51,17 @@ export {
   formatBudget,
   affordableTokens,
 } from "./budget.js";
+
+// ── Langfuse observability (CI secrets, guarded) ────────────────────────
+
+export {
+  traceLlmCall,
+  traceCallModelResult,
+  flushLangfuse,
+  isLangfuseEnabled,
+} from "./langfuse.js";
+
+export type { LlmCallTrace } from "./langfuse.js";
 
 // ── Client factory ──────────────────────────────────────────────────────────
 
@@ -115,8 +127,20 @@ export async function code(
     maxOutputTokens: maxOutputTokens,
   });
 
+  const startTime = Date.now();
   const text = await result.getText();
   const response = await result.getResponse();
+
+  traceCallModelResult({
+    model: entry.id,
+    input: prompt,
+    output: text,
+    promptTokens: response.usage?.inputTokens ?? 0,
+    completionTokens: response.usage?.outputTokens ?? 0,
+    latencyMs: Date.now() - startTime,
+    agentName: "vaked-agent-code",
+  });
+
   trackCost(
     response.usage?.inputTokens ?? 0,
     response.usage?.outputTokens ?? 0,
@@ -146,8 +170,20 @@ export async function review(
     maxOutputTokens: maxOutputTokens,
   });
 
+  const startTime = Date.now();
   const text = await result.getText();
   const response = await result.getResponse();
+
+  traceCallModelResult({
+    model: entry.id,
+    input: prompt,
+    output: text,
+    promptTokens: response.usage?.inputTokens ?? 0,
+    completionTokens: response.usage?.outputTokens ?? 0,
+    latencyMs: Date.now() - startTime,
+    agentName: "vaked-agent-review",
+  });
+
   trackCost(
     response.usage?.inputTokens ?? 0,
     response.usage?.outputTokens ?? 0,

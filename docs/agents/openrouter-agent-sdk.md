@@ -125,7 +125,83 @@ const agent = createVakedAgent();
 | `llama` | `meta-llama/llama-4-maverick` | $0.20 | $0.60 |
 | `haiku` | `anthropic/claude-haiku-4-5` | $0.25 | $1.25 |
 
+
+## Langfuse Observability (GitHub CI Secrets)
+
+All LLM calls through `@vaked/openrouter-ts` are automatically traced to
+Langfuse. Credentials come from the **GitHub CI Environment `ci`**.
+
+### Secrets (Settings → Environments → ci → Secrets)
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `LANGFUSE_SECRET_KEY` | Yes (for tracing) | Langfuse secret key (`sk-lf-...`) |
+| `LANGFUSE_PUBLIC_KEY` | Yes (for tracing) | Langfuse public key (`pk-lf-...`) |
+| `LANGFUSE_HOST` | No | Langfuse host (default: `https://cloud.langfuse.com`) |
+
+### Guard Pattern
+
+Every Langfuse call is **guarded** — the agent no-ops cleanly when secrets
+are unset. Tracing failure never blocks the agent, matching the Rust
+`pr-review`/`provost` convention:
+
+```typescript
+// In createVakedAgent(), every ask()/code()/review()/callModel() call:
+const startTime = Date.now();
+const text = await result.getText();
+const response = await result.getResponse();
+
+// Guarded — no-op when LANGFUSE_SECRET_KEY is unset
+traceCallModelResult({
+  model: entry.id,
+  input: prompt,
+  output: text,
+  promptTokens: response.usage?.inputTokens ?? 0,
+  completionTokens: response.usage?.outputTokens ?? 0,
+  latencyMs: Date.now() - startTime,
+  agentName: "vaked-agent-ask",
+});
+```
+
+### Manual Tracing
+
+```typescript
+import { traceLlmCall, flushLangfuse, isLangfuseEnabled } from "@vaked/openrouter-ts";
+
+if (isLangfuseEnabled()) {
+  traceLlmCall({
+    model: "anthropic/claude-opus-4-8-fast",
+    input: "Write a Zig 0.16 program",
+    output: "const std = @import(\"std\"); ...",
+    promptTokens: 150,
+    completionTokens: 400,
+    cost: 0.03,
+    latencyMs: 1200,
+    agentName: "my-agent",
+  });
+}
+
+// Flush before exit (short-lived agents)
+await flushLangfuse();
+```
+
+### What's Traced
+
+| Field | Source |
+|-------|--------|
+| `model` | Model ID (e.g. `anthropic/claude-opus-4-8-fast`) |
+| `input` | User/agent prompt |
+| `output` | Model response |
+| `promptTokens` | `response.usage.inputTokens` |
+| `completionTokens` | `response.usage.outputTokens` |
+| `cost` | Computed from token counts × model pricing |
+| `latencyMs` | Wall-clock time of the API call |
+| `agentName` | Agent identifier (e.g. `vaked-agent-code`) |
+| `provider` | Always `openrouter` |
+| `generationId` | OpenRouter generation ID for trace linking |
+
 ## Budget Tracking
+
 
 All OpenRouter costs are tracked in `~/.orcli_budget` (shared between
 TypeScript and Python `orcli`). The file contains a single float — remaining
