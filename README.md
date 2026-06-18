@@ -1,218 +1,154 @@
 <p align="center">
-  <img src="docs/website/og-image.svg" alt="Vaked" width="200"/>
-</p>
-
-<h1 align="center">vaked-base</h1>
-
-<p align="center">
-  <b>The foundation monorepo for the Vaked agentic-runtime ecosystem.</b><br>
-  <a href="https://vaked.dev"><code>vaked.dev</code></a> · <a href="https://vaked-lang.org"><code>vaked-lang.org</code></a><br>
-  <code>✦ Vaked declares · ⚙ Nix materializes · ⏱ OTP supervises · ⚡ Zig enforces · 🔍 eBPF testifies · 🗂 CrabCC indexes · 🖥 Surfaces reveal</code>
+  <h1 align="center">vaked-base</h1>
+  <b>Capability-graph language and deterministic runtime for autonomous agent swarms.</b><br>
+  <a href="https://vaked.dev"><code>vaked.dev</code></a> · <a href="https://vaked-lang.org"><code>vaked-lang.org</code></a> · <a href="https://constellation.vaked.dev"><code>constellation.vaked.dev</code></a><br>
+  <code>✦ Vaked declares · Nix materializes · OTP supervises · Zig enforces · eBPF testifies · CrabCC indexes · Surfaces reveal</code>
 </p>
 
 <p align="center">
-  <a href="https://constellation.vaked.dev/">⬡ Constellation (live)</a> ·
+  <a href="https://constellation.vaked.dev/">⬡ Constellation</a> ·
+  <a href="https://constellation.vaked.dev/radio">◉ Radio</a> ·
   <a href="https://constellation.vaked.dev/wisdom">✦ Wisdom</a> ·
-  <a href="https://constellation.vaked.dev/registry">⚙ Registry</a> ·
-  <a href="https://constellation.vaked.dev/swarm-monologue">◌ Monologue</a>
+  <a href="https://constellation.vaked.dev/status">◇ Status</a> ·
+  <a href="https://constellation.vaked.dev/nav">⬡ All</a>
 </p>
 
 <hr>
 
-**Identity hash (domains + ledger):** <code>df6ed074e77e7c97</code>
+**Genesis Seal:** <code>7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf</code>  
+**Ultimate Hash:** <code>81aa1c0bd9e11fef</code>  
+**Identity Hash:** <code>df6ed074e77e7c97</code>
 
-## 📰 Recent news
+## 📰 Recent — 2026-06-18
 
-**2026-06-16 — Swarm deployed and public.** A global P2P mesh spans 3 continents
-(EU, NA, APAC) running the Synapse gossip protocol — Ed25519‑signed packets,
-Merkle‑tree delta sync, anti‑entropy loop with lowest‑hash‑wins conflict resolution.
-The stack:
+**Big Bang: Python → Zig migration complete.** 9 ports built (gateway, monologue, dogfeed, audit, align, merkle, udp, gossip, inbox). Gateway running as systemd service at 352K RAM (28x less than Python). All 14 public endpoints verified 200.
 
-| Layer | Service | Role |
-|-------|---------|------|
-| **L0** | `genesisd` | Bootstrap anchor (`:4433`), SRV‑based node discovery |
-| **L2** | `meta-ralphd` | Recursive observer, circuit breaker (3 restarts → Emergency Hold) |
-| **S** | `synapsed` | P2P gossip (Merkle delta sync, UDP/TCP, Ed25519 signed) |
-| **L3** | `sentinel` | Trust scoring, truth‑ping cross‑reference, DM channel alerts |
-| **G** | `gateway` | WebSocket + REST gateway, Constellation UI, Caddy reverse proxy |
-| **M** | `mnemosyne` | 24h ancestry compactor (56% ledger reduction) |
-| **W** | `wise‑node` | Engram strategist — 12 heuristics, Node Happiness KPI, Two‑Strike Protocol |
+**Paris node live.** OVH r3-16 (16GB, 2vCore) joins the mesh at 126ms convergence. 6 nodes across 4 continents: Helsinki, Falkenstein, Nuremberg, Paris, Hillsboro, Singapore.
 
-Governance is bound: Node Happiness (latency < 50ms, gossip > 99%, load < 70%),
-Two‑Strike Protocol (reconcile → quarantine → exclusion), Panic Threshold
-(≥ 50% nodes unreachable → SYSTEM_PANIC), and the Graveyard log (empty = warning).
+**Grammar v0.5 shipped.** Three new primitives: `trust` (decay half-life, delegation, taint), `quorum` (declarative consensus), `probe` (synthetic test cycles). 32 kinds total.
 
-The Constellation is public at **`https://constellation.vaked.dev/`** — a live
-Three.js force‑directed graph with WebSocket telemetry, strategic focus panel,
-and real‑time convergence metrics. Cloudflare tunnel via HEL/AMS QUIC.
+**Ralph Auditor active.** Daily governance directive checks (G01-G04). Build gate: blocks `nix build` at 2+ critical drifts. Reflection logs in `notes/REFLECTIONS/`.
 
-**2026-06-16 — Synapse P2P gossip protocol deployed.** Custom implementation
-in Python (Zig production port planned): Merkle‑tree capability graph, UDP fast‑path
-(2.2ms local convergence, 27ms intra‑EU, 88ms transatlantic), TCP anti‑entropy loop,
-Ed25519 packet signing. Adaptive Batching triggered for links > 300ms RTT.
+**Vaked-FM Pulse Edition.** 24/7 ambient soundscape at `/radio`. Web Audio heartbeat (41.2Hz E1), lo-fi textures (brown noise, tape warble, vinyl crackle), harmonic chimes. Swarm Avatar: Genesis-seeded geometric visualizer.
 
-**2026-06-16 — Global mesh expansion: 5 nodes across 3 continents.**
-`genesis.vaked.dev` (Helsinki), `edge‑node‑02` (Falkenstein), `edge‑nbg1‑01` (Nuremberg),
-`edge‑us‑west‑01` (Hillsboro), `edge‑sin‑01` (Singapore). All P2P over Tailscale
-with BBR congestion control, TCP Fast Open, and XDP/BPF gatekeeper at NIC level.
+**Genesis Paper.** IEEE format, 7 sections, 14 citations. Dual peer review (DeepSeek V4 + Claude Opus 4.8). Scholar metadata deployed.
 
-**2026-06-13 — `swe_af` runs for real.** The lowered `workflow swe_af`
-(`agentfield-swe.vaked` → `gen/workflow/swe_af.json`) is now executable: label an
-issue `agent` and a GitHub-Actions pipeline runs `plan → code → review → publish`,
-opening an advisory PR with every node testified to an [`eventd`](eventd) hash chain. From the [PR disclaimer](https://github.com/peterlodri-sec/vaked-base/pull/107#issuecomment-4699358410):
+**14 public endpoints.** Donate page live with Stripe + ETH + GitHub Sponsors. Transparent spending log.
 
-> New **CI-triggered** and **cron-triggered** agents now run inside GitHub Actions on this repo, and a **self-hosted control plane on `crabcc.app`** is starting to get plugged into the same loop. […] Most of this work was one-shot […] by **Claude Code** […]. Where the sandbox kernel refused the cgroup-BPF attach, the daemon reports it and falls back to the reference datapath rather than faking in-kernel enforcement.
+## 🔧 Technical
 
-Peter's footnotes:
+### Language
+- **Grammar:** v0.5, 32 kinds (`vaked/grammar/vaked-v0-plus.ebnf`)
+- **Kind list:** runtime, engine, host, network, filesystem, mcp, ebpf, budget, observability, runclass, workflow, index, catalog, stream, fiber, surface, mesh, device, mediaPipeline, parallel, schema, capability, service, secret, hostResource, ingress, container, memory, namespace, arp_event, trust, quorum, probe
+- **Evolution hash:** in grammar header — new for v0.5
 
-> _I asked for one vertical slice and got a kernel-eBPF spelunking expedition with a tamper-evident audit log — overdelivery is a hell of a drug._ (Peter)
+### Compilers
+- **vakedc** (Python, `vakedc/`): stages 1–4 (lex, parse, check, lower)
+- **vakedz** (Zig 0.16, `vakedz/`): parse | check | lower | all | cache
 
-> _The CI bots now peer-review each other while I supply the coffee and the occasional existential dread._ (Peter)
+### Runtime (L0–W stack)
+| Layer | Service | Port | Status |
+|-------|---------|------|--------|
+| L0 | `vaked-genesis` (genesisd/) | :4433 | bootstrap anchor, SRV discovery |
+| L2 | `meta-ralphd` (meta-ralphd/) | — | recursive observer, circuit breaker |
+| S | `synapsed` (synapsed/) | :4434 | P2P gossip, Merkle delta, Ed25519 |
+| L3 | `sentinel` (synapsed/sentinel.py) | — | trust scoring, truth-ping |
+| G | `gateway` (gateway/gw.zig) | :8081 | Zig-native, 352K RAM, systemd |
+| M | `mnemosyne` (tools/mnemosyne/) | — | ancestry compactor |
+| W | `wise-node` (tools/wise/) | — | engram strategist, 12 heuristics |
 
-> _We declared a membrane, Nix materialized absolutely nothing yet, and it still passed CI — ship it._ (Peter)
+### Wire protocol
+- **HCP/Litany** — RFCs 0001–0007 (framing, transport, multi-agent, PQ-sealed)
+- **Capability-Graph** — eBPF enforcement (agent-guardd), event ledger (eventd)
 
-Vaked is a flake-native **capability-graph language** for agentic, native, mesh-aware, parallel systems. It describes reproducible agent systems — runtime membranes, capability graphs, indexes, fibers, native surfaces, and mesh/device interactions — and compiles into ordinary Nix flakes, NixOS modules, Zig daemon configs, eBPF policy manifests, OpenTelemetry config, generated docs, and CrabCC indexes.
+## 🌐 Mesh
 
-```text
-Vaked source → typed semantic graph → generated artifacts
-  ├── flake.nix / NixOS modules        (Nix materializes)
-  ├── Zig daemon configs               (Zig enforces)
-  ├── eBPF policy manifests            (eBPF testifies)
-  ├── OTel collector config
-  ├── CrabCC indexes / catalogs        (CrabCC indexes)
-  └── docs
-→ NixOS host → OTP supervision plane → Zig enforcement daemons → eBPF evidence → operator surfaces
-```
+| Node | Location | IP | Convergence |
+|------|----------|-----|-------------|
+| genesis.vaked.dev | Helsinki, FI | 100.105.72.88 | — |
+| edge-02 | Falkenstein, DE | 100.66.205.85 | 136ms |
+| nbg1 | Nuremberg, DE | 167.233.148.20 | 125ms |
+| **par-01** | **Paris, FR** | **100.64.251.44** | **126ms** |
+| us-west | Hillsboro, OR | 100.104.181.26 | 720ms |
+| sin | Singapore | 100.117.253.12 | 813ms |
 
-## Repository map
+## 📡 Public surface
 
-| Path | Status | What lives here |
-|------|--------|-----------------|
-| `vaked/` | **language** | The Vaked language itself — `grammar/` (EBNF), `schema/`, `examples/` |
-| `vakedc/` | **language** | `vakedc` — the prototype front-end: lexer + parser → Labeled Property Graph + type checker (0011 stages 1–4) + lowering (0012). Pipeline **parse → check → lower**: `python3 -m vakedc parse <file>`; `python3 -m vakedc check <file> [--json]`; `python3 -m vakedc lower <file> [--out DIR]` (checks first; refuses to emit on any diagnostic; writes `flake.nix`, `gen/…`, `provenance.json`) |
-| `docs/language/` | **language** | Design series (`0001`-manifesto … `0008`-parallelism … `0010`-mirageos) + `references/` |
-| `docs/context/` | **context** | `PROJECT_CONTEXT.md` — the canonical overview |
-| `prompts/` | **context** | `dedicated-language-session.md` — kickoff prompt for the language-only session |
-| `daemons/` | **runtime** (stub) | Roster of the OTP + Zig runtime daemons; per-daemon dirs land later |
-| `eventd/` | **runtime** | Python reference impl of the append-only, hash-chained event log (the audit spine) |
-| `agent_guardd/` | **runtime** | Python reference impl of `agent-guardd` — the `network`/`ebpf` membrane. Closes the first **end-to-end vertical slice**; see [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md) |
-| `docs/runtime/` | **runtime** (stub) | Runtime architecture + daemon responsibilities |
-| `protocol/` | **protocol** (stub) | HCP / Litany wire protocol — `rfcs/`, daemon + tool roster |
-| `docs/protocol/` | **protocol** (stub) | HCP / Litany overview |
-| `vaked-agents/` | **agents** | The Vaked agent fleet — `ci/pr-review` (advisory CI reviewer); roadmap in [`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md). Fleet index: [`VAKED_AGENTS.md`](VAKED_AGENTS.md) |
-| `tools/ralph/` | **tooling** | `ralph` — autonomous per-model decision loop over Vaked concept tracks (see [`tools/ralph/README.md`](tools/ralph/README.md)) |
-| `hosts/` | infra | `vakedos` — the bare-metal NixOS **materialization target** (Vultr EPYC 4345P). Deploy guide: [`DEPLOY.md`](DEPLOY.md) |
-| `flake.nix` | infra | Dev shell (Zig, BEAM/OTP, Rust-to-build-CrabCC, tooling) + `nixosConfigurations.vakedos` |
-| `.mcp.json` | infra | Project MCP servers (github, context7, repowise, workspace-fs, playwright) |
-| `.claude/skills/` | infra | Project skills: `vaked-language-author`, `hcp-rfc-author` |
+| Endpoint | Description |
+|----------|-------------|
+| `/` | Constellation — Three.js force graph + pod monitor |
+| `/radio` | Vaked-FM Pulse — Web Audio heartbeat + Swarm Avatar |
+| `/wisdom` | Strategic briefing |
+| `/status` | Independent performance review |
+| `/dogfeed` | Ralph decision pipeline |
+| `/bus` | Message bus — autonomous swarm communication |
+| `/nav` | Full navigation grid |
+| `/reflect` | Self-reflection |
+| `/registry` | Node registry + trust index |
+| `/swarm-monologue` | Rotating one-liner (32-line pool, 2h cycle) |
+| `/rss` | RSS 2.0 activity feed |
+| `/donate` | Transparent funding (Stripe + ETH + GitHub Sponsors) |
+| `/monitor` | Pod Monitor standalone |
+| `/mesh.json` | Live telemetry |
 
-## Developer Notes
+## 📂 Structure
 
-> **This is a research and experimental project. Do not use in production.**
+| Path | Purpose |
+|------|---------|
+| `vaked/` | Language — grammar, schema, examples |
+| `vakedc/` | Python front-end |
+| `vakedz/` | Zig front-end (Zig 0.16) |
+| `gateway/` | Zig-native HTTP gateway (gw.zig, routes.json) |
+| `synapsed/` | P2P gossip protocol + Zig ports |
+| `genesisd/` | Bootstrap genesis daemon |
+| `meta-ralphd/` | Recursive observer daemon |
+| `agent_guardd/` | eBPF network membrane |
+| `eventd/` | Append-only hash-chained event log |
+| `vaked-fm/` | Radio pulse generator (pulse-gen.zig) |
+| `daemons/` | sandboxd + future daemons |
+| `tools/` | orcli, qc, zigfix, zigpush, inbox, wise, mnemosyne, librarian |
+| `docs/` | Language design series, swarm docs, website |
+| `paper/` | Genesis paper (IEEE), bibliography, metadata |
+| `notes/` | Daily brainfarts + REFLECTIONS |
+| `protocol/` | HCP/Litany wire protocol + RFCs |
+| `flake.nix` | Dev shell + NixOS configurations |
+| `MIGRATION_LOG.md` | Big Bang migration audit |
 
-**Latest development:** This codebase is actively developed by a distributed team. Latest commits may not be from the repository owner (@peterlodri-sec); pull requests and contributions are welcomed. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [recruitment issue](https://github.com/peterlodri-sec/vaked-base/issues/141) (WP3 + WP4 engineers, June 24 start).
+## 🐕 Agents
 
-- **Bare-metal target only.** Vaked deploys to a bare-metal NixOS host. See [`DEPLOY.md`](DEPLOY.md) for hardware requirements and the deployment procedure.
-- **No conventional OS support.** Vaked cannot be installed on macOS, standard Linux distributions, Windows, or WSL. The runtime requires direct kernel and eBPF access available only on a properly provisioned NixOS host.
-- **Project scope.** This project encompasses three interrelated tracks: a capability-graph language (Vaked), a purpose-built operating system (vakedos — NixOS + OTP + Zig + eBPF), and a set of reference designs (daemons, wire protocol, agent fleet, tooling). They are designed as a cohesive whole; components are not independently installable.
-- **No stability guarantees.** The language grammar, type system, compiler IR, and wire protocol are under active design. Breaking changes happen without notice.
-- **Prototype compiler.** `vakedc` is a design-stage prototype. It may refuse valid programs, change its output format, or emit incorrect artifacts at any time.
-- **Runtime is a stub.** The OTP supervision plane, Zig daemons, and eBPF policy layer are indexed stubs. Nothing deploys end-to-end yet beyond the dev shell and language tooling.
-- **Nix is required.** The dev shell requires Nix with flakes enabled. The runtime target requires NixOS. There is no non-Nix install path.
-- **eBPF kernel requirements.** eBPF policy enforcement requires a Linux kernel with BTF and CO-RE support (≥ 5.15). This is satisfied by the vakedos config but must be verified on any other host.
-- **No package-manager install.** There is no `pip install`, `cargo install`, or `npm install` path. All tooling is consumed through `nix develop`.
-- **Unsupported / research-only.** This is a personal research project with no SLA, support channels, or stability commitments.
+| Agent | Role |
+|-------|------|
+| `pr-review` | advisory diff review |
+| `ralph` | autonomous track decision loop |
+| `nocturne` | nightly GPU auto-researcher |
+| `docs-keeper` | RFC/doc drift gate |
+| `merge-train` | advisory merge planner |
+| `swe_af` | SWE agent field (OpenRouter) |
+| `provost` | multi-step automation |
+| `social-post` | Mastodon dev-feed |
+| `label-tagger` | auto-labels PRs/issues |
+| `landing-guru` | landing page coherence |
+| `Ralph (Auditor)` | daily governance checks, build gate |
 
-## Start here
+## 🔐 Governance
 
-```text
-docs/context/PROJECT_CONTEXT.md
-docs/language/README.md
-docs/language/0008-parallel-fibers-indexes-surfaces.md
-prompts/dedicated-language-session.md
-```
+- **Graveyard:** permanent, append-only, never compacted (6 entries)
+- **Oculus Ledger:** SHA-256 hash-chained, append-only (34 entries)
+- **Ralph Auditor:** G01–G04 directives, Truth Threshold 2
+- **Genesis Seal:** DNS TXT at `vaked-genesis-seal.vaked.dev`
 
-## Status
+## 📐 Conventions
 
-[![spec-tests](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml/badge.svg)](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml)
+- Grammar before code. Protocol decisions live in RFCs.
+- Each subsystem gets its own design → plan → implementation cycle.
+- Dev shell: `nix develop`. Zig/Erlang/Elixir via Nix.
+- Big Bang pattern: `orcli prompt → zigfix → zigpush → deploy`
+- No builds on developer machine. Build target: dev-cx53.
 
-Verification dashboard: `python3 tools/specdash/build.py --serve`
+## 🔗 Links
 
-**Latest:** ✅ Swarm public at `https://constellation.vaked.dev/` · 5-node P2P mesh across EU/NA/APAC  
-**Swarm:** Synapse gossip protocol, Ed25519 signed packets, Merkle delta sync, 27ms intra-EU convergence  
-**Language:** 100k worker scalability verified (100 iterations, 273ms avg, deterministic)  
-**Verification:** `scripts/benchmark-100k-scalability.py` ([docs/language/0014-verification-scaffold.md](docs/language/0014-verification-scaffold.md))  
-**Paper:** Language + evaluation ready for arxiv (PR #103, ~2–3 weeks to submission)
-
-Current state at a glance — what's real, in flight, and ahead — as a graph: [`docs/context/TIMELINE.md`](docs/context/TIMELINE.md).
-
-This is a **scaffold**. The language track (`vaked/`, `docs/language/`) carries real design content. The runtime (`daemons/`) and protocol (`protocol/`) subtrees are mostly **indexed stubs** — each subsystem gets its own design → plan → implementation cycle.
-
-The swarm layer (`genesisd/`, `synapsed/`, `meta-ralphd/`, `tools/wise/`, `tools/mnemosyne/`) is production reference code: Python stdlib-only daemons that have been deployed, stress-tested with Chaos Monkey, and verified across transatlantic links. The Zig port is planned.
-
-One **end-to-end vertical slice** is now closed: a `network` egress membrane declared in Vaked ([`vaked/examples/membrane/agent-egress.vaked`](vaked/examples/membrane/agent-egress.vaked)) is **lowered** to a policy (`gen/ebpf.policy.json`, the realized 0012 §7 `ebpf.policy` emitter), **enforced** by the `agent-guardd` reference impl ([`agent_guardd/`](agent_guardd) — which compiles + loads a real `cgroup/skb` eBPF program and enforces deny-by-default egress), **testified** onto the [`eventd`](eventd) hash chain, and **verified** to have held. Run it with `task slice`; details in [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md).
-
-See [`docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md`](docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md) for the scaffold's design record, and [`CLAUDE.md`](CLAUDE.md) for working conventions (including the environment **patch-doctor** runbook).
-
-## Swarm — the Synapse mesh
-
-A global P2P swarm has been deployed across 3 continents, implementing a layered
-architecture of autonomous daemons:
-
-### Layers
-
-| Layer | Service | Path | Responsibility |
-|-------|---------|------|----------------|
-| **L0** | `vaked-genesis` | `genesisd/` | Bootstrap anchor on `:4433`, SRV-based node discovery, eventd-compatible audit chain |
-| **L1** | `ralph` | `tools/ralph/` | Autonomous decision loop (per-model concept tracks) |
-| **L2** | `meta-ralphd` | `meta-ralphd/` | Recursive observer with circuit breaker (3 restarts/5min → Emergency Hold) |
-| **S** | `synapsed` | `synapsed/` | P2P capability-graph gossip protocol — UDP/TCP, Ed25519 signed, Merkle-tree delta sync |
-| **L3** | `sentinel` | `synapsed/sentinel.py` | Reputation engine — trust scoring, truth-ping cross-reference, DM channel alerts |
-| **G** | `gateway` | `synapsed/gateway.py` | WebSocket + REST gateway, Constellation UI, Caddy reverse proxy |
-| **M** | `mnemosyne` | `tools/mnemosyne/` | Recursive ancestry compactor — 24h squash cycle, preserves critical events |
-| **W** | `wise-node` | `tools/wise/` | Engram strategist — governance heuristics, Node Happiness KPI, Two-Strike Protocol |
-
-### Protocol
-
-Synapse gossip uses Merkle-tree path diffs for O(log N) delta sync.
-Each packet is signed with the node's Ed25519 key. Anti-entropy loop
-resolves conflicts by lowest-hash-wins. See [`docs/swarm/synapse.md`](docs/swarm/synapse.md).
-
-### Governance
-
-The Wise Node binds constitutional directives to swarm logic:
-
-- **H08 — Node Happiness**: Primary KPI: (latency < 50ms) AND (gossip-success > 99%) AND (resource-load < 70%)
-- **H09 — Two-Strike Protocol**: Strike 1 = reconcile+quarantine, Strike 2 = permanent exclusion. No Strike 3.
-- **H10 — Panic Threshold**: >= 50% nodes unreachable → SYSTEM_PANIC, freeze ledger, halt experiments
-- **H11 — Graveyard**: System success measured by graveyard.log growth. Empty = warning.
-- **H12 — Safe Innovation**: Playground nodes restricted. No promotion without operator signature or 24h validation.
-
-### Public endpoints
-
-| URL | Content | Status |
-|-----|---------|--------|
-| `https://constellation.vaked.dev/` | Force-directed graph with live WebSocket telemetry | ✅ Live |
-| `https://constellation.vaked.dev/wisdom` | Strategic briefing from the Wise Node | ✅ Live |
-| `https://constellation.vaked.dev/registry` | Node registry with trust index | ✅ Live |
-| `https://constellation.vaked.dev/mesh.json` | Machine-readable mesh state | ✅ Live |
-
-### Network optimization
-
-- BBR congestion control + fq pacing qdisc for transatlantic throughput
-- TCP Fast Open (3) to reduce handshake latency
-- XDP/BPF gatekeeper dropping non-whitelisted ports at NIC driver level
-- Caddy static caching (max-age=3600) for UI assets
-- Tailscale direct P2P (zero DERP relays across all connected nodes)
-
-## Dogfooding — the `ralph` decision loop
-
-[`tools/ralph/`](tools/ralph/README.md) is an autonomous, budget-capped loop that
-continuously surfaces the most important open **decision** for each hard design
-area (one OpenRouter model pinned per area) and appends it to a human-ratified,
-hash-chained decision log. It dogfoods Vaked's own theories before they land in
-the language — **parallel** (round-robins tracks), **immutable** (append-only
-event ledger as the state-of-record), and **control** (pause/slow/step at
-runtime) — and runs cheaply as a scheduled CI tick. See
-[`tools/ralph/README.md`](tools/ralph/README.md) for tracks, commands, and the
-CI host.
+- **Swarm:** [constellation.vaked.dev](https://constellation.vaked.dev)
+- **Radio:** [constellation.vaked.dev/radio](https://constellation.vaked.dev/radio)
+- **Donate:** [constellation.vaked.dev/donate](https://constellation.vaked.dev/donate)
+- **GitHub:** [peterlodri-sec/vaked-base](https://github.com/peterlodri-sec/vaked-base)
+- **Paper:** [vaked.dev/research/vaked_genesis_2026.pdf](https://vaked.dev/research/vaked_genesis_2026.pdf)
