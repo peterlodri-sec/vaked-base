@@ -6,21 +6,23 @@
 
 ## Node Telemetry Probe
 
-| Node | Location | IP | Status | Latency |
-|------|----------|-----|--------|---------|
-| genesis.vaked.dev | Helsinki, FI | 100.105.72.88 | ACTIVE | — |
-| edge-02 | Falkenstein, DE | 100.66.205.85 | ACTIVE | 136ms |
-| nbg1 | Nuremberg, DE | 167.233.148.20 | ACTIVE | 125ms |
-| par-01 | Paris, FR | 100.64.251.44 | ACTIVE | 126ms |
-| us-west | Hillsboro, OR | 100.104.181.26 | ACTIVE | 720ms |
-| sin | Singapore | 100.117.253.12 | ACTIVE | 813ms |
+> IPs, exact cities, and PIDs redacted for public release (Norm: no PII / no topology leak). Node count, region, status, and latency retained — none are PII.
+
+| Node | Region | Status | Latency |
+|------|--------|--------|---------|
+| genesis | EU-North | ACTIVE | — |
+| edge-02 | EU-Central | ACTIVE | 136ms |
+| nbg1 | EU-Central | ACTIVE | 125ms |
+| par-01 | EU-West | ACTIVE | 126ms |
+| us-west | US-West | ACTIVE | 720ms |
+| sin | APAC | ACTIVE | 813ms |
 
 ## Infrastructure Status
 
 | Component | Status | Detail |
 |-----------|--------|--------|
 | Zig Gateway | ACTIVE | 352K RAM, systemd, 14/17 routes |
-| Cloudflare Tunnel | ACTIVE | QUIC HEL+AMS, PID 1744336 |
+| Cloudflare Tunnel | ACTIVE | QUIC, EU edges (PID redacted) |
 | Synapse P2P | ACTIVE | Merkle delta sync, anti-entropy 10s |
 | Sentinel | ACTIVE | G01-G04 checks passing |
 | Ralph Auditor | ACTIVE | BUILD CLEAR, 4/4 aligned |
