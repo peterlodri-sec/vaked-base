@@ -206,3 +206,46 @@ SLASH COMMANDS
   });
 }
 main().catch((err) => { console.error(`\x1b[31mfatal:\x1b[0m ${err.message}`); process.exit(1); });
+// ── Psychedelic Flash Mode — commands pulse until executed ──────────────────
+
+const READY_COMMANDS: Array<{ cmd: string; path: string }> = [
+  { cmd: "cd vaked-base && git checkout fix/ci-green && npm run build", path: "tools/openrouter-ts" },
+  { cmd: "cd vaked-base/daemons/openrouterd && zig build test", path: "daemons/openrouterd" },
+  { cmd: "git tag -s v0.1.0-genesis -m \"The Big Breath\" && git push origin v0.1.0-genesis", path: "vaked-base" },
+];
+
+// Flash a command until the user runs it — interval clears when acknowledged
+function flashCommand(idx: number): void {
+  const entry = READY_COMMANDS[idx];
+  if (!entry) return;
+
+  const interval = setInterval(() => {
+    // Alternating ANSI psychedelic colors
+    const colors = ["\x1b[31m", "\x1b[33m", "\x1b[32m", "\x1b[36m", "\x1b[34m", "\x1b[35m"];
+    const c = colors[Math.floor(Date.now() / 200) % 6];
+    const r = colors[Math.floor(Date.now() / 300 + 3) % 6];
+
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+    process.stdout.write(
+      `${c}⚡${r} ${entry.cmd.padEnd(70)} ${c}[${entry.path}]${r} ⚡\x1b[0m`
+    );
+  }, 150);
+
+  // Clear flash on any keypress (readline will handle this)
+  setTimeout(() => {
+    clearInterval(interval);
+    process.stdout.clearLine(0);
+    process.stdout.cursorTo(0);
+  }, 60000); // auto-clear after 60s
+}
+
+// Override the status bar to flash ready commands
+const tuiRender = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡⚡⚡ READY COMMANDS (flash until executed) ⚡⚡⚡
+  ./task mpr 341 feat/dyad
+  git tag -s v0.1.0-genesis -m "The Big Breath"
+  gh pr merge 345 --squash
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
