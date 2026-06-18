@@ -1,6 +1,5 @@
 #!/bin/bash
-# task mpr — merge PR with GPG sign. One command.
-# Usage: ./task mpr [pr-number] [branch]
+# task mpr — merge PR with GPG sign
 set -e
 CMD="${1:-help}"
 PR="${2:-341}"
@@ -9,19 +8,22 @@ BRANCH="${3:-feat/dyad}"
 case "$CMD" in
   mpr)
     echo "=== MPR: Sign + Merge PR #$PR ($BRANCH) ==="
-    export GPG_TTY=$(tty)
-    gpg --sign --armor --batch --yes <<< "test" 2>/dev/null || true
-    git checkout "$BRANCH"
-    git pull origin "$BRANCH" 2>/dev/null || true
+    echo ""
+    echo "Step 1/5: Checkout..."
+    git checkout "$BRANCH" && git pull origin "$BRANCH" 2>/dev/null || true
+    echo "Step 2/5: GPG rebase (enter passphrase when prompted)..."
     git rebase --gpg-sign main
+    echo "Step 3/5: Push signed..."
     git push --force-with-lease origin "$BRANCH"
-    git tag -s "v0.1.0-genesis" -m "The Big Breath" 2>/dev/null || true
-    git push origin "v0.1.0-genesis" 2>/dev/null || true
+    echo "Step 4/5: Tag genesis..."
+    git tag -s "v0.1.0-genesis" -m "The Big Breath" 2>/dev/null && git push origin "v0.1.0-genesis" 2>/dev/null || echo "  (tag skipped — may already exist)"
+    echo "Step 5/5: Merge PR..."
     gh pr merge "$PR" --squash --admin
+    echo ""
     echo "✅ PR #$PR merged. GENESIS_SEAL: 7c242080"
     ;;
   *)
-    echo "task mpr [pr-number] [branch]"
-    echo "  mpr 341 feat/dyad  — sign + merge the DYAD"
+    echo "usage: ./task mpr [pr] [branch]"
+    echo "  ./task mpr 341 feat/dyad"
     ;;
 esac
