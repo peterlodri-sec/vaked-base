@@ -18,6 +18,7 @@ set -euo pipefail
 MANIFEST="${HONESTY_MANIFEST:-./SEALS.sha256}"
 [[ -f "$MANIFEST" ]] || { echo "FAIL: manifest not found: $MANIFEST" >&2; exit 1; }
 ROOT="${HONESTY_ROOT:-$(cd "$(dirname "$MANIFEST")" && pwd)}"
+MANIFEST="$(cd "$(dirname "$MANIFEST")" && pwd)/$(basename "$MANIFEST")"  # absolutize before cd "$ROOT"
 
 # pick a sha256 tool; --strict so malformed lines fail on every platform
 if command -v sha256sum >/dev/null 2>&1; then CHECK=(sha256sum -c --strict); HASH=(sha256sum)
