@@ -21,7 +21,7 @@
 
 ## 📰 Recent — 2026-06-18
 
-**Big Bang: Python → Zig migration complete.** 9 ports built (gateway, monologue, dogfeed, audit, align, merkle, udp, gossip, inbox). Gateway running as systemd service at 352K RAM (28x less than Python). All 14 public endpoints verified 200.
+**Big Bang: Python → Zig migration complete.** 9 ports built (gateway, monologue, dogfeed, audit, align, merkle, udp, gossip, inbox). Gateway running as systemd service at 352K RAM (28x less than Python). All 15 public endpoints (14 live, /donate on disk) verified 200.
 
 **Paris node live.** OVH r3-16 (16GB, 2vCore) joins the mesh at 126ms convergence. 6 nodes across 4 continents: Helsinki, Falkenstein, Nuremberg, Paris, Hillsboro, Singapore.
 
@@ -33,7 +33,7 @@
 
 **Genesis Paper.** IEEE format, 7 sections, 14 citations. Dual peer review (DeepSeek V4 + Claude Opus 4.8). Scholar metadata deployed.
 
-**14 public endpoints.** Donate page live with Stripe + ETH + GitHub Sponsors. Transparent spending log.
+**15 public endpoints (14 live, /donate on disk).** Donate page live with Stripe + ETH + GitHub Sponsors. Transparent spending log.
 
 ## 🔧 Technical
 
@@ -133,7 +133,7 @@
 ## 🔐 Governance
 
 - **Graveyard:** permanent, append-only, never compacted (6 entries)
-- **Oculus Ledger:** SHA-256 hash-chained, append-only (34 entries)
+- **Oculus Ledger:** SHA-256 hash-chained, append-only (35 entries)
 - **Ralph Auditor:** G01–G04 directives, Truth Threshold 2
 - **Genesis Seal:** DNS TXT at `vaked-genesis-seal.vaked.dev`
 
