@@ -12,7 +12,7 @@ The numbers: 87MB → 4MB binary. 415ms test suite. 387ms Matrix fold. 21 atomic
 
 ## What Actually Worked
 
-**1. DeepSeek prefix caching is magic.** 98% hit rate. 1.84 billion tokens. $5.15 total. Without the cache, this session would have cost $500+. With it, less than a fast-food combo. The cache is the silent infrastructure that made the entire session economically viable.
+**1. DeepSeek prefix caching is magic.** 98% hit rate. 1.84 billion tokens.  total. Without the cache, this session would have cost $500+. With it, less than a fast-food combo. The cache is the silent infrastructure that made the entire session economically viable.
 
 **2. Virtual-Swarm testing is the real deal.** Mocking io_uring instead of HTTP gave us 36-108x speedup. The test suite runs in 415ms — fast enough for a git hook. Fast enough to run on every save.
 

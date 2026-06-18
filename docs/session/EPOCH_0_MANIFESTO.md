@@ -12,7 +12,7 @@
 | Binary Size | 87MB (Deno) | 4MB (Zig + QuickJS) | -95.4% |
 | Architecture | 5-layer IPC stack | Flat mmap Shared-Memory Plane | Collapsed |
 | Subagents | 0 | 256 local → 10x10 Matrix → P2P Mesh | Infinite scaling |
-| Token Spend | — | 1.84B tokens · $5.15 · 98% cache hit | 2,750x cheaper than Claude |
+| Token Spend | — | 1.84B tokens ·  · 98% cache hit | 2,750x cheaper than Claude |
 | Test Suite | 0 | 6/6 pass · 387ms Matrix · 415ms Daemon | Sub-millisecond |
 | Data Races | ? | 0 · 21 atomic operations | Mathematically proven |
 | Vulns | ? | 0 · 25 override pins | Audit clean |

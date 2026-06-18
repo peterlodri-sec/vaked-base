@@ -125,7 +125,7 @@ console.log(`Queried ${result.modelsQueried} models, cost $${result.totalCost.to
 |-------|----------|-------------|------------------|
 | `deepseek` | `deepseek/deepseek-v4-pro` | $0.27 | $0.27 |
 | `claude` | `anthropic/claude-opus-4-8-fast` | $15.00 | $75.00 |
-| `gemini` | `google/gemini-2.5-flash` | $0.15 | $0.60 |
+| `gemini` | `google/gemini-2.5-flash` | $0 | $0.60 |
 | `qwen` | `qwen/qwen3-235b-a22b-thinking` | $2.50 | $5.00 |
 | `llama` | `meta-llama/llama-4-maverick` | $0.20 | $0.60 |
 | `haiku` | `anthropic/claude-haiku-4-5` | $0.25 | $1.25 |

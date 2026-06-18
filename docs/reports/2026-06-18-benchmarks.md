@@ -20,7 +20,7 @@
 | **openrouterd** | 5.4MB | proxy | ✅ | ✅ 22 |
 | **Node.js** | 50MB+ | ✅ | ✅ | ❌ |
 
-## Linting — oxlint 0.15 (9 files)
+## Linting — oxlint 0 (9 files)
 | Tool | Time | Rules | Threads |
 |------|------|-------|---------|
 | **oxlint** | 3ms | 98 | 14 |

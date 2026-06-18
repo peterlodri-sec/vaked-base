@@ -126,7 +126,7 @@ smoothed.
 
 - **[HIGH]** **Excessive Agency (OWASP LLM06:2025):** today's default is a single
   principal with full access to all tools — a compromised agent can invoke
-  anything. This is the gap POLA closes. *OWASP LLM06; arXiv:2503.15547.*
+  anything. This is the gap POLA closes. *OWASP LLM06; arXiv:2503547.*
 - **[HIGH]** **Confused deputy (MCP):** a proxy server with a static upstream
   `client_id` + dynamic registration + a consent cookie lets an attacker skip
   consent and redirect a victim's auth code. Fix: per-client consent before

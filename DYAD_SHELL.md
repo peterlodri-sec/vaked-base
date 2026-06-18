@@ -53,7 +53,7 @@ declaration dyad_shell {
     args: '''
       python3 -m agent_memoryd store \
         --key "dyad/session/$(date -u +%Y-%m-%d)" \
-        --content "95 commits · 14 domains · $5.15 · 1.84B tokens" \
+        --content "95 commits · 14 domains ·  · 1.84B tokens" \
         --agent "dyad-shell" \
         --scope "agent" \
         --capability '{"agent_id":"dyad-shell","level":"admin"}'

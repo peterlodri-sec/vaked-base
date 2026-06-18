@@ -19,7 +19,7 @@ the `vakedos` target host. Reproducers must record their own environment.
 | Field | Value (this capture) |
 |-------|----------------------|
 | Compiler | `vakedc` (Python front-end), `python3 -m vakedc {parse,check,lower}` |
-| Python | 3.11.15 |
+| Python | 3.11 |
 | Cores used | 1 (vakedc is single-threaded; no parallel checking yet) |
 | Timer | `time.perf_counter()` around a `subprocess` call (same as `bench.py`) |
 | Reps | median of 3 unless noted (10k stages: 1 run) |
