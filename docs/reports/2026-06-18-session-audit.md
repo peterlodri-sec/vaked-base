@@ -95,3 +95,12 @@ tools/scrubber/build.zig + main.zig
 - Publicly auditable via git log, PR history, issue tracker
 
 GENESIS_SEAL: 7c242080
+
+
+## Coding Agent
+
+**DeepSeek Code Whale** (https://github.com/usewhale/DeepSeek-Code-Whale)
+Powered by DeepSeek V4 Pro + V4 Flash via OpenRouter.
+1.84B tokens. ~$10 session cost. 43 commits. 0 data races.
+
+GENESIS_SEAL: 7c242080
