@@ -1,0 +1,52 @@
+name: honesty-anchor
+
+# Deploy-time external anchor (Tier 2): on push to main, keyless-sign the seal
+# manifest with cosign and log it to the Rekor transparency log. Rekor is an
+# append-only witness OUTSIDE the repo — so a tamper-with-reseal shows up as a
+# second, timestamped, conflicting entry the resealing party cannot erase, EVEN
+# IF they hold a key. This is the anchor a signed tag alone cannot provide.
+#
+# Keyless: the signing identity is THIS workflow's GitHub OIDC token (no long-lived
+# key to custody — SLSA L2/L3: the committing agent cannot reach the signer).
+#
+# !! STATUS: authored from sigstore docs; NOT executed locally (cosign needs CI).
+#    Treat the FIRST green run as validation. After it runs, read the logged
+#    certificate identity and set it as repo variable COSIGN_IDENTITY so
+#    tools/verify-seals.sh (Anchor 2) can verify the bundle. Until then the
+#    signed git tag (Tier 0) is the anchor that is verifiable today.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "the-honest-swarm-researcher/SEALS.sha256"
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # keyless OIDC signing
+  contents: read
+
+jobs:
+  anchor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign SEALS.sha256 keyless and log to Rekor
+        run: |
+          cosign sign-blob --yes \
+            --bundle the-honest-swarm-researcher/SEALS.sha256.cosign.bundle \
+            the-honest-swarm-researcher/SEALS.sha256
+          echo "Signed. The signing identity is this workflow's OIDC token:"
+          echo "  https://github.com/${GITHUB_REPOSITORY}/.github/workflows/honesty-anchor.yml@${GITHUB_REF}"
+          echo "Set repo variable COSIGN_IDENTITY to that value to enable bundle verification."
+
+      - name: Upload anchor bundle (Rekor entry is the durable witness)
+        uses: actions/upload-artifact@v4
+        with:
+          name: seals-cosign-bundle
+          path: the-honest-swarm-researcher/SEALS.sha256.cosign.bundle
+          if-no-files-found: error

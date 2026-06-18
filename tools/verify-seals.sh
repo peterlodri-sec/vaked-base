@@ -71,19 +71,61 @@ fi
 
 # pick a sha256 tool; --strict on both so malformed lines fail everywhere
 if command -v sha256sum >/dev/null 2>&1; then
-  CHECK=(sha256sum -c --strict)
+  CHECK=(sha256sum -c --strict); HASH=(sha256sum)
 elif command -v shasum >/dev/null 2>&1; then
-  CHECK=(shasum -a 256 -c --strict)
+  CHECK=(shasum -a 256 -c --strict); HASH=(shasum -a 256)
 else
   echo "FAIL: no sha256 tool (need sha256sum or shasum)" >&2
   exit 1
 fi
 
 echo "Verifying $VALID_LINES sealed artifacts against $(basename "$MANIFEST") (coverage OK) …"
-if "${CHECK[@]}" "$MANIFEST"; then
-  echo "OK: all seals hold. The external POV confirms the artifacts."
-  exit 0
-else
+if ! "${CHECK[@]}" "$MANIFEST"; then
   echo "FAIL: a sealed artifact does not match its external signature — tampered or re-sealed without updating SEALS.sha256." >&2
   exit 1
 fi
+echo "OK: all seals hold. The external POV confirms the artifacts."
+
+# --- External anchors (defeat tamper-with-reseal: the manifest's own hash is bound
+#     to something the resealing party cannot rewrite in the same commit). Both are
+#     OPTIONAL until provisioned; absent => NOTE (residual stands), present => verify+compare.
+MANIFEST_HASH="$("${HASH[@]}" "$MANIFEST" | cut -d' ' -f1)"
+
+# Anchor 1 (Tier 0): GPG-signed git tag carrying sha256(SEALS.sha256). Verifiable now.
+ANCHOR_TAG="$(git -C "$REPO_ROOT" tag -l 'seals-anchor-*' 2>/dev/null | sort | tail -1 || true)"
+if [[ -n "$ANCHOR_TAG" ]]; then
+  if ! git -C "$REPO_ROOT" tag -v "$ANCHOR_TAG" >/dev/null 2>&1; then
+    echo "FAIL (anchor): signed tag $ANCHOR_TAG does not verify (bad/absent signature)." >&2
+    exit 1
+  fi
+  EXPECT="$(git -C "$REPO_ROOT" tag -l --format='%(contents)' "$ANCHOR_TAG" \
+            | grep -oE 'sha256\(SEALS\.sha256\)=[0-9a-fA-F]{64}' | head -1 | cut -d= -f2)"
+  if [[ -n "$EXPECT" && "$EXPECT" != "$MANIFEST_HASH" ]]; then
+    echo "FAIL (anchor): SEALS.sha256 hash $MANIFEST_HASH != signed-tag anchor $EXPECT — manifest rewritten without re-anchoring." >&2
+    exit 1
+  fi
+  echo "OK: external anchor $ANCHOR_TAG verified (GPG-signed, hash matches)."
+else
+  echo "NOTE: no signed seals-anchor-* tag yet — manifest still unanchored (residual; see REPAIR_AUDIT.json)."
+  echo "      create with: git tag -s seals-anchor-\$(date +%Y%m%d) -m \"genesis 7c242080 · sha256(SEALS.sha256)=$MANIFEST_HASH\""
+fi
+
+# Anchor 2 (Tier 2): cosign bundle over the manifest, logged to Rekor (append-only witness).
+BUNDLE="${MANIFEST}.cosign.bundle"
+if [[ -f "$BUNDLE" ]]; then
+  if command -v cosign >/dev/null 2>&1; then
+    IDENT="${COSIGN_IDENTITY:-}"; ISSUER="${COSIGN_ISSUER:-https://github.com/login/oauth}"
+    if [[ -z "$IDENT" ]]; then
+      echo "NOTE: cosign bundle present but COSIGN_IDENTITY unset — skipping transparency-log verify."
+    elif cosign verify-blob --bundle "$BUNDLE" \
+            --certificate-identity "$IDENT" --certificate-oidc-issuer "$ISSUER" "$MANIFEST" >/dev/null 2>&1; then
+      echo "OK: cosign/Rekor bundle verified for SEALS.sha256 (identity $IDENT)."
+    else
+      echo "FAIL (anchor): cosign verify-blob failed for $BUNDLE — manifest not validly anchored in the transparency log." >&2
+      exit 1
+    fi
+  else
+    echo "NOTE: cosign bundle present but cosign not installed here — verify in CI."
+  fi
+fi
+exit 0
