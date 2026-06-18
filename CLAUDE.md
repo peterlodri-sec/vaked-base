@@ -94,6 +94,38 @@ Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external d
 | `social-post` | Mastodon dev-feed (Carcin persona) |
 | `label-tagger` | auto-labels PRs/issues |
 
+## LLM Provider — OpenRouter (swarm default)
+
+**OpenRouter is the default and preferred LLM provider for the entire Vaked swarm.** Every agent, tool, daemon, and surface in this repo that calls an LLM routes through OpenRouter unless it has a hard technical reason not to (e.g., benchmarking a specific provider directly).
+
+| Rule | Detail |
+|------|--------|
+| **Default provider** | OpenRouter (`https://openrouter.ai`) |
+| **Auth** | `OPENROUTER_API_KEY` env var (all agents guard on this, no-op when unset) |
+| **SDK** | `@openrouter/agent` (TypeScript) · `adk-rust` (Rust) · raw HTTP (Python stdlib fallback) |
+| **New agents** | Must use OpenRouter as default. `@vaked/openrouter-ts` for TypeScript agents; `adk-rust` with `openrouter` feature for Rust agents. |
+| **Exceptions** | Direct provider access requires explicit justification in the agent's CLAUDE.md. `tools/cuc-bench/` is the only approved exception (benchmarking tool). |
+
+### Why OpenRouter?
+
+1. **Single API surface** — 400+ models across all providers, one key, one endpoint.
+2. **Type-safe SDKs** — `@openrouter/agent` (TS) and `adk-rust` (Rust) provide Zod-typed tools, streaming, agent loops, stop conditions.
+3. **Cost control** — per-request budget caps, model fallback, cost tracking.
+4. **No TLS-disable hacks** — the Python fallback tools previously used `ssl.CERT_NONE`. The TypeScript SDK uses proper TLS.
+5. **Context7 native** — `@vaked/openrouter-ts` auto-wires Context7 for live library docs.
+
+### Migrating to OpenRouter
+
+| From | To |
+|------|----|
+| `python3 tools/openrouter/cli.py "prompt"` | `npx orcli "prompt"` |
+| `from tools.openrouter.qcall import ask` | `import { ask } from "@vaked/openrouter-ts"` |
+| `ANTHROPIC_API_KEY` + direct Anthropic HTTP | `OPENROUTER_API_KEY` + `model: "anthropic/claude-opus-4-8-fast"` |
+| `OPENAI_API_KEY` + direct OpenAI HTTP | `OPENROUTER_API_KEY` + `model: "openai/gpt-4.1-mini"` |
+| Raw `urllib.request` with `ssl.CERT_NONE` | `createVakedAgent()` — type-safe, TLS-verified, Context7 auto-wired |
+
+
+
 ## Security / Snyk
 
 **Snyk is OFF for this project.** The global "Snyk at inception" directive does **not** apply here (explicit owner decision, 2026-06-08). Do **not** run `snyk_code_scan` in this repo. If that decision is reversed, remove this section.

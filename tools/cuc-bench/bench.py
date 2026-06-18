@@ -73,8 +73,12 @@ def detect_backend():
         return "ollama", os.environ["OLLAMA_HOST"]
     if os.environ.get("ANTHROPIC_API_KEY"):
         return "anthropic", os.environ["ANTHROPIC_API_KEY"]
-    if os.environ.get("OPENROUTER_API_KEY"):
-        return "openrouter", os.environ["OPENROUTER_API_KEY"]
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic", os.environ["ANTHROPIC_API_KEY"]
+    if os.environ.get("OLLAMA_HOST"):
+        return "ollama", os.environ["OLLAMA_HOST"]
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "anthropic", os.environ["ANTHROPIC_API_KEY"]
     if os.environ.get("OPENAI_API_KEY"):
         return "openai", os.environ["OPENAI_API_KEY"]
     return None, None
@@ -374,7 +378,7 @@ def build_report(results: list, backend: str) -> str:
 def main():
     backend, api_key = detect_backend()
     if not backend:
-        print("ERROR: set OLLAMA_HOST, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, or OPENAI_API_KEY", file=sys.stderr)
+        print("ERROR: set OPENROUTER_API_KEY (preferred), OLLAMA_HOST, ANTHROPIC_API_KEY, or OPENAI_API_KEY", file=sys.stderr)
         sys.exit(1)
 
     print(f"Backend: {backend}")
