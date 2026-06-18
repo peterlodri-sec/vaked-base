@@ -11,7 +11,7 @@
   <img alt="genesis" src="https://img.shields.io/badge/genesis-7c242080-ff8c42">
   <img alt="grammar" src="https://img.shields.io/badge/grammar-v0.5%20·%2032%20kinds-3060ff">
   <img alt="honesty gate" src="https://img.shields.io/badge/honesty--gate-external%20·%20failable-2ecc71">
-  <img alt="anchor" src="https://img.shields.io/badge/seal-GPG--signed%20·%20DNS--anchored-8060c0">
+  <img alt="anchor" src="https://img.shields.io/badge/seal-DNS--published%20·%20tag--signed%20(CI%20residual)-8060c0">
   <img alt="license" src="https://img.shields.io/badge/oss-MIT-blue">
 </p>
 
@@ -27,7 +27,7 @@
 <hr>
 
 **Genesis Seal:** <code>7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf</code>
-(published in DNS TXT at `vaked-genesis-seal.vaked.dev`, anchored by a GPG-signed `seals-anchor-*` tag)
+(published in DNS TXT at `vaked-genesis-seal.vaked.dev` — verified. Tamper-with-reseal anchor: GPG-signed `seals-anchor-*` tags exist on origin and verify locally with the maintainer key; **CI enforcement — `fetch-tags` + key import — is residual**, so a fresh checkout reports the manifest *unanchored*. See `the-honest-swarm-researcher/REPAIR_AUDIT.json`.)
 
 ---
 
@@ -151,7 +151,7 @@ flowchart LR
 - **Graveyard** — permanent, append-only, never compacted.
 - **Oculus Ledger** — SHA-256 hash-chained, append-only.
 - **Ralph Auditor** — G01–G04 directives, Truth Threshold 2; blocks the build at 2+ critical drifts.
-- **Genesis Seal** — DNS TXT at `vaked-genesis-seal.vaked.dev`, GPG-signed-tag anchored.
+- **Genesis Seal** — DNS TXT at `vaked-genesis-seal.vaked.dev` (verified). Signed-tag anchor *provisioned* (tags on origin, verify locally with the maintainer key); **live CI enforcement is residual** — `verify-seals.sh` prints "unanchored" until CI fetches tags + imports the key.
 
 ## 📐 Conventions
 
