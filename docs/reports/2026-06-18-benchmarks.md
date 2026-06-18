@@ -77,3 +77,28 @@ GENESIS_SEAL: 7c242080
 | DeepSeek tokens | 1.84 billion |
 | DeepSeek cost | ~$422 |
 | Claude equivalent | ~$27,500 (65x more) |
+
+## Final Round — Top 5 Untouched
+
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| ralph.py | 2,310 | 1,897 | -17.9% |
+| check.zig (vakedz) | 1,783 | 1,558 | -12.6% |
+| 0003-litany-wire.md | 1,722 | 1,295 | -24.8% |
+| swe-af/main.rs | 1,361 | 1,020 | -25.1% |
+| test_vakedc_check.py | 1,371 | 973 | -29.0% |
+| **Total** | **8,547** | **6,743** | **-21.1%** |
+
+All builds pass: zig ✅ python ✅ rust ✅
+
+## Grand Session Total
+
+| Metric | Value |
+|--------|-------|
+| Total files compressed | 52 |
+| Total lines removed | ~11,900 |
+| Overall compression | ~22% |
+| DeepSeek tokens | 1.84B |
+| Session cost | ~$422 |
+| PRs merged | 5 |
+| Builds passing | 5/5 |
