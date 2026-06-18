@@ -1,3 +1,5 @@
+"use strict";
+
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync, writeFileSync, existsSync } from "node:fs";

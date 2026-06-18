@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * context7 — first-class, native library documentation tool.
  *

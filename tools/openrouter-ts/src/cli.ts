@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+"use strict";
 /**
  * orcli — OpenRouter CLI. Port of tools/openrouter/cli.py.
  *

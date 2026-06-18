@@ -1,3 +1,5 @@
+"use strict";
+
 // OpenRouter Agent SDK integration — all API calls go through Tauri commands in the Rust backend.
 // This module provides helper types, prompt utilities, and SDK type re-exports for the frontend.
 //

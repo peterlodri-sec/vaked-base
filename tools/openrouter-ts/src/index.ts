@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * @vaked/openrouter-ts — OpenRouter Agent SDK toolkit for Vaked.
  *

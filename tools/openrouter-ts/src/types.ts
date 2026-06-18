@@ -1,3 +1,5 @@
+"use strict";
+
 import type { Tool } from "@openrouter/agent";
 
 /** Model catalog — mirrors tools/openrouter/cli.py MODELS + COSTS */

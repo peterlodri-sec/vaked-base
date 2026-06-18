@@ -1,3 +1,5 @@
+"use strict";
+
 export type SessionKind = "human" | "a2a" | "gateway";
 
 export type AgentRole =

@@ -1,3 +1,5 @@
+"use strict";
+
 import { useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";

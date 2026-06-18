@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * deliberate — 20-model autonomous deliberation panel.
  *
