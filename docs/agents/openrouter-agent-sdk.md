@@ -149,6 +149,18 @@ Langfuse. Credentials come from the **GitHub CI Environment `ci`**.
 | `LANGFUSE_HOST` | `LANGFUSE_HOST` (preferred) or `LANGFUSE_BASE_URL` (legacy) | ✅ Live |
 | `CONTEXT7_API_KEY` | `CONTEXT7_API_KEY` | 🆕 Needs adding |
 
+### Config Variables (non-secret, CI env vars)
+
+| Variable | Value | Used by |
+|----------|-------|---------|
+| `PR_REVIEW_MODEL` | `deepseek/deepseek-v4-flash` | pr-review |
+| `RALPH_WRITER_MODEL` | `deepseek/deepseek-v4-pro` | ralph |
+| `PR_REVIEW_TRACE_PAYLOADS` | `true` | pr-review |
+| `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` | `true` | GitHub Actions runtime |
+
+**Swarm default model:** DeepSeek V4 (Pro for quality, Flash for speed/CI).
+Our `@vaked/openrouter-ts` defaults to `deepseek-v4-pro` — aligned with ralph.
+
 ### Guard Pattern
 
 Every Langfuse call is **guarded** — the agent no-ops cleanly when secrets

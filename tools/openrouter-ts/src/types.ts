@@ -19,6 +19,12 @@ export const MODELS: Record<string, ModelEntry> = {
     promptCost: 0.27,
     completionCost: 0.27,
   },
+  "deepseek-flash": {
+    id: "deepseek/deepseek-v4-flash",
+    label: "DeepSeek V4 Flash",
+    promptCost: 0.14,
+    completionCost: 0.14,
+  },
   claude: {
     id: "anthropic/claude-opus-4-8-fast",
     label: "Claude Opus 4.8",
