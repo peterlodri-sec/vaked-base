@@ -438,21 +438,12 @@ export function createVakedAgent(options: VakedAgentOptions = {}) {
   };
 }
 export type VakedAgent = ReturnType<typeof createVakedAgent>;
-// ── Speculative RAG — race LLM vs Vaked Docs, fastest wins ────────────────
-
 /**
- * Fire OpenRouter + Vaked Docs in parallel. Whichever returns first wins.
- * If RAG wins: inject docs into the prompt before LLM sees it.
- * If LLM wins: RAG result enriches the next turn.
- *
- * This makes every prompt "Context7-native" without the pre-scan latency.
- */
 export async function speculativeAsk(
   agent: VakedAgent,
   prompt: string,
   model?: string,
 ): Promise<{ response: string; ragUsed: boolean; ragResult?: string }> {
-  // Fire both in parallel
   const llmPromise = agent.ask(prompt, model);
   const ragPromise = (async () => {
     try {
@@ -462,26 +453,19 @@ export async function speculativeAsk(
       return res.json() as any;
     } catch { return null; }
   })();
-
   const result = await Promise.race([
     llmPromise.then(r => ({ type: "llm" as const, value: r })),
     ragPromise.then(r => ({ type: "rag" as const, value: r })),
   ]);
-
   if (result.type === "rag" && result.value?.results?.length) {
-    // RAG won — inject docs, retry LLM with enriched prompt
     const ragContext = result.value.results
       .slice(0, 3)
       .map((e: any) => e.snippets?.map((s: any) => s.code ?? s.content).join("\n"))
       .join("\n\n");
-
     const enrichedPrompt = `## Vaked Docs (speculative RAG — fastest path)\n${ragContext.slice(0, 2048)}\n\n---\n\n${prompt}`;
     const llmResponse = await agent.ask(enrichedPrompt, model);
-
     return { response: llmResponse, ragUsed: true, ragResult: ragContext.slice(0, 500) };
   }
-
-  // LLM won — return response, RAG result available for next turn
   const ragResult = await ragPromise;
   return {
     response: result.type === "llm" ? result.value : await llmPromise,

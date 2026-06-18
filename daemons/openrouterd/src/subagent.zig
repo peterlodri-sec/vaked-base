@@ -10,7 +10,6 @@ pub fn spawnSynthesizer(self:*WorkerPool,t:[]const u8)!u32{return self._spawn(.s
 fn _spawn(self:*WorkerPool,k:SubagentKind,p:[]const u8)!u32{
     var i:usize=0;while(i<256):(i+=1){
         var m=&self.arena.msgs[i];
-        // Atomic slot acquisition — no two threads can claim same slot
         const old=@atomicRmw(u8,&m.status,.Xchg,1,.acquire);
         if(old==0){
             m.kind=k;m.id=@intCast(i);m.payload_len=@intCast(@min(p.len,4095));
