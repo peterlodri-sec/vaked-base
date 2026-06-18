@@ -45,6 +45,11 @@ just the green/red.
 
 ## If you ever want to prove an artifact is anchored (optional, advanced)
 
+The bundle is committed to the repo at
+`the-honest-swarm-researcher/SEALS.sha256.cosign.bundle` by the `honesty-anchor`
+workflow after each successful signing run, so it is present in any checkout of
+`main`. No manual download step is required.
+
 ```
 cosign verify-blob \
   --bundle the-honest-swarm-researcher/SEALS.sha256.cosign.bundle \

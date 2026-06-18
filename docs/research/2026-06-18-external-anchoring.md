@@ -40,7 +40,7 @@ Universal, zero-infra, offline. Anchor strength = keyring distribution. (https:/
 ### B. Sigstore / cosign + Rekor — external append-only transparency
 `cosign verify-blob` verifies a signature over an arbitrary file (the manifest). Keyless:
 identity anchored to an external OIDC issuer (`--certificate-identity` /
-`--certificate-oidc-issuer`; GitHub = `https://github.com/login/oauth`) — a CI workflow
+`--certificate-oidc-issuer`; GitHub Actions = `https://token.actions.githubusercontent.com`) — a CI workflow
 identity, not a dev key, becomes the anchor. Rekor is an immutable append-only ledger
 outside the producer's control; inclusion provable via a Signed Entry Timestamp (offline).
 Default claims-check binds signature to exact digest. Rekor monitor reusable workflow

@@ -114,7 +114,7 @@ fi
 BUNDLE="${MANIFEST}.cosign.bundle"
 if [[ -f "$BUNDLE" ]]; then
   if command -v cosign >/dev/null 2>&1; then
-    IDENT="${COSIGN_IDENTITY:-}"; ISSUER="${COSIGN_ISSUER:-https://github.com/login/oauth}"
+    IDENT="${COSIGN_IDENTITY:-}"; ISSUER="${COSIGN_ISSUER:-https://token.actions.githubusercontent.com}"
     if [[ -z "$IDENT" ]]; then
       echo "NOTE: cosign bundle present but COSIGN_IDENTITY unset — skipping transparency-log verify."
     elif cosign verify-blob --bundle "$BUNDLE" \

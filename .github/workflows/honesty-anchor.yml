@@ -24,7 +24,7 @@ on:
 
 permissions:
   id-token: write   # keyless OIDC signing
-  contents: read
+  contents: write   # commit bundle back to repo
 
 jobs:
   anchor:
@@ -43,6 +43,15 @@ jobs:
           echo "Signed. The signing identity is this workflow's OIDC token:"
           echo "  https://github.com/${GITHUB_REPOSITORY}/.github/workflows/honesty-anchor.yml@${GITHUB_REF}"
           echo "Set repo variable COSIGN_IDENTITY to that value to enable bundle verification."
+
+      - name: Commit bundle to repo (durable — present in all future checkouts)
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add the-honest-swarm-researcher/SEALS.sha256.cosign.bundle
+          git diff --cached --quiet && echo "bundle unchanged — nothing to commit" && exit 0
+          git commit -m "chore(anchor): update SEALS.sha256.cosign.bundle [skip ci]"
+          git push
 
       - name: Upload anchor bundle (Rekor entry is the durable witness)
         uses: actions/upload-artifact@v4
