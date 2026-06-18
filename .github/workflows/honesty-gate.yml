@@ -3,33 +3,41 @@ name: honesty-gate
 # The external POV. A system cannot verify its own honesty from within — so CI,
 # which is not the artifact, does it. Declaring a norm does not implement it;
 # this workflow does. Fails the build on a broken seal or an unreconciled claim.
+#
+# Hardened after the gate-breaker audit:
+#   - NO paths: filter — the job always runs, so a dishonest claim cannot evade
+#     it by living in an unscoped file (workflow-pathfilter bypass).
+#   - trusted-root execution — the verifier scripts are run from the MERGED main
+#     branch against the PR's tree, so a PR cannot neuter its own gate
+#     (gate-self-modify bypass).
+#
+# NOTE (GitHub-side, cannot be set from in-tree — see REPAIR_AUDIT.json):
+#   mark `honesty-gate` a REQUIRED status check on main + enable branch protection,
+#   else a red run does not block merge.
 
 on:
   push:
     branches: [main]
-    paths:
-      - "the-honest-swarm-researcher/**"
-      - "docs/reports/**"
-      - "tools/verify-seals.sh"
-      - "tools/reconcile-gate.py"
-      - ".github/workflows/honesty-gate.yml"
   pull_request:
-    paths:
-      - "the-honest-swarm-researcher/**"
-      - "docs/reports/**"
-      - "tools/verify-seals.sh"
-      - "tools/reconcile-gate.py"
-      - ".github/workflows/honesty-gate.yml"
   workflow_dispatch:
 
 jobs:
   honesty-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout PR tree (the artifacts under test)
+        uses: actions/checkout@v4
+        with:
+          path: pr
 
-      - name: Verify external seals (failable)
-        run: bash tools/verify-seals.sh
+      - name: Checkout trusted main (the verifier of record)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: trusted
 
-      - name: Reconcile divergence claims with anomaly ledger (Norm #4)
-        run: python3 tools/reconcile-gate.py
+      - name: Verify external seals — trusted verifier vs PR artifacts (failable)
+        run: HONESTY_REPO_ROOT="$GITHUB_WORKSPACE/pr" bash trusted/tools/verify-seals.sh
+
+      - name: Reconcile divergence claims with anomaly ledger — Norm #4
+        run: HONESTY_REPO_ROOT="$GITHUB_WORKSPACE/pr" python3 trusted/tools/reconcile-gate.py

@@ -53,6 +53,39 @@
   },
 
   "consensus_verdict": "REPAIR PARTIALLY LANDED. The honesty-gate (verify-seals.sh + reconcile-gate.py + honesty-gate.yml) is merged to main (PR #312) and is proven failable. The gateway-side repairs (verify_seal() wired to the external verifier, mesh.json labelled/computed, trust_index derived) remain OPEN — tracked in issue #311 for swe_af. No build was run; no cost was fabricated. PII scrubbed for public release.",
-  "refs": { "learn_pr": 310, "harden_pr": 312, "repair_issue": 311, "specimen_commit": "f7706b1" },
-  "seal_note": "Hashes for the sealed artifacts live in the-honest-swarm-researcher/SEALS.sha256 (external, not embedded). This file is sealed there too — recompute with tools/verify-seals.sh."
+  "gate_breaker_audit": {
+    "method": "6 adversarial agents attacked the merged honesty-gate; each finding adversarially verified against the real files",
+    "confirmed": "6/6",
+    "fixed_in_tree": [
+      "reconcile-coverage (HIGH): strict RESOLVED allowlist + structured trust-assertion scan across all *.json (no more 'RESOLVED-ish'/synonym/trust_index bypass)",
+      "workflow-pathfilter (HIGH): removed paths: filter — gate always runs",
+      "gate-self-modify (HIGH): CI runs the verifier from trusted main vs the PR tree; added .github/CODEOWNERS on the gate files",
+      "coverage-unsealed (MED): verify-seals.sh now fails if any sealed-set artifact is absent from the manifest",
+      "tooling-falsepass (MED): non-empty manifest guard + --strict on both platforms"
+    ]
+  },
+  "residual_risks": [
+    {
+      "id": "manifest-unanchored",
+      "severity": "MED",
+      "desc": "SEALS.sha256 is the trust root; an actor with write access can tamper-and-reseal in one commit and the gate goes green. 'The self cannot see itself' one level up.",
+      "fix_needs": "external anchor outside the artifact author's reach — minimal: GPG-signed git tag carrying sha256(SEALS.sha256) + 'git tag -v' in CI; strong: Sigstore/Rekor transparency log or in-toto/SLSA; permissionless: OpenTimestamps (Bitcoin/Ethereum) for free public timestamping. Ethereum smart-contract anchoring works but is the heaviest/most-costly option, not the recommended first layer.",
+      "status": "OPEN — needs a signing key / external service (not settable in-tree). Tracked in #311."
+    },
+    {
+      "id": "branch-protection-not-required",
+      "severity": "MED",
+      "desc": "honesty-gate is not a required status check and main is not branch-protected (API returned 'Branch not protected'), so a red gate does not block merge.",
+      "fix_needs": "GitHub-side: protect main, mark honesty-gate required, 'Require review from Code Owners'.",
+      "status": "OPEN — owner action. Documented in CODEOWNERS + honesty-gate.yml."
+    },
+    {
+      "id": "prose-not-phrase-scanned",
+      "severity": "LOW",
+      "desc": "reconcile-gate scans structured JSON claims, not .md prose, on purpose — an audit doc must be free to quote/critique a dishonest claim without tripping the gate.",
+      "status": "ACCEPTED — prose is the human-review surface; machine-readable fields are the gated surface."
+    }
+  ],
+  "refs": { "learn_pr": 310, "harden_pr": 312, "public_pr": 313, "repair_issue": 311, "specimen_commit": "f7706b1", "gate_breaker_run": "wf_92f4849c-f8a" },
+  "seal_note": "Hashes for the sealed artifacts live in the-honest-swarm-researcher/SEALS.sha256 (external, not embedded). Recompute with tools/verify-seals.sh."
 }
