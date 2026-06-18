@@ -239,6 +239,13 @@ const BigArena = struct {
 };
 
 
+const openapi_json = @embedFile("openapi.json");
+
+fn openapiSpec(a: std.mem.Allocator) ![]const u8 {
+    return a.dupe(u8, openapi_json);
+}
+
+
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const allocator = init.arena.allocator();
@@ -267,6 +274,7 @@ pub fn main(init: std.process.Init) !void {
     std.log.info("openrouterd :{d} model={s} genesis=7c242080", .{ cli.port, DEFAULT_MODEL });
 
     while (true) {
+        // Check if we have the openapi handler registered
         const cfd: i32 = @intCast(linux.accept(fd, null, null));
         defer _ = linux.close(cfd);
 
@@ -276,6 +284,12 @@ pub fn main(init: std.process.Init) !void {
         const req = buf[0..@intCast(rn)];
 
         // Health check
+        if (std.mem.indexOf(u8, req, "GET /openapi.json") != null) {
+            const spec = try openapiSpec(allocator);
+            try write(cfd, allocator, "200 OK", spec);
+            continue;
+        }
+
         if (std.mem.indexOf(u8, req, "GET /health") != null) {
             const ok = try allocator.dupe(u8, "{\"status\":\"ok\",\"genesis\":\"7c242080\",\"nickname\":\"Atlas\"}");
             try write(cfd, allocator, "200 OK", ok);
