@@ -76,6 +76,31 @@ fn callOpenRouter(io: std.Io, allocator: std.mem.Allocator, api_key: []const u8,
 
 // ── HTTP write ──────────────────────────────────────────────────────────────
 
+fn resolveSecret(io: std.Io, a: std.mem.Allocator, path: []const u8, env_fb: []const u8) ![]const u8 {
+    if (getenv("VAULT_TOKEN")) |t| {
+        if (vaultGet(io, a, std.mem.span(t), path)) |v| { std.log.info("secret {s} from vault", .{path}); return v; } else |_| {}
+    }
+    if (getenv(env_fb)) |v| { std.log.info("secret {s} from env", .{path}); return a.dupe(u8, std.mem.span(v)); }
+    return error.SecretNotFound;
+}
+
+fn vaultGet(io: std.Io, a: std.mem.Allocator, token: []const u8, path: []const u8) ![]const u8 {
+    const url = try std.fmt.allocPrint(a, "https://bao.crabcc.app/v1/secret/data/{s}", .{path});
+    defer a.free(url);
+    var client: std.http.Client = .{ .allocator = a, .io = io };
+    defer client.deinit();
+    var resp: std.ArrayListUnmanaged(u8) = .{ .items = &.{}, .capacity = 0 };
+    defer resp.deinit(a); var w = std.Io.Writer.fromArrayList(&resp);
+    const uri = try std.Uri.parse(url);
+    var h: [2]std.http.Header = undefined;
+    h[0] = .{ .name = "X-Vault-Token", .value = token };
+    h[1] = .{ .name = "User-Agent", .value = "openrouterd/0.1" };
+    _ = client.fetch(.{ .location = .{ .uri = uri }, .method = .GET, .response_writer = &w, .extra_headers = &h }) catch return error.VaultUnavailable;
+    const p = std.json.parseFromSlice(struct { data: struct { data: struct { value: ?[]const u8 } } }, a, resp.items, .{ .ignore_unknown_fields = true }) catch return error.VaultUnavailable;
+    defer p.deinit();
+    return if (p.value.data.data.value) |v| try a.dupe(u8, v) else error.SecretNotFound;
+}
+
 fn write(fd: i32, allocator: std.mem.Allocator, code: []const u8, body: []const u8) !void {
     const resp = try std.fmt.allocPrint(allocator,
         "HTTP/1.1 {s}\r\nContent-Type: application/json\r\nContent-Length: {d}\r\nConnection: close\r\n\r\n{s}",
@@ -223,7 +248,7 @@ pub fn main(init: std.process.Init) !void {
     const api_key = if (getenv("OPENROUTER_API_KEY")) |k|
         std.mem.span(k)
     else {
-        std.log.err("OPENROUTER_API_KEY not set", .{});
+        std.log.err("secret openrouter/api-key not found (vault + env)", .{});
         return error.NoApiKey;
     };
 
