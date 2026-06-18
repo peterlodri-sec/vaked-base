@@ -8,8 +8,8 @@ pub fn spawnSubtask(stack:*CallStack,parent_id:u32,task:[]const u8,_:[]const u8)
     if(stack.frame_count>=32)return error.StackFull;
     const p=&stack.frames[parent_id];
     if(p.depth>=MAX_D)return error.MaxDepth;
-    const cid=stack.frame_count;stack.frame_count+=1;
-    var c=&stack.frames[cid];c.id=cid;c.depth=p.depth+1;c.parent_id=parent_id;c.status=1;c.frozen_prefix_offset=p.frozen_prefix_offset;c.frozen_prefix_len=p.frozen_prefix_len;
+    const cid=@atomicRmw(u16,&stack.frame_count,.Add,1,.monotonic);
+    var c=&stack.frames[cid];c.id=cid;c.depth=p.depth+1;c.parent_id=parent_id;@atomicStore(u8,&c.status,1,.release);c.frozen_prefix_offset=p.frozen_prefix_offset;c.frozen_prefix_len=p.frozen_prefix_len;
     @memcpy(c.volatile_suffix[0..@min(task.len,2047)],task);
     p.child_ids[p.child_count]=cid;p.child_count+=1;
     if(c.depth>stack.max_depth_reached)stack.max_depth_reached=c.depth;
@@ -17,21 +17,21 @@ pub fn spawnSubtask(stack:*CallStack,parent_id:u32,task:[]const u8,_:[]const u8)
 }
 
 pub fn resolveChild(stack:*CallStack,child_id:u32,result:[]const u8)!void{
-    var c=&stack.frames[child_id];c.status=2;c.result_len=@intCast(@min(result.len,4095));
+    var c=&stack.frames[child_id];@atomicStore(u8,&c.status,2,.release);c.result_len=@intCast(@min(result.len,4095));
     @memcpy(c.result_payload[0..c.result_len],result[0..c.result_len]);
     const p=&stack.frames[c.parent_id];
     _=try std.fmt.bufPrint(&p.volatile_suffix,"\n[D{d} done:{s}]",.{c.depth,result[0..@min(result.len,128)]});
 }
 
-pub fn forget(stack:*CallStack,frame_id:u32)void{var f=&stack.frames[frame_id];f.status=3;@memset(&f.volatile_suffix,0);}
+pub fn forget(stack:*CallStack,frame_id:u32)void{var f=&stack.frames[frame_id];@atomicStore(u8,&f.status,3,.release);@memset(&f.volatile_suffix,0);}
 
 pub fn renderBreadcrumb(stack:*CallStack,writer:anytype)!void{
     if(stack.frame_count==0)return;
     var path:[MAX_D+1]u32=undefined;var pl:usize=0;
-    var deep:u32=0;var i:u16=0;while(i<stack.frame_count):(i+=1){if(stack.frames[i].status==1)deep=i;}
+    var deep:u32=0;var i:u16=0;while(i<stack.frame_count):(i+=1){if(@atomicLoad(u8,&stack.frames[i].status,.acquire)==1)deep=i;}
     var cur:u32=deep;
     while(true){path[pl]=cur;pl+=1;if(stack.frames[cur].parent_id==cur)break;if(cur==0)break;cur=stack.frames[cur].parent_id;}
-    var j:usize=pl;while(j>0){j-=1;const f=stack.frames[path[j]];const icon:[*:0]const u8=switch(f.status){1=>"[*]",2=>"[OK]",3=>"[--]",else=>"[??]"};try writer.print("{s}[D{d}:{s}]",.{if(j<pl-1)"-->"else"",f.depth,icon});}
+    var j:usize=pl;while(j>0){j-=1;const f=stack.frames[path[j]];const icon:[*:0]const u8=switch(@atomicLoad(u8,&f.status,.acquire)){1=>"[*]",2=>"[OK]",3=>"[--]",else=>"[??]"};try writer.print("{s}[D{d}:{s}]",.{if(j<pl-1)"-->"else"",f.depth,icon});}
 }
 
 test "spawn"{
