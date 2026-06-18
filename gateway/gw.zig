@@ -1,16 +1,14 @@
-// gw.zig — Vaked Constellation Gateway (Zig-native)
-// Replaces gateway/gw.py — 101-line Python → native HTTP server
-// Build: zig build-exe gw.zig -O ReleaseFast
+// gw.zig — Vaked Constellation Gateway (Zig-native, Linux sockets)
+// Replaces gateway/gw.py. Zig 0.16+. Linux raw syscalls.
+// Build: zig build-exe gw.zig -O ReleaseFast -fstrip
 //
 // Genesis Seal: 7c242080
-// Policy: No glue. Pure Zig. No Python dependency.
 
 const std = @import("std");
-const Allocator = std.mem.Allocator;
+const linux = std.os.linux;
 
 const port: u16 = 8081;
 
-// ── Route struct ──────────────────────────────────────────────────────────
 const Route = struct {
     path: []const u8,
     content_type: []const u8,
@@ -18,7 +16,6 @@ const Route = struct {
     inline_content: ?[]const u8,
 };
 
-// ── Static routes — hand-curated from routes.json ─────────────────────────
 const routes = [_]Route{
     .{ .path = "/", .content_type = "text/html", .file_path = "/var/www/constellation/index.html", .inline_content = null },
     .{ .path = "/health", .content_type = "text/plain", .file_path = null, .inline_content = "ok" },
@@ -34,83 +31,81 @@ const routes = [_]Route{
     .{ .path = "/nav", .content_type = "text/html", .file_path = "/var/www/nav/index.html", .inline_content = null },
     .{ .path = "/rss", .content_type = "text/html", .file_path = "/var/www/rss/index.html", .inline_content = null },
     .{ .path = "/rss.xml", .content_type = "application/xml", .file_path = "/var/www/rss/index.xml", .inline_content = null },
-    .{ .path = "/mesh.json", .content_type = "application/json", .file_path = null, .inline_content = null },
 };
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
 
-    const address = try std.net.Address.resolveIp("0.0.0.0", port);
-    var server = try address.listen(.{ .reuse_address = true });
-    defer server.deinit();
+    // Socket
+    const sockfd_usize = linux.socket(linux.AF.INET, linux.SOCK.STREAM | linux.SOCK.CLOEXEC, 0);
+    const sockfd: i32 = @intCast(sockfd_usize);
+    defer _ = linux.close(sockfd);
+
+    // Reuse addr
+    const one: i32 = 1;
+    _ = linux.setsockopt(sockfd, linux.SOL.SOCKET, linux.SO.REUSEADDR, @ptrCast(&one), @sizeOf(i32));
+
+    // Bind
+    var addr = std.mem.zeroes(linux.sockaddr.in);
+    addr.family = linux.AF.INET;
+    addr.port = std.mem.nativeToBig(u16, port);
+    addr.addr = 0; // INADDR_ANY
+    _ = linux.bind(sockfd, @ptrCast(&addr), @sizeOf(linux.sockaddr.in));
+
+    // Listen
+    _ = linux.listen(sockfd, 128);
 
     std.log.info("Vaked Gateway v0.2 (Zig) — :{d}", .{port});
     std.log.info("Genesis seal: 7c242080", .{});
 
     while (true) {
-        const conn = try server.accept();
-        const thread = try std.Thread.spawn(.{}, handleConnection, .{ allocator, conn });
-        thread.detach();
-    }
-}
+        var client_addr: linux.sockaddr.in = undefined;
+        var addr_len: u32 = @sizeOf(linux.sockaddr.in);
+        const cfd_usize = linux.accept4(sockfd, @ptrCast(&client_addr), &addr_len, linux.SOCK.CLOEXEC);
+        const clientfd: i32 = @intCast(cfd_usize);
+        defer _ = linux.close(clientfd);
 
-fn handleConnection(allocator: Allocator, conn: std.net.Server.Connection) !void {
-    defer conn.stream.close();
+        // Read request
+        var buf: [4096]u8 = undefined;
+        const n = linux.read(clientfd, &buf, buf.len);
+        if (n <= 0) continue;
+        const req = buf[0..@intCast(n)];
+        const path = parsePath(req) orelse "/";
+        const route = findRoute(path);
 
-    var buf: [4096]u8 = undefined;
-    const n = try conn.stream.read(&buf);
-    if (n == 0) return;
-
-    const req = buf[0..n];
-    const path = parsePath(req) orelse "/";
-    const route = findRoute(path);
-
-    if (route) |r| {
-        if (r.inline_content) |content| {
-            _ = try writeResponse(conn.stream, 200, r.content_type, content);
-            return;
+        if (route) |r| {
+            if (r.inline_content) |content| {
+                _ = writeResponse(clientfd, 200, r.content_type, content) catch continue;
+                continue;
+            }
+            if (r.file_path) |fp| {
+                const data = readFileAlloc(a, fp) catch {
+                    _ = writeResponse(clientfd, 404, "text/plain", "not found") catch continue;
+                    continue;
+                };
+                _ = writeResponse(clientfd, 200, r.content_type, data) catch continue;
+                continue;
+            }
         }
-        if (r.file_path) |fp| {
-            const file = std.fs.cwd().openFile(fp, .{}) catch {
-                _ = try writeResponse(conn.stream, 404, "text/plain", "not found");
-                return;
-            };
-            defer file.close();
-            const data = file.readToEndAlloc(allocator, 1 << 20) catch |err| {
-                std.log.err("read file {s}: {}", .{ fp, err });
-                _ = try writeResponse(conn.stream, 500, "text/plain", "read error");
-                return;
-            };
-            defer allocator.free(data);
-            _ = try writeResponse(conn.stream, 200, r.content_type, data);
-            return;
+
+        if (std.mem.eql(u8, path, "/mesh.json")) {
+            const json = "{\"t\":0,\"convergence_ms\":27.3,\"nodes\":6,\"peers\":5,\"trust_index\":1.0,\"status\":\"synced\"}";
+            _ = writeResponse(clientfd, 200, "application/json", json) catch continue;
+            continue;
         }
-    }
 
-    // /mesh.json — generated
-    if (std.mem.eql(u8, path, "/mesh.json")) {
-        const now = @as(u64, @intCast(std.time.milliTimestamp()));
-        const json = try std.fmt.allocPrint(allocator,
-            "{{\"t\":{d},\"convergence_ms\":27.3,\"nodes\":6,\"peers\":5,\"trust_index\":1.0,\"status\":\"synced\"}}",
-            .{now},
-        );
-        defer allocator.free(json);
-        _ = try writeResponse(conn.stream, 200, "application/json", json);
-        return;
+        _ = writeResponse(clientfd, 404, "text/plain", "route not found") catch continue;
     }
-
-    _ = try writeResponse(conn.stream, 404, "text/plain", "route not found");
 }
 
 fn parsePath(req: []const u8) ?[]const u8 {
     var it = std.mem.splitScalar(u8, req, '\n');
-    const first_line = it.first();
-    var parts = std.mem.splitScalar(u8, first_line, ' ');
-    _ = parts.first(); // GET
-    const path = parts.next() orelse return null;
-    return path;
+    const first = it.first();
+    var parts = std.mem.splitScalar(u8, first, ' ');
+    _ = parts.first();
+    return parts.next();
 }
 
 fn findRoute(path: []const u8) ?Route {
@@ -120,10 +115,27 @@ fn findRoute(path: []const u8) ?Route {
     return null;
 }
 
-fn writeResponse(stream: std.net.Stream, code: u16, content_type: []const u8, body: []const u8) !usize {
-    const header = try std.fmt.bufPrint(&buf_hdr, "HTTP/1.1 {d} OK\r\nContent-Type: {s}\r\nContent-Length: {d}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n", .{ code, content_type, body.len });
-    _ = try stream.write(header);
-    return stream.write(body);
+fn readFileAlloc(a: std.mem.Allocator, path: []const u8) ![]u8 {
+    const path_c = try a.dupeZ(u8, path);
+    defer a.free(path_c);
+    const fd_raw = linux.open(path_c.ptr, @bitCast(@as(u32, 0)), 0);
+    const fd: i32 = @intCast(fd_raw);
+    if (fd < 0) return error.FileNotFound;
+    defer _ = linux.close(fd);
+    const MAX = 1 << 20; // 1MB max
+    var buf = try a.alloc(u8, MAX);
+    errdefer a.free(buf);
+    const n = linux.read(fd, buf.ptr, MAX);
+    if (n < 0) return error.ReadFailed;
+    return buf[0..@intCast(n)];
 }
 
-var buf_hdr: [512]u8 = undefined;
+fn writeResponse(fd: i32, code: u16, content_type: []const u8, body: []const u8) !void {
+    var hdr: [512]u8 = undefined;
+    const header = try std.fmt.bufPrint(&hdr,
+        "HTTP/1.1 {d} OK\r\nContent-Type: {s}\r\nContent-Length: {d}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+        .{ code, content_type, body.len },
+    );
+    _ = linux.write(fd, header.ptr, header.len);
+    _ = linux.write(fd, body.ptr, body.len);
+}
