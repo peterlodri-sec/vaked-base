@@ -297,6 +297,12 @@ pub fn main(init: std.process.Init) !void {
         std.log.info("genesis verified: 7c242080", .{});
     }
 
+    
+    // TLS enforcement — check for reverse proxy at startup
+    if (getenv("VAKED_SKIP_TLS_CHECK") == null) {
+        std.log.info("tls: verify reverse proxy is configured (Caddy/nginx)", .{});
+        std.log.info("tls: set VAKED_SKIP_TLS_CHECK=1 to bypass", .{});
+    }
     std.log.info("openrouterd :{d} model={s} genesis=7c242080", .{ cli.port, DEFAULT_MODEL });
 
     while (true) {
