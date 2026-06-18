@@ -6,6 +6,8 @@ const linux = std.os.linux;
 
 const PORT_DEFAULT = 9090;
 const DEFAULT_MODEL = "deepseek/deepseek-v4-pro";
+const seccomp_mod = @import("seccomp.zig");
+
 extern "c" fn getenv([*:0]const u8) ?[*:0]const u8;
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
@@ -25,10 +27,6 @@ fn parseCli(args: []const [:0]const u8) Cli {
 
 // ── Seccomp ─────────────────────────────────────────────────────────────────
 
-fn applySeccomp() void {
-    if (@import("builtin").os.tag != .linux) return;
-    _ = linux.prctl(linux.PR.SET_NO_NEW_PRIVS, @intFromBool(1), 0, 0, 0);
-}
 
 // ── OpenRouter call — uses io from init ─────────────────────────────────────
 
@@ -274,7 +272,7 @@ pub fn main(init: std.process.Init) !void {
         return error.NoApiKey;
     };
 
-    applySeccomp();
+    seccomp_mod.apply();
 
     const fd: i32 = @intCast(linux.socket(linux.AF.INET, linux.SOCK.STREAM | linux.SOCK.CLOEXEC, 0));
     defer _ = linux.close(fd);

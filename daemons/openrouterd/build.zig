@@ -4,14 +4,16 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
+        const exe = b.addExecutable(.{
         .name = "openrouterd",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
+            .strip = optimize != .Debug,  // strip in release
         }),
     });
+    exe.pie = true;  // position-independent executable
     b.installArtifact(exe);
 
     const unit_step = b.addInstallFile(
