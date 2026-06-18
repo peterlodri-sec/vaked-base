@@ -1,4 +1,5 @@
 const std = @import("std");
+// ── Model catalog ───────────────────────────────────────────────────────────
 pub const ModelEntry = struct {
     id: []const u8,
     label: []const u8,
@@ -20,6 +21,7 @@ pub const MODELS = [_]ModelEntry{
     .{ .id = "minimax/minimax-01",               .label = "MiniMax 01 (1M ctx)",   .prompt_cost = 0.20,  .completion_cost = 1.10  },
 };
 pub fn resolveModel(alias: []const u8) ?ModelEntry {
+    // Check aliases
     if (std.mem.eql(u8, alias, "deepseek")) return MODELS[0];
     if (std.mem.eql(u8, alias, "claude"))   return MODELS[1];
     if (std.mem.eql(u8, alias, "gemini"))   return MODELS[2];
@@ -27,11 +29,13 @@ pub fn resolveModel(alias: []const u8) ?ModelEntry {
     if (std.mem.eql(u8, alias, "llama"))    return MODELS[4];
     if (std.mem.eql(u8, alias, "haiku"))    return MODELS[5];
     if (std.mem.eql(u8, alias, "deepseek-flash")) return MODELS[6];
+    // Also check exact ID match
     for (MODELS) |m| {
         if (std.mem.eql(u8, alias, m.id)) return m;
     }
     return null;
 }
+// ── API types ───────────────────────────────────────────────────────────────
 pub const Message = struct {
     role: []const u8,
     content: []const u8,
@@ -67,6 +71,7 @@ pub const ErrorDetail = struct {
 pub const ErrorPayload = struct {
     @"error": ErrorDetail,
 };
+// ── Context7 types ──────────────────────────────────────────────────────────
 pub const CodeExample = struct {
     language: []const u8 = "",
     code: []const u8 = "",
@@ -96,10 +101,12 @@ pub const Library = struct {
 pub const SearchResponse = struct {
     results: []Library,
 };
+// ── Budget ──────────────────────────────────────────────────────────────────
 pub const BudgetState = struct {
     remaining: f64,
     cap: f64,
 };
+// ── Agent config ────────────────────────────────────────────────────────────
 pub const VakedAgentConfig = struct {
     api_key: ?[]const u8 = null,
     default_model: []const u8 = "deepseek/deepseek-v4-pro",
@@ -107,6 +114,7 @@ pub const VakedAgentConfig = struct {
     max_tokens: u32 = 2000,
     langfuse: bool = true,
 };
+// ── Deliberation panel ──────────────────────────────────────────────────────
 pub const PanelModel = struct {
     id: []const u8,
     name: []const u8,
@@ -135,6 +143,7 @@ pub const PANEL_MODELS = [_]PanelModel{
     .{ .id = "google/gemini-flash-1.5",           .name = "Gemini Flash 1.5",    .prompt_cost = 0.075, .completion_cost = 0.30  },
 };
 pub const JUDGE_MODEL = "anthropic/claude-opus-4-8-fast";
+// ── Langfuse ────────────────────────────────────────────────────────────────
 pub const LangfuseTrace = struct {
     name: []const u8,
     input: []const u8,
@@ -148,8 +157,10 @@ pub const LangfuseTrace = struct {
 };
 pub fn routeModel(prompt: []const u8, cheap_id: []const u8, quality_id: []const u8, creative_id: []const u8) []const u8 {
     if (prompt.len == 0) return cheap_id;
+    // code/review/debug → quality model (case-insensitive via std.ascii)
     const code_kw = [_][]const u8{ "code", "review", "write", "implement", "fix", "debug", "test", "optimize", "refactor" };
     for (code_kw) |kw| { if (std.ascii.indexOfIgnoreCase(prompt, kw) != null) return quality_id; }
+    // creative/design → creative model
     const creative_kw = [_][]const u8{ "creative", "brainstorm", "design" };
     for (creative_kw) |kw| { if (std.ascii.indexOfIgnoreCase(prompt, kw) != null) return creative_id; }
     return cheap_id;

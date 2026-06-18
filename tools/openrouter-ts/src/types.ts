@@ -19,6 +19,7 @@ export const MODELS: Record<string, ModelEntry> = {
     promptCost: 0.14,
     completionCost: 0.14,
   },
+  // ── Niche/special models ──
   minimax: {
     id: "minimax/minimax-m3",
     label: "MiniMax M3",

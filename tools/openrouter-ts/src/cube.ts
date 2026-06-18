@@ -1,5 +1,11 @@
 "use strict";
 /**
+ * Cube — Semantic Layer for Vaked agents.
+ * Deterministic, version-controlled "world model" for agent decisions.
+ * Agents query Cube, not raw DBs. Metrics are defined once, cached, audited.
+ *
+ * GENESIS_SEAL: 7c242080
+ */
 import { tool } from "@openrouter/agent";
 import type { Tool } from "@openrouter/agent";
 import { z } from "zod";

@@ -1,5 +1,10 @@
 "use strict";
 /**
+ * Memory Plane — Vaked-native, event-sourced, deterministic agent memory.
+ * Backed by agent_memoryd. Store → recall → forget → verify.
+ *
+ * GENESIS_SEAL: 7c242080
+ */
 import { tool } from "@openrouter/agent";
 import type { Tool } from "@openrouter/agent";
 import { z } from "zod";
