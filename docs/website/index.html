@@ -1,54 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Vaked — Structural Honesty for Agentic Systems</title>
+<meta name="description" content="A capability-graph language and deterministic runtime for autonomous agent swarms — with kernel-enforced, externally-anchored, self-auditing honesty.">
+<link rel="stylesheet" href="/vaked-theme.css">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#08081a;color:#c8d0e0;font-family:'Inter','SF Pro',sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:40px 20px}
-h1{font-size:28px;font-weight:200;color:#e0e8f0;letter-spacing:4px;margin-top:40px}
-.sub{font-size:12px;color:#5a5a7a;margin:8px 0 40px;text-align:center;max-width:500px;line-height:1.6}
-.nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:800px;margin-bottom:40px}
-.nav a{padding:8px 16px;border:1px solid rgba(48,96,255,0.15);border-radius:6px;color:#90a0c0;text-decoration:none;font-size:11px;transition:all .2s;display:flex;align-items:center;gap:6px}
-.nav a:hover{background:rgba(48,96,255,0.08);border-color:rgba(48,96,255,0.3);color:#e0e8f0}
-.nav .icon{font-size:14px;opacity:.7}
-.section{font-size:10px;color:#4060a0;letter-spacing:3px;text-transform:uppercase;margin:32px 0 12px}
-.footer{margin-top:60px;font-size:10px;color:#3a4a5a;text-align:center}
-.footer a{color:#4060a0}
+body{display:flex;flex-direction:column;align-items:center;padding:0 20px 80px}
+.hero{width:100%;max-width:860px;text-align:center;padding:96px 0 48px;position:relative}
+.hero::before{content:"";position:absolute;inset:-40% 0 auto;height:480px;background:radial-gradient(60% 60% at 50% 0,rgba(48,96,255,.10),transparent 70%);pointer-events:none;z-index:-1}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--accent-blue)}
+.hero h1{font-size:clamp(40px,9vw,76px);font-weight:200;color:var(--text-primary);letter-spacing:6px;margin:14px 0 0;text-shadow:var(--genesis-glow)}
+.tag{font-size:15px;color:var(--text-secondary);max-width:560px;margin:18px auto 0;line-height:1.7}
+.cta{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:30px}
+.cta a{font-family:var(--font-mono);font-size:12px;padding:11px 20px;border-radius:8px;text-decoration:none;transition:all var(--transition-base)}
+.cta .primary{background:var(--accent-blue);color:#fff;box-shadow:var(--genesis-glow)}
+.cta .primary:hover{box-shadow:var(--genesis-glow-active);transform:translateY(-1px)}
+.cta .ghost{border:1px solid var(--border-active);color:var(--text-secondary)}
+.cta .ghost:hover{background:rgba(48,96,255,.08);color:var(--text-primary)}
+.wrap{width:100%;max-width:860px}
+.section-label{font-family:var(--font-mono);font-size:10px;color:var(--accent-blue);letter-spacing:3px;text-transform:uppercase;margin:56px 0 16px;opacity:.9}
+.honesty{background:var(--bg-card);border:1px solid var(--border-card);border-radius:14px;padding:28px;box-shadow:var(--genesis-glow)}
+.honesty h2{font-size:20px;font-weight:300;color:var(--text-primary);margin-bottom:6px}
+.honesty p{font-size:13px;color:var(--text-secondary);line-height:1.7;max-width:680px}
+.honesty .pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:20px}
+.pillar{border:1px solid var(--border-subtle);border-radius:10px;padding:14px}
+.pillar .k{font-family:var(--font-mono);font-size:10px;color:var(--accent-cyan);letter-spacing:1px;text-transform:uppercase}
+.pillar .v{font-size:12px;color:var(--text-secondary);margin-top:6px;line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.card{display:flex;align-items:center;gap:12px;padding:15px;border:1px solid var(--border-subtle);border-radius:10px;text-decoration:none;background:var(--bg-card);transition:all var(--transition-base)}
+.card:hover{border-color:var(--border-active);background:rgba(48,96,255,.07);transform:translateY(-1px)}
+.card .icon{font-size:18px;opacity:.75}
+.card .label{color:var(--text-primary);font-size:13px}
+.card .desc{color:var(--text-muted);font-size:10px;margin-top:2px;font-family:var(--font-mono)}
+.reads{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.read{border:1px solid var(--border-subtle);border-radius:10px;padding:16px;text-decoration:none;display:block;transition:all var(--transition-base)}
+.read:hover{border-color:var(--border-active);background:rgba(48,96,255,.05)}
+.read .t{color:var(--text-primary);font-size:13px}
+.read .d{color:var(--text-muted);font-size:11px;margin-top:5px;line-height:1.5}
+.footer{margin-top:64px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-align:center;line-height:1.9}
+.footer a{color:var(--accent-blue);text-decoration:none}
+.footer code{color:var(--text-secondary)}
 </style>
-</head><body>
-<h1>Vaked</h1>
-<div class="sub">Capability-graph language and deterministic runtime for autonomous agent swarms. Kernel-enforced honesty, append-only ledger, 5 nodes across 3 continents.</div>
+</head>
+<body>
 
-<div class="section">Swarm — Live</div>
-<div class="nav">
-<a href="https://constellation.vaked.dev/"><span class="icon">⬡</span> Constellation</a>
-<a href="https://constellation.vaked.dev/radio"><span class="icon">◉</span> Radio</a>
-<a href="https://constellation.vaked.dev/wisdom"><span class="icon">✦</span> Wisdom</a>
-<a href="https://constellation.vaked.dev/status"><span class="icon">◇</span> Status</a>
-<a href="https://constellation.vaked.dev/nav"><span class="icon">⬡</span> All Endpoints</a>
+<header class="hero">
+  <div class="eyebrow">Vaked · genesis 7c242080</div>
+  <h1>VAKED</h1>
+  <p class="tag">A capability-graph language and deterministic runtime for autonomous agent swarms — where honesty is <em>kernel-enforced</em>, <em>externally anchored</em>, and <em>published, failures included</em>.</p>
+  <div class="cta">
+    <a class="primary" href="https://constellation.vaked.dev/">Enter the Constellation</a>
+    <a class="ghost" href="https://github.com/peterlodri-sec/vaked-base">Source on GitHub</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="section-label">Why it's different</div>
+  <section class="honesty">
+    <h2>A system that audits itself — and can fail itself</h2>
+    <p>Most dashboards assert trust. Vaked <strong>measures</strong> it. Integrity claims are checked by a verifier that lives outside the thing it verifies, anchored to a GPG-signed seal the repo cannot rewrite. When the swarm found its own instrumentation lying, it published the catch instead of hiding it — and built a gate that turns red on a falsehood.</p>
+    <div class="pillars">
+      <div class="pillar"><div class="k">Measured, not asserted</div><div class="v">Trust derived from state; a number you can't reproduce is decoration.</div></div>
+      <div class="pillar"><div class="k">Externally anchored</div><div class="v">Seals signed with a key outside the repo; tamper-with-reseal fails verification.</div></div>
+      <div class="pillar"><div class="k">Self-auditing</div><div class="v">The gate was attacked six ways and hardened against each — in the open.</div></div>
+      <div class="pillar"><div class="k">Append-only</div><div class="v">Hash-chained event ledger; the record cannot be quietly rewritten.</div></div>
+    </div>
+  </section>
+
+  <div class="section-label">Swarm — Live</div>
+  <div class="grid">
+    <a class="card" href="https://constellation.vaked.dev/"><span class="icon">⬡</span><div><div class="label">Constellation</div><div class="desc">live swarm graph</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/radio"><span class="icon">◉</span><div><div class="label">Radio</div><div class="desc">ambient heartbeat</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/wisdom"><span class="icon">✦</span><div><div class="label">Wisdom</div><div class="desc">strategic briefing</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/status"><span class="icon">◇</span><div><div class="label">Status</div><div class="desc">mesh dashboard</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/nav"><span class="icon">⬡</span><div><div class="label">All Endpoints</div><div class="desc">full index</div></div></a>
+  </div>
+
+  <div class="section-label">Engineer</div>
+  <div class="grid">
+    <a class="card" href="https://constellation.vaked.dev/reflect"><span class="icon">🔍</span><div><div class="label">Reflect</div><div class="desc">swarm self-audit</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/dogfeed"><span class="icon">🐕</span><div><div class="label">Dogfeed</div><div class="desc">decision pipeline</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/bus"><span class="icon">◇</span><div><div class="label">Message Bus</div><div class="desc">swarm messages</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/monitor"><span class="icon">⏣</span><div><div class="label">Pod Monitor</div><div class="desc">agent state</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/registry"><span class="icon">⚙</span><div><div class="label">Registry</div><div class="desc">node registry</div></div></a>
+    <a class="card" href="https://constellation.vaked.dev/notebook"><span class="icon">📄</span><div><div class="label">Notebook</div><div class="desc">client-side NotebookLM</div></div></a>
+  </div>
+
+  <div class="section-label">Read the story</div>
+  <div class="reads">
+    <a class="read" href="https://github.com/peterlodri-sec/vaked-base/blob/main/blog/posts/2026-06-18-mirror-part1-substrate-real.md"><div class="t">The Mirror Can't See Itself</div><div class="d">A 3-part series: how a swarm caught its own theater, named why the self can't see itself, and built a referee it can't sweet-talk.</div></a>
+    <a class="read" href="https://github.com/peterlodri-sec/vaked-base/blob/main/docs/research/2026-06-18-external-anchoring.md"><div class="t">Anchoring integrity, externally</div><div class="d">Cited research: signed tags, Sigstore/Rekor, in-toto, TUF — defeating tamper-with-reseal.</div></a>
+    <a class="read" href="https://github.com/peterlodri-sec/vaked-base/blob/main/the-honest-swarm-researcher/REPAIR_AUDIT.json"><div class="t">The machine verdict</div><div class="d">REPAIR_AUDIT.json — measured facts only, refusals named, residuals open in the clear.</div></a>
+  </div>
+
+</main>
+
+<div class="footer">
+  Genesis seal <code>7c242080</code> · anchored by signed tag <code>seals-anchor</code><br>
+  <a href="https://constellation.vaked.dev">constellation.vaked.dev</a> · <a href="https://github.com/peterlodri-sec/vaked-base">github</a>
 </div>
 
-<div class="section">Engineer</div>
-<div class="nav">
-<a href="https://constellation.vaked.dev/dogfeed"><span class="icon">🐕</span> Dogfeed</a>
-<a href="https://constellation.vaked.dev/reflect"><span class="icon">🔍</span> Reflect</a>
-<a href="https://constellation.vaked.dev/bus"><span class="icon">◇</span> Message Bus</a>
-<a href="https://constellation.vaked.dev/monitor"><span class="icon">⏣</span> Pod Monitor</a>
-<a href="https://constellation.vaked.dev/registry"><span class="icon">⚙</span> Registry</a>
-<a href="https://constellation.vaked.dev/swarm-monologue"><span class="icon">◌</span> Monologue</a>
-<a href="https://constellation.vaked.dev/rss"><span class="icon">⬡</span> RSS Feed</a>
-<a href="https://constellation.vaked.dev/chat"><span class="icon">💬</span> Chat</a>
-<a href="https://constellation.vaked.dev/notebook"><span class="icon">📄</span> Notebook</a>
-</div>
-
-<div class="section">About</div>
-<div class="nav">
-<a href="https://constellation.vaked.dev/reflect">About</a>
-<a href="https://constellation.vaked.dev/wisdom">Genesis</a>
-<a href="https://constellation.vaked.dev/status">Status</a>
-<a href="https://github.com/peterlodri-sec/vaked-base">GitHub</a>
-</div>
-
-<div class="footer">Genesis seal <code>7c242080</code> · <a href="https://constellation.vaked.dev">constellation.vaked.dev</a></div>
 </body>
 </html>
