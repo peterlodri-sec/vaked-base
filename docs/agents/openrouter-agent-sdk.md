@@ -139,6 +139,16 @@ Langfuse. Credentials come from the **GitHub CI Environment `ci`**.
 | `LANGFUSE_PUBLIC_KEY` | Yes (for tracing) | Langfuse public key (`pk-lf-...`) |
 | `LANGFUSE_HOST` | No | Langfuse host (default: `https://cloud.langfuse.com`) |
 
+### Secret Names (exact CI environment match)
+
+| Our code | CI Secret | Status |
+|----------|-----------|--------|
+| `OPENROUTER_API_KEY` | `OPENROUTER_API_KEY` | ✅ Live |
+| `LANGFUSE_SECRET_KEY` | `LANGFUSE_SECRET_KEY` | ✅ Live |
+| `LANGFUSE_PUBLIC_KEY` | `LANGFUSE_PUBLIC_KEY` | ✅ Live |
+| `LANGFUSE_HOST` | `LANGFUSE_HOST` (preferred) or `LANGFUSE_BASE_URL` (legacy) | ✅ Live |
+| `CONTEXT7_API_KEY` | `CONTEXT7_API_KEY` | 🆕 Needs adding |
+
 ### Guard Pattern
 
 Every Langfuse call is **guarded** — the agent no-ops cleanly when secrets

@@ -19,7 +19,7 @@ fork PRs (which get no secrets).
 | `LANGFUSE_HOST` (or `LANGFUSE_BASE_URL`), `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | all agents (pr-review, ralph, @vaked/openrouter-ts) | optional (tracing). @vaked/openrouter-ts uses the Langfuse v3 SDK directly; pr-review builds the OTLP Basic token from the key pair; legacy `LANGFUSE_URL`/`LANGFUSE_API_KEY` still accepted |
 | `LANGFUSE_PROJECT_ID` | pr-review | optional (enables comment→trace deep-link) |
 | `MASTODON_ACCESS_TOKEN` | ralph announce/digest, social-post | optional |
-| `CONTEXT7_API_KEY` | @vaked/openrouter-ts | optional (live library docs — HTTP 200 → authoritative) |
+| `CONTEXT7_API_KEY` | @vaked/openrouter-ts | **NEW — add to CI secrets.** Get at [context7.com/dashboard](https://context7.com/dashboard). Keys start with `ctx7sk-`. Optional — agent tools return error messages when unset, never crash. |
 | `CRABCC_INSTALL_TOKEN` | pr-review, @vaked-ci | optional (private crabcc) |
 | `RALPH_API_KEY`, `RALPH_BASE_URL` | ralph | optional (self-hosted endpoint) |
 | `TELEGRAM_TOKEN`, `TELEGRAM_TO` | all (failure-notify) | optional |
