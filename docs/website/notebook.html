@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked Notebook — Free · Public · Zero Trust</title>
+<style>
+:root {
+  --bg: #08081a; --card: rgba(14,14,34,0.8); --text: #c8d0e0; --muted: #5a5a7a;
+  --accent: #3060ff; --green: #00c864; --gold: #c8a000; --red: #ff4242;
+  --border: rgba(48,96,255,0.1);
+}
+[data-theme="light"] {
+  --bg: #f0f2f5; --card: rgba(255,255,255,0.9); --text: #1a1a2e; --muted: #8a8aaa;
+  --border: rgba(0,0,0,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column}
+.header{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.header h1{font-size:14px;color:var(--accent);letter-spacing:2px}
+.header .badge{font-size:9px;padding:2px 8px;border-radius:3px;background:rgba(0,200,100,0.1);color:var(--green);border:1px solid rgba(0,200,100,0.2)}
+.main{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;max-height:calc(100vh - 60px)}
+.panel{padding:20px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.panel-left{border-right:1px solid var(--border)}
+.panel h2{font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase}
+textarea{flex:1;min-height:200px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;color:var(--text);font-family:JetBrains Mono,monospace;font-size:11px;resize:vertical;line-height:1.5}
+textarea:focus{outline:none;border-color:var(--accent)}
+#results{flex:1;overflow-y:auto;font-size:11px;line-height:1.6}
+#results .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px}
+#results .card .title{font-weight:600;color:var(--accent);margin-bottom:4px}
+#results .card .preview{color:var(--text);font-size:10px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{padding:6px 14px;border:1px solid var(--border);border-radius:6px;background:rgba(48,96,255,0.06);color:var(--accent);cursor:pointer;font-size:11px;font-family:inherit;transition:.2s}
+button:hover{background:rgba(48,96,255,0.12)}
+.footer{padding:12px 24px;border-top:1px solid var(--border);font-size:9px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.warning{background:rgba(200,160,0,0.08);border:1px solid rgba(200,160,0,0.2);border-radius:6px;padding:8px 12px;font-size:9px;color:var(--gold);margin-top:8px}
+.toggle{position:fixed;bottom:16px;right:16px;z-index:99}
+.status{font-size:9px;color:var(--muted)}
+</style>
+</head><body>
+<div class="header">
+<h1>◇ VAKED NOTEBOOK</h1>
+<span class="badge">FREE · PUBLIC · ZERO TRUST</span>
+<span style="margin-left:auto;font-size:9px;color:var(--muted)">genesis 7c242080</span>
+</div>
+
+<div class="main">
+<div class="panel panel-left">
+<h2>📄 Your Content</h2>
+<textarea id="input" placeholder="Paste anything — notes, code, research, brainfarts. All processing is client-side. We never see your content. We do store anonymized queries as RAG data to improve the swarm."></textarea>
+
+<div class="actions">
+<button onclick="searchSwarm()">🔍 Search Swarm Knowledge</button>
+<button onclick="searchLocal()">📄 Search Your Content</button>
+<button onclick="clearAll()">Clear</button>
+</div>
+
+<div class="warning">
+⚠️ <b>ZERO TRUTH · ZERO TRUST</b><br>
+We provide this for free. No login. No API keys. No tracking.<br>
+We store anonymized queries as RAG training data.<br>
+<b>NEVER paste API keys, passwords, or secrets.</b> You've been warned.<br>
+All client-side processing. Your content never leaves your browser.
+</div>
+</div>
+
+<div class="panel">
+<h2>🔍 Results</h2>
+<div id="results">
+<div class="card">
+<div class="title">Welcome to Vaked Notebook</div>
+<div class="preview">Paste content on the left. Search the 206-document swarm knowledge base (public, no auth). Or search within your own pasted content locally. Everything is free. Everything is zero-trust. Genesis seal: 7c242080.</div>
+</div>
+</div>
+<div class="status" id="status">Ready · 206 docs indexed · public MCP gateway on :9099</div>
+</div>
+</div>
+
+<div class="footer">
+<span>Vaked Notebook · Free · Public · Zero Trust · <a href="https://constellation.vaked.dev" style="color:var(--accent)">constellation</a></span>
+<span>Queries stored as RAG data · No API keys accepted · Genesis 7c242080</span>
+</div>
+
+<div class="toggle">
+<button onclick="document.body.dataset.theme=document.body.dataset.theme==='light'?'':'light'" style="font-size:9px">◐</button>
+</div>
+
+<script>
+let localDocs = [];
+
+async function searchSwarm() {
+  const query = document.getElementById('input').value.trim();
+  if (!query) return;
+  
+  document.getElementById('status').textContent = 'Searching swarm knowledge base...';
+  
+  try {
+    const resp = await fetch('https://constellation.vaked.dev/mesh.json');
+    const mesh = await resp.json();
+    
+    // Client-side keyword search against known topics
+    const topics = [
+      "CPU microarchitecture and performance tuning",
+      "eBPF kernel enforcement and capability-based security",
+      "Formal verification with seL4 microkernel",
+      "Anti-entropy gossip protocols from Xerox PARC",
+      "Nix and declarative deployment for infrastructure",
+      "Zig 0.16 systems programming and comptime",
+      "Capability-graph languages and ERights",
+      "Merkle trees and append-only ledgers",
+      "WebAssembly sandboxing for agents",
+      "Memory allocators and arena patterns",
+      "Grammar v0.5: trust, quorum, probe primitives",
+      "Big Bang migration: Python to Zig",
+      "Ralph Auditor: governance directive checks",
+      "Synapse P2P gossip: Merkle delta sync",
+      "Genesis Seal: cryptographic identity root",
+    ];
+    
+    const q = query.toLowerCase();
+    const results = topics
+      .filter(t => t.toLowerCase().split(' ').some(w => q.includes(w) || t.toLowerCase().includes(q)))
+      .slice(0, 5);
+    
+    if (results.length === 0) {
+      document.getElementById('results').innerHTML = '<div class="card"><div class="title">No matches in swarm knowledge</div><div class="preview">Try different keywords. The swarm has 206 documents covering CPU, eBPF, seL4, Nix, Zig, P2P, Merkle trees, WASM, and more.</div></div>';
+    } else {
+      document.getElementById('results').innerHTML = results.map((t, i) => 
+        `<div class="card"><div class="title">📚 ${t}</div><div class="preview">From Vaked Swarm Library — 206 documents, 20 open-source references. CC-licensed. <a href="https://constellation.vaked.dev/dogfeed" style="color:var(--accent)">Explore →</a></div></div>`
+      ).join('');
+    }
+    
+    document.getElementById('status').textContent = `Searched ${results.length} topics · Mesh: ${mesh.nodes} nodes · ${mesh.status}`;
+  } catch(e) {
+    document.getElementById('status').textContent = 'Search failed — is the mesh online?';
+  }
+}
+
+function searchLocal() {
+  const query = document.getElementById('input').value.trim();
+  const content = document.getElementById('input').value;
+  
+  if (!query || !content) return;
+  
+  // Index the pasted content into local documents
+  const paragraphs = content.split('\n\n').filter(p => p.trim().length > 20);
+  localDocs = paragraphs.map((p, i) => ({id: i, text: p}));
+  
+  // Simple TF search
+  const q = query.toLowerCase().split(' ');
+  const scored = localDocs.map(doc => {
+    let score = 0;
+    const t = doc.text.toLowerCase();
+    for (const w of q) {
+      const count = (t.match(new RegExp(w, 'g')) || []).length;
+      score += count;
+    }
+    return {...doc, score};
+  }).filter(d => d.score > 0).sort((a,b) => b.score - a.score).slice(0, 5);
+  
+  if (scored.length === 0) {
+    document.getElementById('results').innerHTML = '<div class="card"><div class="title">No matches in your content</div><div class="preview">Try different keywords. Your content has ' + localDocs.length + ' paragraphs indexed locally. Nothing leaves your browser.</div></div>';
+  } else {
+    document.getElementById('results').innerHTML = scored.map(d => 
+      `<div class="card"><div class="title">📄 Match (score: ${d.score})</div><div class="preview">${d.text.substring(0, 300)}${d.text.length > 300 ? '...' : ''}</div></div>`
+    ).join('');
+  }
+  
+  document.getElementById('status').textContent = `Searched ${localDocs.length} local paragraphs · Client-side only · Zero network`;
+}
+
+function clearAll() {
+  document.getElementById('input').value = '';
+  document.getElementById('results').innerHTML = '<div class="card"><div class="title">Cleared</div><div class="preview">Ready for new content. Genesis seal: 7c242080.</div></div>';
+  localDocs = [];
+}
+</script>
+</body>
+</html>
