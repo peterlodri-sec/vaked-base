@@ -1,0 +1,30 @@
+[Unit]
+Description=OpenRouter Agent Daemon (Atlas)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/openrouterd --port 9090 --cache /var/lib/openrouterd/cache
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/openrouterd
+PrivateDevices=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@network-io @file-system read write openat close socket connect sendto recvfrom mmap munmap mprotect brk exit exit_group getrandom clock_gettime futex io_uring_setup io_uring_enter
+SystemCallArchitectures=native
+
+# Environment
+Environment=OPENROUTER_API_KEY=%E/../ci/OPENROUTER_API_KEY
+Environment=LANGFUSE_SECRET_KEY=%E/../ci/LANGFUSE_SECRET_KEY
+Environment=LANGFUSE_PUBLIC_KEY=%E/../ci/LANGFUSE_PUBLIC_KEY
+Environment=CONTEXT7_API_KEY=%E/../ci/CONTEXT7_API_KEY
+
+[Install]
+WantedBy=multi-user.target
