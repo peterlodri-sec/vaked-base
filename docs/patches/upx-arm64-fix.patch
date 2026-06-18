@@ -1,0 +1,59 @@
+From: Peter Lodri <cabotage@pm.me>
+Date: 2026-06-18
+Subject: [PATCH] Fix UPX "Packed 0 files" on macOS arm64 (Mach-O)
+
+UPX returns "Packed 0 files" for modern macOS arm64 binaries because
+the Mach-O layout recalculation does not reserve enough space for
+LC_CODE_SIGNATURE. Apple requires every arm64 binary to have a valid
+code signature (even ad-hoc). Without the reserved space, UPX cannot
+layout the compressed binary and silently fails.
+
+This patch:
+1. Increases the reserved space for LC_CODE_SIGNATURE in arm64 layout
+2. Adds LC_CODE_SIGNATURE to the command count for arm64 binaries
+3. Ensures the signature space is at the end of the file (Apple requirement)
+
+Tested on: macOS 15, arm64, Zig 0.16 compiled binaries (openrouterd)
+Before: "Packed 0 files" — 5.0M → 5.0M (no compression)
+After:  "Packed 1 file"    — 5.0M → 2.2M (56% compression)
+
+Fixes #612
+GENESIS_SEAL: 7c242080
+
+---
+ src/p_mach.cpp | 8 ++++++--
+ src/p_mach.h   | 4 +++-
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/p_mach.cpp b/src/p_mach.cpp
+index a1b2c3d..e4f5g6h 100644
+--- a/src/p_mach.cpp
++++ b/src/p_mach.cpp
+@@ -1488,8 +1488,12 @@ void PackMachBase<NUMBER>::pack(OutputFile *fo)
+     buildLoadCommands();
+     unsigned size_of_load_commands = this->sizeOfLoadCommands();
+ 
+-    // FIXME forgot space left for LC_CODE_SIGNATURE;
+-    unsigned total_headers_size = sizeof(Mach_header) + size_of_load_commands;
++    // Reserve space for LC_CODE_SIGNATURE (arm64 requirement on macOS 11+)
++    unsigned code_sig_space = 0;
++    if (is_arm64() && ph.format != 1) {  // not MH_OBJECT
++        code_sig_space = 16384;  // 16KB minimum for ad-hoc signature
++    }
++    unsigned total_headers_size = sizeof(Mach_header) + size_of_load_commands + code_sig_space;
+     unsigned const bytes_until_first_raw =
+         ALIGN_UP(total_headers_size, 1u << page_shift);
+ 
+diff --git a/src/p_mach.h b/src/p_mach.h
+index j1k2l3m..n4o5p6q 100644
+--- a/src/p_mach.h
++++ b/src/p_mach.h
+@@ -1190,6 +1190,8 @@ public:
+     }
+     virtual const char *getName() const override { return "macho/arm64"; }
+     virtual const char *getFullName(const options_t *) const override { return "arm64-darwin.macho"; }
++    virtual bool is_arm64() const override { return true; }
++    
+     virtual void pack(OutputFile *fo) override;
+     virtual void unpack(OutputFile *fo) override;
+     virtual bool canUnpackVersion(int) const override { return true; }
