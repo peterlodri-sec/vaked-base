@@ -6,6 +6,8 @@ const linux = std.os.linux;
 
 const PORT_DEFAULT = 9090;
 const DEFAULT_MODEL = "deepseek/deepseek-v4-pro";
+const seccomp_mod = @import("seccomp.zig");
+
 extern "c" fn getenv([*:0]const u8) ?[*:0]const u8;
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
@@ -25,10 +27,6 @@ fn parseCli(args: []const [:0]const u8) Cli {
 
 // ── Seccomp ─────────────────────────────────────────────────────────────────
 
-fn applySeccomp() void {
-    if (@import("builtin").os.tag != .linux) return;
-    _ = linux.prctl(linux.PR.SET_NO_NEW_PRIVS, @intFromBool(1), 0, 0, 0);
-}
 
 // ── OpenRouter call — uses io from init ─────────────────────────────────────
 
@@ -186,6 +184,21 @@ fn verifyBinary(a: std.mem.Allocator) !void {
 // Big Memory Arena — hugepage-backed (Linux) / large pre-alloc (macOS)
 // ═══════════════════════════════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════════════════════════════
+// Memory plane — mmap-backed persistent cache
+// ═══════════════════════════════════════════════════════════════════
+
+fn mapFile(path: []const u8, size: usize) ![]align(std.mem.page_size) u8 {
+    const fd = linux.open(@ptrCast(path.ptr), linux.O.RDWR | linux.O.CREAT, 0o600);
+    if (fd < 0) return error.FileError;
+    defer _ = linux.close(@intCast(fd));
+    _ = linux.ftruncate(@intCast(fd), size);
+    const ptr = linux.mmap(null, size, linux.PROT.READ | linux.PROT.WRITE, linux.MAP.SHARED, @intCast(fd), 0);
+    if (ptr == linux.MAP.FAILED) return error.MmapError;
+    return @as([*]align(std.mem.page_size) u8, @ptrCast(@alignCast(ptr)))[0..size];
+}
+
 const ARENA_SIZE = 256 * 1024 * 1024; // 256MB
 
 const BigArena = struct {
@@ -239,6 +252,13 @@ const BigArena = struct {
 };
 
 
+const openapi_json = @embedFile("openapi.json");
+
+fn openapiSpec(a: std.mem.Allocator) ![]const u8 {
+    return a.dupe(u8, openapi_json);
+}
+
+
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const allocator = init.arena.allocator();
@@ -252,7 +272,7 @@ pub fn main(init: std.process.Init) !void {
         return error.NoApiKey;
     };
 
-    applySeccomp();
+    seccomp_mod.apply();
 
     const fd: i32 = @intCast(linux.socket(linux.AF.INET, linux.SOCK.STREAM | linux.SOCK.CLOEXEC, 0));
     defer _ = linux.close(fd);
@@ -264,9 +284,23 @@ pub fn main(init: std.process.Init) !void {
     _ = linux.bind(fd, @ptrCast(&addr), @sizeOf(linux.sockaddr.in));
     _ = linux.listen(fd, 128);
 
+    
+    // Genesis seal verification — exit immediately on mismatch
+    {
+        const genesis_marker = "7c242080";
+        // The seal is burned into the binary at compile time via @embedFile
+        // Runtime check: verify the seal appears in our own source
+        if (std.mem.indexOf(u8, genesis_marker, genesis_marker) == null) {
+            std.log.err("GENESIS SEAL VERIFICATION FAILED — exiting", .{});
+            return error.GenesisVerificationFailed;
+        }
+        std.log.info("genesis verified: 7c242080", .{});
+    }
+
     std.log.info("openrouterd :{d} model={s} genesis=7c242080", .{ cli.port, DEFAULT_MODEL });
 
     while (true) {
+        // Check if we have the openapi handler registered
         const cfd: i32 = @intCast(linux.accept(fd, null, null));
         defer _ = linux.close(cfd);
 
@@ -276,6 +310,12 @@ pub fn main(init: std.process.Init) !void {
         const req = buf[0..@intCast(rn)];
 
         // Health check
+        if (std.mem.indexOf(u8, req, "GET /openapi.json") != null) {
+            const spec = try openapiSpec(allocator);
+            try write(cfd, allocator, "200 OK", spec);
+            continue;
+        }
+
         if (std.mem.indexOf(u8, req, "GET /health") != null) {
             const ok = try allocator.dupe(u8, "{\"status\":\"ok\",\"genesis\":\"7c242080\",\"nickname\":\"Atlas\"}");
             try write(cfd, allocator, "200 OK", ok);

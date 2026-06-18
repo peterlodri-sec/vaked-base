@@ -1,15 +1,11 @@
-//! Type definitions — 1:1 with @vaked/openrouter-ts/src/types.ts
 const std = @import("std");
-
 // ── Model catalog ───────────────────────────────────────────────────────────
-
 pub const ModelEntry = struct {
     id: []const u8,
     label: []const u8,
     prompt_cost: f64,       // USD per 1M tokens
     completion_cost: f64,   // USD per 1M tokens
 };
-
 pub const MODELS = [_]ModelEntry{
     .{ .id = "deepseek/deepseek-v4-pro",        .label = "DeepSeek V4 Pro",     .prompt_cost = 0.27,  .completion_cost = 0.27  },
     .{ .id = "anthropic/claude-opus-4-8-fast",  .label = "Claude Opus 4.8",     .prompt_cost = 15.00, .completion_cost = 75.00 },
@@ -18,8 +14,12 @@ pub const MODELS = [_]ModelEntry{
     .{ .id = "meta-llama/llama-4-maverick",      .label = "Llama 4 Maverick",    .prompt_cost = 0.20,  .completion_cost = 0.60  },
     .{ .id = "anthropic/claude-haiku-4-5",       .label = "Claude Haiku 4.5",    .prompt_cost = 0.25,  .completion_cost = 1.25  },
     .{ .id = "deepseek/deepseek-v4-flash",       .label = "DeepSeek V4 Flash",   .prompt_cost = 0.14,  .completion_cost = 0.14  },
+    .{ .id = "minimax/minimax-m3",               .label = "MiniMax M3",             .prompt_cost = 0.30,  .completion_cost = 1.20  },
+    .{ .id = "qwen/qwen3-coder",                 .label = "Qwen3 Coder (1M ctx)",   .prompt_cost = 0.22,  .completion_cost = 1.80  },
+    .{ .id = "nvidia/nemotron-3-ultra-550b-a55b",.label = "Nemotron 550B (1M ctx)", .prompt_cost = 0.50,  .completion_cost = 2.20  },
+    .{ .id = "qwen/qwen3.6-flash",               .label = "Qwen3.6 Flash (1M ctx)", .prompt_cost = 0.19,  .completion_cost = 1.12  },
+    .{ .id = "minimax/minimax-01",               .label = "MiniMax 01 (1M ctx)",   .prompt_cost = 0.20,  .completion_cost = 1.10  },
 };
-
 pub fn resolveModel(alias: []const u8) ?ModelEntry {
     // Check aliases
     if (std.mem.eql(u8, alias, "deepseek")) return MODELS[0];
@@ -35,76 +35,61 @@ pub fn resolveModel(alias: []const u8) ?ModelEntry {
     }
     return null;
 }
-
 // ── API types ───────────────────────────────────────────────────────────────
-
 pub const Message = struct {
     role: []const u8,
     content: []const u8,
 };
-
 pub const RequestPayload = struct {
     model: []const u8,
     messages: []const Message,
     max_tokens: ?u32 = null,
     stream: bool = false,
 };
-
 pub const ResponseMessage = struct {
     role: ?[]const u8 = null,
     content: ?[]const u8 = null,
     reasoning_content: ?[]const u8 = null,
 };
-
 pub const Choice = struct {
     message: ResponseMessage,
 };
-
 pub const Usage = struct {
     prompt_tokens: u32 = 0,
     completion_tokens: u32 = 0,
     total_tokens: u32 = 0,
 };
-
 pub const ResponsePayload = struct {
     choices: []Choice,
     model: ?[]const u8 = null,
     usage: ?Usage = null,
 };
-
 pub const ErrorDetail = struct {
     message: ?[]const u8 = null,
     @"type": ?[]const u8 = null,
 };
-
 pub const ErrorPayload = struct {
     @"error": ErrorDetail,
 };
-
 // ── Context7 types ──────────────────────────────────────────────────────────
-
 pub const CodeExample = struct {
     language: []const u8 = "",
     code: []const u8 = "",
 };
-
 pub const CodeSnippet = struct {
     codeTitle: ?[]const u8 = null,
     codeDescription: ?[]const u8 = null,
     codeLanguage: ?[]const u8 = null,
     codeListCodeExample: ?[]const CodeExample = null,
 };
-
 pub const InfoSnippet = struct {
     content: []const u8 = "",
     breadcrumb: ?[]const u8 = null,
 };
-
 pub const ContextResponse = struct {
     codeSnippets: []CodeSnippet,
     infoSnippets: []InfoSnippet,
 };
-
 pub const Library = struct {
     id: []const u8 = "",
     title: ?[]const u8 = null,
@@ -113,20 +98,15 @@ pub const Library = struct {
     stars: ?u64 = null,
     versions: [][]const u8 = &.{},
 };
-
 pub const SearchResponse = struct {
     results: []Library,
 };
-
 // ── Budget ──────────────────────────────────────────────────────────────────
-
 pub const BudgetState = struct {
     remaining: f64,
     cap: f64,
 };
-
 // ── Agent config ────────────────────────────────────────────────────────────
-
 pub const VakedAgentConfig = struct {
     api_key: ?[]const u8 = null,
     default_model: []const u8 = "deepseek/deepseek-v4-pro",
@@ -134,16 +114,13 @@ pub const VakedAgentConfig = struct {
     max_tokens: u32 = 2000,
     langfuse: bool = true,
 };
-
 // ── Deliberation panel ──────────────────────────────────────────────────────
-
 pub const PanelModel = struct {
     id: []const u8,
     name: []const u8,
     prompt_cost: f64,
     completion_cost: f64,
 };
-
 pub const PANEL_MODELS = [_]PanelModel{
     .{ .id = "anthropic/claude-opus-4-8-fast",  .name = "Claude Opus 4.8",     .prompt_cost = 15.00, .completion_cost = 75.00 },
     .{ .id = "google/gemini-2.5-pro",           .name = "Gemini 2.5 Pro",      .prompt_cost = 1.25,  .completion_cost = 5.00  },
@@ -165,11 +142,8 @@ pub const PANEL_MODELS = [_]PanelModel{
     .{ .id = "openai/gpt-4.1-mini",              .name = "GPT-4.1 Mini",        .prompt_cost = 0.15,  .completion_cost = 0.60  },
     .{ .id = "google/gemini-flash-1.5",           .name = "Gemini Flash 1.5",    .prompt_cost = 0.075, .completion_cost = 0.30  },
 };
-
 pub const JUDGE_MODEL = "anthropic/claude-opus-4-8-fast";
-
 // ── Langfuse ────────────────────────────────────────────────────────────────
-
 pub const LangfuseTrace = struct {
     name: []const u8,
     input: []const u8,
@@ -181,10 +155,6 @@ pub const LangfuseTrace = struct {
     latency_ms: ?u64 = null,
     agent_name: []const u8 = "vaked-openrouter-zig",
 };
-
-
-/// Conductor — route a prompt to the best model based on task keywords.
-/// "auto" strategy — models choose their own.
 pub fn routeModel(prompt: []const u8, cheap_id: []const u8, quality_id: []const u8, creative_id: []const u8) []const u8 {
     if (prompt.len == 0) return cheap_id;
     // code/review/debug → quality model (case-insensitive via std.ascii)
@@ -195,8 +165,6 @@ pub fn routeModel(prompt: []const u8, cheap_id: []const u8, quality_id: []const 
     for (creative_kw) |kw| { if (std.ascii.indexOfIgnoreCase(prompt, kw) != null) return creative_id; }
     return cheap_id;
 }
-
-/// Build model fallback chain for OpenRouter's models[] parameter.
 pub fn modelFallbackChain(allocator: std.mem.Allocator, primary: []const u8) ![][]const u8 {
     var chain: std.ArrayListUnmanaged([]const u8) = .{ .items = &.{}, .capacity = 0 };
     errdefer chain.deinit(allocator);

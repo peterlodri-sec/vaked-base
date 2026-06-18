@@ -1,15 +1,11 @@
-//! orcli — OpenRouter CLI in Zig. 1:1 with @vaked/openrouter-ts/src/cli.ts.
-//! GENESIS_SEAL: 7c242080
 const std = @import("std");
 const root = @import("root.zig");
 const models = @import("models.zig");
 const budget = @import("budget.zig");
-
 pub fn main(init: std.process.Init) !void {
     const io = init.io;
     const allocator = init.arena.allocator();
     const args = try init.minimal.args.toSlice(allocator);
-
     var model_alias: ?[]const u8 = null;
     var prompt_text: ?[]const u8 = null;
     var file_path: ?[]const u8 = null;
@@ -19,7 +15,6 @@ pub fn main(init: std.process.Init) !void {
     var stream_mode = false;
     var help_mode = false;
     var max_tokens: u32 = 1000;
-
     var i: usize = 1;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
@@ -43,7 +38,6 @@ pub fn main(init: std.process.Init) !void {
             if (prompt_text == null) prompt_text = arg;
         }
     }
-
     if (help_mode) {
         std.debug.print(
             \\orcli — OpenRouter CLI (Zig). Supersedes @vaked/openrouter-ts.
@@ -63,7 +57,6 @@ pub fn main(init: std.process.Init) !void {
         , .{});
         return;
     }
-
     if (list_mode) {
         std.debug.print("Models:\n", .{});
         for (models.MODELS) |m| {
@@ -71,7 +64,6 @@ pub fn main(init: std.process.Init) !void {
         }
         return;
     }
-
     if (status_mode) {
         const b = try budget.readBudget(io, allocator);
         const f = try budget.formatBudget(allocator, b);
@@ -79,7 +71,6 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("{s}\n", .{f});
         return;
     }
-
     var user_prompt: []const u8 = "";
     if (file_path) |fp| {
         const fc = std.Io.Dir.cwd().readFileAlloc(io, fp, allocator, @enumFromInt(1024 * 1024)) catch {
@@ -95,26 +86,22 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print("Error: no prompt. Use positional arg or --file.\n", .{});
         return;
     }
-
     const model_id = if (model_alias) |alias|
         (models.resolveModel(alias) orelse models.ModelEntry{
             .id = alias, .label = alias, .prompt_cost = 0, .completion_cost = 0,
         }).id
     else
         "deepseek/deepseek-v4-pro";
-
     var agent = root.VakedAgent.init(allocator, io, .{ .default_model = model_id, .context7 = false, .langfuse = false }) catch {
         std.debug.print("Error: OPENROUTER_API_KEY not set\n", .{});
         return;
     };
     defer agent.deinit();
-
     const result = agent.askWithModel(user_prompt, model_id, max_tokens) catch {
         std.debug.print("Error: API call failed\n", .{});
         return;
     };
     std.debug.print("{s}\n", .{result});
-
     const b = try budget.readBudget(io, allocator);
     const f = try budget.formatBudget(allocator, b);
     defer allocator.free(f);

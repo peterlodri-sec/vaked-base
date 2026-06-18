@@ -1,17 +1,11 @@
 "use strict";
-
 import type { Tool } from "@openrouter/agent";
-
-/** Model catalog — mirrors tools/openrouter/cli.py MODELS + COSTS */
 export interface ModelEntry {
   id: string;
   label: string;
-  /** USD per 1M prompt tokens */
   promptCost: number;
-  /** USD per 1M completion tokens */
   completionCost: number;
 }
-
 export const MODELS: Record<string, ModelEntry> = {
   deepseek: {
     id: "deepseek/deepseek-v4-pro",
@@ -24,6 +18,37 @@ export const MODELS: Record<string, ModelEntry> = {
     label: "DeepSeek V4 Flash",
     promptCost: 0.14,
     completionCost: 0.14,
+  },
+  // ── Niche/special models ──
+  minimax: {
+    id: "minimax/minimax-m3",
+    label: "MiniMax M3",
+    promptCost: 0.30,
+    completionCost: 1.20,
+  },
+  "qwen-coder": {
+    id: "qwen/qwen3-coder",
+    label: "Qwen3 Coder (1M ctx)",
+    promptCost: 0.22,
+    completionCost: 1.80,
+  },
+  nemotron: {
+    id: "nvidia/nemotron-3-ultra-550b-a55b",
+    label: "Nemotron 550B (1M ctx)",
+    promptCost: 0.50,
+    completionCost: 2.20,
+  },
+  "qwen-flash": {
+    id: "qwen/qwen3.6-flash",
+    label: "Qwen3.6 Flash (1M ctx)",
+    promptCost: 0.19,
+    completionCost: 1.12,
+  },
+  "minimax-01": {
+    id: "minimax/minimax-01",
+    label: "MiniMax 01 (1M ctx)",
+    promptCost: 0.20,
+    completionCost: 1.10,
   },
   claude: {
     id: "anthropic/claude-opus-4-8-fast",
@@ -56,7 +81,6 @@ export const MODELS: Record<string, ModelEntry> = {
     completionCost: 1.25,
   },
 };
-
 export interface ChatOptions {
   model?: string;
   system?: string;
@@ -65,7 +89,6 @@ export interface ChatOptions {
   tools?: Tool[];
   maxToolRounds?: number;
 }
-
 export interface ChatResult {
   content: string;
   model: string;
@@ -74,21 +97,17 @@ export interface ChatResult {
   cost: number;
   reasoningContent?: string;
 }
-
 export interface BudgetState {
   remaining: number;
   spent: number;
   cap: number;
 }
-
-/** Deliberation panel model — 20-model spectrum */
 export interface PanelModel {
   id: string;
   name: string;
   promptCost: number;
   completionCost: number;
 }
-
 export const PANEL_MODELS: PanelModel[] = [
   { id: "anthropic/claude-opus-4-8-fast", name: "Claude Opus 4.8", promptCost: 15, completionCost: 75 },
   { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro", promptCost: 1.25, completionCost: 5 },
@@ -111,41 +130,27 @@ export const PANEL_MODELS: PanelModel[] = [
   { id: "openai/gpt-4.1-mini", name: "GPT-4.1 Mini", promptCost: 0.15, completionCost: 0.6 },
   { id: "google/gemini-flash-1.5", name: "Gemini Flash 1.5", promptCost: 0.075, completionCost: 0.3 },
 ];
-
 export const JUDGE_MODEL = "anthropic/claude-opus-4-8-fast";
-
-
-// ── Model self-selection ───────────────────────────────────────────────
-
 export type ModelRoutingStrategy = "auto" | "cost-optimized" | "quality" | "fixed";
-
 export interface ModelRouterConfig {
-  /** Routing strategy */
   strategy: ModelRoutingStrategy;
-  /** Fixed model (when strategy is "fixed") */
   fixedModel?: string;
-  /** Cheap model for simple tasks */
   cheapModel?: string;
-  /** Quality model for complex tasks */
   qualityModel?: string;
-  /** Creative/balanced model */
   creativeModel?: string;
 }
-
 export const DEFAULT_ROUTER: ModelRouterConfig = {
   strategy: "auto",
   cheapModel: "deepseek/deepseek-v4-pro",
   qualityModel: "anthropic/claude-opus-4-8-fast",
   creativeModel: "google/gemini-2.5-flash",
 };
-
-/** Heuristic task → model mapping */
 export const TASK_MODEL_MAP: Record<string, string> = {
-  "code": "anthropic/claude-opus-4-8-fast",
-  "review": "anthropic/claude-opus-4-8-fast",
+  "code": "qwen/qwen3-coder",  // 1M ctx, coding-specialized, $0.22/1M
+  "review": "qwen/qwen3-coder",  // coding-specialized
   "write": "anthropic/claude-opus-4-8-fast",
   "implement": "anthropic/claude-opus-4-8-fast",
-  "fix": "anthropic/claude-opus-4-8-fast",
+  "fix": "qwen/qwen3-coder",  // coding-specialized
   "explain": "deepseek/deepseek-v4-pro",
   "what": "deepseek/deepseek-v4-pro",
   "how": "deepseek/deepseek-v4-pro",
@@ -154,8 +159,8 @@ export const TASK_MODEL_MAP: Record<string, string> = {
   "brainstorm": "google/gemini-2.5-flash",
   "design": "google/gemini-2.5-flash",
   "translate": "deepseek/deepseek-v4-pro",
-  "refactor": "anthropic/claude-opus-4-8-fast",
-  "debug": "anthropic/claude-opus-4-8-fast",
-  "test": "anthropic/claude-opus-4-8-fast",
-  "optimize": "anthropic/claude-opus-4-8-fast",
+  "refactor": "qwen/qwen3-coder",  // coding-specialized
+  "debug": "qwen/qwen3-coder",  // coding-specialized
+  "test": "qwen/qwen3-coder",  // coding-specialized
+  "optimize": "qwen/qwen3-coder",  // coding-specialized
 };

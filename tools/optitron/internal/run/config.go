@@ -1,65 +1,38 @@
-// Package run is optitron's orchestration layer: configuration, the goroutine
-// pipeline (crawl fan-out + bounded candidate worker-pool), the budget guard,
-// and the deterministic novelty / benchmark / act stages.
-//
-// PentestGPT lineage: the pipeline runs three cooperating "modules" over a shared
-// candidate set — a Generator (crawl + bench codegen), a Reasoner (verify +
-// adjudicate), and a Parser (the gate package). Cross-run memory is the
-// hash-chained ledger; bounded iteration = "one finding per run" + the budget cap.
 package run
-
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/llm"
 )
-
-// Config is the fully-resolved runtime configuration for one crawl.
 type Config struct {
 	RepoRoot string
-	// Paths (resolved under RepoRoot).
 	EventsPath   string
 	SkillPath    string
 	PurposePath  string
 	SourcesPath  string
 	TootPath     string
 	TelegramPath string
-
 	APIKey  string
 	BaseURL string
-
 	CrawlModel  string
 	VerifyModel string
 	BenchModel  string
-
-	// Gate thresholds (from sources.json, overridable).
 	MinSources    int
 	MinConfidence float64
 	MinDelta      float64
 	SourcesHint   string
-
 	BudgetTotal float64
 	RunBench    bool
 	DryAct      bool
-
 	Prices map[string]llm.Price
 }
-
 const openrouterURL = "https://openrouter.ai/api/v1/chat/completions"
-
-// Refreshed model roster (June 2026): a web-enabled crawler for breadth, the
-// current frontier reasoner on the anti-hallucination gate, a top coder for the
-// reproduction benchmark. All env-overridable; the budget cap is the real guard.
 const (
 	defaultCrawlModel  = "openai/gpt-5.5:online"
 	defaultVerifyModel = "anthropic/claude-opus-4.8"
 	defaultBenchModel  = "deepseek/deepseek-v4-flash"
 )
-
-// defaultPrices is per-1M-token (prompt, completion) — rough, for the budget
-// estimate only. Includes the new defaults and the legacy slugs for override compat.
 func defaultPrices() map[string]llm.Price {
 	return map[string]llm.Price{
 		"openai/gpt-5.5":                     {In: 1.25, Out: 10.0},
@@ -73,15 +46,12 @@ func defaultPrices() map[string]llm.Price {
 		"qwen/qwen3-235b-a22b-thinking-2507": {In: 0.15, Out: 0.85},
 	}
 }
-
 func env(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
 	return def
 }
-
-// LoadConfig resolves paths, env, and sources.json into a Config.
 func LoadConfig(budgetTotal float64) (*Config, error) {
 	root := findRepoRoot()
 	c := &Config{
@@ -105,8 +75,6 @@ func LoadConfig(budgetTotal float64) (*Config, error) {
 		DryAct:        os.Getenv("OPTITRON_DRY_ACT") != "",
 		Prices:        defaultPrices(),
 	}
-
-	// sources.json — hint + thresholds.
 	var sc struct {
 		Hint          string  `json:"hint"`
 		MinSources    int     `json:"min_sources"`
@@ -133,16 +101,12 @@ func LoadConfig(budgetTotal float64) (*Config, error) {
 	}
 	return c, nil
 }
-
-// ReadFileOr returns the file content, or def on any error.
 func ReadFileOr(path, def string) string {
 	if b, err := os.ReadFile(path); err == nil {
 		return string(b)
 	}
 	return def
 }
-
-// findRepoRoot walks up from cwd looking for a .git dir; OPTITRON_REPO overrides.
 func findRepoRoot() string {
 	if r := os.Getenv("OPTITRON_REPO"); r != "" {
 		return r
@@ -162,7 +126,6 @@ func findRepoRoot() string {
 		dir = parent
 	}
 }
-
 func mustWd() string {
 	d, _ := os.Getwd()
 	if d == "" {

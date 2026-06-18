@@ -1,25 +1,12 @@
-// Command optitron is the Go (Eino) runtime for vaked-optitron — a daily,
-// abstain-by-default crawler that surfaces ONE novel, proven, independently-
-// confirmed compiler/allocator/Zig/Rust/Vaked optimization per run, or nothing.
-//
-// The declarative spec lives in .claude/skills/vaked-optitron/SKILL.md; this
-// binary is one concrete runtime that loads it as its system prompt. Advisory:
-// any unhandled failure logs and exits 0 so it never blocks CI.
-//
-//	optitron crawl  [--once] [--dry-run] [--budget-total N]
-//	optitron events [--replay]
 package main
-
 import (
 	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/run"
 )
-
 func notice(s string) { fmt.Printf("::notice::optitron: %s\n", s) }
 func warn(s string)   { fmt.Printf("::warning::optitron: %s\n", s) }
 func summary(md string) {
@@ -32,11 +19,9 @@ func summary(md string) {
 		_, _ = f.WriteString(md + "\n")
 	}
 }
-
 func main() {
 	os.Exit(realMain())
 }
-
 func realMain() int {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: optitron <crawl|events> [flags]")
@@ -52,7 +37,6 @@ func realMain() int {
 		return 2
 	}
 }
-
 func cmdCrawl(args []string) int {
 	fs := flag.NewFlagSet("crawl", flag.ContinueOnError)
 	_ = fs.Bool("once", false, "single cycle (default; reserved for parity)")
@@ -77,7 +61,6 @@ func cmdCrawl(args []string) int {
 	}
 	return 0 // advisory — never hard-fail CI
 }
-
 func cmdEvents(args []string) int {
 	fs := flag.NewFlagSet("events", flag.ContinueOnError)
 	replay := fs.Bool("replay", false, "print each finding")
@@ -94,7 +77,6 @@ func cmdEvents(args []string) int {
 	}
 	return 0
 }
-
 func envOr(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v

@@ -1,20 +1,15 @@
 Port tools/librarian/ralph-audit.py (187 lines of Python) to Zig.
-
 The script:
 1. Exports Oculus ledger from /tmp/oculus_export.jsonl (skip SSH — use local file)
 2. Checks 4 governance directives against ledger entries
 3. Blocks build (exit 1) if 2+ critical drifts found
 4. Writes reflection to notes/REFLECTIONS/YYYY-MM-DD-ralph-reflection.md
 5. Genesis Seal: 7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf
-
 Governance directives:
 - G01 graveyard_permanent: check if any ledger entry mentions "graveyard" or "PERMANENT"
 - G02 trust_priority: check if any ledger entry mentions "trust"
 - G03 mesh_complete: check if any ledger entry has payload.kind == "MESH_COMPLETE"
 - G04 genesis_seal: always passes (verified via DNS)
-
 For each directive, search ledger JSON lines for keywords. Track aligned vs drift. If critical drifts >= 2 (TRUTH_THRESHOLD), exit 1.
-
 Write reflection markdown with table of results, audit hash (SHA256 of seal+date+counts), and BUILD BLOCKED or BUILD CLEAR verdict.
-
 Use Zig 0.16: pub fn main(init: std.process.Init) !void. ArenaAllocator. Linux raw syscalls. ArrayListUnmanaged with .{ .items = &.{}, .capacity = 0 } init. Hardcode Genesis seal. No std.fs/std.net/GeneralPurposeAllocator. Write ONLY COMPLETE .zig file ending with closing brace. No markdown markers, no explanation.

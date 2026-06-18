@@ -1,64 +1,34 @@
 "use strict";
-
-/**
- * bao — OpenBao/Vault secrets integration for the Vaked swarm.
- *
- * Secrets never touch the filesystem. Dynamic secrets. Audit logging.
- * Graceful fallback to env vars if Vault is unavailable.
- *
- * API: https://bao.crabcc.app/v1/
- * Auth: VAULT_TOKEN env var (or BAO_TOKEN)
- *
- * GENESIS_SEAL: 7c242080
- */
-
 import { tool } from "@openrouter/agent";
 import type { Tool } from "@openrouter/agent";
 import { z } from "zod";
-
 const BASE = "https://bao.crabcc.app/v1";
-
 function getToken(): string | null {
   return process.env["VAULT_TOKEN"] ?? process.env["BAO_TOKEN"] ?? null;
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// HTTP client
-// ═══════════════════════════════════════════════════════════════════
-
 async function api<T>(path: string): Promise<T> {
   const token = getToken();
   if (!token) throw new Error("VAULT_TOKEN or BAO_TOKEN not set");
-
   const res = await fetch(`${BASE}${path}`, {
     headers: {
       "X-Vault-Token": token,
       "User-Agent": "vaked-bao/0.1",
     },
   });
-
   if (res.status >= 200 && res.status < 300) {
     const json = await res.json();
     return json as T;
   }
-
   if (res.status === 403) throw new Error("Vault: permission denied");
   if (res.status === 404) throw new Error("Vault: secret not found");
   throw new Error(`Vault HTTP ${res.status}`);
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// Types
-// ═══════════════════════════════════════════════════════════════════
-
 interface VaultData<T = Record<string, unknown>> {
   data: T;
 }
-
 interface VaultList {
   data: { keys: string[] };
 }
-
 interface VaultHealth {
   initialized: boolean;
   sealed: boolean;
@@ -66,52 +36,28 @@ interface VaultHealth {
   version: string;
   cluster_name: string;
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// API — mirrors vault CLI
-// ═══════════════════════════════════════════════════════════════════
-
 export async function health(): Promise<VaultHealth> {
   return api<VaultHealth>("/sys/health");
 }
-
 export async function getSecret<T = Record<string, string>>(path: string): Promise<T> {
   const result = await api<VaultData<{ data: T }>>(`/secret/data/${path}`);
   return result.data.data;
 }
-
 export async function listSecrets(path: string): Promise<string[]> {
   const result = await api<{ data: { keys: string[] } }>(`/secret/metadata/${path}?list=true`);
   return result.data.keys;
 }
-
-/**
- * Resolve a secret — tries Vault first, falls back to env var.
- * This is THE preferred way to get secrets in the Vaked swarm.
- *
- * Priority:
- *   1. OpenBao/Vault (bao.crabcc.app)
- *   2. Environment variable (fallback)
- */
 export async function resolveSecret(name: string, envVar: string): Promise<string> {
   try {
     const secret = await getSecret<Record<string, string>>(name);
     const value = secret[name] ?? secret[envVar] ?? secret["value"];
     if (value) return value;
   } catch {
-    // Vault unavailable — fall through to env
   }
-
   const env = process.env[envVar];
   if (env) return env;
-
   throw new Error(`Secret "${name}" not found in Vault or env var ${envVar}`);
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// Agent tools
-// ═══════════════════════════════════════════════════════════════════
-
 export function createBaoTools(): Tool[] {
   return [
     tool({
@@ -130,7 +76,6 @@ export function createBaoTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "bao_list_secrets",
       description: "List available secrets at a Vault path.",
@@ -147,7 +92,6 @@ export function createBaoTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "bao_health",
       description: "Check OpenBao/Vault health status.",
@@ -163,11 +107,6 @@ export function createBaoTools(): Tool[] {
     }),
   ];
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// System prompt
-// ═══════════════════════════════════════════════════════════════════
-
 export function baoSystemPrompt(): string {
   return [
     "## OpenBao/Vault — Secrets Management",

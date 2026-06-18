@@ -1,33 +1,13 @@
 "use strict";
-
-/**
- * vastai — GPU cloud integration for the Vaked swarm.
- *
- * HTTP 200 → authoritative. VAST_API_KEY from CI secrets.
- * Agent tools: search offers, launch/stop/destroy instances, check status.
- *
- * API: https://console.vast.ai/api/v0/
- * Docs: https://cloud.vast.ai/cli/
- *
- * GENESIS_SEAL: 7c242080
- */
-
 import { tool } from "@openrouter/agent";
 import type { Tool } from "@openrouter/agent";
 import { z } from "zod";
-
 const BASE = "https://console.vast.ai/api/v0";
-
 function getApiKey(): string {
   const key = process.env["VAST_API_KEY"];
   if (!key) throw new Error("VAST_API_KEY not set. Get one at https://cloud.vast.ai/manage-keys");
   return key;
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// HTTP client
-// ═══════════════════════════════════════════════════════════════════
-
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const url = `${BASE}${path}`;
   const headers: Record<string, string> = {
@@ -35,27 +15,19 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
     "Content-Type": "application/json",
     "User-Agent": "vaked-vastai/0.1",
   };
-
   const res = await fetch(url, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
-
   if (res.status >= 200 && res.status < 300) {
     const text = await res.text();
     if (!text.trim()) return {} as T;
     return JSON.parse(text) as T;
   }
-
   const errBody = await res.text().catch(() => "");
   throw new Error(`Vast.ai HTTP ${res.status}: ${errBody.slice(0, 300)}`);
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// Types
-// ═══════════════════════════════════════════════════════════════════
-
 export interface GpuOffer {
   id: number;
   gpu_name: string;
@@ -70,7 +42,6 @@ export interface GpuOffer {
   geolocation: string;
   verified: boolean;
 }
-
 export interface Instance {
   id: number;
   machine_id: number;
@@ -82,29 +53,20 @@ export interface Instance {
   image: string;
   disk_space: number;
 }
-
 export interface SearchResult {
   offers: GpuOffer[];
 }
-
 export interface InstancesResult {
   instances: Instance[];
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// Standalone API (mirrors Python SDK)
-// ═══════════════════════════════════════════════════════════════════
-
 export async function searchOffers(query: string, limit = 5): Promise<GpuOffer[]> {
   const result = await api<SearchResult>("GET", `/bundles/?q=${encodeURIComponent(query)}&limit=${limit}`);
   return result.offers ?? [];
 }
-
 export async function showInstances(): Promise<Instance[]> {
   const result = await api<InstancesResult>("GET", "/instances/");
   return result.instances ?? [];
 }
-
 export async function createInstance(offerId: number, opts: {
   image?: string;
   disk?: number;
@@ -118,59 +80,41 @@ export async function createInstance(offerId: number, opts: {
     ask_contract_id: offerId,
   });
 }
-
 export async function destroyInstance(id: number): Promise<void> {
   await api("DELETE", `/instances/${id}/`);
 }
-
 export async function startInstance(id: number): Promise<void> {
   await api("PUT", `/instances/${id}/`, { actual_status: "running" });
 }
-
 export async function stopInstance(id: number): Promise<void> {
   await api("PUT", `/instances/${id}/`, { actual_status: "stopped" });
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// Agent tools
-// ═══════════════════════════════════════════════════════════════════
-
 const searchInput = z.object({
   query: z.string().describe("Filter: e.g. 'gpu_name=RTX_4090 num_gpus=1'"),
   limit: z.number().optional().default(5).describe("Max results"),
 });
-
 const createInput = z.object({
   offerId: z.number().describe("Offer ID from search"),
   image: z.string().optional().default("pytorch/pytorch").describe("Docker image"),
   disk: z.number().optional().default(32).describe("Disk GB"),
 });
-
 const instanceInput = z.object({
   instanceId: z.number().describe("Instance ID"),
 });
-
-// ═══════════════════════════════════════════════════════════════════
-// Serverless client (inference without managing instances)
-// ═══════════════════════════════════════════════════════════════════
-
 export interface ServerlessEndpoint {
   endpoint_id: string;
   name: string;
   model: string;
   status: string;
 }
-
 export interface ServerlessResponse {
   response: {
     choices: Array<{ text: string }>;
   };
 }
-
 export async function getEndpoint(name: string): Promise<ServerlessEndpoint> {
   return api("GET", `/serverless/endpoints/${name}/`);
 }
-
 export async function serverlessRequest(
   endpointName: string,
   model: string,
@@ -186,20 +130,10 @@ export async function serverlessRequest(
   });
   return result.response?.choices?.[0]?.text ?? "";
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// SSH
-// ═══════════════════════════════════════════════════════════════════
-
 export async function getSshUrl(instanceId: number): Promise<string> {
   const result = await api<{ ssh_url: string }>("GET", `/instances/${instanceId}/ssh-url/`);
   return result.ssh_url ?? `ssh -p 22 root@instance-${instanceId}`;
 }
-
-// ═══════════════════════════════════════════════════════════════════
-// More agent tools
-// ═══════════════════════════════════════════════════════════════════
-
 const serverlessInput = z.object({
   endpoint: z.string().describe("Serverless endpoint name"),
   model: z.string().describe("Model ID, e.g. 'Qwen/Qwen3-8B'"),
@@ -207,11 +141,9 @@ const serverlessInput = z.object({
   maxTokens: z.number().optional().default(100),
   temperature: z.number().optional().default(0.7),
 });
-
 const sshInput = z.object({
   instanceId: z.number().describe("Instance ID"),
 });
-
 export function createVastaiTools(): Tool[] {
   return [
     tool({
@@ -230,7 +162,6 @@ export function createVastaiTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "vastai_launch",
       description: "Launch GPU instance. Starts billing immediately. Confirm with user first.",
@@ -244,7 +175,6 @@ export function createVastaiTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "vastai_status",
       description: "Check all GPU instances and their current status.",
@@ -261,7 +191,6 @@ export function createVastaiTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "vastai_destroy",
       description: "Destroy GPU instance. Stops billing immediately. Confirm with user first.",
@@ -275,7 +204,6 @@ export function createVastaiTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "vastai_ssh_url",
       description: "Get SSH connection string for a running instance.",
@@ -289,7 +217,6 @@ export function createVastaiTools(): Tool[] {
         }
       },
     }),
-
     tool({
       name: "vastai_serverless",
       description: "Run inference on a serverless endpoint. No GPU management needed.",
@@ -305,7 +232,6 @@ export function createVastaiTools(): Tool[] {
     }),
   ];
 }
-
 export function vastaiSystemPrompt(): string {
   return [
     "## Vast.ai — GPU Cloud ($7.68 credit available)",

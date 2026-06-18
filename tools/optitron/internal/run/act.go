@@ -1,5 +1,4 @@
 package run
-
 import (
 	"context"
 	"fmt"
@@ -7,11 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/gate"
 )
-
-// IssueBody renders the `agent`-labelled swe_af hand-off issue body.
 func IssueBody(c gate.Candidate, v gate.Verify, b *gate.BenchResult, adj gate.Adjudication) string {
 	var srcs strings.Builder
 	for _, s := range c.Sources {
@@ -29,9 +25,6 @@ func IssueBody(c gate.Candidate, v gate.Verify, b *gate.BenchResult, adj gate.Ad
 		c.Title, c.Area, adj.Confidence, adj.HallucinationRisk, c.Mechanism,
 		b.BaselineNs, b.OptimizedNs, b.Delta*100, v.IndependentCount, srcs.String(), v.Rationale)
 }
-
-// CreateAgentIssue opens the issue labelled `agent` — swe_af's documented
-// trigger — via the `gh` CLI. Honors OPTITRON_DRY_ACT.
 func (c *Config) CreateAgentIssue(ctx context.Context, title, body string) (string, error) {
 	if c.DryAct {
 		return "dry-run://issue", nil
@@ -45,7 +38,6 @@ func (c *Config) CreateAgentIssue(ctx context.Context, title, body string) (stri
 		return "", err
 	}
 	tmp.Close()
-
 	args := []string{"issue", "create", "--title", title, "--body-file", tmp.Name(), "--label", "agent"}
 	if repo := os.Getenv("GITHUB_REPOSITORY"); repo != "" {
 		args = append(args, "--repo", repo)
@@ -56,9 +48,6 @@ func (c *Config) CreateAgentIssue(ctx context.Context, title, body string) (stri
 	}
 	return strings.TrimSpace(string(out)), nil
 }
-
-// Announce stages a Mastodon toot + Telegram message; the commit/push fires the
-// post workflows. Honors OPTITRON_DRY_ACT.
 func (c *Config) Announce(cand gate.Candidate, b *gate.BenchResult, issueURL string) error {
 	if c.DryAct {
 		return nil

@@ -1,13 +1,8 @@
 package run
-
 import (
 	"fmt"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/ledger"
 )
-
-// Events verifies the hash-chained ledger and optionally replays findings.
-// Returns a non-nil error only when the chain is broken (exit 1).
 func Events(cfg *Config, replay bool) error {
 	entries, err := ledger.Load(cfg.EventsPath)
 	if err != nil {

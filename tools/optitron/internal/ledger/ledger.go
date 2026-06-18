@@ -1,14 +1,4 @@
-// Package ledger is the append-only, hash-chained findings ledger — optitron's
-// cross-run novelty memory and tamper-evident audit trail. It is a faithful port
-// of tools/optitron/optitroncore.py's chain primitives (mirrored, in turn, from
-// the ralph archetype) plus optitron.py's load/append/fsync.
-//
-// The chain has a single-writer invariant: hashing entry N depends on entry N-1,
-// so concurrent appends would corrupt it. Under the concurrent pipeline every
-// write therefore goes through one Writer goroutine (an actor) that owns the file
-// and serialises appends over a channel — see Writer.
 package ledger
-
 import (
 	"bufio"
 	"crypto/sha256"
@@ -18,20 +8,13 @@ import (
 	"os"
 	"sync"
 )
-
-// GenesisHash is the prev-hash of seq 0.
 const GenesisHash = "0000000000000000000000000000000000000000000000000000000000000000"
-
-// Entry is one hash-chained log line: hash = sha256(prev || canon(payload)).
 type Entry struct {
 	Seq     int            `json:"seq"`
 	Prev    string         `json:"prev"`
 	Payload map[string]any `json:"payload"`
 	Hash    string         `json:"hash"`
 }
-
-// canon renders payload as canonical JSON (sorted keys, compact) — the exact
-// bytes that get hashed. Go's encoding/json already sorts map keys.
 func canon(payload map[string]any) (string, error) {
 	b, err := json.Marshal(payload)
 	if err != nil {
@@ -39,8 +22,6 @@ func canon(payload map[string]any) (string, error) {
 	}
 	return string(b), nil
 }
-
-// ChainHash is the link function: sha256(prevHex || canon(payload)).
 func ChainHash(prevHex string, payload map[string]any) (string, error) {
 	c, err := canon(payload)
 	if err != nil {
@@ -49,8 +30,6 @@ func ChainHash(prevHex string, payload map[string]any) (string, error) {
 	sum := sha256.Sum256([]byte(prevHex + c))
 	return hex.EncodeToString(sum[:]), nil
 }
-
-// MakeEntry builds one chained entry; prevHex is GenesisHash for seq 0.
 func MakeEntry(prevHex string, seq int, payload map[string]any) (Entry, error) {
 	h, err := ChainHash(prevHex, payload)
 	if err != nil {
@@ -58,9 +37,6 @@ func MakeEntry(prevHex string, seq int, payload map[string]any) (Entry, error) {
 	}
 	return Entry{Seq: seq, Prev: prevHex, Payload: payload, Hash: h}, nil
 }
-
-// VerifyChain reports whether entries form a contiguous, untampered chain from
-// genesis.
 func VerifyChain(entries []Entry) bool {
 	prev := GenesisHash
 	for i, e := range entries {
@@ -75,9 +51,6 @@ func VerifyChain(entries []Entry) bool {
 	}
 	return true
 }
-
-// LongestValidPrefix returns the longest untampered chain prefix — the
-// boot-recovery counterpart for a torn tail.
 func LongestValidPrefix(entries []Entry) []Entry {
 	out := make([]Entry, 0, len(entries))
 	prev := GenesisHash
@@ -91,9 +64,6 @@ func LongestValidPrefix(entries []Entry) []Entry {
 	}
 	return out
 }
-
-// Load reads the ledger file (one JSON Entry per line). A missing file is an
-// empty ledger.
 func Load(path string) ([]Entry, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -119,9 +89,6 @@ func Load(path string) ([]Entry, error) {
 	}
 	return out, sc.Err()
 }
-
-// PriorTitles returns the titles of every found/rejected payload — the dedupe
-// memory that stops optitron re-finding the same optimization.
 func PriorTitles(entries []Entry) []string {
 	var titles []string
 	for _, e := range entries {
@@ -135,17 +102,11 @@ func PriorTitles(entries []Entry) []string {
 	}
 	return titles
 }
-
-// Writer is the single-writer ledger actor. It loads the chain once, repairs a
-// torn tail, then serialises every Append so the hash chain stays valid even
-// when many pipeline goroutines record events concurrently.
 type Writer struct {
 	mu      sync.Mutex
 	path    string
 	entries []Entry
 }
-
-// Open loads (and tail-repairs) the ledger at path, ready for appends.
 func Open(path string) (*Writer, error) {
 	entries, err := Load(path)
 	if err != nil {
@@ -156,9 +117,6 @@ func Open(path string) (*Writer, error) {
 	}
 	return &Writer{path: path, entries: entries}, nil
 }
-
-// Append links payload onto the chain and fsyncs it to disk. Safe for concurrent
-// callers — the mutex enforces the single-writer invariant.
 func (w *Writer) Append(payload map[string]any) (Entry, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -191,14 +149,11 @@ func (w *Writer) Append(payload map[string]any) (Entry, error) {
 	w.entries = append(w.entries, e)
 	return e, nil
 }
-
-// PriorTitles snapshots the dedupe memory at open/append time.
 func (w *Writer) PriorTitles() []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return PriorTitles(w.entries)
 }
-
 func dir(p string) string {
 	for i := len(p) - 1; i >= 0; i-- {
 		if p[i] == '/' {
@@ -207,8 +162,6 @@ func dir(p string) string {
 	}
 	return "."
 }
-
-// String renders an entry for CLI replay.
 func (e Entry) String() string {
 	return fmt.Sprintf("#%d %s %v", e.Seq, e.Hash[:8], e.Payload)
 }

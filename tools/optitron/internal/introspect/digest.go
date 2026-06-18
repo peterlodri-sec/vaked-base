@@ -1,5 +1,4 @@
 package introspect
-
 import (
 	"context"
 	"encoding/json"
@@ -9,11 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
-
 	"github.com/peterlodri-sec/vaked-base/tools/optitron/internal/ledger"
 )
-
-// ModelStats aggregates Langfuse GENERATION observations for one model.
 type ModelStats struct {
 	Calls            int
 	Errors           int
@@ -24,8 +20,6 @@ type ModelStats struct {
 	LatencyP50       float64
 	LatencyP95       float64
 }
-
-// Economy is the real-spend roll-up + a normal, non-optimistic projection.
 type Economy struct {
 	WindowDays float64 `json:"window_days"`
 	WindowCost float64 `json:"window_cost"`
@@ -33,7 +27,6 @@ type Economy struct {
 	PerWeek    float64 `json:"per_week"`
 	PerMonth   float64 `json:"per_month"`
 }
-
 func num(v any) float64 {
 	switch x := v.(type) {
 	case float64:
@@ -50,7 +43,6 @@ func num(v any) float64 {
 	}
 	return 0
 }
-
 func obsTokens(o map[string]any) (int, int) {
 	pin := num(o["promptTokens"])
 	pout := num(o["completionTokens"])
@@ -66,8 +58,6 @@ func obsTokens(o map[string]any) (int, int) {
 	}
 	return int(pin), int(pout)
 }
-
-// latencyPercentiles sorts once and returns (p50, p95).
 func latencyPercentiles(vals []float64) (float64, float64) {
 	if len(vals) == 0 {
 		return 0, 0
@@ -86,13 +76,7 @@ func latencyPercentiles(vals []float64) (float64, float64) {
 	}
 	return at(50), at(95)
 }
-
-// CostFn prices a (model, prompt, completion) call in USD.
 type CostFn func(model string, prompt, completion int) float64
-
-// AggregateByModel groups observations by model and computes cost client-side
-// from tokens (Langfuse self-hosted usually omits server cost). Errors: level
-// ERROR or a non-empty statusMessage; truncation: finishReason == "length".
 func AggregateByModel(observations []map[string]any, cost CostFn) map[string]*ModelStats {
 	type acc struct {
 		s   *ModelStats
@@ -143,8 +127,6 @@ func AggregateByModel(observations []map[string]any, cost CostFn) map[string]*Mo
 	}
 	return out
 }
-
-// SpanCounts is the per-span-name signal (gen_ai.generate, pr_review, ralph.*…).
 func SpanCounts(observations []map[string]any) map[string]int {
 	c := map[string]int{}
 	for _, o := range observations {
@@ -156,8 +138,6 @@ func SpanCounts(observations []map[string]any) map[string]int {
 	}
 	return c
 }
-
-// Project extrapolates measured window cost to a normal day/week/month.
 func Project(windowCost, windowDays float64) Economy {
 	perDay := 0.0
 	if windowDays > 0 {
@@ -168,23 +148,18 @@ func Project(windowCost, windowDays float64) Economy {
 		PerDay: round(perDay, 4), PerWeek: round(perDay*7, 2), PerMonth: round(perDay*30.4, 2),
 	}
 }
-
-// IngestWindow returns the (from, to) ISO timestamps for the lookback window.
 func IngestWindow(windowDays float64) (string, string) {
 	now := time.Now().UTC()
 	start := now.Add(-time.Duration(windowDays * 24 * float64(time.Hour)))
 	const f = "2006-01-02T15:04:05Z"
 	return start.Format(f), now.Format(f)
 }
-
-// BuildDigest renders the telemetry digest markdown + the economy roll-up.
 func BuildDigest(byModel map[string]*ModelStats, spans map[string]int, ledgerStats, ciStats map[string]any, windowDays float64) (string, Economy) {
 	total := 0.0
 	for _, s := range byModel {
 		total += s.Cost
 	}
 	econ := Project(total, windowDays)
-
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Fleet telemetry digest — last %gd\n\n", windowDays)
 	if len(byModel) > 0 {
@@ -218,7 +193,6 @@ func BuildDigest(byModel map[string]*ModelStats, spans map[string]int, ledgerSta
 		econ.WindowCost, windowDays, econ.PerDay, econ.PerWeek, econ.PerMonth)
 	return b.String(), econ
 }
-
 func topSpans(spans map[string]int, n int) string {
 	type kv struct {
 		k string
@@ -238,15 +212,12 @@ func topSpans(spans map[string]int, n int) string {
 	}
 	return strings.Join(parts, ", ")
 }
-
-// LedgerStats summarises the ralph (read-only) + optitron ledgers by event kind.
 func LedgerStats(ralphPath, optitronPath string) map[string]any {
 	out := map[string]any{}
 	out["ralph"] = ledgerKinds(ralphPath)
 	out["optitron"] = ledgerKinds(optitronPath)
 	return out
 }
-
 func ledgerKinds(path string) map[string]any {
 	entries, err := ledger.Load(path)
 	if err != nil {
@@ -262,8 +233,6 @@ func ledgerKinds(path string) map[string]any {
 	}
 	return map[string]any{"events": len(entries), "by_kind": kinds}
 }
-
-// CIStats lists recently-failing workflows via the gh CLI (best-effort).
 func CIStats(ctx context.Context, repoRoot, repoGH string) map[string]any {
 	cmd := exec.CommandContext(ctx, "gh", "run", "list", "--repo", repoGH, "--limit", "60",
 		"--json", "name,conclusion")
@@ -287,7 +256,6 @@ func CIStats(ctx context.Context, repoRoot, repoGH string) map[string]any {
 	}
 	return map[string]any{"failing_workflows": failing}
 }
-
 func round(f float64, places int) float64 {
 	scale := math.Pow(10, float64(places))
 	return math.Round(f*scale) / scale

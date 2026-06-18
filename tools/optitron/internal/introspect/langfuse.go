@@ -1,5 +1,4 @@
 package introspect
-
 import (
 	"encoding/base64"
 	"encoding/json"
@@ -8,19 +7,12 @@ import (
 	"net/url"
 	"time"
 )
-
-// LangfuseClient queries the self-hosted Langfuse public API (HTTP Basic from the
-// key pair). It is READ-ONLY observability ingestion — the only "new" capability
-// over optitron's core; everything else reuses internal/ledger + internal/llm.
 type LangfuseClient struct {
 	Host   string
 	Public string
 	Secret string
 	HTTP   *http.Client
 }
-
-// NewLangfuse returns a client, or nil if any credential/host is missing (the
-// loop then degrades to ledgers + CI only — never crashes).
 func NewLangfuse(host, public, secret string) *LangfuseClient {
 	if host == "" || public == "" || secret == "" {
 		return nil
@@ -28,10 +20,6 @@ func NewLangfuse(host, public, secret string) *LangfuseClient {
 	return &LangfuseClient{Host: host, Public: public, Secret: secret,
 		HTTP: &http.Client{Timeout: 30 * time.Second}}
 }
-
-// Query pages a Langfuse public-API list endpoint (e.g. /api/public/observations)
-// and returns the merged `data` array. Errors abort that query and return what
-// was gathered — the digest tolerates partial/zero telemetry.
 func (c *LangfuseClient) Query(path string, params map[string]string, maxPages int) []map[string]any {
 	if c == nil {
 		return nil
@@ -46,7 +34,6 @@ func (c *LangfuseClient) Query(path string, params map[string]string, maxPages i
 		q.Set("page", fmt.Sprintf("%d", page))
 		q.Set("limit", "100")
 		endpoint := c.Host + path + "?" + q.Encode()
-
 		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 		if err != nil {
 			break
@@ -68,7 +55,6 @@ func (c *LangfuseClient) Query(path string, params map[string]string, maxPages i
 		resp.Body.Close()
 		if decErr != nil || resp.StatusCode >= 400 {
 			if resp.StatusCode >= 400 && len(out) == 0 {
-				// first page already failed → bad host/creds, not "no traffic"
 				fmt.Printf("::warning::introspect: langfuse %s status=%d, no data — check LANGFUSE_HOST/PUBLIC/SECRET\n", path, resp.StatusCode)
 			} else {
 				fmt.Printf("::warning::introspect: langfuse %s status=%d\n", path, resp.StatusCode)

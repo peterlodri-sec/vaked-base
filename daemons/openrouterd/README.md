@@ -1,99 +1,57 @@
-# openrouterd — OpenRouter Agent Daemon (Atlas)
+# openrouterd (Atlas) — The Technocrat Agentic Runtime
 
-Production agent daemon for the Vaked swarm. Zig 0.16 native.
-io_uring async I/O. mimalloc. seccomp BPF. SHA256 cache.
+**Zig 0.16 · io_uring · seccomp · mmap · Zero-copy · Deterministic**
 
-**Supersedes the Node.js/Bun/Deno TUI for deployed agents.**
+## Genesis Foundation
 
-## Build
+| Layer | Technology | Property |
+|-------|-----------|----------|
+| Language | Zig 0.16 | Zero-cost, explicit memory, no GC |
+| Runtime | openrouterd | Custom daemon, raw sockets |
+| I/O | io_uring | Batch-submission, zero-syscall overhead |
+| Memory | mmap + Arena | Persistent shared-memory arenas |
+| Security | seccomp-bpf | Kernel-level syscall allowlist (22 syscalls) |
+
+## Operational Loop (Vibecoder Cycle)
+
+1. **Memory-Plane-First** — Every query checks the mmap'd persistent cache (O(1)) before external network calls.
+2. **Context7 Native** — Context fetch occurs only on miss. Results hashed (SHA256) and committed to the Memory-Plane immediately.
+3. **AST-Aware Linting** — OXC parses code inputs. Logic rejected unless it complies with capability-graph security rules.
+4. **Build-Verify-Commit** — No push valid without `zig build` pass. Compiler errors are the primary prompt context for agentic auto-patching.
+
+## Governance
+
+- **Genesis Seal** — Every artifact carries build-time hash verification (`7c242080`).
+- **Zero-Copy Integrity** — Binary structs mapped directly from disk to memory via mmap. No JSON/serialization latency.
+- **Parity Policy** — Cross-language parity (TypeScript ↔ Zig) enforced by SDK synchronization.
+- **Advisory Execution** — Agents propose logic; they do not block. System enforces policy via syscall interceptors.
+
+## Quick Start
 
 ```bash
 zig build -Doptimize=ReleaseSafe
-# → zig-out/bin/openrouterd (strippable to ~2MB)
-```
-
-## Run
-
-```bash
-OPENROUTER_API_KEY=sk-or-v1-... ./zig-out/bin/openrouterd --port 9090
-```
-
-## Deploy (systemd)
-
-```bash
-sudo cp zig-out/bin/openrouterd /usr/local/bin/
-sudo cp openrouterd.service /etc/systemd/system/
-sudo mkdir -p /var/lib/openrouterd/cache
-sudo systemctl enable --now openrouterd
+./zig-out/bin/openrouterd --port 9090
 ```
 
 ## API
 
-```bash
-# POST prompt → response
-curl -X POST http://localhost:9090/ \
-  -d '{"prompt":"How do I use std.Build in Zig 0.16?","model":"deepseek/deepseek-v4-pro"}'
-
-# Response
-{"genesis":"7c242080","content":"const std = @import(\"std\");\n\npub fn build..."}
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Genesis seal + status |
+| `/models` | GET | Available model catalog |
+| `/openapi.json` | GET | OpenAPI 3.1 spec |
+| `/` | POST | Chat completion (OpenRouter-compatible) |
 
 ## Security
 
-| Layer | Mechanism |
-|-------|-----------|
-| **Allocator** | mimalloc (static link, Linux) |
-| **Syscalls** | seccomp BPF — 22 allowed, everything else SIGKILL |
-| **Memory** | arena allocator, zero fragmentation |
-| **Cache** | SHA256 content-addressed (ralph-loop pattern) |
-| **TLS** | system CA bundle (not ssl.CERT_NONE) |
-| **Privileges** | NoNewPrivileges, PrivateTmp, ProtectSystem=strict |
+- 22 syscalls allowed (seccomp BPF)
+- PIE + stripped binary
+- Genesis seal verified at startup
+- Vault-first secret resolution (bao.crabcc.app)
+- 25 systemd hardening directives
 
-## Seccomp Allowlist
+## Status
 
-```
-read write openat close socket connect sendto recvfrom
-epoll_create1 epoll_ctl epoll_wait mmap munmap mprotect
-brk exit exit_group getrandom clock_gettime futex
-io_uring_setup io_uring_enter
-```
+**v1 initialized.** Ready for swarm deployment. Compile-Pass-Only standard enforced.
 
-## Nickname: Atlas
-
-Carries the swarm's LLM load. Named after the Titan who holds up the sky.
-
-## Genesis
-
-```
 GENESIS_SEAL: 7c242080
-```
-
-## Deploy
-
-### macOS (launchd)
-```bash
-sudo cp zig-out/bin/openrouterd /usr/local/bin/
-sudo cp com.vaked.openrouterd.plist /Library/LaunchDaemons/
-sudo launchctl load /Library/LaunchDaemons/com.vaked.openrouterd.plist
-```
-
-### Linux (systemd)
-```bash
-sudo cp zig-out/bin/openrouterd /usr/local/bin/
-sudo cp openrouterd.service /etc/systemd/system/
-sudo systemctl enable --now openrouterd
-```
-
-### Binary verification
-The daemon self-verifies at startup. Tampered binary → refuses to start.
-```bash
-VAKED_SKIP_VERIFY=1 openrouterd  # dev only
-```
-
-### Sign pipeline
-```bash
-./tools/openrouter-compiled/sign.sh zig-out/bin/openrouterd
-# Burns SHA256 hash + genesis seal into binary
-# macOS: ad-hoc codesigned
-# Linux: GPG detached signature
-```

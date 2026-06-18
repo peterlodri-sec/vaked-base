@@ -17,7 +17,7 @@
 
 import { writeFileSync, readFileSync, existsSync } from "fs";
 
-const API = "https://context7.com/api/v2";
+const API = process.env["CONTEXT7_ENDPOINT"] ?? "https://context7.com/api/v2";
 const CACHE_FILE = new URL("../openrouter-ts/src/ctx7cache.json", import.meta.url).pathname;
 const API_KEY = process.env["CONTEXT7_API_KEY"];
 
