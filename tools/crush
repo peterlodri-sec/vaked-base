@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""crush — compress any text into a dense LLM-ready prompt.
+
+Input:  pbpaste | crush
+        echo "..." | crush
+        crush file.txt
+        crush < file.txt
+
+Output: a single compressed prompt line written to stdout.
+        NOTHING is ever written to the filesystem.
+
+Safety: no temp files, no disk I/O, stdin→stdout only.
+
+⚠  ANTI-PATTERN — secrets touch disk, defeats the purpose:
+
+    echo "$JSON" > /tmp/secret.json && crush /tmp/secret.json   # ❌ WRONG
+    cat bao-init.json > dump.txt   && crush dump.txt             # ❌ WRONG
+
+✓  CORRECT — pipe directly, stays in memory only:
+
+    echo "$JSON"          | crush                               # ✓ pipe
+    cat bao-init.json     | crush                               # ✓ pipe
+    crush bao-init.json                                         # ✓ file arg (read-only, no copy)
+    pbpaste               | crush                               # ✓ clipboard
+"""
+import sys
+import re
+import argparse
+import subprocess
+
+
+# ── compression helpers ────────────────────────────────────────────────────────
+
+def _collapse_whitespace(text: str) -> str:
+    """Collapse runs of blank lines to one, strip trailing spaces."""
+    # strip trailing space per line
+    lines = [l.rstrip() for l in text.splitlines()]
+    # collapse 2+ consecutive empty lines → 1
+    out: list[str] = []
+    prev_blank = False
+    for line in lines:
+        blank = line == ""
+        if blank and prev_blank:
+            continue
+        out.append(line)
+        prev_blank = blank
+    return "\n".join(out).strip()
+
+
+def _remove_comments(text: str) -> str:
+    """Strip common single-line comment styles (// # --)."""
+    # only strip pure-comment lines, not inline — preserves code structure
+    lines = []
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith(("//", "#!", "#", "--")):
+            # keep shebangs
+            if stripped.startswith("#!"):
+                lines.append(line)
+            else:
+                continue
+        else:
+            lines.append(line)
+    return "\n".join(lines)
+
+
+def _condense_repetition(text: str) -> str:
+    """Replace 3+ identical consecutive lines with one + count marker."""
+    lines = text.splitlines()
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        j = i + 1
+        while j < len(lines) and lines[j] == lines[i]:
+            j += 1
+        count = j - i
+        out.append(lines[i])
+        if count > 2:
+            out.append(f"[×{count}]")
+        elif count == 2:
+            out.append(lines[i])
+        i = j
+    return "\n".join(out)
+
+
+def _abbreviate_urls(text: str) -> str:
+    """Shorten long URLs to domain+path-stem."""
+    def shorten(m: re.Match) -> str:
+        url = m.group(0)
+        if len(url) <= 60:
+            return url
+        # keep scheme + netloc + first path segment
+        try:
+            from urllib.parse import urlparse
+            p = urlparse(url)
+            path_parts = [x for x in p.path.split("/") if x]
+            short_path = "/" + path_parts[0] if path_parts else ""
+            return f"{p.scheme}://{p.netloc}{short_path}/…"
+        except Exception:
+            return url[:57] + "…"
+    return re.sub(r"https?://\S+", shorten, text)
+
+
+def _redact_secrets(text: str) -> str:
+    """Replace obvious secret patterns with [REDACTED] — belt-and-suspenders."""
+    patterns = [
+        # generic key=value secrets
+        (r'(?i)(password|passwd|secret|token|api[_-]?key|auth[_-]?token'
+         r'|bearer|credential|private[_-]?key)\s*[=:]\s*\S+',
+         r'\1=[REDACTED]'),
+        # JWT — must run before the generic base64 pass so the full
+        # header.payload.signature triple is removed as one unit, not
+        # just the 40+-char payload segment.
+        (r'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}',
+         '[REDACTED-JWT]'),
+        # hex strings 32+ chars (tokens, hashes)
+        (r'\b[0-9a-fA-F]{32,}\b', '[REDACTED-HEX]'),
+        # base64 blobs 40+ chars
+        (r'[A-Za-z0-9+/]{40,}={0,2}', '[REDACTED-B64]'),
+    ]
+    for pat, repl in patterns:
+        text = re.sub(pat, repl, text)
+    return text
+
+
+def _to_single_line(text: str) -> str:
+    """Collapse the compressed text to one dense line for a prompt."""
+    # join lines with ↵ symbol so structure is preserved but it's one line
+    parts = [p.strip() for p in text.splitlines() if p.strip()]
+    return " ↵ ".join(parts)
+
+
+# ── main ───────────────────────────────────────────────────────────────────────
+
+def compress(text: str, *, strip_comments: bool, single_line: bool) -> str:
+    text = _redact_secrets(text)          # safety first
+    text = _collapse_whitespace(text)
+    if strip_comments:
+        text = _remove_comments(text)
+        text = _collapse_whitespace(text)  # re-collapse after removal
+    text = _condense_repetition(text)
+    text = _abbreviate_urls(text)
+    if single_line:
+        text = _to_single_line(text)
+    return text
+
+
+def read_input(args: argparse.Namespace) -> str:
+    """Read from file arg, stdin pipe, or pbpaste — never touch disk for secrets."""
+    if args.file:
+        with open(args.file, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    if not sys.stdin.isatty():
+        return sys.stdin.read()
+    # no pipe and no file → try pbpaste (macOS clipboard)
+    try:
+        result = subprocess.run(
+            ["pbpaste"], capture_output=True, text=True, check=True
+        )
+        if not result.stdout.strip():
+            sys.exit("crush: clipboard is empty and no input provided")
+        return result.stdout
+    except FileNotFoundError:
+        sys.exit("crush: no input (pipe something, pass a file, or use pbpaste on macOS)")
+    except subprocess.CalledProcessError as e:
+        sys.exit(f"crush: pbpaste failed: {e}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        prog="crush",
+        description="Compress text to a dense LLM-ready prompt. "
+                    "Input: pipe, file, or clipboard (pbpaste). "
+                    "Output: stdout only — nothing touches the filesystem.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples (correct — stays in memory):
+  pbpaste | crush
+  cat bao-init.json | crush
+  echo "$SECRET_JSON" | crush
+  crush bao-init.json
+  crush < dump.txt
+  crush --no-single-line --strip-comments src.py | pbcopy
+
+anti-pattern (secret touches disk — do NOT do this):
+  echo "$JSON" > /tmp/file && crush /tmp/file   # ❌
+  cat secret | tee dump.txt | crush             # ❌ tee writes to disk
+""",
+    )
+    parser.add_argument(
+        "file", nargs="?", metavar="FILE",
+        help="file to read (default: stdin / pbpaste)",
+    )
+    parser.add_argument(
+        "--strip-comments", "-c", action="store_true",
+        help="remove single-line comments (// # --)",
+    )
+    parser.add_argument(
+        "--no-single-line", "-m", action="store_true",
+        help="keep multi-line output instead of collapsing to one line",
+    )
+    parser.add_argument(
+        "--stats", "-s", action="store_true",
+        help="print compression stats to stderr",
+    )
+
+    args = parser.parse_args()
+
+    raw = read_input(args)
+    compressed = compress(
+        raw,
+        strip_comments=args.strip_comments,
+        single_line=not args.no_single_line,
+    )
+
+    if args.stats:
+        ratio = (1 - len(compressed) / max(len(raw), 1)) * 100
+        print(
+            f"crush: {len(raw):,}→{len(compressed):,} chars "
+            f"({ratio:.1f}% reduction)",
+            file=sys.stderr,
+        )
+
+    print(compressed)
+
+
+if __name__ == "__main__":
+    main()
