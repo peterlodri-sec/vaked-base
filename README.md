@@ -1,6 +1,6 @@
 <p align="center">
   <h1 align="center">✦ vaked-base</h1>
-  <b>Capability-graph language and deterministic runtime for autonomous agent swarms —<br>where honesty is kernel-enforced, externally anchored, and published, failures included.</b><br><br>
+  <b>Capability-graph language and deterministic runtime for autonomous agent swarms —<br>where honesty is externally verified, anchored, and published — failures included.</b><br><br>
   <a href="https://vaked.dev"><code>vaked.dev</code></a> ·
   <a href="https://vaked-lang.org"><code>vaked-lang.org</code></a> ·
   <a href="https://constellation.vaked.dev"><code>constellation.vaked.dev</code></a><br>
@@ -27,7 +27,7 @@
 <hr>
 
 **Genesis Seal:** <code>7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf</code>
-(published in DNS TXT at `vaked-genesis-seal.vaked.dev` — verified. Tamper-with-reseal anchor: GPG-signed `seals-anchor-*` tags exist on origin and verify locally with the maintainer key; **CI enforcement — `fetch-tags` + key import — is residual**, so a fresh checkout reports the manifest *unanchored*. See `the-honest-swarm-researcher/REPAIR_AUDIT.json`.)
+(published in DNS TXT at `vaked-genesis-seal.vaked.dev` — verified. Tamper-with-reseal anchor: GPG-signed `seals-anchor-*` tags exist on origin and verify locally with the maintainer key; **CI enforcement is not yet wired** (`fetch-tags` + maintainer-key import), so a fresh checkout reports the manifest *unanchored*; it becomes enforced once `honesty-gate.yml` adds those steps. See `the-honest-swarm-researcher/REPAIR_AUDIT.json`.)
 
 ---
 
