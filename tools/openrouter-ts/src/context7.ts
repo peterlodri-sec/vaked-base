@@ -21,6 +21,23 @@ import { z } from "zod";
 import { tool } from "@openrouter/agent";
 import type { Tool } from "@openrouter/agent";
 
+// Local doc cache — pre-fetched at build time by tools/ctx7cache/sync.ts
+// Ship with the package. Zero runtime API calls when populated.
+import { readFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+function loadLocalCache(): any {
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const cachePath = join(__dirname, "ctx7cache.json");
+    if (existsSync(cachePath)) {
+      return JSON.parse(readFileSync(cachePath, "utf-8"));
+    }
+  } catch {}
+  return null;
+}
+
 // ── Configuration ───────────────────────────────────────────────────────────
 
 const BASE_URL = "https://context7.com/api/v2";
@@ -201,10 +218,29 @@ export async function resolveLibraryId(libraryName: string): Promise<Library | n
 }
 
 export async function queryDocs(libraryName: string, query: string): Promise<ContextResponse> {
+  const ck = libraryName + "::" + query;
+
+  // 1. Local cache (pre-fetched, zero API calls, always works)
+  const localCache = loadLocalCache();
+  if (localCache && Array.isArray(localCache)) {
+    const entries = localCache as Array<any>;
+    const match = entries.find((e: any) => e.library === libraryName && e.query === query);
+    if (match) {
+      console.error("[ctx7:local] " + libraryName + "/" + query.slice(0, 40));
+      return { codeSnippets: [], infoSnippets: match.snippets.map((s: any) => ({ content: s.code ?? s.content ?? "" })) } as ContextResponse;
+    }
+  }
+
+  // 2. Runtime cache (LRU, same-session dedup)
+  const cached = ctx7cacheGet(ck);
+  if (cached) { console.error("[ctx7:cache] " + libraryName); return cached; }
+  if (_ctx7limited) throw new Context7Error("Rate limited (500/mo free tier). Cached exhausted.", 429);
+  ctx7rateCheck();
   const lib = await resolveLibraryId(libraryName);
-  if (!lib) throw new Context7Error(`Could not resolve library: "${libraryName}"`, 404);
+  if (!lib) throw new Context7Error("Could not resolve: " + libraryName, 404);
   const result = await getContext(lib.id, query, "json");
-  if (typeof result === "string") throw new Context7Error("Unexpected text response from Context7");
+  if (typeof result === "string") throw new Context7Error("Unexpected text response");
+  ctx7cacheSet(ck, result);
   return result;
 }
 
@@ -408,6 +444,7 @@ export async function context7PreScan(prompt: string): Promise<PreScanResult> {
 
   for (const lib of libs) {
     try {
+      if (_ctx7limited) { console.error("[ctx7:prescan] skipped (rate limited): " + lib); continue; }
       const docs = await Promise.race([queryDocs(lib, prompt.slice(0, 300)), new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000))]);
       const formatted = formatContextForInjection(docs, lib);
       injectParts.push(formatted);
@@ -463,4 +500,34 @@ export function logPreScanInjection(result: PreScanResult): void {
     "[ctx7:prescan] detected: " + libList +
     " -> injected " + result.tokenEstimate + " tokens (~" + kbEstimate + "K)",
   );
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// Rate limit + LRU cache (free tier: 500 req/month since Jan 2026)
+// ═══════════════════════════════════════════════════════════════
+
+let _ctx7reqs = 0;
+let _ctx7limited = false;
+const _ctx7cache = new Map<string, { data: ContextResponse; ts: number }>();
+const CACHE_MAX = 100;
+const CACHE_TTL = 3600_000;
+const RATE_WARN = 450;
+
+function ctx7cacheGet(key: string): ContextResponse | null {
+  const e = _ctx7cache.get(key);
+  if (!e) return null;
+  if (Date.now() - e.ts > CACHE_TTL) { _ctx7cache.delete(key); return null; }
+  return e.data;
+}
+
+function ctx7cacheSet(key: string, data: ContextResponse): void {
+  if (_ctx7cache.size >= CACHE_MAX) { const first = _ctx7cache.keys().next().value; if (first !== undefined) _ctx7cache.delete(first); }
+  _ctx7cache.set(key, { data, ts: Date.now() });
+}
+
+function ctx7rateCheck(): void {
+  _ctx7reqs++;
+  if (_ctx7reqs >= 500 && !_ctx7limited) { _ctx7limited = true; console.error("[ctx7:rate] Free tier exhausted (500/month). Cached only."); }
+  else if (_ctx7reqs > RATE_WARN && !_ctx7limited) { console.error("[ctx7:rate] " + _ctx7reqs + " reqs — approaching free tier limit (500/month)."); }
 }

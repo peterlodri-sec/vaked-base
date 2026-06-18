@@ -55,6 +55,10 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[tokio::main]
 async fn main() {
+    vaked_agents_shared::verify_binary().unwrap_or_else(|e| {
+        eprintln!("{e}");
+        std::process::exit(1);
+    });
     if std::env::args().any(|a| a == "--version" || a == "-V") {
         println!("vaked-provost {VERSION}+{GIT_SHA}");
         return;

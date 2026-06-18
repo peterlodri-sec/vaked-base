@@ -67,3 +67,33 @@ Carries the swarm's LLM load. Named after the Titan who holds up the sky.
 ```
 GENESIS_SEAL: 7c242080
 ```
+
+## Deploy
+
+### macOS (launchd)
+```bash
+sudo cp zig-out/bin/openrouterd /usr/local/bin/
+sudo cp com.vaked.openrouterd.plist /Library/LaunchDaemons/
+sudo launchctl load /Library/LaunchDaemons/com.vaked.openrouterd.plist
+```
+
+### Linux (systemd)
+```bash
+sudo cp zig-out/bin/openrouterd /usr/local/bin/
+sudo cp openrouterd.service /etc/systemd/system/
+sudo systemctl enable --now openrouterd
+```
+
+### Binary verification
+The daemon self-verifies at startup. Tampered binary → refuses to start.
+```bash
+VAKED_SKIP_VERIFY=1 openrouterd  # dev only
+```
+
+### Sign pipeline
+```bash
+./tools/openrouter-compiled/sign.sh zig-out/bin/openrouterd
+# Burns SHA256 hash + genesis seal into binary
+# macOS: ad-hoc codesigned
+# Linux: GPG detached signature
+```
