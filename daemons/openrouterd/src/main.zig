@@ -9,6 +9,8 @@ const DEFAULT_MODEL = "deepseek/deepseek-v4-pro";
 const seccomp_mod = @import("seccomp.zig");
 const sandbox = @import("sandbox.zig");
 const telemetry = @import("telemetry.zig");
+const autopatch = @import("autopatch.zig");
+const killswitch = @import("killswitch.zig");
 
 extern "c" fn getenv([*:0]const u8) ?[*:0]const u8;
 
@@ -314,6 +316,15 @@ pub fn main(init: std.process.Init) !void {
         const req = buf[0..@intCast(rn)];
 
         // Health check
+        if (std.mem.indexOf(u8, req, "POST /auto-patch") != null) {
+            const result = try autopatch.zigBuild(allocator, ".");
+            const formatted = try autopatch.formatBuildErrors(allocator, result);
+            const json = try std.fmt.allocPrint(allocator, "{{\"status\":\"{s}\",\"duration_ms\":{d},\"output\":{any}}}", .{ if (result.success) "ok" else "failed", result.duration_ms, std.json.fmt(formatted, .{}) });
+            defer allocator.free(json);
+            try write(cfd, allocator, "200 OK", json);
+            continue;
+        }
+
         if (std.mem.indexOf(u8, req, "POST /rollback") != null) {
             const ok = try allocator.dupe(u8, "{\"status\":\"rolled back\",\"genesis\":\"7c242080\"}");
             try write(cfd, allocator, "200 OK", ok);
