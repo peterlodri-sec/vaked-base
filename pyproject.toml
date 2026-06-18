@@ -1,20 +1,27 @@
-[build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
-
 [project]
-name = "vakedc"
-version = "0.1.0"
-description = "Vaked front-end: parse / check / lower .vaked capability-graph sources"
-requires-python = ">=3.11"
-# Stdlib-only by design - no runtime dependencies.
+name = "vaked-base"
+version = "0.5.0"
+description = "Capability-graph language and deterministic runtime for autonomous agent swarms"
+requires-python = ">=3.12"
+readme = "README.md"
 
-[project.scripts]
-vakedc = "vakedc.__main__:main"
+[project.optional-dependencies]
+dev = []
 
-# Only the front-end package is installable here; `vaked/` (grammar, schema,
-# examples) is data resolved relative to the source tree, which is why this is
-# meant to be installed EDITABLE (pip -e / pipx --editable). A non-editable
-# install would break vakedc's default `vaked/schema/builtins.vaked` lookup.
-[tool.setuptools]
-packages = ["vakedc"]
+[tool.uv]
+dev-dependencies = []
+
+[tool.uv.sources]
+# All tools use stdlib only. No external dependencies.
+# uv is used for:
+#   1. Python version management (uv python install 3.12)
+#   2. Fast venv creation (uv venv)
+#   3. Script running (uv run tools/vaked-cli status)
+#   4. Future dependency management when needed
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
