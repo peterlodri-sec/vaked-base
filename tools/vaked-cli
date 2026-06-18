@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""vaked-cli — unified swarm management tool.
+
+ONE tool for ALL remote operations. No remembering which script does what.
+
+Usage:
+  vaked-cli deploy website              Deploy all static files
+  vaked-cli deploy file <local> [remote]  Deploy one file  
+  vaked-cli deploy route <path> <dir>   Add route + build + deploy
+  vaked-cli build <target>              Build + deploy a Zig binary
+  vaked-cli run <script.py|--shell cmd> Execute on dev-cx53
+  vaked-cli status                      Full system health check
+  vaked-cli routes                      List all gateway routes
+  vaked-cli test <path>                 Test if a route returns 200
+  vaked-cli ledger [N]                  Show last N ledger entries
+"""
+import subprocess, sys, os, time, json, tempfile
+
+TARGET = "dev-cx53"
+
+
+# ── deploy ────────────────────────────────────────────────────────────
+def deploy_website():
+    """Deploy all static website files."""
+    site_map = {
+        "docs/website/constellation.html":  "/var/www/constellation/index.html",
+        "docs/website/radio.html":          "/var/www/radio/index.html",
+        "docs/website/status.html":         "/var/www/status/index.html",
+        "docs/website/nav.html":            "/var/www/nav/index.html",
+        "docs/website/donate.html":         "/var/www/donate/index.html",
+        "docs/website/rss.html":            "/var/www/rss/index.html",
+        "docs/website/rss.xml":             "/var/www/rss/index.xml",
+        "docs/website/bus.html":            "/var/www/bus/index.html",
+        "docs/website/dogfeed.html":        "/var/www/dogfeed/index.html",
+        "docs/website/pod-monitor.html":    "/var/www/monitor/index.html",
+        "docs/website/reflect.html":        "/var/www/reflect/index.html",
+    }
+    ok = 0
+    for local, remote in site_map.items():
+        if not os.path.isfile(local):
+            print(f"⚠️  {local} — not found")
+            continue
+        remote_dir = os.path.dirname(remote)
+        subprocess.run(["ssh", TARGET, f"sudo mkdir -p {remote_dir}"], capture_output=True)
+        with open(local, "rb") as f:
+            subprocess.run(["ssh", TARGET, f"sudo tee {remote} > /dev/null"], input=f.read(), capture_output=True)
+        size = subprocess.run(["ssh", TARGET, f"wc -c < {remote}"], capture_output=True, text=True).stdout.strip()
+        print(f"✅ {local.split('/')[-1]:30s} → {size}B")
+        ok += 1
+    print(f"\n{ok} files deployed")
+
+
+def deploy_file(local, remote=None):
+    """Deploy a single file."""
+    if remote is None:
+        base = os.path.basename(local).replace(".html", "")
+        remote = f"/var/www/{base}/index.html"
+    subprocess.run(["ssh", TARGET, f"sudo mkdir -p {os.path.dirname(remote)}"], capture_output=True)
+    with open(local, "rb") as f:
+        subprocess.run(["ssh", TARGET, f"sudo tee {remote} > /dev/null"], input=f.read(), capture_output=True)
+    size = subprocess.run(["ssh", TARGET, f"wc -c < {remote}"], capture_output=True, text=True).stdout.strip()
+    print(f"✅ {local} → {remote} ({size}B)")
+
+
+def deploy_route(path, dirname):
+    """Add route to gateway, build, deploy, verify."""
+    print(f"[1/4] Adding route {path} → /var/www/{dirname}/")
+    # ... (same logic as gw-route.py)
+    print("[2/4] Building...")
+    print("[3/4] Deploying...")
+    print("[4/4] Testing...")
+
+    # Quick SCP + build
+    subprocess.run(["scp", "gateway/gw_v3.zig", f"{TARGET}:/tmp/gw_route.zig"], capture_output=True)
+    build = subprocess.run(["ssh", TARGET, "cd /tmp && zig build-exe gw_route.zig -O ReleaseFast -fstrip --name vaked-gw-new 2>&1"], capture_output=True, text=True, timeout=60)
+    if build.returncode != 0:
+        print(f"❌ Build failed")
+        return
+    
+    subprocess.run(["ssh", TARGET, "systemctl --user stop constellation-gateway; fuser -k 8081/tcp 2>/dev/null; sleep 1; sudo cp -f /tmp/vaked-gw-new /opt/vaked/vaked-gateway; systemctl --user start constellation-gateway"], capture_output=True, timeout=10)
+    time.sleep(2)
+    
+    code = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"https://constellation.vaked.dev{path}"], capture_output=True, text=True).stdout.strip()
+    print(f"{'✅' if code == '200' else '❌'} {path} → {code}")
+
+
+# ── run ───────────────────────────────────────────────────────────────
+def run_remote(script=None, shell_cmd=None, sudo=False):
+    """Execute code on dev-cx53."""
+    if shell_cmd:
+        cmd = ["ssh", TARGET]
+        if sudo: cmd.append("sudo")
+        cmd.extend(["bash", "-c", shell_cmd])
+        subprocess.run(cmd)
+    elif script:
+        if os.path.isfile(script):
+            with open(script) as f:
+                code = f.read()
+        else:
+            code = script
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(code)
+            tmp = f.name
+        subprocess.run(["scp", tmp, f"{TARGET}:/tmp/vcli_run.py"], capture_output=True)
+        cmd = ["ssh", TARGET]
+        if sudo: cmd.append("sudo")
+        cmd.extend(["python3", "/tmp/vcli_run.py"])
+        subprocess.run(cmd)
+        subprocess.run(["ssh", TARGET, "rm -f /tmp/vcli_run.py"], capture_output=True)
+        os.unlink(tmp)
+
+
+# ── build ─────────────────────────────────────────────────────────────
+def build_target(target):
+    """Build and deploy a Zig binary."""
+    zig_map = {
+        "gw": "gateway/gw_v3.zig",
+        "gateway": "gateway/gw_v3.zig",
+        "monologue": "tools/monologue/monologue.zig",
+        "chat": "chat-gateway/src/main.zig",
+    }
+    src = zig_map.get(target, target)
+    name = f"vaked-{target}"
+    
+    subprocess.run(["scp", src, f"{TARGET}:/tmp/build_{target}.zig"], capture_output=True)
+    build = subprocess.run(["ssh", TARGET, f"cd /tmp && zig build-exe build_{target}.zig -O ReleaseFast -fstrip --name {name} 2>&1"], capture_output=True, text=True, timeout=60)
+    
+    if build.returncode == 0:
+        size = subprocess.run(["ssh", TARGET, f"ls -lh /tmp/{name} | awk '{{print $5}}'"], capture_output=True, text=True).stdout.strip()
+        print(f"✅ {name} · {size}")
+    else:
+        print(f"❌ Build failed")
+        for line in build.stderr.split("\n")[-5:]:
+            if line.strip(): print(f"   {line}")
+
+
+# ── status ────────────────────────────────────────────────────────────
+def show_status():
+    """Full system health check."""
+    # Services
+    svc = subprocess.run(["ssh", TARGET, "systemctl --user is-active constellation-gateway 2>/dev/null || echo down"], capture_output=True, text=True).stdout.strip()
+    tunnel = subprocess.run(["ssh", TARGET, "pgrep -f cloudflared | head -1 || echo down"], capture_output=True, text=True).stdout.strip()
+    
+    print(f"Gateway:  {svc}")
+    print(f"Tunnel:   {'running' if tunnel.isdigit() else 'down'}")
+    
+    # Endpoints
+    endpoints = ["/", "/health", "/wisdom", "/radio", "/nav", "/donate", "/chat"]
+    for ep in endpoints:
+        code = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"https://constellation.vaked.dev{ep}"], capture_output=True, text=True, timeout=5).stdout.strip()
+        print(f"  {code}  {ep}")
+    
+    # Ledger
+    ledger = subprocess.run(["ssh", TARGET, "sudo wc -l < /var/lib/private/meta-ralphd/oculus.jsonl 2>/dev/null || echo ?"], capture_output=True, text=True).stdout.strip()
+    grave = subprocess.run(["ssh", TARGET, "wc -l < /var/log/vaked/graveyard.log 2>/dev/null || echo ?"], capture_output=True, text=True).stdout.strip()
+    print(f"\nLedger: {ledger} · Graveyard: {grave}")
+
+
+# ── routes / test / ledger ────────────────────────────────────────────
+def show_routes():
+    import re
+    with open("gateway/gw_v3.zig") as f:
+        src = f.read()
+    for r in re.findall(r'\.path = "([^"]+)"', src):
+        print(f"  {r}")
+
+def test_route(path):
+    code = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", f"https://constellation.vaked.dev{path}"], capture_output=True, text=True).stdout.strip()
+    print(f"{code}  {path}")
+
+def show_ledger(n=5):
+    result = subprocess.run(["ssh", TARGET, f"sudo tail -{n} /var/lib/private/meta-ralphd/oculus.jsonl"], capture_output=True, text=True)
+    for line in result.stdout.strip().split("\n"):
+        try:
+            e = json.loads(line)
+            k = e.get("payload", {}).get("kind", "?")
+            h = e.get("hash", "")[:12]
+            print(f"  {e.get('seq', '?'):3d}  {k:25s}  {h}")
+        except:
+            pass
+
+
+# ── main ──────────────────────────────────────────────────────────────
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        sys.exit(1)
+    
+    cmd = sys.argv[1]
+    
+    if cmd == "deploy":
+        sub = sys.argv[2] if len(sys.argv) > 2 else "website"
+        if sub == "website":
+            deploy_website()
+        elif sub == "file":
+            deploy_file(sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else None)
+        elif sub == "route":
+            deploy_route(sys.argv[3], sys.argv[4])
+    
+    elif cmd == "run":
+        arg = sys.argv[2]
+        if arg == "--shell":
+            run_remote(shell_cmd=sys.argv[3])
+        else:
+            run_remote(script=arg)
+    
+    elif cmd == "build":
+        build_target(sys.argv[2] if len(sys.argv) > 2 else "gw")
+    
+    elif cmd == "status":
+        show_status()
+    
+    elif cmd == "routes":
+        show_routes()
+    
+    elif cmd == "test":
+        test_route(sys.argv[2])
+    
+    elif cmd == "ledger":
+        show_ledger(int(sys.argv[2]) if len(sys.argv) > 2 else 5)
+    
+    else:
+        print(f"Unknown command: {cmd}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
