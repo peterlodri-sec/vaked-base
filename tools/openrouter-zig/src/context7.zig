@@ -41,14 +41,16 @@ fn fetchJson(io: std.Io,comptime T: type, allocator: std.mem.Allocator, url: []c
 
 pub fn searchLibrary(io: std.Io,allocator: std.mem.Allocator, library_name: []const u8, query: []const u8) !models.SearchResponse {
     const api_key = try getApiKey();
-    const url = try std.fmt.allocPrint(allocator, "https://context7.com/api/v2/libs/search?libraryName={s}&query={s}", .{ library_name, query });
+        const endpoint = if (getenv("CONTEXT7_ENDPOINT")) |ep| std.mem.span(ep) else "https://context7.com/api/v2";
+    const url = try std.fmt.allocPrint(allocator, "{s}/libs/search?libraryName={s}&query={s}", .{ endpoint, library_name, query });
     defer allocator.free(url);
     return fetchJson(io, models.SearchResponse, allocator, url, api_key);
 }
 
 pub fn getContext(io: std.Io,allocator: std.mem.Allocator, library_id: []const u8, query: []const u8) !models.ContextResponse {
     const api_key = try getApiKey();
-    const url = try std.fmt.allocPrint(allocator, "https://context7.com/api/v2/context?libraryId={s}&query={s}&type=json", .{ library_id, query });
+        const endpoint = if (getenv("CONTEXT7_ENDPOINT")) |ep| std.mem.span(ep) else "https://context7.com/api/v2";
+    const url = try std.fmt.allocPrint(allocator, "{s}/context?libraryId={s}&query={s}&type=json", .{ endpoint, library_id, query });
     defer allocator.free(url);
     return fetchJson(io, models.ContextResponse, allocator, url, api_key);
 }
