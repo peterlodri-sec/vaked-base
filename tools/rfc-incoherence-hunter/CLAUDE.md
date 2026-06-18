@@ -50,7 +50,7 @@ The three specialist dimensions (protocol correctness, kernel behavior, formal s
 
 - Default model: `openrouter/google/gemini-2.5-flash` via `AI_MODEL` env.
 - The entry reasoner accepts an optional `model` parameter. When present, it propagates to all child reasoners via `app.call(..., model=model)`. Use `openrouter/anthropic/claude-3-5-sonnet-20241022` for deeper analysis.
-- Provider keys: `OPENROUTER_API_KEY` (default), `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`.
+- Provider: **OpenRouter only** (`OPENROUTER_API_KEY`). The swarm defaults to OpenRouter for all LLM calls.
 
 ## Runtime contract
 
@@ -62,7 +62,7 @@ The three specialist dimensions (protocol correctness, kernel behavior, formal s
 ## Delivery contract — every change must preserve
 
 - A runnable `docker compose up --build` (validate with `docker compose config`)
-- A valid `.env.example` listing `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `VAKED_REPO_PATH`
+- A valid `.env.example` listing `OPENROUTER_API_KEY`, `VAKED_REPO_PATH`
 - The async smoke test in README.md using `POST /api/v1/execute/async/...` + polling
 - This `CLAUDE.md`
 

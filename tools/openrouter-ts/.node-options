@@ -1,0 +1,37 @@
+# ═══════════════════════════════════════════════════════════════
+# Node.js Runtime Flags for @vaked/openrouter-ts
+# Source: export $(cat .node-options | tr '\n' ' ')
+# ═══════════════════════════════════════════════════════════════
+
+# ── Heap ──────────────────────────────────────────────────────
+# Initial old space (reduces early GC pauses)
+# --initial-old-space-size=2048
+# Max old space: 4GB default, 8GB for Claude 200k context
+NODE_OPTIONS=--max-old-space-size=4096
+
+# ── GC ────────────────────────────────────────────────────────
+# Expose gc() for manual control
+NODE_OPTIONS=--expose-gc ${NODE_OPTIONS}
+# Scavenge semi-space (new space): 16MB (smaller = faster minor GC, default 16)
+# --max-semi-space-size=16
+# Concurrent marking: on by default in Node 22 (speeds up major GC)
+# --concurrent-marking
+
+# ── Source maps ───────────────────────────────────────────────
+NODE_OPTIONS=--enable-source-maps ${NODE_OPTIONS}
+
+# ── V8 TurboFast API ──────────────────────────────────────────
+# Faster calls for builtin functions (Node 22+)
+NODE_OPTIONS=--turbo-fast-api-calls ${NODE_OPTIONS}
+
+# ── I/O ───────────────────────────────────────────────────────
+# Use io_uring on Linux 5.1+
+# UV_USE_IO_URING=1
+# Thread pool size (default: 4, tune for many concurrent fetches)
+# UV_THREADPOOL_SIZE=8
+
+# ── Production hardening ──────────────────────────────────────
+# Crash on unhandled rejections (don't silently swallow)
+# --unhandled-rejections=strict
+# Disable prototype mutation for security
+# --frozen-intrinsics

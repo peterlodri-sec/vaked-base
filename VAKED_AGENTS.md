@@ -8,6 +8,28 @@ Index of the automated agents that run *on* this repo. Two archetypes:
   triggered, MCP tools, guardrails, prebuilt rolling release. Prototype:
   **pr-review**.
 
+## LLM Provider — OpenRouter (swarm default)
+
+**OpenRouter is the default LLM provider for every agent in this fleet.**
+All agents route through `https://openrouter.ai` with `OPENROUTER_API_KEY`.
+New agents must use OpenRouter as their default; direct provider access
+requires explicit justification. See `CLAUDE.md` for migration guide.
+
+### SDK per language
+
+| Language | SDK | Agent pattern |
+|----------|-----|---------------|
+| TypeScript | `@openrouter/agent` + `@vaked/openrouter-ts` | `createVakedAgent()` — Context7 auto-wired |
+| Rust | `adk-rust` (features: `openrouter`, `mcp`) | `LlmAgentBuilder` → `Runner` |
+| Python (fallback) | `urllib.request` → OpenRouter HTTP API | stdlib-only cron loops (`ralph`) |
+| Go | Eino OpenRouter chat-model component | `tools/optitron/` |
+
+---
+
+**Full SDK documentation:** [`docs/agents/openrouter-agent-sdk.md`](docs/agents/openrouter-agent-sdk.md)
+
+---
+
 Shared conventions: all credentials live in the **`ci` GitHub Environment**
 (`environment: ci`); agents **guard on secrets** and no-op cleanly when unset; they
 are **advisory / never block** a merge; failures route to **Telegram**; LLM-driven
@@ -15,6 +37,13 @@ runs trace to **Langfuse**. New agents follow design→plan→implement (`CLAUDE
 **CI details:** [`docs/agents/ci.md`](docs/agents/ci.md). **Fleet backlog:**
 [`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md). **Self-hosted runners
 (opt-in):** [`docs/agents/self-hosted-runners.md`](docs/agents/self-hosted-runners.md).
+
+## Surfaces
+
+| Surface | Kind | Purpose |
+|---------|------|---------|
+| **`vaked` TUI** | Terminal agent | Primary coding interface — chat, Context7, file context, CI mode. Works over SSH, in tmux, anywhere. ([`tools/vaked-tui/`](tools/vaked-tui/)) |
+| **Vaked IDE** | GUI | Visual graph editor for `.vaked` declaration files. Monaco + React + Tauri. ([`ide/vaked-ide/`](ide/vaked-ide/)) |
 
 ## Active agents
 

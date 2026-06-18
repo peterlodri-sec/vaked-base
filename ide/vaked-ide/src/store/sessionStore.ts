@@ -1,3 +1,5 @@
+"use strict";
+
 import { create } from "zustand";
 import type { Session, SessionKind, SessionMessage, AgentRole, GatewayRoute } from "@/types/session";
 
@@ -32,9 +34,9 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
       kind,
       label,
       messages: [],
-      activeAgents: kind === "human" ? ["user", "claude"] :
+      activeAgents: kind === "human" ? ["user", "openrouter"] :
                     kind === "a2a"   ? ["a2a-peer"] :
-                                       ["user", "claude"],
+                                       ["user", "openrouter"],
       createdAt: Date.now(),
     };
     const sessions = new Map(get().sessions);
