@@ -148,96 +148,25 @@ SLASH COMMANDS
     if (trimmed.startsWith("/")) {
       const [cmd, ...rest] = trimmed.split(/\s+/);
       const arg = rest.join(" ");
-      switch (cmd) {
-        case "/help":
-          console.log(`\n\x1b[1mCommands:\x1b[0m`);
-          console.log(`  \x1b[36m/add <path>\x1b[0m     Add files to chat context`);
-          console.log(`  \x1b[36m/drop <path>\x1b[0m    Remove files`);
-          console.log(`  \x1b[36m/model <name>\x1b[0m   Switch model (auto, deepseek, claude, gemini)`);
-          console.log(`  \x1b[36m/code\x1b[0m           Architect mode — code generation`);
-          console.log(`  \x1b[36m/ask\x1b[0m            Chat mode — questions`);
-          console.log(`  \x1b[36m/context7\x1b[0m       Toggle Context7 pre-scan`);
-          console.log(`  \x1b[36m/clear\x1b[0m          Clear chat`);
-          console.log(`  \x1b[36m/tokens\x1b[0m         Token usage`);
-          console.log(`  \x1b[36m/budget\x1b[0m         Budget`);
-          console.log(`  \x1b[36m/diff\x1b[0m           Show context files`);
-          console.log(`  \x1b[36m/undo\x1b[0m           Remove last message`);
-          console.log(`  \x1b[36m/stream\x1b[0m         Toggle streaming`);
-          console.log(`  \x1b[36m/quit\x1b[0m           Exit\n`);
-          break;
-        case "/add":
-          if (arg && existsSync(arg)) {
-            state.files.push({ path: arg, size: statSync(arg).size, addedAt: Date.now() });
-            const kb = (statSync(arg).size / 1024).toFixed(1);
-            console.log(`  \x1b[90mAdded\x1b[0m \x1b[33m${arg}\x1b[0m \x1b[90m(${kb}KB) · ${state.files.length} files in chat\x1b[0m`);
-          } else if (arg) {
-            console.log(`  \x1b[31mNot found:\x1b[0m ${arg}`);
-          } else {
-            console.log(`  \x1b[90mUsage: /add <file>\x1b[0m`);
-          }
-          break;
-        case "/drop":
-          if (arg) {
-            const before = state.files.length;
-            state.files = state.files.filter((f) => f.path !== arg);
-            if (state.files.length < before) console.log(`  \x1b[90mDropped\x1b[0m ${arg}`);
-            else console.log(`  \x1b[90mNot in chat:\x1b[0m ${arg}`);
-          }
-          break;
-        case "/model":
-          if (arg === "auto") {
-            state.model = "auto";
-            console.log(`  \x1b[90mModel:\x1b[0m auto-routing \x1b[90m(code→claude, explain→deepseek, creative→gemini)\x1b[0m`);
-          } else if (arg && MODELS[arg]) {
-            state.model = arg;
-            console.log(`  \x1b[90mModel:\x1b[0m ${MODELS[arg]?.label} \x1b[90m(${MODELS[arg]?.id})\x1b[0m`);
-          } else {
-            console.log(`  \x1b[90mAvailable: auto, ${Object.keys(MODELS).join(", ")}\x1b[0m`);
-          }
-          break;
-        case "/code": state.model = "claude"; console.log(`  \x1b[90mCode mode — Claude Opus\x1b[0m`); break;
-        case "/ask": state.model = "deepseek"; console.log(`  \x1b[90mChat mode — DeepSeek V4\x1b[0m`); break;
-        case "/context7":
-          state.context7 = !state.context7;
-          console.log(`  \x1b[90mContext7:\x1b[0m ${state.context7 ? "ON" : "OFF"}`);
-          break;
-        case "/clear":
-          state.files = [];
-          state.history = [];
-          state.totalTokens = 0;
-          state.messageCount = 0;
-          console.log(`  \x1b[90mChat cleared.\x1b[0m`);
-          break;
-        case "/tokens":
-          console.log(`  \x1b[90m${state.totalTokens} tokens · ${state.messageCount} messages · ~${(state.totalTokens / state.messageCount || 0).toFixed(0)} tok/msg\x1b[0m`);
-          break;
-        case "/budget":
-          console.log(`  \x1b[90m${formatBudget(readBudget())}\x1b[0m`);
-          break;
-        case "/diff":
-          if (state.files.length === 0) console.log(`  \x1b[90mNo files in chat. Use /add <file>.\x1b[0m`);
-          else state.files.forEach((f) => console.log(`  \x1b[33m${f.path}\x1b[0m \x1b[90m(${(f.size / 1024).toFixed(1)}KB)\x1b[0m`));
-          break;
-        case "/undo":
-          if (state.history.length > 0) {
-            state.history.pop();
-            state.messageCount = Math.max(0, state.messageCount - 1);
-            console.log(`  \x1b[90mLast message undone.\x1b[0m`);
-          }
-          break;
-        case "/stream":
-          state.stream = !state.stream;
-          console.log(`  \x1b[90mStreaming:\x1b[0m ${state.stream ? "ON" : "OFF"}`);
-          break;
-        case "/quit": case "/exit":
-          state.running = false;
-          rl.close();
-          console.log(`\n\x1b[90mIn his honor — Aider.\x1b[0m\n`);
-          return;
-        default:
-          console.log(`  \x1b[90mUnknown: ${cmd}. /help\x1b[0m`);
-          break;
-      }
+      const commands: Record<string, (arg: string) => void> = {
+    "/help": () => { console.log("\n/help /add /drop /model /code /ask /context7 /clear /tokens /budget /diff /undo /stream /quit\n"); },
+    "/add": (arg) => { if (arg && existsSync(arg)) { state.files.push({ path: arg, size: statSync(arg).size, addedAt: Date.now() }); console.log("  Added " + arg + " (" + state.files.length + " files)"); } },
+    "/drop": (arg) => { state.files = state.files.filter(f => f.path !== arg); },
+    "/model": (arg) => { state.model = arg === "auto" ? "auto" : (MODELS[arg] ? arg : state.model); console.log("  model: " + state.model); },
+    "/code": () => { state.model = "claude"; },
+    "/ask": () => { state.model = "deepseek"; },
+    "/context7": () => { state.context7 = !state.context7; },
+    "/clear": () => { state.files = []; state.history = []; state.totalTokens = 0; },
+    "/tokens": () => { console.log("  " + state.totalTokens + " tokens"); },
+    "/budget": () => { console.log("  " + formatBudget(readBudget())); },
+    "/diff": () => { state.files.forEach(f => console.log("  " + f.path)); },
+    "/undo": () => { if (state.history.length) { state.history.pop(); } },
+    "/stream": () => { state.stream = !state.stream; },
+    "/quit": () => { state.running = false; rl.close(); },
+    "/exit": () => { state.running = false; rl.close(); },
+  };
+  const handler = commands[cmd];
+  if (handler) { handler(arg); } else { console.log("  ? " + cmd); }
       return;
     }
     let prompt = trimmed;
@@ -254,6 +183,7 @@ SLASH COMMANDS
       process.stdout.write(`\n\x1b[1;36m${modelLabel}\x1b[0m `);
       if (state.stream) {
         let charCount = 0;
+        if (state.context7) process.stdout.write("\x1b[32m[Pre-Scan]\x1b[0m " + effectiveModel.split("/").pop() + "\\n");
         for await (const chunk of agent.streamChat(prompt, effectiveModel)) {
           process.stdout.write(chunk);
           charCount += chunk.length;
