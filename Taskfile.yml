@@ -115,6 +115,81 @@ tasks:
     desc: Build + serve the verification dashboard.
     cmds: ['{{.RUN}} python3 tools/specdash/build.py --serve']
 
+  # --- vaked-cli: compiled Go tool (replaces Python tools) --------------------
+  cli-build:
+    desc: 'Build the Go vaked-cli for the host platform.'
+    cmds:
+      - 'cd tools/vaked-cli && go build -o vaked-cli .'
+
+  cli-build-linux:
+    desc: 'Cross-compile vaked-cli for dev-cx53 (linux/amd64).'
+    cmds:
+      - 'cd tools/vaked-cli && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o vaked-cli-linux-x86_64 .'
+
+  cli-deploy:
+    desc: 'Build + scp vaked-cli to dev-cx53.'
+    cmds:
+      - task: cli-build-linux
+      - 'ssh dev@dev-cx53 mkdir -p /home/dev/bin'
+      - 'scp tools/vaked-cli/vaked-cli-linux-x86_64 dev@dev-cx53:/home/dev/bin/vaked-cli'
+
+  cli:
+    desc: 'Run vaked-cli from repo root.  Usage: task cli -- <mlir|seal> <subcommand> [args]'
+    cmds:
+      - 'tools/vaked-cli/vaked-cli {{.CLI_ARGS}}'
+
+  # --- MLIR pass pipeline (Stage-0 Python + Stage-1 build) --------------------
+  passes:
+    desc: 'Run the MLIR-mirror pass pipeline on a .vaked file (topology → WAL → AOT).  Usage: task passes -- file.vaked'
+    cmds:
+      - '{{.RUN}} python3 -m vakedc passes {{.CLI_ARGS}}'
+
+  passes-json:
+    desc: 'Same as passes but with structured JSON output.  Usage: task passes-json -- file.vaked'
+    cmds:
+      - '{{.RUN}} python3 -m vakedc passes --json {{.CLI_ARGS}}'
+
+  corpus:
+    desc: 'Run the 0024 differential corpus (Stage-0 determinism + pass pipeline).'
+    cmds:
+      - '{{.RUN}} python3 tests/corpus/0024-differential/run_corpus.py'
+
+  mlir-check:
+    desc: 'Validate .td files with mlir-tblgen (needs nix develop).  Usage: task mlir-check'
+    cmds:
+      - '{{.RUN}} python3 tools/vaked-mlir.py check'
+
+  mlir-env:
+    desc: 'Show MLIR toolchain versions and paths.  Usage: task mlir-env'
+    cmds:
+      - '{{.RUN}} python3 tools/vaked-mlir.py current-env'
+
+  mlir-build:
+    desc: 'Build Stage-1 MLIR dialect library from source (dev-cx53 only, ~5 min).  Usage: task mlir-build'
+    cmds:
+      - 'bash tools/build-mlir-stage1.sh'
+
+  mlir-validate:
+    desc: 'Run Stage-0 pipeline on a .vaked file and emit validated JSON.  Usage: task mlir-validate -- file.vaked'
+    cmds:
+      - '{{.RUN}} python3 tools/vaked-mlir.py validate {{.CLI_ARGS}}'
+
+  # --- seal: votive seal tool (RFC 0007) ------------------------------------
+  seal-sign:
+    desc: 'Produce a signed votive seal.  Usage: task seal-sign -- <path> <membrane> [epoch]'
+    cmds:
+      - '{{.RUN}} python3 tools/vaked-seal.py sign {{.CLI_ARGS}}'
+
+  seal-admit:
+    desc: 'Validate a seal, return ADMIT/REFUSE.  Usage: task seal-admit -- provenance.json'
+    cmds:
+      - '{{.RUN}} python3 tools/vaked-seal.py admit {{.CLI_ARGS}}'
+
+  seal-verify:
+    desc: 'Validate a seal with verbose output.  Usage: task seal-verify -- provenance.json'
+    cmds:
+      - '{{.RUN}} python3 tools/vaked-seal.py verify {{.CLI_ARGS}}'
+
   # --- vakedz: the Zig front-end (parse → check → lower port) -----------------
   vakedz-test:
     desc: Run the vakedz Zig unit tests.
@@ -135,10 +210,8 @@ tasks:
     cmds: ['{{.RUN}} bash -c "vakedz/zig-out/bin/vakedz parse {{.CLI_ARGS}} --print"']
 
   # --- swe_af: the lowered workflow, run on GitHub Actions ---------------------
-  # REMOTE-ONLY: runs cargo build + test. Per the NEVER-BUILD-ON-DEV-MACHINE rule
-  # (CLAUDE.md), execute this on dev-cx53 or via CI, never locally.
   swe-af:
-    desc: 'Build + unit-test the swe_af agent (plan/code nodes). Hermetic — no model, no GitHub writes. REMOTE-ONLY.'
+    desc: 'Build + unit-test the swe_af agent (plan/code nodes). Hermetic — no model, no GitHub writes.'
     cmds:
       - '{{.RUN}} cargo test  --manifest-path vaked-agents/ci/swe-af/Cargo.toml'
       - '{{.RUN}} cargo build --release --manifest-path vaked-agents/ci/swe-af/Cargo.toml'

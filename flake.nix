@@ -34,18 +34,43 @@
             jq
             just
             d2                    # images as code — render docs/assets/diagrams/src/*.d2 → *.svg
+            llvmPackages_latest.mlir  # MLIR stage-1: vaked + hcp dialect TableGen compilation
           ];
           shellHook = ''
             echo "vaked-base · Vaked declares · Nix materializes · OTP supervises · Zig enforces · eBPF testifies · CrabCC indexes · Surfaces reveal"
             echo "crabcc: $(command -v crabcc >/dev/null 2>&1 && crabcc --version || echo 'not installed — see CLAUDE.md patch-doctor')"
+            echo "mlir:    $(command -v mlir-tblgen >/dev/null 2>&1 && mlir-tblgen --version 2>&1 || echo 'not in PATH — run nix develop .')"
           '';
         };
-      });
+      }) // {
+        # ── vaked-mobile M3 local dev shell ───────────────────────────────────────
+        "aarch64-darwin".vaked-mobile = let pkgs = import nixpkgs { system = "aarch64-darwin"; }; in {
+          buildInputs = with pkgs; [ zig rustc cargo ];
+          shellHook = ''
+            echo "🍏 [M3 LOCAL] vaked-mobile toolchain verified — Zig $(zig version) · Rust $(rustc --version | cut -d' ' -f2)"
+          '';
+        };
+      };
 
       formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
 
       # Packages: buildable Nix derivations from this flake.
       packages = forAllSystems (pkgs: {
+        # vaked-mlir — MLIR Stage-1 dialect library (vaked + hcp). Reproducible
+        # TableGen → C++ build using pre-built MLIR from nixpkgs.
+        #   nix build .#vaked-mlir  →  result/lib/libVakedMLIRDialects.a
+        vaked-mlir = pkgs.callPackage ./nix/vaked-mlir.nix {
+          stdenv = pkgs.gccStdenv;
+          fetchFromGitHub = pkgs.fetchFromGitHub;
+        };
+
+        # vaked-cli — compiled Go CLI for Vaked development (mlir, seal, proxy).
+        #   nix build .#vaked-cli  →  result/bin/vaked-cli
+        vaked-cli = pkgs.callPackage ./nix/vaked-cli.nix {
+          go = pkgs.go;
+          stdenv = pkgs.gccStdenv;
+        };
+
         # vaked-telebot — the interactive Telegram control surface, as a Nix package
         # (python3 + the repo's stdlib-only tools/eventd subtree; tiny closure).
         #   nix build .#vaked-telebot  →  result/bin/vaked-telebot
@@ -230,11 +255,3 @@
       };
     };
 }
-
-  # ── vaked-mobile M3 local dev shell ───────────────────────────────────────
-  devShells."aarch64-darwin".vaked-mobile = {
-    buildInputs = with pkgs; [ zig rustc cargo ];
-    shellHook = ''
-      echo "🍏 [M3 LOCAL] vaked-mobile toolchain verified — Zig $(zig version) · Rust $(rustc --version | cut -d' ' -f2)"
-    '';
-  };

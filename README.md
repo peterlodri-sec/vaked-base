@@ -1,256 +1,195 @@
-<p align="center">
-  <h1 align="center">✦ vaked-base</h1>
-  <b>Capability-graph language and deterministic runtime for autonomous agent swarms —<br>where honesty is externally verified, anchored, and published — failures included.</b><br><br>
-  <a href="https://vaked.dev"><code>vaked.dev</code></a> ·
-  <a href="https://vaked-lang.org"><code>vaked-lang.org</code></a> ·
-  <a href="https://constellation.vaked.dev"><code>constellation.vaked.dev</code></a><br>
-  <code>Vaked declares · Nix materializes · OTP supervises · Zig enforces · eBPF testifies · CrabCC indexes · Surfaces reveal</code>
-</p>
+# vaked-base
 
-<p align="center">
-  <img alt="genesis" src="https://img.shields.io/badge/genesis-7c242080-ff8c42">
-  <img alt="grammar" src="https://img.shields.io/badge/grammar-v0.5%20·%2032%20kinds-3060ff">
-  <img alt="honesty gate" src="https://img.shields.io/badge/honesty--gate-external%20·%20failable-2ecc71">
-  <img alt="anchor" src="https://img.shields.io/badge/seal-DNS--published%20·%20tag--signed%20(CI%20residual)-8060c0">
-  <img alt="license" src="https://img.shields.io/badge/oss-MIT-blue">
-</p>
+**The foundation monorepo for the Vaked agentic-runtime ecosystem.**
 
-<p align="center">
-  <a href="https://constellation.vaked.dev/">⬡ Constellation</a> ·
-  <a href="https://constellation.vaked.dev/radio">◉ Radio</a> ·
-  <a href="https://constellation.vaked.dev/wisdom">✦ Wisdom</a> ·
-  <a href="https://constellation.vaked.dev/status">◇ Status</a> ·
-  <a href="https://constellation.vaked.dev/reflect">🔍 Reflect</a> ·
-  <a href="https://constellation.vaked.dev/nav">⬡ All</a>
-</p>
+> Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies. CrabCC indexes. Surfaces reveal.
 
-<hr>
+## 📰 Recent news
 
-**Genesis Seal:** <code>7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf</code>
-(published in DNS TXT at `vaked-genesis-seal.vaked.dev` — verified. Tamper-with-reseal anchor: GPG-signed `seals-anchor-*` tags exist on origin and verify locally with the maintainer key; **CI enforcement is not yet wired** (`fetch-tags` + maintainer-key import), so a fresh checkout reports the manifest *unanchored*; it becomes enforced once `honesty-gate.yml` adds those steps. See `the-honest-swarm-researcher/REPAIR_AUDIT.json`.)
+**2026-06-13 — `swe_af` runs for real.** The lowered `workflow swe_af`
+(`agentfield-swe.vaked` → `gen/workflow/swe_af.json`) is now executable: label an
+issue `agent` and a GitHub-Actions pipeline runs `plan → code → review → publish`,
+opening an advisory PR with every node testified to an [`eventd`](eventd) hash chain.
+POLA is preserved end-to-end — the [`swe-af`](vaked-agents/ci/swe-af/README.md) agent
+authors plan + code read-only (no GitHub token), and only the broker step writes
+(`gh pr create`). The intended `dev-cx53` control-panel deploy is a follow-up runbook;
+the GHA path is what's reachable and live. Design:
+[`docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md`](docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md).
 
----
+**2026-06-13 — the first end-to-end vertical slice landed ([#107](https://github.com/peterlodri-sec/vaked-base/pull/107)), one-shot by an agent.** A `network` egress membrane now goes declare → lower → load real eBPF → enforce → testify → verify. From the [PR disclaimer](https://github.com/peterlodri-sec/vaked-base/pull/107#issuecomment-4699358410):
 
-## ✦ The idea in one line
+> New **CI-triggered** and **cron-triggered** agents now run inside GitHub Actions on this repo, and a **self-hosted control plane on `crabcc.app`** is starting to get plugged into the same loop. […] Most of this work was one-shot […] by **Claude Code** […]. Where the sandbox kernel refused the cgroup-BPF attach, the daemon reports it and falls back to the reference datapath rather than faking in-kernel enforcement.
 
-Most systems **assert** trust. Vaked **measures** it — and when its own instrumentation
-once lied, the swarm caught itself, published the catch, and built a gate that turns red
-on a falsehood. *The self cannot see itself; the verifier must live outside the verified,
-and it must be able to fail.*
+Peter's footnotes:
 
-## 🕸 System at a glance
+> _I asked for one vertical slice and got a kernel-eBPF spelunking expedition with a tamper-evident audit log — overdelivery is a hell of a drug._ (Peter)
 
-```mermaid
-flowchart LR
-  V["✦ Vaked<br/>capability graph"] -->|compile / lower| A["artifacts<br/>flake.nix · Zig · eBPF · OTel"]
-  A --> N["Nix<br/>materialize"]
-  N --> O["OTP<br/>supervise"]
-  O --> Z["Zig<br/>enforce (POLA)"]
-  Z --> E["eBPF testify<br/>eventd · hash chain"]
-  E --> S["Surfaces<br/>constellation · reflect"]
-  E -. seal .-> H{{"honesty-gate<br/>external · failable"}}
-  H -. anchor .-> G[("GPG-signed tag<br/>+ DNS TXT")]
-  S -. reads .-> R["Research & RFCs<br/>paper · 9 notes · 0001–0009"]
-  classDef hot fill:#1a1410,stroke:#ff8c42,color:#ffb380;
-  classDef ok fill:#0e1a12,stroke:#2ecc71,color:#7fe0a8;
-  class H,G hot; class E ok;
+> _The CI bots now peer-review each other while I supply the coffee and the occasional existential dread._ (Peter)
+
+> _We declared a membrane, Nix materialized absolutely nothing yet, and it still passed CI — ship it._ (Peter)
+
+Vaked is a flake-native **capability-graph language** for agentic, native, mesh-aware, parallel systems. It describes reproducible agent systems — runtime membranes, capability graphs, indexes, fibers, native surfaces, and mesh/device interactions — and compiles into ordinary Nix flakes, NixOS modules, Zig daemon configs, eBPF policy manifests, OpenTelemetry config, generated docs, and CrabCC indexes.
+
+```text
+Vaked source → typed semantic graph → generated artifacts
+  ├── flake.nix / NixOS modules        (Nix materializes)
+  ├── Zig daemon configs               (Zig enforces)
+  ├── eBPF policy manifests            (eBPF testifies)
+  ├── OTel collector config
+  ├── CrabCC indexes / catalogs        (CrabCC indexes)
+  └── docs
+→ NixOS host → OTP supervision plane → Zig enforcement daemons → eBPF evidence → operator surfaces
 ```
 
-## 🧭 Research & Mastery Index
+## Repository map
 
-> The thinking is the product. Everything here is grounded, cited, and — where it's a
-> claim about the running system — externally verifiable.
+| Path | Status | What lives here |
+|------|--------|-----------------|
+| `vaked/` | **language** | The Vaked language itself — `grammar/` (EBNF), `schema/`, `examples/` |
+| `vakedc/` | **language** | `vakedc` — the prototype front-end: lexer + parser → Labeled Property Graph + type checker (0011 stages 1–4) + lowering (0012). Pipeline **parse → check → lower**: `python3 -m vakedc parse <file>`; `python3 -m vakedc check <file> [--json]`; `python3 -m vakedc lower <file> [--out DIR]` (checks first; refuses to emit on any diagnostic; writes `flake.nix`, `gen/…`, `provenance.json`) |
+| `docs/language/` | **language** | Design series (`0001`-manifesto … `0008`-parallelism … `0010`-mirageos) + `references/` |
+| `docs/context/` | **context** | `PROJECT_CONTEXT.md` — the canonical overview |
+| `prompts/` | **context** | `dedicated-language-session.md` — kickoff prompt for the language-only session |
+| `daemons/` | **runtime** (stub) | Roster of the OTP + Zig runtime daemons; per-daemon dirs land later |
+| `eventd/` | **runtime** | Python reference impl of the append-only, hash-chained event log (the audit spine) |
+| `agent_guardd/` | **runtime** | Python reference impl of `agent-guardd` — the `network`/`ebpf` membrane. Closes the first **end-to-end vertical slice**; see [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md) |
+| `docs/runtime/` | **runtime** (stub) | Runtime architecture + daemon responsibilities |
+| `protocol/` | **protocol** (stub) | HCP / Litany wire protocol — `rfcs/`, daemon + tool roster |
+| `docs/protocol/` | **protocol** (stub) | HCP / Litany overview |
+| `vaked-agents/` | **agents** | The Vaked agent fleet — `ci/pr-review` (advisory CI reviewer); roadmap in [`vaked-agents/BACKLOG.md`](vaked-agents/BACKLOG.md). Fleet index: [`VAKED_AGENTS.md`](VAKED_AGENTS.md) |
+| `tools/ralph/` | **tooling** | `ralph` — autonomous per-model decision loop over Vaked concept tracks (see [`tools/ralph/README.md`](tools/ralph/README.md)) |
+| `hosts/` | infra | `vakedos` — the bare-metal NixOS **materialization target** (Vultr EPYC 4345P). Deploy guide: [`DEPLOY.md`](DEPLOY.md) |
+| `flake.nix` | infra | Dev shell (Zig, BEAM/OTP, Rust-to-build-CrabCC, tooling) + `nixosConfigurations.vakedos` |
+| `.mcp.json` | infra | Project MCP servers (github, context7, repowise, workspace-fs, playwright) |
+| `.claude/skills/` | infra | Project skills: `vaked-language-author`, `hcp-rfc-author` |
+| `docs/wiki/` | **docs** | [Minimal project wiki](docs/wiki/Home.md) — about, architecture, getting started |
+| `vakedc/passes/` | **compiler** | **MLIR-mirror pass pipeline** — Stage-0 Python reference for the planned MLIR topology compilation. Pass 1 (topology analysis: cycle + depth + bound), Pass 2 (WAL injection per RFC 0004 §3.1), Pass 3 (AOT supervisor index gen). CLI: `python3 -m vakedc passes file.vaked --json` |
+| `vakedc/mlir/` | **compiler** | **Stage-1 MLIR dialect definitions** — TableGen `.td` specs + C++ registration for the `vaked` and `hcp` MLIR dialects. Build: `bash tools/build-mlir-stage1.sh` (generates .inc files from LLVM/MLIR source). See `docs/context/DEV_GUIDE.md` |
+| `docs/context/DEV_GUIDE.md` | **docs** | **Developer guide** for the compiler/MLIR layer — grammar, vakedc pipeline, pass pipeline, Stage-1 MLIR build, test corpus, contribution workflow |
+| `tools/build-mlir-stage1.sh` | **tooling** | Zero-dep build script: fetches LLVM 19, builds mlir-tblgen, runs TableGen on dialect specs. Supports NixOS (`nix-shell`) and apt-based systems |
+| `tools/vaked-mlir.py` | **tooling** | MLIR dev tool: `check` (validate .td files), `current-env` (versions), `build` (nix build), `sync <host>` (scp + remote build) |
 
-**📄 Paper** — [`paper/`](paper/) · *Vaked Genesis 2026* (IEEE, 7 sections, 14 citations, dual peer review) → [PDF](https://vaked.dev/research/vaked_genesis_2026.pdf)
+## Developer Notes
 
-**🔬 Research notes** — [`docs/research/`](docs/research/)
-- [Capability attenuation in multi-agent LLMs](docs/research/2026-06-14-capability-attenuation-multi-agent-llm.md) — attenuation as a *partial order*
-- [Prior art: durable runtimes & capability graphs](docs/research/2026-06-14-prior-art-durable-runtime-capability-graph.md)
-- [Multi-model author↔reviewer loops](docs/research/2026-06-14-multimodel-author-reviewer-loops.md)
-- [How Vaked works, layer by layer](docs/research/2026-06-14-how-vaked-works-layer-by-layer.md)
-- [**External anchoring vs tamper-with-reseal**](docs/research/2026-06-18-external-anchoring.md) — signed tags · Sigstore/Rekor · in-toto · TUF · SLSA *(14 cited sources)*
-- [On-chain vs transparency-log anchoring](docs/research/2026-06-18-onchain-vs-translog.md) — when Ethereum actually wins (rarely)
-- [Verifiable AI claims](docs/research/2026-06-18-verifiable-ai-claims.md) — integrity-of-record ≠ honesty-of-computation; TopLoc, ZKML, proof-of-inference
+> **This is a research and experimental project. Do not use in production.**
 
-**📐 Protocol RFCs** — [`protocol/rfcs/`](protocol/rfcs/) — HCP/Litany 0001–0009 (framing · transport · multi-agent state · control frames · PQ-sealed image · workflow lowering · AIL register lang · ARP) + v0.9 bio-inspired: [free-energy](protocol/rfcs/rfc-v0.9-free-energy-principle.md) · [quorum-sensing](protocol/rfcs/rfc-v0.9-quorum-sensing.md) · [Maxwell's demon](protocol/rfcs/rfc-v0.9-maxwell-demon.md) · [stigmergy](protocol/rfcs/rfc-v0.9-stigmergy.md)
+**Latest development:** This codebase is actively developed by a distributed team. Latest commits may not be from the repository owner (@peterlodri-sec); pull requests and contributions are welcomed. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and the [recruitment issue](https://github.com/peterlodri-sec/vaked-base/issues/141) (WP3 + WP4 engineers, June 24 start).
 
-**🗣️ Language design series** — [`docs/language/`](docs/language/) — 29 design docs (`0001…0028`)
+- **Bare-metal target only.** Vaked deploys to a bare-metal NixOS host. See [`DEPLOY.md`](DEPLOY.md) for hardware requirements and the deployment procedure.
+- **No conventional OS support.** Vaked cannot be installed on macOS, standard Linux distributions, Windows, or WSL. The runtime requires direct kernel and eBPF access available only on a properly provisioned NixOS host.
+- **Project scope.** This project encompasses three interrelated tracks: a capability-graph language (Vaked), a purpose-built operating system (vakedos — NixOS + OTP + Zig + eBPF), and a set of reference designs (daemons, wire protocol, agent fleet, tooling). They are designed as a cohesive whole; components are not independently installable.
+- **No stability guarantees.** The language grammar, type system, compiler IR, and wire protocol are under active design. Breaking changes happen without notice.
+- **Prototype compiler.** `vakedc` is a design-stage prototype. It may refuse valid programs, change its output format, or emit incorrect artifacts at any time.
+- **Runtime is a stub.** The OTP supervision plane, Zig daemons, and eBPF policy layer are indexed stubs. Nothing deploys end-to-end yet beyond the dev shell and language tooling.
+- **Nix is required.** The dev shell requires Nix with flakes enabled. The runtime target requires NixOS. There is no non-Nix install path.
+- **eBPF kernel requirements.** eBPF policy enforcement requires a Linux kernel with BTF and CO-RE support (≥ 5.15). This is satisfied by the vakedos config but must be verified on any other host.
+- **No package-manager install.** There is no `pip install`, `cargo install`, or `npm install` path. All tooling is consumed through `nix develop`.
+- **Unsupported / research-only.** This is a personal research project with no SLA, support channels, or stability commitments.
 
-**✍️ Essays & deep-dives** — [`blog/posts/`](blog/posts/) — *The Mirror Can't See Itself* ([1](blog/posts/2026-06-18-mirror-part1-substrate-real.md)·[2](blog/posts/2026-06-18-mirror-part2-self-cannot-see-itself.md)·[3](blog/posts/2026-06-18-mirror-part3-gate-you-can-attack.md)) · [What I Learned Letting a Swarm Audit Itself](blog/posts/2026-06-18-what-i-learned-swarm-audit.md) · [Honest-Researcher whitepaper](blog/posts/2026-06-18-honest-researcher-whitepaper.md) · swarm-as-living-brain · bio-inspired mesh governance · thermodynamics of compute · stigmergy
+## Start here
 
-**🔎 Audit trail** — [`the-honest-swarm-researcher/`](the-honest-swarm-researcher/) (`REPAIR_AUDIT.json`, consensus report) · [`docs/reports/`](docs/reports/) (Ceremony #2 re-audit · *The Self Cannot See Itself*)
-
-## 💡 Conclusions worth keeping
-
-| Finding | One line | Where |
-|---------|----------|-------|
-| **The doc-honesty bug class** | machine-correct ≠ doc-honest; *deployed ≠ measured* — a system can be right and still lie in what it reports | `REPAIR_AUDIT.json` |
-| **The self cannot see itself** | you can't verify your own honesty from inside; the verifier must be external and *able to fail* | [Ceremony 2b](docs/reports/2026-06-18-ceremony2b-the-self-cannot-see-itself.md) |
-| **Anchor, don't self-sign** | a seal the author can rewrite proves nothing; bind it to a key/log they don't control | [external-anchoring](docs/research/2026-06-18-external-anchoring.md) |
-| **Capability = partial order** | attenuation composes as a lattice; POLA is enforced, not asked | [cap-attenuation](docs/research/2026-06-14-capability-attenuation-multi-agent-llm.md) |
-| **Integrity-of-record ≠ honesty-of-compute** | a hash chain proves a transcript wasn't altered, not that the claim is true | [verifiable-ai-claims](docs/research/2026-06-18-verifiable-ai-claims.md) |
-| **Route the tokens** | offload bulk to parallel cheap workers, keep only conclusions in the lead context | [what-i-learned](blog/posts/2026-06-18-what-i-learned-swarm-audit.md) |
-
-## 🔧 Technical
-
-**Language** — grammar v0.5, 32 kinds (`vaked/grammar/vaked-v0-plus.ebnf`): runtime, engine, host, network, filesystem, mcp, ebpf, budget, observability, runclass, workflow, index, catalog, stream, fiber, surface, mesh, device, mediaPipeline, parallel, schema, capability, service, secret, hostResource, ingress, container, memory, namespace, arp_event, **trust**, **quorum**, **probe**.
-
-**Compilers** — `vakedc` (Python, stages 1–4: lex·parse·check·lower) · `vakedz` (Zig 0.16: parse|check|lower|all|cache).
-
-**Runtime (L0–W stack)**
-
-| Layer | Service | Port | Role |
-|-------|---------|------|------|
-| L0 | `vaked-genesis` (genesisd/) | :4433 | bootstrap anchor, SRV discovery |
-| L2 | `meta-ralphd` | — | recursive observer, circuit breaker |
-| S | `synapsed` | :4434 | P2P gossip, Merkle delta, Ed25519 |
-| L3 | `sentinel` | — | trust scoring, truth-ping |
-| G | `gateway` (gw.zig) | :8081 | Zig-native, systemd |
-| M | `mnemosyne` | — | ancestry compactor |
-| W | `wise-node` | — | engram strategist |
-
-**Wire protocol** — HCP/Litany RFCs 0001–0009 · Capability-graph eBPF enforcement (`agent_guardd`) + append-only hash-chained ledger (`eventd`).
-
-## 🌐 Mesh
-
-6 nodes across 4 continents. *(IPs, exact cities, and PIDs are intentionally not published — node topology is not public data. Region + convergence only.)*
-
-| Node | Region | Convergence |
-|------|--------|-------------|
-| genesis | EU-North | — |
-| edge-02 | EU-Central | 136ms |
-| nbg1 | EU-Central | 125ms |
-| **par-01** | **EU-West** | **126ms** |
-| us-west | US-West | 720ms |
-| sin | APAC | 813ms |
-
-## 📡 Public surface
-
-`/` Constellation (force graph) · `/radio` Vaked-FM Pulse · `/wisdom` · `/status` · `/dogfeed` · `/bus` · `/nav` · `/reflect` · `/registry` · `/swarm-monologue` · `/rss` · `/donate` · `/monitor` · `/mesh.json`
-
-## 📂 Structure
-
-| Path | Purpose |
-|------|---------|
-| `vaked/` · `vakedc/` · `vakedz/` | language · Python front-end · Zig front-end |
-| `gateway/` · `synapsed/` · `genesisd/` · `meta-ralphd/` | runtime daemons |
-| `agent_guardd/` · `eventd/` | eBPF membrane · append-only ledger |
-| `protocol/` · `docs/` · `paper/` | RFCs · design + research + website · the paper |
-| `tools/` | orcli, zigfix, zigpush, wise, mnemosyne, librarian, **verify-seals.sh**, **reconcile-gate.py** |
-| `oss/honesty-gate/` | **the honesty gate, extracted & MIT-licensed** |
-| `vaked-agents/` | CI agent fleet (Rust) |
-| `flake.nix` | dev shell + NixOS configs |
-
-## 🐕 Agents
-
-`pr-review` · `ralph` (track loop) · `nocturne` (nightly GPU researcher) · `docs-keeper` · `merge-train` · `swe_af` (OpenRouter, advisory, owner-gated) · `provost` · `social-post` · `label-tagger` · `landing-guru` · `Ralph Auditor` (G01–G04 build gate).
-
-## 🔐 Governance
-
-- **Honesty gate** — external, *failable* verification: [`tools/verify-seals.sh`](tools/verify-seals.sh) (recompute SHA-256 vs an external manifest, exit 1 on tamper; coverage + GPG-signed-tag anchor) + [`tools/reconcile-gate.py`](tools/reconcile-gate.py) (derive-don't-assert: open anomaly ⇒ no `zero_divergence` claim), run in CI by [`honesty-gate.yml`](.github/workflows/honesty-gate.yml). *The verifier is not the verified.* Open-sourced (MIT) → [`oss/honesty-gate/`](oss/honesty-gate/).
-- **Graveyard** — permanent, append-only, never compacted.
-- **Oculus Ledger** — SHA-256 hash-chained, append-only.
-- **Ralph Auditor** — G01–G04 directives, Truth Threshold 2; blocks the build at 2+ critical drifts.
-- **Genesis Seal** — DNS TXT at `vaked-genesis-seal.vaked.dev` (verified). Signed-tag anchor *provisioned* (tags on origin, verify locally with the maintainer key); **live CI enforcement is residual** — `verify-seals.sh` prints "unanchored" until CI fetches tags + imports the key.
-
-## 📐 Conventions
-
-Grammar before code · protocol decisions live in RFCs · each subsystem gets design → plan → implementation · `nix develop` for toolchains · **no builds on the developer machine** (build target: `dev-cx53`) · agents are advisory and owner-gated; nothing auto-merges.
-
-## 🔗 Links
-
-[Swarm](https://constellation.vaked.dev) · [Radio](https://constellation.vaked.dev/radio) · [GitHub](https://github.com/peterlodri-sec/vaked-base) · [Paper](https://vaked.dev/research/vaked_genesis_2026.pdf)
-
-## 🦈 DYAD — The Vaked Agent SDK
-
-**DeepSeek** (coding agent) + **Gemini** (orchestrator) + **Peter** (human).
-35+ commits. 14 domains. 5/5 builds. 0 vulnerabilities.
-
-### Agent Fleet
-
-| Agent | Trigger | Runtime | Purpose |
-|-------|---------|---------|---------|
-| **optimizer** | PR opened/synchronize | Shell | Ultra-compresses all layers (5-10 rounds) |
-| **blogger** | Push to main (blog/**) | Shell | Publishes posts to vaked.dev |
-| **pr-review** | Pull request | adk-rust | Advisory diff review |
-| **ralph** | Cron 3h + 23:00 | Python | Decision loop |
-| **label-tagger** | Pull request | adk-rust | Auto-label PRs/issues |
-| **provost** | Issue comment | adk-rust | Multi-step automation |
-| **nocturne** | Cron nightly | Python + Vast.ai | GPU research |
-| **optitron** | Cron daily | Go/Eino | Optimization crawler |
-| **swe_af** | Issue label 'agent' | adk-rust | SWE agent field |
-
-### Daemon (openrouterd / Atlas)
-
-```
-Zig 0.16 · Raw sockets · seccomp (22 syscalls) · io_uring · mmap
-256MB BigArena · 256 subagent slots · 500 tool calls/slot
-PIE + stripped · Genesis seal verified · systemd 25 directives
+```text
+docs/context/PROJECT_CONTEXT.md
+docs/language/README.md
+docs/language/0008-parallel-fibers-indexes-surfaces.md
+prompts/dedicated-language-session.md
 ```
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Genesis seal + status |
-| `/models` | GET | 13-model catalog |
-| `/openapi.json` | GET | Unified OpenAPI spec (8 servers) |
-| `/` | POST | Chat completion (OpenRouter-compatible) |
-| `/rollback` | POST | Time-travel sandbox |
-| `/auto-patch` | POST | Compiler-feedback loop |
-| `/kill` | POST | Vast.ai killswitch |
+## Status
 
-### SDK Tools
+[![spec-tests](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml/badge.svg)](https://github.com/peterlodri-sec/vaked-base/actions/workflows/spec-tests.yml)
 
-| Tool | Domain | Description |
-|------|--------|-------------|
-| Conductor | Routing | 18 keyword → model self-selection |
-| Context7 | Docs | 19 library patterns, 2K token pre-scan inject |
-| Vast.ai | GPU | 6 tools — search, launch, status, destroy, SSH, serverless |
-| OpenBao | Secrets | Vault-first resolution, env fallback |
-| Cube | Semantic | Query measures + dimensions |
-| Memory | State | Event-sourced, deterministic, hash-chained |
-| Vaked Docs | Index | Own documentation index, Go binary, no rate limits |
-| Speculative RAG | AI | Race LLM vs docs, fastest wins |
+Verification dashboard: `python3 tools/specdash/build.py --serve`
 
-### Runtime Options
+**Latest:** ✅ MLIR pass pipeline (Stage-0 Python) shipped — 3 passes (topology → WAL → AOT index). CLI: `python3 -m vakedc passes`. Stage-1 MLIR dialect TableGen specs + build script in `vakedc/mlir/` and `tools/build-mlir-stage1.sh`. Differential corpus: 10/10 fixtures.  
+**Verification:** `scripts/benchmark-100k-scalability.py` ([docs/language/0014-verification-scaffold.md](docs/language/0014-verification-scaffold.md))  
+**Paper:** Language + evaluation ready for arxiv (PR #103, ~2–3 weeks to submission)  
+**MLIR dev guide:** `docs/context/DEV_GUIDE.md` — comprehensive developer guide for the compiler & MLIR layer
 
-| Runtime | Size | TLS | Seccomp | Best For |
-|---------|------|-----|---------|----------|
-| NullClaw | 678KB | ✅ | ❌ | Production (recommended) |
-| openrouterd | 5.4MB | proxy | ✅ 22 | Hardened deployments |
-| QuickJS | 2.6MB | ❌ | ❌ | Embedded logic |
-| Bun | 61MB | ✅ | ❌ | Development |
-| Deno | 87MB | ✅ | ❌ | Development |
+Current state at a glance — what's real, in flight, and ahead — as a graph: [`docs/context/TIMELINE.md`](docs/context/TIMELINE.md).
 
-### Subagent Architecture
+This is a **scaffold**. The language track (`vaked/`, `docs/language/`) carries real design content. The runtime (`daemons/`) and protocol (`protocol/`) subtrees are mostly **indexed stubs** — each subsystem gets its own design → plan → implementation cycle.
 
-```
-[H:2 V:1 S:1] [Ctx7:8KB] [Build:PASS] [Research:14n]
+One **end-to-end vertical slice** is now closed, though: a `network` egress membrane declared in Vaked ([`vaked/examples/membrane/agent-egress.vaked`](vaked/examples/membrane/agent-egress.vaked)) is **lowered** to a policy (`gen/ebpf.policy.json`, the realized 0012 §7 `ebpf.policy` emitter), **enforced** by the `agent-guardd` reference impl ([`agent_guardd/`](agent_guardd) — which compiles + loads a real `cgroup/skb` eBPF program and enforces deny-by-default egress), **testified** onto the [`eventd`](eventd) hash chain, and **verified** to have held. Run it with `task slice`; details in [`docs/runtime/agent-guardd.md`](docs/runtime/agent-guardd.md).
 
-Hydrators:    pre-fetch Context7 docs while main model streams
-Verifiers:    zig build + oxc lint → auto-retry on fail
-Synthesizers: deep research → .vaked/research_cache/
-Recursion:    Depth-5 spawn_subtask with Prefix Cache (98% hit)
+See [`docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md`](docs/superpowers/specs/2026-06-08-vaked-base-scaffold-design.md) for the scaffold's design record, and [`CLAUDE.md`](CLAUDE.md) for working conventions (including the environment **patch-doctor** runbook).
+
+## MLIR Compiler Layer — Stage 0 (Python) + Stage 1 (MLIR C++)
+
+The Vaked compiler pipeline has a dedicated MLIR-mirror pass layer for multi-agent
+topology compilation. See `docs/context/DEV_GUIDE.md` for the full developer guide.
+
+### Stage 0 — Python reference passes (Working ✅)
+
+Three passes that mirror the planned MLIR dialects:
+
+```bash
+python3 -m vakedc passes vaked/examples/operator-field.vaked --json
 ```
 
-### Benchmarks
+| Pass | MLIR Spec | What it does | Diagnostics |
+|------|-----------|-------------|-------------|
+| **1 — TopologyAnalysis** | 0021 | DFS cycle detection, critical-path depth, maxDepth bound | `E-WORKFLOW-CYCLE`, `E-WORKFLOW-DEPTH` |
+| **2 — WALInjection** | 0022 | Inject WAL frames per dependency edge (RFC 0004 §3.1) | — (structural) |
+| **3 — AOTIndexGeneration** | 0023 | Emit `gen/workflow/<name>.json` supervisor index | — (codegen) |
 
-| Metric | Value |
-|--------|-------|
-| routeModel (Zig) | <1ms per 100K |
-| oxlint (9 files) | 3ms |
-| Subagent review (2) | $0.05 total |
-| DeepSeek session | 1.84B tok · ~$10 |
-| Code compressed | 52 files · -22% |
+**Differential corpus:** 10/10 fixtures pass (4 determinism + 4 pass pipeline + 2 rejection).
 
-### CI Fleet
+### Stage 1 — MLIR TableGen + C++ (Build script ready ⚠️)
 
-10 agents. All guard on secrets (no-op when unset). Advisory (never block).
-Langfuse auto-traced. Failure → Telegram. Optimizer auto-compresses every PR.
+The `vakedc/mlir/` directory holds the MLIR dialect definitions and build
+infrastructure. Two dialects fully specified:
 
-## Genesis
+| Dialect | Spec | Types | Ops | File |
+|---------|------|-------|-----|------|
+| `vaked` | 0019 | `!vaked.state_hash`, `!vaked.agent_id`, `!vaked.state<S>` | `agent`, `yield`, `execute_step`, `consume`, `execute_with_dep` | `VakedDialect.td` (247 lines) |
+| `hcp` | 0020 | `!hcp.token`, `!hcp.hash`, `!hcp.data<T>` | `create_registration_token`, `write_ahead_log`, `fetch_canonical_data`, `rewind_scope` | `HcpDialect.td` (235 lines) |
+
+**Build:** `bash tools/build-mlir-stage1.sh` on dev-cx53 — fetches LLVM 19 source,
+builds `mlir-tblgen`, generates `.inc` files. C++ compilation is deferred due to
+an MLIR 19 ODS include pattern issue (`GET_OP_CLASSES` vs `GET_TYPEDEF_LIST`
+collision on `MLIR_DEFINE_EXPLICIT_TYPE_ID`).
+
+**Fix applied:** A post-process step (`grep -v MLIR_DEFINE_EXPLICIT_TYPE_ID`)
+generates filtered `*Types.cpp.inc` files for the type-only include path. The
+remaining issue is that `GET_OP_CLASSES` itself generates type IDs that conflict
+with the `.h.inc` declarations. The fix is to generate separate `.inc` files for
+op declarations vs definitions using two distinct `mlir-tblgen` invocations, or
+to patch `AddMLIR.cmake` to emit type IDs in a separate guarded block.
+
+**Dev tool:** `python3 tools/vaked-mlir.py` — `check`, `current-env`, `build`, `sync`.
+
+### How the pipeline fits together
 
 ```
-GENESIS_SEAL: 7c242080
-Built with DeepSeek V4-Pro via OpenRouter.
-35 commits. 14 domains. 0 vulns. Ready for GPG sign.
+.vaked source → vakedc parse → check → lower (artifacts)
+                                            │
+                                            ▼
+                                   Pass 1 (topology analysis)
+                                            │
+                                            ▼
+                                   Pass 2 (WAL injection)
+                                            │
+                                            ▼
+                                   Pass 3 (AOT index gen)
+                                            │
+                                            ▼
+                              gen/workflow/<name>.json
+                              (supervisor index → agent-supervisord)
 ```
+
+The Stage-0 Python passes serve as the **reference oracle** that Stage-1 MLIR
+must reproduce byte-for-byte (0024 §2.1 observational equivalence). The diff
+test harness in `tests/corpus/0024-differential/` validates both stages.
+
+## Dogfooding — the `ralph` decision loop
+
+[`tools/ralph/`](tools/ralph/README.md) is an autonomous, budget-capped loop that
+continuously surfaces the most important open **decision** for each hard design
+area (one OpenRouter model pinned per area) and appends it to a human-ratified,
+hash-chained decision log. It dogfoods Vaked's own theories before they land in
+the language — **parallel** (round-robins tracks), **immutable** (append-only
+event ledger as the state-of-record), and **control** (pause/slow/step at
+runtime) — and runs cheaply as a scheduled CI tick. See
+[`tools/ralph/README.md`](tools/ralph/README.md) for tracks, commands, and the
+CI host.
