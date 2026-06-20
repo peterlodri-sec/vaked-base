@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# vaked-build — dispatch Zig builds to dev-cx53
+# Usage: vaked-build [parse|check|lower|all|test|build] [file.vaked]
+# No crabcc. Zig-only front-end for vakedz (build.zig in vakedz/).
+set -euo pipefail
+
+TARGET="dev-cx53"
+TARGET_PATH="/home/dev/vaked-base"
+SSH="ssh -o ControlMaster=auto -o ControlPath=~/.ssh/cm/dev@dev-cx53:22 -o ControlPersist=30m"
+
+cmd="${1:-build}"
+shift 2>/dev/null || true
+file="${1:-}"
+
+case "$cmd" in
+  parse|check|lower|all)
+    [ -z "$file" ] && { echo "usage: vaked-build $cmd <file.vaked>"; exit 1; }
+    $SSH $TARGET "cd $TARGET_PATH/vakedz && nix develop $TARGET_PATH# --command zig build run -- $cmd $file"
+    ;;
+  test)
+    $SSH $TARGET "cd $TARGET_PATH/vakedz && nix develop $TARGET_PATH# --command zig build test"
+    ;;
+  build)
+    $SSH $TARGET "cd $TARGET_PATH/vakedz && nix develop $TARGET_PATH# --command zig build"
+    ;;
+  shell)
+    $SSH -t $TARGET "cd $TARGET_PATH && nix develop .#"
+    ;;
+  sync)
+    echo "Syncing repo to $TARGET..."
+    rsync -avz --delete \
+      --exclude='.zig-cache' --exclude='zig-out' --exclude='zig-cache' \
+      --exclude='target' --exclude='node_modules' --exclude='.crabcc' \
+      --exclude='.git' \
+      ./ $TARGET:$TARGET_PATH/
+    echo "Done."
+    ;;
+  status)
+    $SSH $TARGET "cd $TARGET_PATH && git status --short && echo '---' && zig version"
+    ;;
+  *)
+    echo "vaked-build — Zig dispatch to dev-cx53"
+    echo "Usage: vaked-build {parse|check|lower|all} <file.vaked>"
+    echo "       vaked-build {test|build}"
+    echo "       vaked-build shell"
+    echo "       vaked-build sync"
+    echo "       vaked-build status"
+    exit 1
+    ;;
+esac

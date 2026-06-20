@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "vaked-daemon": {
+      "command": "curl",
+      "args": ["-sf", "http://localhost:9090/health"],
+      "description": "Vaked daemon health, models, and chat completion — real-time status from Atlas."
+    },
+    "vaked-memory": {
+      "command": "python3",
+      "args": ["-m", "agent_memoryd", "serve", "--host", "127.0.0.1", "--port", "8420"],
+      "description": "Memory plane — store/recall/forget/verify, event-sourced agent memory. Persists across sessions."
+    },
+    "vaked-docs": {
+      "command": "python3",
+      "args": ["tools/mcp-servers/docs-mcp.py", "--port", "9845"],
+      "description": "Vaked Docs — our own documentation index, no rate limits, 224 docs."
+    },
+    "vaked-rag": {
+      "command": "python3",
+      "args": ["tools/vaked-docs/rag_server.py", "--port", "9876"],
+      "description": "Vaked RAG — semantic search across all repo docs + blog posts."
+    },
+    "vaked-fleet": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GH_PERSONAL_TOKEN}"
+      },
+      "description": "GitHub MCP — issues, PRs, code search, Actions for vaked-base."
+    }
+  }
+}

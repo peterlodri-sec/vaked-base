@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Whale Ultra Bench — dev-cx53</title>
+<style>
+:root {
+  --bg: oklch(0.97 0.005 260); --fg: oklch(0.18 0.02 260);
+  --card: oklch(1 0 0); --card-fg: oklch(0.18 0.02 260);
+  --muted: oklch(0.92 0.01 260); --muted-fg: oklch(0.40 0.02 260);
+  --primary: oklch(0.50 0.25 280); --primary-fg: oklch(1 0 0);
+  --accent: oklch(0.60 0.22 50); --secondary: oklch(0.50 0.18 180);
+  --good: oklch(0.45 0.20 150); --warn: oklch(0.55 0.18 85); --bad: oklch(0.50 0.25 25);
+  --border: oklch(0.88 0.01 260); --code: oklch(0.92 0.01 260);
+  --radius: 0.625rem;
+  --sans: Inter, system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono','Fira Code',ui-monospace,monospace;
+  --serif: ui-serif,Georgia,'Times New Roman',serif;
+}
+@media(prefers-color-scheme:dark){
+:root {
+  --bg: oklch(0.15 0.02 260); --fg: oklch(0.90 0.01 260);
+  --card: oklch(0.22 0.02 260); --card-fg: oklch(0.90 0.01 260);
+  --muted: oklch(0.26 0.02 260); --muted-fg: oklch(0.72 0.02 260);
+  --primary: oklch(0.75 0.18 280); --primary-fg: oklch(0.15 0.02 260);
+  --accent: oklch(0.70 0.20 60); --secondary: oklch(0.72 0.17 180);
+  --border: oklch(0.35 0.02 260); --code: oklch(0.26 0.02 260);
+  --good: oklch(0.72 0.17 150); --warn: oklch(0.75 0.15 85); --bad: oklch(0.65 0.20 25);
+}}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+main{max-width:960px;margin:0 auto;padding:48px 24px 96px}
+
+.eyebrow{font-family:var(--mono);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--primary);margin-bottom:8px}
+h1{font-family:var(--serif);font-size:2.5rem;font-weight:600;letter-spacing:-0.02em;line-height:1.15;margin-bottom:8px}
+.subtitle{font-size:1.05rem;color:var(--muted-fg);max-width:600px;margin-bottom:32px}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:48px}
+.kpi{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.kpi .val{font-family:var(--serif);font-size:2rem;font-weight:600;line-height:1;margin-bottom:4px}
+.kpi .val.good{color:var(--good)} .kpi .val.warn{color:var(--warn)} .kpi .val.big{color:var(--primary)}
+.kpi .lbl{font-size:0.78rem;color:var(--muted-fg)}
+
+h2{font-family:var(--serif);font-size:1.5rem;font-weight:600;margin:40px 0 16px;padding-top:24px;border-top:1.5px solid var(--border)}
+h3{font-family:var(--serif);font-size:1.15rem;font-weight:500;margin:24px 0 12px}
+
+.table-wrap{overflow-x:auto;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;font-size:0.9rem}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+th{font-family:var(--mono);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted-fg);background:var(--muted)}
+td{color:var(--fg)}
+td.num{font-family:var(--mono);text-align:right}
+tr.hi td{background:color-mix(in oklab,var(--primary) 8%,transparent)}
+.good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)} .big{color:var(--primary)}
+
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-family:var(--mono);font-size:0.7rem;font-weight:600}
+.chip.good{background:color-mix(in oklab,var(--good) 18%,transparent);color:var(--good)}
+.chip.bad{background:color-mix(in oklab,var(--bad) 18%,transparent);color:var(--bad)}
+.chip.warn{background:color-mix(in oklab,var(--warn) 20%,transparent);color:var(--warn)}
+.chip.neutral{background:var(--muted);color:var(--muted-fg)}
+
+pre{background:var(--code);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px 20px;overflow-x:auto;font-family:var(--mono);font-size:0.82rem;line-height:1.6;margin-bottom:20px}
+pre .kw{color:var(--primary)} pre .str{color:var(--good)} pre .cm{color:var(--muted-fg);font-style:italic}
+
+.note{background:var(--muted);border-left:3px solid var(--primary);border-radius:0 var(--radius) var(--radius) 0;padding:14px 18px;margin:16px 0 24px;font-size:0.88rem;color:var(--muted-fg)}
+.note strong{color:var(--fg)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:640px){.grid-2{grid-template-columns:1fr}}
+
+.bar-wrap{margin:8px 0 16px}
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:0.85rem}
+.bar-lbl{width:100px;font-family:var(--mono);font-size:0.72rem;color:var(--muted-fg);text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:22px;background:var(--muted);border-radius:var(--radius);overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:var(--radius);display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-family:var(--mono);font-size:0.65rem;font-weight:600}
+.bar-fill.ultra{background:var(--primary);color:var(--primary-fg)}
+.bar-fill.stock{background:color-mix(in oklab,var(--muted-fg) 40%,var(--muted));color:var(--fg)}
+.bar-val{width:56px;font-family:var(--mono);font-size:0.72rem;text-align:left;flex-shrink:0}
+</style>
+</head>
+<body>
+<main>
+
+<div class="eyebrow">vaked-base · dev-cx53 · 2026-06-20</div>
+<h1>Whale Ultra Build</h1>
+<p class="subtitle">DeepSeek Code Whale compiled for AMD EPYC-Rome with GOAMD64=v3, stripped, static. Benchmarked against stock v0.1.50.</p>
+
+<div class="kpi-grid">
+  <div class="kpi"><div class="val good">−26%</div><div class="lbl">Smaller binary (29 vs 39 MB)</div></div>
+  <div class="kpi"><div class="val big">9.3×</div><div class="lbl">More FMA instructions</div></div>
+  <div class="kpi"><div class="val big">2.4×</div><div class="lbl">More BMI2 instructions</div></div>
+  <div class="kpi"><div class="val good">−93%</div><div class="lbl">Faster build (1.0 vs 15.6 s)</div></div>
+  <div class="kpi"><div class="val">0</div><div class="lbl">Symbols (fully stripped)</div></div>
+  <div class="kpi"><div class="val">static</div><div class="lbl">No dynamic deps</div></div>
+</div>
+
+<h2>Target</h2>
+<table>
+  <tr><td>Host</td><td class="num">dev-cx53 (NixOS, Tailscale)</td></tr>
+  <tr><td>CPU</td><td class="num">AMD EPYC-Rome, 16 cores @ 2.8 GHz</td></tr>
+  <tr><td>ISA</td><td class="num">x86-64-v3: AVX2, BMI2, FMA</td></tr>
+  <tr><td>RAM</td><td class="num">30 GB</td></tr>
+  <tr><td>Toolchain</td><td class="num">Go 1.26.3 (nixpkgs unstable)</td></tr>
+</table>
+
+<h2>Binary</h2>
+<div class="grid-2">
+<table>
+  <tr><th>Metric</th><th>Ultra</th><th>Stock</th></tr>
+  <tr><td>Size</td><td class="num good">29 MB</td><td class="num">39 MB</td></tr>
+  <tr><td>Symbols</td><td class="num good">0</td><td class="num">31,647</td></tr>
+  <tr><td>.text</td><td class="num">27.3M</td><td class="num">27.4M</td></tr>
+  <tr><td>Dynamic</td><td class="num good">static</td><td class="num good">static</td></tr>
+  <tr><td>Build ID</td><td class="num" style="font-size:0.7rem">54921c6a…</td><td class="num" style="font-size:0.7rem">b68799ae…</td></tr>
+</table>
+<table>
+  <tr><th>Flag</th><th>Effect</th></tr>
+  <tr><td><code>GOAMD64=v3</code></td><td>AVX2 + BMI2 + FMA — EPYC native</td></tr>
+  <tr><td><code>-trimpath</code></td><td>Strip source paths → reproducible</td></tr>
+  <tr><td><code>-ldflags="-s -w"</code></td><td>No debug info, no DWARF</td></tr>
+  <tr><td><code>CGO_ENABLED=0</code></td><td>Static binary, no libc</td></tr>
+  <tr><td><code>GOMAXPROCS=16</code></td><td>All 16 cores in parallel</td></tr>
+</table>
+</div>
+
+<h2>ISA Instruction Mix</h2>
+<table>
+  <tr><th>Class</th><th>Ultra</th><th>Stock</th><th>Ratio</th></tr>
+  <tr class="hi"><td>FMA (fused multiply‑add)</td><td class="num big">93</td><td class="num">10</td><td class="num"><span class="chip big">9.3×</span></td></tr>
+  <tr class="hi"><td>BMI2 (bit manipulation)</td><td class="num big">1,588</td><td class="num">659</td><td class="num"><span class="chip big">2.4×</span></td></tr>
+  <tr><td>AVX2 (vector broadcast/gather)</td><td class="num">184</td><td class="num">184</td><td class="num"><span class="chip neutral">1.0×</span></td></tr>
+  <tr><td>SSE/SSE2</td><td class="num">193,100</td><td class="num">193,111</td><td class="num"><span class="chip neutral">1.0×</span></td></tr>
+  <tr><td>Total instructions</td><td class="num">3,446,144</td><td class="num">3,446,997</td><td class="num"><span class="chip neutral">1.0×</span></td></tr>
+</table>
+
+<div class="note"><strong>Go 1.26 auto‑detects CPU:</strong> both binaries emit AVX2 even without GOAMD64. But FMA (93→10) and BMI2 (1,588→659) show GOAMD64=v3 forces far more aggressive use of EPYC‑Rome silicon.</div>
+
+<h2>Runtime</h2>
+<table>
+  <tr><th>Benchmark</th><th>Ultra</th><th>Stock</th><th>Note</th></tr>
+  <tr><td>Cold start (<code>--help</code>)</td><td class="num">102 ms</td><td class="num">101 ms</td><td>I/O bound — reading 29–39 MB</td></tr>
+  <tr><td>Doctor (full check)</td><td class="num">327 ms</td><td class="num">328 ms</td><td>I/O bound — config parse + API ping</td></tr>
+  <tr><td>JSON exec parse</td><td class="num">26 ms</td><td class="num">26 ms</td><td>Process spawn dominates</td></tr>
+  <tr><td>Build from source</td><td class="num good">1.0 s</td><td class="num">15.6 s</td><td>Cold deps + Go internal linker</td></tr>
+</table>
+
+<div class="note"><strong>I/O is the bottleneck.</strong> Startup reads 29–39 MB from NVMe. CPU wins don't show until sustained LLM token processing — where FMA/BMI2 density compounds over millions of instructions.</div>
+
+<h2>Linker Shootout</h2>
+<table>
+  <tr><th>Linker</th><th>Size</th><th>Build</th><th>Static</th><th>Verdict</th></tr>
+  <tr><td>Go internal</td><td class="num good">29 MB</td><td class="num good">1.0 s</td><td class="num good">YES</td><td><span class="chip good">best</span></td></tr>
+  <tr><td>mold 2.41</td><td class="num">39 MB</td><td class="num">8.1 s</td><td class="num bad">NO</td><td><span class="chip warn">CGO required</span></td></tr>
+  <tr><td>wild 0.8.0</td><td class="num bad">51 MB</td><td class="num">7.7 s</td><td class="num bad">NO</td><td><span class="chip bad">largest, dynamic</span></td></tr>
+</table>
+<div class="note"><strong>Wild works</strong> via <code>CC=clang -fuse-ld=wild</code> + CGO=1. But: 51 MB (+76% vs Go internal), dynamic glibc, requires clang. For pure Go, the internal linker is fastest and produces the smallest, truly static binary. External linkers only matter for C/C++/Rust mixed builds.</div>
+
+<h2>Evaluated &amp; Rejected</h2>
+<table>
+  <tr><th>Tech</th><th>Verdict</th><th>Why</th></tr>
+  <tr><td>mimalloc</td><td><span class="chip bad">rejected</span></td><td>nixpkgs mimalloc is glibc‑only. musl cross‑link fails on <code>__memcpy_chk</code>. Go runtime allocator well‑tuned for TUI workloads.</td></tr>
+  <tr><td>mold linker</td><td><span class="chip warn">partial</span></td><td>Works with CGO=1 but produces dynamic glibc binary. Go internal linker faster (1.0 vs 8 s) and keeps static output. Mold excels for C/C++/Rust, not pure Go.</td></tr>
+   <tr class="hi"><td>Wild linker</td><td><span class="chip bad">rejected</span></td><td>v0.8.0 works via clang+CGO — but 51 MB, dynamic, 9 s. Go internal: 29 MB, static, 1.0 s.</td></tr>
+  <tr><td>PGO</td><td><span class="chip neutral">future</span></td><td>Needs production workload profiles. TBD after deployment.</td></tr>
+</table>
+
+<h2>Build</h2>
+<pre><span class="cm"># On dev-cx53, from vaked-base nix shell:</span>
+<span class="kw">export</span> CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v3 GOMAXPROCS=16
+go build -trimpath -ldflags=<span class="str">"-s -w"</span> -o bin/whale ./cmd/whale
+
+<span class="cm"># Or use the rebuild script:</span>
+/home/dev/whale/build-ultra-v2.sh</pre>
+
+<h2>ISA Distribution</h2>
+<div class="bar-wrap">
+  <div class="bar-row"><span class="bar-lbl">FMA</span><span class="bar-track"><span class="bar-fill ultra" style="width:90.3%">93</span></span><span class="bar-val">9.3×</span></div>
+  <div class="bar-row"><span class="bar-lbl"></span><span class="bar-track"><span class="bar-fill stock" style="width:9.7%">10</span></span><span class="bar-val">stock</span></div>
+</div>
+<div class="bar-wrap">
+  <div class="bar-row"><span class="bar-lbl">BMI2</span><span class="bar-track"><span class="bar-fill ultra" style="width:70.7%">1,588</span></span><span class="bar-val">2.4×</span></div>
+  <div class="bar-row"><span class="bar-lbl"></span><span class="bar-track"><span class="bar-fill stock" style="width:29.3%">659</span></span><span class="bar-val">stock</span></div>
+</div>
+<div class="bar-wrap">
+  <div class="bar-row"><span class="bar-lbl">AVX2</span><span class="bar-track"><span class="bar-fill ultra" style="width:50%">184</span></span><span class="bar-val">1.0×</span></div>
+  <div class="bar-row"><span class="bar-lbl"></span><span class="bar-track"><span class="bar-fill stock" style="width:50%">184</span></span><span class="bar-val">stock</span></div>
+</div>
+
+<h2>Config</h2>
+<table>
+  <tr><th>File</th><th>Purpose</th></tr>
+  <tr><td><code>~/.whale/config.toml</code></td><td>Global: OpenRouter base URL, shell limits</td></tr>
+  <tr><td><code>.whale/config.toml</code></td><td>Project: vaked-base permissions</td></tr>
+  <tr><td><code>~/.whale/credentials.json</code></td><td>OpenRouter API key</td></tr>
+  <tr><td><code>~/.profile</code></td><td><code>DEEPSEEK_BASE_URL</code> + <code>PATH</code></td></tr>
+</table>
+
+</main>
+</body>
+</html>
