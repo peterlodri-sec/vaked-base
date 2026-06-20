@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# vack — verify and sign-off a PR for merge
+# Part of vaked-base toolchain. GENESIS_SEAL: 7c242080
+set -euo pipefail
+
+PR="${1:-}"
+if [ -z "$PR" ]; then
+  echo "usage: vack <PR-number>"
+  echo ""
+  echo "Verifies: PR is open, no merge conflicts, commit is signed."
+  echo "Outputs MERGE OK or the specific error blocking merge."
+  exit 1
+fi
+
+echo "=== vack PR #${PR} ==="
+
+# 1. Fetch PR metadata
+PR_DATA=$(gh pr view "$PR" --json state,title,headRefName,baseRefName,mergeable 2>/dev/null)
+if [ -z "$PR_DATA" ]; then
+  echo "ERROR: PR #${PR} not found"
+  exit 1
+fi
+
+STATE=$(echo "$PR_DATA" | python3 -c "import json,sys; print(json.load(sys.stdin)['state'])")
+TITLE=$(echo "$PR_DATA" | python3 -c "import json,sys; print(json.load(sys.stdin)['title'])")
+HEAD=$(echo "$PR_DATA" | python3 -c "import json,sys; print(json.load(sys.stdin)['headRefName'])")
+BASE=$(echo "$PR_DATA" | python3 -c "import json,sys; print(json.load(sys.stdin)['baseRefName'])")
+MERGEABLE=$(echo "$PR_DATA" | python3 -c "import json,sys; print(json.load(sys.stdin)['mergeable'])")
+
+echo "  $TITLE"
+echo "  $HEAD → $BASE"
+echo "  State: $STATE  Mergeable: $MERGEABLE"
+
+# 2. Must be open
+if [ "$STATE" != "OPEN" ]; then
+  echo "ERROR: PR is $STATE (must be OPEN)"
+  exit 1
+fi
+
+# 3. Must be mergeable
+if [ "$MERGEABLE" != "MERGEABLE" ]; then
+  echo "ERROR: PR has conflicts with $BASE"
+  echo "Fix: git checkout $HEAD && git merge origin/$BASE && resolve conflicts"
+  exit 1
+fi
+
+# 4. Fetch branch, verify signature
+gh pr checkout "$PR" --force 2>/dev/null
+COMMIT=$(git log -1 --format="%H")
+SIG=$(git log -1 --show-signature 2>/dev/null)
+
+if echo "$SIG" | grep -q "Good.*signature"; then
+  SIGNER=$(echo "$SIG" | grep "Good.*signature" | sed 's/.*signature for //' | sed 's/ with.*//')
+  echo "  Signed: $SIGNER"
+else
+  echo "ERROR: commit $COMMIT is not signed"
+  echo ""
+  echo "Fix:"
+  echo "  git commit --amend --no-edit -S"
+  echo "  git push --force-with-lease"
+  exit 1
+fi
+
+# 5. Double-check no conflicts with base
+git fetch origin "$BASE" 2>/dev/null
+MERGE_BASE=$(git merge-base HEAD "origin/$BASE" 2>/dev/null)
+if git merge-tree "$MERGE_BASE" "origin/$BASE" HEAD 2>/dev/null | grep -q "^<<<<<<<"; then
+  echo "ERROR: tree-level conflicts detected with $BASE"
+  exit 1
+fi
+
+# All clear
+echo ""
+echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+echo "┃  ✅ MERGE OK — PR #${PR}       ┃"
+echo "┃  Signed · No conflicts        ┃"
+echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+echo ""
+echo "  gh pr merge $PR --squash"
