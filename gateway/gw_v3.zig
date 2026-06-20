@@ -177,11 +177,10 @@ pub fn main() !void {
                     continue;
                 }
                 defer _ = linux.close(fdi);
-                // Use mmap'd buffer if available, fall back to stack buffer
-                const read_buf = if (mmap_buf) |mb| mb else blk: {
-                    var fb: [65536]u8 = undefined;
-                    break :blk &fb;
-                };
+                // Stack buffer lives for the full request scope — don't let it
+                // go out of scope while read_buf still points to it.
+                var fb: [65536]u8 = undefined;
+                const read_buf = if (mmap_buf) |mb| mb else &fb;
                 const nread = linux.read(fdi, read_buf, read_buf.len);
                 if (nread < 0) {
                     _ = respond(cfd, "500", "text/plain", "read error") catch {};
