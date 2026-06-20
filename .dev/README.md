@@ -1,49 +1,79 @@
 # .dev — Vaked ultimate dev environment
-#
-# One-command bootstrap from any MacBook (M1/M3) to a full dev shell on
-# dev-cx53 with LLM proxy, CodeWhale, and all tooling configured.
+
+One-command bootstrap from any MacBook (M1/M3) to a full dev shell on
+dev-cx53 with LLM proxy, CodeWhale, MCPs, memory, and all tooling.
 
 ## Quick start
 
 ```bash
-# From repo root:
 bash .dev/bootstrap.sh --shell
 ```
 
-This connects to dev-cx53, clones/updates vaked-dev, sets up env vars,
-configures CodeWhale MCPs, and opens an SSH shell with everything loaded.
+## Test the LLM proxy
+
+After bootstrap, from anywhere with Tailscale:
+
+```bash
+curl http://dev-cx53:4000/v1/chat/completions \
+  -H "Authorization: Bearer sk-PrsAdrqFU4xYhrm3hGLo1Q" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}'
+# → {"choices":[{"message":{"content":"Hello! How can I assist you today?"}}]}
+```
 
 ## What's included
 
 | Component | Detail |
 |-----------|--------|
-| SSH to dev-cx53 | `dev@dev-cx53`, fresh checkout in `/home/dev/vaked-dev` |
-| Env setup | `.dev/env.sh` — LLM proxy, model routing, git identity, paths |
-| LLM proxy | `cloud/deepseek-v4-flash`, `cloud/claude-opus-4`, `remote/deepseek-coder` |
-| CodeWhale | `codewhale` CLI — MCPs: github, workspace-fs (no CrabCC, no Playwright) |
-| vaked-cli | Go CLI for mlir/seal/proxy subcommands |
-| Models | Request model `local/qwen2.5-coder` for Ollama, or `cloud/*` for API |
+| **SSH** | `dev@dev-cx53`, fresh checkout in `/home/dev/vaked-dev` |
+| **LLM proxy** | port 4000, OpenRouter + Ollama models, 40+ models available |
+| **API key** | `sk-PrsAdrqFU4xYhrm3hGLo1Q` (unlimited budget) |
+| **Memory** | 3 layers: MemPalace + CodeWhale builtin + codebase-memory-mcp |
+| **MCPs** | GitHub, workspace-fs, codebase-memory |
+| **CLIs** | `vaked-cli` (mlir/seal/proxy), `codewhale`, `rtk`, `jq`, `rg`, `gh` |
+| **Models** | `openai/gpt-4o-mini`, `cloud/deepseek-v4-flash`, `ollama/qwen2.5-coder` |
 
-## Manual steps
+## Memory three-layer stack
+
+1. **MemPalace** — session memory, background-mined via Stop hook
+   - Config: `$HOME/.mempalace`
+   - Mined from every session transcript
+   - Runs as detached background process (non-blocking)
+2. **CodeWhale builtin** — automatic session context, no config needed
+3. **codebase-memory-mcp** — GitHub-aware repository memory
+   - Uses `@deusdata/codebase-memory-mcp` via npx
+   - Stores results in workspace `.codebase-memory/`
+
+## Commands
 
 ```bash
-# Clone + env
-ssh dev@dev-cx53
-cd /home/dev && git clone https://github.com/peterlodri-sec/vaked-base vaked-dev
-cd vaked-dev && source .dev/env.sh
+# Quick test
+curl -s http://dev-cx53:4000/v1/chat/completions \
+  -H "Authorization: Bearer sk-PrsAdrqFU4xYhrm3hGLo1Q" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}'
+
+# Run CodeWhale
+codewhale run "check the MLIR pass pipeline"
 
 # Build tooling
 nix build .#vaked-cli
 python3 -m vakedc passes tests/corpus/0024-differential/fixtures/diamond.vaked --json
 
-# CodeWhale
-codewhale run "check the MLIR pass pipeline"
+# AI toolkit
+rtk
+
+# Memory exploration
+ls ~/.mempalace/
+ls .codebase-memory/
 ```
 
-## Remote data
+## Remote infrastructure on dev-cx53
 
-| Service | Location | Notes |
-|---------|----------|-------|
-| Ollama models | `/root/.ollama/models/` | GPU-backed, runs in Docker |
-| LiteLLM proxy | port 4000 | Postgres-backed, Docker container |
-| vaked-dev | `/home/dev/vaked-dev/` | Fresh checkout per session |
+| Service | Port | Runtime |
+|---------|------|---------|
+| LiteLLM proxy | 4000 | Docker (`crabcc-ollama-stack`) |
+| Ollama | 11434 | Docker (CPU, 30.6GiB RAM) |
+| Langfuse | 3000 | Docker (observability) |
+| ChromaDB | 8001 | Docker (vector store) |
+| PostgreSQL | 5432-5433 | Docker (LiteLLM + AgentField) |

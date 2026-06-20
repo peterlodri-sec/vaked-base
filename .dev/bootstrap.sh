@@ -1,114 +1,112 @@
 #!/usr/bin/env bash
 # bootstrap.sh — Vaked ultimate dev shell (macOS → dev-cx53)
-#
-# One-command setup from any MacBook (M1/M3):
-#   bash .dev/bootstrap.sh
-#
-# What it does:
-#   1. Checks prerequisites (ssh, gh, codewhale, ollama)
-#   2. Sets up SSH config for dev-cx53 (user@dev-cx53)
-#   3. Clones/updates vaked-base on remote
-#   4. Installs + configures codewhale/whale CLI with MCPs
-#   5. Verifies LLM proxy mesh is live
-#   6. Opens an SSH shell with full env
-
 set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-BOLD='\033[1m'
-
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'; BOLD='\033[1m'
 info()  { printf "${GREEN}✓${NC} %s\n" "$*"; }
 warn()  { printf "${YELLOW}⚠${NC} %s\n" "$*"; }
 err()   { printf "${RED}✗${NC} %s\n" "$*"; }
 header(){ printf "\n${BOLD}=== %s ===${NC}\n" "$*"; }
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEV_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# ── User config ───────────────────────────────────────────────────────────
 REMOTE_USER="${REMOTE_USER:-dev}"
 REMOTE_HOST="${REMOTE_HOST:-dev-cx53}"
 REMOTE_PATH="${REMOTE_PATH:-/home/dev/vaked-dev}"
 BRANCH="${BRANCH:-main}"
-LOCAL_PORT="${LOCAL_PORT:-4000}"  # port for LLM proxy tunnel
+LOCAL_PORT="${LOCAL_PORT:-4000}"
 
 # ── Prerequisites ──────────────────────────────────────────────────────────
-
 header "Prerequisites"
+for cmd in ssh gh; do
+  command -v "$cmd" &>/dev/null && info "$cmd found" || { err "$cmd not found"; missing=1; }
+done
+${missing:-0} -eq 1 && exit 1
 
-check_cmd() {
-  if ! command -v "$1" &>/dev/null; then
-    err "$1 not found — install it first"
-    case "$1" in
-      ssh)         echo "   brew install openssh" ;;
-      gh)          echo "   brew install gh" ;;
-      ollama)      echo "   brew install ollama" ;;
-      codewhale)   echo "   see https://codewhale.ai/docs/install" ;;
-      litellm)     echo "   pip install litellm" ;;
-    esac
-    return 1
-  fi
-  info "$1 found: $(command -v "$1")"
-}
+# ── SSH check ──────────────────────────────────────────────────────────────
+header "SSH"
+ssh -q "$REMOTE_USER@$REMOTE_HOST" exit 2>/dev/null \
+  && info "SSH OK" \
+  || { err "Cannot reach $REMOTE_USER@$REMOTE_HOST — Tailscale up?"; exit 1; }
 
-check_cmd ssh      || MISSING=1
-check_cmd gh       || MISSING=1
-check_cmd ollama   || warn "ollama optional — local inference only"
-${MISSING:-0} -eq 1 && { err "Install missing tools first"; exit 1; }
-
-# ── SSH config ─────────────────────────────────────────────────────────────
-
-header "SSH config"
-
-if ! ssh -q "$REMOTE_USER@$REMOTE_HOST" exit 2>/dev/null; then
-  warn "Cannot reach $REMOTE_USER@$REMOTE_HOST — ensure Tailscale is up"
-  echo "  sudo tailscale up"
-  echo "  Then re-run this script"
-  exit 1
-fi
-info "SSH to $REMOTE_USER@$REMOTE_HOST OK"
-
-# ── Remote checkout ───────────────────────────────────────────────────────
-
+# ── Remote workspace ───────────────────────────────────────────────────────
 header "Remote workspace"
+ssh "$REMOTE_USER@$REMOTE_HOST" "
+  if [ -d $REMOTE_PATH ]; then cd $REMOTE_PATH && git fetch origin && git checkout $BRANCH && git pull --ff-only
+  else git clone https://github.com/peterlodri-sec/vaked-base.git $REMOTE_PATH && cd $REMOTE_PATH; fi
+  echo \"Checked out: \$(git log --oneline -1)\"
+" 2>&1 | while read -r line; do info "$line"; done
 
-REMOTE_CHECKOUT_CMD="
-  if [ -d $REMOTE_PATH ]; then
-    cd $REMOTE_PATH && git fetch origin && git checkout $BRANCH && git pull --ff-only
-  else
-    git clone https://github.com/peterlodri-sec/vaked-base.git $REMOTE_PATH
-    cd $REMOTE_PATH
-  fi
-  echo 'Checked out: \$(git log --oneline -1)'"
+# ── Install tools on remote ────────────────────────────────────────────────
+header "Tooling"
+ssh "$REMOTE_USER@$REMOTE_HOST" "
+  # jq, ripgrep
+  command -v jq &>/dev/null || (sudo nix-env -iA nixpkgs.jq 2>/dev/null || sudo apt-get install -y jq 2>/dev/null) && echo 'jq OK' || echo 'jq not installed'
+  command -v rg &>/dev/null || (sudo nix-env -iA nixpkgs.ripgrep 2>/dev/null || sudo apt-get install -y ripgrep 2>/dev/null) && echo 'rg OK' || echo 'rg not installed'
+  # gh
+  command -v gh &>/dev/null && echo 'gh: \$(gh --version | head -1)' || echo 'gh not installed'
+  # rtk — AI toolkit
+  command -v rtk &>/dev/null || {
+    curl -sSfL https://github.com/rtk-ai/rtk/releases/latest/download/rtk-linux-amd64 -o /tmp/rtk 2>/dev/null
+    chmod +x /tmp/rtk 2>/dev/null && sudo mv /tmp/rtk /usr/local/bin/rtk 2>/dev/null && echo 'rtk: \$(rtk --version 2>&1 | head -1)' || echo 'rtk not installed (no prebuilt binary)'
+  }
+" 2>&1 | while read -r line; do info "$line"; done
 
-ssh "$REMOTE_USER@$REMOTE_HOST" bash -c "'$REMOTE_CHECKOUT_CMD'" 2>&1 | while read -r line; do info "$line"; done
-
-# ── LLM proxy tunnel ──────────────────────────────────────────────────────
-
+# ── LLM proxy check ────────────────────────────────────────────────────────
 header "LLM proxy mesh"
-
-PROXY_URL="http://$REMOTE_HOST:4000"
-if curl -s -o /dev/null -w "%{http_code}" "$PROXY_URL/health" --connect-timeout 3 2>/dev/null | grep -q "200\|401"; then
-  info "LLM proxy live at $PROXY_URL"
-  info "Models available:"
-  echo "  cloud/deepseek-v4-flash    — via OpenRouter"
-  echo "  cloud/claude-opus-4         — via OpenRouter"
-  echo "  remote/deepseek-coder      — via GPU tier"
-  echo "  local/qwen2.5-coder        — via Ollama (local)"
-  echo "  local/llama-3.2            — via Ollama (local)"
+PROXY="http://$REMOTE_HOST:4000"
+API_KEY="sk-PrsAdrqFU4xYhrm3hGLo1Q"
+if curl -s -o /dev/null -w "%{http_code}" "$PROXY/v1/models" -H "Authorization: Bearer $API_KEY" --connect-timeout 3 | grep -q "200"; then
+  info "Proxy live — key valid"
 else
-  warn "LLM proxy not reachable at $PROXY_URL"
-  warn "Deploy: ssh $REMOTE_USER@$REMOTE_HOST 'litellm --config deploy/llmproxy/proxy-mesh.yaml --port 4000'"
+  warn "Proxy at $PROXY not reachable"
 fi
 
-# ── CodeWhale / whale CLI (remote) ────────────────────────────────────────
+# ── Environment file ───────────────────────────────────────────────────────
+header "Environment"
+ssh "$REMOTE_USER@$REMOTE_HOST" "cat > $REMOTE_PATH/.dev/env.sh << 'ENVEOF'
+export VAKED_PROJECT=vaked-base
+export VAKED_REMOTE=$REMOTE_HOST
+export VAKED_USER=$REMOTE_USER
+export VAKED_BRANCH=$BRANCH
+export VAKED_WORKSPACE=$REMOTE_PATH
 
-header "CodeWhale / whale CLI"
+# LLM proxy — test with:
+#   curl http://$REMOTE_HOST:4000/v1/chat/completions \\
+#     -H \"Authorization: Bearer $API_KEY\" \\
+#     -H \"Content-Type: application/json\" \\
+#     -d '{\"model\":\"openai/gpt-4o-mini\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}'
+export OPENAI_BASE_URL=http://$REMOTE_HOST:4000/v1
+export OPENAI_API_KEY=$API_KEY
+export LITELLM_PROXY_URL=http://$REMOTE_HOST:4000
 
-WHALE_MCP_CONFIG=$(cat << 'MCPJSON'
+# Model routing
+export VAKED_DEFAULT_MODEL=cloud/deepseek-v4-flash
+export VAKED_CODING_MODEL=cloud/claude-opus-4
+export VAKED_FAST_MODEL=remote/deepseek-coder
+
+# Memory — three layers:
+# 1) CodeWhale built-in session memory (automatic)
+# 2) MemPalace (local, background-mined)
+# 3) codebase-memory-mcp (DeusData, GitHub-aware)
+export MEMPALACE_HOME=\$HOME/.mempalace
+export CODEBASE_MEMORY_PATH=\$VAKED_WORKSPACE/.codebase-memory
+
+# Paths
+export PATH=\$PATH:$REMOTE_PATH/tools/vaked-cli:/usr/local/bin
+export VAKED_CLI=$REMOTE_PATH/tools/vaked-cli/vaked-cli
+
+# Git
+export GIT_AUTHOR_NAME=\"Peter Lodri\"
+export GIT_AUTHOR_EMAIL=cabotage@pm.me
+export GIT_COMMITTER_NAME=\"Peter Lodri\"
+export GIT_COMMITTER_EMAIL=cabotage@pm.me
+ENVEOF
+chmod +x $REMOTE_PATH/.dev/env.sh && echo 'env.sh OK'"
+
+# ── MCP config ─────────────────────────────────────────────────────────────
+header "MCP servers"
+ssh "$REMOTE_USER@$REMOTE_HOST" "cat > $REMOTE_PATH/.dev/whale-config.json" << 'MCPJSON'
 {
   "mcpServers": {
     "github": {
@@ -121,98 +119,64 @@ WHALE_MCP_CONFIG=$(cat << 'MCPJSON'
       "args": ["mcp", "workspace-fs", "--path", "'"$REMOTE_PATH"'"],
       "enabled": true
     },
-    "context7": {
+    "codebase-memory": {
       "command": "npx",
-      "args": ["-y", "@context7/context7-mcp-server"],
-      "enabled": false
+      "args": ["-y", "@deusdata/codebase-memory-mcp"],
+      "enabled": true
     }
+  },
+  "llm": {
+    "provider": "openai",
+    "baseUrl": "http://dev-cx53:4000/v1",
+    "apiKey": "'"$API_KEY"'",
+    "defaultModel": "cloud/deepseek-v4-flash",
+    "models": {
+      "cloud/deepseek-v4-flash": {"type": "chat"},
+      "cloud/claude-opus-4": {"type": "chat"},
+      "openai/gpt-4o-mini": {"type": "chat"},
+      "ollama/qwen2.5-coder": {"type": "chat"}
+    }
+  },
+  "agent": {
+    "name": "whale",
+    "maxTurns": 50,
+    "maxTokens": 8192,
+    "temperature": 0.3
+  },
+  "memory": {
+    "mempalace": true,
+    "codewhaleBuiltin": true,
+    "codebaseMemory": true
   }
 }
 MCPJSON
-)
 
-# Install/update codewhale on remote
-ssh "$REMOTE_USER@$REMOTE_HOST" bash -c "'
-  if command -v codewhale &>/dev/null; then
-    echo "codewhale: \$(codewhale --version 2>&1 | head -1)"
-  else
-    echo "codewhale not installed"
+# ── rtk config ─────────────────────────────────────────────────────────────
+ssh "$REMOTE_USER@$REMOTE_HOST" "
+  if command -v rtk &>/dev/null; then
+    rtk init $REMOTE_PATH 2>/dev/null || true
+    echo 'rtk: initialized'
   fi
-'" 2>&1 | while read -r line; do info "$line"; done
+" 2>&1 | while read -r line; do info "$line"; done
 
-# ── Create remote env file ────────────────────────────────────────────────
-
-header "Environment setup"
-
-ssh "$REMOTE_USER@$REMOTE_HOST" bash -c "'
-  cat > $REMOTE_PATH/.dev/env.sh << \"ENVEOF\"
-export VAKED_PROJECT=\"vaked-base\"
-export VAKED_REMOTE=\"$REMOTE_HOST\"
-export VAKED_USER=\"$REMOTE_USER\"
-export VAKED_BRANCH=\"$BRANCH\"
-export VAKED_WORKSPACE=\"$REMOTE_PATH\"
-
-# LLM proxy mesh
-export OPENAI_BASE_URL=\"http://$REMOTE_HOST:4000/v1\"
-export OPENAI_API_KEY=\"sk-PrsAdrqFU4xYhrm3hGLo1Q\"
-export LITELLM_PROXY_URL=\"http://$REMOTE_HOST:4000\"
-
-# Default model routing
-export VAKED_DEFAULT_MODEL=\"cloud/deepseek-v4-flash\"
-export VAKED_CODING_MODEL=\"cloud/claude-opus-4\"
-export VAKED_FAST_MODEL=\"remote/deepseek-coder\"
-
-# Paths
-export PATH=\"\$PATH:$REMOTE_PATH/tools/vaked-cli\"
-export VAKED_CLI=\"$REMOTE_PATH/tools/vaked-cli/vaked-cli\"
-
-# Git identity
-export GIT_AUTHOR_NAME=\"Peter Lodri\"
-export GIT_AUTHOR_EMAIL=\"cabotage@pm.me\"
-export GIT_COMMITTER_NAME=\"Peter Lodri\"
-export GIT_COMMITTER_EMAIL=\"cabotage@pm.me\"
-ENVEOF
-  chmod +x $REMOTE_PATH/.dev/env.sh
-  echo \"env.sh created\"
-'" 2>&1 | while read -r line; do info "$line"; done
-
-# ── Summary ───────────────────────────────────────────────────────────────
-
+# ── Summary ────────────────────────────────────────────────────────────────
 header "Ready"
-
 echo ""
 echo "  ${BOLD}vaked dev shell${NC}"
-echo ""
-echo "  Remote:  ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}"
-echo "  Branch:  ${BRANCH}"
-echo "  Proxy:   ${PROXY_URL}"
+echo "  Remote:  ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH} (${BRANCH})"
+echo "  Proxy:   ${PROXY}"
+echo "  Models:  cloud/deepseek-v4-flash  openai/gpt-4o-mini  ollama/qwen2.5-coder"
+echo "  Memory:  MemPalace + CodeWhale builtin + codebase-memory-mcp"
+echo "  Tools:   jq rg gh rtk codewhale vaked-cli"
 echo ""
 echo "  ${BOLD}Commands:${NC}"
 echo "    ssh ${REMOTE_USER}@${REMOTE_HOST}"
 echo "    cd ${REMOTE_PATH} && source .dev/env.sh"
-echo "    nix build .#vaked-cli          # build Go CLI"
-echo "    python3 -m vakedc passes       # MLIR pass pipeline"
-echo "    codewhale run \"prompt\"         # CodeWhale agent"
+echo "    nix build .#vaked-cli"
+echo "    codewhale run 'your prompt'"
+echo "    rtk"
 echo ""
-echo "  ${BOLD}Models (via proxy):${NC}"
-echo "    cloud/deepseek-v4-flash        # fast default"
-echo "    cloud/claude-opus-4            # heavy coding"
-echo "    remote/deepseek-coder          # GPU tier"
-echo "    local/qwen2.5-coder            # Ollama local"
-echo ""
-echo "  ${BOLD}Local tunnel:${NC}"
-echo "    ssh -L ${LOCAL_PORT}:localhost:4000 ${REMOTE_USER}@${REMOTE_HOST} -N &"
-echo "    export OPENAI_BASE_URL=http://localhost:${LOCAL_PORT}/v1"
-echo ""
-
-# ── Launch shell ──────────────────────────────────────────────────────────
 
 if [[ "${1:-}" == "--shell" ]]; then
-  header "Opening dev shell on $REMOTE_HOST"
-  ssh -t "$REMOTE_USER@$REMOTE_HOST" "
-    cd $REMOTE_PATH
-    source .dev/env.sh
-    echo 'VAKED dev — ${REMOTE_HOST}:${REMOTE_PATH} (${BRANCH})'
-    exec bash -i
-  "
+  ssh -t "$REMOTE_USER@$REMOTE_HOST" "cd $REMOTE_PATH && source .dev/env.sh && echo 'VAKED dev — ${REMOTE_HOST}:${REMOTE_PATH}' && exec bash -i"
 fi
