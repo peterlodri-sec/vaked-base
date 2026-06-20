@@ -1,0 +1,159 @@
+# LLM proxy mesh — multi-node model routing across the Vaked stack.
+#
+# Architecture:
+#   M1/M3 (local)              dev-cx53 (remote)         OpenRouter (cloud)
+#   ┌─────────────────┐       ┌──────────────────┐       ┌──────────────┐
+#   │ Ollama (Metal)   │       │ vLLM (GPU)       │       │ DeepSeek     │
+#   │ Qwen2.5-Coder:7b │──▶    │ DeepSeek-Coder   │──▶    │ Claude       │
+#   │ Llama 3.2:3b     │       │ Qwen2.5:72B      │       │ Gemini       │
+#   │ Phi-4:14b        │       │ Mistral Large    │       │ …            │
+#   └─────────────────┘       └──────────────────┘       └──────────────┘
+#        ↕ Tailscale                ↕ Tailscale
+#   LiteLLM proxy           LiteLLM proxy
+#   (port 4000)              (port 4000)
+#
+# Routing strategy:
+#   1. Local Ollama (fast, free, good for code completion)
+#   2. → dev-cx53 vLLM (heavier, GPU, good for complex reasoning)
+#   3. → OpenRouter cloud (fallback for models not hosted locally)
+#
+# Each node runs a LiteLLM proxy that knows about all others.
+# Tailscale routes traffic between nodes securely.
+
+model_list:
+  # ── Layer 1: Local Ollama (M1/M3 Metal GPU, 0 cost) ──────────────
+  - model_name: local/qwen2.5-coder
+    litellm_params:
+      model: ollama/qwen2.5-coder:7b
+      api_base: http://localhost:11434
+      rpm: 30
+      max_tokens: 4096
+    model_info:
+      mode: completion
+      supports_vision: false
+      tier: local
+
+  - model_name: local/llama-3.2
+    litellm_params:
+      model: ollama/llama3.2:3b
+      api_base: http://localhost:11434
+      rpm: 60
+      max_tokens: 4096
+    model_info:
+      mode: completion
+      supports_vision: false
+      tier: local
+
+  # ── Layer 2: dev-cx53 GPU (vLLM, OLLama, $0.50/hr Vast.ai) ──────
+  - model_name: remote/deepseek-coder
+    litellm_params:
+      model: openrouter/deepseek/deepseek-coder-v2-lite-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      mode: completion
+      tier: remote
+
+  - model_name: remote/qwen2.5-72b
+    litellm_params:
+      model: openrouter/qwen/qwen2.5-72b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      mode: completion
+      tier: remote
+
+  # ── Layer 3: OpenRouter cloud (fallback, paid API) ───────────────
+  - model_name: cloud/deepseek-v4-flash
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-flash
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      mode: completion
+      tier: cloud
+
+  - model_name: cloud/claude-opus-4
+    litellm_params:
+      model: openrouter/anthropic/claude-opus-4
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      mode: completion
+      tier: cloud
+
+  - model_name: cloud/gemini-2.5-pro
+    litellm_params:
+      model: openrouter/google/gemini-2.5-pro-exp-03-25
+      api_key: os.environ/OPENROUTER_API_KEY
+    model_info:
+      mode: completion
+      tier: cloud
+
+router_settings:
+  routing_strategy: latency-based
+  allowed_fails: 3
+  num_retries: 2
+  cooldown_time: 60
+  enable_pre_call_checks: true
+  # Chain: try local first, then remote, then cloud
+  fallbacks:
+    - "local/*": ["remote/*"]
+    - "remote/*": ["cloud/*"]
+  # Model aliases for the agent fleet
+  default_deployment: cloud/deepseek-v4-flash
+
+# Agent routing — map each agent to its tier preference.
+# Agents access the proxy at http://localhost:4000 (local) or http://dev-cx53:4000 (remote)
+# and request model names like "local/qwen2.5-coder" or "cloud/deepseek-v4-flash".
+#
+# Quick reference for agent config files:
+#
+#   Claude Code:    CLAUDE.md or ~/.claude/settings.json
+#     OPENAI_BASE_URL=http://localhost:4000
+#     (or OPENAI_API_KEY=sk-localkey)
+#
+#   whale (your sub-agent): set in its skill/kickoff prompt:
+#     model = cloud/deepseek-v4-flash
+#     api_base = http://localhost:4000
+#
+#   pi / omp / nullclaw / zeroclaw: set in their env/config:
+#     LLM_BASE_URL=http://localhost:4000
+#     LLM_MODEL=remote/deepseek-coder   # GPU tier
+#
+#   ralph (tools/ralph/): set in tracks.json:
+#     "model": "cloud/deepseek-v4-flash",
+#     "endpoint": "http://localhost:4000/v1"
+#
+#   pr-review (vaked-agents/ci/pr-review/): set in .cargo/config.toml:
+#     OPENROUTER_BASE_URL = "http://localhost:4000"
+#     (the proxy IS the router — models resolve by name)
+#
+#   Any OpenAI-compatible client:
+#     OPENAI_BASE_URL=http://localhost:4000/v1
+#     OPENAI_API_KEY=sk-placeholder  (proxy doesn't validate by default)
+#     Model name: local/qwen2.5-coder | remote/deepseek-coder | cloud/deepseek-v4-flash
+
+litellm_settings:
+  cache: true
+  cache_params:
+    type: redis
+    ttl: 3600
+  # Request coalescing — dedup identical in-flight requests
+  request_queuing: true
+  queue_timeout: 30
+
+general_settings:
+  # Data directory — proxy state, cache, rate-limit counts, cooldown timers.
+  # Shared between local (M1/M3) and remote (dev-cx53) instances via Redis.
+  # Local:  ~/.vaked/llmproxy/data/
+  # Remote: /home/dev/.vaked/llmproxy/data/
+  # Format: SQLite (routing state) + Redis (cross-node sync) + local KV (Ollama cache)
+  # Single key (env-driven). Set DATABASE_URL: local = sqlite:///~/.vaked/llmproxy/proxy.db ; remote/shared = your shared proxy DB URL.
+  database_url: os.environ/DATABASE_URL
+  redis_host: os.environ/REDIS_HOST
+  redis_port: 6379
+  redis_password: os.environ/REDIS_PASSWORD
+
+  # Expose the admin UI (tailscale-only for security)
+  proxy_admin_ui: true
+
+  # Telemetry to Langfuse
+  otel: true
+  otel_endpoint: os.environ/LANGFUSE_HOST
