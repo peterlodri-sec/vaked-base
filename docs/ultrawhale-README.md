@@ -151,13 +151,13 @@ vaked-base/
 ultrawhale is maintained as a fork of [DeepSeek Code Whale](https://github.com/usewhale/DeepSeek-Code-Whale):
 
 ```
-https://github.com/peterlodri-sec/Whale — vaked-base fork (v1.1.0)
+https://github.com/peterlodri-sec/ultrawhale — vaked-base fork (v1.1.0)
 ```
 
 Build from the fork:
 
 ```sh
-git clone https://github.com/peterlodri-sec/Whale.git /home/dev/whale
+git clone https://github.com/peterlodri-sec/ultrawhale.git /home/dev/whale
 cd /home/dev/vaked-base
 nix develop .# --command bash -c "
   cd /home/dev/whale
