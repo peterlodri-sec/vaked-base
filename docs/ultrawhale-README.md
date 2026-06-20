@@ -1,6 +1,6 @@
 # ultrawhale — vaked-base module
 
-DeepSeek-native terminal coding agent, built for EPYC-Rome on NixOS. Fork of [DeepSeek Code Whale](https://github.com/usewhale/DeepSeek-Code-Whale) with aggressive performance tuning, AG-UI theming, repo map, native Go tools, async hooks, and 5 MCP servers.
+DeepSeek-native terminal coding agent, built for EPYC-Rome on NixOS. Fork of [ultrawhale](https://github.com/peterlodri-sec/ultrawhale) with aggressive performance tuning, AG-UI theming, repo map, native Go tools, async hooks, and 5 MCP servers.
 
 ## Quick Start
 
@@ -27,7 +27,7 @@ ultrawhale --model deepseek-v4-flash --effort high -w
 
 ```sh
 # Clone whale, build against vaked-base nix shell
-git clone https://github.com/usewhale/DeepSeek-Code-Whale.git /home/dev/whale
+git clone https://github.com/peterlodri-sec/ultrawhale.git /home/dev/whale
 cd /home/dev/vaked-base
 nix develop .# --command bash -c "
   cd /home/dev/whale
@@ -148,7 +148,7 @@ vaked-base/
 
 ## Fork
 
-ultrawhale is maintained as a fork of [DeepSeek Code Whale](https://github.com/usewhale/DeepSeek-Code-Whale):
+ultrawhale is maintained as a fork of [ultrawhale](https://github.com/peterlodri-sec/ultrawhale):
 
 ```
 https://github.com/peterlodri-sec/ultrawhale — vaked-base fork (v1.2.0)
@@ -212,6 +212,18 @@ internal/blocks/     — 14 files, ~800 lines
     ├── metal.go
     └── gpu_stub.go
 ```
+
+
+### Sed — SIMD Find-and-Replace
+
+| Function | Method | Performance |
+|----------|--------|-------------|
+| `Sed()` | `bytes.Index` (AVX2/NEON) | Single replace |
+| `SedAll()` | `bytes.Count` + SIMD loop | 257 MB/s (1KB) |
+| `SedFile()` | Read→Sed→Write (journaled) | 7.25µs per file |
+| `SedBatch()` | Concurrent dispatch | 98.8µs (10 files) |
+
+Usage: `/sed find replace` — in-TUI SIMD find-and-replace. All operations journaled.
 
 ### Integration
 
