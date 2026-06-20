@@ -154,7 +154,7 @@ func TestBM25ScoreOrdering(t *testing.T) {
 	}
 }
 
-func TestTokenizeAll(t *testing.T) {
+func TestHelpersTokenizeAll(t *testing.T) {
 	tests := []struct {
 		input string
 		want  []string

@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -53,8 +54,20 @@ var (
 	docs      = make(map[string][]DocEntry) // package_id@version -> entries
 	docCount  int
 	docIndexer *TFIDFIndexer
-	docScorer  *BM25Scorer
+	docScorerPtr  atomic.Pointer[BM25Scorer]
 )
+
+// ── Helpers ───────────────────────────────────────────────────
+
+// writeJSON serializes v as JSON and writes it with the given status code and
+// Content-Type header. Errors during encoding are logged but not returned.
+func writeJSON(w http.ResponseWriter, code int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("json encode error: %v", err)
+	}
+}
 
 // ── API handlers ──────────────────────────────────────────────
 
@@ -138,28 +151,20 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 		if docIndexer != nil {
 			for _, e := range entries {
 				for _, s := range e.Snippets {
-					content := s.Code
-					if s.Content != "" {
-						if content != "" {
-							content += "\n" + s.Content
-						} else {
-							content = s.Content
-						}
-					}
-					if content != "" {
+					content := assembleContent(s)
+				if content != "" {
 						docIndexer.AddDocument(pkg.ID, e.Query, content)
 					}
 				}
 			}
-			docScorer = NewBM25Scorer(docIndexer)
+			docScorerPtr.Store(NewBM25Scorer(docIndexer))
 		}
 	}
 	mu.Unlock()
 
 	log.Printf("registered: %s@%s (%d entries)", pkg.ID, pkg.Version, len(entries))
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, http.StatusCreated, map[string]interface{}{
 		"status":     "registered",
 		"id":         pkg.ID,
 		"version":    pkg.Version,
@@ -203,8 +208,8 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if query != "" {
 		// Try BM25 first if indexer is available
-		if docScorer != nil {
-			ranked := docScorer.Search(query, 20)
+		if s := docScorerPtr.Load(); s != nil {
+			ranked := s.Search(query, 20)
 			var filtered []DocEntry
 			for _, r := range ranked {
 				if r.PackageID == pkgID {
@@ -218,7 +223,7 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			if len(filtered) > 0 {
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				writeJSON(w, http.StatusOK, map[string]interface{}{
 					"package": pkgID + "@" + version,
 					"version": version,
 					"query":   query,
@@ -234,7 +239,7 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 		lower := strings.ToLower(query)
 		for _, e := range entries {
 			for _, s := range e.Snippets {
-				content := s.Code + s.Content
+				content := assembleContent(s)
 				if strings.Contains(strings.ToLower(content), lower) {
 					results = append(results, e)
 					break
@@ -244,7 +249,7 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 		entries = results
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"package": pkgID + "@" + version,
 		"version": version,
 		"query":   query,
@@ -278,7 +283,7 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"packages": infos,
 		"count":    len(infos),
 	})
@@ -292,9 +297,9 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try BM25 first
-	if docScorer != nil {
-		ranked := docScorer.Search(query, 20)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+	if s := docScorerPtr.Load(); s != nil {
+		ranked := s.Search(query, 20)
+		writeJSON(w, http.StatusOK, map[string]interface{}{
 			"query":   query,
 			"results": ranked,
 			"count":   len(ranked),
@@ -325,7 +330,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		results = results[:20]
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"query":   query,
 		"results": results,
 		"count":   len(results),
@@ -409,7 +414,7 @@ buildRustPackage rec {
 
 	// Rebuild scorer
 	if docIndexer != nil {
-		docScorer = NewBM25Scorer(docIndexer)
+		docScorerPtr.Store(NewBM25Scorer(docIndexer))
 	}
 }
 

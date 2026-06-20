@@ -5,7 +5,6 @@ package main
 
 import (
 	"sort"
-	"strings"
 )
 
 // ── BM25 Scorer ───────────────────────────────────────────────
@@ -121,27 +120,4 @@ func (s *BM25Scorer) Search(query string, topK int) []RankResult {
 	return ranked
 }
 
-// ── Tokenizer (shared) ────────────────────────────────────────
 
-// TokenizeAll splits text into lowercase alphanumeric tokens.
-// Handles hyphens, underscores, and dots within tokens.
-func TokenizeAll(text string) []string {
-	var tokens []string
-	var current strings.Builder
-	lower := strings.ToLower(text)
-
-	for _, r := range lower {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-' || r == '.' {
-			current.WriteRune(r)
-		} else {
-			if current.Len() > 0 {
-				tokens = append(tokens, current.String())
-				current.Reset()
-			}
-		}
-	}
-	if current.Len() > 0 {
-		tokens = append(tokens, current.String())
-	}
-	return tokens
-}

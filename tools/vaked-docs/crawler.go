@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 )
 
 // ── GitHub API types ──────────────────────────────────────────
@@ -48,15 +47,7 @@ type ghTree struct {
 	Tree      []ghTreeItem  `json:"tree"`
 }
 
-type ghRateLimit struct {
-	Core    ghRateLimitCore `json:"core"`
-}
 
-type ghRateLimitCore struct {
-	Limit     int `json:"limit"`
-	Remaining int `json:"remaining"`
-	Reset     int `json:"reset"`
-}
 
 // ── Crawler ───────────────────────────────────────────────────
 
@@ -422,7 +413,7 @@ func extractTitle(filename, content string) string {
 	name = strings.TrimSuffix(name, ".rst")
 	name = strings.ReplaceAll(name, "-", " ")
 	name = strings.ReplaceAll(name, "_", " ")
-	return strings.Title(name)
+	return wordsToTitle(name)
 }
 
 // derivePackageID creates a stable package identifier from filename and title.
@@ -436,24 +427,6 @@ func derivePackageID(filename, title string) string {
 	return id
 }
 
-// Tokenize splits text into lowercase terms, removing punctuation.
-func Tokenize(text string) []string {
-	var tokens []string
-	var current strings.Builder
-	for _, r := range text {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' || r == '-' || r == '.' {
-			current.WriteRune(r)
-		} else {
-			if current.Len() > 0 {
-				tokens = append(tokens, strings.ToLower(current.String()))
-				current.Reset()
-			}
-		}
-	}
-	if current.Len() > 0 {
-		tokens = append(tokens, strings.ToLower(current.String()))
-	}
-	return tokens
-}
+
 
 

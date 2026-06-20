@@ -142,7 +142,7 @@ func TestParseMarkdownNoHeadings(t *testing.T) {
 	}
 }
 
-func TestTokenize(t *testing.T) {
+func TestTokenizeAll(t *testing.T) {
 	tests := []struct {
 		input string
 		want  []string
@@ -154,9 +154,9 @@ func TestTokenize(t *testing.T) {
 		{"  leading/trailing  ", []string{"leading", "trailing"}},
 	}
 	for _, tt := range tests {
-		got := Tokenize(tt.input)
+		got := TokenizeAll(tt.input)
 		if !stringSliceEqual(got, tt.want) {
-			t.Errorf("Tokenize(%q) = %v, want %v", tt.input, got, tt.want)
+			t.Errorf("TokenizeAll(%q) = %v, want %v", tt.input, got, tt.want)
 		}
 	}
 }

@@ -228,8 +228,9 @@ func storeDocs(packageID, version string, entries []DocEntry) {
 		}
 	}
 
-	// Store entries
-	docs[packageID] = entries
+	// Store entries under versioned key
+	storeKey := packageID + "@" + version
+	docs[storeKey] = entries
 	for range entries {
 		docCount++
 	}
@@ -252,8 +253,8 @@ func storeDocs(packageID, version string, entries []DocEntry) {
 			}
 		}
 		// Rebuild BM25 scorer with updated average doc length
-		docScorer = NewBM25Scorer(docIndexer)
+		docScorerPtr.Store(NewBM25Scorer(docIndexer))
 	}
 
-	log.Printf("indexed %s@%s: %d entries", packageID, version, len(entries))
+	log.Printf("indexed %s: %d entries", storeKey, len(entries))
 }
