@@ -145,3 +145,23 @@ vaked-base/
 | Themes | 1 (default) | 4 (default + 3 AG-UI) |
 | Footer | 4-line | 1-line HUD statusline |
 | API | DeepSeek only | DeepSeek + OpenRouter |
+
+## Fork
+
+ultrawhale is maintained as a fork of [DeepSeek Code Whale](https://github.com/usewhale/DeepSeek-Code-Whale):
+
+```
+https://github.com/peterlodri-sec/Whale — vaked-base fork (v1.1.0)
+```
+
+Build from the fork:
+
+```sh
+git clone https://github.com/peterlodri-sec/Whale.git /home/dev/whale
+cd /home/dev/vaked-base
+nix develop .# --command bash -c "
+  cd /home/dev/whale
+  export CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOAMD64=v3 GOMAXPROCS=16
+  go build -trimpath -ldflags=\"-s -w\" -o bin/ultrawhale ./cmd/whale
+"
+```
