@@ -13,7 +13,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REMOTE_USER="${REMOTE_USER:-dev}"
 REMOTE_HOST="${REMOTE_HOST:-dev-cx53}"
 REMOTE_PATH="${REMOTE_PATH:-/home/dev/vaked-dev}"
-BRANCH="${BRANCH:-main}"
+BRANCH="${BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
 LOCAL_PORT="${LOCAL_PORT:-4000}"
 
 # ── Prerequisites ──────────────────────────────────────────────────────────
@@ -47,10 +47,11 @@ ssh "$REMOTE_USER@$REMOTE_HOST" "
   command -v gh &>/dev/null && echo 'gh: \$(gh --version | head -1)' || echo 'gh not installed'
   # rtk — AI toolkit
   command -v rtk &>/dev/null || {
-    curl -sSfL https://github.com/rtk-ai/rtk/releases/latest/download/rtk-linux-amd64 -o /tmp/rtk 2>/dev/null
-    chmod +x /tmp/rtk 2>/dev/null && sudo mv /tmp/rtk /usr/local/bin/rtk 2>/dev/null && echo 'rtk: \$(rtk --version 2>&1 | head -1)' || echo 'rtk not installed (no prebuilt binary)'
+    curl -sSfL https://github.com/rtk-ai/rtk/releases/latest/download/rtk-x86_64-unknown-linux-musl.tar.gz -o /tmp/rtk.tar.gz 2>/dev/null
+    tar -xzf /tmp/rtk.tar.gz -C /tmp 2>/dev/null && chmod +x /tmp/rtk 2>/dev/null
+    sudo mv /tmp/rtk /usr/local/bin/rtk 2>/dev/null && echo 'rtk: OK' || echo 'rtk not installed'
   }
-" 2>&1 | while read -r line; do info "$line"; done
+  " 2>&1 | while read -r line; do info "$line"; done
 
 # ── LLM proxy check ────────────────────────────────────────────────────────
 header "LLM proxy mesh"
