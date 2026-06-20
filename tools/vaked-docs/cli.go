@@ -119,7 +119,11 @@ func runRegister(args []string) bool {
 	fmt.Println("⏳ Crawling documentation from GitHub...")
 
 	// Fetch directly (CLI-side crawl for progress visibility)
-	crawler := NewCrawler(os.Getenv("GITHUB_TOKEN"))
+	ref := ""
+	if version != "" && version != "latest" {
+		ref = version
+	}
+	crawler := NewCrawler(os.Getenv("GITHUB_TOKEN"), ref)
 	entries, err := crawler.FetchCrawl(owner, repo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: crawl failed: %v\n", err)

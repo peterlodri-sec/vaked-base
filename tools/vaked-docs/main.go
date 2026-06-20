@@ -129,7 +129,11 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if pkg.URL != "" {
 		owner, repo, err := ParseRepoURL(pkg.URL)
 		if err == nil {
-			crawler := NewCrawler(os.Getenv("GITHUB_TOKEN"))
+			ref := ""
+			if pkg.Version != "" && pkg.Version != "latest" {
+				ref = pkg.Version
+			}
+			crawler := NewCrawler(os.Getenv("GITHUB_TOKEN"), ref)
 			var crawlErr error
 			entries, crawlErr = crawler.FetchCrawl(owner, repo)
 			if crawlErr != nil {
@@ -184,21 +188,17 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 
 	// Parse version from pkg@version syntax
+	// Any @ suffix is treated as a version (package IDs never contain @)
 	version := "latest"
-	if idx := strings.LastIndex(pkgID, "@"); idx > 0 && strings.Contains(pkgID[idx+1:], ".") {
+	if idx := strings.LastIndexByte(pkgID, '@'); idx > 0 {
 		version = pkgID[idx+1:]
 		pkgID = pkgID[:idx]
 	}
 
-	// Try exact match first, then fall back to latest
 	storeKey := pkgID + "@" + version
 
 	mu.RLock()
 	entries, ok := docs[storeKey]
-	if !ok && version != "latest" {
-		// Try without version
-		entries, ok = docs[pkgID+"@latest"]
-	}
 	mu.RUnlock()
 
 	if !ok {
@@ -210,9 +210,15 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 		// Try BM25 first if indexer is available
 		if s := docScorerPtr.Load(); s != nil {
 			ranked := s.Search(query, 20)
+			// Build a set of queries present in this version's entries
+			// to scope BM25 results to the requested version
+			versionQueries := make(map[string]bool)
+			for _, e := range entries {
+				versionQueries[e.Query] = true
+			}
 			var filtered []DocEntry
 			for _, r := range ranked {
-				if r.PackageID == pkgID {
+				if r.PackageID == pkgID && versionQueries[r.Query] {
 					// Find the matching DocEntry
 					for _, e := range entries {
 						if e.Query == r.Query {

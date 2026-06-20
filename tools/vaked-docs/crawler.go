@@ -56,6 +56,7 @@ type Crawler struct {
 	Client  *http.Client
 	Token   string // optional GitHub token for higher rate limits
 	BaseURL string // defaults to "https://api.github.com"
+	Ref     string // git ref for versioned crawling (e.g. "v0.16.0", "main", commit SHA)
 }
 
 // ParseRepoURL extracts owner/repo from a GitHub URL.
@@ -86,11 +87,13 @@ func ParseRepoURL(raw string) (owner, repo string, err error) {
 }
 
 // NewCrawler creates a crawler. Pass token="" for unauthenticated access (60 req/hr).
-func NewCrawler(token string) *Crawler {
+// If ref is non-empty, GitHub API calls include ?ref=<ref> for versioned crawling.
+func NewCrawler(token, ref string) *Crawler {
 	return &Crawler{
 		Client:  &http.Client{Timeout: 30 * time.Second},
 		Token:   token,
 		BaseURL: "https://api.github.com",
+		Ref:     ref,
 	}
 }
 
@@ -130,8 +133,7 @@ func (c *Crawler) FetchCrawl(owner, repo string) ([]DocEntry, error) {
 
 // fetchReadme fetches the repository README.
 func (c *Crawler) fetchReadme(owner, repo string) (string, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/readme", c.BaseURL, owner, repo)
-	body, err := c.ghGet(url)
+	body, err := c.ghGet(c.apiURL(fmt.Sprintf("/repos/%s/%s/readme", owner, repo)))
 	if err != nil {
 		return "", err
 	}
@@ -151,8 +153,7 @@ func (c *Crawler) fetchReadme(owner, repo string) (string, error) {
 
 // fetchDocsDir fetches files from the docs/ directory.
 func (c *Crawler) fetchDocsDir(owner, repo string) ([]ghContent, error) {
-	url := fmt.Sprintf("%s/repos/%s/%s/contents/docs", c.BaseURL, owner, repo)
-	body, err := c.ghGet(url)
+	body, err := c.ghGet(c.apiURL(fmt.Sprintf("/repos/%s/%s/contents/docs", owner, repo)))
 	if err != nil {
 		return nil, err // docs/ may not exist
 	}
@@ -209,7 +210,7 @@ func (c *Crawler) fetchRawContent(downloadURL string) (string, error) {
 // fetchWiki attempts to fetch wiki content via raw.githubusercontent.com.
 func (c *Crawler) fetchWiki(owner, repo string) ([]DocEntry, error) {
 	// First try the wiki tree via GitHub API (wiki ref)
-	treeURL := fmt.Sprintf("%s/repos/%s/%s/git/trees/wiki?recursive=1", c.BaseURL, owner, repo)
+	treeURL := c.apiURL(fmt.Sprintf("/repos/%s/%s/git/trees/wiki?recursive=1", owner, repo))
 	body, err := c.ghGet(treeURL)
 	if err != nil {
 		// No wiki
@@ -239,6 +240,20 @@ func (c *Crawler) fetchWiki(owner, repo string) ([]DocEntry, error) {
 		entries = append(entries, docEntries...)
 	}
 	return entries, nil
+}
+
+// apiURL builds a GitHub API v3 URL with optional ref query parameter.
+// Handles paths that already contain query parameters.
+func (c *Crawler) apiURL(path string) string {
+	u := c.BaseURL + path
+	if c.Ref != "" {
+		sep := "?"
+		if strings.Contains(path, "?") {
+			sep = "&"
+		}
+		u += sep + "ref=" + url.QueryEscape(c.Ref)
+	}
+	return u
 }
 
 // ghGet performs an authenticated GET to the GitHub API.
