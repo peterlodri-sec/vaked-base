@@ -4,10 +4,19 @@ DeepSeek-native terminal coding agent, built for EPYC-Rome on NixOS. Fork of [De
 
 ## Quick Start
 
+### Linux (dev-cx53)
+
 ```sh
 ssh dev-cx53
 cd /home/dev/vaked-base
 ultrawhale --model deepseek-v4-flash -w
+```
+
+### macOS (Apple Silicon — M1/M2/M3/M4)
+
+```sh
+cd vaked-base
+./bin/ultrawhale --model deepseek-v4-flash -w
 ```
 
 Or with full DeepSeek optimizations:
@@ -19,11 +28,31 @@ ultrawhale --model deepseek-v4-flash --effort high -w
 ## Install
 
 ### Prerequisites
-- NixOS host with Zig 0.16, Go 1.26 (via `nix develop`)
+- **Linux:** NixOS host with Go 1.26. 16+ cores recommended (EPYC-Rome).
+- **macOS:** Apple Silicon (M1+) with Go 1.26. ARM64 NEON SIMD — native performance.
 - DeepSeek API key in `~/.whale/credentials.json`
-- 16+ cores recommended (EPYC-Rome or equivalent)
 
-### Build from source
+### Build from source (Linux → macOS cross-compile)
+
+```sh
+# On dev-cx53, cross-compile for Apple Silicon
+cd /home/dev/vaked-base && nix develop .# --command bash -c "
+  cd /home/dev/whale
+  export CGO_ENABLED=0 GOOS=darwin GOARCH=arm64
+  go build -trimpath -ldflags=\"-s -w\" -o bin/ultrawhale-darwin-arm64 ./cmd/whale
+"
+# scp dev-cx53:/home/dev/whale/bin/ultrawhale-darwin-arm64 ~/.local/bin/ultrawhale
+```
+
+### Build from source (macOS native)
+
+```sh
+cd vaked-base
+go build -trimpath -ldflags="-s -w" -o bin/ultrawhale ./cmd/whale
+./bin/ultrawhale --model deepseek-v4-flash -w
+```
+
+### Build from source (Linux native)
 
 ```sh
 git clone https://github.com/usewhale/DeepSeek-Code-Whale.git /home/dev/whale
@@ -237,7 +266,7 @@ vaked-base/
 
 | Feature | Upstream | ultrawhale v8 |
 |---------|----------|---------------|
-| Binary size | 39MB (debug, unstripped) | 30MB (stripped, static) |
+| Binary size | 39MB (debug, unstripped) | 30MB Linux / 28MB macOS (static) |
 | ISA target | GOAMD64=v1 | GOAMD64=v3 (AVX2+BMI2+FMA) |
 | FMA instructions | 10 | 93 (9.3x) |
 | BMI2 instructions | 659 | 1,588 (2.4x) |
