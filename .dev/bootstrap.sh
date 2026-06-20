@@ -45,6 +45,8 @@ ssh "$REMOTE_USER@$REMOTE_HOST" "
   command -v rg &>/dev/null || (sudo nix-env -iA nixpkgs.ripgrep 2>/dev/null || sudo apt-get install -y ripgrep 2>/dev/null) && echo 'rg OK' || echo 'rg not installed'
   # gh
   command -v gh &>/dev/null && echo 'gh: \$(gh --version | head -1)' || echo 'gh not installed'
+  # @usewhale/whale — DeepSeek-optimized coding agent
+  command -v whale &>/dev/null || npm install -g @usewhale/whale 2>/dev/null && echo "whale: OK" || echo "whale not installed"
   # rtk — AI toolkit
   command -v rtk &>/dev/null || {
     curl -sSfL https://github.com/rtk-ai/rtk/releases/latest/download/rtk-x86_64-unknown-linux-musl.tar.gz -o /tmp/rtk.tar.gz 2>/dev/null
@@ -85,6 +87,8 @@ export LITELLM_PROXY_URL=http://$REMOTE_HOST:4000
 export VAKED_DEFAULT_MODEL=cloud/deepseek-v4-flash
 export VAKED_CODING_MODEL=cloud/claude-opus-4
 export VAKED_FAST_MODEL=remote/deepseek-coder
+export VAKED_GLM5_MODEL=z-ai/glm-5
+export VAKED_GLM45AIR_MODEL=z-ai/glm-4.5-air
 
 # Memory — three layers:
 # 1) CodeWhale built-in session memory (automatic)
