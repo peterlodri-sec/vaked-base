@@ -255,3 +255,69 @@ vaked-base/
 | Reload | Restart required | `/reload` command |
 | Native tools | shell exec only | Go-native gh/grep/git |
 | Theme cycling | None | `Ctrl+Shift+T` + `/reload theme` |
+
+---
+
+## Infrastructure Setup
+
+### Langfuse — LLM Observability
+
+```sh
+# Get API keys from langfuse.crabcc.app → Settings → API Keys
+export LANGFUSE_PUBLIC_KEY="pk-lf-..."
+export LANGFUSE_SECRET_KEY="sk-lf-..."
+export LANGFUSE_HOST="https://langfuse.crabcc.app"
+ultrawhale --model deepseek-v4-flash -w
+# Traces auto-flow to https://langfuse.crabcc.app
+```
+
+**Traced:** session start/stop, every tool call (SPAN), LLM generations (cost, latency, tokens).
+
+### bao — Secrets Auto-Discovery
+
+```sh
+export VAULT_TOKEN="s.xxxx"
+# Store secrets once:
+curl -X POST https://bao.crabcc.app/v1/secret/data/whale \
+  -H "X-Vault-Token: $VAULT_TOKEN" \
+  -d '{"data":{"LANGFUSE_PUBLIC_KEY":"pk-...","LANGFUSE_SECRET_KEY":"sk-..."}}'
+# Start ultrawhale — superpowers plugin auto-discovers and sets env vars
+ultrawhale --model deepseek-v4-flash -w
+# HUD shows: bao·lf when connected
+```
+
+### NATS — Event Streaming
+
+```sh
+export NATS_URL="nats://crabcc-nats:4222"
+ultrawhale --model deepseek-v4-flash -w
+# Events: whale.turn.start, whale.turn.stop, whale.tool.call, whale.tool.result
+```
+
+### GPU Compute (vastai)
+
+```sh
+export VAST_API_KEY="..."
+ultrawhale --model deepseek-v4-flash -w
+# HUD shows available GPU count: 2GPU
+```
+
+### Hub Visibility
+
+```sh
+curl http://localhost:9797/health
+# → {"plugin":"superpowers","bao_connected":true,"langfuse_wired":true,"online":true}
+```
+
+### [superpowers] Config
+
+```toml
+[superpowers]
+enabled = true
+bao_url = "https://bao.crabcc.app"
+auto_wire_secrets = true
+auto_wire_nats = true
+auto_wire_langfuse = true
+compute_provider = "vastai"
+hub_enabled = true
+```
