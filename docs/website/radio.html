@@ -20,7 +20,7 @@ body{background:#0b1015;color:#a8b8c8;font-family:'Inter','SF Pro',sans-serif;di
 .btn.active{border-color:#20c060;color:#20c060}
 </style>
 </head><body>
-<div class="header"><h1>Vaked-FM</h1><div class="title">SWARM AVATAR</div><div class="sub">genesis <span id="seal">7c242080</span> · nodes <span id="nodes">6</span> · <span id="status">synced</span> · <span id="latency">WebRTC</span></div></div>
+<div class="header"><h1>Vaked-FM</h1><div class="title">SWARM AVATAR</div><div class="sub">genesis <span id="seal">7c242080</span> · nodes <span id="nodes">6</span> · velocity <span id="velocity">—</span>/day · <span id="status">synced</span> · <span id="latency">WebRTC</span></div></div>
 <div id="ovenplayer-container" style="width:0;height:0;overflow:hidden"></div>
 <canvas id="avatar"></canvas>
 <canvas id="wave"></canvas>
@@ -38,21 +38,45 @@ const ctx=C.getContext('2d'),wctx=W.getContext('2d');
 function resize(){C.width=C.offsetWidth*2;C.height=C.offsetHeight*2;W.width=W.offsetWidth*2;W.height=W.offsetHeight*2}
 resize();window.addEventListener('resize',resize);
 
+// ── Dev velocity → node layout seed ─────────────────────────────────────
+// Fetches commit frequency on main (first-parent), computes commits/day,
+// and uses it as the layout seed — so the avatar shape shifts with project pace.
+// NOTE: unauthenticated GitHub API (60 req/hr). Fine for a single-visitor
+// demo page; falls back to classic seed (42) on any error or rate limit.
+let velocity=42; // fallback (classic seed)
+async function fetchVelocity(){
+  try{
+    let r=await fetch('https://api.github.com/repos/peterlodri-sec/vaked-base/commits?sha=main&per_page=30');
+    if(!r.ok) return;
+    let commits=await r.json();
+    if(!commits.length) return;
+    let newest=new Date(commits[0].commit.committer.date);
+    let oldest=new Date(commits[commits.length-1].commit.committer.date);
+    let days=Math.max(1,(newest-oldest)/864e5);
+    velocity=Math.round(commits.length/days*10)||42;
+    document.getElementById('velocity').textContent=(commits.length/days).toFixed(1)+'/day';
+  }catch(e){}
+}
+
 // ── Deterministic node layout ───────────────────────────────────────────
 const N=32;
-let nodes=[],edges=[];
-const rng=seededRandom(SEED[0],42);
-const cx=C.width/2,cy=C.height/2,radius=Math.min(C.width,C.height)*0.35;
-for(let i=0;i<N;i++){
-  let angle=(i/N)*Math.PI*2+rng()*0.3;
-  let orbit=radius*(0.3+rng()*0.7);
-  nodes.push({x:cx+Math.cos(angle)*orbit,y:cy+Math.sin(angle)*orbit,phase:rng()*6.28,orbit:orbit,speed:0.1+rng()*0.2});
-}
-for(let i=0;i<N;i++){
-  for(let j=i+1;j<N;j++){
-    if(rng()<0.15) edges.push({a:i,b:j,opacity:0.05+rng()*0.1});
+let nodes=[],edges=[],cx,cy,radius;
+function initLayout(seed){
+  nodes=[];edges=[];
+  const rng=seededRandom(SEED[0],seed);
+  cx=C.width/2;cy=C.height/2;radius=Math.min(C.width,C.height)*0.35;
+  for(let i=0;i<N;i++){
+    let angle=(i/N)*Math.PI*2+rng()*0.3;
+    let orbit=radius*(0.3+rng()*0.7);
+    nodes.push({x:cx+Math.cos(angle)*orbit,y:cy+Math.sin(angle)*orbit,phase:rng()*6.28,orbit:orbit,speed:0.1+rng()*0.2});
+  }
+  for(let i=0;i<N;i++){
+    for(let j=i+1;j<N;j++){
+      if(rng()<0.15) edges.push({a:i,b:j,opacity:0.05+rng()*0.1});
+    }
   }
 }
+initLayout(velocity);
 
 // ── Swarm state ──────────────────────────────────────────────────────────
 let bpm=60,trust=1.0,conv=27,sealHolds=true,t=0;
@@ -126,6 +150,9 @@ function drawWave(){
   wctx.strokeStyle=`rgba(${sealHolds?'0,200,100':'200,50,50'},0.5)`;wctx.lineWidth=2;
   wctx.beginPath();wctx.moveTo(bx,0);wctx.lineTo(bx,W.height);wctx.stroke();
 }
+
+// ── Re-init layout when dev velocity arrives ────────────────────────────
+fetchVelocity().then(()=>{if(velocity!==42)initLayout(velocity)});
 
 // ── Telemetry ────────────────────────────────────────────────────────────
 async function fetchTelemetry(){
