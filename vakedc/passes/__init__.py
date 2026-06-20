@@ -67,23 +67,28 @@ def run_pipeline(graph: Graph, workflow_nodes: list[GraphNode]) -> PassResult:
     from .pass02_wal import WALInjection
     from .pass03_aot_index import AOTIndexGeneration
 
-    # Pass 1 — analyse topology (cycle + depth + bound)
+    # Pass 1 — analyse topology (cycle + depth + bound). Pass 1 attaches
+    # ``_diagnostics`` to each workflow IR that fails (E-WORKFLOW-CYCLE /
+    # E-WORKFLOW-DEPTH). Per 0024 §2.1, an IR that failed topology must be
+    # rejected with NO artifacts — neither WAL frames (Pass 2) nor the AOT
+    # supervisor index (Pass 3) may be materialized for it.
     wf_irs = TopologyAnalysis.run(graph, workflow_nodes)
+    failing = [wf for wf in wf_irs if getattr(wf, "_diagnostics", [])]
+    clean = [wf for wf in wf_irs if not getattr(wf, "_diagnostics", [])]
 
-    # Pass 2 — inject WAL frames
-    wf_irs = WALInjection.run(graph, wf_irs)
+    # Pass 2 + Pass 3 run ONLY on the clean IRs. Failing IRs are returned
+    # unmodified (no WAL, no AOT), so their artifacts stay empty.
+    clean = WALInjection.run(graph, clean)
+    artifacts = AOTIndexGeneration.run(graph, clean)
 
-    # Pass 3 — emit supervisor index artifacts
-    artifacts = AOTIndexGeneration.run(graph, wf_irs)
-
-    # Collect diagnostics from all passes
+    # Collect diagnostics from the failing IRs (Pass 1 already attached them).
     diags: list[Diagnostic] = []
-    for wf in wf_irs:
-        diags.extend(getattr(wf, '_diagnostics', []))
+    for wf in failing:
+        diags.extend(getattr(wf, "_diagnostics", []))
 
     return PassResult(
         diagnostics=diags,
-        workflows=wf_irs,
+        workflows=clean + failing,
         artifacts=artifacts,
     )
 

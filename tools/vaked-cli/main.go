@@ -1,21 +1,22 @@
 // vaked-cli — compiled CLI for Vaked development workflows.
 //
 // Subcommands:
-//   mlir check              Validate .td files (needs mlir-tblgen)
-//   mlir env                Show MLIR toolchain status
-//   mlir validate <file>    Run Stage-0 pass pipeline
-//   seal sign <path> <mem>  Produce a votive seal
-//   seal admit <file>       Validate a seal (ADMIT/REFUSE)
-//   seal verify <file>      Validate with verbose output
-//   proxy discover          Scan local network for LLM endpoints (Ollama, LiteLLM, OpenRouter)
-//   proxy status            Show running proxy services
-//   proxy apply <file>      Deploy a proxy config to local or remote
+//
+//	mlir check              Validate .td files (needs mlir-tblgen)
+//	mlir env                Show MLIR toolchain status
+//	mlir validate <file>    Run Stage-0 pass pipeline
+//	seal sign <path> <mem>  Produce a votive seal
+//	seal admit <file>       Validate a seal (ADMIT/REFUSE)
+//	seal verify <file>      Validate with verbose output
+//	proxy discover          Scan local network for LLM endpoints (Ollama, LiteLLM, OpenRouter)
+//	proxy status            Show running proxy services
+//	proxy apply <file>      Deploy a proxy config to local or remote
 //
 // Build:
-//   go build -o vaked-cli .                    # native
-//   GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-//     go build -o vaked-cli-linux-x86_64 .     # cross-compile for dev-cx53
 //
+//	go build -o vaked-cli .                    # native
+//	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+//	  go build -o vaked-cli-linux-x86_64 .     # cross-compile for dev-cx53
 package main
 
 import (
@@ -37,11 +38,40 @@ import (
 // repoRoot resolves relative to the binary location (tools/vaked-cli/ -> repo root).
 var repoRoot string
 
+// resolveRepoRoot determines the repository root directory.
+// It checks (1) VAKED_REPO_ROOT env, (2) walks up looking for flake.nix,
+// (3) falls back to three directories up from the binary, (4) returns "".
+func resolveRepoRoot(exe string) string {
+	// 1. Explicit environment override.
+	if v := os.Getenv("VAKED_REPO_ROOT"); v != "" {
+		if fi, err := os.Stat(v); err == nil && fi.IsDir() {
+			return v
+		}
+	}
+	real, _ := filepath.EvalSymlinks(exe)
+	// 2. Walk up from binary directory looking for flake.nix marker.
+	dir := filepath.Dir(real)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "flake.nix")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	// 3. Fall back to three directories up (binary at <root>/tools/vaked-cli/vaked-cli).
+	if up := filepath.Dir(filepath.Dir(filepath.Dir(real))); up != "." && up != "/" {
+		return up
+	}
+	// 4. Nothing found.
+	return ""
+}
+
 func init() {
 	exe, _ := os.Executable()
-	real, _ := filepath.EvalSymlinks(exe)
-	// Binary is at <root>/tools/vaked-cli/vaked-cli -> three Dirs up.
-	repoRoot = filepath.Dir(filepath.Dir(filepath.Dir(real)))
+	repoRoot = resolveRepoRoot(exe)
 }
 
 func main() {
@@ -90,6 +120,10 @@ func mlirCmd(args []string) {
 }
 
 func mlirCheck() {
+	if repoRoot == "" {
+		fmt.Fprintln(os.Stderr, "vaked-cli: could not locate repo root (set VAKED_REPO_ROOT to the vaked-base source tree) — mlir subcommands need the source tree")
+		os.Exit(1)
+	}
 	tg := findTblgen()
 	if tg == "" {
 		fmt.Fprintln(os.Stderr, "mlir-tblgen not found — install or 'nix develop .'")
@@ -107,7 +141,7 @@ func mlirCheck() {
 	allOK := true
 	for _, td := range tdFiles {
 		r := runCmd(tg, "--gen-op-defs", td.path)
-		if r.err == nil {
+		if r.errCode == 0 {
 			lines := len(strings.Split(string(r.out), "\n"))
 			fmt.Printf("  PASS  %s: %d lines generated\n", td.name, lines)
 		} else {
@@ -121,6 +155,10 @@ func mlirCheck() {
 }
 
 func mlirEnv() {
+	if repoRoot == "" {
+		fmt.Fprintln(os.Stderr, "vaked-cli: could not locate repo root (set VAKED_REPO_ROOT to the vaked-base source tree) — mlir subcommands need the source tree")
+		os.Exit(1)
+	}
 	tg := findTblgen()
 	if tg != "" {
 		fmt.Printf("mlir-tblgen: %s\n", tg)
@@ -143,6 +181,10 @@ func mlirEnv() {
 }
 
 func mlirValidate(file string) {
+	if repoRoot == "" {
+		fmt.Fprintln(os.Stderr, "vaked-cli: could not locate repo root (set VAKED_REPO_ROOT to the vaked-base source tree) — mlir subcommands need the source tree")
+		os.Exit(1)
+	}
 	// Resolve file path: use as-is if absolute, otherwise resolve from CWD.
 	fullPath := file
 	if !filepath.IsAbs(file) {
@@ -231,12 +273,12 @@ func sealCmd(args []string) {
 }
 
 type VotiveSeal struct {
-	Vaked        SealMeta    `json:"vaked"`
-	Membrane     string      `json:"membrane"`
-	ClosureHash  string      `json:"closure_hash"`
-	TopologyEpoch int        `json:"topology_epoch"`
-	GeneratedAt  string      `json:"generated_at"`
-	Signature    SealSig     `json:"signature"`
+	Vaked         SealMeta `json:"vaked"`
+	Membrane      string   `json:"membrane"`
+	ClosureHash   string   `json:"closure_hash"`
+	TopologyEpoch int      `json:"topology_epoch"`
+	GeneratedAt   string   `json:"generated_at"`
+	Signature     SealSig  `json:"signature"`
 }
 
 type SealMeta struct {
@@ -261,7 +303,10 @@ func sealSign(pathOrHash, membrane string, epoch int) {
 	}
 	if closureHash == "" {
 		h := sha256.New()
-		walkHash(pathOrHash, h)
+		if err := walkHash(pathOrHash, h); err != nil {
+			fmt.Fprintf(os.Stderr, "REFUSE: cannot hash %q: %v\n", pathOrHash, err)
+			os.Exit(1)
+		}
 		closureHash = hex.EncodeToString(h.Sum(nil))
 	}
 
@@ -280,11 +325,11 @@ func sealSign(pathOrHash, membrane string, epoch int) {
 	sig := mac.Sum(nil)
 
 	seal := VotiveSeal{
-		Vaked:        SealMeta{Schema: "votive-seal", Version: "1"},
-		Membrane:     membrane,
-		ClosureHash:  closureHash,
+		Vaked:         SealMeta{Schema: "votive-seal", Version: "1"},
+		Membrane:      membrane,
+		ClosureHash:   closureHash,
 		TopologyEpoch: epoch,
-		GeneratedAt:  time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		GeneratedAt:   time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 		Signature: SealSig{
 			Algorithm:   "hmac-sha256-placeholder",
 			Value:       base64.StdEncoding.EncodeToString(sig),
@@ -550,8 +595,8 @@ func findTblgen() string {
 }
 
 type cmdResult struct {
-	out []byte
-	err []byte
+	out     []byte
+	err     []byte
 	errCode int
 }
 
@@ -570,21 +615,31 @@ func runCmd(name string, args ...string) cmdResult {
 	return result
 }
 
-func walkHash(path string, h io.Writer) {
+func walkHash(path string, h io.Writer) error {
 	info, err := os.Stat(path)
 	if err != nil {
-		return
+		return err
 	}
 	if !info.IsDir() {
-		data, _ := os.ReadFile(path)
-		h.Write(data)
-		return
-	}
-	filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
-		if err == nil && !fi.IsDir() {
-			data, _ := os.ReadFile(p)
-			h.Write(data)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
 		}
+		h.Write(data)
+		return nil
+	}
+	return filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		h.Write(data)
 		return nil
 	})
 }

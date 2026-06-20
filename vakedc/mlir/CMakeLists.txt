@@ -81,6 +81,24 @@ add_custom_command(OUTPUT "${GEN_DIR}/VakedDialect.cpp.inc"
   COMMENT "Generating VakedDialect.cpp.inc"
 )
 
+# Op declarations (consumed by VakedDialect.h via the ODS op classes).
+add_custom_command(OUTPUT "${GEN_DIR}/VakedDialectOps.h.inc"
+  COMMAND ${MLIR_TBLGEN} --gen-op-decls
+    ${MLIR_TBLGEN_FLAGS}
+    "${TD_DIR}/VakedDialect.td" -o "${GEN_DIR}/VakedDialectOps.h.inc"
+  DEPENDS "${TD_DIR}/VakedDialect.td"
+  COMMENT "Generating VakedDialectOps.h.inc"
+)
+
+# TypeDef declarations (consumed by VakedDialect.h via the ODS type classes).
+add_custom_command(OUTPUT "${GEN_DIR}/VakedDialectTypes.h.inc"
+  COMMAND ${MLIR_TBLGEN} --gen-typedef-decls
+    ${MLIR_TBLGEN_FLAGS}
+    "${TD_DIR}/VakedDialect.td" -o "${GEN_DIR}/VakedDialectTypes.h.inc"
+  DEPENDS "${TD_DIR}/VakedDialect.td"
+  COMMENT "Generating VakedDialectTypes.h.inc"
+)
+
 # Generate type-only variants filtering out EXPLICIT_TYPE_ID to avoid
 # duplicate when the same .inc is included twice (once for GET_OP_CLASSES,
 # once for GET_TYPEDEF_LIST). MLIR 19+ generates these unconditionally.
@@ -117,14 +135,36 @@ add_custom_command(OUTPUT "${GEN_DIR}/HcpDialect.cpp.inc"
   COMMENT "Generating HcpDialect.cpp.inc"
 )
 
+# Op declarations (consumed by HcpDialect.h via the ODS op classes).
+add_custom_command(OUTPUT "${GEN_DIR}/HcpDialectOps.h.inc"
+  COMMAND ${MLIR_TBLGEN} --gen-op-decls -dialect hcp
+    ${MLIR_TBLGEN_FLAGS}
+    "${TD_DIR}/HcpDialect.td" -o "${GEN_DIR}/HcpDialectOps.h.inc"
+  DEPENDS "${TD_DIR}/HcpDialect.td"
+  COMMENT "Generating HcpDialectOps.h.inc"
+)
+
+# TypeDef declarations (consumed by HcpDialect.h via the ODS type classes).
+add_custom_command(OUTPUT "${GEN_DIR}/HcpDialectTypes.h.inc"
+  COMMAND ${MLIR_TBLGEN} --gen-typedef-decls -dialect hcp
+    ${MLIR_TBLGEN_FLAGS}
+    "${TD_DIR}/HcpDialect.td" -o "${GEN_DIR}/HcpDialectTypes.h.inc"
+  DEPENDS "${TD_DIR}/HcpDialect.td"
+  COMMENT "Generating HcpDialectTypes.h.inc"
+)
+
 # Aggregate target.
 add_custom_target(VAKEDMLIRTablegen
   DEPENDS
     "${GEN_DIR}/VakedDialect.h.inc"
     "${GEN_DIR}/VakedDialect.cpp.inc"
+    "${GEN_DIR}/VakedDialectOps.h.inc"
+    "${GEN_DIR}/VakedDialectTypes.h.inc"
     "${GEN_DIR}/VakedDialectTypes.cpp.inc"
     "${GEN_DIR}/HcpDialect.h.inc"
     "${GEN_DIR}/HcpDialect.cpp.inc"
+    "${GEN_DIR}/HcpDialectOps.h.inc"
+    "${GEN_DIR}/HcpDialectTypes.h.inc"
     "${GEN_DIR}/HcpDialectTypes.cpp.inc"
 )
 

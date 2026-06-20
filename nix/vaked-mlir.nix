@@ -25,7 +25,7 @@ stdenv.mkDerivation {
     owner = "llvm";
     repo = "llvm-project";
     rev = "llvmorg-${llvmVersion}";
-    sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # FIXME: set real hash after first build
+    sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # BROKEN: fixed-output hash not yet computed — run on dev-cx53 via the 3-gate build protocol (nix build .#vaked-mlir 2>&1 | grep 'got:'), paste the real sha256 here, then remove meta.broken. Do NOT build on the M1 dev machine.
   };
 
   nativeBuildInputs = [ cmake ninja git llvm_src ];
@@ -88,9 +88,11 @@ stdenv.mkDerivation {
       the C++ dialect library.
 
       Slow on first build (~5 min). Alternative: tools/build-mlir-stage1.sh
+      Marked broken: the LLVM source fixed-output hash is a placeholder; compute it on dev-cx53 before enabling.
     '';
     homepage = "https://github.com/peterlodri-sec/vaked-base";
     license = lib.licenses.mit;
     platforms = lib.platforms.linux;
+    broken = true;
   };
 }

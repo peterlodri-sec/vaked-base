@@ -15,7 +15,7 @@ After bootstrap, from anywhere with Tailscale:
 
 ```bash
 curl http://dev-cx53:4000/v1/chat/completions \
-  -H "Authorization: Bearer sk-PrsAdrqFU4xYhrm3hGLo1Q" \
+  -H "Authorization: Bearer $VAKED_PROXY_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}'
 # → {"choices":[{"message":{"content":"Hello! How can I assist you today?"}}]}
@@ -27,7 +27,7 @@ curl http://dev-cx53:4000/v1/chat/completions \
 |-----------|--------|
 | **SSH** | `dev@dev-cx53`, fresh checkout in `/home/dev/vaked-dev` |
 | **LLM proxy** | port 4000, OpenRouter + Ollama models, 40+ models available |
-| **API key** | `sk-PrsAdrqFU4xYhrm3hGLo1Q` (unlimited budget) |
+| **API key** | set via `VAKED_PROXY_KEY` env var (never committed; rotate the leaked key) |
 | **Memory** | 3 layers: MemPalace + CodeWhale builtin + codebase-memory-mcp |
 | **MCPs** | GitHub, workspace-fs, codebase-memory |
 | **CLIs** | `vaked-cli` (mlir/seal/proxy), `codewhale`, `rtk`, `jq`, `rg`, `gh` |
@@ -49,7 +49,7 @@ curl http://dev-cx53:4000/v1/chat/completions \
 ```bash
 # Quick test
 curl -s http://dev-cx53:4000/v1/chat/completions \
-  -H "Authorization: Bearer sk-PrsAdrqFU4xYhrm3hGLo1Q" \
+  -H "Authorization: Bearer $VAKED_PROXY_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"openai/gpt-4o-mini","messages":[{"role":"user","content":"hi"}]}'
 

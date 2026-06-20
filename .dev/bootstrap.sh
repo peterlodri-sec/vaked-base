@@ -21,7 +21,10 @@ header "Prerequisites"
 for cmd in ssh gh; do
   command -v "$cmd" &>/dev/null && info "$cmd found" || { err "$cmd not found"; missing=1; }
 done
-${missing:-0} -eq 1 && exit 1
+if [ "${missing:-0}" -eq 1 ]; then
+  err "missing required commands (ssh, gh) — install them first"
+  exit 1
+fi
 
 # ── SSH check ──────────────────────────────────────────────────────────────
 header "SSH"
@@ -58,11 +61,15 @@ ssh "$REMOTE_USER@$REMOTE_HOST" "
 # ── LLM proxy check ────────────────────────────────────────────────────────
 header "LLM proxy mesh"
 PROXY="http://$REMOTE_HOST:4000"
-API_KEY="sk-PrsAdrqFU4xYhrm3hGLo1Q"
-if curl -s -o /dev/null -w "%{http_code}" "$PROXY/v1/models" -H "Authorization: Bearer $API_KEY" --connect-timeout 3 | grep -q "200"; then
-  info "Proxy live — key valid"
+API_KEY="${VAKED_PROXY_KEY:-${OPENAI_API_KEY:-}}"
+if [ -z "$API_KEY" ]; then
+  warn "no proxy key set — export VAKED_PROXY_KEY (or OPENAI_API_KEY) to test the proxy; skipping auth check"
 else
-  warn "Proxy at $PROXY not reachable"
+  if curl -s -o /dev/null -w "%{http_code}" "$PROXY/v1/models" -H "Authorization: Bearer $API_KEY" --connect-timeout 3 | grep -q "200"; then
+    info "Proxy live — key valid"
+  else
+    warn "Proxy at $PROXY not reachable"
+  fi
 fi
 
 # ── Environment file ───────────────────────────────────────────────────────

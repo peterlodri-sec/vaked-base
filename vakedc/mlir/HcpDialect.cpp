@@ -22,6 +22,11 @@
 //===----------------------------------------------------------------------===//
 
 void vaked::mlir::hcp::HcpDialect::initialize() {
+  addOperations<
+    #define GET_OP_LIST
+    #include "HcpDialect.cpp.inc"
+  >();
+
   addTypes<
     #define GET_TYPEDEF_LIST
     #include "HcpDialectTypes.cpp.inc"

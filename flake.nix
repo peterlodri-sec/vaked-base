@@ -18,7 +18,7 @@
     {
       # Vaked declares → Nix materializes. The dev shell carries the toolchains
       # each layer of the mantra needs.
-      devShells = forAllSystems (pkgs: {
+      devShells = nixpkgs.lib.recursiveUpdate (forAllSystems (pkgs: {
         default = pkgs.mkShell {
           name = "vaked-base";
           packages = with pkgs; [
@@ -42,7 +42,7 @@
             echo "mlir:    $(command -v mlir-tblgen >/dev/null 2>&1 && mlir-tblgen --version 2>&1 || echo 'not in PATH — run nix develop .')"
           '';
         };
-      }) // {
+      })) {
         # ── vaked-mobile M3 local dev shell ───────────────────────────────────────
         "aarch64-darwin".vaked-mobile = let pkgs = import nixpkgs { system = "aarch64-darwin"; }; in {
           buildInputs = with pkgs; [ zig rustc cargo ];

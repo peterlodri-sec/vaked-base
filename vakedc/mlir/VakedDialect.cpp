@@ -24,6 +24,11 @@
 //===----------------------------------------------------------------------===//
 
 void vaked::mlir::VakedDialect::initialize() {
+  addOperations<
+    #define GET_OP_LIST
+    #include "VakedDialect.cpp.inc"
+  >();
+
   addTypes<
     #define GET_TYPEDEF_LIST
     #include "VakedDialectTypes.cpp.inc"
