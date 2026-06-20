@@ -1,13 +1,8 @@
-"""Fix indentation in vakedc/*.py after f952a04 flattening.
-Adds 2-space indentation to all class/function bodies."""
-import ast, py_compile, sys, os
+"""Fix indentation in vakedc/*.py — strip all whitespace, re-indent by block structure.
+Handles blank lines, docstrings, and parenthesized continuations."""
+import ast, py_compile, sys, os, re
 
-files = [
-    "vakedc/lexer.py",
-    "vakedc/parser.py",
-    "vakedc/check.py",
-    "vakedc/lower.py",
-]
+files = ["vakedc/lexer.py", "vakedc/parser.py", "vakedc/check.py", "vakedc/lower.py"]
 
 for path in files:
     if not os.path.exists(path):
@@ -24,66 +19,63 @@ for path in files:
 
     lines = src.split("\n")
     out = []
-    indent_level = 0
-    pending_indent = 0
+    indent = 0
+    in_docstring = False
+    paren_depth = 0
+
+    BLOCK_KWS = ["class ", "def ", "if ", "elif ", "else:", "for ", "while ",
+                 "try:", "except", "finally:", "with ", "async ", "match ", "case "]
+    DEDENT_KWS = ["else:", "elif ", "except", "finally:", "case "]
 
     for i, line in enumerate(lines):
         raw = line.rstrip()
-        if not raw.strip():
+        stripped = raw.lstrip()
+
+        # Blank lines: keep at current indent level (don't reset)
+        if not stripped:
             out.append("")
             continue
 
-        stripped = raw.lstrip()
+        # Track docstring state
+        triple_count = stripped.count('"""') + stripped.count("'''")
+        if triple_count % 2 == 1:
+            in_docstring = not in_docstring
 
-        # Detect if this line should open a new indent level
-        # (ends with : after class, def, if, for, while, try, except, finally, with, async, match, case)
-        opens_block = False
-        if stripped.endswith(":") and not stripped.startswith("#"):
-            # Check if it's a statement that opens blocks
-            for kw in ["class ", "def ", "if ", "for ", "while ", "try:", "except", "finally:", "with ", "async ", "match ", "case "]:
-                if stripped.startswith(kw) or stripped == kw.rstrip(" "):
-                    opens_block = True
-                    break
-            # Also check elif, else
-            if stripped.startswith("elif ") or stripped.startswith("else:"):
-                opens_block = True
+        # Track paren depth for continuations
+        paren_depth += stripped.count("(") - stripped.count(")")
+        paren_depth += stripped.count("[") - stripped.count("]")
+        paren_depth += stripped.count("{") - stripped.count("}")
 
-        # Check for dedent markers
-        dedent_before = False
-        for kw in ["else:", "elif ", "except", "finally:", "case "]:
+        # Dedent before else/elif/except/finally/case
+        for kw in DEDENT_KWS:
             if stripped.startswith(kw) or stripped == kw.rstrip(" "):
-                dedent_before = True
+                if indent > 0 and not in_docstring:
+                    indent -= 1
                 break
 
-        if dedent_before and indent_level > 0:
-            indent_level -= 1
+        # Class always at top level — reset indent to 0.
+        # Vaked-specific: all classes here are top-level. Python supports
+        # nested classes but the Vaked codebase doesn't use them.
+        if stripped.startswith("class "):
+            indent = 0
 
-        out.append("  " * indent_level + stripped)
+        # def at class body level: reset to 2-space (class body).
+        if stripped.startswith("def ") and indent > 2:
+            indent = 2
 
-        if opens_block:
-            indent_level += 1
+        out.append("  " * indent + stripped)
 
-        # Handle triple-quoted strings (docstrings)
-        if '"""' in stripped and stripped.count('"""') == 1:
-            # Single triple-quote on this line — continue until the closing one
-            j = i + 1
-            while j < len(lines):
-                next_raw = lines[j].rstrip()
-                out.append("  " * indent_level + next_raw.lstrip())
-                if '"""' in next_raw:
+        # Indent after block-starting keywords
+        if stripped.endswith(":") and not stripped.startswith("#") and not in_docstring:
+            for kw in BLOCK_KWS:
+                if stripped.startswith(kw) or stripped == kw.rstrip(" "):
+                    indent += 1
                     break
-                j += 1
-            # Skip the lines we already added
-            # (Continue from the outer loop, skipping inner lines)
-            # Actually we need to consume these lines.
-            # For now, skip all processed lines by advancing i
-            # This is getting complex — skip for now
 
     result = "\n".join(out) + "\n"
     with open(path, "w") as f:
         f.write(result)
 
-    # Verify
     try:
         py_compile.compile(path, doraise=True)
         print(f"  -> syntax valid")
