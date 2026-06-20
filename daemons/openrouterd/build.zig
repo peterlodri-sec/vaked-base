@@ -11,10 +11,10 @@ pub fn build(b: *std.Build) void {
             .target = target,
             .optimize = optimize,
             .strip = optimize != .Debug, // strip in release
+            .link_libc = true, // extern "c" fn getenv (api key / secrets) needs libc (Zig 0.16: module-level, not exe.linkLibC)
         }),
     });
     exe.pie = true; // position-independent executable
-    exe.linkLibC(); // extern "c" fn getenv (api key / secrets) requires explicit libc linkage (Zig 0.16)
     // QuickJS — opt-in logic sandbox (brew install quickjs)
     if (target.result.os.tag != .linux or @import("builtin").os.tag != .linux) {
         // On macOS, QuickJS is available via brew
@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
+            .link_libc = true,
         }),
     });
     const run_tests = b.addRunArtifact(tests);
