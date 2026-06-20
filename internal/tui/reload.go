@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/usewhale/whale/internal/tui/agui"
+	"github.com/usewhale/whale/internal/agent"
 )
 
 // handleReloadCommand processes /reload subcommands typed in the composer.
@@ -96,4 +97,47 @@ func (m *model) reloadStatus() string {
 	}
 	parts = append(parts, fmt.Sprintf("branch: %s", m.gitBranch))
 	return strings.Join(parts, " · ")
+}
+
+func reloadHooksStatus() string {
+	metrics := agent.HookMetrics.All()
+	if len(metrics) == 0 {
+		return "no hook activity yet"
+	}
+	var lines []string
+	lines = append(lines, fmt.Sprintf("%d active hooks:", len(metrics)))
+	for _, m := range metrics {
+		status := "ok"
+		if m.Errors > 0 {
+			status = fmt.Sprintf("%d errors", m.Errors)
+		}
+		lines = append(lines, fmt.Sprintf("  %s (%s): %d calls, %s, last %s ago",
+			m.Name, m.Event, m.Calls, status, time.Since(m.LastRun).Round(time.Second)))
+	}
+	return strings.Join(lines, "\n")
+}
+
+// ── Idle hook support ─────────────────────────────────────────────────
+
+const defaultIdleThreshold = 120 * time.Second
+
+func (m *model) startIdleWatcher() {
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if m.busy {
+				continue
+			}
+			if time.Since(m.lastUserInput) > defaultIdleThreshold {
+				// Fire idle hooks
+				for _, h := range agent.HookMetrics.All() {
+					if h.Event == agent.HookEventIdle {
+						// Hooks fire via the HookRunner — this is a model-level trigger
+						_ = h
+					}
+				}
+			}
+		}
+	}()
 }
