@@ -4,17 +4,18 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-        const exe = b.addExecutable(.{
+    const exe = b.addExecutable(.{
         .name = "openrouterd",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .strip = optimize != .Debug,  // strip in release
+            .strip = optimize != .Debug, // strip in release
         }),
     });
-    exe.pie = true;  // position-independent executable
-        // QuickJS — opt-in logic sandbox (brew install quickjs)
+    exe.pie = true; // position-independent executable
+    exe.linkLibC(); // extern "c" fn getenv (api key / secrets) requires explicit libc linkage (Zig 0.16)
+    // QuickJS — opt-in logic sandbox (brew install quickjs)
     if (target.result.os.tag != .linux or @import("builtin").os.tag != .linux) {
         // On macOS, QuickJS is available via brew
     }
