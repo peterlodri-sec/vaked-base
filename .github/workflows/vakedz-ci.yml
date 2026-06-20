@@ -45,10 +45,21 @@ jobs:
       # via a community mirror whose fallback (ziglang.org/builds) only serves
       # dev builds, so a mirror outage 404s on a tagged release — flaky. The
       # canonical /download/ tarball is stable.
-      - name: Install Zig 0.16.0
+      - name: Cache Zig 0.16.0 tarball
+        id: zig-cache
+        uses: actions/cache@v5
+        with:
+          path: /tmp/zig.tar.xz
+          key: zig-0.16.0-linux-x86_64
+
+      - name: Download Zig 0.16.0 (if not cached)
+        if: steps.zig-cache.outputs.cache-hit != 'true'
         run: |
           curl -fsSL --retry 3 --retry-delay 5 \
             https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz -o /tmp/zig.tar.xz
+
+      - name: Install Zig 0.16.0
+        run: |
           mkdir -p /tmp/zig && tar -xJf /tmp/zig.tar.xz -C /tmp/zig --strip-components=1
           echo "/tmp/zig" >> "$GITHUB_PATH"
           /tmp/zig/zig version
@@ -90,8 +101,7 @@ jobs:
 
       - name: Notify Telegram on failure
         if: failure()
-        uses: appleboy/telegram-action@v1.0.1
+        uses: ./.github/actions/notify-telegram
         with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ vakedz-ci failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          telegram-to: ${{ secrets.TELEGRAM_TO }}
+          telegram-token: ${{ secrets.TELEGRAM_TOKEN }}

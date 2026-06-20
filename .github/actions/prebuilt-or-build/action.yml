@@ -1,0 +1,89 @@
+name: Prebuilt agent or build from source
+description: |
+  Downloads a prebuilt Rust agent binary from a rolling GitHub Release, falling
+  back to a cargo build from source when the prebuilt is unavailable or the
+  agent source itself changed. Caches Rust builds with sccache + Swatinem/rust-cache.
+
+inputs:
+  binary-name:
+    description: Filename of the downloaded binary (e.g. vaked-pr-review)
+    required: true
+  release-tag:
+    description: GitHub Release tag with the prebuilt asset (e.g. pr-review-bin)
+    required: true
+  asset-pattern:
+    description: Glob pattern for the release asset (e.g. vaked-pr-review-linux-x86_64)
+    required: true
+  workspace:
+    description: Cargo workspace path for the fallback build
+    required: true
+  package:
+    description: Cargo package name (binary target)
+    required: true
+  source-changed:
+    description: "'true' if the agent source changed in this PR (skip prebuilt, build directly)"
+    required: false
+    default: "false"
+
+outputs:
+  binary-path:
+    description: Path to the agent binary (either downloaded or built)
+    value: ${{ steps.set-path.outputs.binary-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: Download prebuilt agent
+      id: prebuilt
+      if: inputs.source-changed != 'true'
+      continue-on-error: true
+      shell: bash
+      run: |
+        gh release download "${{ inputs.release-tag }}" \
+          --pattern "${{ inputs.asset-pattern }}" \
+          --output "./${{ inputs.binary-name }}"
+        chmod +x "./${{ inputs.binary-name }}"
+
+    - name: Install Rust toolchain
+      if: inputs.source-changed == 'true' || steps.prebuilt.outcome == 'failure'
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache cargo build
+      if: inputs.source-changed == 'true' || steps.prebuilt.outcome == 'failure'
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ${{ inputs.workspace }}
+
+    - name: Set up sccache
+      if: inputs.source-changed == 'true' || steps.prebuilt.outcome == 'failure'
+      uses: mozilla-actions/sccache-action@v0.0.10
+
+    - name: Set up mold linker
+      if: inputs.source-changed == 'true' || steps.prebuilt.outcome == 'failure'
+      uses: rui314/setup-mold@v1
+
+    - name: Build from source (fallback)
+      id: build
+      if: inputs.source-changed == 'true' || steps.prebuilt.outcome == 'failure'
+      shell: bash
+      env:
+        RUSTC_WRAPPER: sccache
+        SCCACHE_GHA_ENABLED: "true"
+      run: |
+        probe() {
+          printf 'int main(){return 0;}' > "$RUNNER_TEMP/ld.c" && \
+          cc -fuse-ld="$1" "$RUNNER_TEMP/ld.c" -o "$RUNNER_TEMP/ld.out" 2>/dev/null
+        }
+        FUSE=""
+        for c in mold lld wild; do probe "$c" && FUSE="$c"; done
+        FLAGS="-C target-cpu=x86-64-v3 -C symbol-mangling-version=v0"
+        [ -n "$FUSE" ] && FLAGS="$FLAGS -C link-arg=-fuse-ld=$FUSE -C link-arg=-Wl,--icf=all"
+        export RUSTFLAGS="$FLAGS"
+        cargo build --release --manifest-path "${{ inputs.workspace }}/Cargo.toml"
+        cp "${{ inputs.workspace }}/target/release/${{ inputs.package }}" \
+           "./${{ inputs.binary-name }}"
+
+    - name: Set binary path output
+      id: set-path
+      shell: bash
+      run: echo "binary-path=./${{ inputs.binary-name }}" >> "$GITHUB_OUTPUT"

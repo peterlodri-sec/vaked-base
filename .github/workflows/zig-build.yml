@@ -1,0 +1,23 @@
+name: zig-build
+
+# Zig 0.16 build gate for openrouterd. Runs only when daemons/openrouterd/**
+# changes (or on manual dispatch / owner PR). Extracted from ci-gate.yml to
+# avoid checking out + building on every unrelated PR.
+on:
+  pull_request:
+    paths:
+      - 'daemons/openrouterd/**'
+      - '.github/workflows/zig-build.yml'
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency:
+  group: zig-build-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: goto-bus-stop/setup-zig@v2
+        with: { version: '0.16.0' }
+      - run: cd daemons/openrouterd && zig build

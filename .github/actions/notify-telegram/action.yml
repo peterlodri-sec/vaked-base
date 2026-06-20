@@ -1,0 +1,23 @@
+name: Notify Telegram on failure
+description: Posts a failure notification to Telegram. Use as a final step with `if: failure()`.
+
+inputs:
+  telegram-to:
+    description: Telegram chat ID
+    required: true
+  telegram-token:
+    description: Telegram bot token
+    required: true
+  message:
+    description: "Failure message (defaults to workflow + run URL)"
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: appleboy/telegram-action@v1.0.1
+      with:
+        to: ${{ inputs.telegram-to }}
+        token: ${{ inputs.telegram-token }}
+        message: ${{ inputs.message || format('❌ {0} failed on {1}\n{2}/{3}/actions/runs/{4}', github.workflow, github.ref_name, github.server_url, github.repository, github.run_id) }}

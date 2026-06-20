@@ -58,6 +58,24 @@ jobs:
           fi
           echo "agent=${changed}" >> "$GITHUB_OUTPUT"
 
+      # Diff-size gate: skip agent review on trivial PRs (< 50 lines added).
+      # Saves ~$1-2 in OpenRouter tokens per small PR; owner PRs always reviewed.
+      - name: Diff-size gate
+        id: diff_gate
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          ADDITIONS=$(git diff --numstat "${BASE_SHA}..${HEAD_SHA}" 2>/dev/null | awk '{s+=$1}END{print s+0}')
+          echo "additions=${ADDITIONS}" >> "$GITHUB_OUTPUT"
+          if [ "${ADDITIONS}" -le 50 ] && [ "${{ github.event.pull_request.user.login }}" != "${{ github.repository_owner }}" ]; then
+            echo "::notice::Diff ${ADDITIONS} lines — under review threshold, skipping agent"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Fast path: grab the prebuilt agent (no compile). Skipped when the agent
       # source changed; continue-on-error so a missing asset falls through to build.
       - name: Download prebuilt agent
@@ -119,6 +137,7 @@ jobs:
             echo "crabcc install failed — agent will review diff-only"
 
       - name: Run PR reviewer
+        if: steps.diff_gate.outputs.skip != 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           # Model is config, not baked into the binary. Pinned to Haiku 4.5: a
@@ -161,8 +180,8 @@ jobs:
 
       - name: Notify Telegram on failure
         if: failure()
-        uses: appleboy/telegram-action@v1.0.1
+        uses: ./.github/actions/notify-telegram
         with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
+          telegram-to: ${{ secrets.TELEGRAM_TO }}
+          telegram-token: ${{ secrets.TELEGRAM_TOKEN }}
           message: "❌ pr-review failed for PR #${{ github.event.pull_request.number || github.event.inputs.pr }} on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
