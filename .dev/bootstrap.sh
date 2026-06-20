@@ -154,7 +154,7 @@ export VAKED_WORKSPACE=\"$REMOTE_PATH\"
 
 # LLM proxy mesh
 export OPENAI_BASE_URL=\"http://$REMOTE_HOST:4000/v1\"
-export OPENAI_API_KEY=\"sk-placeholder\"
+export OPENAI_API_KEY=\"sk-PrsAdrqFU4xYhrm3hGLo1Q\"
 export LITELLM_PROXY_URL=\"http://$REMOTE_HOST:4000\"
 
 # Default model routing
