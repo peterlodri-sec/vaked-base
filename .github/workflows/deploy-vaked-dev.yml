@@ -1,0 +1,40 @@
+name: deploy-vaked-dev
+
+# Auto-deploy vaked.dev static site to Cloudflare Pages on push to main.
+# Source: deploy/vaked.dev/
+# Project: vaked-dev (Cloudflare Pages)
+# Domain: vaked.dev
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/vaked.dev/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy deploy/vaked.dev --project-name=vaked-dev --branch=main
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://vaked.dev/)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ vaked.dev responds 200"
+          else
+            echo "⚠️  vaked.dev responds $HTTP_CODE — may be caching"
+          fi
