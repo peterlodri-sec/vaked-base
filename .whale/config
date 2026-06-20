@@ -1,0 +1,26 @@
+# Whale workspace config — vaked-base
+# dev-cx53 is the primary build target. No crabcc, no Rust builds.
+
+[build]
+target = "dev-cx53"
+target_path = "/home/dev/vaked-base"
+method = "ssh"
+
+[build.toolchain]
+zig = true
+erlang = false
+elixir = false
+rust = false
+go = false
+
+[build.tasks]
+# Zig-only: vakedz front-end (build.zig lives in vakedz/)
+parse = "cd {target_path}/vakedz && nix develop {target_path}# --command zig build run -- parse {file}"
+check = "cd {target_path}/vakedz && nix develop {target_path}# --command zig build run -- check {file}"
+lower = "cd {target_path}/vakedz && nix develop {target_path}# --command zig build run -- lower {file}"
+all   = "cd {target_path}/vakedz && nix develop {target_path}# --command zig build run -- all {file}"
+test  = "cd {target_path}/vakedz && nix develop {target_path}# --command zig build test"
+build = "cd {target_path}/vakedz && nix develop {target_path}# --command zig build"
+
+[workspace]
+skip_dirs = ["target", ".crabcc", "crabcc-labs", "node_modules", ".zig-cache", "zig-out", "zig-cache"]

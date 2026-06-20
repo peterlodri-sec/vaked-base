@@ -210,8 +210,8 @@ check_setup_audit() {
   local setup_status="OK"
   local missing_prereqs=()
 
-  # Verify QUICKSTART exists
-  if [ ! -f "$REPO_ROOT/QUICKSTART.md" ]; then
+  # Verify QUICKSTART exists (lives at docs/QUICKSTART.md, not repo root)
+  if [ ! -f "$REPO_ROOT/QUICKSTART.md" ] && [ ! -f "$REPO_ROOT/docs/QUICKSTART.md" ]; then
     log "  ⚠ QUICKSTART.md missing"
     missing_prereqs+=("QUICKSTART.md")
     setup_status="WARNING"
