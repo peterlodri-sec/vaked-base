@@ -91,7 +91,7 @@ vaked-daemon   — health check (port 9090)
 | pr-review | `/workflow pr-review pr=362` | Auto PR diff → security/bug/perf review |
 | swe-af-fix | `/workflow swe-af-fix issue=331` | Issue → plan → implement → test → PR |
 | bench-compare | `/workflow bench-compare` | Branch vs main benchmark regression check |
-| release-check | `/workflow release-check version=v0.2.0` | Pre-release build/test/docs/git gate |
+| release-check | `/workflow release-check version=v5.8.0` | Pre-release build/test/docs/git gate |
 | repomap-rebuild | `/workflow repomap-rebuild` | Full workspace scan → symbol report |
 
 ### Agent Performance
@@ -151,7 +151,7 @@ vaked-base/
 ultrawhale is maintained as a fork of [ultrawhale](https://github.com/peterlodri-sec/ultrawhale):
 
 ```
-https://github.com/peterlodri-sec/ultrawhale — vaked-base fork (v1.2.0)
+https://github.com/peterlodri-sec/ultrawhale — vaked-base fork (v5.8.0)
 
 ---
 
@@ -240,12 +240,12 @@ A `POV` (Point of View) represents the current execution context: where the agen
 ```go
 type POV struct {
     Agent    string // "ultrawhale"
-    Version  string // "v1.2.0"
+    Version  string // "v5.8.0"
     Machine  string // "M1-Max" | "dev-cx53" | "hetzner-ccx33"
     Arch     string // "arm64" | "amd64"
     Tier     string // "go" | "asm" | "gpu"
     Command  string // "/reload theme cyberpunk"
-    Session  string // "ultrawhale-v1.2.0-session-a1b2c3d4"
+    Session  string // "ultrawhale-v5.8.0-session-a1b2c3d4"
     CWD      string
     Branch   string
     Mode     string // "agent" | "ask" | "plan"
