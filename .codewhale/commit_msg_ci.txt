@@ -1,0 +1,43 @@
+fix(ci): unblock zig-build + landing-guru (CI blockers from #353)
+
+Two of the three CI failures that blocked #353 have in-repo root causes;
+the third (Cloudflare Pages) is a dashboard-config issue (reported, not
+fixable from the repo).
+
+## zig-build (FAILURE → should PASS)
+`cd daemons/openrouterd && zig build` failed on Zig 0.16.0:
+  src/main.zig:11:8: error: dependency on libc must be explicitly specified
+  in the build command
+  extern "c" fn getenv([*:0]const u8) ?[*:0]const u8;
+The daemon declares `extern "c" fn getenv` (the repo-wide idiom for env
+secrets) but `build.zig` never linked libc. Zig 0.16 makes that an error.
+Fix: `exe.linkLibC()` in daemons/openrouterd/build.zig (the compiler's
+literal remedy). Also ran `zig fmt` (the file had pre-existing indent
+drift). Note: tools/openrouter-zig has the same latent `extern "c" fn
+getenv` pattern but isn't built by CI, so it's uncaught — a cleaner
+follow-up is to switch to `std.posix.getenv` (no libc) across both.
+
+## landing-guru (FAILURE → should PASS)
+`scripts/landing-guru.sh` exits 1 when broken_links > 0. The link check
+found 1 broken link: `docs/wiki/Home.md`. README line 65 advertises
+"[Minimal project wiki](docs/wiki/Home.md)", but `docs/wiki/` (Home.md +
+About.md) was never committed — it existed only as untracked local
+content, so CI's clean checkout had no such file. Fix: commit the wiki
+(verified clean project docs — no secrets/WIP/local paths; exactly what
+README promises). Also fixed the setup-audit QUICKSTART path: the script
+checked repo-root `QUICKSTART.md` (missing → cosmetic WARNING) but the
+file lives at `docs/QUICKSTART.md`; now checks both.
+
+## Cloudflare Pages (FAILURE → owner action, not fixed here)
+External `cloudflare-workers-and-pages` integration; build logs are
+behind the CF dashboard (not in GHA). Per `deploy/vaked.dev/DEPLOY.md`
+the Pages project is meant to serve `deploy/vaked.dev/` as a static site
+(no build command). The failure is persistent across commits (e70fa25,
+13327cb, a0c4ac8) — i.e. pre-existing, not caused by #353's review fixes.
+Owner should check CF dashboard → vaked-dev → Settings → Builds &
+deployments (root dir / build command / output dir) against the DEPLOY.md
+intent, and read the build log at the dashboard URL.
+
+No builds run on the M1 dev machine (CLAUDE.md). Verified locally:
+zig fmt --check clean; bash -n clean. The zig-build job runs on PRs, so
+this PR's CI will confirm the linkLibC fix.

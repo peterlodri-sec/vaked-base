@@ -1,0 +1,42 @@
+name: corpus-0024
+
+# Stage-0 determinism gate for docs/language/0024-mlir-lowering-staged-adoption.md.
+# Runs the pure-stdlib 0024 differential corpus harness (lower + byte-identical
+# determinism over fixed topology classes; reject fixtures for cycle/depth). No
+# Nix/Zig/Cargo - just the runner's python3. A nonzero harness exit fails the job.
+on:
+  pull_request:
+    paths:
+      - 'vakedc/**'
+      - 'tests/corpus/**'
+      - 'docs/language/0024*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  corpus-0024:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Run 0024 differential corpus harness
+        run: |
+          python3 tests/corpus/0024-differential/run_corpus.py | tee corpus-out.txt
+          exit ${PIPESTATUS[0]}
+
+      - name: Publish corpus results to step summary
+        if: always()
+        run: |
+          echo "## corpus-0024 (Stage-0 determinism gate)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat corpus-out.txt >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

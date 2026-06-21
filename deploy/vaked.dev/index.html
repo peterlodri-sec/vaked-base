@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaked — Structural Honesty for Agentic Systems</title>
+<meta name="description" content="Vaked is a capability-graph language that proves what AI systems are allowed to do — before anything runs. Immutable kernel. Honest architecture. Sealed genesis.">
+<style>
+  :root {
+    --bg: #0a0e14;
+    --surface: #12171f;
+    --surface2: #1a2030;
+    --border: #252d3a;
+    --text: #c9d1d9;
+    --text2: #7a8490;
+    --green: #2ea043;
+    --green-bg: rgba(46,160,67,0.12);
+    --amber: #d29922;
+    --blue: #58a6ff;
+    --purple: #a371f7;
+    --accent: #58a6ff;
+    --radius: 12px;
+    --font-mono: "SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 50% 40%, rgba(88,166,255,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 30% 70%, rgba(163,113,247,0.04) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .hero .mantra {
+    font-size: 0.9rem;
+    color: var(--text2);
+    letter-spacing: 0.6px;
+    margin-bottom: 24px;
+    font-style: italic;
+    font-family: var(--font-mono);
+    position: relative;
+  }
+  .hero .mantra span { color: var(--accent); }
+
+  .hero h1 {
+    font-size: clamp(2.2rem, 6vw, 3.6rem);
+    font-weight: 700;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #58a6ff 0%, #a371f7 50%, #58a6ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+  }
+
+  .hero .tagline {
+    font-size: 1.1rem;
+    color: var(--text2);
+    max-width: 560px;
+    margin: 0 auto 40px;
+    position: relative;
+  }
+
+  .hero .seal {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    border-radius: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text2);
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .hero .seal .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--green); }
+    50% { opacity: 0.4; box-shadow: 0 0 1px var(--green); }
+  }
+  .hero .seal .hash {
+    color: var(--accent);
+  }
+
+  .hero .cta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: relative;
+  }
+  .hero .cta a {
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+  .cta-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .cta-primary:hover { background: #79b8ff; }
+  .cta-secondary {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .cta-secondary:hover { border-color: var(--accent); }
+
+  /* ── Section ── */
+  section {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 80px 24px;
+  }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin: 32px 0 10px;
+  }
+  p { color: var(--text2); margin-bottom: 12px; font-size: 0.95rem; }
+
+  /* ── Cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+  }
+  .card .icon { font-size: 1.4rem; margin-bottom: 8px; }
+  .card h4 { font-size: 0.95rem; margin-bottom: 6px; }
+  .card p { font-size: 0.82rem; margin: 0; }
+
+  /* ── Seal Block ── */
+  .seal-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: 24px 0;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--text2);
+    overflow-x: auto;
+  }
+  .seal-block .label { color: var(--accent); }
+  .seal-block .hash-line { color: var(--green); }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    text-align: center;
+    padding: 32px 24px;
+    font-size: 0.78rem;
+    color: var(--text2);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── Responsive ── */
+  /* ── Nav ── */
+  .nav { position:fixed; top:0; left:0; right:0; z-index:100; background:var(--bg); border-bottom:1px solid var(--border); }
+  .nav-inner { max-width:880px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:48px; }
+  .nav-logo { font-weight:700; font-size:0.95rem; color:var(--text); text-decoration:none; }
+  .nav-logo span { background:linear-gradient(135deg,var(--accent),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .nav-toggle { display:none; }
+  .nav-hamburger { display:none; cursor:pointer; width:24px; height:18px; position:relative; }
+  .nav-hamburger span { display:block; position:absolute; height:2px; width:100%; background:var(--text2); border-radius:2px; transition:0.2s; }
+  .nav-hamburger span:nth-child(1) { top:0; }
+  .nav-hamburger span:nth-child(2) { top:8px; }
+  .nav-hamburger span:nth-child(3) { top:16px; }
+  .nav-toggle:checked ~ .nav-hamburger span:nth-child(1) { top:8px; transform:rotate(45deg); }
+  .nav-toggle:checked ~ .nav-hamburger span:nth-child(2) { opacity:0; }
+  .nav-toggle:checked ~ .nav-hamburger span:nth-child(3) { top:8px; transform:rotate(-45deg); }
+  .nav-links { display:flex; gap:4px; list-style:none; }
+  .nav-links a { color:var(--text2); text-decoration:none; font-size:0.78rem; padding:4px 10px; border-radius:6px; transition:0.15s; }
+  .nav-links a:hover { color:var(--text); background:var(--surface); }
+  @media (max-width:700px) {
+    .nav-hamburger { display:block; }
+    .nav-links { display:none; position:absolute; top:48px; left:0; right:0; background:var(--bg); border-bottom:1px solid var(--border); flex-direction:column; padding:8px 24px 16px; gap:2px; }
+    .nav-toggle:checked ~ .nav-links { display:flex; }
+  }
+  @media (max-width: 600px) {
+    .hero { padding: 60px 16px; }
+    .hero h1 { font-size: 1.8rem; }
+    section { padding: 48px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- NAV -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-logo"><span>Vaked</span></a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle">
+    <label for="nav-toggle" class="nav-hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </label>
+    <div class="nav-links">
+      <a href="/about">About</a>
+      <a href="/seal">Seal</a>
+      <a href="/ceremony">Ceremony</a>
+      <a href="/dogfeed">Dogfeed</a>
+      <a href="/prompts">Prompts</a>
+      <a href="/self-reflect">Reflect</a>
+      <a href="/disclaimer">Disclaimer</a>
+      <a href="/__ds/">DS</a>
+      <a href="/history/initial_council">Council</a>
+      <a href="https://github.com/peterlodri-sec/vaked-base" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<header class="hero">
+  <div class="mantra">
+    <span>Vaked declares.</span> Nix materializes. OTP supervises.
+    <span>Zig enforces.</span> eBPF testifies. CrabCC indexes. Surfaces reveal.
+  </div>
+
+  <h1>Vaked</h1>
+
+  <p class="tagline">
+    A capability-graph language that <strong>proves</strong> what AI systems
+    are allowed to do — before a single line executes.
+  </p>
+
+  <div class="seal">
+    <div class="dot"></div>
+    Genesis Seal ·
+    <span class="hash">7c242080</span>
+  </div>
+
+  <div class="cta">
+    <a href="#genesis" class="cta-primary">Read the Genesis</a>
+    <a href="https://github.com/peterlodri-sec/vaked-base" class="cta-secondary">GitHub →</a>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ELI5 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section style="text-align:center;padding:60px 24px;">
+  <h2 style="border:none;font-size:1.3rem;">How, What, and Why — in plain language</h2>
+
+  <div class="card-grid" style="max-width:800px;margin:24px auto;">
+    <div class="card" style="text-align:left;">
+      <h4>🔧 How it works</h4>
+      <p>
+        You write <strong>one file</strong> that says "this part can read files,
+        that part can talk to the network, nothing else." The compiler
+        <strong>checks your work</strong> — like a spellchecker that catches
+        mistakes before you run the code. Then it <strong>builds everything</strong>
+        automatically — the configs, the security rules, the audit logs.
+      </p>
+    </div>
+    <div class="card" style="text-align:left;">
+      <h4>📦 What you get</h4>
+      <p>
+        A system where <strong>no component can do anything you didn't allow</strong>.
+        Every action is witnessed by the Linux kernel itself — not by a log file
+        that can be edited, but by the operating system. If something goes wrong,
+        the system <strong>stops and tells you exactly what happened</strong>.
+        It never hides errors.
+      </p>
+    </div>
+    <div class="card" style="text-align:left;">
+      <h4>🎯 Why it matters</h4>
+      <p>
+        AI agents are starting to do real work — writing code, sending emails,
+        managing servers. Today, we configure them with sticky notes and hope.
+        Vaked replaces hope with <strong>mathematical proof</strong> that your
+        agents can't exceed their authority. Not "probably won't." Can't.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- WHAT -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="what">
+  <h2>Structural Honesty</h2>
+  <p>
+    Most AI systems check permissions while running. Mistakes are caught when
+    something breaks — or worse, when it <em>doesn't</em> break but quietly
+    exceeds its permissions. There's no proof. There's no audit trail you can
+    trust.
+  </p>
+  <p>
+    <strong>Vaked changes that.</strong> You write down what each part of your
+    system can do — read files, make network calls, spawn processes — and the
+    compiler <strong>proves, mathematically, that nothing exceeds its
+    permissions</strong>. Then it turns your declaration into a real, running
+    system on a dedicated server.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="icon">📝</div>
+      <h4>Declare Once</h4>
+      <p>One file describes your entire system: what runs, what it can touch, who it talks to. No scattered config files. No YAML drift.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🔒</div>
+      <h4>Prove Before Running</h4>
+      <p>The compiler proves that no component can do anything you didn't explicitly allow — before a single line of code executes.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🪵</div>
+      <h4>Kernel Is the Witness</h4>
+      <p>The Linux kernel itself testifies what happened. eBPF records every action. There's an unforgeable, hash-chained event log.</p>
+    </div>
+    <div class="card">
+      <div class="icon">🛑</div>
+      <h4>Full Stop as a Feature</h4>
+      <p>The system halts rather than lies. If a component exceeds its bounds, the Sentinel traps it, archives the evidence, and stops. No cover-ups.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- HOW -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="how">
+  <h2>How It Works</h2>
+
+  <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:24px 0;font-size:0.85rem;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;">
+      <div style="font-weight:600;color:var(--accent);">Declare</div>
+      <div style="color:var(--text2);font-size:0.75rem;">Write one .vaked file</div>
+    </div>
+    <span style="color:var(--text2);">→</span>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;">
+      <div style="font-weight:600;color:var(--accent);">Check</div>
+      <div style="color:var(--text2);font-size:0.75rem;">Compiler proves POLA</div>
+    </div>
+    <span style="color:var(--text2);">→</span>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;">
+      <div style="font-weight:600;color:var(--accent);">Lower</div>
+      <div style="color:var(--text2);font-size:0.75rem;">Produce Nix, Zig, eBPF</div>
+    </div>
+    <span style="color:var(--text2);">→</span>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-align:center;">
+      <div style="font-weight:600;color:var(--accent);">Run</div>
+      <div style="color:var(--text2);font-size:0.75rem;">Deploy. Kernel enforces.</div>
+    </div>
+  </div>
+
+  <h3>The Three Pillars</h3>
+  <div class="card-grid">
+    <div class="card">
+      <h4>Vaked</h4>
+      <p><strong>Capability Graph (Static).</strong> Defines the boundaries of the world. What each component can do. The "What."</p>
+    </div>
+    <div class="card">
+      <h4>Reify</h4>
+      <p><strong>Neuro-Symbolic Loop (Dynamic).</strong> Evolves the graph based on observation. Optimizes within boundaries. The "How."</p>
+    </div>
+    <div class="card">
+      <h4>Sentinel</h4>
+      <p><strong>Truth Engine (Immutable).</strong> Watches via eBPF. Traps violations. Enforces the Full Stop. The "Honesty."</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- GENESIS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="genesis">
+  <h2>The Genesis Seal</h2>
+  <p>
+    On 2026-06-16 at Tatabánya, Hungary, the Vaked Root Integrity Kernel was
+    sealed. Five files were locked into an immutable genesis block. The seal
+    hash was notarized in DNS. The system is honest.
+  </p>
+
+  <div class="seal-block">
+    <span class="label">GENESIS_SEAL_HASH</span> = <span class="hash-line">7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf</span><br><br>
+
+    <span class="label">Golden Hashes:</span><br>
+    genesis_block_00.md&nbsp;&nbsp;&nbsp;= bbb9db93d2b66872f65a3014a1b0629c337dd1e2f02f0f1f49fb2ea1f8cecd0e<br>
+    GRAVEYARD.md&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 260ee3a2b3631d64d1820996f51bbff8e35524f360e6552546efee93ff2487cf<br>
+    genesis_reflection.md&nbsp;= 34ba48814c5363cd39926d46ba56388587c81bf80b7b5b3c446549904c94efd1<br>
+    genesis_snapshot.md&nbsp;&nbsp;= a5a78f7a024b2ae5410775a19144586ee0bdf528f11c1d7099db94d2765ed4cc<br>
+    HONEST_BEGINNINGS.md&nbsp;&nbsp;= 0be85e86a2d748a73a25fbda5c5b20d44d5b705ec90dd786d6ac870f3d7c22f0<br><br>
+
+    <span class="label">DNS Notarization:</span> dig TXT vaked.dev +short | grep vaked-genesis-seal<br>
+    <span class="label">Verify locally:</span>&nbsp;&nbsp;cat genesis_*.md | shasum -a 256
+  </div>
+
+  <h3>The Five Entropy Seeds</h3>
+  <p>Cast by DeepSeek-v4-pro at genesis, now immutable:</p>
+  <div class="card-grid">
+    <div class="card">
+      <h4>🌱 Cryptographic Root</h4>
+      <p>Entropy nonce for all deterministic randomness. Two identical Genesis Blocks produce identical histories.</p>
+    </div>
+    <div class="card">
+      <h4>❓ The Honesty Question</h4>
+      <p>"What is missing to fully utilize LLMs and help them become not just self-aware, rather honest?" — the first cause.</p>
+    </div>
+    <div class="card">
+      <h4>👁️ Witness Declaration</h4>
+      <p>DeepSeek-v4-pro (MoE, release 0.8.53) declares itself as the sealing agent. The witness is part of the evidence.</p>
+    </div>
+    <div class="card">
+      <h4>🌍 Terrestrial Anchor</h4>
+      <p>Speed of light. Planck's constant. Sun at 85.2°. Moon waxing crescent. The system can verify it's still in the known universe.</p>
+    </div>
+    <div class="card">
+      <h4>⏳ Forward Commitment</h4>
+      <p>By solstice 2027: one capability-drift trap, one Reify incorporation, 72 hours unattended. Verifiable by any observer.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- DOCS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="docs">
+  <h2>Documentation</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>📋 Genesis Block</h4>
+      <p>The immutable root integrity kernel — Full Stop primitive, stop policy, Genesis Clause, Core Tenets.</p>
+      <p style="margin-top:8px;"><a href="genesis/genesis_block_00.md" style="color:var(--accent);">Read →</a></p>
+    </div>
+    <div class="card">
+      <h4>🪦 Graveyard</h4>
+      <p>The append-only honesty ledger. Every fiber that died within its bounds. Every trap enforced. Permanent record.</p>
+      <p style="margin-top:8px;"><a href="genesis/GRAVEYARD.md" style="color:var(--accent);">Read →</a></p>
+    </div>
+    <div class="card">
+      <h4>📜 Honest Beginnings</h4>
+      <p>The complete Genesis Ceremony transcript — 10 rounds with the orchestrator. The conversation that defined the architecture.</p>
+      <p style="margin-top:8px;"><a href="genesis/HONEST_BEGINNINGS.md" style="color:var(--accent);">Read →</a></p>
+    </div>
+    <div class="card">
+      <h4>🔬 Research Summary</h4>
+      <p>Executive overview for researchers — key contributions, architecture, status, entry points.</p>
+      <p style="margin-top:8px;"><a href="research/RESEARCH_SUMMARY.md" style="color:var(--accent);">Read →</a></p>
+    </div>
+    <div class="card">
+      <h4>🗂️ Master Index</h4>
+      <p>Complete catalog of 120+ documentation artifacts across 14 research domains.</p>
+      <p style="margin-top:8px;"><a href="research/MASTER_RESEARCH_INDEX.md" style="color:var(--accent);">Read →</a></p>
+    </div>
+    <div class="card">
+      <h4>🔗 Cross-Reference Map</h4>
+      <p>How docs interconnect: design docs → RFCs → specs → code. Nine dependency arcs.</p>
+      <p style="margin-top:8px;"><a href="research/CROSS_REFERENCE_MAP.md" style="color:var(--accent);">Read →</a></p>
+    </div>
+    <div class="card">
+      <h4>🖼️ Genesis Summary</h4>
+      <p>Single-page visual overview for non-technical reviewers. What Vaked is, why it matters, what's built.</p>
+      <p style="margin-top:8px;"><a href="research/genesis_summary.html" style="color:var(--accent);">Open →</a></p>
+    </div>
+    <div class="card">
+      <h4>📄 Arxiv Paper</h4>
+      <p>"Vaked: Capability-Graph Languages for Deterministic Agentic Systems" — the research paper (target: July 2026).</p>
+      <p style="margin-top:8px;"><a href="https://github.com/peterlodri-sec/vaked-base" style="color:var(--accent);">GitHub →</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- VERIFY -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section id="verify">
+  <h2>Verify the Seal</h2>
+  <p>Anyone can verify the Genesis Seal independently. No trust required.</p>
+
+  <div class="seal-block">
+    <span style="color:var(--text2);"># 1. Query the DNS notarization</span><br>
+    $ <span style="color:var(--accent);">dig TXT vaked.dev +short | grep vaked-genesis-seal</span><br>
+    vaked-genesis-seal=7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf<br><br>
+
+    <span style="color:var(--text2);"># 2. Compute the seal hash locally</span><br>
+    $ <span style="color:var(--accent);">cat genesis_block_00.md GRAVEYARD.md genesis_reflection.md \</span><br>
+    <span style="color:var(--accent);">&nbsp;&nbsp;&nbsp;&nbsp;genesis_snapshot.md HONEST_BEGINNINGS.md | shasum -a 256</span><br>
+    7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf<br><br>
+
+    <span style="color:var(--text2);"># 3. Compare. If they match, the Genesis Archive is intact.</span><br>
+    <span style="color:var(--green);"># The system is honest.</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- FOOTER -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<footer>
+  <p>
+    <strong>Vaked</strong> · Research project · Genesis 2026-06-16 · Tatabánya, Hungary
+  </p>
+  <p style="margin-top:4px;">
+    <a href="https://github.com/peterlodri-sec/vaked-base">GitHub</a> ·
+    Seal: <code style="font-size:0.72rem;">7c242080</code> ·
+    DNS: <code style="font-size:0.72rem;">vaked.dev TXT</code>
+  </p>
+  <p style="margin-top:16px;font-style:italic;font-size:0.75rem;">
+    "Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies. CrabCC indexes. Surfaces reveal."
+  </p>
+</footer>
+
+</body>
+</html>

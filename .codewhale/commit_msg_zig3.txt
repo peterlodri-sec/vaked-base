@@ -1,0 +1,12 @@
+fix(openrouterd): port seccomp.zig to Zig 0.16 enums
+
+After link_libc unblocked the getenv step, CI surfaced two more 0.16
+API mismatches in src/seccomp.zig (both confirmed against the 0.16.0
+stdlib):
+- prctl(option: i32, ...): linux.PR is now enum(i32), so pass
+  @intFromEnum(linux.PR.SET_NO_NEW_PRIVS) instead of the enum value.
+- linux.seccomp(..., flags: u32, ...): SECCOMP.FILTER is an int
+  (MODE.FILTER=2) in 0.16; the TSYNC flag lives at
+  SECCOMP.FILTER_FLAG.TSYNC, not SECCOMP.FILTER.FLAG_TSYNC.
+
+Also ran zig fmt on the file (added trailing newline).

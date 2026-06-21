@@ -1,0 +1,50 @@
+fix(mlir/cli/dev): address all Codex review comments on #353
+
+P1 (correctness/security):
+- nix/vaked-mlir.nix: mark derivation broken with an actionable note.
+  The placeholder fixed-output hash made every `nix build .#vaked-mlir`
+  fail at fetch with a misleading hash-mismatch; the real sha256 needs a
+  dev-cx53 3-gate build (forbidden on the M1 dev machine).
+- vakedc/mlir/{Vaked,Hcp}Dialect.cpp: register the generated operations
+  via addOperations<GET_OP_LIST> in initialize() — previously only types
+  were registered, so vaked.agent/vaked.consume/hcp.* stayed unknown to
+  any tool that loaded the library.
+- .dev/{bootstrap.sh,whale-config.json,README.md}: remove the committed
+  proxy bearer token (sk-PrsAdrq...). Read it from VAKED_PROXY_KEY env,
+  scrub all three occurrences, and degrade the curl auth check
+  gracefully when unset.
+
+P2 (correctness):
+- tools/vaked-cli/main.go: (1) check mlir-tblgen success via errCode, not
+  `r.err == nil` (r.err is a non-nil zero-length []byte on success, so the
+  old check always reported FAIL); (2) walkHash returns an error so a
+  missing/typo seal input REFUSEs instead of hashing empty input; (3)
+  resolveRepoRoot honors VAKED_REPO_ROOT and walks up for flake.nix so
+  installed (Nix $out/bin) / deployed (/home/dev/bin) binaries find the
+  source tree.
+- deploy/llmproxy/proxy-mesh.yaml: drop the duplicate database_url key so
+  the env DATABASE_URL override is authoritative.
+- vakedc/__main__.py: register the `passes` subcommand (Taskfile, the
+  corpus harness, and `vaked-cli mlir validate` all invoke
+  `python3 -m vakedc passes`); --json output contract matches vaked-cli.
+- flake.nix: use recursiveUpdate so devShells.aarch64-darwin.default
+  survives adding vaked-mobile (the `//` shallow-merge had replaced the
+  whole per-system attrset on Apple Silicon).
+- vakedc/passes/__init__.py: skip WAL + AOT for workflows that failed
+  Pass 1 topology diagnostics — no gen/workflow/*.json artifacts for
+  cyclic / depth-exceeded IRs (0024 §2.1).
+- vakedc/mlir/CMakeLists.txt: generate --gen-op-decls and
+  --gen-typedef-decls .inc for both dialects so the headers carry op and
+  TypeDef declarations alongside the dialect decls.
+- .dev/bootstrap.sh: replace `${missing:-0} -eq 1 && exit 1` (which
+  tried to execute a command literally named `0`/`1` and never stopped)
+  with a proper `[ ]` test.
+
+No builds were run (M1 dev machine, per CLAUDE.md). Verified locally:
+gofmt clean; bash -n, ast.parse, json.load, and yaml.safe_load (which
+rejects duplicate keys) all pass.
+
+Follow-up (owner action): the removed proxy key sk-PrsAdrqFU4xYhrm3hGLo1Q
+remains in this branch's git history (commits 7cafe7497f / 4988fccf /
+a74eaf24). Scrubbing the files does NOT revoke past exposure — rotate
+that key at the LiteLLM proxy.
