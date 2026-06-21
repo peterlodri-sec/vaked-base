@@ -1,6 +1,6 @@
 # ultrawhale — vaked-base module
 
-DeepSeek-native coding agent. 38-block content-addressed engine (Go+Asm+GPU),
+DeepSeek-native coding agent. 39-block content-addressed engine (Go+Asm+GPU),
 7 plugins, A2A+A2C protocols, AG-UI themes, Vaked Layer Completion.
 macOS + Linux. Fork maintained at [peterlodri-sec/ultrawhale](https://github.com/peterlodri-sec/ultrawhale).
 
