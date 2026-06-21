@@ -12,7 +12,7 @@ cd ultrawhale && go build -o bin/ultrawhale ./cmd/whale
 bin/ultrawhale --model deepseek-v4-flash -w
 ```
 
-## Architecture (v64.0.0)
+## Architecture (v66.0.0)
 
 | Layer | Count | Components |
 |-------|-------|------------|
