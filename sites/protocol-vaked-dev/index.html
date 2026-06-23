@@ -2537,5 +2537,26 @@ before the one-way door closed.
   }).join('');
 })();
 </script>
+<script>
+/* G0DM0D3 Tier 2 Telemetry Beacon — anon structural metadata only, no content, no PII */
+(function(){
+  var ENDPOINT='https://chat.vaked.dev/api/telemetry';
+  var buf=[];
+  var sid=crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+'-'+Math.random().toString(36).slice(2));
+  function flush(){
+    if(!buf.length)return;
+    var b=buf.splice(0);
+    fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({events:b})}).catch(function(){});
+  }
+  function record(type,data){
+    buf.push(Object.assign({type:type,timestamp:Date.now(),session_id:sid,page:location.hostname+location.pathname},data||{}));
+    if(buf.length>=20)flush();
+  }
+  window.__vaked_telemetry=record;
+  record('page_view',{referrer:document.referrer?'yes':'none'});
+  setInterval(flush,30000);
+  window.addEventListener('beforeunload',function(){if(buf.length)navigator.sendBeacon(ENDPOINT,JSON.stringify({events:buf}));});
+})();
+</script>
 </body>
 </html>
