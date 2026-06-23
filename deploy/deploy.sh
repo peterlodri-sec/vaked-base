@@ -23,4 +23,12 @@ echo "→ Deploying to vaked.dev..."
 npx wrangler pages deploy "$REPO_ROOT/hugo-site/public" --project-name=vaked-dev --branch=main --commit-dirty=true
 
 echo ""
+# Step 3: Deploy protocol.vaked.dev and beat.vaked.dev
+echo "→ Deploying protocol.vaked.dev..."
+wrangler pages deploy "sites/protocol-vaked-dev" --project-name=protocol-vaked-dev --branch=main --commit-dirty=true 2>/dev/null || echo "  ⚠️  protocol.vaked.dev deploy skipped"
+
+echo "→ Deploying beat.vaked.dev..."
+wrangler pages deploy "sites/beat-vaked-dev" --project-name=beat-vaked-dev --branch=main --commit-dirty=true 2>/dev/null || echo "  ⚠️  beat.vaked.dev deploy skipped"
+
+echo ""
 echo "═══ Deploy complete ═══"
