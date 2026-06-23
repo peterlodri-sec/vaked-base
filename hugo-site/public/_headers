@@ -1,0 +1,75 @@
+# Cloudflare Pages — Full Security & Performance Headers for vaked.dev
+# Docs: https://developers.cloudflare.com/pages/configuration/headers/
+# Applied on every request, edge-cached per rule
+
+# ═══════════════════════════════════════════════════════════════════
+# GLOBAL SECURITY HEADERS — applied to all paths
+# ═══════════════════════════════════════════════════════════════════
+/*
+  # ── Force HTTPS (HSTS) ──
+  # 2 years max-age, include subdomains, preload list eligible
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+
+  # ── Prevent MIME type sniffing ──
+  X-Content-Type-Options: nosniff
+
+  # ── Prevent clickjacking ──
+  X-Frame-Options: DENY
+
+  # ── Legacy XSS filter (for older browsers) ──
+  X-XSS-Protection: 1; mode=block
+
+  # ── Referrer policy: send no referrer information ──
+  Referrer-Policy: no-referrer
+
+  # ── Permissions policy: deny all sensitive browser features ──
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=(), usb=(), bluetooth=(), payment=(), accelerometer=(), gyroscope=(), magnetometer=(), midi=(), sync-xhr=()
+
+  # ── Cross-origin isolation headers ──
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+
+  # ── Content Security Policy ──
+  # Default: only allow self. Styles inline (we embed CSS). No scripts, no external resources.
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'none'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+
+  # ── Cache: short TTL with revalidation ──
+  Cache-Control: public, max-age=3600, must-revalidate
+
+# ═══════════════════════════════════════════════════════════════════
+# LANDING PAGE — 1-hour cache, revalidate
+# ═══════════════════════════════════════════════════════════════════
+/index.html
+  Cache-Control: public, max-age=3600, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+# ═══════════════════════════════════════════════════════════════════
+# MARKDOWN FILES — 24-hour cache, CORS open for cross-origin access
+# ═══════════════════════════════════════════════════════════════════
+/*.md
+  Cache-Control: public, max-age=86400, must-revalidate
+  Content-Type: text/markdown; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+# ═══════════════════════════════════════════════════════════════════
+# GENESIS ARCHIVE — 1-year cache, immutable (sealed files)
+# ═══════════════════════════════════════════════════════════════════
+/genesis/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
+# ═══════════════════════════════════════════════════════════════════
+# RESEARCH DOCS — 24-hour cache
+# ═══════════════════════════════════════════════════════════════════
+/research/*
+  Cache-Control: public, max-age=86400, must-revalidate
+
+# ═══════════════════════════════════════════════════════════════════
+# FAVICON / ROBOTS — long cache
+# ═══════════════════════════════════════════════════════════════════
+/favicon.ico
+  Cache-Control: public, max-age=2592000, immutable
+
+/robots.txt
+  Cache-Control: public, max-age=86400, must-revalidate

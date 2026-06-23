@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dogfeed — Vaked</title>
+<meta name="description" content="The ralph-loop: how Vaked uses its own agent fleet to operate itself. Autonomous decision tracking, self-review, and the mirror of structural honesty.">
+<style>
+  :root { --bg:#0a0e14; --surface:#12171f; --surface2:#1a2030; --border:#252d3a; --text:#c9d1d9; --text2:#7a8490; --green:#2ea043; --amber:#d29922; --accent:#58a6ff; --purple:#a371f7; --radius:12px; --font-mono:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.7; }
+  .container { max-width:780px; margin:0 auto; padding:60px 24px 120px; }
+
+  h1 { font-size:2rem; font-weight:700; margin-bottom:4px; background:linear-gradient(135deg,var(--accent),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .sub { color:var(--text2); font-size:0.95rem; margin-bottom:40px; }
+  h2 { font-size:1.2rem; font-weight:600; margin:40px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+  h3 { font-size:1rem; font-weight:600; color:var(--accent); margin:24px 0 8px; }
+  p { color:var(--text2); font-size:0.95rem; margin-bottom:14px; }
+  code { font-family:var(--font-mono); font-size:0.82rem; background:var(--surface2); padding:1px 6px; border-radius:4px; color:var(--accent); }
+  ol, ul { color:var(--text2); font-size:0.9rem; margin:10px 0 10px 20px; }
+  li { margin-bottom:8px; }
+
+  blockquote { border-left:3px solid var(--accent); padding:16px 20px; margin:24px 0; background:var(--surface); border-radius:0 var(--radius) var(--radius) 0; font-style:italic; color:var(--text); }
+  blockquote .attr { font-style:normal; font-size:0.78rem; color:var(--text2); margin-top:8px; }
+
+  .loop-diagram { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:24px; margin:20px 0; text-align:center; font-family:var(--font-mono); font-size:0.8rem; color:var(--text2); line-height:2; }
+  .loop-diagram .step { color:var(--accent); font-weight:600; }
+
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  footer { margin-top:60px; padding-top:16px; border-top:1px solid var(--border); font-size:0.78rem; color:var(--text2); text-align:center; }
+  @media (max-width:600px) { .container { padding:40px 16px 80px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Dogfeed</h1>
+<p class="sub">
+  Eating our own dog food. How Vaked uses its own agent fleet to operate itself —
+  and why that's the only honest way to build an agentic system.
+</p>
+
+<h2>What "Dogfooding" Means Here</h2>
+<p>
+  "Eating your own dog food" means using the product you're building. For Vaked,
+  this is not optional — it is <strong>structurally required</strong>. If Vaked
+  claims to be a language for declaring, enforcing, and testifying agentic systems,
+  then the Vaked project itself must be operated by agents declared in Vaked,
+  enforced by Vaked policies, and testified to a Vaked event log. Anything less
+  would be a capability drift between what Vaked claims and what Vaked does.
+</p>
+<p>
+  The Vaked repository is operated by a fleet of <strong>~10 AI agents</strong>
+  running as GitHub Actions workflows. These agents review pull requests, manage
+  the merge queue, label issues, coordinate releases, surface decisions, post
+  updates to social media, and even write and review code. They are not demos.
+  They are the production operators of the repo.
+</p>
+
+<h2>The Ralph Loop</h2>
+<p>
+  <strong>Ralph</strong> is the autonomous decision-loop agent. It runs on a cron
+  schedule (every 3 hours, plus a daily recap at 23:00 UTC) and does one thing:
+  surfaces the most important open decision for each project track into a
+  hash-chained, human-ratified ledger.
+</p>
+
+<div class="loop-diagram">
+  <span class="step">① Observe</span> — Ralph scans the repo for open issues, PRs, and design gaps<br>
+  <span class="step">② Decide</span> — For each track, Ralph identifies the highest-leverage unresolved decision<br>
+  <span class="step">③ Propose</span> — Ralph commits a ledger entry with the decision, rationale, and options<br>
+  <span class="step">④ Ratify</span> — A human (Peter) reviews the ledger and ratifies or rejects each entry<br>
+  <span class="step">⑤ Announce</span> — Ralph posts the decision to Mastodon and Telegram<br>
+  <span class="step">⑥ Reify</span> — Ratified decisions feed back into the project — specs, code, docs
+</div>
+
+<h2>How the Loop Works</h2>
+
+<h3>The Tracks</h3>
+<p>
+  Ralph organizes decisions into <strong>tracks</strong> — the major work streams
+  of the Vaked project. Each track has its own decision ledger. The current tracks
+  are defined in <code>tools/ralph/tracks.json</code> and include:
+</p>
+<ul>
+  <li><strong>Language</strong> — grammar, type system, examples</li>
+  <li><strong>Compiler</strong> — vakedc, vakedz, lowering, MLIR</li>
+  <li><strong>Protocol</strong> — HCP, Litany, RFCs</li>
+  <li><strong>Runtime</strong> — daemons, OTP supervision, eBPF</li>
+  <li><strong>Surfaces</strong> — operator dashboards, CrabCC indexes</li>
+</ul>
+
+<h3>The Ledger</h3>
+<p>
+  Every decision Ralph proposes is committed to an <strong>append-only,
+  hash-chained ledger</strong> (the ralph-log). This is the same structural
+  pattern as <code>eventd</code> — the event log that testifies agent actions
+  at runtime. By using the same pattern for project governance, Ralph ensures
+  that <strong>decisions about the system are as auditable as actions within
+  the system</strong>.
+</p>
+<p>
+  Viewed entries are at <code>docs/decisions/*.ralph-log.md</code>.
+</p>
+
+<h3>The Ratification Loop</h3>
+<p>
+  Ralph does not auto-apply decisions. Every proposal must be <strong>human-ratified</strong>.
+  Peter reviews the daily digest, marks entries as accepted/rejected/deferred, and
+  the ratified decisions become part of the project's design history. This is POLA
+  in governance: Ralph has the capability to <em>propose</em> but not to
+  <em>enforce</em>. The human holds the enforcement capability. The capability
+  graph between Ralph and the human is explicit and auditable.
+</p>
+
+<h2>The Fleet — Beyond Ralph</h2>
+<p>
+  Ralph is one agent in a fleet. The full roster:
+</p>
+<ul>
+  <li><strong>pr-review</strong> — Reviews every pull request with a 7-perspective council. Never blocks merge.</li>
+  <li><strong>@vaked-ci</strong> — Responds to maintainer comments on PRs.</li>
+  <li><strong>doc-keeper</strong> — Checks that documentation references resolve. Gates RFC/doc drift.</li>
+  <li><strong>yardmaster</strong> — Merge-train conductor. Builds the PR dependency DAG, topo-orders, auto-merges safe PRs.</li>
+  <li><strong>label-tagger</strong> — Auto-labels issues and PRs from the project taxonomy.</li>
+  <li><strong>provost</strong> — Product-owner coordination. Links issues to goals, creates epics.</li>
+  <li><strong>swe-af</strong> — Full software engineering agent: plan → code → review → publish.</li>
+  <li><strong>vaked-telebot</strong> — Telegram bot for interactive control.</li>
+  <li><strong>social-post</strong> — Posts updates to Mastodon (as "Carcin").</li>
+</ul>
+
+<h2>Why This Matters</h2>
+
+<h3>1. Structural Honesty, Applied</h3>
+<p>
+  Vaked claims to make systems honest by enforcing capability boundaries. If the
+  Vaked project itself were operated manually — with ad-hoc PR merges, informal
+  decision-making, and no audit trail — it would be a capability drift between
+  the language's claims and the project's practice. The fleet closes that gap.
+  The agents are the proof that the language works.
+</p>
+
+<h3>2. The Mirror Effect, Operationalized</h3>
+<p>
+  The fleet watches the project. The project watches the fleet. When a PR review
+  agent flags a bug, that bug becomes data for the language design track. When
+  Ralph surfaces a decision about the type system, that decision feeds back into
+  the compiler. The loop is bi-directional: the system that builds Vaked is itself
+  a Vaked system. This is the Mirror Principle made operational.
+</p>
+
+<h3>3. The Graveyard Grows</h3>
+<p>
+  Agents fail. PR reviews miss things. Ralph proposes bad decisions. When this
+  happens, the failure is logged — not hidden. The <code>eventd</code> log records
+  every agent action. The Graveyard records every fiber death. An honest system
+  does not pretend to be flawless. It documents its failures and learns from them.
+</p>
+
+<h3>4. POLA in Governance</h3>
+<p>
+  No agent in the fleet has unilateral authority. Ralph can propose but not ratify.
+  pr-review can review but not block. swe-af can code but not merge. The broker
+  step that creates a PR is the only component with write access to GitHub. Every
+  other agent operates read-only. This is POLA — Principle of Least Authority —
+  applied to project governance, not just to runtime enforcement.
+</p>
+
+<blockquote>
+  We are not building a god in the machine. We are building the machine that
+  allows intelligence to operate safely, predictably, and honestly — including
+  our own.
+  <div class="attr">— The Dogfeed Principle</div>
+</blockquote>
+
+<footer>
+  <p>
+    <a href="/">← vaked.dev</a> ·
+    <a href="/seal">Verify the Seal</a> ·
+    <a href="/self-reflect">Self-Reflect</a> ·
+    <a href="https://github.com/peterlodri-sec/vaked-base">GitHub</a>
+  </p>
+  <p style="margin-top:8px;font-size:0.72rem;">
+    Genesis 2026-06-16 · Seal: <code>7c242080</code><br>
+    The fleet is watching.
+  </p>
+</footer>
+
+</div>
+</body>
+</html>

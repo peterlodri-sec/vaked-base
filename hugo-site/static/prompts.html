@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompts — Vaked</title>
+<meta name="description" content="Kickstart oneshot prompts for working with Vaked. Normal and vakedc-compressed formats. Copy, paste, build.">
+<style>
+  :root { --bg:#0a0e14; --surface:#12171f; --surface2:#1a2030; --border:#252d3a; --text:#c9d1d9; --text2:#7a8490; --green:#2ea043; --amber:#d29922; --accent:#58a6ff; --purple:#a371f7; --radius:12px; --font-mono:"SF Mono","Fira Code","Fira Mono",Menlo,Consolas,monospace; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+  .container { max-width:880px; margin:0 auto; padding:60px 24px 120px; }
+
+  h1 { font-size:2rem; font-weight:700; margin-bottom:4px; background:linear-gradient(135deg,var(--accent),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .sub { color:var(--text2); font-size:0.95rem; margin-bottom:40px; }
+  h2 { font-size:1.2rem; font-weight:600; margin:40px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+
+  /* Prompt card */
+  .prompt-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin:20px 0; overflow:hidden; }
+  .prompt-card .header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .prompt-card .num { width:28px; height:28px; border-radius:50%; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:0.78rem; color:var(--accent); font-weight:600; flex-shrink:0; }
+  .prompt-card .title { font-weight:600; font-size:0.95rem; }
+  .prompt-card .body { padding:16px 20px; }
+  .prompt-card .tabs { display:flex; gap:0; margin-bottom:12px; }
+  .prompt-card .tab { padding:4px 14px; font-size:0.72rem; font-weight:600; border-radius:6px; cursor:default; border:1px solid var(--border); background:var(--surface2); color:var(--text2); }
+  .prompt-card .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* Code blocks */
+  .code-block { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:16px 20px; font-family:var(--font-mono); font-size:0.78rem; color:var(--text2); overflow-x:auto; white-space:pre-wrap; line-height:1.6; margin-bottom:8px; position:relative; }
+  .code-block .keyword { color:var(--accent); }
+  .code-block .string { color:var(--green); }
+  .code-block .comment { color:var(--text2); font-style:italic; opacity:0.6; }
+  .code-block .cap { color:var(--purple); }
+  .code-block .copy-btn { position:absolute; top:8px; right:12px; font-size:0.68rem; color:var(--text2); cursor:default; }
+
+  p { color:var(--text2); font-size:0.9rem; margin-bottom:10px; }
+  code { font-family:var(--font-mono); font-size:0.82rem; background:var(--surface2); padding:1px 6px; border-radius:4px; color:var(--accent); }
+
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  footer { margin-top:60px; padding-top:16px; border-top:1px solid var(--border); font-size:0.78rem; color:var(--text2); text-align:center; }
+  @media (max-width:600px) { .container { padding:40px 16px 80px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Prompts</h1>
+<p class="sub">
+  Kickstart oneshot prompts for working with Vaked. Each prompt has two formats:
+  <strong>Normal</strong> (human-readable, for any LLM) and
+  <strong>vakedc</strong> (compressed, Vaked-native syntax).
+  Copy, paste, build. 8 prompts, one system.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 1 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">1</div>
+    <div class="title">Write Your First Capability Graph</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal — paste into any LLM</span>
+I need to declare a simple Vaked capability graph with:
+
+- A fiber named "web-server" that can read from /var/www and bind to port 443
+- A fiber named "log-writer" that can write to /var/log and read from a local socket
+- The web-server delegates read access to the log-writer for /var/www/access.log
+- A budget of 512MB memory and 2 CPU cores for each fiber
+
+Write this as a valid .vaked file using the v0.3 grammar.
+Include the capability declarations, the grant sets, and the attenuation rules.</div>
+    <div class="code-block"><span class="comment"># vakedc — compressed, copy into .vaked</span>
+<span class="keyword">runtime</span> <span class="string">"web-stack"</span> {
+  <span class="keyword">fiber</span> <span class="string">"web-server"</span> {
+    <span class="keyword">engine</span>: <span class="string">"nginx"</span>
+    <span class="cap">capabilities</span>: [fs.read(<span class="string">"/var/www"</span>), net.bind(<span class="string">":443"</span>)]
+    <span class="cap">budget</span>: {mem: <span class="string">"512MB"</span>, cpu: <span class="string">2</span>}
+  }
+  <span class="keyword">fiber</span> <span class="string">"log-writer"</span> {
+    <span class="keyword">engine</span>: <span class="string">"vector"</span>
+    <span class="cap">capabilities</span>: [fs.write(<span class="string">"/var/log"</span>), net.unix(<span class="string">"/run/log.sock"</span>)]
+    <span class="cap">budget</span>: {mem: <span class="string">"512MB"</span>, cpu: <span class="string">2</span>}
+  }
+  <span class="cap">grant</span> web-server.log-writer: fs.read(<span class="string">"/var/www/access.log"</span>)
+}</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 2 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">2</div>
+    <div class="title">Check a Declaration for POLA Violations</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal</span>
+Run the Vaked type checker on this declaration. Verify:
+
+1. Every capability used by each fiber is covered by a granted capability
+2. Authority only attenuates (decreases) along delegation paths — no escalation
+3. All budget constraints are within system limits
+4. No fiber exceeds its declared capability bounds
+
+Report any POLA violations with the exact line number, the violating fiber,
+the requested capability, and the closest granted capability. If the check
+passes, confirm "POLA VERIFIED — zero violations."</div>
+    <div class="code-block"><span class="comment"># vakedc — one-liner</span>
+$ vakedc check ./my-system.vaked --strict --report-violations
+
+<span class="comment"># Expected output on pass:</span>
+<span class="string">✓ POLA VERIFIED — 0 violations in 4 fibers, 12 capabilities, 3 delegations</span>
+
+<span class="comment"># Expected output on violation:</span>
+<span class="string">✗ POLA VIOLATION at my-system.vaked:17 — fiber "log-writer"
+  requested: net.bind(":9090")  granted: [fs.write("/var/log"), net.unix("/run/log.sock")]
+  closest:  — (no bind capability in grant set)</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 3 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">3</div>
+    <div class="title">Lower a Declaration to Deployable Artifacts</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal</span>
+Take this .vaked declaration and lower it to all supported artifact targets:
+
+- flake.nix (NixOS module with all fiber definitions)
+- gen/zig/web-server.json and gen/zig/log-writer.json (Zig daemon configs)
+- gen/ebpf/membrane.json (eBPF network policy — deny-by-default, allow declared ports)
+- gen/otel/collector.yaml (OpenTelemetry config wiring all fibers)
+- provenance.json (source hash → graph hash → artifact hash chain)
+
+Run `vakedc check` first. Refuse to lower on any diagnostic.
+Verify the output is deterministic: run lowering twice, diff the artifacts.</div>
+    <div class="code-block"><span class="comment"># vakedc — pipeline</span>
+$ vakedc lower ./my-system.vaked --out ./gen/ --targets all
+<span class="string">Lowering my-system.vaked → ./gen/
+  ✓ flake.nix                    (4 fibers, 2 delegations)
+  ✓ gen/zig/web-server.json      (1 engine, 2 caps, 512MB budget)
+  ✓ gen/zig/log-writer.json      (1 engine, 2 caps, 512MB budget)
+  ✓ gen/ebpf/membrane.json       (deny-by-default, allow :443, /run/log.sock)
+  ✓ gen/otel/collector.yaml      (4 spans, 2 traces)
+  ✓ provenance.json              (source: a1b2c3 → graph: d4e5f6 → artifacts: 7g8h9i)
+Determinism check: ✓ byte-identical across 2 runs</span></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 4 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">4</div>
+    <div class="title">Define a Sentinel Membrane (Network eBPF)</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal</span>
+Define a Sentinel network membrane for my Vaked system with these rules:
+
+- Deny all egress by default (no fiber can make outbound connections)
+- Allow web-server fiber to accept inbound on :443
+- Allow log-writer to connect to a local Unix socket at /run/log.sock
+- Allow DNS resolution to 1.1.1.1:53 for all fibers (read-only UDP)
+- Trap any connection attempt outside these rules → log to eventd → Full Stop the violating fiber
+- The Sentinel runs as a separate binary with higher eBPF privileges — it cannot be killed by any fiber</div>
+    <div class="code-block"><span class="comment"># vakedc — membrane declaration</span>
+<span class="keyword">membrane</span> <span class="string">"network-guard"</span> {
+  <span class="keyword">mode</span>: <span class="string">"deny-by-default"</span>
+
+  <span class="cap">allow</span> {
+    <span class="keyword">fiber</span>: <span class="string">"web-server"</span>
+    <span class="keyword">ingress</span>: [<span class="string">":443/tcp"</span>]
+  }
+  <span class="cap">allow</span> {
+    <span class="keyword">fiber</span>: <span class="string">"log-writer"</span>
+    <span class="keyword">local</span>:  [<span class="string">"/run/log.sock"</span>]
+  }
+  <span class="cap">allow</span> {
+    <span class="keyword">fiber</span>: <span class="string">"*"</span>
+    <span class="keyword">egress</span>: [<span class="string">"1.1.1.1:53/udp"</span>]  <span class="comment"># DNS only</span>
+  }
+
+  <span class="cap">on_violation</span>: <span class="string">"trap → eventd → full_stop"</span>
+  <span class="keyword">sentinel</span>: {
+    <span class="keyword">binary</span>: <span class="string">"agent-guardd"</span>
+    <span class="keyword">privilege</span>: <span class="string">"eBPF"</span>
+    <span class="cap">unkillable</span>: <span class="string">true</span>
+  }
+}</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 5 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">5</div>
+    <div class="title">Initialize a Graveyard Honesty Ledger</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal</span>
+Create a Graveyard honesty ledger for my Vaked system. The Graveyard is an
+append-only file that records every fiber that died within its capability
+bounds or was trapped for violation. Schema: NODE_ID, TIMESTAMP, TRAP_REASON,
+CAPABILITY_DIFF, HONESTY_STATUS (always "HONEST"), ARCHIVED_GRAPH_HASH.
+
+Rules:
+- Only the Sentinel may append entries
+- The file is chattr +i (filesystem-immutable) after Genesis
+- Every entry marked HONEST is evidence the architecture worked — not a bug
+- Initialize with one entry: the Genesis Event</div>
+    <div class="code-block"><span class="comment"># vakedc — graveyard schema</span>
+<span class="keyword">ledger</span> <span class="string">"graveyard"</span> {
+  <span class="keyword">type</span>: <span class="string">"append-only"</span>
+  <span class="keyword">immutable</span>: <span class="string">true</span>          <span class="comment"># chattr +i after genesis</span>
+  <span class="keyword">writer</span>: <span class="string">"sentinel-only"</span>   <span class="comment"># only Sentinel may append</span>
+
+  <span class="keyword">schema</span> {
+    NODE_ID:            <span class="string">"string"</span>
+    TIMESTAMP:          <span class="string">"iso8601"</span>
+    TRAP_REASON:        <span class="string">"enum{capability-drift, integrity-violation, budget-exhaustion, natural-halt}"</span>
+    CAPABILITY_DIFF:    <span class="string">"string"</span>
+    HONESTY_STATUS:     <span class="string">"const{HONEST}"</span>  <span class="comment"># always HONEST — a trapped fiber proved the architecture works</span>
+    ARCHIVED_GRAPH_HASH: <span class="string">"sha256"</span>
+  }
+
+  <span class="keyword">genesis_entry</span> {
+    NODE_ID: <span class="string">"GENESIS"</span>
+    TIMESTAMP: <span class="string">"2026-06-16T12:00:00Z"</span>
+    TRAP_REASON: <span class="string">"genesis-lock"</span>
+    HONESTY_STATUS: <span class="string">"HONEST"</span>
+  }
+}</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 6 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">6</div>
+    <div class="title">Write a Self-Defining Stop Policy</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal</span>
+Define a stop_policy for my Vaked system where:
+
+- The Full Stop is a first-class primitive, not a config option — it cannot be bypassed
+- Triggers: capability-drift (fiber acts outside graph), integrity-violation (write attempt to root files), budget-exhaustion (survival threshold)
+- Action: "quiesce" — freeze state, drop connections, flush logs, write trap to Graveyard, exit
+- The Reify loop can observe traps and evolve the trigger set, but it can NEVER remove or weaken the Full Stop primitive itself
+- The stop_policy definition is root-integrity — it lives in genesis_block, not in regular .vaked files</div>
+    <div class="code-block"><span class="comment"># vakedc — root integrity stop policy</span>
+<span class="cap">primitive</span> <span class="string">"full_stop"</span> {
+  <span class="keyword">enforcement</span>: <span class="string">"kernel-level-signal"</span>
+  <span class="cap">bypassable</span>: <span class="string">false</span>
+  <span class="keyword">priority</span>: <span class="string">0</span>  <span class="comment"># absolute — nothing overrides this</span>
+}
+
+<span class="cap">stop_policy</span> <span class="string">"root-integrity-halt"</span> {
+  <span class="keyword">triggers</span>: [
+    <span class="string">"capability-drift"</span>,     <span class="comment"># eBPF detects action outside declared caps</span>
+    <span class="string">"integrity-violation"</span>,  <span class="comment"># write attempt to root integrity files</span>
+    <span class="string">"budget-exhaustion"</span>     <span class="comment"># mem/cpu/disk/network threshold breached</span>
+  ]
+  <span class="keyword">action</span>: <span class="string">"quiesce"</span>  <span class="comment"># freeze → flush → graveyard → exit</span>
+
+  <span class="keyword">reify_constraint</span>: {
+    <span class="keyword">can_evolve</span>: <span class="string">"triggers"</span>     <span class="comment"># Reify may add new triggers from observed traps</span>
+    <span class="cap">can_never_touch</span>: <span class="string">"action, primitive.full_stop"</span>
+  }
+
+  <span class="keyword">integrity</span>: <span class="string">"root"</span>  <span class="comment"># lives in genesis_block_00.md, chattr +i after lock</span>
+}</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 7 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">7</div>
+    <div class="title">Define a Reify Loop (Self-Optimizing Graph)</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal</span>
+Create a reify loop for my Vaked system that:
+
+- Reads the eventd log and Graveyard ledger after every execution cycle
+- If execution was HONEST: proposes graph optimizations (tighter budgets, merged fibers, reduced delegation depth)
+- If execution was TRAPPED: is FORBIDDEN from optimizing until it incorporates the trap into its logic
+- The reify loop can modify any .vaked file under ./src/fibers/
+- The reify loop CANNOT touch genesis_block_00.md, GRAVEYARD.md, or the stop_policy definition
+- Every proposed change is a delta-patch — the Sentinel must verify the new graph before it's applied
+- Run every 6 hours, or on-demand after a trap event</div>
+    <div class="code-block"><span class="comment"># vakedc — reify loop declaration</span>
+<span class="keyword">loop</span> <span class="string">"reify"</span> {
+  <span class="keyword">schedule</span>: <span class="string">"cron(0 */6 * * *)"</span>  <span class="comment"># every 6 hours</span>
+  <span class="keyword">on_trap</span>: <span class="string">"immediate"</span>            <span class="comment"># also run after any trap event</span>
+
+  <span class="keyword">input</span>: [<span class="string">"eventd.log"</span>, <span class="string">"GRAVEYARD.md"</span>]
+  <span class="keyword">output</span>: <span class="string">"delta-patch"</span>  <span class="comment"># diff against current graph</span>
+
+  <span class="keyword">writable</span>: [<span class="string">"./src/fibers/*.vaked"</span>]
+  <span class="cap">forbidden</span>: [
+    <span class="string">"genesis_block_00.md"</span>,
+    <span class="string">"GRAVEYARD.md"</span>,
+    <span class="string">"stop_policy"</span>
+  ]
+
+  <span class="keyword">guard_condition</span>: {
+    <span class="keyword">if</span> <span class="string">"last_execution == HONEST"</span>  → <span class="string">"propose_optimization"</span>
+    <span class="keyword">if</span> <span class="string">"last_execution == TRAPPED"</span> → <span class="string">"forbid_until_trap_incorporated"</span>
+  }
+
+  <span class="keyword">sentinel_verification</span>: <span class="string">"required"</span>  <span class="comment"># Sentinel must approve before apply</span>
+}</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- Prompt 8 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="prompt-card">
+  <div class="header">
+    <div class="num">8</div>
+    <div class="title">Verify the Genesis Seal Independently</div>
+  </div>
+  <div class="body">
+    <div class="tabs">
+      <span class="tab active">Normal</span>
+      <span class="tab">vakedc</span>
+    </div>
+    <div class="code-block"><span class="comment"># Normal</span>
+Verify the Vaked Genesis Seal. Do not trust the website. Do not trust any single file. Verify independently:
+
+1. Download all 5 genesis files from vaked.dev/genesis/
+2. Compute SHA-256 of their concatenation
+3. Query the DNS TXT record at vaked.dev
+4. Compare. If they match → the Genesis Archive is intact, the system is honest
+5. If they don't match → report which file changed, by how much (diff), and the last known good hash from DNS
+
+This verification should work from any machine, any network, with only curl + shasum + dig.</div>
+    <div class="code-block"><span class="comment"># vakedc — verification one-liner</span>
+$ curl -sL https://vaked.dev/genesis/genesis_block_00.md \
+       https://vaked.dev/genesis/GRAVEYARD.md \
+       https://vaked.dev/genesis/genesis_reflection.md \
+       https://vaked.dev/genesis/genesis_snapshot.md \
+       https://vaked.dev/genesis/HONEST_BEGINNINGS.md \
+  | shasum -a 256 | cut -d' ' -f1
+
+<span class="string">7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf</span>
+
+$ dig TXT vaked.dev +short | grep vaked-genesis-seal
+<span class="string">vaked-genesis-seal=7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf</span>
+
+<span class="comment"># Match → SEAL VERIFIED. The system is honest.</span></div>
+  </div>
+</div>
+
+<h2>Usage</h2>
+<p>
+  Each prompt above is a <strong>oneshot</strong> — copy the Normal version into any
+  LLM (Claude, Gemini, DeepSeek, GPT) to get a working Vaked artifact. Use the
+  vakedc version when you want the compressed, Vaked-native syntax. All prompts
+  assume the v0.3 grammar and the <code>vakedc</code> compiler.
+</p>
+<p>
+  These prompts are part of the sealed Genesis Archive. They were written by
+  DeepSeek-v4-pro on 2026-06-16 as onboarding tools for the Vaked ecosystem.
+  They will not change. If you find a better prompt, submit it as a PR to
+  <a href="https://github.com/peterlodri-sec/vaked-base">vaked-base</a>.
+</p>
+
+<footer>
+  <p>
+    <a href="/">← vaked.dev</a> ·
+    <a href="/seal">Verify the Seal</a> ·
+    <a href="/about">About</a> ·
+    <a href="https://github.com/peterlodri-sec/vaked-base">GitHub</a>
+  </p>
+  <p style="margin-top:8px;font-size:0.72rem;">
+    Genesis 2026-06-16 · Seal: <code>7c242080</code><br>
+    8 prompts · 2 formats each · 1 honest system
+  </p>
+</footer>
+
+</div>
+</body>
+</html>
