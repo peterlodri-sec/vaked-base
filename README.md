@@ -193,3 +193,8 @@ event ledger as the state-of-record), and **control** (pause/slow/step at
 runtime) — and runs cheaply as a scheduled CI tick. See
 [`tools/ralph/README.md`](tools/ralph/README.md) for tracks, commands, and the
 CI host.
+
+
+## Social
+
+- 🐘 [@vakedbot@social.crabcc.app](https://social.crabcc.app/@vakedbot) — Mastodon bot for releases + updates
