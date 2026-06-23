@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked-FM — Swarm Avatar</title>
+<script src="https://cdn.ovenplayer.com/0.16.1/ovenplayer.min.js"></script>
+<script src="/player.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0b1015;color:#a8b8c8;font-family:'Inter','SF Pro',sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:20px;user-select:none}
+.header{text-align:center;margin:20px 0}
+.header h1{font-size:11px;color:#4060a0;letter-spacing:4px;text-transform:uppercase}
+.header .title{font-size:36px;font-weight:100;color:#e0e8f0;letter-spacing:12px}
+.header .sub{font-size:10px;color:#5a5a7a;margin-top:4px}
+#avatar{width:100%;max-width:720px;height:400px;border:1px solid rgba(30,60,80,0.15);border-radius:8px;background:#0d141c}
+#wave{width:100%;max-width:720px;height:60px;border:1px solid rgba(30,60,80,0.1);border-radius:4px;background:#0d141c;margin-top:8px}
+.meta{text-align:center;font-size:9px;color:#4a5a6a;margin-top:8px;letter-spacing:1px}
+.meta span{color:#6a8aaa}
+.controls{display:flex;gap:8px;margin:8px 0}
+.btn{padding:4px 12px;border:1px solid rgba(48,96,255,0.2);border-radius:4px;background:rgba(48,96,255,0.06);color:#4060a0;font-size:9px;cursor:pointer}
+.btn:hover{border-color:#4060a0;color:#80b0ff}
+.btn.active{border-color:#20c060;color:#20c060}
+</style>
+</head><body>
+<div class="header"><h1>Vaked-FM</h1><div class="title">SWARM AVATAR</div><div class="sub">genesis <span id="seal">7c242080</span> · nodes <span id="nodes">6</span> · velocity <span id="velocity">—</span>/day · <span id="status">synced</span> · <span id="latency">WebRTC</span></div></div>
+<div id="ovenplayer-container" style="width:0;height:0;overflow:hidden"></div>
+<canvas id="avatar"></canvas>
+<canvas id="wave"></canvas>
+<div class="meta">bpm <span id="bpm">60</span> · trust <span id="trust">1.000</span> · convergence <span id="conv">27</span>ms · <a href="https://constellation.vaked.dev" style="color:#4060a0">←</a></div>
+<div class="controls"><button class="btn active" id="audio-btn" onclick="toggleAudio()">◉ STREAMING</button></div>
+
+<script>
+// ── Genesis-seeded random (deterministic) ──────────────────────────────
+const SEED=["7c242080","f5f821e5","eaf563fe","2208d606","32c45168","7baf65f4","fe8e4a0d","226e3ecf"];
+function seededRandom(seed,n){let h=0;for(let i=0;i<seed.length;i++)h=((h<<5)-h)+seed.charCodeAt(i)|0;let s=h+n*2654435761;return function(){s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff}}
+
+// ── Canvas setup ────────────────────────────────────────────────────────
+const C=document.getElementById('avatar'),W=document.getElementById('wave');
+const ctx=C.getContext('2d'),wctx=W.getContext('2d');
+function resize(){C.width=C.offsetWidth*2;C.height=C.offsetHeight*2;W.width=W.offsetWidth*2;W.height=W.offsetHeight*2}
+resize();window.addEventListener('resize',resize);
+
+// ── Dev velocity → node layout seed ─────────────────────────────────────
+// Fetches commit frequency on main (first-parent), computes commits/day,
+// and uses it as the layout seed — so the avatar shape shifts with project pace.
+// NOTE: unauthenticated GitHub API (60 req/hr). Fine for a single-visitor
+// demo page; falls back to classic seed (42) on any error or rate limit.
+let velocity=42; // fallback (classic seed)
+async function fetchVelocity(){
+  try{
+    let r=await fetch('https://api.github.com/repos/peterlodri-sec/vaked-base/commits?sha=main&per_page=30');
+    if(!r.ok) return;
+    let commits=await r.json();
+    if(!commits.length) return;
+    let newest=new Date(commits[0].commit.committer.date);
+    let oldest=new Date(commits[commits.length-1].commit.committer.date);
+    let days=Math.max(1,(newest-oldest)/864e5);
+    velocity=Math.round(commits.length/days*10)||42;
+    document.getElementById('velocity').textContent=(commits.length/days).toFixed(1)+'/day';
+  }catch(e){}
+}
+
+// ── Deterministic node layout ───────────────────────────────────────────
+const N=32;
+let nodes=[],edges=[],cx,cy,radius;
+function initLayout(seed){
+  nodes=[];edges=[];
+  const rng=seededRandom(SEED[0],seed);
+  cx=C.width/2;cy=C.height/2;radius=Math.min(C.width,C.height)*0.35;
+  for(let i=0;i<N;i++){
+    let angle=(i/N)*Math.PI*2+rng()*0.3;
+    let orbit=radius*(0.3+rng()*0.7);
+    nodes.push({x:cx+Math.cos(angle)*orbit,y:cy+Math.sin(angle)*orbit,phase:rng()*6.28,orbit:orbit,speed:0.1+rng()*0.2});
+  }
+  for(let i=0;i<N;i++){
+    for(let j=i+1;j<N;j++){
+      if(rng()<0.15) edges.push({a:i,b:j,opacity:0.05+rng()*0.1});
+    }
+  }
+}
+initLayout(velocity);
+
+// ── Swarm state ──────────────────────────────────────────────────────────
+let bpm=60,trust=1.0,conv=27,sealHolds=true,t=0;
+
+// ── Render avatar ────────────────────────────────────────────────────────
+function drawAvatar(){
+  ctx.fillStyle='#0d141c';ctx.fillRect(0,0,C.width,C.height);
+  
+  // Edges
+  edges.forEach(e=>{
+    let a=nodes[e.a],b=nodes[e.b];
+    let jitter=conv*0.02*(sealHolds?1:8);
+    let ax=a.x+(Math.sin(t*0.01+a.phase)*jitter);
+    let ay=a.y+(Math.cos(t*0.01+a.phase)*jitter);
+    let bx=b.x+(Math.cos(t*0.01+b.phase)*jitter);
+    let by=b.y+(Math.sin(t*0.01+b.phase)*jitter);
+    ctx.strokeStyle=`rgba(48,96,255,${e.opacity})`;ctx.lineWidth=0.5;
+    ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
+  });
+  
+  // Nodes
+  nodes.forEach(n=>{
+    n.x=cx+Math.cos(t*0.0005*n.speed+n.phase)*n.orbit;
+    n.y=cy+Math.sin(t*0.0005*n.speed+n.phase)*n.orbit;
+    let pulse=1+Math.sin(t*0.02*(bpm/60))*0.2;
+    let r=3*pulse;
+    ctx.fillStyle='rgba(48,150,200,0.6)';ctx.beginPath();ctx.arc(n.x,n.y,r,0,6.28);ctx.fill();
+    ctx.strokeStyle='rgba(48,200,255,0.3)';ctx.beginPath();ctx.arc(n.x,n.y,r+2,0,6.28);ctx.stroke();
+  });
+  
+  // Bass level: WebRTC stream → fallback to synthetic heartbeat
+  let bass = 0.5;
+  if (window.vakedRadio && window.vakedRadio.getBassLevel) {
+    bass = window.vakedRadio.getBassLevel();
+    document.getElementById("latency").textContent = "WebRTC";
+  }
+  
+  // Central sphere (BPM pulse)
+  let sphereR=18+bass*20;
+  let grad=ctx.createRadialGradient(cx,cy,0,cx,cy,sphereR);
+  let alpha=sealHolds?0.8:0.3;
+  grad.addColorStop(0,`rgba(0,200,200,${alpha})`);
+  grad.addColorStop(0.5,`rgba(0,100,180,${alpha*0.5})`);
+  grad.addColorStop(1,'rgba(0,40,100,0)');
+  ctx.fillStyle=grad;ctx.beginPath();ctx.arc(cx,cy,sphereR,0,6.28);ctx.fill();
+  
+  // Genesis ring
+  ctx.strokeStyle='rgba(0,200,200,0.15)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(cx,cy,sphereR+12,0,6.28);ctx.stroke();
+  
+  // Cyan/gold accent arcs
+  ctx.strokeStyle='rgba(200,180,0,0.15)';ctx.beginPath();
+  ctx.arc(cx,cy,radius*0.85,t*0.001,t*0.001+2);ctx.stroke();
+  
+  t++;
+}
+
+// ── Oscilloscope waveform ────────────────────────────────────────────────
+function drawWave(){
+  wctx.fillStyle='#0d141c';wctx.fillRect(0,0,W.width,W.height);
+  wctx.strokeStyle='rgba(0,200,200,0.3)';wctx.lineWidth=1;
+  wctx.beginPath();
+  for(let i=0;i<W.width;i+=2){
+    let y=W.height/2+Math.sin((i+t*3)*0.02)*W.height*0.3+Math.sin((i+t*5)*0.05)*W.height*0.15;
+    if(i===0)wctx.moveTo(i,y);else wctx.lineTo(i,y);
+  }
+  wctx.stroke();
+  
+  // Beat indicator
+  let bx=(t%(W.width*2))%(W.width);
+  wctx.strokeStyle=`rgba(${sealHolds?'0,200,100':'200,50,50'},0.5)`;wctx.lineWidth=2;
+  wctx.beginPath();wctx.moveTo(bx,0);wctx.lineTo(bx,W.height);wctx.stroke();
+}
+
+// ── Re-init layout when dev velocity arrives ────────────────────────────
+fetchVelocity().then(()=>{if(velocity!==42)initLayout(velocity)});
+
+// ── Telemetry ────────────────────────────────────────────────────────────
+async function fetchTelemetry(){
+  try{let r=await fetch('mesh.json');if(!r.ok)return;let d=await r.json();
+  bpm=d.status==='divergence'?90:d.drift_detected?140:60+Math.min(d.convergence_ms||0,500)/10;
+  trust=d.trust_index||1;conv=d.convergence_ms||27;sealHolds=!d.drift_detected;
+  document.getElementById('bpm').textContent=Math.round(bpm);
+  document.getElementById('trust').textContent=trust.toFixed(3);
+  document.getElementById('conv').textContent=Math.round(conv);
+  document.getElementById('status').textContent=d.status||'synced';
+  document.getElementById('nodes').textContent=d.nodes||6;
+  }catch(e){}
+}
+setInterval(fetchTelemetry,5000);fetchTelemetry();
+
+// ── Audio (unchanged from radio) ─────────────────────────────────────────
+let audioCtx=null,subBass=null,gainNode=null,filterNode=null,harmonic=null;
+function initAudio(){
+  if(audioCtx)return;audioCtx=new AudioContext();
+  subBass=audioCtx.createOscillator();subBass.type='sine';subBass.frequency.value=41.2;
+  gainNode=audioCtx.createGain();gainNode.gain.value=0;
+  filterNode=audioCtx.createBiquadFilter();filterNode.type='lowpass';filterNode.frequency.value=200;
+  subBass.connect(filterNode);filterNode.connect(gainNode);gainNode.connect(audioCtx.destination);subBass.start();
+  harmonic=audioCtx.createOscillator();harmonic.type='sine';harmonic.frequency.value=220;
+  let hg=audioCtx.createGain();hg.gain.value=0;harmonic.connect(hg);hg.connect(audioCtx.destination);harmonic.start();
+  setInterval(()=>{hg.gain.setTargetAtTime(0.06,audioCtx.currentTime,0.01);hg.gain.setTargetAtTime(0,audioCtx.currentTime+0.3,0.05)},5000);
+  // Brown noise + pad (same as radio)
+  let bs=audioCtx.sampleRate*2,nb=audioCtx.createBuffer(1,bs,audioCtx.sampleRate),d=nb.getChannelData(0),lo=0;
+  for(let i=0;i<bs;i++){let w=Math.random()*2-1;d[i]=(lo+0.02*w)/1.02;lo=d[i];}
+  let ns=audioCtx.createBufferSource();ns.buffer=nb;ns.loop=true;
+  let nf=audioCtx.createBiquadFilter();nf.type='lowpass';nf.frequency.value=80;
+  let ng=audioCtx.createGain();ng.gain.value=0.03;ns.connect(nf);nf.connect(ng);ng.connect(audioCtx.destination);ns.start();
+}
+let nextBeat=0;
+function heartbeatPulse(){if(!audioCtx||!gainNode)return;let now=audioCtx.currentTime,bi=60/bpm;if(now>=nextBeat){gainNode.gain.setTargetAtTime(0.6,now,0.005);gainNode.gain.setTargetAtTime(0,now+bi*0.15,bi*0.3);nextBeat=now+bi}}
+function toggleAudio(){let b=document.getElementById('audio-btn');if(!audioCtx){initAudio();b.classList.add('active');b.textContent='◉ STREAMING';return}if(audioCtx.state==='running'){audioCtx.suspend();b.classList.remove('active');b.textContent='○ PAUSED'}else{audioCtx.resume();b.classList.add('active');b.textContent='◉ STREAMING'}}
+setInterval(()=>{if(audioCtx&&audioCtx.state==='running')heartbeatPulse()},50);
+document.body.addEventListener('click',()=>{if(!audioCtx||audioCtx.state==='suspended'){if(!audioCtx)initAudio();else audioCtx.resume();document.getElementById('audio-btn').classList.add('active');document.getElementById('audio-btn').textContent='◉ STREAMING'}},{once:true});
+
+// ── Main loop ──────────────────────────────────────────────────────────
+function loop(){drawAvatar();drawWave();requestAnimationFrame(loop)}
+loop();
+</script>
+<script>/* G0DM0D3 Tier 2 Telemetry Beacon */(function(){var E="https://chat.vaked.dev/api/telemetry",b=[],s=crypto.randomUUID?crypto.randomUUID():(Date.now().toString(36)+"-"+Math.random().toString(36).slice(2));function f(){if(!b.length)return;var e=b.splice(0);fetch(E,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({events:e})}).catch(function(){});}window.__vaked_telemetry=function(t,d){b.push(Object.assign({type:t,timestamp:Date.now(),session_id:s,page:location.hostname+location.pathname},d||{}));if(b.length>=20)f();};window.__vaked_telemetry("page_view",{});setInterval(f,30000);window.addEventListener("beforeunload",function(){if(b.length)navigator.sendBeacon(E,JSON.stringify({events:b}));});})();</script>
+</body>
+</html>
