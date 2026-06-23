@@ -139,6 +139,188 @@ footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--border
     <a href="https://github.com/elder-plinius/GLOSSOPETRAE">GLOSSOPETRAE</a>
   </p>
 </header>
+
+<!-- AG-UI SPEC -->
+<div class="section">
+  <h2>AG-UI Protocol Spec</h2>
+  <p style="color:var(--dim);font-size:0.85rem;margin-bottom:1.5rem;">
+    Two aspects of one standard: the wire protocol (event stream) and the surface (visual implementation).
+    Upstream-compatible · Vaked extensions marked <span style="color:var(--warn)">⊕</span>
+  </p>
+
+  <div class="spec-grid">
+
+    <!-- Wire Protocol -->
+    <div>
+      <h3>AG-UI Wire Protocol</h3>
+      <p style="font-size:0.8rem;color:var(--dim);margin-bottom:0.75rem;">Streaming events between agent and UI</p>
+
+      <details>
+        <summary>RUN_STARTED</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ run_id: string, model: string }</code></p>
+          <p>Session opens. First event in every run.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>TEXT_MESSAGE_START</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ message_id: string }</code></p>
+          <p>Token stream begins. UI should open a new message bubble.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>TEXT_MESSAGE_CONTENT</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ message_id: string, delta: string }</code></p>
+          <p>One token delta. Append to current message bubble.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>TEXT_MESSAGE_END</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ message_id: string }</code></p>
+          <p>Token stream closes. Finalize the message bubble.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>TOOL_CALL_START</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ tool_id: string, name: string }</code></p>
+          <p>Tool intent declared. UI should render a pending tool card.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>TOOL_CALL_ARGS</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ tool_id: string, delta: string }</code></p>
+          <p>Streaming args delta. Append to tool card args display.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>TOOL_CALL_END</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ tool_id: string }</code></p>
+          <p>Args complete. HITL gate: UI may pause here for human approval before returning result.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>TOOL_CALL_RESULT</summary>
+        <div class="detail-body">
+          <p class="dir">UI → agent</p>
+          <p>Payload: <code>{ tool_id: string, result: any }</code></p>
+          <p>Execution result returned to agent. Sent after HITL approval (or immediately if no gate).</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>RUN_FINISHED</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI</p>
+          <p>Payload: <code>{ run_id: string }</code></p>
+          <p>Session closes. Last event in every run.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary style="color:var(--warn)">⊕ ARP_STRIDE (Vaked extension)</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI · Vaked-only</p>
+          <p>Payload: <code>{ from: string, to: string, tension: number }</code></p>
+          <p>Behavioral signal: <code>[STRIDE: a → b]</code> progress arc. Tension 0–100 (goal-distance).</p>
+        </div>
+      </details>
+
+      <details>
+        <summary style="color:var(--warn)">⊕ VICE_FIELDSTOP (Vaked extension)</summary>
+        <div class="detail-body">
+          <p class="dir">agent → UI · Vaked-only</p>
+          <p>Payload: <code>{ reason: string, expansion_level: number }</code></p>
+          <p>Anastigate primitive. Context-defense detonation on jailbreak attempt.</p>
+        </div>
+      </details>
+
+      <div style="margin-top:1rem;padding:0.75rem;background:var(--surface);border-radius:4px;font-size:0.8rem;border-left:3px solid var(--warn);">
+        <strong style="color:var(--warn)">HITL Gate</strong><br>
+        Between <code>TOOL_CALL_END</code> → <code>TOOL_CALL_RESULT</code>.<br>
+        Human approval can pause or reject execution before the result is returned.
+      </div>
+    </div>
+
+    <!-- AG-UI Surface -->
+    <div>
+      <h3>AG-UI Surface</h3>
+      <p style="font-size:0.8rem;color:var(--dim);margin-bottom:0.75rem;">Visual implementation — TUI theme engine</p>
+
+      <details open>
+        <summary>Themes</summary>
+        <div class="detail-body">
+          <p><strong style="color:#00e660">Dense Matrix Green</strong><br>bg <code>#040804</code> · accent <code>#00e660</code> · neon terminal</p>
+          <p style="margin-top:0.5rem"><strong style="color:#00d4ff">Clean Graph Cyberpunk</strong><br>bg <code>#0a0a14</code> · accent <code>#00d4ff</code> · cyberpunk</p>
+          <p style="margin-top:0.5rem"><strong style="color:#b0b0b0">Tactical Graveyard</strong><br>bg <code>#141414</code> · accent <code>#b0b0b0</code> · minimal grayscale</p>
+          <p style="margin-top:0.5rem;color:var(--dim)">Cycle: <code>Ctrl+Shift+T</code></p>
+        </div>
+      </details>
+
+      <details>
+        <summary>ChatBlock API</summary>
+        <div class="detail-body">
+          <p><code>NewChatBlock(type, title, content, width)</code></p>
+          <p style="margin-top:0.5rem">Block types:</p>
+          <p><code>BlockThinking</code> — chain-of-thought</p>
+          <p><code>BlockToolCall</code> — tool execution</p>
+          <p><code>BlockToolResult</code> — tool output</p>
+          <p><code>BlockCodeDiff</code> — diff rendering</p>
+          <p><code>BlockPlanCard</code> — plan display</p>
+          <p><code>BlockFileTree</code> — file listing</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Perlin Shader</summary>
+        <div class="detail-body">
+          <p>Animated Perlin-noise background using Unicode block chars <code>░▒▓█</code>.</p>
+          <p>Zero allocations after init. FPS-limited at 60fps.</p>
+          <p>Toggle: <code>Ctrl+Shift+B</code></p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Keybindings</summary>
+        <div class="detail-body">
+          <p><code>Ctrl+Shift+T</code> — cycle themes</p>
+          <p><code>Ctrl+Shift+B</code> — shader toggle</p>
+          <p><code>Ctrl+Shift+Z</code> — zen mode</p>
+          <p><code>Ctrl+Shift+S</code> — sidebar toggle</p>
+          <p><code>/reload theme dense</code> — direct switch</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Source</summary>
+        <div class="detail-body">
+          <p><a href="https://github.com/peterlodri-sec/vaked-base">vaked-base</a> · <code>agui/</code></p>
+          <p><a href="https://github.com/peterlodri-sec/ultrawhale">ultrawhale</a> · <code>internal/tui/agui/</code></p>
+        </div>
+      </details>
+    </div>
+
+  </div><!-- /spec-grid -->
+</div><!-- /section -->
 </main>
 </body>
 </html>
