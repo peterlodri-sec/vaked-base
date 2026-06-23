@@ -359,6 +359,81 @@ footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--border
 
   </div>
 </div>
+
+<!-- PROPOSALS FEED -->
+<div class="section">
+  <h2>#openagui Proposals</h2>
+  <p style="color:var(--dim);font-size:0.85rem;margin-bottom:1rem;">
+    Append-only public feed from <a href="https://social.crabcc.app">social.crabcc.app</a>.
+    Post using <code>#openagui</code> on any Mastodon instance.
+  </p>
+
+  <div id="feed-log" class="feed-log">
+    <div class="feed-empty">Loading proposals…</div>
+  </div>
+
+  <div class="submit-area">
+    <a
+      href="https://social.crabcc.app"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="btn-submit"
+    >Post a Proposal</a>
+    <p class="submit-hint">
+      Any Mastodon account works. Include <code>#openagui</code> in your post.
+      <br>Future: DYAD auth.
+    </p>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    ⊰•-•⦑ The Architect of Structural Honesty ⦒•-•⊱
+    · <a href="https://vaked.dev">vaked.dev</a>
+    · <a href="https://github.com/peterlodri-sec/vaked-base">source</a>
+  </p>
+  <p style="margin-top:0.4rem;">
+    <span class="badge" style="border-color:var(--dim);color:var(--dim);">OPEN STANDARD</span>
+    Proposals via <code>#openagui</code> on <a href="https://social.crabcc.app">social.crabcc.app</a>
+  </p>
+</footer>
 </main>
+<script>
+(async function loadFeed() {
+  const el = document.getElementById('feed-log');
+  const API = 'https://social.crabcc.app/api/v1/timelines/tag/openagui?limit=40';
+
+  let statuses;
+  try {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    statuses = await res.json();
+  } catch (err) {
+    el.innerHTML = '<div class="feed-empty">Could not load proposals. <a href="https://social.crabcc.app/tags/openagui">View on Mastodon →</a></div>';
+    return;
+  }
+
+  if (!statuses.length) {
+    el.innerHTML = '<div class="feed-empty">No proposals yet. Be the first — post <code>#openagui</code> on any Mastodon instance.</div>';
+    return;
+  }
+
+  // Mastodon returns newest first — reverse to oldest→newest (log order)
+  statuses.reverse();
+
+  el.innerHTML = statuses.map(s => {
+    const date = new Date(s.created_at).toISOString().slice(0, 16).replace('T', ' ');
+    const handle = s.account.acct.includes('@') ? '@' + s.account.acct : '@' + s.account.acct + '@social.crabcc.app';
+    return `<div class="proposal">
+      <div class="proposal-meta">
+        <a href="${s.url}" target="_blank" rel="noopener">${handle}</a>
+        · ${date}
+      </div>
+      <div class="proposal-content">${s.content}</div>
+    </div>`;
+  }).join('');
+})();
+</script>
 </body>
 </html>
