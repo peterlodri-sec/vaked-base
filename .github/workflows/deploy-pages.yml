@@ -1,0 +1,41 @@
+# Deploy Cloudflare Pages projects via wrangler direct upload
+# Triggers on push to main — bypasses the GitHub App integration
+# which has been failing at clone_repo stage.
+#
+# Projects deployed:
+#   vaked-dev   from deploy/vaked.dev/
+#   vaked-lang  from site/
+#
+# Requires: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN in repo secrets
+
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # allow manual trigger
+
+jobs:
+  deploy-vaked-dev:
+    name: vaked.dev
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy deploy/vaked.dev --project-name=vaked-dev --branch=main
+
+  deploy-vaked-lang:
+    name: vaked-lang.org
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=vaked-lang --branch=main
