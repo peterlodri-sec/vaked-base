@@ -9,6 +9,7 @@
 //	deploy <dev|lang|docs|all>        Wrangler deploy
 //	docs <gen|deploy|all>             Autogen + deploy docs
 //	cf <zones|dns <zone>|status>      Cloudflare API shortcuts
+//	graph <discover|audit|crossref|status>  Site graph: crawl, lint, cross-ref
 //
 // Build:
 //
@@ -176,6 +177,8 @@ func main() {
 		docsCmd(os.Args[2:])
 	case "cf":
 		cfCmd(os.Args[2:])
+	case "graph":
+		graphCmd(os.Args[2:])
 	default:
 		bail("unknown command: %s", os.Args[1])
 	}
