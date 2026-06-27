@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Time-boxed CTF simulation (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#one-liner" style="padding-left:0.5rem">One-liner</a><a href="#determinism-contract-the-core-property" style="padding-left:0.5rem">Determinism contract (the core property)</a><a href="#the-20-minute-box" style="padding-left:0.5rem">The 20-minute box</a><a href="#components-files-toolsctf-pure-stdlib" style="padding-left:0.5rem">Components / files (`tools/ctf/`, pure stdlib)</a><a href="#arenapy-the-board" style="padding-left:1rem">  `arena.py` — the board</a><a href="#teampy-deterministic-competitors" style="padding-left:1rem">  `team.py` — deterministic competitors</a><a href="#enginepy-the-stepper" style="padding-left:1rem">  `engine.py` — the stepper</a><a href="#gamepy-the-game-theoretic-layer" style="padding-left:1rem">  `game.py` — the game-theoretic layer</a><a href="#rewardpy-the-non-currency-winner-reward-a-codename-trophy" style="padding-left:1rem">  `reward.py` — the non-currency winner reward (a codename trophy)</a><a href="#ledgerpy-hash-chained-timeline" style="padding-left:1rem">  `ledger.py` — hash-chained timeline</a><a href="#ctfpy-cli" style="padding-left:1rem">  `ctf.py` — CLI</a><a href="#tests-toolsctftestctfpy-pure-stdlib-module-level-test-assert-m3-runnable" style="padding-left:0.5rem">Tests (`tools/ctf/test_ctf.py`, pure stdlib, module-level `test_*` + `assert`, M3-runnable)</a><a href="#verify-acceptance-m3-no-deps" style="padding-left:0.5rem">Verify (acceptance — M3, no deps)</a><a href="#docs" style="padding-left:0.5rem">Docs</a><a href="#out-of-scope-follow-ups" style="padding-left:0.5rem">Out of scope (follow-ups)</a><a href="#constraints" style="padding-left:0.5rem">Constraints</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-16-ctf-simulation-design</div>
+<h1>Time-boxed CTF simulation (design)</h1>
+<h1 id="time-boxed-ctf-simulation-design">Time-boxed CTF simulation (design)</h1>
+<p><strong>Date:</strong> 2026-06-16<br />
+<strong>Status:</strong> approved (brainstorm, E2E-authorized) — ready for plan<br />
+<strong>Base:</strong> <code>origin/main</code> @ <code>cbe27b5</code></p>
+<h2 id="one-liner">One-liner</h2>
+<p>A deterministic, seeded, <strong>replay-stable</strong> capture-the-flag simulation in <code>tools/ctf/</code><br />
+(pure stdlib): <strong>2–4 teams</strong> race to solve scored challenges within a <strong>20 simulated-minute</strong><br />
+time box. Emits a ranked scoreboard + a hash-chained event timeline; the same <code>(seed, arena,
+teams)</code> always produces the <strong>identical</strong> scoreboard and ledger chain hash.</p>
+<h2 id="determinism-contract-the-core-property">Determinism contract (the core property)</h2>
+<ul>
+<li><strong>No wall-clock, no unseeded randomness.</strong> Time is discrete <strong>sim-minute ticks</strong> (the engine,<br />
+  not the OS clock). Per-team/per-category <em>skill</em> is derived deterministically via <code>hashlib</code><br />
+  from <code>(seed, team_id, category)</code> — not <code>random</code> — so it is stable across runs and machines.</li>
+<li>The ledger reuses <code>ralphcore.make_entry</code> (timestamp-free: <code>hash = chain_hash(prev, payload)</code>),<br />
+  so a run's <strong>final chain hash is a pure function of its event payloads + order</strong>.</li>
+<li><strong>Replay-stability:</strong> two runs with the same <code>(seed, arena, teams)</code> → byte-identical scoreboard<br />
+<strong>and</strong> identical ledger chain hash. This is the headline verifiable property (the dual of the<br />
+  oracle/kernel replay proofs).</li>
+</ul>
+<h2 id="the-20-minute-box">The 20-minute box</h2>
+<p>"Max running time 20m" = the <strong>simulated</strong> CTF duration, enforced <strong>in-engine</strong> as <code>time_box_min</code><br />
+(default 20). The simulation itself executes in milliseconds; the box bounds <em>sim-time</em>, not<br />
+wall-time. No solve may be credited at a tick <code>&gt; time_box_min</code>.</p>
+<h2 id="components-files-toolsctf-pure-stdlib">Components / files (<code>tools/ctf/</code>, pure stdlib)</h2>
+<h3 id="arenapy-the-board"><code>arena.py</code> — the board</h3>
+<ul>
+<li><code>Challenge</code> (dict): <code>{id, category, points:int, effort:int}</code> — <code>effort</code> = sim-minutes to solve<br />
+  at skill <code>1.0</code>.</li>
+<li><code>Arena</code> (dict): <code>{challenges:[Challenge], time_box_min:int=20, first_blood_bonus:int=50,
+  seed:int}</code>.</li>
+<li><code>default_arena(seed=1337)</code> — a fixed 8-challenge board across <code>web/crypto/pwn/rev/misc</code>, varied<br />
+  points (100–500) and effort (3–18). Deterministic (literal, not generated).</li>
+<li><code>validate_arena(arena)</code> — ids unique, points/effort positive, ≥1 challenge (raise <code>ValueError</code>).</li>
+</ul>
+<h3 id="teampy-deterministic-competitors"><code>team.py</code> — deterministic competitors</h3>
+<ul>
+<li><code>skill(seed, team_id, category) -&gt; float</code> — <code>0.5 + (int(sha256(f"{seed}:{team_id}:{category}")
+  [:8],16) % 1000)/1000.0</code> → a stable per-category multiplier in <code>[0.5, 1.5)</code>. No RNG.</li>
+<li><strong>Strategies</strong> (pure <code>pick(team, remaining, arena) -&gt; challenge_id | None</code>):</li>
+<li><code>greedy_points</code> — highest <code>points</code>, tie → lowest <code>id</code> (lexicographic).</li>
+<li><code>greedy_easy</code> — lowest <code>effort</code>, tie → highest <code>points</code>, tie → lowest <code>id</code>.</li>
+<li><code>ratio_balanced</code> — highest <code>points/effort</code>, tie → lowest <code>id</code>.</li>
+<li><code>category_focus(cat)</code> — prefer <code>category == cat</code> (then <code>greedy_points</code>), else <code>greedy_points</code>.</li>
+<li><code>best_response</code> — the <strong>game-theoretic</strong> strategy (see Game theory below): pick the challenge<br />
+    maximizing this team's <em>contention-adjusted</em> expected value <code>points + (first_blood_bonus if
+    this team is the fastest solver among all teams for that challenge else 0)</code>, where "fastest" =<br />
+    lowest <code>effort / skill(seed, team, category)</code>, ties by <code>id</code>. Best-responds to opponents' known<br />
+    skills — a team only chases a first-blood it can actually win, else takes guaranteed points.<br />
+  All ties broken deterministically by <code>id</code> so picks are total-ordered.</li>
+<li><code>STRATEGIES</code> registry (name → fn) for the CLI; <code>make_team(id, strategy_name, seed)</code> builds a<br />
+  team state <code>{id, strategy, points:0, solves:[], current:None, accrued:0.0}</code>.</li>
+</ul>
+<h3 id="enginepy-the-stepper"><code>engine.py</code> — the stepper</h3>
+<p><code>run_ctf(arena, teams) -&gt; result</code>:<br />
+1. <code>validate_arena</code>; init a <code>Ledger</code>; <code>solved_global = {}</code> (challenge_id → first-solver team id).<br />
+2. For <code>tick</code> in <code>1..=time_box_min</code>, for each team in <strong>sorted <code>id</code> order</strong>:<br />
+   - if no <code>current</code>, <code>pick</code> from <code>remaining</code> (challenges not solved <em>by this team</em>); set<br />
+<code>current</code>, reset <code>accrued</code>.<br />
+   - advance: <code>accrued += skill(seed, team.id, challenge.category)</code> (one sim-minute of work).<br />
+   - if <code>accrued &gt;= challenge.effort</code>: credit <code>points</code>; if <code>challenge.id</code> not in <code>solved_global</code><br />
+     → <code>solved_global[id]=team.id</code> + add <code>first_blood_bonus</code> (first-blood); record the solve on<br />
+     the team; <code>ledger.append({kind:"solve", tick, team, challenge, points, first_blood:bool})</code>;<br />
+     clear <code>current</code>.<br />
+   - A challenge whose <code>effort/skill</code> exceeds the remaining box is simply never completed (partial<br />
+     work is discarded at expiry — no partial credit).<br />
+3. After the loop: <code>ledger.append({kind:"final", scoreboard, ranking})</code>.<br />
+4. <strong>Ranking:</strong> sort teams by <code>(points desc, solves desc, first_bloods desc, id asc)</code> — fully<br />
+   deterministic tie-break.<br />
+5. <strong>Game-theoretic analysis</strong> (<code>game.nash_analysis</code>, see below) appended as a<br />
+<code>{kind:"nash", ...}</code> event.<br />
+6. <strong>Reward</strong> (<code>reward.mint_trophy</code>, see below): the rank-1 champion earns a codename trophy,<br />
+   appended as the final <code>{kind:"trophy", ...}</code> event (chained — so the trophy is itself<br />
+   tamper-evident).<br />
+7. Return <code>{scoreboard:[{team,strategy,points,solves:int,first_bloods:int}], ranking:[team_ids],
+   nash:{...}, trophy:{...}, timeline:[ledger events], chain_ok:bool, chain_hash:str}</code> (<code>chain_hash</code><br />
+   = last entry's hash). Note: the <code>nash</code>/<code>trophy</code> events are appended <em>before</em> <code>chain_hash</code> is<br />
+   read, so they are inside the verified chain; replay-stability still holds (all payloads are pure<br />
+   functions of <code>(seed, arena, teams)</code>).</p>
+<p>Edge cases: a team that solves everything stops picking (<code>pick</code> returns <code>None</code> → idle). Two teams<br />
+solving the same challenge on the <strong>same tick</strong> → first-blood goes to the lower <code>id</code> (team order<br />
+within the tick is sorted by id). Determinism holds because tick order is fixed.</p>
+<h3 id="gamepy-the-game-theoretic-layer"><code>game.py</code> — the game-theoretic layer</h3>
+<p>First-blood is a <strong>contested resource</strong>, so challenge selection is a <em>congestion game</em>. We analyze<br />
+the abstracted <strong>one-shot first-pick game</strong>: each team simultaneously chooses one challenge (its<br />
+first target); its payoff is <code>points + (first_blood_bonus if it is the fastest among teams that
+chose the same challenge else 0)</code>, "fastest" = lowest <code>effort / skill</code>, ties by <code>id</code>.<br />
+- <code>expected_value(team, challenge, all_teams, arena) -&gt; int</code> — the contention-adjusted payoff above<br />
+  (this is exactly what the <code>best_response</code> strategy maximizes).<br />
+- <code>nash_analysis(arena, teams) -&gt; {first_picks:{team:challenge}, is_nash:bool,
+  regret:{team:int}, social_welfare:int, optimum:int, price_of_anarchy:float}</code>:<br />
+  - <code>first_picks</code> = each team's <code>best_response</code> first choice.<br />
+  - For each team, compute <code>regret</code> = (best payoff over ALL its alternative single picks, holding<br />
+    others' <code>first_picks</code> fixed) − (its payoff at <code>first_picks</code>). <code>is_nash</code> = every regret ≤ 0<br />
+    (no team profits by unilaterally deviating — a pure-strategy Nash equilibrium of the one-shot<br />
+    game).<br />
+  - <code>social_welfare</code> = Σ payoffs at <code>first_picks</code>; <code>optimum</code> = max Σ payoffs over all <em>distinct</em><br />
+    assignments (small N, brute-force ≤ teams!·challenges); <code>price_of_anarchy = optimum /
+    social_welfare</code> (1.0 = efficient). Pure, deterministic, fast (N≤4, ≤8 challenges).<br />
+- <strong>Note (no overclaim):</strong> <code>best_response</code> best-responds to <em>pessimistic</em> (all-team) contention,<br />
+  whereas the one-shot Nash payoff uses <em>actual-picker</em> contention — different payoff models, so the<br />
+  best-response first-pick profile is <strong>not guaranteed</strong> to be a Nash equilibrium. <code>nash_analysis</code><br />
+  honestly reports whether <em>this run's</em> profile is an equilibrium (it may be False) + the regrets +<br />
+  the price of anarchy. Correctness is tested on <strong>constructed</strong> cases (a known equilibrium →<br />
+<code>is_nash</code> True; a known profitable deviation → <code>is_nash</code> False with positive <code>regret</code>).</p>
+<h3 id="rewardpy-the-non-currency-winner-reward-a-codename-trophy"><code>reward.py</code> — the non-currency winner reward (a codename trophy)</h3>
+<p>The champion is <strong>not</strong> paid currency — they earn a <strong>codename honorific + a verifiable trophy<br />
+attestation</strong> (recognition + a tamper-evident bragging right; on-brand with the lore codenames and<br />
+the hash-chain ethos).<br />
+- <code>CODENAMES</code> — a fixed ASCII lore pool (<code>brett-shaw, anstetten, praetorian, infra-light,
+  feketecs, sherlock, katedralis, bolygorozsa, opium-waltz, the-cordon, static-armor, the-dossier</code>).<br />
+- <code>mint_trophy(champion_id, prior_hash, welfare) -&gt; {kind:"trophy", champion, codename,
+  bound_to:prior_hash, welfare, citation}</code> — <code>codename = CODENAMES[int(prior_hash,16) % len]</code><br />
+  (deterministic, run-bound: the codename is a function of the run's pre-trophy chain hash, so it<br />
+  is unforgeable + replay-stable). <code>citation</code> = a short honorific string. The engine appends this<br />
+  as the final ledger entry, so the trophy is <strong>chained</strong> (verifiable; a third party can confirm<br />
+<code>champion</code> earned <code>codename</code> for the run whose hash is <code>bound_to</code>).<br />
+- Reward is <strong>non-currency</strong>: a title + a cryptographic certificate, not points/money. (The optional<br />
+<code>ctf-arena.vaked</code> dogfood additionally grants the champion node an attenuated bonus <em>capability</em> —<br />
+  authority as reward, the repo's "currency isn't money" stance.)</p>
+<h3 id="ledgerpy-hash-chained-timeline"><code>ledger.py</code> — hash-chained timeline</h3>
+<p>Mirror <code>tools/oracle/ledger.py</code>: reuse <code>ralphcore.{make_entry, verify_chain, GENESIS_HASH}</code>.<br />
+Support an <strong>in-memory</strong> ledger (no file) for the engine/tests + an optional path for persistence.<br />
+<code>append/entries/verify</code>. (Timestamp-free → replay-stable.)</p>
+<h3 id="ctfpy-cli"><code>ctf.py</code> — CLI</h3>
+<p><code>ctf run [--teams N=4] [--seed S=1337] [--box-min 20] [--strategies a,b,c,d] [--json] [--out PATH]</code><br />
+— build N teams (default strategies cycle <code>greedy_points, greedy_easy, ratio_balanced,
+best_response</code>), <code>run_ctf</code>, print the scoreboard table + ranking + the <strong>Nash verdict</strong><br />
+(<code>equilibrium: yes/no</code>, <code>price_of_anarchy</code>) + the <strong>champion trophy</strong> (<code>🏆 &lt;team&gt; → codename
+"&lt;codename&gt;"</code>) + <code>chain_ok</code> + <code>chain_hash</code> (or <code>--json</code>). <code>ctf replay --events PATH</code> — reload a<br />
+persisted timeline, <code>verify_chain</code>, recompute the scoreboard from the <code>solve</code> events, confirm it<br />
+matches the recorded <code>final</code>, and re-derive the codename from the bound hash → prints <code>REPLAY OK</code> /<br />
+mismatch.</p>
+<h2 id="tests-toolsctftest_ctfpy-pure-stdlib-module-level-test_-assert-m3-runnable">Tests (<code>tools/ctf/test_ctf.py</code>, pure stdlib, module-level <code>test_*</code> + <code>assert</code>, M3-runnable)</h2>
+<ul>
+<li><code>skill</code> deterministic + in <code>[0.5,1.5)</code>; each strategy's <code>pick</code> is deterministic + respects its<br />
+  ordering + tie-break.</li>
+<li><code>validate_arena</code> rejects dup ids / non-positive / empty.</li>
+<li>first-blood credited <strong>once</strong> (the second solver of a challenge gets points but no bonus).</li>
+<li><strong>time-box enforced:</strong> no <code>solve</code> event has <code>tick &gt; box</code>; a box of <code>1</code> yields few/no solves.</li>
+<li>ranking + deterministic tie-break (construct a tie, assert id-order).</li>
+<li><strong>replay-stability:</strong> <code>run_ctf</code> twice on the same <code>(seed, arena, teams)</code> → identical scoreboard<br />
+<strong>and</strong> identical <code>chain_hash</code>; and <code>verify_chain</code> is True.</li>
+<li>2-team and 4-team runs both produce a coherent scoreboard; <code>chain_ok</code> True.</li>
+<li><code>replay</code> recomputes the same scoreboard from a persisted timeline.</li>
+<li><strong>Game theory:</strong> <code>best_response.pick</code> deterministic + maximizes contention-adjusted value;<br />
+<code>nash_analysis</code> flags a profitable deviation on a constructed non-equilibrium case (<code>is_nash</code><br />
+  False, positive <code>regret</code> for the deviator) and returns <code>is_nash</code> True on a constructed<br />
+  equilibrium (all <code>regret ≤ 0</code>); <code>price_of_anarchy ≥ 1.0</code> always; <code>nash_analysis</code> is deterministic.</li>
+<li><strong>Reward:</strong> champion == <code>ranking[0]</code>; <code>codename</code> is deterministic + <strong>replay-stable</strong> (same run →<br />
+  same codename) and changes with the bound hash; the <code>trophy</code> entry is chained and <code>verify_chain</code><br />
+  stays True after it; <code>replay</code> re-derives the same codename from <code>bound_to</code>.</li>
+</ul>
+<h2 id="verify-acceptance-m3-no-deps">Verify (acceptance — M3, no deps)</h2>
+<p><code>python3 tools/ctf/test_ctf.py</code> green; then <code>ctf run</code> (default 4-team) <strong>twice</strong> → byte-identical<br />
+scoreboard + identical <code>chain_hash</code> + <code>chain_ok=True</code> + max solve tick ≤ 20. Record in the doc: the<br />
+demo scoreboard, the two identical hashes (replay-stability), the <strong>Nash verdict + price-of-anarchy</strong>,<br />
+and the <strong>champion's codename trophy</strong> (with its <code>bound_to</code> hash, re-derivable on replay).</p>
+<h2 id="docs">Docs</h2>
+<p><code>docs/ctf/v0.md</code> (design, the demo scoreboard, the replay-stability proof) + <code>tools/ctf/README.md</code><br />
+(usage). <strong>Optional dogfood:</strong> <code>vaked/examples/ctf-arena.vaked</code> — the arena as a Vaked capability<br />
+graph (an <code>operator</code> + N team <code>meshNode</code>s with a <code>strategy</code> open field + a <code>catalog</code> of challenges),<br />
+mirroring <code>redteam-swarm.vaked</code>; must pass <code>vakedc check</code>. Include only if it lands clean.</p>
+<h2 id="out-of-scope-follow-ups">Out of scope (follow-ups)</h2>
+<ul>
+<li>Agent/LLM-driven teams (real solving) — a separate cycle; this is the deterministic strategy sim.</li>
+<li>Live network/challenge infra. Inter-team interaction (sabotage/steals). A surface/TUI scoreboard.</li>
+</ul>
+<h2 id="constraints">Constraints</h2>
+<p>Pure stdlib; M3-safe (no compile, no box, no LLM); deterministic (no wall-clock / unseeded RNG);<br />
+reuse <code>ralphcore</code> chain read-only; Snyk OFF.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-16-ctf-simulation-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

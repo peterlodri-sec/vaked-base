@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Experiment: Wenyan-Ultra Internal Agent Mode — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#what-was-built" style="padding-left:0.5rem">What was built</a><a href="#benchmark-results" style="padding-left:0.5rem">Benchmark results</a><a href="#why-is-the-reduction-so-large" style="padding-left:0.5rem">Why is the reduction so large?</a><a href="#1-english-llm-responses-are-structurally-padded" style="padding-left:1rem">  1. English LLM responses are structurally padded</a><a href="#2-classical-chinese-has-no-grammatical-filler-tokens" style="padding-left:1rem">  2. Classical Chinese has no grammatical filler tokens</a><a href="#3-semantic-density-of-chinese-characters" style="padding-left:1rem">  3. Semantic density of Chinese characters</a><a href="#4-why-token-savings-62-character-savings-81" style="padding-left:1rem">  4. Why token savings (62%) < character savings (81%)</a><a href="#summary-formula" style="padding-left:1rem">  Summary formula</a><a href="#artifact-gate-why-it-works-and-why-it-must-be-explicit" style="padding-left:0.5rem">Artifact gate: why it works and why it must be explicit</a><a href="#internal-monologue-the-deliberateness-hypothesis" style="padding-left:0.5rem">Internal monologue: the deliberateness hypothesis</a><a href="#files" style="padding-left:0.5rem">Files</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/context/">context</a> / cuc-wenyan-ultra-experiment</div>
+<h1>Experiment: Wenyan-Ultra Internal Agent Mode</h1>
+<h1 id="experiment-wenyan-ultra-internal-agent-mode">Experiment: Wenyan-Ultra Internal Agent Mode</h1>
+<p><strong>PR:</strong> #187 · <strong>Date:</strong> 2026-06-14 · <strong>Branch:</strong> <code>claude/caveman-chinese-mode-experiment-yhndpi</code></p>
+<h2 id="what-was-built">What was built</h2>
+<p>Four changes shipped together:</p>
+<ol>
+<li><strong>wenyan-ultra as default</strong> — <code>SessionStart</code> hook injects activation notice; <code>.claude/skills/cuc/SKILL.md</code> default changed from <code>full</code> to <code>wenyan-ultra</code></li>
+<li><strong>Artifact Gate</strong> — explicit rule: all content written via <code>Write</code>, <code>Edit</code>, git commit messages, and GitHub MCP tools must be normalized to standard English before the tool call fires; internal reasoning stays compressed</li>
+<li><strong>internal-monologue</strong> — <code>PreToolUse</code> hook (<code>.claude/hooks/internal-monologue.py</code>) fires before every <code>Write</code>/<code>Edit</code>/<code>Bash</code>/<code>Agent</code>/GitHub call; emits one strategic sentence (60-token LLM call, claude-sonnet-4-6 or gpt-4o-mini fallback); goal: increase deliberate tool-chaining</li>
+<li><strong>auto-compact at 60%</strong> — <code>PreCompact</code> hook (<code>.claude/hooks/pre-compact.sh</code>) mines mempalace async and emits structured preservation instructions; <code>maxTurns</code> lifted from 200 → 400</li>
+</ol>
+<hr />
+<h2 id="benchmark-results">Benchmark results</h2>
+<p><strong>Model:</strong> gpt-4o-mini-2024-07-18 | 8 prompts × 2 modes | Full report: <code>tools/cuc-bench/report.md</code></p>
+<table>
+<thead>
+<tr>
+<th>Prompt</th>
+<th>Category</th>
+<th>Normal tok</th>
+<th>Wenyan tok</th>
+<th>Savings</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pool-explain</td>
+<td>reasoning</td>
+<td>278</td>
+<td>100</td>
+<td>64%</td>
+</tr>
+<tr>
+<td>comptime-explain</td>
+<td>reasoning</td>
+<td>396</td>
+<td>92</td>
+<td>77%</td>
+</tr>
+<tr>
+<td>ebpf-policy</td>
+<td>reasoning</td>
+<td>360</td>
+<td>147</td>
+<td>59%</td>
+</tr>
+<tr>
+<td>parse-fn</td>
+<td>code</td>
+<td>310</td>
+<td>117</td>
+<td>62%</td>
+</tr>
+<tr>
+<td>nix-flake</td>
+<td>code</td>
+<td>326</td>
+<td>63</td>
+<td>81%</td>
+</tr>
+<tr>
+<td>readme-intro</td>
+<td>artifact</td>
+<td>114</td>
+<td>100</td>
+<td>12%</td>
+</tr>
+<tr>
+<td>commit-msg</td>
+<td>artifact</td>
+<td>80</td>
+<td>54</td>
+<td>33%</td>
+</tr>
+<tr>
+<td>pr-desc</td>
+<td>artifact</td>
+<td>64</td>
+<td>64</td>
+<td>0%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Aggregate output token savings: 61.8%</strong> (1928 → 737 tokens)<br />
+<strong>Character reduction: 80.6%</strong> (9829 → 1904 chars)<br />
+<strong>Artifact gate: PASS</strong> — all three artifact prompts produced clean English (zero CJK characters detected)</p>
+<hr />
+<h2 id="why-is-the-reduction-so-large">Why is the reduction so large?</h2>
+<p>The 61.8% output token savings surprised us. Three compounding mechanisms explain it.</p>
+<h3 id="1-english-llm-responses-are-structurally-padded">1. English LLM responses are structurally padded</h3>
+<p>A model trained on English text learns that a "complete" answer has a shape: introductory sentence, numbered points each with a full prose explanation, optional summary. This pattern is learned from human writing conventions, not from information requirements. For the question "why does connection pooling help?", a normal response opens with "Connection pooling improves performance in a database-backed service for several reasons:" — a sentence that conveys exactly zero information beyond what the question already established. The actual answer is in the numbered items that follow. The scaffolding (intro, transitions, hedges, summary) typically accounts for 35–55% of all output tokens in a conversational LLM response.</p>
+<p>Wenyan-ultra instruction breaks this pattern entirely. The model starts at the information, not the scaffold.</p>
+<h3 id="2-classical-chinese-has-no-grammatical-filler-tokens">2. Classical Chinese has no grammatical filler tokens</h3>
+<p>English requires tokens that carry no semantic payload but are grammatically obligatory:</p>
+<ul>
+<li><strong>Articles</strong> (<code>a</code>, <code>an</code>, <code>the</code>) — among the five most common tokens in English text, zero information content</li>
+<li><strong>Auxiliary verbs</strong> (<code>is</code>, <code>are</code>, <code>was</code>, <code>were</code>, <code>will</code>, <code>would</code>, <code>could</code>, <code>should</code>) — often inferable from context</li>
+<li><strong>Prepositions</strong> (<code>in</code>, <code>of</code>, <code>for</code>, <code>with</code>, <code>by</code>, <code>on</code>) — frequently embedded in Chinese character meaning</li>
+<li><strong>Conjunctions</strong> (<code>and</code>, <code>but</code>, <code>because</code>, <code>therefore</code>, <code>however</code>) — replaced by implication (<code>→</code>), particle (<code>故</code>/<code>乃</code>), or omitted when context makes the relationship clear</li>
+<li><strong>Subject pronouns</strong> — omitted in classical Chinese when the subject is clear from context</li>
+</ul>
+<p>These grammatical glue tokens account for roughly 30–40% of tokens in a typical English paragraph. Classical Chinese eliminates nearly all of them.</p>
+<h3 id="3-semantic-density-of-chinese-characters">3. Semantic density of Chinese characters</h3>
+<p>A single Chinese character encodes a morpheme — a meaning unit. English encodes the same unit as a word of 4–12 characters. Compare:</p>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>English</th>
+<th>Chars</th>
+<th>Chinese</th>
+<th>Chars</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>connection pool</td>
+<td><code>connection pool</code></td>
+<td>15</td>
+<td><code>連接池</code></td>
+<td>3</td>
+</tr>
+<tr>
+<td>improve performance</td>
+<td><code>improve performance</code></td>
+<td>19</td>
+<td><code>提升效能</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>therefore</td>
+<td><code>therefore</code></td>
+<td>9</td>
+<td><code>故</code></td>
+<td>1</td>
+</tr>
+<tr>
+<td>avoid resource waste</td>
+<td><code>avoid resource waste</code></td>
+<td>20</td>
+<td><code>避免資源浪費</code></td>
+<td>6</td>
+</tr>
+</tbody>
+</table>
+<p>The mean information-per-character ratio in classical Chinese is roughly 3–4× higher than in English prose. This is not a quirk of compression; it is the structural property of a logographic writing system with a 2,000-year tradition of brevity-as-virtue.</p>
+<h3 id="4-why-token-savings-62-character-savings-81">4. Why token savings (62%) &lt; character savings (81%)</h3>
+<p>The gap between character and token reduction reveals how tokenizers work. Modern LLM tokenizers (CL100K, the GPT-4 family tokenizer) were trained on multilingual data and include common Chinese characters as single tokens. So common characters like <code>連</code>/<code>接</code>/<code>池</code>/<code>��</code> each cost one token, which is competitive with common English words (<code>pool</code>, <code>with</code>). However, less-common characters, two-byte combinations, and classical particles can cost 2–3 tokens each. Net effect: Chinese text encodes roughly 1.1–1.5 tokens per character, vs. English at ~0.7 characters per token (i.e., English common words are token-efficient). The tokenizer partially erases the character-density advantage — but only partially, because the structural padding eliminated in step 1 is still gone.</p>
+<h3 id="summary-formula">Summary formula</h3>
+<div class="highlight"><pre><span></span>token_savings ��� scaffold_elimination (35–55%)
+              + filler_token_elimination (30–40% of remaining)
+              × partial_offset_from_tokenizer_density_gap
+</pre></div>
+
+<p>The 62% observed figure sits in the expected range for reasoning/code tasks. Artifact tasks (0–33% savings) are lower because the Artifact Gate forces English output — you cannot compress what must be English.</p>
+<hr />
+<h2 id="artifact-gate-why-it-works-and-why-it-must-be-explicit">Artifact gate: why it works and why it must be explicit</h2>
+<p>Without the gate, wenyan-ultra bleeds into file writes and commit messages. The gate works because it is stated as a hard constraint in the skill instructions, positioned as the last rule (highest recency weight in the model's attention), and repeated in the <code>SessionStart</code> hook injection. The gate does not require a separate translation step — the model shifts register when it recognizes the target (a tool parameter destined for disk or GitHub) exactly as a human technical writer shifts register when going from notes to documentation.</p>
+<p>The artifact benchmark results confirm this: <code>readme-intro</code>, <code>commit-msg</code>, and <code>pr-desc</code> all returned zero CJK characters in wenyan-ultra mode.</p>
+<hr />
+<h2 id="internal-monologue-the-deliberateness-hypothesis">Internal monologue: the deliberateness hypothesis</h2>
+<p>The <code>internal-monologue</code> hook fires before every substantive tool call and emits one sentence. The mechanism is:</p>
+<ol>
+<li>Tool call pending → hook fires → 60-token LLM call → one sentence emitted to stdout → Claude Code injects it as context before the tool executes</li>
+<li>Claude reads the reflection as part of its context window before deciding whether to continue</li>
+<li>The hypothesis: a model that sees its own stated intent before acting is less likely to abandon mid-chain, more likely to plan the next step</li>
+</ol>
+<p>This is not yet measured. Measuring it requires comparing tool-chain-call depth (average consecutive tool uses before an idle turn) across sessions with and without the hook. The benchmark in <code>tools/cuc-bench/</code> does not cover this — it measures compression, not chaining.</p>
+<hr />
+<h2 id="files">Files</h2>
+<div class="highlight"><pre><span></span><span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">skills</span><span class="o">/</span><span class="n">cuc</span><span class="o">/</span><span class="n">SKILL</span><span class="o">.</span><span class="n">md</span><span class="w">          </span><span class="err">←</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ARTIFACT</span><span class="w"> </span><span class="n">GATE</span>
+<span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">settings</span><span class="o">.</span><span class="n">json</span><span class="w">                </span><span class="err">←</span><span class="w"> </span><span class="n">SessionStart</span><span class="p">,</span><span class="w"> </span><span class="n">PreToolUse</span><span class="p">,</span><span class="w"> </span><span class="n">PreCompact</span><span class="p">,</span><span class="w"> </span><span class="n">maxTurns</span>
+<span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">hooks</span><span class="o">/</span><span class="n">internal</span><span class="o">-</span><span class="n">monologue</span><span class="o">.</span><span class="n">py</span><span class="w">  </span><span class="err">←</span><span class="w"> </span><span class="n">PreToolUse</span><span class="w"> </span><span class="n">reflection</span><span class="w"> </span><span class="n">hook</span>
+<span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">hooks</span><span class="o">/</span><span class="n">pre</span><span class="o">-</span><span class="n">compact</span><span class="o">.</span><span class="n">sh</span><span class="w">         </span><span class="err">←</span><span class="w"> </span><span class="n">PreCompact</span><span class="w"> </span><span class="n">mempalace</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">preservation</span><span class="w"> </span><span class="n">prompt</span>
+<span class="n">tools</span><span class="o">/</span><span class="n">cuc</span><span class="o">-</span><span class="n">bench</span><span class="o">/</span><span class="n">bench</span><span class="o">.</span><span class="n">py</span><span class="w">         </span><span class="err">←</span><span class="w"> </span><span class="n">benchmark</span><span class="w"> </span><span class="n">runner</span><span class="w"> </span><span class="p">(</span><span class="n">urllib</span><span class="p">,</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">SDK</span><span class="w"> </span><span class="n">deps</span><span class="p">)</span>
+<span class="n">tools</span><span class="o">/</span><span class="n">cuc</span><span class="o">-</span><span class="n">bench</span><span class="o">/</span><span class="n">corpus</span><span class="o">.</span><span class="n">py</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="mi">8</span><span class="o">-</span><span class="n">prompt</span><span class="w"> </span><span class="n">corpus</span>
+<span class="n">tools</span><span class="o">/</span><span class="n">cuc</span><span class="o">-</span><span class="n">bench</span><span class="o">/</span><span class="n">report</span><span class="o">.</span><span class="n">md</span><span class="w">        </span><span class="err">←</span><span class="w"> </span><span class="n">actual</span><span class="w"> </span><span class="n">benchmark</span><span class="w"> </span><span class="n">output</span>
+</pre></div>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/context/cuc-wenyan-ultra-experiment.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

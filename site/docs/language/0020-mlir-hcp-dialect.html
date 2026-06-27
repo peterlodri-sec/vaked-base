@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MLIR hcp dialect — write-ahead registration, fetch, rewind scope — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#terminology" style="padding-left:0.5rem">Terminology</a><a href="#1-scope-what-the-hcp-dialect-does-and-does-not-lower" style="padding-left:0.5rem">1. Scope — what the `hcp` dialect does and does not lower</a><a href="#2-types" style="padding-left:0.5rem">2. Types</a><a href="#3-operations" style="padding-left:0.5rem">3. Operations</a><a href="#31-hcpcreateregistrationtoken" style="padding-left:1rem">  3.1 `hcp.create_registration_token`</a><a href="#32-hcpwriteaheadlog" style="padding-left:1rem">  3.2 `hcp.write_ahead_log`</a><a href="#33-hcpfetchcanonicaldata" style="padding-left:1rem">  3.3 `hcp.fetch_canonical_data`</a><a href="#34-hcprewindscope" style="padding-left:1rem">  3.4 `hcp.rewind_scope`</a><a href="#4-the-write-ahead-invariant-as-a-def-use-chain" style="padding-left:0.5rem">4. The write-ahead invariant as a def-use chain</a><a href="#5-tablegen-mapping-stage-1-starting-point" style="padding-left:0.5rem">5. TableGen mapping (Stage-1 starting point)</a><a href="#security-considerations" style="padding-left:0.5rem">Security considerations</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0020-mlir-hcp-dialect</div>
+<h1>MLIR hcp dialect — write-ahead registration, fetch, rewind scope</h1>
+<h1 id="0020-the-hcp-mlir-dialect">0020 — The <code>hcp</code> MLIR dialect</h1>
+<p>Status: <strong>Accepted</strong> (2026-06-14) · Series: language design notes · Track:<br />
+<strong>Language / MLIR</strong> · Issue<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/23">#23</a> · Epic<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<p>Part of the MLIR set; umbrella + terminology in<br />
+<a href="./0013-mlir-topology-compilation.md">0013</a>. <strong>Normative cross-reference:</strong><br />
+<a href="../../protocol/rfcs/0004-multi-agent-state-dependency.md">RFC 0004 — Multi-Agent State Dependency</a><br />
+§2 (frames), §3 (write-ahead discipline), §6 (cold start), §7 (epochs). The<br />
+durable substrate is <code>eventd</code><br />
+(<a href="../superpowers/specs/2026-06-12-eventd-design.md">design</a>).</p>
+<h2 id="abstract">Abstract</h2>
+<p>This part specifies the <strong>low-level <code>hcp</code> dialect</strong>: the MLIR modelling of the<br />
+protocol mechanics RFC 0004 defines. Pass 2<br />
+(<a href="./0022-mlir-pass-wal-injection.md">0022</a>) lowers each <code>vaked.consume</code><br />
+(<a href="./0019-mlir-vaked-dialect.md">0019</a>) into an <code>hcp</code> sequence that builds a<br />
+<code>DependencyRegistration</code>, durably logs it write-ahead, then fetches the<br />
+producer's canonical output. The dialect's central design choice: <strong>the<br />
+write-ahead invariant (RFC 0004 §3.1 — registration precedes consumption) is<br />
+encoded as an SSA def-use chain</strong> (<code>token → receipt → data</code>), so no pass,<br />
+scheduler, or hand-edit can reorder the fetch before the log. Each op is mapped<br />
+to the exact RFC 0004 frame it realizes.</p>
+<h2 id="terminology">Terminology</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+<th>RFC 0004</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DependencyRegistration</code></td>
+<td>Write-ahead control frame declaring a causal anchor before consumption.</td>
+<td>§2, §3.1</td>
+</tr>
+<tr>
+<td>Registration token</td>
+<td>The built-but-unlogged registration; SSA type <code>!hcp.reg_token</code>.</td>
+<td>§2</td>
+</tr>
+<tr>
+<td>WAL receipt</td>
+<td>Proof the registration was durably logged to <code>eventd</code>; SSA type <code>!hcp.wal_receipt</code>. <strong>Carrying it as a value is the write-ahead invariant.</strong></td>
+<td>§3.1</td>
+</tr>
+<tr>
+<td>Canonical data</td>
+<td>The verified, fetched producer output; SSA type <code>!hcp.canonical_data</code>.</td>
+<td>§3.2</td>
+</tr>
+<tr>
+<td>Rewind scope</td>
+<td>A region whose anchors may be voided by a producer rewind; guarded by cold-start verification.</td>
+<td>§3.3, §6</td>
+</tr>
+<tr>
+<td>Topology epoch</td>
+<td>The graph version authorizing the edge; an <code>i64</code> attribute on the registration.</td>
+<td>§7</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-scope-what-the-hcp-dialect-does-and-does-not-lower">1. Scope — what the <code>hcp</code> dialect does and does not lower</h2>
+<p>The dialect covers the <strong>consume path</strong>: the write-ahead registration, the<br />
+canonical fetch, and the rewind-vulnerable scope. It does <strong>not</strong> model the<br />
+runtime lifecycle frames, which are dynamic and owned by <code>agent-supervisord</code> /<br />
+<code>eventd</code>:</p>
+<table>
+<thead>
+<tr>
+<th>RFC 0004 frame</th>
+<th>In the <code>hcp</code> dialect?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DependencyRegistration</code> (§2)</td>
+<td><strong>Yes</strong> — <code>hcp.create_registration_token</code> + <code>hcp.write_ahead_log</code>.</td>
+</tr>
+<tr>
+<td>canonical fetch + verification (§3.2)</td>
+<td><strong>Yes</strong> — <code>hcp.fetch_canonical_data</code>.</td>
+</tr>
+<tr>
+<td><code>RewindEvent</code> / <code>stale_dependency</code> (§3.3, §6)</td>
+<td><strong>Scope only</strong> — <code>hcp.rewind_scope</code> marks the region; the event + pause are runtime.</td>
+</tr>
+<tr>
+<td><code>ConsumerCheckpoint</code>, GC floor (§4)</td>
+<td><strong>No</strong> — emitted at runtime <em>after</em> a fold; a dynamic checkpoint, not a compile-time structural edge.</td>
+</tr>
+<tr>
+<td><code>StaleDependency</code> record (§2)</td>
+<td><strong>No</strong> — a runtime pause reason, not a lowered op.</td>
+</tr>
+</tbody>
+</table>
+<p>Stating this boundary is load-bearing for coherence: an <code>hcp</code> op MUST correspond<br />
+to a frame RFC 0004 defines, and the runtime-only frames MUST NOT acquire <code>hcp</code><br />
+ops. (See <a href="./0024-mlir-lowering-staged-adoption.md">0024</a> §3, "what never enters<br />
+MLIR".)</p>
+<h2 id="2-types">2. Types</h2>
+<div class="highlight"><pre><span></span><span class="sx">!hcp.reg_token        // a built DependencyRegistration, not yet logged</span>
+<span class="sx">!hcp.wal_receipt      // proof of durable write-ahead log (eventd)</span>
+<span class="sx">!hcp.canonical_data   // verified producer output, post-fetch</span>
+</pre></div>
+
+<p><code>!hcp.canonical_data</code> is what a <code>!vaked.state_hash</code> <em>use</em> becomes after Pass 2:<br />
+the consumed input, now backed by a verified fetch.</p>
+<h2 id="3-operations">3. Operations</h2>
+<p>The sequence Pass 2 generates for one <code>vaked.consume</code> (RFC 0004 §3.1):</p>
+<div class="highlight"><pre><span></span><span class="nf">%token</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">hcp</span><span class="p">.</span><span class="n">create_registration_token</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">producer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">@</span><span class="n">agent_alpha</span><span class="p">,</span><span class="w"> </span><span class="n">producer_step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i64</span><span class="p">,</span>
+<span class="w">             </span><span class="n">topology_epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i64</span>
+<span class="w">           </span><span class="p">}</span><span class="w"> </span><span class="nf">%producer_hash</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">reg_token</span>
+<span class="nf">%receipt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hcp</span><span class="p">.</span><span class="n">write_ahead_log</span><span class="w"> </span><span class="nf">%token</span><span class="w">  </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">reg_token</span><span class="p">)</span><span class="w">  </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">wal_receipt</span>
+<span class="nf">%data</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">hcp</span><span class="p">.</span><span class="n">fetch_canonical_data</span><span class="w"> </span><span class="nf">%receipt</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">wal_receipt</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">canonical_data</span>
+</pre></div>
+
+<h3 id="31-hcpcreate_registration_token">3.1 <code>hcp.create_registration_token</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Build a <code>DependencyRegistration</code> frame (RFC 0004 §2) for one anchor.</td>
+</tr>
+<tr>
+<td><strong>Operands</strong></td>
+<td><code>producer_step_hash : !vaked.state_hash</code> (the anchored hash, RFC 0004 <code>producer_step_hash</code>).</td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td><code>!hcp.reg_token</code>.</td>
+</tr>
+<tr>
+<td><strong>Attributes</strong></td>
+<td><code>producer : FlatSymbolRefAttr</code> (→ a <code>vaked.agent</code>); <code>producer_step : i64</code>; <code>topology_epoch : i64</code> (RFC 0004 §7). <code>consumer</code> + <code>consumer_step</code> are taken from the enclosing <code>vaked.agent</code>/step context.</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-REGTOK</strong>: <code>producer</code> resolves to a <code>vaked.agent</code>; the operand is<br />
+<code>!vaked.state_hash</code>; the result is <code>!hcp.reg_token</code>; <code>topology_epoch</code> is present<br />
+(no anchor may be built without the epoch that authorized it — RFC 0004 §7).</p>
+<h3 id="32-hcpwrite_ahead_log">3.2 <code>hcp.write_ahead_log</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Durably append the registration to <code>eventd</code> <strong>before</strong> any fetch (RFC 0004 §3.1).</td>
+</tr>
+<tr>
+<td><strong>Operands</strong></td>
+<td><code>!hcp.reg_token</code>.</td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td><code>!hcp.wal_receipt</code> — the value carrying the write-ahead proof forward.</td>
+</tr>
+<tr>
+<td><strong>Effects</strong></td>
+<td><code>MemoryEffects::Write</code> on the <code>eventd</code> resource (so it is never DCE'd or hoisted).</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-WAL</strong>: operand is <code>!hcp.reg_token</code>; result is <code>!hcp.wal_receipt</code>.</p>
+<h3 id="33-hcpfetch_canonical_data">3.3 <code>hcp.fetch_canonical_data</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Verify the anchor against the producer's canonical chain (RFC 0004 §3.2) and fetch the output.</td>
+</tr>
+<tr>
+<td><strong>Operands</strong></td>
+<td><code>!hcp.wal_receipt</code> — <strong>the receipt operand is the write-ahead invariant</strong>: the fetch data-depends on the log, so it can never be scheduled before it.</td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td><code>!hcp.canonical_data</code>.</td>
+</tr>
+<tr>
+<td><strong>Effects</strong></td>
+<td><code>MemoryEffects::Read</code> on the <code>eventd</code> / producer resource.</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-FETCH</strong> (the structural write-ahead rule, RFC 0004 §3.1):<br />
+1. operand is <code>!hcp.wal_receipt</code>; result is <code>!hcp.canonical_data</code>;<br />
+2. the receipt's defining op is an <code>hcp.write_ahead_log</code> (directly or through<br />
+   pure forwarding), and <em>that</em> op's token comes from an<br />
+<code>hcp.create_registration_token</code> for the <strong>same</strong> <code>producer</code>. A fetch whose<br />
+   receipt does not trace to a write-ahead log for its producer is ill-formed<br />
+   (<strong>V-WAL-ORDER</strong>) — this is the compile-time form of "registration precedes<br />
+   consumption."</p>
+<h3 id="34-hcprewind_scope">3.4 <code>hcp.rewind_scope</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Encapsulate a block whose computation is built on anchors a producer rewind could void (RFC 0004 §3.3); marks the region <code>agent-supervisord</code> must guard with cold-start verification (§6).</td>
+</tr>
+<tr>
+<td><strong>Attributes</strong></td>
+<td><code>producer : FlatSymbolRefAttr</code> (the upstream whose rewind threatens the scope).</td>
+</tr>
+<tr>
+<td><strong>Regions</strong></td>
+<td>exactly one, holding the dependent computation (typically the uses of an <code>hcp.fetch_canonical_data</code> result).</td>
+</tr>
+<tr>
+<td><strong>Traits</strong></td>
+<td><code>SingleBlock</code>, region terminator <code>hcp.yield</code> (forwards the scope's results out).</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-REWIND</strong>: <code>producer</code> resolves to a <code>vaked.agent</code>; the region is<br />
+single-block and terminated by <code>hcp.yield</code>. The runtime contract: entering the<br />
+scope after a restart requires §6 verification to pass; a stale anchor pauses<br />
+the agent <code>stale_dependency</code> (a runtime state, not an op).</p>
+<h2 id="4-the-write-ahead-invariant-as-a-def-use-chain">4. The write-ahead invariant as a def-use chain</h2>
+<p>RFC 0004 §3.1 requires registration to be durably logged <em>before</em> the consumer<br />
+reads the producer's output. Rather than rely on pass ordering or a comment,<br />
+the dialect makes it a <strong>data dependency</strong>:</p>
+<div class="highlight"><pre><span></span>create_registration_token ──%token──▶ write_ahead_log ──%receipt──▶ fetch_canonical_data
+        (build frame)                  (durable eventd)              (verify + read)
+</pre></div>
+
+<p><code>fetch_canonical_data</code> consumes the <code>!hcp.wal_receipt</code> that only<br />
+<code>write_ahead_log</code> can produce, so any well-formed IR has logged before it<br />
+fetches — by construction, not by convention. V-WAL-ORDER rejects the<br />
+hand-written shortcut (a bare fetch, or a fetch wired to a forged receipt),<br />
+which is exactly the "hand-written registration is a conformance smell" rule of<br />
+RFC 0004 §3.1 expressed in the verifier.</p>
+<h2 id="5-tablegen-mapping-stage-1-starting-point">5. TableGen mapping (Stage-1 starting point)</h2>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="n">Hcp_RegTokenType</span><span class="w">    </span><span class="p">:</span><span class="w"> </span><span class="n">TypeDef</span><span class="p">&lt;</span><span class="n">Hcp_Dialect</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;RegToken&quot;</span><span class="p">&gt;</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="k">let</span><span class="w"> </span><span class="n">mnemonic</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;reg_token&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">def</span><span class="w"> </span><span class="n">Hcp_WalReceiptType</span><span class="w">  </span><span class="p">:</span><span class="w"> </span><span class="n">TypeDef</span><span class="p">&lt;</span><span class="n">Hcp_Dialect</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;WalReceipt&quot;</span><span class="p">&gt;</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="k">let</span><span class="w"> </span><span class="n">mnemonic</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;wal_receipt&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">def</span><span class="w"> </span><span class="n">Hcp_CanonicalType</span><span class="w">   </span><span class="p">:</span><span class="w"> </span><span class="n">TypeDef</span><span class="p">&lt;</span><span class="n">Hcp_Dialect</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;CanonicalData&quot;</span><span class="p">&gt;{</span><span class="w"> </span><span class="k">let</span><span class="w"> </span><span class="n">mnemonic</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;canonical_data&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="n">Hcp_WriteAheadLogOp</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Hcp_Op</span><span class="p">&lt;</span><span class="s">&quot;write_ahead_log&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">MemoryEffects</span><span class="p">&lt;[</span><span class="n">MemWrite</span><span class="p">]&gt;]&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">arguments</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">ins</span><span class="w"> </span><span class="n">Hcp_RegTokenType</span><span class="p">:</span><span class="nv">$token</span><span class="p">);</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">results</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">outs</span><span class="w"> </span><span class="n">Hcp_WalReceiptType</span><span class="p">:</span><span class="nv">$receipt</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="n">Hcp_FetchCanonicalDataOp</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Hcp_Op</span><span class="p">&lt;</span><span class="s">&quot;fetch_canonical_data&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="n">MemoryEffects</span><span class="p">&lt;[</span><span class="n">MemRead</span><span class="p">]&gt;]&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">arguments</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">ins</span><span class="w"> </span><span class="n">Hcp_WalReceiptType</span><span class="p">:</span><span class="nv">$receipt</span><span class="p">);</span><span class="w">   </span><span class="c1">// operand = write-ahead invariant</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">results</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">outs</span><span class="w"> </span><span class="n">Hcp_CanonicalType</span><span class="p">:</span><span class="nv">$data</span><span class="p">);</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">hasVerifier</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">                                  </span><span class="c1">// V-FETCH / V-WAL-ORDER</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="security-considerations">Security considerations</h2>
+<ul>
+<li><strong>The receipt operand is a security control, not ergonomics.</strong> If a future<br />
+  revision lets <code>hcp.fetch_canonical_data</code> take the producer directly (dropping<br />
+  the <code>!hcp.wal_receipt</code>), it silently re-permits consumption without<br />
+  registration — the exact integrity hole RFC 0004 §3 closes. V-WAL-ORDER MUST<br />
+  remain.</li>
+<li><strong>Epoch is mandatory at token build (V-REGTOK).</strong> A registration without its<br />
+  authorizing <code>topology_epoch</code> cannot be audited (RFC 0004 §7); the verifier<br />
+  rejects it rather than defaulting the epoch.</li>
+<li><strong>The dialect lowers no checkpoint/GC op.</strong> Keeping <code>ConsumerCheckpoint</code> and<br />
+  GC-floor logic out of MLIR (§1) means the compaction-safety decision stays in<br />
+  the runtime where the live lease/eviction state is (RFC 0004 §4) — the<br />
+  compiler must not appear to authorize compaction it cannot observe.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>Should <code>hcp.rewind_scope</code> carry the anchored <code>producer_step</code> so the verifier<br />
+  can cross-check it against the enclosing <code>hcp.create_registration_token</code>, or<br />
+  is the runtime §6 check sufficient? (Non-gating for v1.)</li>
+<li>Whether <code>!hcp.canonical_data</code> should be the same type as <code>!vaked.state_hash</code><br />
+  (unifying the dataflow token across dialects) or stay distinct to mark the<br />
+  "verified + fetched" transition. Distinct is clearer for Pass 2's rewrite.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0020-mlir-hcp-dialect.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

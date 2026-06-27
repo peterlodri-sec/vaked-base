@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked lowering (Goal 3) — design — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#decisions" style="padding-left:0.5rem">Decisions</a><a href="#model" style="padding-left:0.5rem">Model</a><a href="#implementation-tasks-sdd" style="padding-left:0.5rem">Implementation tasks (SDD)</a><a href="#review-criteria" style="padding-left:0.5rem">Review criteria</a><a href="#deferred" style="padding-left:0.5rem">Deferred</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-10-vaked-lowering-design</div>
+<h1>Vaked lowering (Goal 3) — design</h1>
+<h1 id="vaked-lowering-goal-3-design">Vaked lowering (Goal 3) — design</h1>
+<ul>
+<li><strong>Date:</strong> 2026-06-10</li>
+<li><strong>Status:</strong> Approved (brainstorm) → implementing via subagent-driven execution</li>
+<li><strong>Goal 3</strong> of the language session: the lowering story — how the validated typed semantic graph (Goal 2) compiles to artifacts. (Goal 1 = grammar v0.2 ✅; Goal 2 = type system ✅.)</li>
+</ul>
+<h2 id="decisions">Decisions</h2>
+<ol>
+<li><strong>Architecture — hybrid: direct artifacts + a Nix spine.</strong> Vaked directly emits the boring, inspectable config/policy artifacts it owns AND a <code>flake.nix</code> + NixOS module spine that wires/builds/deploys them. ("Complement above Nix"; "compile to boring artifacts".)</li>
+<li><strong>Scope — framework + Nix spine + 3 exemplars.</strong> The lowering <em>framework</em> (typed graph → emitters → artifacts + provenance + determinism) and the always-present Nix spine are specced concretely, plus three exemplar direct-emitters that prove it end-to-end: <strong>generated <code>RUNTIME.md</code> docs</strong>, <strong>a Zig daemon config</strong>, <strong>CrabCC index + SQLite/JSONL catalog</strong>. eBPF policy, OTel config, systemd units, and surface launchers get a defined emitter <em>interface</em> with deferred mappings (their consuming daemons aren't designed yet).</li>
+<li><strong>Provenance — headers + decl-level manifest.</strong> Every artifact carries a <code># generated by Vaked from &lt;file&gt;:&lt;decl&gt; — do not edit</code> header, AND lowering emits a machine-readable <code>.vaked/provenance.json</code> mapping each artifact (+ key regions) → {source file, decl, span, emitter, inputs-hash}.</li>
+</ol>
+<p><strong>Ratified defaults:</strong> flake outputs = <code>nixosModules.&lt;runtime&gt;</code>, <code>packages</code> (built Zig daemons), <code>devShells</code>, <code>apps</code> (surface launchers), inputs pinned; direct artifacts land in <code>gen/</code>, committed + inspectable; the 3 exemplars as listed.</p>
+<h2 id="model">Model</h2>
+<ul>
+<li><strong>Pipeline placement.</strong> Lowering is the final stage after Goal 2's check: validated typed semantic graph → artifacts. It runs ONLY on a graph that type-checked ("validate before generating").</li>
+<li><strong>Purity/totality/hermeticity.</strong> Lowering is a pure, total function of (validated graph + pinned inputs): same graph ⇒ byte-identical artifacts; no network/IO during lowering (fetching is the Nix build's job, pinned via <code>flake.lock</code> from <code>trust = pinned{…}</code>).</li>
+<li><strong>Emitters.</strong> One emitter per target; each is a pure function (graph, relevant nodes) → files + provenance entries. A registry maps target → emitter; adding an emitter touches no core. The Nix-spine emitter always runs; direct emitters run per declared <code>emit</code> targets (<code>index.emit = [catalog.jsonl, nix.derivation]</code> drives selection — already expressible, <strong>no grammar change</strong>).</li>
+<li><strong>Nix spine.</strong> <code>flake.nix</code> (outputs above) + NixOS module(s) that wire the OTP/Zig daemons and reference the direct-emitted config artifacts as installed files.</li>
+<li><strong>Escape hatch.</strong> <code>nix("…")</code> app passes through verbatim to the Nix emitter, with provenance.</li>
+</ul>
+<h2 id="implementation-tasks-sdd">Implementation tasks (SDD)</h2>
+<ul>
+<li><strong>T1 — <code>docs/language/0012-lowering.md</code></strong> — the normative spec: pipeline placement; purity/totality/hermeticity argument; the emitter interface (signature, registry, what an emitter may/may not do) + target selection from <code>emit</code>; the Nix-spine mapping (flake outputs schema; how NixOS modules reference <code>gen/</code> artifacts; <code>trust = pinned</code> → flake inputs/<code>flake.lock</code>); the 3 exemplar mappings concretely (RUNTIME.md docs; Zig daemon config; CrabCC index + catalog); the provenance model (header format + <code>provenance.json</code> schema); interface-stubbed targets (eBPF/OTel/systemd/surfaces) with explicit deferral; <code>nix("…")</code> pass-through. Cross-link 0011 (the checked graph it consumes), the grammar, PROJECT_CONTEXT.</li>
+<li><strong>T2 — Worked example</strong> under <code>vaked/examples/lowering/</code>: hand-authored <em>expected</em> lowering of <code>operator-field.vaked</code> — a <code>flake.nix</code> sketch, one Zig daemon config, the generated <code>RUNTIME.md</code>, and a <code>provenance.json</code> excerpt, each carrying the provenance header and consistent with T1's mappings. (Expected-output fixtures — there is no compiler yet; say so in a README.)</li>
+<li><strong>T3 — Cross-links</strong> from <code>docs/context/PROJECT_CONTEXT.md</code> and <code>docs/language/0008-…</code> to 0012; <code>docs/language/README.md</code> index entry.</li>
+</ul>
+<h2 id="review-criteria">Review criteria</h2>
+<p>T1 internally consistent with 0011 + the manifesto (pure/total/hermetic argued; no eval-time IO anywhere); emitter interface genuinely closed (an emitter can't smuggle computation/IO); the 3 exemplar mappings concrete enough to implement; T2 fixtures conform to T1's mappings + headers + provenance schema (spot-derivable from operator-field.vaked's decls); no scope creep into daemon implementation or the deferred targets; no grammar changes.</p>
+<h2 id="deferred">Deferred</h2>
+<p>Daemon/runtime implementations; concrete eBPF/OTel/systemd/surface mappings; incremental/cached lowering; the <code>vaked</code> CLI/compiler itself.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-10-vaked-lowering-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

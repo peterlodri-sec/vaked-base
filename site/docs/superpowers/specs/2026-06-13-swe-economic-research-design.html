@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SWE economic-research deployment (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#deployment-target-decision" style="padding-left:0.5rem">Deployment target (decision)</a><a href="#harness-not-the-full-runtime-honesty" style="padding-left:0.5rem">Harness, not the full runtime (honesty)</a><a href="#the-economics-ledger-the-actual-research-output" style="padding-left:0.5rem">The economics ledger (the actual research output)</a><a href="#phases" style="padding-left:0.5rem">Phases</a><a href="#stop-go-avoid-sunk-cost" style="padding-left:0.5rem">Stop / go (avoid sunk-cost)</a><a href="#safety-inherits-swe-x402" style="padding-left:0.5rem">Safety (inherits swe-x402)</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-swe-economic-research-design</div>
+<h1>SWE economic-research deployment (design)</h1>
+<h1 id="swe-economic-research-deployment-design">SWE economic-research deployment (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design / experiment (2026-06-13). The empirical complement to the<br />
+<a href="./2026-06-13-vaked-swe-x402-service-design.md">swe-x402 service design</a>: a dedicated,<br />
+cheap, isolated deployment whose job is to <strong>replace the back-of-envelope economics<br />
+with measured data</strong> — real unit costs and, above all, real <strong>demand</strong>. Convention:<br />
+design → plan → impl; this is the design.</p>
+<h2 id="purpose">Purpose</h2>
+<p>The swe-x402 spec's "Economics (pessimistic projection)" is a guess. The dominant<br />
+unknown is <strong>demand</strong> (jobs/week via word-of-mouth, price elasticity), <em>not</em> compute —<br />
+a <code>swe</code> job's cost is almost entirely <strong>remote</strong> model inference, so local hardware<br />
+barely moves the result at research volume. This experiment measures the real curve at<br />
+<strong>~zero capex</strong>, and only stages hardware <em>after</em> demand is shown.</p>
+<p>Guiding rule: <strong>spend nothing on the box until the demand question is answered.</strong></p>
+<h2 id="deployment-target-decision">Deployment target (decision)</h2>
+<ul>
+<li><strong>Now → a dedicated, cheap Linux/NixOS VM</strong> (Hetzner/Vultr, ~$5–20/mo). A <em>dedicated</em><br />
+  box (not co-tenant with dev infra — that idea was rejected for the untrusted-code<br />
+  blast radius) gives a <strong>clean P&amp;L boundary</strong> (its own wallet, its own ledger, nothing<br />
+  commingled) and isolation. Disposable and reproducible (NixOS).</li>
+<li><strong>macOS → not a host.</strong> The eventual Vaked runtime needs <strong>NixOS + eBPF</strong> (BTF/CO-RE<br />
+  kernel; see <a href="../../../hosts/vakedos/README.md"><code>hosts/vakedos</code></a>). macOS earns a place<br />
+  only later as a <strong>job <em>worker</em></strong> for Mac/iOS-specific tasks (a premium tier reached<br />
+  over the mesh), never the control plane.</li>
+<li><strong>Bare metal (the EPYC <code>vakedos</code> target) → later, at proven volume</strong>, when concurrency<br />
+  /margin justify it and the <em>full</em> Vaked isolation runtime (sandboxd/agent-guardd/wasm)<br />
+  becomes the product. Do not start here.</li>
+</ul>
+<p>Staging path: <strong>cheap VM → (demand proven) → bare-metal <code>vakedos</code> → (Mac demand) → add<br />
+a macOS worker.</strong></p>
+<h2 id="harness-not-the-full-runtime-honesty">Harness, not the full runtime (honesty)</h2>
+<p>The Vaked runtime is still a <strong>stub</strong> (sandboxd / agent-guardd / memoryd unimplemented),<br />
+so economic research today runs a <strong>minimal harness</strong>, not the enforcement plane:</p>
+<div class="highlight"><pre><span></span>x402 ingress  →  run a coding agent on &lt;prompt&gt; at &lt;scale&gt;  →  settle + (later) anchor
+   (HTTP 402)     (crib agentfield-swe&#39;s plan→code→review shape +        (Base; testnet
+                   the pr-review agent&#39;s gh/model/crabcc plumbing)         first)
+</pre></div>
+
+<p>Reuse, don't rebuild: the <a href="../../../vaked/examples/agentfield-swe.vaked"><code>agentfield-swe</code></a><br />
+workflow shape + the pr-review crate's model/<code>gh</code>/crabcc plumbing already exist. Wrap<br />
+buyer code in an off-the-shelf sandbox (container/microVM) on the dedicated box; keep<br />
+the wallet/secrets <strong>out</strong> of the job sandbox (the swe-x402 <code>pay.spend</code> rule).</p>
+<h2 id="the-economics-ledger-the-actual-research-output">The economics ledger (the actual research output)</h2>
+<p>Every job appends one entry to an <strong>append-only, hash-chained ledger</strong> — the proven<br />
+eventd / ralph pattern (<a href="../../../tools/ralph/README.md">ralph</a>,<br />
+<a href="./2026-06-12-eventd-design.md">eventd</a>) — so the experiment dogfoods the<br />
+immutable-ledger thesis on its own P&amp;L <em>and</em> the ledger is the receipt substrate the<br />
+service needs later:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span><span class="n">seq</span><span class="p">,</span><span class="w"> </span><span class="n">prev</span><span class="p">,</span><span class="w"> </span><span class="nb">hash</span><span class="p">,</span>
+<span class="w">  </span><span class="n">ts</span><span class="p">,</span><span class="w"> </span><span class="n">prompt_class</span><span class="p">,</span><span class="w"> </span><span class="n">scale</span><span class="p">,</span><span class="w">            </span><span class="c1"># demand signal</span>
+<span class="w">  </span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">tokens</span><span class="p">,</span><span class="w"> </span><span class="n">model_cost_usd</span><span class="p">,</span><span class="w">      </span><span class="c1"># COGS</span>
+<span class="w">  </span><span class="n">base_gas_usd</span><span class="p">,</span><span class="w"> </span><span class="n">facilitator_fee_usd</span><span class="p">,</span>
+<span class="w">  </span><span class="n">price_usd</span><span class="p">,</span><span class="w"> </span><span class="n">settled</span><span class="p">,</span><span class="w">                 </span><span class="c1"># revenue</span>
+<span class="w">  </span><span class="n">wall_clock_s</span><span class="p">,</span><span class="w"> </span><span class="n">outcome</span><span class="w"> </span><span class="p">}</span><span class="w">             </span><span class="c1"># merged | rejected | failed</span>
+</pre></div>
+
+<p>Weekly fold → the real numbers: <strong>jobs/week (demand), conversion, blended price, gross<br />
+margin, net vs fixed</strong>, plus price-elasticity from deliberately varying the scale tiers.<br />
+This <em>is</em> the replacement for the projection.</p>
+<h2 id="phases">Phases</h2>
+<ol>
+<li><strong>Harness + ledger, local.</strong> Synthetic + self-submitted jobs to calibrate true COGS<br />
+   (tokens/job, $/job) — no payments yet. Answers the <em>cost</em> half.</li>
+<li><strong>Dedicated VM + testnet.</strong> Stand up the cheap VM; x402 on <strong>Base Sepolia</strong>; open to<br />
+   the first word-of-mouth users. Answers the <em>demand</em> half cheaply.</li>
+<li><strong>Mainnet USDC + real pricing.</strong> Flip to Base mainnet; run real scale tiers; collect<br />
+   elasticity. Produce the measured economics table.</li>
+<li><strong>Stage decision.</strong> Gated on demand: stay VM, move to bare-metal <code>vakedos</code>, and/or<br />
+   add a macOS worker.</li>
+</ol>
+<h2 id="stop-go-avoid-sunk-cost">Stop / go (avoid sunk-cost)</h2>
+<p>Define kill criteria up front: e.g. <strong>if, after ~6–8 weeks of phase 2 at a low/intro<br />
+price, demand stays below ~N jobs/week, the market isn't there at this price — stop or<br />
+re-price</strong>, don't buy hardware. The whole point of the cheap VM is to make that a<br />
+~$30 finding, not a $1k one.</p>
+<h2 id="safety-inherits-swe-x402">Safety (inherits swe-x402)</h2>
+<p>Dedicated box (no co-tenant blast radius); wallet/secrets/anchor-signer isolated from<br />
+the job sandbox; deny-by-default egress (allowlist model + x402 endpoints only);<br />
+per-job <code>spendUsd</code> + compute <code>budget</code> caps. See the swe-x402<br />
+<a href="./2026-06-13-vaked-swe-x402-service-design.md#security--threat-model-from-the-adversarial-review">Security/threat model</a>.</p>
+<h2 id="open-questions">Open questions</h2>
+<ol>
+<li><strong>Sandbox backend for buyer code on the VM</strong> — plain container vs microVM<br />
+   (Firecracker) for the research phase (full Vaked sandboxd/wasm comes at bare-metal).</li>
+<li><strong>Ledger storage</strong> — local JSONL now; when does it graduate to real eventd / a<br />
+   published (CDN-anchored) ledger?</li>
+<li><strong>Intro pricing for elasticity</strong> — free/near-free to seed word-of-mouth, then ramp?</li>
+<li><strong>Demand-source niches</strong> to seed (crabcc/Vaked circle, web3 dev channels) without it<br />
+   counting as "marketing."</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-swe-economic-research-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

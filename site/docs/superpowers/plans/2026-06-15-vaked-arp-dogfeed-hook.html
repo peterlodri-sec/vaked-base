@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Tightened vaked→ARP dogfeeding hook — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#task-1-define-the-arpevent-schema" style="padding-left:1rem">  Task 1: Define the `arp_event` schema</a><a href="#task-2-arp-log-verifier-toolsarpverifylogpy" style="padding-left:1rem">  Task 2: ARP-log verifier (`tools/arp/verify_log.py`)</a><a href="#task-3-capture-hook-claudehooksarplogpy" style="padding-left:1rem">  Task 3: Capture hook (`.claude/hooks/arp_log.py`)</a><a href="#task-4-register-the-hook-retire-the-advisory-rule" style="padding-left:1rem">  Task 4: Register the hook, retire the advisory rule</a><a href="#task-5-portable-bootstrap-block-docsarp-logmeta-hookmd" style="padding-left:1rem">  Task 5: Portable bootstrap block (`docs/arp-log.meta-hook.md`)</a><a href="#task-6-end-to-end-verification" style="padding-left:1rem">  Task 6: End-to-end verification</a><a href="#self-review-notes" style="padding-left:0.5rem">Self-review notes</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-15-vaked-arp-dogfeed-hook</div>
+<h1>Tightened vaked→ARP dogfeeding hook — Implementation Plan</h1>
+<h1 id="tightened-vakedarp-dogfeeding-hook-implementation-plan">Tightened vaked→ARP dogfeeding hook — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</p>
+</blockquote>
+<p><strong>Goal:</strong> Replace the unreliable advisory ARP-log nag rule with a deterministic PostToolUse hook that records substantial shell commands as validatable <code>arp_event</code> Vaked declarations in <code>docs/arp-log.md</code>, plus a verifier and a portable bootstrap block.</p>
+<p><strong>Architecture:</strong> A <code>schema arp_event</code> in <code>builtins.vaked</code> makes <code>arp_event</code> instances check-validate by kind-name binding (zero grammar change — parser accepts any kind). A pure-python PostToolUse <code>Bash</code> hook filters noise, captures touched files via a git-porcelain stamp delta, and appends a fenced <code>arp_event</code> block. A batch verifier extracts the fences and runs <code>vakedc check</code> to prove the log is valid Vaked.</p>
+<p><strong>Tech Stack:</strong> Python 3 (stdlib only), vakedc (in-repo), Claude Code hooks, git porcelain.</p>
+<p><strong>Worktree:</strong> Standing constraint — do NOT work on <code>main</code>. Create an isolated worktree+branch first (superpowers:using-git-worktrees), e.g. branch <code>feat/arp-dogfeed-hook</code>. NEVER build on the dev machine; pure-python vakedc on tiny fixtures is allowed.</p>
+<p><strong>Instance-name note:</strong> Existing Vaked instances use <strong>ident</strong> names (<code>stream telemetry</code>), not quoted strings. So <code>arp_event</code> instances use an ident slug (<code>arp_event e_20260615_103045 { … }</code>) and carry the human timestamp in a <code>ts</code> field.</p>
+<hr />
+<h3 id="task-1-define-the-arp_event-schema">Task 1: Define the <code>arp_event</code> schema</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>vaked/schema/builtins.vaked</code> (append)</p>
+<ul>
+<li>[ ] <strong>Step 1: Append the schema</strong></li>
+</ul>
+<p>Append to <code>vaked/schema/builtins.vaked</code>:</p>
+<div class="highlight"><pre><span></span>schema arp_event {
+  field ts      : String { required }
+  field command : String { required nonempty }
+  field inputs  : List&lt;String&gt; { optional }
+  field outputs : List&lt;String&gt; { optional }
+  field status  : String { required }
+  field notes   : String { optional }
+}
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Verify builtins still check-clean</strong></li>
+</ul>
+<p>Run: <code>python3 -m vakedc check vaked/schema/builtins.vaked</code><br />
+Expected: exit 0 (no diagnostics).</p>
+<ul>
+<li>[ ] <strong>Step 3: Probe that an instance validates</strong></li>
+</ul>
+<p>Create a throwaway <code>/tmp/arp_probe.vaked</code>:</p>
+<div class="highlight"><pre><span></span>arp_event e_20260615_103045 {
+  ts      = &quot;2026-06-15 10:30&quot;
+  command = &quot;python3 build.py&quot;
+  inputs  = [&quot;build.py&quot;]
+  outputs = [&quot;out/app&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<p>Run: <code>python3 -m vakedc check /tmp/arp_probe.vaked</code><br />
+Expected: exit 0. (If it fails on the ident name, the slug form is wrong — stop and inspect the parser's <code>name</code> production before continuing. The schema/field names should be correct.)</p>
+<ul>
+<li>[ ] <strong>Step 4: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>vaked/schema/builtins.vaked
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(arp): add arp_event schema to builtins&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-2-arp-log-verifier-toolsarpverify_logpy">Task 2: ARP-log verifier (<code>tools/arp/verify_log.py</code>)</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>tools/arp/__init__.py</code> (empty)<br />
+- Create: <code>tools/arp/verify_log.py</code><br />
+- Create: <code>tools/arp/test_arp_log.py</code> (verifier test added here, hook tests in Task 3)</p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p>Create <code>tools/arp/test_arp_log.py</code>:</p>
+<p><strong>NOTE — stdlib only:</strong> pytest is NOT installed (no build/network on this machine).<br />
+Use <code>unittest</code> + <code>unittest.mock</code> throughout. Run with <code>python3 -m unittest</code>.</p>
+<p>Create <code>tools/arp/test_arp_log.py</code>:</p>
+<div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">unittest</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">unittest</span><span class="w"> </span><span class="kn">import</span> <span class="n">mock</span>
+
+<span class="n">HERE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+<span class="n">ROOT</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">HERE</span><span class="p">))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">],</span> <span class="n">cwd</span><span class="o">=</span><span class="n">ROOT</span><span class="p">,</span>
+                          <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kw</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">VerifyLogTest</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_verify_log_extracts_and_checks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+            <span class="n">md</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s2">&quot;log.md&quot;</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">md</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+                <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span>
+                    <span class="s2">&quot;# log</span><span class="se">\n\n</span><span class="s2">## 2026-06-15 10:30 — build</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;</span>
+</pre></div>
+<p>vaked\n"<br />
+                    "arp_event e_1 {\n"<br />
+                    '  ts = "2026-06-15 10:30"\n'<br />
+                    '  command = "python3 build.py"\n'<br />
+                    '  status = "ok"\n'<br />
+                    "}\n"<br />
+                    "```\n"<br />
+                )<br />
+            r = _run(["-m", "tools.arp.verify_log", md])<br />
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)</p>
+<p>if <strong>name</strong> == "<strong>main</strong>":<br />
+    unittest.main()</p>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="n">Run</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">verify</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">fails</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="n">unittest</span><span class="w"> </span><span class="n">tools</span><span class="o">.</span><span class="n">arp</span><span class="o">.</span><span class="n">test_arp_log</span><span class="o">.</span><span class="n">VerifyLogTest</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span><span class="w"> </span><span class="n">FAIL</span><span class="o">/</span><span class="n">ERROR</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="err">`</span><span class="n">No</span><span class="w"> </span><span class="n">module</span><span class="w"> </span><span class="n">named</span><span class="w"> </span><span class="n">tools</span><span class="o">.</span><span class="n">arp</span><span class="o">.</span><span class="n">verify_log</span><span class="err">`</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="n">Write</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">verifier</span><span class="o">**</span>
+
+<span class="n">Create</span><span class="w"> </span><span class="n">empty</span><span class="w"> </span><span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">arp</span><span class="o">/</span><span class="n">__init__</span><span class="o">.</span><span class="n">py</span><span class="err">`</span><span class="o">.</span><span class="w"> </span><span class="n">Create</span><span class="w"> </span><span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">arp</span><span class="o">/</span><span class="n">verify_log</span><span class="o">.</span><span class="n">py</span><span class="err">`</span><span class="p">:</span>
+</pre></div>
+<p>python</p>
+<h1 id="usrbinenv-python3">!/usr/bin/env python3</h1>
+<p>"""Extract ```vaked blocks from a markdown file, concat to a temp .vaked, run vakedc check.</p>
+<p>Exit 0 = every block parses + checks against builtins (incl. schema arp_event).<br />
+This is the dogfood gate: Vaked validates its own ARP session log.<br />
+"""<br />
+import os<br />
+import re<br />
+import subprocess<br />
+import sys<br />
+import tempfile</p>
+<p>_FENCE = re.compile(r"<code>vaked\n(.*?)</code>", re.S)</p>
+<p>def extract(md: str) -&gt; list[str]:<br />
+    return [b.strip() for b in _FENCE.findall(md)]</p>
+<p>def main(argv: list[str]) -&gt; int:<br />
+    path = argv[0] if argv else "docs/arp-log.md"<br />
+    with open(path, encoding="utf-8") as fh:<br />
+        blocks = extract(fh.read())<br />
+    if not blocks:<br />
+        print("verify_log: no vaked blocks found")<br />
+        return 0<br />
+    src = "\n\n".join(blocks) + "\n"<br />
+    fd, tmp = tempfile.mkstemp(suffix=".vaked")<br />
+    os.close(fd)<br />
+    try:<br />
+        with open(tmp, "w", encoding="utf-8") as fh:<br />
+            fh.write(src)<br />
+        r = subprocess.run([sys.executable, "-m", "vakedc", "check", tmp])<br />
+        return r.returncode<br />
+    finally:<br />
+        os.unlink(tmp)</p>
+<p>if <strong>name</strong> == "<strong>main</strong>":<br />
+    sys.exit(main(sys.argv[1:]))</p>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="n">Run</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">verify</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">passes</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="n">unittest</span><span class="w"> </span><span class="n">tools</span><span class="o">.</span><span class="n">arp</span><span class="o">.</span><span class="n">test_arp_log</span><span class="o">.</span><span class="n">VerifyLogTest</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span><span class="w"> </span><span class="n">PASS</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">5</span><span class="p">:</span><span class="w"> </span><span class="n">Commit</span><span class="o">**</span>
+</pre></div>
+<p>bash<br />
+git add tools/arp/<strong>init</strong>.py tools/arp/verify_log.py tools/arp/test_arp_log.py<br />
+git commit -m "feat(arp): add ARP-log verifier (vakedc check over md fences)"</p>
+<div class="highlight"><pre><span></span><span class="o">---</span>
+
+<span class="c1">### Task 3: Capture hook (`.claude/hooks/arp_log.py`)</span>
+
+<span class="o">**</span><span class="n">Files</span><span class="p">:</span><span class="o">**</span>
+<span class="o">-</span> <span class="n">Create</span><span class="p">:</span> <span class="err">`</span><span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">hooks</span><span class="o">/</span><span class="n">arp_log</span><span class="o">.</span><span class="n">py</span><span class="err">`</span>
+<span class="o">-</span> <span class="n">Test</span><span class="p">:</span> <span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">arp</span><span class="o">/</span><span class="n">test_arp_log</span><span class="o">.</span><span class="n">py</span><span class="err">`</span> <span class="p">(</span><span class="n">extend</span><span class="p">)</span>
+
+<span class="n">The</span> <span class="n">module</span> <span class="n">splits</span> <span class="n">pure</span> <span class="n">helpers</span> <span class="p">(</span><span class="n">testable</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">IO</span> <span class="p">(</span><span class="err">`</span><span class="n">main</span><span class="err">`</span><span class="p">)</span><span class="o">.</span> <span class="n">Build</span> <span class="n">it</span> <span class="n">helper</span><span class="o">-</span><span class="n">by</span><span class="o">-</span><span class="n">helper</span><span class="o">.</span>
+
+<span class="o">-</span> <span class="p">[</span> <span class="p">]</span> <span class="o">**</span><span class="n">Step</span> <span class="mi">1</span><span class="p">:</span> <span class="n">Write</span> <span class="n">failing</span> <span class="n">tests</span> <span class="k">for</span> <span class="n">the</span> <span class="n">pure</span> <span class="n">helpers</span><span class="o">**</span>
+
+<span class="n">Insert</span> <span class="n">into</span> <span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">arp</span><span class="o">/</span><span class="n">test_arp_log</span><span class="o">.</span><span class="n">py</span><span class="err">`</span> <span class="p">(</span><span class="n">above</span> <span class="n">the</span> <span class="err">`</span><span class="k">if</span> <span class="vm">__name__</span><span class="err">`</span> <span class="n">guard</span><span class="p">),</span> <span class="n">adding</span>
+<span class="err">`</span><span class="kn">import</span><span class="w"> </span><span class="nn">importlib.util</span><span class="err">`</span> <span class="n">to</span> <span class="n">the</span> <span class="n">top</span> <span class="n">imports</span><span class="p">:</span>
+</pre></div>
+<p>python<br />
+_HOOK = os.path.join(ROOT, ".claude", "hooks", "arp_log.py")</p>
+<p>def _load_hook():<br />
+    import importlib.util<br />
+    spec = importlib.util.spec_from_file_location("arp_log", _HOOK)<br />
+    mod = importlib.util.module_from_spec(spec)<br />
+    spec.loader.exec_module(mod)<br />
+    return mod</p>
+<p>class HookHelpersTest(unittest.TestCase):<br />
+    def setUp(self):<br />
+        self.h = _load_hook()</p>
+<pre><code>def test_is_substantial(self):
+    h = self.h
+    self.assertTrue(h.is_substantial("python3 build.py"))
+    self.assertTrue(h.is_substantial("make test"))
+    self.assertFalse(h.is_substantial("ls -la"))
+    self.assertFalse(h.is_substantial("git status"))
+    self.assertFalse(h.is_substantial("cat foo.txt"))
+    self.assertFalse(h.is_substantial("python3 -m vakedc check x.vaked"))
+    self.assertFalse(h.is_substantial(""))
+
+def test_extract_inputs(self):
+    self.assertEqual(self.h.extract_inputs("cp src/a.txt dest/b.txt"),
+                     ["src/a.txt", "dest/b.txt"])
+    self.assertEqual(self.h.extract_inputs("echo hi"), [])
+
+def test_status_from_response(self):
+    h = self.h
+    self.assertEqual(h.status_from_response({"exit_code": 0}), "ok")
+    self.assertEqual(h.status_from_response({}), "ok")
+    self.assertTrue(h.status_from_response({"interrupted": True}).startswith("err"))
+    self.assertTrue(
+        h.status_from_response({"exit_code": 2, "stderr": "boom"}).startswith("err"))
+
+def test_render_block_validates(self):
+    from tools.arp.verify_log import extract
+    block = self.h.render_block("2026-06-15 10:30", "python3 build.py",
+                                ["build.py"], ["out/app"], "ok")
+    blocks = extract(block)
+    self.assertTrue(blocks, "render_block must emit a ```vaked fence")
+    fd, tmp = tempfile.mkstemp(suffix=".vaked")
+    os.close(fd)
+    try:
+        with open(tmp, "w") as fh:
+            fh.write(blocks[0] + "\n")
+        r = _run(["-m", "vakedc", "check", tmp])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+    finally:
+        os.unlink(tmp)
+</code></pre>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="n">Run</span><span class="w"> </span><span class="n">tests</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">verify</span><span class="w"> </span><span class="n">they</span><span class="w"> </span><span class="n">fail</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="n">unittest</span><span class="w"> </span><span class="n">tools</span><span class="o">.</span><span class="n">arp</span><span class="o">.</span><span class="n">test_arp_log</span><span class="o">.</span><span class="n">HookHelpersTest</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span><span class="w"> </span><span class="n">FAIL</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">hook</span><span class="w"> </span><span class="n">file</span><span class="w"> </span><span class="n">does</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">exist</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="n">Write</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">hook</span><span class="o">**</span>
+
+<span class="n">Create</span><span class="w"> </span><span class="err">`</span><span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">hooks</span><span class="o">/</span><span class="n">arp_log</span><span class="o">.</span><span class="n">py</span><span class="err">`</span><span class="p">:</span>
+</pre></div>
+<p>python</p>
+<h1 id="usrbinenv-python3_1">!/usr/bin/env python3</h1>
+<p>"""PostToolUse Bash hook — append substantial commands to docs/arp-log.md as<br />
+typed <code>arp_event</code> Vaked declarations. Deterministic; no model involvement.</p>
+<p>Reads the PostToolUse stdin JSON, filters trivial/excluded commands, captures<br />
+files touched via a git-porcelain stamp delta, and appends a fenced arp_event<br />
+block. Always exits 0 (never blocks the tool result).<br />
+"""<br />
+import datetime<br />
+import json<br />
+import os<br />
+import re<br />
+import subprocess<br />
+import sys<br />
+import tempfile</p>
+<p>EXCLUDE = (".vaked", "vakedc", "run_all.py")<br />
+_TRIVIAL = re.compile(<br />
+    r"^\s*(ls|cat|echo|which|pwd|head|tail|true|cd|tree"<br />
+    r"|git\s+(status|log|diff|show|branch|remote))\b"<br />
+)<br />
+_PATHISH = re.compile(r"(?:[\w.@~-]+/)+[\w.@-]+|\b[\w@-]+.[A-Za-z0-9]{1,8}\b")<br />
+_STAMP = os.path.join(tempfile.gettempdir(), "arp-gitmap.json")</p>
+<p>def is_substantial(cmd: str) -&gt; bool:<br />
+    if not cmd or not cmd.strip():<br />
+        return False<br />
+    if any(x in cmd for x in EXCLUDE):<br />
+        return False<br />
+    if _TRIVIAL.match(cmd):<br />
+        return False<br />
+    return True</p>
+<p>def extract_inputs(cmd: str) -&gt; list[str]:<br />
+    out, seen = [], set()<br />
+    for tok in _PATHISH.findall(cmd):<br />
+        if tok not in seen:<br />
+            seen.add(tok)<br />
+            out.append(tok)<br />
+    return out</p>
+<p>def status_from_response(resp) -&gt; str:<br />
+    if not isinstance(resp, dict):<br />
+        return "ok"<br />
+    if resp.get("interrupted"):<br />
+        return "err: interrupted"<br />
+    code = resp.get("exit_code", resp.get("returncode"))<br />
+    if isinstance(code, int) and code != 0:<br />
+        tail = (resp.get("stderr") or "").strip().splitlines()<br />
+        msg = f": {tail[-1][:80]}" if tail else ""<br />
+        return f"err: exit {code}{msg}"<br />
+    return "ok"</p>
+<p>def git_status_map(root: str) -&gt; dict:<br />
+    try:<br />
+        out = subprocess.run(<br />
+            ["git", "-C", root, "status", "--porcelain", "-uall", "-z"],<br />
+            capture_output=True, text=True).stdout<br />
+    except Exception:<br />
+        return {}<br />
+    m, toks, i = {}, out.split("\0"), 0<br />
+    while i &lt; len(toks):<br />
+        t = toks[i]<br />
+        if not t:<br />
+            i += 1<br />
+            continue<br />
+        code, path = t[:2], t[3:]<br />
+        if code and code[0] in ("R", "C"):<br />
+            i += 1  # rename/copy source path is the next token<br />
+        m[path] = code<br />
+        i += 1<br />
+    return m</p>
+<p>def _load_stamp() -&gt; dict:<br />
+    try:<br />
+        with open(_STAMP, encoding="utf-8") as fh:<br />
+            return json.load(fh)<br />
+    except Exception:<br />
+        return {}</p>
+<p>def _save_stamp(m: dict) -&gt; None:<br />
+    try:<br />
+        with open(_STAMP, "w", encoding="utf-8") as fh:<br />
+            json.dump(m, fh)<br />
+    except Exception:<br />
+        pass</p>
+<p>def outputs_delta(before: dict, after: dict) -&gt; list[str]:<br />
+    changed = [p for p, c in after.items() if before.get(p) != c]<br />
+    changed += [p for p in before if p not in after]<br />
+    # drop the log itself + the stamp so the hook never records its own write<br />
+    return sorted(p for p in set(changed) if not p.endswith("arp-log.md"))</p>
+<p>def _esc(s: str) -&gt; str:<br />
+    return s.replace("\", "\\").replace('"', '\"')</p>
+<p>def _vstr(s: str) -&gt; str:<br />
+    return '"' + _esc(s) + '"'</p>
+<p>def _vlist(xs: list[str]) -&gt; str:<br />
+    return "[" + ", ".join(_vstr(x) for x in xs) + "]"</p>
+<p>def _label(cmd: str) -&gt; str:<br />
+    return " ".join(cmd.split())[:48]</p>
+<p>def <em>slug(now: datetime.datetime) -&gt; str:<br />
+    return "e</em>" + now.strftime("%Y%m%d_%H%M%S")</p>
+<p>def render_block(ts: str, cmd: str, inputs: list[str], outputs: list[str],<br />
+                 status: str, notes: str = "", now=None) -&gt; str:<br />
+    now = now or datetime.datetime.now()<br />
+    lines = [<br />
+        f"## {ts} — {_label(cmd)}",<br />
+        "",<br />
+        "<code>vaked",
+        f"arp_event {_slug(now)} {{",
+        f"  ts      = {_vstr(ts)}",
+        f"  command = {_vstr(cmd.strip())}",
+    ]
+    if inputs:
+        lines.append(f"  inputs  = {_vlist(inputs)}")
+    if outputs:
+        lines.append(f"  outputs = {_vlist(outputs)}")
+    lines.append(f"  status  = {_vstr(status)}")
+    if notes:
+        lines.append(f"  notes   = {_vstr(notes)}")
+    lines += ["}", "</code>", ""]<br />
+    return "\n".join(lines)</p>
+<p>def main() -&gt; int:<br />
+    try:<br />
+        data = json.load(sys.stdin)<br />
+    except Exception:<br />
+        return 0<br />
+    if data.get("tool_name") != "Bash":<br />
+        return 0<br />
+    cmd = (data.get("tool_input") or {}).get("command", "")<br />
+    root = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()</p>
+<pre><code>before = _load_stamp()
+after = git_status_map(root)
+_save_stamp(after)  # always advance the stamp, even for trivial commands
+
+if not is_substantial(cmd):
+    return 0
+
+now = datetime.datetime.now()
+block = render_block(
+    ts=now.strftime("%Y-%m-%d %H:%M"),
+    cmd=cmd,
+    inputs=extract_inputs(cmd),
+    outputs=outputs_delta(before, after),
+    status=status_from_response(data.get("tool_response")),
+    now=now,
+)
+log = os.path.join(root, "docs", "arp-log.md")
+try:
+    with open(log, "a", encoding="utf-8") as fh:
+        fh.write("\n" + block)
+except Exception:
+    pass
+return 0
+</code></pre>
+<p>if <strong>name</strong> == "<strong>main</strong>":<br />
+    sys.exit(main())</p>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">4</span><span class="o">:</span><span class="w"> </span><span class="n">Run</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">helper</span><span class="w"> </span><span class="n">tests</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="o">:</span><span class="w"> </span><span class="n n-Quoted">`python3 -m unittest tools.arp.test_arp_log.HookHelpersTest -v`</span>
+<span class="n">Expected</span><span class="o">:</span><span class="w"> </span><span class="n">PASS</span><span class="w"> </span><span class="p">(</span><span class="k">all</span><span class="w"> </span><span class="n">four</span><span class="p">).</span>
+
+<span class="o">-</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">5</span><span class="o">:</span><span class="w"> </span><span class="k">Write</span><span class="w"> </span><span class="n">failing</span><span class="w"> </span><span class="n">tests</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n n-Quoted">`main`</span><span class="w"> </span><span class="p">(</span><span class="n">append</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">skip</span><span class="p">)</span><span class="o">**</span>
+
+<span class="k">Insert</span><span class="w"> </span><span class="k">into</span><span class="w"> </span><span class="n n-Quoted">`tools/arp/test_arp_log.py`</span><span class="w"> </span><span class="p">(</span><span class="n">above</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n n-Quoted">`if __name__`</span><span class="w"> </span><span class="n">guard</span><span class="p">).</span><span class="w"> </span><span class="n">Uses</span>
+<span class="n n-Quoted">`mock.patch.object`</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n n-Quoted">`tempfile.TemporaryDirectory`</span><span class="w"> </span><span class="p">(</span><span class="n">stdlib</span><span class="p">)</span><span class="o">:</span>
+</pre></div>
+<p>python<br />
+class HookMainTest(unittest.TestCase):<br />
+    def _drive(self, command, gitmap):<br />
+        h = _load_hook()<br />
+        with tempfile.TemporaryDirectory() as d:<br />
+            os.mkdir(os.path.join(d, "docs"))<br />
+            log = os.path.join(d, "docs", "arp-log.md")<br />
+            with open(log, "w") as fh:<br />
+                fh.write("# ARP Event Log\n")<br />
+            payload = json.dumps({<br />
+                "tool_name": "Bash",<br />
+                "tool_input": {"command": command},<br />
+                "tool_response": {"exit_code": 0},<br />
+            })<br />
+            with mock.patch.dict(os.environ, {"CLAUDE_PROJECT_DIR": d}), \<br />
+                 mock.patch.object(h, "git_status_map", lambda root: gitmap), \<br />
+                 mock.patch.object(h, "_load_stamp", lambda: {}), \<br />
+                 mock.patch.object(h, "_save_stamp", lambda m: None), \<br />
+                 mock.patch.object(sys, "stdin", io.StringIO(payload)):<br />
+                rc = h.main()<br />
+            with open(log) as fh:<br />
+                return rc, fh.read()</p>
+<pre><code>def test_main_appends_for_substantial(self):
+    rc, body = self._drive("python3 build.py src/main.py", {"out/app": "??"})
+    self.assertEqual(rc, 0)
+    self.assertIn("arp_event e_", body)
+    self.assertIn('command = "python3 build.py src/main.py"', body)
+    self.assertIn("out/app", body)
+
+def test_main_skips_trivial(self):
+    rc, body = self._drive("ls -la", {})
+    self.assertEqual(rc, 0)
+    self.assertEqual(body, "# ARP Event Log\n")  # unchanged
+</code></pre>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">6</span><span class="p">:</span><span class="w"> </span><span class="n">Run</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">full</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="n">file</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="n">unittest</span><span class="w"> </span><span class="n">tools</span><span class="o">.</span><span class="n">arp</span><span class="o">.</span><span class="n">test_arp_log</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span><span class="w"> </span><span class="n">all</span><span class="w"> </span><span class="n">PASS</span><span class="w"> </span><span class="p">(</span><span class="n">verifier</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">helpers</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">main</span><span class="p">)</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">7</span><span class="p">:</span><span class="w"> </span><span class="n">Make</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">hook</span><span class="w"> </span><span class="n">executable</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">commit</span><span class="o">**</span>
+</pre></div>
+<p>bash<br />
+chmod +x .claude/hooks/arp_log.py<br />
+git add .claude/hooks/arp_log.py tools/arp/test_arp_log.py<br />
+git commit -m "feat(arp): deterministic PostToolUse capture hook + tests"</p>
+<div class="highlight"><pre><span></span><span class="o">---</span>
+
+<span class="c1">### Task 4: Register the hook, retire the advisory rule</span>
+
+<span class="o">**</span><span class="n">Files</span><span class="p">:</span><span class="o">**</span>
+<span class="o">-</span> <span class="n">Modify</span><span class="p">:</span> <span class="err">`</span><span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">settings</span><span class="o">.</span><span class="n">json</span><span class="err">`</span> <span class="p">(</span><span class="n">PostToolUse</span> <span class="n">array</span><span class="p">)</span>
+<span class="o">-</span> <span class="n">Delete</span><span class="p">:</span> <span class="err">`</span><span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">hookify</span><span class="o">.</span><span class="n">vaked</span><span class="o">-</span><span class="n">arp</span><span class="o">-</span><span class="n">log</span><span class="o">.</span><span class="n">local</span><span class="o">.</span><span class="n">md</span><span class="err">`</span> <span class="p">(</span><span class="n">gitignored</span><span class="p">,</span> <span class="n">per</span><span class="o">-</span><span class="n">machine</span><span class="p">)</span>
+
+<span class="o">-</span> <span class="p">[</span> <span class="p">]</span> <span class="o">**</span><span class="n">Step</span> <span class="mi">1</span><span class="p">:</span> <span class="n">Inspect</span> <span class="n">current</span> <span class="n">PostToolUse</span> <span class="n">config</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span> <span class="err">`</span><span class="n">python3</span> <span class="o">-</span><span class="n">c</span> <span class="s2">&quot;import json;print(json.dumps(json.load(open(&#39;.claude/settings.json&#39;)).get(&#39;hooks&#39;,</span><span class="si">{}</span><span class="s2">).get(&#39;PostToolUse&#39;,[]),indent=2))&quot;</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span> <span class="n">prints</span> <span class="n">the</span> <span class="n">existing</span> <span class="n">PostToolUse</span> <span class="n">entries</span> <span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">g</span><span class="o">.</span> <span class="n">the</span> <span class="err">`</span><span class="n">Write</span><span class="o">|</span><span class="n">Edit</span><span class="err">`</span> <span class="n">vaked</span><span class="o">-</span><span class="n">check</span> <span class="n">hook</span><span class="p">)</span><span class="o">.</span> <span class="n">Note</span> <span class="n">the</span> <span class="n">exact</span> <span class="n">structure</span> <span class="n">to</span> <span class="n">match</span> <span class="n">it</span><span class="o">.</span>
+
+<span class="o">-</span> <span class="p">[</span> <span class="p">]</span> <span class="o">**</span><span class="n">Step</span> <span class="mi">2</span><span class="p">:</span> <span class="n">Add</span> <span class="n">the</span> <span class="n">Bash</span> <span class="n">hook</span> <span class="n">entry</span><span class="o">**</span>
+
+<span class="n">Add</span> <span class="n">to</span> <span class="err">`</span><span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">settings</span><span class="o">.</span><span class="n">json</span><span class="err">`</span> <span class="n">under</span> <span class="err">`</span><span class="n">hooks</span><span class="o">.</span><span class="n">PostToolUse</span><span class="err">`</span> <span class="p">(</span><span class="n">a</span> <span class="n">new</span> <span class="n">array</span> <span class="n">element</span><span class="p">;</span> <span class="n">do</span> <span class="ow">not</span> <span class="n">clobber</span> <span class="n">existing</span> <span class="n">entries</span><span class="p">):</span>
+</pre></div>
+<p>json<br />
+{<br />
+  "matcher": "Bash",<br />
+  "hooks": [<br />
+    {<br />
+      "type": "command",<br />
+      "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/arp_log.py\""<br />
+    }<br />
+  ]<br />
+}</p>
+<div class="highlight"><pre><span></span><span class="o">-</span> <span class="p">[</span> <span class="p">]</span> <span class="o">**</span><span class="n">Step</span> <span class="mi">3</span><span class="p">:</span> <span class="n">Validate</span> <span class="n">settings</span><span class="o">.</span><span class="n">json</span> <span class="ow">is</span> <span class="n">well</span><span class="o">-</span><span class="n">formed</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span> <span class="err">`</span><span class="n">python3</span> <span class="o">-</span><span class="n">c</span> <span class="s2">&quot;import json;json.load(open(&#39;.claude/settings.json&#39;));print(&#39;ok&#39;)&quot;</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span> <span class="err">`</span><span class="n">ok</span><span class="err">`</span><span class="o">.</span>
+
+<span class="o">-</span> <span class="p">[</span> <span class="p">]</span> <span class="o">**</span><span class="n">Step</span> <span class="mi">4</span><span class="p">:</span> <span class="n">Retire</span> <span class="n">the</span> <span class="n">advisory</span> <span class="n">rule</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span> <span class="err">`</span><span class="n">rm</span> <span class="o">-</span><span class="n">f</span> <span class="o">.</span><span class="n">claude</span><span class="o">/</span><span class="n">hookify</span><span class="o">.</span><span class="n">vaked</span><span class="o">-</span><span class="n">arp</span><span class="o">-</span><span class="n">log</span><span class="o">.</span><span class="n">local</span><span class="o">.</span><span class="n">md</span><span class="err">`</span>
+<span class="p">(</span><span class="n">It</span> <span class="ow">is</span> <span class="n">gitignored</span> <span class="err">—</span> <span class="n">no</span> <span class="n">commit</span> <span class="n">needed</span> <span class="k">for</span> <span class="n">the</span> <span class="n">deletion</span><span class="o">.</span> <span class="n">This</span> <span class="n">prevents</span> <span class="n">double</span><span class="o">-</span><span class="n">handling</span><span class="o">.</span><span class="p">)</span>
+
+<span class="o">-</span> <span class="p">[</span> <span class="p">]</span> <span class="o">**</span><span class="n">Step</span> <span class="mi">5</span><span class="p">:</span> <span class="n">Commit</span> <span class="n">settings</span><span class="o">**</span>
+</pre></div>
+<p>bash<br />
+git add .claude/settings.json<br />
+git commit -m "chore(arp): register capture hook, retire advisory rule"</p>
+<div class="highlight"><pre><span></span>---
+
+<span class="gu">##</span># Task 5: Portable bootstrap block (`docs/arp-log.meta-hook.md`)
+
+**Files:**
+<span class="k">-</span> Create: <span class="sb">`docs/arp-log.meta-hook.md`</span>
+
+<span class="k">-</span> [ ] **Step 1: Write the meta-hook doc**
+
+Create <span class="sb">`docs/arp-log.meta-hook.md`</span>:
+</pre></div>
+<p>`markdown</p>
+<h1 id="arp-dogfeed-hook-portable-bootstrap">ARP dogfeed hook — portable bootstrap</h1>
+<p>Copy-paste this block into any skill, workflow, or agent prompt. An agent that<br />
+reads it can set up + register + run the vaked→ARP capture hook from scratch,<br />
+without any other doc.</p>
+<p>[<arp-dogfeed-hook setup="idempotent"></p>
+<p>GOAL: record substantial shell commands as validatable <code>arp_event</code> Vaked<br />
+declarations in <code>docs/arp-log.md</code>.</p>
+<p>STEP 1 — schema (idempotent): ensure <code>vaked/schema/builtins.vaked</code> contains:<br />
+    schema arp_event {<br />
+      field ts      : String { required }<br />
+      field command : String { required nonempty }<br />
+      field inputs  : List<String> { optional }<br />
+      field outputs : List<String> { optional }<br />
+      field status  : String { required }<br />
+      field notes   : String { optional }<br />
+    }<br />
+Verify: <code>python3 -m vakedc check vaked/schema/builtins.vaked</code> → exit 0.</p>
+<p>STEP 2 — hook: create <code>.claude/hooks/arp_log.py</code>, a PostToolUse handler that<br />
+reads stdin JSON and on <code>tool_name == "Bash"</code>:<br />
+  - skip if command matches trivial reads (ls/cat/echo/which/pwd/head/tail/cd,<br />
+    git status|log|diff|show|branch) OR contains ".vaked"|"vakedc"|"run_all.py";<br />
+  - keep a $TMPDIR/arp-gitmap.json stamp of <code>git status --porcelain -uall -z</code>;<br />
+    delta vs stamp = <code>outputs</code> (drop arp-log.md itself); advance stamp every run;<br />
+  - <code>inputs</code> = path-looking tokens in the command;<br />
+  - <code>status</code> = "ok" or "err: exit <n>: <stderr tail>" from <code>tool_response</code><br />
+    (fields: exit_code|returncode, stderr, interrupted);<br />
+  - append a fenced block to <code>docs/arp-log.md</code>:<br />
+        ## YYYY-MM-DD HH:MM — <first 48 chars of command></p>
+<pre><code>    &lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;        arp_event e_YYYYMMDD_HHMMSS {
+      ts      = &amp;quot;YYYY-MM-DD HH:MM&amp;quot;
+      command = &amp;quot;&amp;lt;command&amp;gt;&amp;quot;
+      inputs  = [&amp;quot;...&amp;quot;]    # omit if empty
+      outputs = [&amp;quot;...&amp;quot;]    # omit if empty
+      status  = &amp;quot;ok&amp;quot;
+    }
+</code></pre>
+<p></pre></div></p>
+<ul>
+<li>always exit 0; never block; instance name is an IDENT slug (not a string).<br />
+  (Reference implementation: <code>.claude/hooks/arp_log.py</code> in vaked-base.)</li>
+</ul>
+<p>STEP 3 — register: add to <code>.claude/settings.json</code> under hooks.PostToolUse<br />
+(append, don't clobber):<br />
+    { "matcher": "Bash", "hooks": [ { "type": "command",<br />
+      "command": "python3 \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/arp_log.py\"" } ] }</p>
+<p>STEP 4 — verify the loop: <code>python3 tools/arp/verify_log.py docs/arp-log.md</code><br />
+extracts the <code>``vaked fences, concatenates to a temp .vaked, runs</code>python3 -m vakedc check`. Exit 0 = the log is provably valid Vaked.</p>
+<p>INVARIANTS: zero grammar change (parser accepts any kind; checker binds<br />
+instance→schema by kind-name). Idempotent: re-running setup must not duplicate<br />
+the schema or the settings entry.</p>
+<p></arp-dogfeed-hook>]<br />
+`<div class="highlight"><pre><span></span><span class="k">-</span> [ ] <strong>Step 2: Sanity-check the embedded schema matches builtins</strong></p>
+<p>Run: <span class="sb"><code>grep -A7 &amp;quot;schema arp_event&amp;quot; vaked/schema/builtins.vaked docs/arp-log.meta-hook.md</code></span><br />
+Expected: the field list is identical in both files.</p>
+<p><span class="k">-</span> [ ] <strong>Step 3: Commit</strong><br />
+</pre></div><br />
+bash<br />
+git add docs/arp-log.meta-hook.md<br />
+git commit -m "docs(arp): portable bootstrap block for the dogfeed hook"</p>
+<div class="highlight"><pre><span></span>---
+
+<span class="gu">##</span># Task 6: End-to-end verification
+
+<span class="k">-</span> [ ] **Step 1: Drive the hook manually with a substantial command**
+
+Run:
+</pre></div>
+<p>bash<br />
+echo '{"tool_name":"Bash","tool_input":{"command":"python3 -c \"open(\\"sentinel.tmp\\",\\"w\\").write(\\"x\\")\""},"tool_response":{"exit_code":0}}' \<br />
+  | CLAUDE_PROJECT_DIR="$PWD" python3 .claude/hooks/arp_log.py</p>
+<div class="highlight"><pre><span></span><span class="nt">Expected</span><span class="o">:</span><span class="w"> </span><span class="nt">exit</span><span class="w"> </span><span class="nt">0</span><span class="o">;</span><span class="w"> </span><span class="err">`</span><span class="nt">docs</span><span class="o">/</span><span class="nt">arp-log</span><span class="p">.</span><span class="nc">md</span><span class="err">`</span><span class="w"> </span><span class="nt">gains</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="err">`##</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">python3</span><span class="w"> </span><span class="nt">-c</span><span class="w"> </span><span class="err">…`</span><span class="w"> </span><span class="nt">entry</span><span class="w"> </span><span class="nt">with</span><span class="w"> </span><span class="nt">a</span>
+<span class="err">`</span><span class="nt">arp_event</span><span class="w"> </span><span class="nt">e_</span><span class="err">…`</span><span class="w"> </span><span class="nt">block</span><span class="o">.</span><span class="w"> </span><span class="o">(</span><span class="nt">Clean</span><span class="w"> </span><span class="nt">up</span><span class="o">:</span><span class="w"> </span><span class="err">`</span><span class="nt">rm</span><span class="w"> </span><span class="nt">-f</span><span class="w"> </span><span class="nt">sentinel</span><span class="p">.</span><span class="nc">tmp</span><span class="err">`</span><span class="o">.)</span>
+
+<span class="nt">-</span><span class="w"> </span><span class="cp">[</span><span class="w"> </span><span class="cp">]</span><span class="w"> </span><span class="o">**</span><span class="nt">Step</span><span class="w"> </span><span class="nt">2</span><span class="o">:</span><span class="w"> </span><span class="nt">Drive</span><span class="w"> </span><span class="nt">it</span><span class="w"> </span><span class="nt">with</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="nt">trivial</span><span class="w"> </span><span class="nt">command</span><span class="o">**</span>
+
+<span class="nt">Run</span><span class="o">:</span>
+</pre></div>
+<p>bash<br />
+echo '{"tool_name":"Bash","tool_input":{"command":"ls"},"tool_response":{"exit_code":0}}' \<br />
+  | CLAUDE_PROJECT_DIR="$PWD" python3 .claude/hooks/arp_log.py</p>
+<div class="highlight"><pre><span></span><span class="n">Expected</span><span class="p">:</span><span class="w"> </span><span class="n">exit</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="err">`</span><span class="n">docs</span><span class="o">/</span><span class="n">arp</span><span class="o">-</span><span class="nb">log</span><span class="o">.</span><span class="n">md</span><span class="err">`</span><span class="w"> </span><span class="n">unchanged</span><span class="w"> </span><span class="p">(</span><span class="n">no</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">entry</span><span class="p">)</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="n">Verify</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">populated</span><span class="w"> </span><span class="nb">log</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">valid</span><span class="w"> </span><span class="n">Vaked</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="n">tools</span><span class="o">/</span><span class="n">arp</span><span class="o">/</span><span class="n">verify_log</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="n">docs</span><span class="o">/</span><span class="n">arp</span><span class="o">-</span><span class="nb">log</span><span class="o">.</span><span class="n">md</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span><span class="w"> </span><span class="n">exit</span><span class="w"> </span><span class="mf">0.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="n">Full</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="n">suite</span><span class="o">**</span>
+
+<span class="n">Run</span><span class="p">:</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="n">unittest</span><span class="w"> </span><span class="n">tools</span><span class="o">.</span><span class="n">arp</span><span class="o">.</span><span class="n">test_arp_log</span><span class="w"> </span><span class="o">-</span><span class="n">v</span><span class="err">`</span>
+<span class="n">Expected</span><span class="p">:</span><span class="w"> </span><span class="n">all</span><span class="w"> </span><span class="n">PASS</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">5</span><span class="p">:</span><span class="w"> </span><span class="n">Commit</span><span class="w"> </span><span class="n">any</span><span class="w"> </span><span class="nb">log</span><span class="w"> </span><span class="n">fixture</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">final</span><span class="w"> </span><span class="n">touch</span><span class="o">-</span><span class="n">ups</span><span class="o">**</span>
+</pre></div>
+<p>bash<br />
+git add -A<br />
+git commit -m "test(arp): end-to-end dogfeed hook verified"<br />
+```</p>
+<hr />
+<h2 id="self-review-notes">Self-review notes</h2>
+<ul>
+<li><strong>Spec coverage:</strong> schema (Task 1), deterministic hook (Task 3), register+retire (Task 4), verifier (Task 2), tests (Tasks 2-3), meta-hook (Task 5), end-to-end (Task 6). All six spec components covered.</li>
+<li><strong>Deliberate refinement vs spec:</strong> spec mentioned per-block self-validation inside the hook; moved to the batch <code>verify_log.py</code> gate to avoid spawning vakedc on every command (latency). The hook always appends; validity is enforced by Task 6 Step 3 + the <code>render_block</code> validation test (Task 3 Step 1).</li>
+<li><strong>Instance naming:</strong> spec's old quoted-string label replaced with an ident slug + <code>ts</code> field, matching existing Vaked instance syntax (verified by Task 1 Step 3 probe + Task 3 render_block test).</li>
+<li><strong>Constraints honored:</strong> worktree+branch, no main commits, pure-python tests on tiny fixtures, no build.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-15-vaked-arp-dogfeed-hook.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

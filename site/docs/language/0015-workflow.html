@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0015 — `workflow`: the typed agent-step DAG (swe_af) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#spark" style="padding-left:0.5rem">Spark</a><a href="#the-semantic-split-the-designs-load-bearing-decision" style="padding-left:0.5rem">The semantic split (the design's load-bearing decision)</a><a href="#surface-no-grammar-change" style="padding-left:0.5rem">Surface (no grammar change)</a><a href="#checking-vakedc-landed-with-this-note" style="padding-left:0.5rem">Checking (vakedc, landed with this note)</a><a href="#the-determinism-boundary-224" style="padding-left:0.5rem">The determinism boundary (#224)</a><a href="#lowering-output-first-workflowspec-emitter-landed-0012-34" style="padding-left:0.5rem">Lowering (output-first; `workflow.spec` emitter landed — 0012 §3.4)</a><a href="#open" style="padding-left:0.5rem">Open</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0015-workflow</div>
+<h1>0015 — `workflow`: the typed agent-step DAG (swe_af)</h1>
+<h1 id="0015-workflow-the-typed-agent-step-dag-swe_af">0015 — <code>workflow</code>: the typed agent-step DAG (swe_af)</h1>
+<p>Status: <strong>design, schema + checking landed</strong> (2026-06-12) · Series: language<br />
+design notes · Issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/27">#27</a><br />
+· Epic <a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<h2 id="spark">Spark</h2>
+<p>The 1.0 daily-use target: a Nix-based agentfield-like system running <strong>swe_af<br />
+workflows</strong> — issue lands → plan → code → review → publish, each step executed<br />
+by an agent holding attenuated capabilities. <code>workflow</code> has been a grammar kind<br />
+since v0 (<code>operator-field.vaked</code> renders a <code>"workflow-dag"</code> view) but had no<br />
+schema, no example, no checking, no lowering. This note makes it a construct.</p>
+<h2 id="the-semantic-split-the-designs-load-bearing-decision">The semantic split (the design's load-bearing decision)</h2>
+<p>Two graphs live in an agent system, and conflating them is how capability<br />
+models rot:</p>
+<table>
+<thead>
+<tr>
+<th>Graph</th>
+<th>Kind</th>
+<th>Edge meaning</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>authority</strong></td>
+<td><code>mesh</code></td>
+<td><code>a -&gt; b</code> <em>delegates</em> capability (operator → agents)</td>
+<td>attenuation, 0011 §4.4 (<code>E-CAP-ATTENUATION</code>)</td>
+</tr>
+<tr>
+<td><strong>ordering</strong></td>
+<td><code>workflow</code></td>
+<td><code>a -&gt; b</code> <em>sequences</em> steps (plan → code)</td>
+<td>DAG + depth (<code>E-WORKFLOW-CYCLE</code>, <code>E-WORKFLOW-DEPTH</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Agents are declared <strong>once</strong>, in the mesh, where the operator delegates each an<br />
+attenuated grant set (POLA). Workflow steps <strong>reference</strong> those agents<br />
+(<code>agent = field.coder</code>); they never carry authority themselves. A workflow can<br />
+therefore never widen what an agent may do — only ask it to act.</p>
+<p>This split fell out of dogfooding: a naive <code>planner -&gt; coder</code> workflow edge<br />
+inside a <code>mesh</code> is <em>rejected</em> by attenuation (the coder holds <code>fs.repo_rw</code>,<br />
+which the planner cannot delegate) — correctly, because that edge was never a<br />
+delegation. Ordering needed its own home.</p>
+<h2 id="surface-no-grammar-change">Surface (no grammar change)</h2>
+<p>The grammar's graph blocks (<code>node</code> + <code>-&gt;</code>) already express this; the work was<br />
+schema + checking. From<br />
+<a href="../../vaked/examples/agentfield-swe.vaked"><code>vaked/examples/agentfield-swe.vaked</code></a>:</p>
+<div class="highlight"><pre><span></span><span class="n">workflow</span><span class="w"> </span><span class="n">swe_af</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">on</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;github.issue.labeled:agent&quot;</span>
+<span class="w">  </span><span class="n">maxDepth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">6</span>
+
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">plan</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">field</span><span class="p">.</span><span class="n">planner</span><span class="w">  </span><span class="kr">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">artifacts</span><span class="p">.</span><span class="n">plan</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">code</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">field</span><span class="p">.</span><span class="n">coder</span><span class="w">    </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">artifacts</span><span class="p">.</span><span class="n">plan</span><span class="w">   </span><span class="kr">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">artifacts</span><span class="p">.</span><span class="n">patch</span><span class="w">  </span><span class="n">retries</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">review</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="n">agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">field</span><span class="p">.</span><span class="n">reviewer</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">artifacts</span><span class="p">.</span><span class="n">patch</span><span class="w">  </span><span class="kr">output</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">artifacts</span><span class="p">.</span><span class="n">verdict</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">publish</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">agent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">field</span><span class="p">.</span><span class="n">broker</span><span class="w">   </span><span class="n">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">artifacts</span><span class="p">.</span><span class="n">verdict</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">plan</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">code</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">review</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">publish</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Schemas (normative copy in<br />
+<a href="../../vaked/schema/parallel-types.md"><code>parallel-types.md</code></a>): <code>workflow</code> is a<br />
+closed record (<code>on</code>, <code>budget</code>, <code>maxDepth</code>); each step body conforms to<br />
+<code>workflowStep</code> (<code>agent : MeshNode</code> required; <code>input</code>/<code>output</code>/<code>budget</code>/<code>retries</code><br />
+optional; open).</p>
+<h2 id="checking-vakedc-landed-with-this-note">Checking (vakedc, landed with this note)</h2>
+<p>Implemented in <code>vakedc/check.py: _check_workflow</code>, mirroring <code>_check_mesh</code>:</p>
+<ol>
+<li><strong>Step conformance</strong> — each <code>node</code> body against <code>workflowStep</code>; a step<br />
+   without an <code>agent</code> is <code>E-CONFORM-MISSING-FIELD</code>.</li>
+<li><strong><code>E-WORKFLOW-CYCLE</code></strong> — <code>-&gt;</code> edges among declared steps must form a DAG<br />
+   (edges with an unknown endpoint are external and skipped, like mesh).<br />
+   Deterministic: at most one diagnostic, the first cycle in declaration order.<br />
+   Revision loops are <code>retries</code> on a step, <strong>not</strong> back-edges; a bounded-loop<br />
+   edge surface (<code>review -&gt; plan : "revise" { max = 2 }</code>-style) is deferred —<br />
+   it needs the same conditional sub-language the backpressure deferral waits on.</li>
+<li><strong><code>E-WORKFLOW-DEPTH</code></strong> — with <code>maxDepth</code> declared, the longest step chain<br />
+   (counted in steps) must not exceed it.</li>
+</ol>
+<p>(2) and (3) are <strong>Stage-0 Pass 1</strong> of the topology pipeline<br />
+(<a href="./0013-mlir-topology-compilation.md">0013</a> #23): the O(depth)<br />
+propagation-latency cascade and DAG property, enforced at check time over the<br />
+existing LPG — no MLIR dependency. These codes live here until folded into a<br />
+0011 revision (tracked on #27).</p>
+<h2 id="the-determinism-boundary-224">The determinism boundary (#224)</h2>
+<p>Every event-sourced durable-execution runtime — Temporal<br />
+(<a href="https://docs.temporal.io/workflow-definition#deterministic-constraints">determinism-constraints</a>),<br />
+Cadence, Azure Durable Functions<br />
+(<a href="https://learn.microsoft.com/azure/azure-functions/durable/durable-functions-code-constraints">code-constraints</a>)<br />
+— shares one dominant failure mode: a side effect (I/O, wall-clock time,<br />
+randomness, network / LLM calls) placed in <em>replayed control flow</em> produces a<br />
+non-determinism error <strong>at runtime</strong>, on replay, often long after deploy. Those<br />
+runtimes can only <em>document</em> the constraint and patch around it with versioning<br />
+markers. Vaked compiles a typed graph before anything runs, so it converts the<br />
+footgun into a <strong>compile-time error</strong> — a structural advantage over code-first<br />
+runtimes.</p>
+<p>The boundary is a per-step classification on <code>workflowStep</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Step kind</th>
+<th>Marker</th>
+<th>May touch the world?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pure control-flow / coordination</td>
+<td><code>control = true</code></td>
+<td><strong>no</strong></td>
+</tr>
+<tr>
+<td>side-effecting step (default)</td>
+<td>(no <code>control</code>)</td>
+<td>yes — via <code>effects</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>effects</code> is a <code>List&lt;String&gt;</code> from the side-effecting vocabulary<br />
+<code>io · time · random · network · llm</code> (<code>pure</code> is the sole non-side-effecting<br />
+name — an explicit "touches nothing" assertion). The rule, enforced in<br />
+<code>vakedc/check.py: _check_step_determinism</code>:</p>
+<blockquote>
+<p>A step with <code>control = true</code> that declares <strong>any</strong> side-effecting effect is<br />
+rejected with <strong><code>E-DETERMINISM-EFFECT</code></strong>, naming the offending step and the<br />
+first side-effecting effect (declaration order — deterministic).</p>
+</blockquote>
+<p>The corrected form moves the side effect into its own non-control step. See<br />
+<a href="../../vaked/examples/types/determinism-boundary.vaked"><code>vaked/examples/types/determinism-boundary.vaked</code></a><br />
+for the rejected control-flow node and the corrected <code>step</code>-wrapped version.</p>
+<p>This is the <em>check-stage</em> slice of #224. Two acceptance items remain as design,<br />
+tracked on #224:</p>
+<ul>
+<li><strong>Effect inference</strong> — today <code>effects</code> is <em>declared</em>; a control-flow step that<br />
+  performs a side effect transitively (through an <code>agent</code> whose mesh node holds a<br />
+  network/LLM capability) is not yet inferred. The capability graph already<br />
+  carries the grant set, so the inference (control step → agent → grant → effect)<br />
+  is a follow-up pass over the LPG.</li>
+<li><strong>Graph-hash pinning + migration</strong> — a compiled <code>workflow</code> should carry a<br />
+  stable content hash over its step roster + DAG edges + effect classification<br />
+  (the <code>workflow.spec</code> emitter already serializes that deterministically). A live<br />
+  execution pins to that hash so a running graph cannot be mutated underneath a<br />
+  replay without an explicit <code>migration</code> declaration (the Temporal "versioning<br />
+  marker" made first-class). <code>eventd</code>'s append-only hash-chained log is the<br />
+  natural substrate: the pin is the first event of a run; a hash mismatch on<br />
+  replay is a hard stop unless a migration edge bridges the two hashes.</li>
+</ul>
+<h2 id="lowering-output-first-workflowspec-emitter-landed-0012-34">Lowering (output-first; <code>workflow.spec</code> emitter landed — 0012 §3.4)</h2>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>supervisor workflow spec</strong></td>
+<td><code>gen/workflow/&lt;name&gt;.json</code> — trigger, budget, step roster (agent/input/output/retries), DAG edges, <strong>precomputed critical-path depth</strong> (the 0013 Pass-1 AOT output), and the per-runtime eventd log path — consumed by <code>agent-supervisord</code> (Track C, #19)</td>
+</tr>
+<tr>
+<td><strong>eventd wiring</strong></td>
+<td><code>gen/eventd.json</code> (log path + boot contract, #18); step start/finish/retry events ride that log at runtime — a workflow run is a fold, so replay/rewind (#20) applies to runs for free</td>
+</tr>
+<tr>
+<td><strong>docs</strong></td>
+<td>the generated workflow DAG per runtime (deferred)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="open">Open</h2>
+<ul>
+<li>Trigger vocabulary: <code>on</code> is a bare string selector today; a typed event<br />
+  source (relates to streams + the daemon-channel roster, #8) should replace it.</li>
+<li>Step budgets: the <code>budget</code> schema's first slice (tokens / wallClock /<br />
+  toolCalls / approvals) landed with this note; <code>runclass</code> and the remaining<br />
+  schema-less kinds stay open under #28.</li>
+<li>Fan-in semantics (<code>a -&gt; c</code>, <code>b -&gt; c</code>): join behavior (all-of vs any-of) —<br />
+  deferred; today fan-in is permitted and unspecified, supervisord-defined.</li>
+<li>A step's <code>agent</code> ref <strong>is</strong> enforced when its head names a sibling decl<br />
+  (same block): a sibling mesh must contain the named node (<code>field.ghost</code> →<br />
+<code>E-REF-UNRESOLVED</code>), and a sibling of any <em>other</em> kind — which shadows<br />
+  external namespaces — can never be an agent (<code>stream field</code> +<br />
+<code>agent = field.worker</code> → <code>E-REF-UNRESOLVED</code>). Both landed in the PR-26<br />
+  review rounds. Truly unknown heads (<code>missingMesh.x</code>) remain unvalidated<br />
+  until the value-namespace roster (#8 branch B).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0015-workflow.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

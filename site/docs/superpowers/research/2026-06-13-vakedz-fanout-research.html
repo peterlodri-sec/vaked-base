@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vakedz fan-out research — port-specs for the Zig front-end — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#strand-a-parse-lexer-parser-lpg" style="padding-left:0.5rem">Strand A — parse (lexer → parser → LPG)</a><a href="#tokens-lexerpy" style="padding-left:1rem">  Tokens (`lexer.py`)</a><a href="#parser-ast-parserpy" style="padding-left:1rem">  Parser / AST (`parser.py`)</a><a href="#resolve-lpg-resolvepy-graphpy" style="padding-left:1rem">  Resolve → LPG (`resolve.py`, `graph.py`)</a><a href="#canonical-json-emitpy-the-byte-parity-contract" style="padding-left:1rem">  Canonical JSON (`emit.py`) — the byte-parity contract</a><a href="#parse-cli" style="padding-left:1rem">  parse CLI</a><a href="#strand-b-check-the-0011-type-system" style="padding-left:0.5rem">Strand B — check (the 0011 type system)</a><a href="#strand-c-lower-the-0012-emitters" style="padding-left:0.5rem">Strand C — lower (the 0012 emitters)</a><a href="#strand-d-toolchain-the-ralphloop-cache" style="padding-left:0.5rem">Strand D — toolchain & the ralphloop-cache</a><a href="#how-this-maps-to-v01" style="padding-left:0.5rem">How this maps to v0.1</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/research/">research</a> / 2026-06-13-vakedz-fanout-research</div>
+<h1>vakedz fan-out research — port-specs for the Zig front-end</h1>
+<h1 id="vakedz-fan-out-research-port-specs-for-the-zig-front-end">vakedz fan-out research — port-specs for the Zig front-end</h1>
+<p><strong>Date:</strong> 2026-06-13 · <strong>Author:</strong> vaked-compiler-dev session · <strong>Status:</strong> research<br />
+prep for the <code>vakedz</code> subsystem (design → plan → implement).</p>
+<p>This is the synthesized output of a four-way <strong>fan-out</strong> over the Python<br />
+reference (<code>vakedc/</code>) and the runtime cache model (<code>tools/ralph</code>, <code>eventd</code>). Each<br />
+strand produced a faithful port-spec for one stage. Together they are the<br />
+contract <code>vakedz</code> is built against. All file:line refs are into the repo at the<br />
+time of writing; treat them as anchors, not eternal truth.</p>
+<blockquote>
+<p>Why this document exists: the Zig front-end is a new subsystem, and the repo<br />
+convention is <strong>design → plan → implement, spec first</strong> (CLAUDE.md). A from-<br />
+scratch reimplementation that silently diverges from <code>vakedc</code> would fork the<br />
+language. This research pins the bytes so the port can be <em>verified</em>, not<br />
+trusted.</p>
+</blockquote>
+<hr />
+<h2 id="strand-a-parse-lexer-parser-lpg">Strand A — parse (lexer → parser → LPG)</h2>
+<p><strong>Reference:</strong> <code>vakedc/lexer.py</code>, <code>vakedc/parser.py</code>, <code>vakedc/resolve.py</code>,<br />
+<code>vakedc/graph.py</code>, <code>vakedc/emit.py</code>. Grammar: <code>vaked/grammar/vaked-v0-plus.ebnf</code><br />
+(v0.3, PEG ordered). The parser comment asserts it implements the grammar<br />
+"EXACTLY (no extensions)".</p>
+<h3 id="tokens-lexerpy">Tokens (<code>lexer.py</code>)</h3>
+<p><code>IDENT, STRING, NUMBER, DURATION, BYTES, PATH, REGEX, OP, NEWLINE, EOF</code>.</p>
+<ul>
+<li><strong>Newlines</strong> terminate statements but are <strong>queued + deduped</strong> and <strong>suppressed<br />
+  inside <code>(</code> <code>)</code> / <code>[</code> <code>]</code></strong> (group-depth counter); a trailing newline is<br />
+  stripped; <code>EOF</code> is always last.</li>
+<li><strong>NUMBER → DURATION/BYTES</strong>: after digits (+ optional <code>.</code>digits for floats),<br />
+  longest-match a unit suffix; the unit must <strong>not</strong> be followed by an ident<br />
+  char. Byte units <code>B KB MB GB TB</code>; duration units <code>ns us ms s m h d</code>.</li>
+<li><strong>PATH vs <code>.</code></strong>: a <code>.</code> begins a PATH only when <strong>not glued</strong> to the preceding<br />
+  significant token and followed by <code>/</code> or a letter; otherwise it is the DOT<br />
+  operator (dotted refs) or <code>..</code> (range).</li>
+<li><strong>REGEX</strong> (<code>/…/</code>) is recognized <strong>only</strong> immediately after a <code>matches</code> ident;<br />
+  a stray <code>/</code> is a lex error.</li>
+<li>Multi-char ops <code>-&gt; &lt;= &gt;= .. ?=</code> (longest match); singles <code>=&lt;&gt;.;:,@()[]{}|</code>.</li>
+<li>Comments <code>#</code>→EOL discarded. Byte-exact spans (<code>byteStart</code>, <code>byteEnd</code>, 1-based<br />
+<code>line</code>/<code>col</code>). NFC gate pinned to Unicode 15.1.0 (warn-only on mismatch).</li>
+</ul>
+<h3 id="parser-ast-parserpy">Parser / AST (<code>parser.py</code>)</h3>
+<p>Hand-written recursive descent, <strong>PEG ordered</strong> (first match wins). Statement<br />
+order: <code>field_decl, grant_decl, order_decl, assignment, open_decl, inherit_stmt,
+edge, node_decl, decl, app</code>. Soft keywords <code>field/grant/order/open</code> only trigger<br />
+in their full shape (lookahead predicates), so v0.2 programs parse unchanged<br />
+(grammar §8). Only <code>edge</code> uses save/restore backtracking. 28 declaration kinds.<br />
+AST nodes: <code>Decl, Import, Assignment, FieldDecl, OpenDecl, GrantDecl, OrderDecl,
+InheritStmt, NodeDecl, Edge, App, Ref, Literal, ListLit, RecordLit, TypeRef</code>.<br />
+Types are captured as <strong>flat text</strong>, not validated (Goal 2).</p>
+<h3 id="resolve-lpg-resolvepy-graphpy">Resolve → LPG (<code>resolve.py</code>, <code>graph.py</code>)</h3>
+<ul>
+<li><strong>Node id</strong> = <code>&lt;basename&gt;#&lt;chain joined by '/'&gt;</code> (basename, not full path).<br />
+<code>provenance.file</code> is the <strong>full</strong> source path.</li>
+<li><strong>Node kinds/labels</strong>: real decls <code>["decl", &lt;kind&gt;]</code>; a <code>node</code> decl; the<br />
+  per-import <code>file</code> node <code>["file"]</code>; unresolved refs become <code>external</code> stubs<br />
+<code>["external"]</code> with id <code>external:&lt;dotted&gt;</code> and props <code>{"external":true}</code>.</li>
+<li><strong>Edges</strong>: <code>contains</code> (parent→child nesting), <code>imports</code> (file→external),<br />
+<code>depends_on</code>, <code>member_of</code>, <code>requires_capability</code>, <code>routes_to</code>.</li>
+<li><strong>Dep-bearing fields</strong> (a <strong>bare ref</strong> value, or each bare-ref element of a<br />
+  list, ⇒ a <code>depends_on</code> edge): <code>source, input, output, engine, from</code>. A call<br />
+  (<code>github("…")</code>, <code>raw.github(…)</code>) is <strong>not</strong> a bare ref ⇒ no edge. <code>fibers</code> ⇒<br />
+<code>member_of</code>; <code>capabilities</code> ⇒ <code>requires_capability</code>.</li>
+<li><strong>Ref resolution</strong>: 1 part → in-scope decl by name, else external; <code>&lt;kind&gt;.&lt;name&gt;</code><br />
+  → in-file decl of that kind, else external; otherwise external dotted.</li>
+</ul>
+<h3 id="canonical-json-emitpy-the-byte-parity-contract">Canonical JSON (<code>emit.py</code>) — the byte-parity contract</h3>
+<p>Structural wrappers are <strong>fixed order</strong>; only the <strong>props subtree</strong> is<br />
+recursively key-sorted:<br />
+- top-level <code>version, source, nodes, edges</code><br />
+- node <code>id, kind, name, labels, props, provenance</code><br />
+- edge <code>from, to, label, props</code>; provenance <code>file, decl, span</code>; span<br />
+<code>byteStart, byteEnd, line, col</code><br />
+- <strong>nodes sorted by id</strong>; <strong>edges sorted by <code>(from, label, to, props)</code></strong><br />
+- compact separators <code>,</code>/<code>:</code>; CPython escaping (<code>/</code> <strong>not</strong> escaped; non-ASCII<br />
+  passthrough); <strong>trailing newline</strong>.</p>
+<p><strong>Prop value encodings</strong> (verified against golden graphs):<br />
+<code>{"lit":&lt;kind&gt;,"value":&lt;text&gt;}</code> · <code>{"ref":&lt;dotted&gt;}</code> ·<br />
+<code>{"ref":…,"args":[…]}</code> · <code>{"ref":…,"record":[…]}</code> · record entries<br />
+<code>{"assign":n,"op":"=","value":…}</code> / <code>{"inherit":[…]}</code> · signature<br />
+<code>{"params":[{"default":null|…,"name":…,"type":…}],"return":…|null}</code>. A top-level<br />
+<code>?=</code> assignment wraps as <code>{"op":"?=","value":…}</code>; <code>=</code> stores the bare value.</p>
+<h3 id="parse-cli">parse CLI</h3>
+<p><code>vakedc parse &lt;file&gt; [--json PATH] [--sqlite PATH] [--print]</code>; default writes<br />
+<code>.vaked/graph.json</code> (+<code>.db</code>). Exit 0 ok / 1 on read|lex|parse error.</p>
+<hr />
+<h2 id="strand-b-check-the-0011-type-system">Strand B — check (the 0011 type system)</h2>
+<p><strong>Reference:</strong> <code>vakedc/check.py</code> (~1685 L), <code>vakedc/resolve.py</code>; normative<br />
+<code>docs/language/0011-type-system.md</code>; catalog <code>vaked/schema/parallel-types.md</code> +<br />
+<code>vaked/schema/builtins.vaked</code>. Pipeline: <strong>elaborate (load builtins + user) →<br />
+closed-world ref resolution → load-time well-formedness → name-collision →<br />
+conformance + constraints</strong>. Diagnostics are sorted by <code>(file, byteStart,
+byteEnd, code)</code>; <code>check --json</code> emits <code>{"diagnostics":[{code, severity, message,
+file, decl, span:{byteStart,byteEnd,line,col}, related}]}</code>. Exit 0 clean / 1 on<br />
+any diagnostic; <code>lower</code> refuses to emit unless clean.</p>
+<p><strong>22 diagnostic codes</strong> across families:<br />
+<code>E-CONFORM-{MISSING-FIELD,UNKNOWN-FIELD,TYPE}</code> ·<br />
+<code>E-CONSTRAINT-{NONEMPTY,ONEOF,RANGE,MATCHES}</code> ·<br />
+<code>E-SCHEMA-{REFINEMENT,BAD-ONEOF,BAD-DEFAULT,BAD-RANGE,BAD-REGEX}</code> ·<br />
+<code>E-CAP-{UNKNOWN-DOMAIN,UNKNOWN-GRANT,ORDER-DANGLING,ORDER-CYCLE,ATTENUATION}</code> ·<br />
+<code>E-GENERIC-INCONSISTENT</code> · <code>E-REF-UNRESOLVED</code> ·<br />
+<code>E-WORKFLOW-{CYCLE,DEPTH}</code> · <code>E-DECL-NAME-COLLISION</code>.</p>
+<p><strong>Type system</strong>: structural; scalars <code>String Int Float Bool Path Duration Bytes
+Null</code> (with <code>Int◁Float</code> widening and string-form acceptance for Path/Duration/<br />
+Bytes); <code>List&lt;T&gt;</code>, records (per-kind schema, five-clause conformance), unions<br />
+(left-to-right), generic params <code>T I O Node Edge</code> (unconstrained). <strong>Capabilities</strong>:<br />
+6 built-in domains (<code>fs network mcp ebpf process mem</code>) with reflexive-transitive<br />
+attenuation closure; mesh delegation <code>sender→receiver</code> requires<br />
+<code>receiver.grant ≤ sender.grant</code> per domain (POLA). <strong>Built-in catalog</strong>: 16<br />
+primary kinds + 6 nested record schemas (<code>fiberPolicy, meshNode, workflowStep,
+…</code>), loaded from <code>builtins.vaked</code>. <strong>Deferred</strong> (branch B, #7/#8): bare refs<br />
+outside <code>runtime</code>, namespace refs (<code>pkgs.x</code>, daemon channels). <strong>Stubbed</strong>: fiber<br />
+input/output consistency.</p>
+<hr />
+<h2 id="strand-c-lower-the-0012-emitters">Strand C — lower (the 0012 emitters)</h2>
+<p><strong>Reference:</strong> <code>vakedc/lower.py</code> (~2442 L), <code>vakedc/emit.py</code>; normative<br />
+<code>docs/language/0012-lowering.md</code>; fixtures <code>vaked/examples/lowering/</code> (7 files,<br />
+operator-field) and <code>lowering-agentfield/</code> (11 files). Lowering is a <strong>pure,<br />
+total, hermetic</strong> function of <code>(validated graph + pinned inputs)</code>: same graph ⇒<br />
+byte-identical artifacts; no IO/clock/randomness.</p>
+<p><strong>Emitter registry (~16)</strong>: always-on <code>nix.spine</code>→<code>flake.nix</code>,<br />
+<code>docs.runtime</code>→<code>gen/RUNTIME.md</code>; presence/<code>emit</code>-gated <code>zig.daemoncfg</code>→<br />
+<code>gen/zig/&lt;fiber&gt;.json</code>, <code>catalog.jsonl</code>→<code>gen/catalog/&lt;idx&gt;.jsonl</code>,<br />
+<code>otp.supervision</code>→<code>gen/otp/*_sup.erl</code>+<code>vaked_fiber_worker.erl</code>, plus the NixOS<br />
+cohort (<code>sops.secrets, nixos.service, host.resources, caddy.ingress,
+oci.containers</code>), runtime plane (<code>eventd.config, memory.store, workflow.spec</code>),<br />
+<code>colmena.hive</code>, <code>ebpf.policy</code>; a few <code>emit_deferred</code> no-ops.</p>
+<p><strong>Provenance</strong> (<code>provenance.json</code>): <code>{version, source, artifacts:{&lt;path&gt;:[{region?,
+sourceFile, decl, span, emitter, inputsHash}]}}</code>. <code>inputsHash =
+"sha256-" + sha256(canonical_projection_json)</code> — <strong>per-projection</strong> (node /<br />
+engine / workflow), canonical JSON (sorted keys, compact, ensure_ascii=False).<br />
+Artifact paths lexicographic; entries in emission order. Every artifact carries<br />
+<code>generated by Vaked from &lt;basename&gt;:&lt;kind&gt; &lt;name&gt; — do not edit</code> (no timestamp).</p>
+<p><strong>Smallest v0.1 slice</strong> (the first port target): reproduce the <strong>operator-field</strong><br />
+fixture set — <code>nix.spine, docs.runtime, zig.daemoncfg, catalog.jsonl,
+otp.supervision</code> over kinds <code>runtime, index, stream, fiber, surface, parallel</code> →<br />
+7 files, byte-identical to <code>vaked/examples/lowering/</code>.</p>
+<p><strong>lower CLI</strong>: <code>vakedc lower &lt;file&gt; [--out DIR] [--builtins PATH]</code>; check-first,<br />
+refuses on any diagnostic; writes the tree + <code>provenance.json</code>. Exit 0/1/2.</p>
+<hr />
+<h2 id="strand-d-toolchain-the-ralphloop-cache">Strand D — toolchain &amp; the ralphloop-cache</h2>
+<p><strong>Zig toolchain</strong>: <code>flake.nix:26</code> provides <code>zig</code> from nixpkgs (unpinned). New<br />
+subsystems are <strong>top-level self-contained packages</strong> (<code>vakedc/</code>, <code>eventd/</code>,<br />
+<code>agent_guardd/</code>). Recommendation realized: a new top-level <code>vakedz/</code> mirroring<br />
+<code>vakedc/</code>, pinned in CI to the <code>build.zig.zon</code> floor.</p>
+<p><strong>The cache model</strong> — ralph's <strong>frozen, hash-chained ledger</strong><br />
+(<code>tools/ralph/ralphcore.py:465–514</code>, mirrored in <code>eventd/core.py:1–80</code>,<br />
+cross-verified in <code>tests/spec/test_eventd.py</code>):</p>
+<div class="highlight"><pre><span></span><span class="n">one</span><span class="w"> </span><span class="n">JSON</span><span class="w"> </span><span class="n">object</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">line</span><span class="p">,</span><span class="w"> </span><span class="n">append</span><span class="o">-</span><span class="n">only</span><span class="p">:</span>
+<span class="w">  </span><span class="p">{</span><span class="s2">&quot;seq&quot;</span><span class="p">:</span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;prev&quot;</span><span class="p">:</span><span class="o">&lt;</span><span class="n">hex</span><span class="w"> </span><span class="n">sha256</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">prev</span><span class="p">,</span><span class="w"> </span><span class="n">GENESIS</span><span class="o">=</span><span class="s2">&quot;0&quot;</span><span class="o">*</span><span class="mi">64</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">   </span><span class="s2">&quot;payload&quot;</span><span class="p">:</span><span class="o">&lt;</span><span class="n">canonical</span><span class="w"> </span><span class="n">JSON</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;hash&quot;</span><span class="p">:</span><span class="n">sha256</span><span class="p">(</span><span class="n">prev_hex</span><span class="w"> </span><span class="o">++</span><span class="w"> </span><span class="n">canonical_json</span><span class="p">(</span><span class="n">payload</span><span class="p">))}</span>
+</pre></div>
+
+<p>Canonical JSON = sorted keys, compact, <code>ensure_ascii=False</code>. <code>seq</code> is 0,1,2…;<br />
+any tamper breaks the chain; <code>longest_valid_prefix</code> gives torn-tail recovery.<br />
+SHA-256 is the repo standard (also <code>vakedc/lower.py</code> <code>inputsHash</code>); no blake3.</p>
+<p><strong>Cache key/value design (realized in <code>src/cache.zig</code>)</strong>: key = the deterministic<br />
+subset <code>{event(phase), file, source_sha256, grammar_version}</code>; value =<br />
+<code>output_sha256</code>, with the output bytes stored content-addressed under<br />
+<code>.vakedz-cache/cas/&lt;sha256&gt;</code> and the binding appended to<br />
+<code>.vakedz-cache/ledger.jsonl</code>. A lookup hashes the source, finds the latest<br />
+matching ledger entry, and replays the CAS blob — <strong>never recomputes</strong>. The<br />
+payload is <strong>clock-free</strong>, so identical source ⇒ identical entry: the loop is<br />
+content-addressed, replayable, and tamper-evident — ralph's bet, made a compiler<br />
+primitive.</p>
+<hr />
+<h2 id="how-this-maps-to-v01">How this maps to v0.1</h2>
+<ul>
+<li><strong>parse + ralphloop-cache</strong> are implemented and gated byte-for-byte against the<br />
+  goldens (<code>vakedz/test/crossverify.sh</code>, <code>.github/workflows/vakedz-ci.yml</code>).</li>
+<li><strong>check + lower</strong> are scaffolded (pipeline wired, honest "not yet ported"<br />
+  verdicts) and become the issue-tracked backlog — the diagnostic table (Strand<br />
+  B) and the emitter slice (Strand C) are the unit of work.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/research/2026-06-13-vakedz-fanout-research.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

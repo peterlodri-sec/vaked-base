@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Migration Summary: `migrate-to-openrouter-agent` — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#pre-migration-state" style="padding-left:0.5rem">Pre-Migration State</a><a href="#changes" style="padding-left:0.5rem">Changes</a><a href="#track-a-new-toolsopenrouter-ts-package" style="padding-left:1rem">  Track A: New `tools/openrouter-ts/` Package</a><a href="#track-b-ide-migration-idevaked-ide" style="padding-left:1rem">  Track B: IDE Migration (`ide/vaked-ide/`)</a><a href="#what-was-not-changed" style="padding-left:0.5rem">What Was NOT Changed</a><a href="#file-tree" style="padding-left:0.5rem">File Tree</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/session/">session</a> / SUMMARY</div>
+<h1>Migration Summary: `migrate-to-openrouter-agent`</h1>
+<h1 id="migration-summary-migrate-to-openrouter-agent">Migration Summary: <code>migrate-to-openrouter-agent</code></h1>
+<blockquote>
+<p><strong>Branch:</strong> <code>migrate-to-openrouter-agent</code><br />
+<strong>Date:</strong> 2026-06-18<br />
+<strong>Genesis Seal:</strong> <code>7c242080</code><br />
+<strong>Goal:</strong> Replace hand-rolled Python <code>urllib.request</code> OpenRouter HTTP calls with the type-safe <code>@openrouter/agent</code> TypeScript SDK across the Vaked monorepo.</p>
+</blockquote>
+<hr />
+<h2 id="pre-migration-state">Pre-Migration State</h2>
+<ul>
+<li><strong>Zero</strong> <code>@openrouter/sdk</code> or <code>@openrouter/agent</code> packages anywhere in the monorepo</li>
+<li>6 OpenRouter consumers, all via raw HTTP:</li>
+<li><code>tools/openrouter/cli.py</code> — <code>urllib.request</code> with <code>ssl.CERT_NONE</code></li>
+<li><code>tools/openrouter/qcall.py</code> — wraps <code>cli.py</code></li>
+<li><code>tools/openrouter/deliberate.py</code> — 20-model panel, <code>urllib.request</code></li>
+<li><code>tools/ralph/ralph.py</code> — decision loop, <code>urllib.request</code></li>
+<li><code>vaked-agents/ci/pr-review/</code> — <code>adk-rust</code> (Rust, already has proper SDK)</li>
+<li><code>vaked-agents/ci/provost/</code> — <code>adk-rust</code> (Rust, already has proper SDK)</li>
+<li>Only npm project: <code>ide/vaked-ide/</code> using <code>@anthropic-ai/sdk</code> ^0.30.0</li>
+</ul>
+<hr />
+<h2 id="changes">Changes</h2>
+<h3 id="track-a-new-toolsopenrouter-ts-package">Track A: New <code>tools/openrouter-ts/</code> Package</h3>
+<p><strong>7 new files</strong> — a type-safe TypeScript SDK toolkit replacing the Python <code>tools/openrouter/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>package.json</code></td>
+<td><code>@vaked/openrouter-ts</code> — depends on <code>@openrouter/agent</code> ^0.7.2, <code>zod</code> ^3.24</td>
+</tr>
+<tr>
+<td><code>tsconfig.json</code></td>
+<td>ESM, NodeNext, ES2022, strict</td>
+</tr>
+<tr>
+<td><code>src/index.ts</code></td>
+<td>SDK wrapper: <code>ask()</code>, <code>code()</code>, <code>review()</code>, <code>chat()</code>, <code>streamChat()</code>, <code>sweLoop()</code>, <code>budget()</code></td>
+</tr>
+<tr>
+<td><code>src/types.ts</code></td>
+<td>Model catalog (6 models), deliberation panel (20 models), cost tables</td>
+</tr>
+<tr>
+<td><code>src/budget.ts</code></td>
+<td><code>~/.orcli_budget</code> file-based tracking — identical logic to Python</td>
+</tr>
+<tr>
+<td><code>src/deliberate.ts</code></td>
+<td>20-model deliberation panel with judge synthesis — port of <code>deliberate.py</code></td>
+</tr>
+<tr>
+<td><code>src/cli.ts</code></td>
+<td><code>orcli</code> CLI — <code>--stream</code>, <code>--deliberate</code>, <code>--list</code>, <code>--status</code>, <code>--model</code>, <code>--file</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>API differences from Python:</strong><br />
+- <code>callModel()</code> via <code>new OpenRouter({ apiKey })</code> client (not raw HTTP)<br />
+- Type-safe tools with Zod schemas<br />
+- Built-in streaming via <code>getTextStream()</code> / <code>getResponse()</code> / <code>getText()</code><br />
+- Stop conditions: <code>stepCountIs()</code>, <code>maxCost()</code>, <code>maxTokensUsed()</code>, <code>finishReasonIs()</code><br />
+- Usage: <code>inputTokens</code> / <code>outputTokens</code> (not <code>promptTokens</code> / <code>completionTokens</code>)<br />
+- <code>maxOutputTokens</code> (camelCase, not <code>max_tokens</code>)</p>
+<p><strong>Build:</strong> ✅ Clean TypeScript compile</p>
+<hr />
+<h3 id="track-b-ide-migration-idevaked-ide">Track B: IDE Migration (<code>ide/vaked-ide/</code>)</h3>
+<p><strong>5 files changed</strong> — replacing <code>@anthropic-ai/sdk</code> with <code>@openrouter/agent</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>package.json</code></td>
+<td><code>@anthropic-ai/sdk</code> ^0.30.0 → <code>@openrouter/agent</code> ^0.7.2; added <code>zod</code> ^3.24</td>
+</tr>
+<tr>
+<td><code>src/lib/anthropic.ts</code> → <code>src/lib/openrouter.ts</code></td>
+<td>Renamed; preserved <code>graphContextString()</code> and <code>parseSuggestedEdit()</code>; added OpenRouter type re-exports, model catalog, and agent-model role mapping</td>
+</tr>
+<tr>
+<td><code>src/types/session.ts</code></td>
+<td><code>AgentRole</code> extended: <code>"claude"</code> → <code>"openrouter"</code> as default; added <code>"deepseek"</code>, <code>"gemini"</code>, <code>"claude"</code> as optional roles; updated labels and colors</td>
+</tr>
+<tr>
+<td><code>src/store/sessionStore.ts</code></td>
+<td>Default <code>activeAgents</code>: <code>["user", "claude"]</code> → <code>["user", "openrouter"]</code></td>
+</tr>
+<tr>
+<td><code>src/hooks/useSession.ts</code></td>
+<td>Import path: <code>@/lib/anthropic</code> → <code>@/lib/openrouter</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Agent roles after migration:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Model</th>
+<th>Color</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>openrouter</code> (default)</td>
+<td>DeepSeek V4 Pro</td>
+<td><code>#f97316</code></td>
+</tr>
+<tr>
+<td><code>deepseek</code></td>
+<td>DeepSeek V4 Pro</td>
+<td><code>#10b981</code></td>
+</tr>
+<tr>
+<td><code>claude</code></td>
+<td>Claude Opus 4.8</td>
+<td><code>#f97316</code></td>
+</tr>
+<tr>
+<td><code>gemini</code></td>
+<td>Gemini 2.5 Flash</td>
+<td><code>#3b82f6</code></td>
+</tr>
+<tr>
+<td><code>schema-advisor</code></td>
+<td>Claude Opus 4.8</td>
+<td><code>#14b8a6</code></td>
+</tr>
+<tr>
+<td><code>capability-expert</code></td>
+<td>DeepSeek V4 Pro</td>
+<td><code>#a855f7</code></td>
+</tr>
+<tr>
+<td><code>lowering-guide</code></td>
+<td>Claude Opus 4.8</td>
+<td><code>#22c55e</code></td>
+</tr>
+<tr>
+<td><code>a2a-peer</code></td>
+<td>—</td>
+<td><code>#3b82f6</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Build:</strong> ✅ No migration-related errors (pre-existing XYFlow <code>RFNodeData</code>/<code>RFEdgeData</code> type issues only)</p>
+<hr />
+<h2 id="what-was-not-changed">What Was NOT Changed</h2>
+<ul>
+<li>Python <code>tools/openrouter/</code> — <strong>preserved as fallback</strong> (stdlib-only, zero deps)</li>
+<li><code>tools/ralph/ralph.py</code> — still uses raw HTTP (Python stdlib is intentional for cron loops)</li>
+<li><code>vaked-agents/ci/pr-review/</code> — Rust <code>adk-rust</code> already has proper OpenRouter SDK</li>
+<li><code>vaked-agents/ci/provost/</code> — same</li>
+<li><code>tools/optitron/</code> — Go/Eino already uses OpenRouter SDK component</li>
+<li>Tauri Rust backend — still needs OpenRouter wiring (future work)</li>
+</ul>
+<hr />
+<h2 id="file-tree">File Tree</h2>
+<div class="highlight"><pre><span></span><span class="nx">tools</span><span class="o">/</span><span class="nx">openrouter</span><span class="o">-</span><span class="nx">ts</span><span class="o">/</span>
+<span class="err">├──</span><span class="w"> </span><span class="kn">package</span><span class="p">.</span><span class="nx">json</span>
+<span class="err">├──</span><span class="w"> </span><span class="nx">tsconfig</span><span class="p">.</span><span class="nx">json</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">src</span><span class="o">/</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">index</span><span class="p">.</span><span class="nx">ts</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="nx">Main</span><span class="w"> </span><span class="nx">SDK</span><span class="w"> </span><span class="nx">wrapper</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">exports</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">types</span><span class="p">.</span><span class="nx">ts</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="nx">Model</span><span class="w"> </span><span class="nx">catalog</span><span class="p">,</span><span class="w"> </span><span class="nx">deliberation</span><span class="w"> </span><span class="nx">panel</span><span class="p">,</span><span class="w"> </span><span class="nx">types</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">budget</span><span class="p">.</span><span class="nx">ts</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="nx">File</span><span class="o">-</span><span class="nx">based</span><span class="w"> </span><span class="nx">budget</span><span class="w"> </span><span class="nx">tracking</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">deliberate</span><span class="p">.</span><span class="nx">ts</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="mi">20</span><span class="o">-</span><span class="nx">model</span><span class="w"> </span><span class="nx">deliberation</span><span class="w"> </span><span class="nx">panel</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">cli</span><span class="p">.</span><span class="nx">ts</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">orcli</span><span class="w"> </span><span class="nx">CLI</span><span class="w"> </span><span class="nx">entry</span><span class="w"> </span><span class="nx">point</span>
+
+<span class="nx">ide</span><span class="o">/</span><span class="nx">vaked</span><span class="o">-</span><span class="nx">ide</span><span class="o">/</span>
+<span class="err">├──</span><span class="w"> </span><span class="kn">package</span><span class="p">.</span><span class="nx">json</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="err">@</span><span class="nx">anthropic</span><span class="o">-</span><span class="nx">ai</span><span class="o">/</span><span class="nx">sdk</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="err">@</span><span class="nx">openrouter</span><span class="o">/</span><span class="nx">agent</span>
+<span class="err">└──</span><span class="w"> </span><span class="nx">src</span><span class="o">/</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">lib</span><span class="o">/</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nx">openrouter</span><span class="p">.</span><span class="nx">ts</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nx">Renamed</span><span class="w"> </span><span class="nx">from</span><span class="w"> </span><span class="nx">anthropic</span><span class="p">.</span><span class="nx">ts</span><span class="p">;</span><span class="w"> </span><span class="nx">added</span><span class="w"> </span><span class="nx">SDK</span><span class="w"> </span><span class="nx">types</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">anthropic</span><span class="p">.</span><span class="nx">ts</span><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nx">REMOVED</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">types</span><span class="o">/</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">session</span><span class="p">.</span><span class="nx">ts</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nx">AgentRole</span><span class="p">:</span><span class="w"> </span><span class="nx">openrouter</span><span class="w"> </span><span class="k">default</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="nx">deepseek</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="nx">gemini</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="nx">store</span><span class="o">/</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="nx">sessionStore</span><span class="p">.</span><span class="nx">ts</span><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nx">activeAgents</span><span class="w"> </span><span class="k">default</span><span class="p">:</span><span class="w"> </span><span class="nx">openrouter</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="nx">hooks</span><span class="o">/</span>
+<span class="w">        </span><span class="err">└──</span><span class="w"> </span><span class="nx">useSession</span><span class="p">.</span><span class="nx">ts</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nx">Import</span><span class="p">:</span><span class="w"> </span><span class="nx">openrouter</span>
+</pre></div>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/session/SUMMARY.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

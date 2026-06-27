@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>agent-supervisord — the control plane daemon (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#shape" style="padding-left:0.5rem">Shape</a><a href="#what-is-deliberately-not-here" style="padding-left:0.5rem">What is deliberately NOT here</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#plan" style="padding-left:0.5rem">Plan</a><a href="#open" style="padding-left:0.5rem">Open</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-12-agent-supervisord-design</div>
+<h1>agent-supervisord — the control plane daemon (design)</h1>
+<h1 id="agent-supervisord-the-control-plane-daemon-design">agent-supervisord — the control plane daemon (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-12). The keystone daemon of the runtime roster<br />
+(<a href="../../runtime/README.md"><code>docs/runtime/README.md</code></a>): the OTP control plane<br />
+that the whole 2026-06-12 arc converges on. Tracks C+D of the epic (#17,<br />
+issues #19/#20). Convention: daemon = design → plan → impl; this is the<br />
+design. Everything it composes is <strong>already specified — and, for the eventd oracle and the lowered tree,<br />
+shipped</strong> — this<br />
+document only fixes how the pieces snap together.</p>
+<h2 id="purpose">Purpose</h2>
+<p>One BEAM application per host that, per runtime:</p>
+<ol>
+<li><strong>boots the lowered tree</strong> — loads <code>gen/otp/&lt;slug&gt;_sup.erl</code> (Track C,<br />
+<code>otp.supervision</code>) and starts it, one placeholder worker per member until<br />
+   the Zig daemons replace them;</li>
+<li><strong>owns the eventd writer</strong> — the RFC 0004 single-writer discipline: every<br />
+   event (agent steps, dependency artifacts, control actions) flows through<br />
+   supervisord onto the hash-chained log at the path declared in<br />
+<code>gen/eventd.json</code>,<br />
+<code>verify_on_boot</code> as a hard precondition;</li>
+<li><strong>enforces the RFC 0004 lifecycle</strong> — workers transition<br />
+<code>STOPPED → BOOT_SCANNING → DEPENDENCY_VERIFYING → RUNNING |
+   PAUSED(stale_dependency)</code>; the cold-start verifier and GC floor are folds<br />
+   of the log it already holds (the eventd oracle defines the exact<br />
+   semantics the BEAM side must reproduce — or shell out to during the<br />
+   reference phase);</li>
+<li><strong>serves the RFC 0005 control plane</strong> — pause/resume/slow/step/rewind with<br />
+   preceptord authority, epoch fencing, typed refusals, and write-ahead<br />
+<code>control_action</code> logging;</li>
+<li><strong>runs workflows</strong> — loads <code>gen/workflow/&lt;name&gt;.json</code> (the AOT spec:<br />
+   steps, edges, precomputed depth) and drives runs as step events on the<br />
+   log, retries per step, budgets per #28.</li>
+</ol>
+<h2 id="shape">Shape</h2>
+<div class="highlight"><pre><span></span>agent_supervisord (application)
+├── eventd_writer     (gen_server: serializes ALL appends — the single-writer
+│                      funnel; flock holder once BEAM-native, while during the
+│                      reference phase the oracle takes the flock per append)
+├── control_plane     (gen_server: RFC 0005 frames in, ControlAck out;
+│                      scheduling state = the promoted ralph Control model)
+├── workflow_engine   (owns one gen_server per active run — a dynamic
+│                      supervisor over runs: walks the AOT DAG, emits step
+│                      events, applies retries/budgets)
+└── &lt;runtime&gt;_sup     (the LOWERED tree — generated code, never hand-edited)
+    ├── worker &#39;memberA&#39;   (vaked_fiber_worker → later: port to Zig daemon)
+    └── worker &#39;memberB&#39;
+</pre></div>
+
+<ul>
+<li>The generated tree is a child of the daemon, not the daemon itself: the<br />
+  hand-written application supervises the machine-written supervisor. The<br />
+  generated/hand-written boundary is exactly the <code>gen/</code> boundary.</li>
+<li><strong>Reference phase bridge:</strong> until the BEAM reimplements the fold, the<br />
+  daemon invokes the Python oracle (<code>python3 -m eventd
+  {verify,append,state,floor,coldstart}</code> — frozen exit codes 0/2/3/4/5 are<br />
+  the API) via ports. This keeps the canonical-hash byte contract in exactly<br />
+  one implementation while the daemon's <em>shape</em> hardens. The BEAM-native<br />
+  fold is the port's replacement, gated by the same parity tests as the Zig<br />
+  port (#15 pattern).</li>
+<li><strong>Control intake (reference):</strong> the ralph control-file pattern<br />
+  (<code>control.json</code> polled per tick) carries pause/interval/step locally;<br />
+  RFC 0005 frames over Litany Wire replace it when the wire lands. Both<br />
+  funnel into the same <code>control_plane</code> state — the file is a transport with<br />
+  one acknowledged delta: file-driven actions synthesize their <code>corr</code> and<br />
+  refusals are log-visible only (no <code>ControlAck</code> channel until the wire).</li>
+</ul>
+<h2 id="what-is-deliberately-not-here">What is deliberately NOT here</h2>
+<ul>
+<li>No second rewind mechanism (RFC 0005 composes RFC 0004 — §2.2 there).</li>
+<li>No restart cascades beyond stock OTP (<code>one_for_one</code> v0; linear-chain<br />
+<code>rest_for_one</code> + index-driven descendant restart per the otp.supervision<br />
+  design follow-up).</li>
+<li>No hash computation on the BEAM during the reference phase (oracle owns<br />
+  bytes).</li>
+</ul>
+<h2 id="verification">Verification</h2>
+<ol>
+<li><strong>Shape smoke (extends <code>task otp-smoke</code>):</strong> boot the application against<br />
+<code>agentfield-swe</code>'s lowered output; assert children alive, then drive one<br />
+   pause→step→resume cycle via the control file and observe the<br />
+<code>control_action</code> entries via <code>python3 -m eventd state</code>.</li>
+<li><strong>Rewind demo (the epic's acceptance 3, end-to-end):</strong> two producers, one<br />
+   dependent; rewind producer A; assert the dependent pauses<br />
+<code>stale_dependency</code> (cold-start refusal via oracle exit code 3) while<br />
+   producer B's worker never restarts.</li>
+<li>CI remains bytes/structure (no BEAM in CI); both demos are devshell tasks<br />
+   recorded in the PR that lands them.</li>
+</ol>
+<h2 id="plan">Plan</h2>
+<ol>
+<li>Skeleton BEAM app (<code>daemons/agent-supervisord/</code>): application + the three<br />
+   gen_servers, oracle-port bridge, control-file intake. (impl PR 1)</li>
+<li>Workflow engine: drive <code>gen/workflow/swe_af.json</code> as logged step events<br />
+   (placeholder step bodies). (impl PR 2)</li>
+<li>RFC 0005 frame intake over Litany Wire; retire the control file. (with<br />
+   the wire implementation)</li>
+<li>BEAM-native fold + parity gate; retire the oracle port. (with #15-era<br />
+   parity tooling)</li>
+</ol>
+<h2 id="open">Open</h2>
+<ul>
+<li>One daemon per host supervising many runtimes, or one per runtime?<br />
+  (Lean per-host application with one <code>&lt;runtime&gt;_sup</code> child per runtime —<br />
+  matches the roster's singular <code>agent-supervisord</code>.)</li>
+<li>Where preceptord's authority check physically runs during the reference<br />
+  phase (no preceptord exists): lean "allow-all + log the principal", with<br />
+  the deny path stubbed but wired.</li>
+<li>Budget enforcement point for workflow steps (engine-side vs worker-side).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-12-agent-supervisord-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

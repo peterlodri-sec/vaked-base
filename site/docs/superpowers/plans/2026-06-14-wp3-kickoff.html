@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP3 kickoff — HCP wire protocol — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#scope" style="padding-left:0.5rem">Scope</a><a href="#code-home" style="padding-left:0.5rem">Code home</a><a href="#build-target" style="padding-left:0.5rem">Build target</a><a href="#sprints" style="padding-left:0.5rem">Sprints</a><a href="#pre-start-gates-by-jun-21" style="padding-left:0.5rem">Pre-start gates (by Jun 21)</a><a href="#first-task-wp3-s1-jun-24" style="padding-left:0.5rem">First task (WP3-S1, Jun 24)</a><a href="#dependencies" style="padding-left:0.5rem">Dependencies</a><a href="#success-criteria" style="padding-left:0.5rem">Success criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-14-wp3-kickoff</div>
+<h1>WP3 kickoff — HCP wire protocol</h1>
+<h1 id="wp3-kickoff-hcp-wire-protocol">WP3 kickoff — HCP wire protocol</h1>
+<p>Start: Jun 24. End: Oct 15. Owner: Engineer A (Rust/async networking).</p>
+<h2 id="scope">Scope</h2>
+<p>Implement the Litany wire library from RFCs 0001–0007.<br />
+hcpbin (RFC 0002) codec first; frame layer (RFC 0003) second.<br />
+Target: a <code>litany</code> Rust crate usable by the daemon fleet.</p>
+<h2 id="code-home">Code home</h2>
+<p><code>protocol/hcp/hcpbin/</code> — hcpbin codec (WP3-S1, S2)<br />
+<code>protocol/hcp/litany/</code> — frame + routing layer (WP3-S3+)</p>
+<h2 id="build-target">Build target</h2>
+<p><code>dev-cx53</code> (Linux, Nix 2.34.7). No local builds on M1.</p>
+<h2 id="sprints">Sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Sprint</th>
+<th>Dates</th>
+<th>Deliverable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>WP3-S1</td>
+<td>Jun 24–Jul 8</td>
+<td>hcpbin varint + frame header + payload (RFC 0002 §4)</td>
+</tr>
+<tr>
+<td>WP3-S2</td>
+<td>Jul 9–Jul 23</td>
+<td>Frame layer (RFC 0003) + round-trip test suite</td>
+</tr>
+<tr>
+<td>WP3-S3</td>
+<td>Jul 24–Aug 6</td>
+<td>Message routing (RFC 0004 state-dep model)</td>
+</tr>
+<tr>
+<td>WP3-S4</td>
+<td>Aug 7–Aug 20</td>
+<td>Control frames (RFC 0005)</td>
+</tr>
+<tr>
+<td>WP3-S5</td>
+<td>Aug 21–Sep 3</td>
+<td>eventd integration (Litany ↔ append-only log)</td>
+</tr>
+<tr>
+<td>WP3-S6</td>
+<td>Sep 4–Sep 17</td>
+<td>Docs + perf baseline (latency vs grpc/cbor)</td>
+</tr>
+<tr>
+<td>WP3-S7</td>
+<td>Sep 18–Oct 1</td>
+<td>Hardening + stress test</td>
+</tr>
+<tr>
+<td>WP3-S8</td>
+<td>Oct 2–Oct 15</td>
+<td>Integration spec + paper eval (#113)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pre-start-gates-by-jun-21">Pre-start gates (by Jun 21)</h2>
+<ul>
+<li>[ ] RFC 0002 format frozen — no breaking changes after Jun 21</li>
+<li>[ ] WP3 engineer nominated</li>
+<li>[ ] <code>Cargo.toml</code> workspace wired into dev shell (<code>nix develop</code>)</li>
+</ul>
+<h2 id="first-task-wp3-s1-jun-24">First task (WP3-S1, Jun 24)</h2>
+<p><code>protocol/hcp/hcpbin/src/lib.rs</code> — implement <code>encode</code>/<code>decode</code> per RFC 0002 §4:<br />
+varint (LEB128), frame header (type, flags, length), payload framing.<br />
+Golden vectors: derive from RFC 0002 Appendix A. All tests pass on <code>dev-cx53</code>.</p>
+<h2 id="dependencies">Dependencies</h2>
+<ul>
+<li><code>eventd/</code> (Python ref) — integration in WP3-S5; Zig port (WP4-S4) replaces by Sep</li>
+<li>RFC 0002 frozen: precondition for WP3-S1</li>
+</ul>
+<h2 id="success-criteria">Success criteria</h2>
+<ul>
+<li>hcpbin: encode ↔ decode round-trips on all RFC 0002 golden vectors</li>
+<li>Litany: frame layer passes RFC 0003 compliance tests</li>
+<li>Perf: ≤10µs per frame encode/decode on <code>dev-cx53</code> (8-core, no alloc hot path)</li>
+<li>Paper evaluation (#113): WP3 results section ready by Oct 15</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-14-wp3-kickoff.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

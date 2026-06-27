@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP3-S7 — Hardening + stress test (spec) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#3-file-layout-paths-to-create" style="padding-left:0.5rem">3. File layout (paths to create)</a><a href="#4-algorithm-design" style="padding-left:0.5rem">4. Algorithm / design</a><a href="#41-differential-round-trip-fixed-point-harness-the-canonicality-oracle" style="padding-left:1rem">  4.1 Differential / round-trip fixed-point harness (the canonicality oracle)</a><a href="#42-fuzz-targets-the-rejection-oracle" style="padding-left:1rem">  4.2 Fuzz targets (the rejection oracle)</a><a href="#43-negative-golden-table-the-decision-rule-oracle" style="padding-left:1rem">  4.3 Negative golden table (the decision-rule oracle)</a><a href="#44-concurrency-deadlock-freedom-harness" style="padding-left:1rem">  4.4 Concurrency / deadlock-freedom harness</a><a href="#45-stress-binaries-dos-resistance-under-load" style="padding-left:1rem">  4.5 Stress binaries (DoS-resistance under load)</a><a href="#46-performance-gate-arch-sensitive-see-5" style="padding-left:1rem">  4.6 Performance gate (arch-sensitive — see §5)</a><a href="#5-test-plan-m1-local-vs-dev-cx53linux" style="padding-left:0.5rem">5. Test plan — M1-local vs `dev-cx53`/Linux</a><a href="#51-runs-fully-on-m1-aarch64-darwin-correctness-robustness" style="padding-left:1rem">  5.1 Runs fully on M1 (aarch64-darwin) — correctness & robustness</a><a href="#52-requires-dev-cx53-linux-x8664-authoritative-perf-integration" style="padding-left:1rem">  5.2 Requires `dev-cx53` (Linux x86_64) — authoritative perf & integration</a><a href="#53-ci-wiring" style="padding-left:1rem">  5.3 CI wiring</a><a href="#6-acceptance-criteria" style="padding-left:0.5rem">6. Acceptance criteria</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#71-blocking-risks-open-questions-to-track" style="padding-left:1rem">  7.1 Blocking risks / open questions to track</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp3-s7</div>
+<h1>WP3-S7 — Hardening + stress test (spec)</h1>
+<h1 id="wp3-s7-hardening-stress-test-spec">WP3-S7 — Hardening + stress test (spec)</h1>
+<h2 id="status">Status</h2>
+<p>Spec (2026-06-14). Planning artifact for WP3-S7 (Sep 18 – Oct 1) of the WP3 HCP<br />
+wire-protocol epic (<a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a>).<br />
+This sprint is <strong>dependency-blocked</strong> on WP3-S2..S6 landing first (see §7), so the<br />
+work is future, not codeable now. The deliverable here is the implementation-ready<br />
+plan: what to harden, how to verify it, and the precise M1-local vs.<br />
+<code>dev-cx53</code>/Linux split.</p>
+<blockquote>
+<p><strong>Correction to the kickoff wording.</strong> The kickoff (line 43) and issue #167<br />
+cite "RFC 0002 §4 / Appendix A" for the byte encoding and golden vectors. That<br />
+is <strong>stale</strong>. The canonical sources this spec cites are:<br />
+- byte encoding of values → <strong>RFC 0002 §6</strong> (<a href="../../../protocol/rfcs/0002-hcplang.md"><code>protocol/rfcs/0002-hcplang.md</code></a> "hcpbin encoding rules");<br />
+- frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) → <strong>RFC 0003</strong> WIRE layer<br />
+  (<a href="../../../protocol/rfcs/0003-litany-wire.md"><code>protocol/rfcs/0003-litany-wire.md</code></a> §4.4 / §4.4.1), explicitly <strong>NOT</strong> hcpbin (RFC 0002 §4.2, §6 scope note; mirrored in<br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a> header doc);<br />
+- golden vectors → RFC 0002 worked examples <strong>§6.1.1, §6.3.1, §6.6.1, §6.7.1, §10</strong>;<br />
+- the <strong>only</strong> <code>Appendix A</code> in the RFC set is <strong>RFC 0003 Appendix A</strong> (the<br />
+  normative <code>hcp.wire</code> control schema, RFC 0003 line 1510) — not in RFC 0002.</p>
+</blockquote>
+<h2 id="1-objective">1. Objective</h2>
+<p>Take the Litany wire stack from "passes the happy-path compliance tests" (S2–S5)<br />
+and "has a perf baseline" (S6) to <strong>robust under adversarial and high-load<br />
+input</strong>, with the wire's two highest-stakes correctness invariants demonstrably<br />
+held:</p>
+<ol>
+<li><strong>Canonical framing is unforgeable</strong> — every malformed / non-canonical /<br />
+   overlong / oversized input is rejected exactly as RFC 0003 §4.5 + §9 + RFC 0002<br />
+   §6.8 mandate, and a framing violation aborts <strong>exactly one</strong> connection without<br />
+   mid-stream resync (RFC 0003 §4.5, §9.1, §11 item 2).</li>
+<li><strong>The connection and control plane never deadlock</strong> — a <code>credit</code>/<code>ping</code>/<br />
+<code>pause</code>/<code>resume</code>/<code>goaway</code> control frame is always emittable and receivable even<br />
+   when every data stream is at zero credit (RFC 0003 §7.2, §8.3(1), §8.3(3),<br />
+   §11 items 5–7).</li>
+</ol>
+<p>Plus DoS-resistance under load (RFC 0003 §14.4): <code>max_frame</code> bounds per-frame<br />
+allocation, per-stream credit bounds per-stream buffering, liveness bounds<br />
+idle-peer cost — all three must survive a stress harness without unbounded memory<br />
+growth or wedging.</p>
+<p>Success is <strong>not</strong> "no crashes." Success is: a differential/round-trip oracle<br />
+proves canonicality (RFC 0002 §6.8 fixed point), every documented rejection path<br />
+fires under fuzzing, and a concurrency stress harness exercises the<br />
+deadlock-freedom argument empirically.</p>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<table>
+<thead>
+<tr>
+<th>Oracle</th>
+<th>Source of truth</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Round-trip fixed point</strong></td>
+<td>RFC 0002 §6.8: <code>encode(decode(encode(v))) == encode(v)</code></td>
+<td>Canonicality of <code>hcpbin</code> bodies + frame records</td>
+</tr>
+<tr>
+<td><strong>Golden vectors (positive)</strong></td>
+<td>RFC 0002 §6.1.1, §6.3.1, §6.6.1, §6.7.1, §10; RFC 0003 §4.6 (framing), §5.8 (handshake)</td>
+<td>Bytes match the spec exactly</td>
+</tr>
+<tr>
+<td><strong>Rejection vectors (negative)</strong></td>
+<td>RFC 0002 §6.1 (overlong/non-minimal varint), §6.4 (bool ≠ 0x00/0x01), §6.5 (known-algo hash len mismatch), §6.2 (out-of-order/dup tags); RFC 0003 §4.1–§4.3 (zero/overlong/oversize length), §4.4.1 (header tag rules), §9.2.1 (<code>error_kind</code> taxonomy)</td>
+<td>Every malformed input fails, and fails in the documented category</td>
+</tr>
+<tr>
+<td><strong>Decision-rule oracle</strong></td>
+<td>RFC 0003 §9.3</td>
+<td>A given malformed input lands as transport-fault (abort) <strong>xor</strong> frame-level <code>error</code> (connection survives) — never the wrong bucket</td>
+</tr>
+<tr>
+<td><strong>Existing adversarial-independence suite</strong></td>
+<td><code>protocol/hcp/hcpbin/tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>) — "written BLIND to the implementation"</td>
+<td>S7 extends this discipline; fuzz targets drive the same public symbols (<code>decode_uvarint</code>, <code>decode_bool</code>, <code>decode_bytes</code>, <code>decode_hash</code>, <code>decode_i8..i64</code>)</td>
+</tr>
+<tr>
+<td><strong>S6 perf baseline</strong></td>
+<td>WP3-S6 deliverable (latency vs grpc/cbor; <code>protocol/hcp/litany/benches/</code>)</td>
+<td>Regression comparand for criterion (relative) on M1 and the ≤10µs gate on <code>dev-cx53</code></td>
+</tr>
+</tbody>
+</table>
+<p>No oracle invents bytes the RFC does not give. Where RFC 0003 Open Question 1<br />
+leaves the <code>hcp.wire</code> schema digest and the official conformance vectors "TBD<br />
+until the layout lands" (RFC 0003 §5.6, §11), S7 <strong>must not invent a digest</strong> — it<br />
+pins those tests behind the dependency in §7.</p>
+<h2 id="3-file-layout-paths-to-create">3. File layout (paths to create)</h2>
+<p>All under <a href="../../../protocol/hcp/"><code>protocol/hcp/</code></a>. The codec crate <code>hcpbin/</code><br />
+<strong>exists</strong>; the frame crate <code>litany/</code> is a <strong>WP3-S2+ deliverable that does not yet<br />
+exist</strong> — S7 adds to whatever S2–S6 produced.</p>
+<div class="highlight"><pre><span></span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">hcpbin</span><span class="o">/</span>
+<span class="w">  </span><span class="n">fuzz</span><span class="o">/</span><span class="w">                                </span><span class="err">#</span><span class="w"> </span><span class="n">cargo</span><span class="o">-</span><span class="n">fuzz</span><span class="w"> </span><span class="n">workspace</span><span class="w"> </span><span class="p">(</span><span class="n">libFuzzer</span><span class="p">)</span><span class="w">  </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">    </span><span class="n">Cargo</span><span class="p">.</span><span class="n">toml</span>
+<span class="w">    </span><span class="n">fuzz_targets</span><span class="o">/</span>
+<span class="w">      </span><span class="n">uvarint_strict</span><span class="p">.</span><span class="n">rs</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="n">decode_uvarint</span><span class="o">:</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">panic</span><span class="p">;</span><span class="w"> </span><span class="n">reject</span><span class="w"> </span><span class="n">overlong</span><span class="o">/</span><span class="n">non</span><span class="o">-</span><span class="n">minimal</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">6.1</span><span class="p">)</span>
+<span class="w">      </span><span class="n">ivarint_width</span><span class="p">.</span><span class="n">rs</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="n">decode_i8</span><span class="o">/</span><span class="n">i16</span><span class="o">/</span><span class="n">i32</span><span class="o">/</span><span class="n">i64</span><span class="o">:</span><span class="w"> </span><span class="n">width</span><span class="o">-</span><span class="n">bound</span><span class="w"> </span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">panic</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">6.1</span><span class="p">)</span>
+<span class="w">      </span><span class="n">bool_strict</span><span class="p">.</span><span class="n">rs</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="n">decode_bool</span><span class="o">:</span><span class="w"> </span><span class="n">only</span><span class="w"> </span><span class="mh">0x00</span><span class="o">/</span><span class="mh">0x01</span><span class="w"> </span><span class="n">accepted</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">6.4</span><span class="p">)</span>
+<span class="w">      </span><span class="n">bytes_len</span><span class="p">.</span><span class="n">rs</span><span class="w">                    </span><span class="err">#</span><span class="w"> </span><span class="n">decode_bytes</span><span class="o">:</span><span class="w"> </span><span class="n">length</span><span class="o">-</span><span class="n">prefix</span><span class="w"> </span><span class="n">truncation</span><span class="w"> </span><span class="n">safe</span>
+<span class="w">      </span><span class="n">hash_selfdelim</span><span class="p">.</span><span class="n">rs</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="n">decode_hash</span><span class="o">:</span><span class="w"> </span><span class="n">known</span><span class="o">-</span><span class="n">algo</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="n">check</span><span class="p">,</span><span class="w"> </span><span class="n">unknown</span><span class="o">-</span><span class="n">algo</span><span class="w"> </span><span class="n">skip</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">6.5</span><span class="p">)</span>
+<span class="w">      </span><span class="n">roundtrip_fixedpoint</span><span class="p">.</span><span class="n">rs</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="n">decode</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">encode</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="n">stable</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">6.8</span><span class="p">)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">fixed_point</span><span class="p">.</span><span class="n">rs</span><span class="w">                   </span><span class="err">#</span><span class="w"> </span><span class="n">proptest</span><span class="o">:</span><span class="w"> </span><span class="err">∀</span><span class="w"> </span><span class="n">typed</span><span class="w"> </span><span class="n">v</span><span class="o">:</span><span class="w"> </span><span class="n">encode</span><span class="p">(</span><span class="n">decode</span><span class="p">(</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span><span class="o">==</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">    </span><span class="n">rejection_vectors</span><span class="p">.</span><span class="n">rs</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="n">negative</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="n">table</span><span class="w"> </span><span class="p">(</span><span class="n">one</span><span class="w"> </span><span class="n">assert</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="err">§</span><span class="o">-</span><span class="n">cited</span><span class="w"> </span><span class="n">rule</span><span class="p">)</span><span class="w"> </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+
+<span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">litany</span><span class="o">/</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="n">frame</span><span class="o">/</span><span class="n">wire</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">created</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">S2</span><span class="p">,</span><span class="w"> </span><span class="n">hardened</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">S7</span>
+<span class="w">  </span><span class="n">fuzz</span><span class="o">/</span><span class="w">                                                                    </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">    </span><span class="n">Cargo</span><span class="p">.</span><span class="n">toml</span>
+<span class="w">    </span><span class="n">fuzz_targets</span><span class="o">/</span>
+<span class="w">      </span><span class="n">frame_record_decode</span><span class="p">.</span><span class="n">rs</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="n">length</span><span class="o">-</span><span class="n">prefixed</span><span class="w"> </span><span class="n">record</span><span class="o">:</span><span class="w"> </span><span class="n">zero</span><span class="o">/</span><span class="n">overlong</span><span class="o">/</span><span class="n">oversize</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.1</span><span class="err">–</span><span class="mf">4.3</span><span class="p">)</span>
+<span class="w">      </span><span class="n">frame_header_decode</span><span class="p">.</span><span class="n">rs</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="mf">@0.</span><span class="p">.</span><span class="mi">@4</span><span class="w"> </span><span class="n">header</span><span class="o">:</span><span class="w"> </span><span class="n">kind</span><span class="o">&gt;</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">@4</span><span class="o">-</span><span class="n">without</span><span class="o">-</span><span class="mi">@2</span><span class="p">,</span><span class="w"> </span><span class="n">dup</span><span class="o">/</span><span class="k">out</span><span class="o">-</span><span class="n">of</span><span class="o">-</span><span class="n">order</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.4.1</span><span class="p">)</span>
+<span class="w">      </span><span class="n">handshake_preamble</span><span class="p">.</span><span class="n">rs</span><span class="w">           </span><span class="err">#</span><span class="w"> </span><span class="n">magic</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">HELLO</span><span class="w"> </span><span class="n">hcpbin</span><span class="w"> </span><span class="n">decode</span><span class="p">;</span><span class="w"> </span><span class="n">malformed</span><span class="w"> </span><span class="n">preamble</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fault</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">5.2</span><span class="p">,</span><span class="err">§</span><span class="mf">5.7</span><span class="p">)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">framing_rejection</span><span class="p">.</span><span class="n">rs</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">4.5</span><span class="w"> </span><span class="n">violations</span><span class="w"> </span><span class="n">abort</span><span class="w"> </span><span class="n">exactly</span><span class="w"> </span><span class="n">one</span><span class="w"> </span><span class="n">connection</span><span class="p">,</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">resync</span><span class="w"> </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">    </span><span class="n">decision_rule</span><span class="p">.</span><span class="n">rs</span><span class="w">                 </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">9.3</span><span class="o">:</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="n">input</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">fault</span><span class="w"> </span><span class="n">XOR</span><span class="w"> </span><span class="n">frame</span><span class="o">-</span><span class="n">level</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">    </span><span class="n">deadlock_freedom</span><span class="p">.</span><span class="n">rs</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="n">tokio</span><span class="w"> </span><span class="n">loopback</span><span class="o">:</span><span class="w"> </span><span class="n">control</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="n">flows</span><span class="w"> </span><span class="n">under</span><span class="w"> </span><span class="n">full</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="n">stall</span><span class="w"> </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">  </span><span class="n">stress</span><span class="o">/</span><span class="w">                            </span><span class="err">#</span><span class="w"> </span><span class="n">binaries</span><span class="p">,</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">unit</span><span class="w"> </span><span class="n">tests</span><span class="w"> </span><span class="p">(</span><span class="kt">long</span><span class="o">-</span><span class="n">running</span><span class="p">)</span><span class="w">              </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">    </span><span class="n">src</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span>
+<span class="w">      </span><span class="n">flood</span><span class="p">.</span><span class="n">rs</span><span class="w">                        </span><span class="err">#</span><span class="w"> </span><span class="n">N</span><span class="w"> </span><span class="n">concurrent</span><span class="w"> </span><span class="n">connections</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="n">M</span><span class="w"> </span><span class="n">streams</span><span class="p">,</span><span class="w"> </span><span class="n">bounded</span><span class="o">-</span><span class="n">memory</span><span class="w"> </span><span class="n">assert</span>
+<span class="w">      </span><span class="n">credit_stall</span><span class="p">.</span><span class="n">rs</span><span class="w">                 </span><span class="err">#</span><span class="w"> </span><span class="n">producer</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">zero</span><span class="w"> </span><span class="n">credit</span><span class="p">;</span><span class="w"> </span><span class="n">assert</span><span class="w"> </span><span class="n">control</span><span class="w"> </span><span class="n">plane</span><span class="w"> </span><span class="n">progresses</span>
+<span class="w">      </span><span class="n">soak</span><span class="p">.</span><span class="n">rs</span><span class="w">                         </span><span class="err">#</span><span class="w"> </span><span class="n">sustained</span><span class="w"> </span><span class="n">throughput</span><span class="p">;</span><span class="w"> </span><span class="n">sample</span><span class="w"> </span><span class="n">RSS</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">leak</span><span class="w"> </span><span class="n">detection</span>
+
+<span class="n">tests</span><span class="o">/</span><span class="n">spec</span><span class="o">/</span><span class="n">golden</span><span class="o">/</span>
+<span class="w">  </span><span class="n">hcpbin_reject</span><span class="o">/</span><span class="w">                      </span><span class="err">#</span><span class="w"> </span><span class="n">negative</span><span class="w"> </span><span class="n">byte</span><span class="w"> </span><span class="n">vectors</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="n">files</span><span class="p">,</span><span class="w"> </span><span class="n">RFC</span><span class="o">-</span><span class="err">§</span><span class="w"> </span><span class="n">named</span><span class="w">  </span><span class="p">[</span><span class="n">NEW</span><span class="p">]</span>
+<span class="w">    </span><span class="n">overlong_uvarint</span><span class="p">.</span><span class="n">hex</span>
+<span class="w">    </span><span class="n">bool_0x02</span><span class="p">.</span><span class="n">hex</span>
+<span class="w">    </span><span class="n">hash_len_mismatch</span><span class="p">.</span><span class="n">hex</span>
+<span class="w">    </span><span class="n">frame_len_zero</span><span class="p">.</span><span class="n">hex</span>
+<span class="w">    </span><span class="n">frame_len_over_maxframe</span><span class="p">.</span><span class="n">hex</span>
+<span class="w">    </span><span class="n">header_end_without_stream</span><span class="p">.</span><span class="n">hex</span>
+<span class="w">    </span><span class="n">header_kind_5</span><span class="p">.</span><span class="n">hex</span>
+</pre></div>
+
+<p>The <code>hex</code> data files keep negative vectors language-agnostic (Rust now, the Zig<br />
+codegen target later — RFC 0002 §7) and let the Python spec harness<br />
+(<a href="../../../tests/spec/run_all.py"><code>tests/spec/run_all.py</code></a>) cross-check them too.</p>
+<h2 id="4-algorithm-design">4. Algorithm / design</h2>
+<h3 id="41-differential-round-trip-fixed-point-harness-the-canonicality-oracle">4.1 Differential / round-trip fixed-point harness (the canonicality oracle)</h3>
+<p>The single most important hardening artifact. RFC 0002 §6.8 states the conformance<br />
+test verbatim: <code>encode(decode(encode(v))) == encode(v)</code> MUST be a fixed point, and<br />
+two conforming implementations MUST agree byte-for-byte.</p>
+<ul>
+<li><strong>proptest generators</strong> produce typed values for each <code>hcplang</code> type the stack<br />
+  supports at S7 (scalars → records → unions → list/map → frames). For each<br />
+  generated <code>v</code>: assert the fixed point. For union/hash with unknown arm/algo<br />
+  (RFC 0002 §6.7, §6.5) generate opaque-byte payloads and assert byte-for-byte<br />
+  round-trip preservation (RFC 0002 §7.2).</li>
+<li><strong>Map ordering</strong> (RFC 0002 §6.6): generate maps with deliberately-scrambled<br />
+  insertion order; assert the encoding is sorted by canonical encoded-key order<br />
+  and is insertion-order-independent.</li>
+<li><strong>Default omission</strong> (RFC 0002 §6.3, §6.3.1): generate all-default nested<br />
+  records and present-but-empty optional aggregates; assert the omit/emit choice<br />
+  matches the §6.3 table exactly (this is the subtle "two valid encodings" hole).</li>
+</ul>
+<h3 id="42-fuzz-targets-the-rejection-oracle">4.2 Fuzz targets (the rejection oracle)</h3>
+<p>cargo-fuzz / libFuzzer targets, one per decode entry point. Invariant for every<br />
+target: <strong>never panic, never over-read, reject non-canonical input as a typed<br />
+<code>DecodeError</code></strong> (the crate's existing error type,<br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a>).</p>
+<ul>
+<li><code>uvarint_strict</code> / <code>ivarint_width</code>: feed arbitrary bytes to <code>decode_uvarint</code>,<br />
+<code>decode_i8..i64</code>; assert no overlong/non-minimal varint is ever accepted<br />
+  (RFC 0002 §6.1), and any value exceeding the declared width <code>k</code> is rejected.</li>
+<li><code>bool_strict</code>: any byte ≠ <code>0x00</code>/<code>0x01</code> is rejected (RFC 0002 §6.4) — never<br />
+  coerced to <code>true</code>.</li>
+<li><code>bytes_len</code> / <code>hash_selfdelim</code>: a length/<code>len</code> prefix larger than the remaining<br />
+  buffer is a clean error, never an over-read; a <strong>known</strong> <code>algo-id</code> with the<br />
+  wrong <code>len</code> is rejected, an <strong>unknown</strong> <code>algo-id</code> is skipped by <code>len</code> and the<br />
+  raw digest preserved (RFC 0002 §6.5, §6.5.1).</li>
+<li><code>roundtrip_fixedpoint</code>: if <code>decode(b)</code> succeeds, <code>encode(decode(b))</code> must equal<br />
+  the canonical form, and decoding <em>that</em> must succeed and be stable (RFC 0002 §6.8).</li>
+<li>(litany) <code>frame_record_decode</code> / <code>frame_header_decode</code> / <code>handshake_preamble</code>:<br />
+  drive the frame-record length prefix (RFC 0003 §4.1–§4.3), the <code>@0..@4</code> header<br />
+  decoder invariant (RFC 0003 §4.4.1: <code>kind</code> in 0–4; <code>@4</code> valid only if <code>@2</code><br />
+  present; out-of-order / duplicate <code>@4</code> are framing violations), and the magic +<br />
+  HELLO preamble (RFC 0003 §5.2, §5.7).</li>
+</ul>
+<p>Each fuzz target seeds its corpus from the <strong>positive</strong> golden vectors (RFC 0002<br />
+§6.1.1/§6.3.1/§6.6.1/§6.7.1/§10, RFC 0003 §4.6/§5.8) so the fuzzer starts from<br />
+valid frames and mutates outward.</p>
+<h3 id="43-negative-golden-table-the-decision-rule-oracle">4.3 Negative golden table (the decision-rule oracle)</h3>
+<p><code>rejection_vectors.rs</code> (codec) and <code>decision_rule.rs</code> (frame) are explicit tables:<br />
+each row is <code>(hex bytes, expected outcome, RFC §)</code>. Outcome is one of:</p>
+<ul>
+<li><strong>codec</strong>: <code>Err(DecodeError::...)</code> of the right kind;</li>
+<li><strong>frame, transport fault</strong> (RFC 0003 §9.1): abort connection, no resync, fault<br />
+  recorded — for framing violations (overlong/zero/oversize length §4.1–§4.3,<br />
+  header decode failure §4.5, bad magic §5.2, credit overrun §8.4);</li>
+<li><strong>frame, frame-level <code>error</code></strong> (RFC 0003 §9.2): connection survives, <code>error</code><br />
+  echoes <code>corr</code> with the right <code>error_kind</code> (RFC 0003 §9.2.1 taxonomy:<br />
+<code>malformed_frame</code>, <code>schema_digest_mismatch</code>, <code>seq_gap</code>, <code>chapter_closed</code>,<br />
+<code>stream_reset</code>, <code>invalid_correlation</code>, ...) — for header-clean-but-non-canonical<br />
+  bodies and schema/authority failures.</li>
+</ul>
+<p>This table operationalizes the RFC 0003 §9.3 decision rule ("is the byte-stream's<br />
+frame alignment still trustworthy?") and is the regression guard against the<br />
+classic wire bug of conflating the two categories. <strong>Non-canonical bodies are<br />
+never admitted to the <code>eventd</code> chain</strong> (RFC 0003 §9.2, §10, §11 item 9) — the<br />
+table asserts the offending <code>frame-bytes</code> is rejected before any chain append.</p>
+<h3 id="44-concurrency-deadlock-freedom-harness">4.4 Concurrency / deadlock-freedom harness</h3>
+<p><code>deadlock_freedom.rs</code> runs two <code>litany</code> endpoints over an in-process tokio duplex<br />
+(or a UDS loopback — RFC 0003 §13.2) and reproduces the RFC 0003 §8.3 argument<br />
+empirically:</p>
+<ol>
+<li>Open a stream, drain its credit to zero (RFC 0003 §8.1–§8.2; default initial<br />
+   credit 16 frames, §8.2).</li>
+<li>With the producer blocked on zero credit, the consumer side sends a <code>ping</code><br />
+   (RFC 0003 §7.1) and a <code>credit</code> grant; assert both are <strong>received and acted on</strong><br />
+   within a bound (RFC 0003 §8.3(1)(b), §11 item 5) — the receiver never stops<br />
+   reading (§8.3(3)).</li>
+<li>From the blocked producer, send a <code>ping</code>/<code>credit</code>/<code>close</code> control frame; assert<br />
+   it is <strong>emitted</strong> even while a data write is buffered and unsendable<br />
+   (RFC 0003 §7.2 sender-side obligation, §11 item 6).</li>
+<li>Assert per-stream buffered octets stay ≤ <code>granted × max_frame</code> (RFC 0003<br />
+   §8.3(4)) and that a second stream keeps draining while the first is paused<br />
+   (§8.3(2), §8.4.1 worked example).</li>
+<li>Liveness independence: with a stream paused, <code>ping</code>/<code>pong</code> still flow and the<br />
+   idle timer is not suspended (RFC 0003 §7.5).</li>
+</ol>
+<h3 id="45-stress-binaries-dos-resistance-under-load">4.5 Stress binaries (DoS-resistance under load)</h3>
+<p>Long-running binaries under <code>litany/stress/</code> (not <code>cargo test</code> units):</p>
+<ul>
+<li><code>flood</code>: N connections × M streams of chunked frames; assert total resident<br />
+  memory stays bounded by <code>Σ granted × max_frame</code> + fixed overhead (RFC 0003<br />
+  §8.3(4), §14.4). Inject a hostile peer that (a) claims <code>length &gt; max_frame</code><br />
+  (assert abort without reading the body, RFC 0003 §4.3) and (b) sends a data<br />
+  frame at zero credit (assert <code>credit-overrun</code> teardown, RFC 0003 §8.4).</li>
+<li><code>credit_stall</code>: hold one stream permanently un-replenished (a <em>permitted</em><br />
+  deliberate-backpressure outcome, RFC 0003 §8, §11 item 7) and assert the<br />
+  connection still makes progress and is observably-stalled via liveness, not<br />
+  wedged.</li>
+<li><code>soak</code>: sustained encode/decode/round-trip throughput for a fixed wall-clock<br />
+  window; sample RSS to detect leaks/unbounded growth (no allocation on the hot<br />
+  path is the kickoff target, line 54).</li>
+</ul>
+<h3 id="46-performance-gate-arch-sensitive-see-5">4.6 Performance gate (arch-sensitive — see §5)</h3>
+<p>The kickoff success criterion is <strong>≤10µs per frame encode/decode on <code>dev-cx53</code><br />
+(8-core, no-alloc hot path)</strong> (kickoff line 54). This is an <strong>absolute</strong> number on<br />
+a <strong>specific Linux x86_64 host</strong>; it is <strong>not portable to M1 (aarch64-darwin)</strong> —<br />
+different microarchitecture, memory subsystem, and allocator behaviour make an<br />
+absolute µs threshold meaningless cross-arch. On M1, criterion is used <strong>only for<br />
+relative regression</strong> against the S6 baseline checked into<br />
+<code>protocol/hcp/litany/benches/</code>; the absolute gate runs on <code>dev-cx53</code>.</p>
+<h2 id="5-test-plan-m1-local-vs-dev-cx53linux">5. Test plan — M1-local vs <code>dev-cx53</code>/Linux</h2>
+<p>Toolchain verified on this host (2026-06-14): <code>cargo 1.95.0</code>, <code>cargo-fuzz 0.13.1</code>,<br />
+<code>arch = arm64</code>. <code>dev-cx53</code> is OFF-LIMITS for the current 6h autoresearch window<br />
+(orchestrator note); everything below that is marked M1-local must pass without it.</p>
+<h3 id="51-runs-fully-on-m1-aarch64-darwin-correctness-robustness">5.1 Runs fully on M1 (aarch64-darwin) — correctness &amp; robustness</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Why M1 is sufficient</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Round-trip fixed point (§4.1)</td>
+<td><code>cargo test -p hcpbin</code> + <code>cargo test -p litany</code></td>
+<td>Pure logic; arch-independent</td>
+</tr>
+<tr>
+<td>Property tests (proptest, §4.1)</td>
+<td><code>cargo test -p hcpbin --test fixed_point</code></td>
+<td>Deterministic given a seed; arch-independent</td>
+</tr>
+<tr>
+<td>Negative golden / rejection tables (§4.3)</td>
+<td><code>cargo test -p hcpbin --test rejection_vectors</code> / <code>-p litany --test decision_rule framing_rejection</code></td>
+<td>Byte-exact assertions from RFC §§</td>
+</tr>
+<tr>
+<td>Fuzz <strong>smoke</strong> (§4.2)</td>
+<td><code>cargo +nightly fuzz run uvarint_strict -- -runs=100000</code> (and each target)</td>
+<td>libFuzzer builds on aarch64-darwin (nightly + sanitizer); short campaigns find shallow panics/over-reads locally</td>
+</tr>
+<tr>
+<td>Deadlock-freedom harness (§4.4)</td>
+<td><code>cargo test -p litany --test deadlock_freedom</code></td>
+<td>tokio in-process / UDS loopback — no Linux-specific syscalls</td>
+</tr>
+<tr>
+<td>Relative perf regression (§4.6)</td>
+<td><code>cargo bench -p litany</code> (criterion vs S6 baseline)</td>
+<td>Relative deltas are meaningful on any single host</td>
+</tr>
+<tr>
+<td>Zig codegen target (RFC 0002 §7)</td>
+<td><code>zig build -Dtarget=x86_64-linux</code> (compile-only)</td>
+<td>Compiles on M1; namespace syscalls do <strong>not</strong> run here</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-requires-dev-cx53-linux-x86_64-authoritative-perf-integration">5.2 Requires <code>dev-cx53</code> (Linux x86_64) — authoritative perf &amp; integration</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Why it cannot gate on M1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>≤10µs/frame absolute gate</strong> (kickoff line 54)</td>
+<td>Absolute µs threshold is arch-specific; aarch64-darwin numbers are not comparable to the x86_64 target</td>
+</tr>
+<tr>
+<td><strong>Long fuzz campaign</strong> (hours, large corpus)</td>
+<td>Authoritative coverage/throughput belongs on the canonical build host; M1 runs smoke only</td>
+</tr>
+<tr>
+<td><strong>Soak / sustained-throughput memory stability</strong> (§4.5 <code>soak</code>)</td>
+<td>Long-run RSS behaviour depends on the production allocator + kernel on the target host</td>
+</tr>
+<tr>
+<td><strong>vsock stress</strong> (RFC 0003 §13.3)</td>
+<td><code>AF_VSOCK</code> is Linux-only; no macOS equivalent</td>
+</tr>
+<tr>
+<td><strong>Namespace-isolated daemon integration</strong> (Zig enforcement daemons, RFC 0002 §7)</td>
+<td>Linux namespaces/seccomp run only on Linux</td>
+</tr>
+<tr>
+<td><strong>eventd end-to-end chaining under load</strong> (RFC 0003 §10)</td>
+<td>Exercises the runtime <code>eventd</code> daemon (<a href="2026-06-12-eventd-design.md"><code>docs/superpowers/specs/2026-06-12-eventd-design.md</code></a>); integration host is Linux</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-ci-wiring">5.3 CI wiring</h3>
+<p>M1-local checks run in the dev shell pre-PR. <code>dev-cx53</code> checks run in the WP3 CI<br />
+lane via <code>nix develop</code> (kickoff line 37). The negative <code>.hex</code> vectors are shared<br />
+with the Python spec harness (<code>tests/spec/run_all.py</code>) so both the Rust and the<br />
+future Zig codegen path validate the same rejection corpus.</p>
+<h2 id="6-acceptance-criteria">6. Acceptance criteria</h2>
+<p>S7 is done when <strong>all</strong> hold:</p>
+<ol>
+<li><strong>Round-trip fixed point</strong> (RFC 0002 §6.8) passes for every supported type via<br />
+   proptest with ≥ a fixed case budget, plus all positive golden vectors<br />
+   (RFC 0002 §6.1.1/§6.3.1/§6.6.1/§6.7.1/§10, RFC 0003 §4.6/§5.8) — M1-local.</li>
+<li><strong>Every fuzz target</strong> runs a smoke campaign on M1 with <strong>zero panics, zero<br />
+   over-reads, zero accepted non-canonical inputs</strong>; the authoritative long<br />
+   campaign on <code>dev-cx53</code> finds no new crashers.</li>
+<li><strong>Negative golden table</strong> is complete: at least one vector per cited rejection<br />
+   rule (RFC 0002 §6.1/§6.2/§6.4/§6.5; RFC 0003 §4.1–§4.3/§4.4.1), each asserting<br />
+   the right outcome <strong>and</strong> the right §9.3 category (fault vs frame-level<br />
+<code>error</code>) — M1-local.</li>
+<li><strong>Deadlock-freedom harness</strong> passes: control frame emittable + receivable under<br />
+   full data-credit stall, per-stream memory bound ≤ <code>granted × max_frame</code>, second<br />
+   stream drains while first is paused, liveness independent of pause<br />
+   (RFC 0003 §7.2, §7.5, §8.3, §11 items 5–7) — M1-local.</li>
+<li><strong>DoS-resistance</strong>: <code>flood</code> keeps memory bounded and tears down hostile peers<br />
+   (<code>length &gt; max_frame</code> → abort §4.3; zero-credit data → <code>credit-overrun</code> §8.4);<br />
+<code>soak</code> shows no leak — perf/long-run legs on <code>dev-cx53</code>.</li>
+<li><strong>Perf</strong>: relative criterion regression vs S6 baseline within tolerance on M1;<br />
+<strong>≤10µs/frame absolute gate on <code>dev-cx53</code></strong> (kickoff line 54).</li>
+<li><strong>Decision-rule separation</strong> (RFC 0003 §9.3) holds for the whole negative<br />
+   corpus; non-canonical bodies are proven <strong>never</strong> chained to <code>eventd</code><br />
+   (RFC 0003 §9.2, §10, §11 item 9) — M1-local.</li>
+<li>Every new test file cites the RFC § it enforces, matching the<br />
+   adversarial-independence convention of<br />
+<code>protocol/hcp/hcpbin/tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>).</li>
+</ol>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>What S7 needs from it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP3-S1</strong> (done)</td>
+<td><code>hcpbin</code> codec + <code>golden.rs</code> adversarial-independence convention to extend</td>
+</tr>
+<tr>
+<td><strong>WP3-S2</strong></td>
+<td>The <code>litany</code> frame crate must exist (it does <strong>not</strong> today) — frame records, <code>@0..@4</code> header (RFC 0003 §4.4.1), round-trip suite</td>
+</tr>
+<tr>
+<td><strong>WP3-S3</strong></td>
+<td>Routing / state-dep model (RFC 0004) for multi-exchange stress</td>
+</tr>
+<tr>
+<td><strong>WP3-S4</strong></td>
+<td>Control frames (RFC 0005) + <code>hcp.wire</code> verbs (RFC 0003 §5.6) for the deadlock-freedom and credit-stall harnesses</td>
+</tr>
+<tr>
+<td><strong>WP3-S5</strong></td>
+<td>eventd integration so the "non-canonical body never chained" assertion (criterion 7) is end-to-end</td>
+</tr>
+<tr>
+<td><strong>WP3-S6</strong></td>
+<td>The perf <strong>baseline</strong> that criterion regresses against (criterion 6)</td>
+</tr>
+<tr>
+<td><strong>eventd</strong></td>
+<td><a href="2026-06-12-eventd-design.md"><code>docs/superpowers/specs/2026-06-12-eventd-design.md</code></a> — chain admission semantics (RFC 0003 §10)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="71-blocking-risks-open-questions-to-track">7.1 Blocking risks / open questions to track</h3>
+<ul>
+<li><strong>RFC 0003 Open Question 1</strong> (RFC 0003 §5.6, §11): the <code>hcp.wire</code> schema digest<br />
+  is "value TBD until the layout lands" and the <strong>official conformance vectors are<br />
+  a companion artifact that does not exist yet</strong>. Tests that pin the control-schema<br />
+  digest or consume official handshake/credit-stall vectors are <strong>blocked</strong> on this<br />
+  landing. S7 <strong>must not invent a digest</strong>; until then, deadlock/handshake harnesses<br />
+  use locally-constructed <code>hcp.wire</code> frames and are upgraded to the pinned vectors<br />
+  when OQ1 closes.</li>
+<li><strong><code>error_kind</code> normative set</strong> (RFC 0003 §9.2.1): the taxonomy is "provisional;<br />
+  the normative set is in the <code>hcp.wire</code> schema" (RFC 0003 Appendix A) — also gated<br />
+  by OQ1. Assert the <em>category</em> (fault vs frame-level <code>error</code>) firmly; treat exact<br />
+<code>error_kind</code> strings as provisional until OQ1.</li>
+<li><strong>Header tag model is contested</strong> between RFC 0002 §4.2 ("@0 reserved, author<br />
+  tags @1+") and RFC 0003 §4.4.1 (header tags @0–@4, body begins at tags &gt; @4) —<br />
+  a latent RFC-level incoherence (cf. <a href="../../../tools/rfc-incoherence-hunter/"><code>tools/rfc-incoherence-hunter</code></a>).<br />
+  S7 header tests follow <strong>RFC 0003 §4.4.1</strong>, since the header is a wire concern<br />
+  and 0003 is authoritative there; resolving the contradiction is not S7's job.</li>
+<li><strong>Capability defaults</strong> (RFC 0003 §5.5, §8.2): initial credit (default 16),<br />
+<code>max_frame</code> floor (64 KiB) / default (1 MiB), idle 15s / liveness 30s (RFC 0003<br />
+  §7.3) are the stress-harness constants; if S2–S4 negotiate differently, update<br />
+  the harness constants accordingly.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp3-s7.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

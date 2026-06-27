@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked CI Flow — Agent Fleet Graph — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#fleet-topology" style="padding-left:0.5rem">Fleet Topology</a><a href="#agent-fleet" style="padding-left:0.5rem">Agent Fleet</a><a href="#ci-secrets-live" style="padding-left:0.5rem">CI Secrets (live)</a><a href="#genesis" style="padding-left:0.5rem">Genesis</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/agents/">agents</a> / ci-graph</div>
+<h1>Vaked CI Flow — Agent Fleet Graph</h1>
+<h1 id="vaked-ci-flow-agent-fleet-graph">Vaked CI Flow — Agent Fleet Graph</h1>
+<p><strong>GENESIS_SEAL: 7c242080 · 2026-06-18</strong></p>
+<h2 id="fleet-topology">Fleet Topology</h2>
+<div class="highlight"><pre><span></span><span class="n">graph</span><span class="w"> </span><span class="n">TD</span>
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">TRIGGERS</span><span class="p">[</span><span class="s2">&quot;⚡ Triggers&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">CRON</span><span class="p">[</span><span class="s2">&quot;cron (3h/6h/24h)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PR</span><span class="p">[</span><span class="s2">&quot;pull_request&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">COMMENT</span><span class="p">[</span><span class="s2">&quot;issue_comment @vaked-ci&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">DISPATCH</span><span class="p">[</span><span class="s2">&quot;workflow_dispatch&lt;br/&gt;(double-confirmed)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PUSH</span><span class="p">[</span><span class="s2">&quot;push to main&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TAG</span><span class="p">[</span><span class="s2">&quot;tag/release&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">CI_ENV</span><span class="p">[</span><span class="s2">&quot;🔐 CI Environment&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">OR_KEY</span><span class="p">[</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">LF_KEY</span><span class="p">[</span><span class="s2">&quot;LANGFUSE_SECRET_KEY&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">LF_PUB</span><span class="p">[</span><span class="s2">&quot;LANGFUSE_PUBLIC_KEY&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">C7_KEY</span><span class="p">[</span><span class="s2">&quot;CONTEXT7_API_KEY 🆕&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">VA_KEY</span><span class="p">[</span><span class="s2">&quot;VAST_API_KEY&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">VT_KEY</span><span class="p">[</span><span class="s2">&quot;VAULT_TOKEN&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">MSTDN</span><span class="p">[</span><span class="s2">&quot;MASTODON_ACCESS_TOKEN&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TG</span><span class="p">[</span><span class="s2">&quot;TELEGRAM_TOKEN&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">DECIDE</span><span class="p">[</span><span class="s2">&quot;🧠 Decision Loop&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">RALPH</span><span class="p">[</span><span class="s2">&quot;ralph&lt;br/&gt;Python cron&lt;br/&gt;3h + 23:00 UTC&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">RALPH</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;open issues&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">GH_ISSUES</span><span class="p">[</span><span class="s2">&quot;GitHub Issues&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">RALPH</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;commit decision&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">LEDGER</span><span class="p">[</span><span class="s2">&quot;hash-chained ledger&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">RALPH</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;announce&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">MASTODON</span><span class="p">[</span><span class="s2">&quot;Mastodon&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">REVIEW</span><span class="p">[</span><span class="s2">&quot;👀 PR Review&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PR_REVIEW</span><span class="p">[</span><span class="s2">&quot;pr-review&lt;br/&gt;adk-rust&lt;br/&gt;DeepSeek V4 Flash&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PR</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">PR_REVIEW</span>
+<span class="w">        </span><span class="n">PR_REVIEW</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;structured comment&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">GH_PR</span><span class="p">[</span><span class="s2">&quot;GitHub PR&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PR_REVIEW</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;advisory · never blocks&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">MERGE</span><span class="p">[</span><span class="s2">&quot;merge&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">CRAWL</span><span class="p">[</span><span class="s2">&quot;🔍 Crawlers&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">OPTITRON</span><span class="p">[</span><span class="s2">&quot;optitron&lt;br/&gt;Go/Eino · daily 05:33&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">INTROSPECT</span><span class="p">[</span><span class="s2">&quot;fleet-introspect&lt;br/&gt;Go/Eino · daily 06:00&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">CRON</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">OPTITRON</span>
+<span class="w">        </span><span class="n">CRON</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">INTROSPECT</span>
+<span class="w">        </span><span class="n">OPTITRON</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;open agent issue&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">GH_ISSUES</span>
+<span class="w">        </span><span class="n">INTROSPECT</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;open agent issue&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">GH_ISSUES</span>
+<span class="w">        </span><span class="n">INTROSPECT</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;read-only&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">LEDGER</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">GPU</span><span class="p">[</span><span class="s2">&quot;🖥️ GPU Research&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">NOCTURNE</span><span class="p">[</span><span class="s2">&quot;nocturne&lt;br/&gt;Python · nightly 02:00&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">CRON</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">NOCTURNE</span>
+<span class="w">        </span><span class="n">NOCTURNE</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;rent GPU&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">VASTAI</span><span class="p">[</span><span class="s2">&quot;Vast.ai&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">NOCTURNE</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;confirm win → swe_af&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">SWE_AF_TRIGGER</span><span class="p">[</span><span class="s2">&quot;swe_af trigger&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">AUTOMATION</span><span class="p">[</span><span class="s2">&quot;🤖 Automation&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PROVIDER</span><span class="p">[</span><span class="s2">&quot;provost&lt;br/&gt;adk-rust&lt;br/&gt;multi-step&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">LABELER</span><span class="p">[</span><span class="s2">&quot;label-tagger&lt;br/&gt;adk-rust&lt;br/&gt;auto-label&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">SWE_AF</span><span class="p">[</span><span class="s2">&quot;swe_af&lt;br/&gt;adk-rust&lt;br/&gt;SWE agent field&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">COMMENT</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">PROVIDER</span>
+<span class="w">        </span><span class="n">PR</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">LABELER</span>
+<span class="w">        </span><span class="n">GH_ISSUES</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SWE_AF</span>
+<span class="w">        </span><span class="n">SWE_AF_TRIGGER</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SWE_AF</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">DAEMONS</span><span class="p">[</span><span class="s2">&quot;🏗️ Daemons&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">OPENROUTERD</span><span class="p">[</span><span class="s2">&quot;openrouterd (Atlas)&lt;br/&gt;Zig 0.16 · raw sockets&lt;br/&gt;seccomp · hugepages&lt;br/&gt;Conductor routing&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">VAULT</span><span class="p">[</span><span class="s2">&quot;OpenBao&lt;br/&gt;bao.crabcc.app&lt;br/&gt;v2.5.4 · unsealed&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">OBSERVE</span><span class="p">[</span><span class="s2">&quot;📊 Observability&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">LANGFUSE</span><span class="p">[</span><span class="s2">&quot;Langfuse&lt;br/&gt;self-hosted&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TELEGRAM</span><span class="p">[</span><span class="s2">&quot;Telegram&lt;br/&gt;failure notify&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">LF_KEY</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">LANGFUSE</span>
+<span class="w">        </span><span class="n">LF_PUB</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">LANGFUSE</span>
+<span class="w">        </span><span class="n">TG</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">TELEGRAM</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">SDK</span><span class="p">[</span><span class="s2">&quot;📦 Agent SDK&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TS_SDK</span><span class="p">[</span><span class="s2">&quot;@vaked/openrouter-ts&lt;br/&gt;TypeScript&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">ZIG_SDK</span><span class="p">[</span><span class="s2">&quot;openrouter-zig&lt;br/&gt;Zig 0.16&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TUI</span><span class="p">[</span><span class="s2">&quot;vaked TUI&lt;br/&gt;Aider-style&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">CTX7</span><span class="p">[</span><span class="s2">&quot;Context7&lt;br/&gt;pre-scan · cache&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">VKDOCS</span><span class="p">[</span><span class="s2">&quot;Vaked Docs&lt;br/&gt;Go · no rate limits&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">BAO</span><span class="p">[</span><span class="s2">&quot;bao.ts&lt;br/&gt;Vault client&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">VASTAI_TS</span><span class="p">[</span><span class="s2">&quot;vastai.ts&lt;br/&gt;GPU tools&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">BUILD</span><span class="p">[</span><span class="s2">&quot;🔨 Build &amp; Sign&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PR_BUILD</span><span class="p">[</span><span class="s2">&quot;pr-review-build&lt;br/&gt;push to main&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PUSH</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">PR_BUILD</span>
+<span class="w">        </span><span class="n">PR_BUILD</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;compile + publish&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">BIN</span><span class="p">[</span><span class="s2">&quot;pr-review-bin&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">BIN</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s2">&quot;sign + burn&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">SIGN</span><span class="p">[</span><span class="s2">&quot;SHA256 burned&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">RALPH</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">PR_REVIEW</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">OPTITRON</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">INTROSPECT</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">NOCTURNE</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">PROVIDER</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">LABELER</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SWE_AF</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">OPENROUTERD</span>
+<span class="w">    </span><span class="n">CI_ENV</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">SDK</span>
+
+<span class="w">    </span><span class="n">TELEGRAM</span><span class="w"> </span><span class="o">-.-&gt;|</span><span class="s2">&quot;failure&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">RALPH</span>
+<span class="w">    </span><span class="n">TELEGRAM</span><span class="w"> </span><span class="o">-.-&gt;|</span><span class="s2">&quot;failure&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">PR_REVIEW</span>
+<span class="w">    </span><span class="n">TELEGRAM</span><span class="w"> </span><span class="o">-.-&gt;|</span><span class="s2">&quot;failure&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">OPTITRON</span>
+<span class="w">    </span><span class="n">TELEGRAM</span><span class="w"> </span><span class="o">-.-&gt;|</span><span class="s2">&quot;failure&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">NOCTURNE</span>
+<span class="w">    </span><span class="n">LANGFUSE</span><span class="w"> </span><span class="o">-.-&gt;|</span><span class="s2">&quot;traces&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">PR_REVIEW</span>
+<span class="w">    </span><span class="n">LANGFUSE</span><span class="w"> </span><span class="o">-.-&gt;|</span><span class="s2">&quot;traces&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">RALPH</span>
+<span class="w">    </span><span class="n">LANGFUSE</span><span class="w"> </span><span class="o">-.-&gt;|</span><span class="s2">&quot;traces&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">TS_SDK</span>
+</pre></div>
+
+<h2 id="agent-fleet">Agent Fleet</h2>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Trigger</th>
+<th>Runtime</th>
+<th>Model</th>
+<th>Budget</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ralph</strong></td>
+<td>cron 3h + 23:00</td>
+<td>Python stdlib</td>
+<td>DeepSeek V4 Pro</td>
+<td>~$0.05/day</td>
+</tr>
+<tr>
+<td><strong>pr-review</strong></td>
+<td>pull_request</td>
+<td>adk-rust (mimalloc)</td>
+<td>DeepSeek V4 Flash</td>
+<td>~$0.10/PR</td>
+</tr>
+<tr>
+<td><strong>provost</strong></td>
+<td>issue_comment</td>
+<td>adk-rust (mimalloc)</td>
+<td>DeepSeek V4 Flash</td>
+<td>~$0.05/run</td>
+</tr>
+<tr>
+<td><strong>label-tagger</strong></td>
+<td>pull_request</td>
+<td>adk-rust (mimalloc)</td>
+<td>DeepSeek V4 Flash</td>
+<td>~$0.01/PR</td>
+</tr>
+<tr>
+<td><strong>optitron</strong></td>
+<td>cron daily 05:33</td>
+<td>Go/Eino</td>
+<td>DeepSeek V4 Pro</td>
+<td>~$0.30/day</td>
+</tr>
+<tr>
+<td><strong>fleet-introspect</strong></td>
+<td>cron daily 06:00</td>
+<td>Go/Eino</td>
+<td>DeepSeek V4 Pro</td>
+<td>~$0.20/day</td>
+</tr>
+<tr>
+<td><strong>nocturne</strong></td>
+<td>cron nightly 02:00</td>
+<td>Python + Vast.ai</td>
+<td>Claude Opus</td>
+<td>~$2.00/night</td>
+</tr>
+<tr>
+<td><strong>swe_af</strong></td>
+<td>issue label <code>agent</code></td>
+<td>adk-rust</td>
+<td>DeepSeek V4 Flash</td>
+<td>~$0.50/run</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ci-secrets-live">CI Secrets (live)</h2>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Used by</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OPENROUTER_API_KEY</code></td>
+<td>all agents</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>LANGFUSE_SECRET_KEY</code></td>
+<td>pr-review, ralph</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>LANGFUSE_PUBLIC_KEY</code></td>
+<td>pr-review, ralph</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>LANGFUSE_HOST</code></td>
+<td>pr-review, ralph</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>CONTEXT7_API_KEY</code></td>
+<td>@vaked/openrouter-ts</td>
+<td>🆕</td>
+</tr>
+<tr>
+<td><code>MASTODON_ACCESS_TOKEN</code></td>
+<td>ralph</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>TELEGRAM_TOKEN</code></td>
+<td>all (failure)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>TELEGRAM_TO</code></td>
+<td>all (failure)</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>VAULT_TOKEN</code></td>
+<td>openrouterd</td>
+<td>🆕</td>
+</tr>
+<tr>
+<td><code>VAST_API_KEY</code></td>
+<td>@vaked/openrouter-ts</td>
+<td>🆕</td>
+</tr>
+<tr>
+<td><code>CRABCC_INSTALL_TOKEN</code></td>
+<td>pr-review</td>
+<td>✅</td>
+</tr>
+<tr>
+<td><code>YARDMASTER_SIGNING_KEY</code></td>
+<td>yardmaster</td>
+<td>✅</td>
+</tr>
+</tbody>
+</table>
+<h2 id="genesis">Genesis</h2>
+<div class="highlight"><pre><span></span>GENESIS_SEAL: 7c242080
+</pre></div>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/agents/ci-graph.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

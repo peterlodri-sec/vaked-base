@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ralph — a budget MoE decision/strategy loop with supervisor + eye dashboard (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#targets-config-driven-extensible" style="padding-left:0.5rem">Targets (config-driven, extensible)</a><a href="#non-goals" style="padding-left:0.5rem">Non-goals</a><a href="#components" style="padding-left:0.5rem">Components</a><a href="#iteration-two-stages-two-models-ralph-decide" style="padding-left:0.5rem">Iteration — two stages, two models (`ralph decide`)</a><a href="#stage-1-surface-rank-qwenqwen3-235b-a22b-thinking-2507" style="padding-left:1rem">  Stage 1 — surface & rank  (`qwen/qwen3-235b-a22b-thinking-2507`)</a><a href="#stage-2-deep-dive-deepseekdeepseek-v4-flash-1m-ctx" style="padding-left:1rem">  Stage 2 — deep-dive  (`deepseek/deepseek-v4-flash`, 1M ctx)</a><a href="#state-all-in-the-home-repo-read-only-on-the-others" style="padding-left:0.5rem">State (all in the HOME repo — read-only on the others)</a><a href="#2026-06-11-decision-n-title" style="padding-left:0.5rem">2026-06-11 — Decision #N: <title></a><a href="#supervisor-ralph-run-always-1-running" style="padding-left:0.5rem">Supervisor (`ralph run`) — "always ≥ 1 running"</a><a href="#eye-dashboard-ralph-watch" style="padding-left:0.5rem">Eye dashboard (`ralph watch`)</a><a href="#budget-accounting" style="padding-left:0.5rem">Budget & accounting</a><a href="#cli" style="padding-left:0.5rem">CLI</a><a href="#privacy-endpoint-data-governance" style="padding-left:0.5rem">Privacy / endpoint (data governance)</a><a href="#safety" style="padding-left:0.5rem">Safety</a><a href="#error-handling" style="padding-left:0.5rem">Error handling</a><a href="#testing" style="padding-left:0.5rem">Testing</a><a href="#files" style="padding-left:0.5rem">Files</a><a href="#build-order-phases" style="padding-left:0.5rem">Build order (phases)</a><a href="#cost-envelope-sanity" style="padding-left:0.5rem">Cost envelope (sanity)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-11-ralph-decide-design</div>
+<h1>ralph — a budget MoE decision/strategy loop with supervisor + eye dashboard (design)</h1>
+<h1 id="ralph-a-budget-moe-decisionstrategy-loop-with-supervisor-eye-dashboard-design">ralph — a budget MoE decision/strategy loop with supervisor + eye dashboard (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (approved brainstorm, 2026-06-11). <strong>Tooling</strong>, not the Vaked language —<br />
+no grammar/issue gate. Owner-approved scope.</p>
+<h2 id="purpose">Purpose</h2>
+<p>An always-on "Ralph loop" that keeps <strong>at least one</strong> decision agent running,<br />
+<strong>round-robining</strong> across the fleet's repos. Each iteration reads a repo's<br />
+current state + its prior decisions, surfaces (or advances) the single most<br />
+important open <strong>strategic decision</strong> for that repo, and appends a structured,<br />
+dated entry to that repo's <strong>advisory</strong> decisions log (human-ratified). It runs<br />
+on cheap MoE models via OpenRouter, and an <strong>eye dashboard</strong> (terminal live<br />
+view) shows what's running, what it decided, and what it has spent.</p>
+<blockquote>
+<p>"Ralph" = re-invoke an agent with a fixed task on a loop, persisting state<br />
+(the decisions log) between iterations so it makes incremental progress.</p>
+</blockquote>
+<h2 id="targets-config-driven-extensible">Targets (config-driven, extensible)</h2>
+<p>A repo list — start with three, add agentfield components one by one later:</p>
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>path</th>
+<th>gh repo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vaked-base</code></td>
+<td><code>~/workspace/peterlodri-sec/vaked-base</code></td>
+<td><code>peterlodri-sec/vaked-base</code></td>
+</tr>
+<tr>
+<td><code>crabcc</code></td>
+<td><code>~/workspace/peterlodri-sec/crabcc</code></td>
+<td><code>crabcc-labs/crabcc</code></td>
+</tr>
+<tr>
+<td><code>agentfield-stack</code></td>
+<td><code>~/workspace/peterlodri-sec/agentfield-stack</code></td>
+<td><code>peterlodri-sec/agentfield-stack</code></td>
+</tr>
+</tbody>
+</table>
+<p>Config lives in <code>tools/ralph/repos.json</code> (name, path, gh, optional <code>subdir</code> for<br />
+later per-agent/module targets). Adding a target = one JSON entry.</p>
+<h2 id="non-goals">Non-goals</h2>
+<ul>
+<li><strong>Not</strong> a code-writing agent. Read-only on all target repos except <em>appending</em><br />
+  to decision logs (which live in the <strong>home</strong> repo, see State).</li>
+<li><strong>Not</strong> a Claude Code loop — standalone, talks to OpenRouter directly.</li>
+<li>No tool-calling, no git writes, no network beyond OpenRouter (+ local<br />
+<code>gh</code>/<code>git</code>/file <em>reads</em> per target).</li>
+</ul>
+<h2 id="components">Components</h2>
+<p>One stdlib-only script, <code>tools/ralph/ralph.py</code> (no pip deps; <code>urllib</code> for HTTP),<br />
+with three subcommands — each a small, independently-testable unit:</p>
+<ol>
+<li><strong><code>ralph decide --repo &lt;name&gt;</code></strong> — run <strong>one iteration</strong> for one repo (the<br />
+   core, two-stage; below). Pure-ish: reads state, calls OpenRouter, appends one<br />
+   log entry, returns a result record (iteration #, decision title, cost).</li>
+<li><strong><code>ralph run</code></strong> — the <strong>supervisor</strong>: a continuous round-robin that keeps<br />
+   exactly one loop alive at a time, cycling the repo list, pacing with<br />
+<code>--interval</code>, and stopping only on the cumulative <strong>budget backstop</strong> or<br />
+   Ctrl-C. Writes <code>status.json</code> after every step.</li>
+<li><strong><code>ralph watch</code></strong> — the <strong>eye dashboard</strong>: a refreshing terminal table read<br />
+   from <code>status.json</code> + log tails. No browser.</li>
+</ol>
+<h2 id="iteration-two-stages-two-models-ralph-decide">Iteration — two stages, two models (<code>ralph decide</code>)</h2>
+<h3 id="stage-1-surface-rank-qwenqwen3-235b-a22b-thinking-2507">Stage 1 — surface &amp; rank  (<code>qwen/qwen3-235b-a22b-thinking-2507</code>)</h3>
+<p>Reads a <strong>compact</strong> state for the target repo (open-issue titles+bodies, recent<br />
+<code>git log</code>, short digests of key docs, and the <strong>titles</strong> of that repo's prior log<br />
+entries) → a ranked candidate list. The thinking MoE does the reasoning-heavy<br />
+"what matters most now" step. Request body:</p>
+<ul>
+<li><code>model</code>, <code>messages</code></li>
+<li><code>reasoning</code>: <code>{ "enabled": true, "effort": "medium" }</code></li>
+<li><code>response_format</code>: JSON schema →<br />
+<code>{ "candidates": [ { "title", "why_now", "urgency": 1-5, "addressed": bool } ] }</code></li>
+<li><code>temperature</code> 0.4, <code>top_p</code> 0.95, <code>seed</code> (<code>--seed</code>, default 42), <code>max_tokens</code> ~2000</li>
+</ul>
+<p><strong>Selection (in-script, deterministic):</strong> highest-<code>urgency</code> <code>addressed=false</code><br />
+(ties → first); if all addressed, highest-<code>urgency</code> to advance with new info.</p>
+<h3 id="stage-2-deep-dive-deepseekdeepseek-v4-flash-1m-ctx">Stage 2 — deep-dive  (<code>deepseek/deepseek-v4-flash</code>, 1M ctx)</h3>
+<p>Given the chosen candidate <strong>+ the full state for that repo</strong> (full issue bodies,<br />
+full <code>git log</code> window, full doc text, that repo's <strong>entire</strong> prior log — the 1M<br />
+window holds it) → the detailed entry. <code>temperature</code> 0.3, <code>top_p</code> 0.95,<br />
+<code>max_tokens</code> ~1800. No <code>reasoning</code>/<code>tools</code>.</p>
+<h2 id="state-all-in-the-home-repo-read-only-on-the-others">State (all in the HOME repo — read-only on the others)</h2>
+<p>The tool's home is <code>vaked-base</code>. <strong>No writes to crabcc/agentfield-stack</strong> — their<br />
+decision logs live here:</p>
+<ul>
+<li><code>docs/decisions/&lt;repo&gt;.ralph-log.md</code> — one advisory log per target repo;<br />
+  header marks it machine-generated; entries <strong>appended, never rewritten</strong>.</li>
+<li><code>tools/ralph/state/status.json</code> — the live supervisor state the dashboard reads<br />
+  (current repo, iteration, last decision title per repo, per-repo + total spend,<br />
+  started-at, last-step-at, status, next repo).</li>
+</ul>
+<p>Entry format (per log):</p>
+<div class="highlight"><pre><span></span><span class="gu">##</span> 2026-06-11 — Decision #N: &lt;title&gt;
+<span class="k">-</span> **Repo:** crabcc · **Models:** stage1 qwen3-235b-a22b-thinking · stage2 deepseek-v4-flash
+<span class="k">-</span> **Context snapshot:** HEAD &lt;sha&gt;, &lt;K&gt; open issues
+<span class="k">-</span> **Decision / question:** …
+<span class="k">-</span> **Options:** …  **Recommendation:** …  **Risks:** …
+<span class="k">-</span> **Next actions:** …  **Confidence:** low|med|high
+</pre></div>
+
+<p>Continuity: prior entry <em>titles</em> feed Stage 1 (avoid repeats); the <em>full</em> per-repo<br />
+log feeds Stage 2.</p>
+<h2 id="supervisor-ralph-run-always-1-running">Supervisor (<code>ralph run</code>) — "always ≥ 1 running"</h2>
+<p>Continuous loop: pick next repo (round-robin) → <code>decide</code> one iteration → update<br />
+<code>status.json</code> → <code>sleep(--interval)</code> → repeat. Stops only on the cumulative<br />
+<strong>budget backstop</strong> (<code>--budget-total</code>) or SIGINT (clean shutdown writes a final<br />
+status). Pacing (<code>--interval</code>, default 900s/15min) keeps spend low and gives<br />
+humans time to ratify. Exactly one iteration runs at a time (no concurrency).</p>
+<p>Backstops (non-bypassable, checked before each call): cumulative USD cap<br />
+(<code>--budget-total</code>, default $2.00) and an optional max-iterations<br />
+(<code>--max-iters</code>, default unbounded for <code>run</code>). On restart it resumes spend +<br />
+round-robin position from <code>status.json</code>.</p>
+<h2 id="eye-dashboard-ralph-watch">Eye dashboard (<code>ralph watch</code>)</h2>
+<p>A <code>watch</code>-style terminal view (redraw every <code>--refresh</code>, default 3s) reading<br />
+<code>status.json</code> + the tail of each log. Columns/sections:</p>
+<ul>
+<li><strong>Loop:</strong> ● running / ○ idle, current repo, iteration #, seconds since last step.</li>
+<li><strong>Per repo:</strong> last decision title, entry count, last-run time, spend.</li>
+<li><strong>Spend:</strong> total USD vs <code>--budget-total</code> (a simple bar), today's count.</li>
+<li><strong>Recent decisions:</strong> last ~5 titles across repos with repo + timestamp.</li>
+</ul>
+<p>ASCII only (no deps). If <code>status.json</code> is missing/stale → "no supervisor running"<br />
+(this is how you see whether the "always-on" loop is actually alive).</p>
+<h2 id="budget-accounting">Budget &amp; accounting</h2>
+<p>Each response carries <code>usage</code>. Cost/call = <code>prompt_tok × in_price +
+completion_tok × out_price</code>, per-model (defaults qwen <code>$0.10/$0.10</code>,<br />
+deepseek-v4-flash <code>$0.098/$0.197</code> per 1M — fetched from OpenRouter <code>/models</code> at<br />
+startup, hardcoded fallback with a "refresh" note). Cumulative total persists in<br />
+<code>status.json</code>; checked before every call.</p>
+<h2 id="cli">CLI</h2>
+<div class="highlight"><pre><span></span><span class="n">tools</span><span class="o">/</span><span class="n">ralph</span><span class="o">/</span><span class="n">ralph</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="n">decide</span><span class="w"> </span><span class="o">--</span><span class="n">repo</span><span class="w"> </span><span class="o">&lt;</span><span class="n">name</span><span class="o">&gt;</span><span class="w"> </span><span class="p">[</span><span class="o">--</span><span class="nb">seed</span><span class="w"> </span><span class="mi">42</span><span class="p">]</span><span class="w"> </span><span class="p">[</span><span class="o">--</span><span class="n">dry</span><span class="o">-</span><span class="n">run</span><span class="p">]</span>
+<span class="n">tools</span><span class="o">/</span><span class="n">ralph</span><span class="o">/</span><span class="n">ralph</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="n">run</span><span class="w">    </span><span class="p">[</span><span class="o">--</span><span class="n">interval</span><span class="w"> </span><span class="mi">900</span><span class="p">]</span><span class="w"> </span><span class="p">[</span><span class="o">--</span><span class="n">budget</span><span class="o">-</span><span class="n">total</span><span class="w"> </span><span class="mf">2.00</span><span class="p">]</span>
+<span class="w">                            </span><span class="p">[</span><span class="o">--</span><span class="n">repos</span><span class="w"> </span><span class="n">repos</span><span class="o">.</span><span class="n">json</span><span class="p">]</span><span class="w"> </span><span class="p">[</span><span class="o">--</span><span class="nb">max</span><span class="o">-</span><span class="n">iters</span><span class="w"> </span><span class="n">N</span><span class="p">]</span>
+<span class="n">tools</span><span class="o">/</span><span class="n">ralph</span><span class="o">/</span><span class="n">ralph</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="n">watch</span><span class="w">  </span><span class="p">[</span><span class="o">--</span><span class="n">refresh</span><span class="w"> </span><span class="mi">3</span><span class="p">]</span>
+<span class="c1"># shared: [--stage1-model …] [--stage2-model …] [--git-log-window 30]</span>
+</pre></div>
+
+<p><code>--dry-run</code> (on <code>decide</code>): build + print both prompts and a cost estimate; no API<br />
+call, no log write.</p>
+<h2 id="privacy-endpoint-data-governance">Privacy / endpoint (data governance)</h2>
+<p>A live iteration sends <strong>private-repo content</strong> (issue bodies, README/CLAUDE.md,<br />
+git log) to whatever endpoint is configured. By default that is <strong>OpenRouter</strong>, a<br />
+third party outside the trust boundary — accept this consciously, or override the<br />
+endpoint. Precedence: <code>--base-url</code> &gt; <code>RALPH_BASE_URL</code> env &gt; OpenRouter default;<br />
+key: <code>RALPH_API_KEY</code> &gt; <code>OPENROUTER_API_KEY</code>. Point <code>--base-url</code> /<code>RALPH_BASE_URL</code><br />
+at a <strong>self-hosted, trust-boundary OpenAI-compatible endpoint</strong> (e.g.<br />
+<code>agentfield-inference-host</code>) to keep private content local. (A future<br />
+<code>--titles-only</code> context mode could further reduce what leaves the box.)</p>
+<h2 id="safety">Safety</h2>
+<ul>
+<li>Read-only on every target repo; the only writes are appends to logs +<br />
+<code>status.json</code>, both under <code>vaked-base</code>.</li>
+<li>API key (<code>OPENROUTER_API_KEY</code>) from env only; never logged.</li>
+<li>Budget + (optional) iteration caps are non-bypassable backstops.</li>
+<li>Network: only <code>https://openrouter.ai</code>; context is local <code>gh</code>/<code>git</code>/file reads.</li>
+<li><code>gh</code> against private repos (crabcc) uses the existing <code>gh</code> auth.</li>
+</ul>
+<h2 id="error-handling">Error handling</h2>
+<ul>
+<li>Missing <code>OPENROUTER_API_KEY</code> → clear error, exit non-zero.</li>
+<li>OpenRouter non-200 / rate-limit → bounded retry+backoff (3 tries), then skip<br />
+  that iteration (note to status + stderr), supervisor continues to next repo.</li>
+<li>Stage-1 JSON parse failure → one reformat retry; else skip iteration (warn).</li>
+<li>A target repo path/<code>gh</code> unavailable → skip that repo this cycle, note it;<br />
+  supervisor keeps the others running ("always ≥1").</li>
+<li>SIGINT → finish the in-flight call's accounting, write final status, exit 0.</li>
+</ul>
+<h2 id="testing">Testing</h2>
+<ul>
+<li><strong><code>decide --dry-run</code></strong> smoke (no network): builds prompts, prints estimate,<br />
+  writes nothing.</li>
+<li><strong>Selection unit test</strong>: fixed Stage-1 JSON → asserts highest-urgency-unaddressed<br />
+  pick + all-addressed fallback.</li>
+<li><strong>Cost-math test</strong>: known <code>usage</code> + price → expected USD (pure).</li>
+<li><strong>Round-robin test</strong>: next-repo advances and wraps; skips an unavailable repo.</li>
+<li><strong>Budget backstop test</strong>: <code>--budget-total 0</code> → zero calls, clean exit.</li>
+<li><strong>status.json round-trip</strong>: supervisor writes → <code>watch</code> parses (no live API).</li>
+</ul>
+<p>(The two network stages aren't unit-tested live; the pure pieces are.)</p>
+<h2 id="files">Files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tools/ralph/ralph.py</code></td>
+<td>the script (decide / run / watch), stdlib-only</td>
+</tr>
+<tr>
+<td><code>tools/ralph/repos.json</code></td>
+<td>target repo list (extensible)</td>
+</tr>
+<tr>
+<td><code>tools/ralph/state/status.json</code></td>
+<td>live supervisor state (gitignored)</td>
+</tr>
+<tr>
+<td><code>docs/decisions/&lt;repo&gt;.ralph-log.md</code></td>
+<td>per-repo advisory decision logs</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>selection · cost-math · round-robin · dry-run · status round-trip</td>
+</tr>
+</tbody>
+</table>
+<h2 id="build-order-phases">Build order (phases)</h2>
+<ol>
+<li><strong><code>decide</code></strong> (one repo, two-stage, log append, <code>--dry-run</code>) + its unit tests.</li>
+<li><strong><code>run</code></strong> supervisor (round-robin, budget backstop, <code>status.json</code>, pacing).</li>
+<li><strong><code>watch</code></strong> dashboard.</li>
+<li>Grow <code>repos.json</code> with agentfield-stack components one at a time.</li>
+</ol>
+<h2 id="cost-envelope-sanity">Cost envelope (sanity)</h2>
+<p>~10–20k in + ~3k out/iteration across both models ≈ <strong>$0.002–0.005/iteration</strong>.<br />
+At <code>--interval 900</code> (4/hr) that's well under a cent/hour per repo; the<br />
+<code>--budget-total</code> cap (default $2.00) is the real ceiling and bounds a runaway.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-11-ralph-decide-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

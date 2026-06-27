@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>eventd — append-only hash-chained event log (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#entry-format-frozen-matches-ralphcore-today" style="padding-left:0.5rem">Entry format (frozen — matches ralphcore today)</a><a href="#daemon-shape-runtime" style="padding-left:0.5rem">Daemon shape (runtime)</a><a href="#relationship-to-the-arena-16" style="padding-left:0.5rem">Relationship to the arena (#16)</a><a href="#phases" style="padding-left:0.5rem">Phases</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#hardening-35" style="padding-left:0.5rem">Hardening (#35)</a><a href="#open" style="padding-left:0.5rem">Open</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-12-eventd-design</div>
+<h1>eventd — append-only hash-chained event log (design)</h1>
+<h1 id="eventd-append-only-hash-chained-event-log-design">eventd — append-only hash-chained event log (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-12). Track B of the 1.0 epic (#17), issue #18. The <strong>immutable<br />
+leg</strong>: the tamper-evident, replayable spine shared by the runtime AND the<br />
+release-driver. Convention: daemon = design → plan → impl; this is the design.<br />
+The <strong>format is already proven</strong> — the ralph driver implements it today<br />
+(<code>tools/ralph/ralphcore.py: make_entry/verify_chain</code>, <code>tools/ralph/ralph.py:
+append_event/load_events/replay_events</code>), so eventd is that format promoted to a<br />
+runtime daemon.</p>
+<h2 id="purpose">Purpose</h2>
+<p>A single, append-only, hash-chained event log per runtime. Every state change is<br />
+an entry; <strong>state is the fold over the log</strong> (never patched in place). This gives<br />
+Vaked its immutability theory at runtime: tamper-evidence, deterministic replay,<br />
+and the substrate for control (rewind/jump, Track D #20) — you rewind by<br />
+replaying the log up to entry N over the content-addressed arena (#16).</p>
+<p>This mirrors how an agent turn is shaped (the canonical sketch):</p>
+<div class="highlight"><pre><span></span>system  = mission preamble (the goal; never in the log)
+messages = the hash-chained log, append-only   ← eventd
+        + the one new turn (the only thing changing)
+</pre></div>
+
+<p>History lives entirely in the log; the model/runtime reads the localized branch<br />
+it acts against, not a growing mutable blob.</p>
+<h2 id="entry-format-frozen-matches-ralphcore-today">Entry format (frozen — matches ralphcore today)</h2>
+<p>One JSON object per line (JSONL), append-only:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span><span class="s2">&quot;seq&quot;</span><span class="p">:</span><span class="w"> </span><span class="o">&lt;</span><span class="n">u64</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="o">-</span><span class="n">based</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;prev&quot;</span><span class="p">:</span><span class="w"> </span><span class="o">&lt;</span><span class="n">hex</span><span class="w"> </span><span class="n">sha256</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">previous</span><span class="w"> </span><span class="n">entry</span><span class="p">,</span><span class="w"> </span><span class="n">GENESIS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="err">×</span><span class="s2">&quot;0&quot;</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="mi">0</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;payload&quot;</span><span class="p">:</span><span class="w"> </span><span class="o">&lt;</span><span class="n">arbitrary</span><span class="w"> </span><span class="n">JSON</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="n">body</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">&quot;hash&quot;</span><span class="p">:</span><span class="w"> </span><span class="n">sha256</span><span class="p">(</span><span class="n">prev_hex</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="n">canonical_json</span><span class="p">(</span><span class="n">payload</span><span class="p">))</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+
+<ul>
+<li><code>canonical_json</code> = sorted keys, compact separators, <code>ensure_ascii=False</code> (the<br />
+  bytes hashed). Identical to <code>ralphcore._canon</code>.</li>
+<li><strong>Verify</strong> (<code>ralphcore.verify_chain</code>): seq is 0,1,2,…; each <code>prev</code> links the<br />
+  prior <code>hash</code>; each <code>hash</code> recomputes. Any tamper (payload edit, reorder,<br />
+  insert, drop) breaks the chain.</li>
+<li><strong>Replay</strong> = fold the verified entries → state (<code>ralph.replay_events</code> is the<br />
+  reference fold; the runtime fold reconstructs the typed graph instead).</li>
+</ul>
+<h2 id="daemon-shape-runtime">Daemon shape (runtime)</h2>
+<ul>
+<li>One log per runtime instance: <code>var/lib/&lt;runtime&gt;/eventd/log.jsonl</code> (path is a<br />
+  lowering output, 0012).</li>
+<li>Writers append via a single-writer discipline (the OTP <code>agent-supervisord</code><br />
+  owns the writer; fibers emit events to it) — append-only, fsync-on-append for<br />
+  durability; the hash chain makes concurrent-reader snapshots safe.</li>
+<li>Readers (dashboard, replay, rewind) map the log read-only and fold.</li>
+<li><strong>Tamper check on boot</strong>: verify the chain before accepting a log; a broken<br />
+  chain is a hard error (the audit spine must be intact). Matches the<br />
+<code>docs/runtime/README.md:16</code> "tamper-evident audit spine" intent.</li>
+</ul>
+<h2 id="relationship-to-the-arena-16">Relationship to the arena (#16)</h2>
+<p>eventd is the <strong>time axis</strong> (what happened, in order); the substrate arena is the<br />
+<strong>content</strong> (immutable content-addressed graph nodes). An event payload<br />
+references arena <code>NodeId</code>s, not inline data. Rewind to entry N = fold events<br />
+0..N, resolving <code>NodeId</code>s against the arena; refcount structural sharing (#16)<br />
+means a rewound branch shares unchanged nodes with siblings — rewinding one does<br />
+not fracture another. This is exactly what Track D (control) consumes.</p>
+<h2 id="phases">Phases</h2>
+<ol>
+<li><strong>(done) format + tooling reference</strong> — ralph driver: chain + verify + replay,<br />
+   29/29 tests. eventd adopts this format verbatim.</li>
+<li><strong>(reference done)</strong> eventd daemon: single-writer append + fsync + boot-time<br />
+   chain verify — the <strong>Python reference/oracle</strong> lives at <code>/eventd</code><br />
+   (<code>EventLog</code>: flock single-writer, fsync-on-append, TamperError on boot;<br />
+   CLI <code>python3 -m eventd {verify,append,replay,floor,coldstart}</code>;<br />
+<code>tests/spec/test_eventd.py</code> cross-verifies the format against ralphcore).<br />
+   It also carries the <strong>RFC 0004 state-dependency layer</strong> (<code>eventd.statedep</code>:<br />
+   DependencyRegistration / ConsumerCheckpoint / RewindEvent / eviction<br />
+   payloads, the O(1) <code>DependencyIndex</code>, <code>gc_floor</code>, cold-start verifier —<br />
+   RFC 0004 §8 orders 1–4, 6, 7). The per-runtime log path is now a 0012<br />
+   lowering output (<code>eventd.config</code> → <code>gen/eventd.json</code>, presence-gated on<br />
+   memory/workflow decls). Remaining for this phase: the Zig daemon port<br />
+   (#15 pattern, Python as oracle).</li>
+<li><strong>(operational fold done)</strong> runtime fold: state = fold over the log.<br />
+<code>eventd.runtime</code> reconstructs the runtime-OPERATIONAL state — workflow<br />
+   runs + step lifecycle (the events the supervisord <code>workflow_engine</code><br />
+   emits) — into a deterministic <code>RuntimeState</code> (<code>eventd runs</code> / folded into<br />
+<code>eventd state</code>). The arena-backed reconstruction of typed graph-node<br />
+<em>content</em> stays gated on the #16 arena; this folds event metadata, not node<br />
+   content.</li>
+<li>(Track D) rewind/jump: fold 0..N; arena snapshots for O(1) checkpoints.</li>
+</ol>
+<h2 id="verification">Verification</h2>
+<ul>
+<li>The ralph reference already proves format + verify + replay (<code>python3
+  tools/ralph/test_ralph.py</code> → chain verify/tamper/reorder + replay fold).</li>
+<li>Daemon: a chain-verify test on a written log; a tamper test (flip a byte →<br />
+  boot rejects); a replay determinism test (same log → byte-identical folded<br />
+  state).</li>
+</ul>
+<h2 id="hardening-35">Hardening (#35)</h2>
+<p>Operator/robustness slice landed in the reference (CI-tested):</p>
+<ul>
+<li><code>gc_floor_explain</code> / <code>eventd floor &lt;p&gt; --explain</code> — lists the live consumers<br />
+  pinning <code>producer_gc_floor</code> (consumer, min_required_step, source, heartbeat)<br />
+  for diagnosis when GC refuses to move.</li>
+<li><code>DependencyIndex.prune_evicted</code> — reclaims an evicted consumer's dead<br />
+<strong>checkpoint</strong> keys only; never changes floor / cold-start results.<br />
+  Registrations are retained — a dead registration is the record that the<br />
+  consumer still owes a re-anchor (cold-start reads it as a PAUSE), so it is<br />
+  not garbage.</li>
+<li><code>repair_truncate_tail</code> / <code>eventd repair --truncate-tail</code> — the explicit<br />
+  operator crash-recovery command: drops the unverifiable suffix past the<br />
+  longest valid prefix, appends a <code>log_repair</code> event (the truncation is itself<br />
+  audited), re-verifies, idempotent. A torn tail stays a hard error until run.</li>
+</ul>
+<p>Still open on #35 (Zig-daemon / multi-log gated): snapshot/compaction, group<br />
+commit, lock portability, the cold-start <code>ProducerUnavailable</code> vs<br />
+<code>MissingAnchor</code> split, identity-namespace rules.</p>
+<h2 id="open">Open</h2>
+<ul>
+<li>fsync cadence vs throughput (batch-append?).</li>
+<li>log rotation / compaction without breaking the chain (checkpoint entries that<br />
+  fold a prefix into an arena snapshot, then chain forward).</li>
+<li>single-writer vs multi-writer (per-fiber sub-logs merged by seq?) — start<br />
+  single-writer.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-12-eventd-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

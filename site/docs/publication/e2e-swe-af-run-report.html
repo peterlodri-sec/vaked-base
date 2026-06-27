@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Autonomous SWE agent, live end-to-end: enqueue an issue → get a PR — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#the-problem" style="padding-left:0.5rem">The problem</a><a href="#architecture" style="padding-left:0.5rem">Architecture</a><a href="#design-choices-that-mattered" style="padding-left:1rem">  Design choices that mattered</a><a href="#the-live-run" style="padding-left:0.5rem">The live run</a><a href="#what-it-proves" style="padding-left:0.5rem">What it proves</a><a href="#stack" style="padding-left:0.5rem">Stack</a><a href="#engineering-notes-the-honest-part" style="padding-left:0.5rem">Engineering notes (the honest part)</a><a href="#reproduce" style="padding-left:0.5rem">Reproduce</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/publication/">publication</a> / e2e-swe-af-run-report</div>
+<h1>Autonomous SWE agent, live end-to-end: enqueue an issue → get a PR</h1>
+<h1 id="autonomous-swe-agent-live-end-to-end-enqueue-an-issue-get-a-pr">Autonomous SWE agent, live end-to-end: enqueue an issue → get a PR</h1>
+<p><strong>TL;DR.</strong> A GitHub issue was dropped onto a NATS work-queue. A worker daemon on<br />
+a remote host leased it, cloned the repo, ran an LLM software-engineering agent<br />
+(plan → code) with every model call routed through a tailnet AI gateway, applied<br />
+the change, pushed a branch, and <strong>opened a draft pull request</strong> — the whole thing<br />
+testified to a hash-chained audit log. End to end in ~12 seconds of work, proven<br />
+on real infrastructure. (<a href="../demo/swe-af-smoke.cast">17s asciinema cast</a>.)</p>
+<hr />
+<h2 id="the-problem">The problem</h2>
+<p>The <code>swe_af</code> agent already existed but ran <strong>one issue at a time</strong> as a GitHub<br />
+Actions job. We wanted a <strong>fan-out batch</strong>: drain many independent SWE tasks<br />
+concurrently across our own hardware, route every model call through <strong>one shared<br />
+gateway</strong> (so the provider key is never distributed), keep the work <strong>bounded</strong><br />
+(disk, RAM, budget) and <strong>auditable</strong>, and surface it live to a console.</p>
+<h2 id="architecture">Architecture</h2>
+<div class="highlight"><pre><span></span>  enqueue (CLI / control plane)
+        │
+   NATS JetStream  ── stream SWE_AF_TASKS (work-queue, R-replicated)
+        │  durable pull consumer
+  ┌─────┴───────────── worker host ─────────────────────────┐
+  │  swe-af-orchestrator (Rust, tokio)                       │
+  │   bounded pool (semaphore) · disk guard · scratch/task   │
+  │   per task:                                              │
+  │     lease → git clone → swe-af PLAN → swe-af CODE         │
+  │            → apply files → push branch                    │
+  │            → broker: gh pr create --draft  (only writer)  │
+  │            → eventd hash-chain append + verify            │
+  │            → publish swe.af.status.* → console            │
+  └──────────────────────────────────────────────────────────┘
+        model calls ───────────► tailnet AI gateway (OpenAI-compatible /v1)
+                                  identity auth, no client key → provider
+</pre></div>
+
+<p>Two small Rust binaries: <code>swe-af-orchestrator</code> (the pool daemon) and<br />
+<code>swe-af-enqueue</code> (the producer). The existing <code>swe-af</code> agent is reused unchanged.</p>
+<h3 id="design-choices-that-mattered">Design choices that mattered</h3>
+<ul>
+<li><strong>Work-queue, not fan-out RPC.</strong> A JetStream work-queue gives exactly-once-ish<br />
+  delivery to one worker, bounded redelivery, and natural backpressure. Adding a<br />
+  host = another competing consumer.</li>
+<li><strong>The agent holds no write credential.</strong> It reads the issue and repo and prints<br />
+  JSON. Only the orchestrator's <em>broker</em> step writes to GitHub, and only<br />
+<code>gh pr create --draft</code>. <strong>Nothing is ever auto-merged.</strong> This mirrors the<br />
+  capability mesh: one role holds the write grant.</li>
+<li><strong>One gateway, no distributed keys.</strong> Model calls go to a tailnet AI gateway<br />
+  that authenticates by network identity and injects the provider key<br />
+  server-side. Workers send no real API key.</li>
+<li><strong>Bounded by construction.</strong> A per-task cgroup/disk budget plus a free-space<br />
+  guard that pauses intake; each task's scratch is removed on completion.</li>
+<li><strong>Auditable.</strong> Every node appends to a hash-chained event log; a final <code>verify</code><br />
+  gates success.</li>
+</ul>
+<h2 id="the-live-run">The live run</h2>
+<p>A self-contained smoke issue ("create a one-line marker file") was enqueued. The<br />
+captured session:</p>
+<div class="highlight"><pre><span></span>$<span class="w"> </span>swe-af-enqueue<span class="w"> </span>--repo<span class="w"> </span>&lt;org&gt;/&lt;repo&gt;<span class="w"> </span>--issue<span class="w"> </span><span class="m">192</span>
+enqueued<span class="w"> </span>8954bf2f…<span class="w"> </span>-&gt;<span class="w"> </span>&lt;org&gt;/&lt;repo&gt;<span class="w"> </span><span class="o">(</span>issue<span class="w"> </span><span class="c1">#192)</span>
+
+<span class="c1"># orchestrator (journald)</span>
+orchestrator<span class="w"> </span>up<span class="w">  </span><span class="nv">pool</span><span class="o">=</span><span class="m">3</span><span class="w">  </span><span class="nv">subject</span><span class="o">=</span>swe.af.tasks
+task<span class="w"> </span>lease<span class="w">  </span><span class="nv">task</span><span class="o">=</span>8954bf2f<span class="w">  </span><span class="nv">issue</span><span class="o">=</span><span class="m">192</span>
+<span class="w">  </span>git<span class="w"> </span>clone<span class="w"> </span>--filter<span class="o">=</span>blob:none<span class="w"> </span>…<span class="w"> </span><span class="k">done</span>
+<span class="w">  </span>swe-af<span class="w"> </span><span class="nv">MODE</span><span class="o">=</span>plan<span class="w">  </span>-&gt;<span class="w"> </span>gateway<span class="w"> </span>/v1<span class="w">  </span>deepseek-v4-flash<span class="w"> </span>…<span class="w"> </span>plan<span class="w"> </span>ready
+<span class="w">  </span>swe-af<span class="w"> </span><span class="nv">MODE</span><span class="o">=</span>code<span class="w">  </span>-&gt;<span class="w"> </span>gateway<span class="w"> </span>/v1<span class="w">  </span>deepseek-v4-flash<span class="w"> </span>…<span class="w"> </span><span class="m">1</span><span class="w"> </span>file
+<span class="w">  </span>apply<span class="w"> </span>docs/SWE_AF_SMOKE.md<span class="w"> </span><span class="p">;</span><span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>swe-af/issue-192
+eventd:<span class="w"> </span>chain<span class="w"> </span>OK<span class="w"> </span><span class="o">(</span><span class="m">3</span><span class="w"> </span>entries<span class="o">)</span>
+task<span class="w"> </span><span class="k">done</span><span class="w">  </span><span class="nv">task</span><span class="o">=</span>8954bf2f<span class="w">  </span><span class="nv">pr</span><span class="o">=</span>…/pull/193
+</pre></div>
+
+<p>The agent produced exactly the requested diff:</p>
+<div class="highlight"><pre><span></span><span class="gi">+++ b/docs/SWE_AF_SMOKE.md</span>
+<span class="gu">@@ -0,0 +1 @@</span>
+<span class="gi">+swe-af smoke run OK</span>
+</pre></div>
+
+<p>Result: a <strong>draft PR</strong>, a clean <strong>eventd chain (3 entries)</strong>, and live<br />
+<code>swe.af.status.*</code> events — all from one enqueued issue.</p>
+<h2 id="what-it-proves">What it proves</h2>
+<p>The full loop works on real infrastructure: queue → bounded worker → LLM<br />
+plan+code through the shared gateway → branch → draft PR → audit. POLA held<br />
+(draft only, never merged), the run was cost-tracked, and <strong>no secret was<br />
+persisted</strong> (the worker used a credential helper / keyring, not a token file).</p>
+<h2 id="stack">Stack</h2>
+<p>Rust (tokio, <code>async-nats</code> JetStream), NixOS-deployable (systemd slice + unit),<br />
+Tailscale-style tailnet AI gateway (OpenAI-compatible, identity auth),<br />
+OpenRouter-backed models (<code>deepseek-v4-flash</code> for this run), a hash-chained<br />
+<code>eventd</code> audit log. Worker isolation via cgroups + bubblewrap.</p>
+<h2 id="engineering-notes-the-honest-part">Engineering notes (the honest part)</h2>
+<ul>
+<li><strong>Caught live, pre-prod:</strong> the gateway's OpenAI API is at the root <code>/v1</code>, not<br />
+  under the management prefix — found by an actual call returning 404, fixed<br />
+  before any production use.</li>
+<li><strong>No secrets in files:</strong> persisting a token to the worker was deliberately<br />
+  avoided; the worker authenticates GitHub via the gh keyring + git credential<br />
+  helper, with the service's <code>HOME</code> set so it resolves.</li>
+<li><strong>Backgrounding a daemon over one-shot SSH is a trap</strong> — <code>systemd-run</code> (a<br />
+  transient unit, journald logs, survives disconnect) is the right tool.</li>
+</ul>
+<h2 id="reproduce">Reproduce</h2>
+<div class="highlight"><pre><span></span><span class="c1"># replay the recording</span>
+asciinema<span class="w"> </span>play<span class="w"> </span>docs/demo/swe-af-smoke.cast
+<span class="c1"># run it live against a deployed orchestrator (opens a fresh draft PR)</span>
+<span class="nv">NATS_URL</span><span class="o">=</span>…<span class="w"> </span><span class="nv">REPO</span><span class="o">=</span>&lt;org&gt;/&lt;repo&gt;<span class="w"> </span>scripts/demo/swe-af-smoke.sh
+</pre></div>
+
+<p>Deploy guide: <code>vaked-agents/ci/swe-af-orchestrator/deploy/README.md</code>.<br />
+Design + plan: <code>docs/superpowers/specs|plans/2026-06-14-swe-af-fanout-batch-*</code>.</p>
+<blockquote>
+<p>Identifiers (IPs, tailnet name, emails, provider key) are redacted for<br />
+publication. Internal copies retain the real values.</p>
+</blockquote>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/publication/e2e-swe-af-run-report.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

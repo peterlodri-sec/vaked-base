@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AIL-0 (Wave 1) Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#-research-resolved-design-decisions-from-run-wru7qq2ax-see-research-doc" style="padding-left:0.5rem">✅ Research-resolved design decisions (from run `wru7qq2ax`, see research doc)</a><a href="#file-structure" style="padding-left:0.5rem">File structure</a><a href="#task-1-bootstrap-bridge-doc" style="padding-left:0.5rem">Task 1: Bootstrap / bridge doc</a><a href="#task-2-ail-0-ebnf-grammar-examples-glyph-decision-resolved-ascii-canonical" style="padding-left:0.5rem">Task 2: AIL-0 EBNF grammar + examples  (glyph decision RESOLVED → ASCII-canonical)</a><a href="#task-3-morpheme-table-depends-on-task-2-grammar" style="padding-left:0.5rem">Task 3: Morpheme table  (depends on Task 2 grammar)</a><a href="#task-4-rfc-stub-depends-on-task-2-use-hcp-rfc-author-skill" style="padding-left:0.5rem">Task 4: RFC stub  (depends on Task 2; use hcp-rfc-author skill)</a><a href="#task-5-bench-design-spec-design-only-no-python" style="padding-left:0.5rem">Task 5: Bench DESIGN spec  (design only — NO Python)</a><a href="#task-6-github-issue-controller-only-outward-gated-on-user-confirm" style="padding-left:0.5rem">Task 6: GitHub issue  (controller-only; OUTWARD — gated on user confirm)</a><a href="#execution-order-fan-out" style="padding-left:0.5rem">Execution order (fan-out)</a><a href="#self-review-checklist-controller-before-kickoff" style="padding-left:0.5rem">Self-review checklist (controller, before kickoff)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/batch/">batch</a> / <a href="/docs/superpowers/batch/2026-06-14-ail-0/">2026-06-14-ail-0</a> / 02-plan</div>
+<h1>AIL-0 (Wave 1) Implementation Plan</h1>
+<h1 id="ail-0-wave-1-implementation-plan">AIL-0 (Wave 1) Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: superpowers:subagent-driven-development /<br />
+executing-plans. Steps use checkbox (<code>- [ ]</code>). Read <code>00-repo-ctx.md</code> (same dir) first — it<br />
+holds the binding facts and the NEVER-BUILD constraint. This is Wave 1 of the ARP umbrella<br />
+plan (<code>docs/superpowers/plans/2026-06-14-arp-e2e-naive.md</code>).</p>
+</blockquote>
+<p><strong>Goal:</strong> Author the AIL-0 grammar + spec layer — the formal, EBNF-governed register language<br />
+that ARP (issue #202) uses as its wire convention — as a set of committable docs. AUTHOR-ONLY:<br />
+nothing compiles or runs on this machine.</p>
+<p><strong>Architecture:</strong> A tiny register grammar (<code>[R:think] [R:plan] [R:tool] [R:risk] [R:artifact]
+[R:commit] [R:review] [R:bench]</code>) with a keep-exact / compress split and a grammar-level artifact<br />
+gate. Five doc deliverables + one GitHub issue.</p>
+<p><strong>Tech stack:</strong> EBNF, Markdown. No code execution.</p>
+<hr />
+<h2 id="research-resolved-design-decisions-from-run-wru7qq2ax-see-research-doc">✅ Research-resolved design decisions (from run <code>wru7qq2ax</code>, see research doc)</h2>
+<ol>
+<li><strong>Glyph set: ASCII-canonical.</strong> Evidence: rare-Unicode/CJK glyph density can <em>increase</em> token<br />
+   count (byte-fallback inflation); register tags are already pure token <em>tax</em> with no measured<br />
+   payback. So operators are ASCII-canonical: <code>-&gt; =&gt; bc so par merge conflict != ~= &lt;= &gt;=</code><br />
+   (Unicode forms allowed only as optional, non-normative sugar). The EBNF (Task 2) and morpheme<br />
+   table (Task 3) encode ASCII as canonical.</li>
+<li><strong>Gate artifacts, NOT reasoning.</strong> Forcing tight structure on the <em>reasoning</em> channel collapses<br />
+   accuracy (rigid JSON dropped Claude-3-Haiku GSM8K 86.51%→23.44%); NL-then-format recovers it.<br />
+   So <code>[R:think]</code>/<code>[R:plan]</code> bodies stay free-text (loosely constrained); only<br />
+<code>[R:tool]</code>/<code>[R:artifact]</code>/<code>[R:commit]</code> carry tight grammar + the gate.</li>
+<li><strong>Keep the grammar SIMPLE.</strong> Constrained-decoding coverage collapses on complex schemas<br />
+   (empirical coverage 3-41% on hard grammars). A small grammar is a correctness requirement, not<br />
+   just taste.</li>
+<li><strong>AIL-0 token savings are a HYPOTHESIS.</strong> No direct evidence that hand-authored register<br />
+   compression saves tokens; the tags cost tokens. The bench (Task 5) must measure NET tokens<br />
+   (incl. the tag tax) per-tokenizer, not characters.</li>
+</ol>
+<hr />
+<h2 id="file-structure">File structure</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs/context/cuc-v2-ail-bootstrap.md</code></td>
+<td>Bridge note: CUC=style, AIL=grammar substrate, ARP=protocol; keeps PR #203 honest</td>
+</tr>
+<tr>
+<td><code>protocol/ail/ail-v0.ebnf</code></td>
+<td>The AIL-0 grammar (the spine)</td>
+</tr>
+<tr>
+<td><code>protocol/ail/examples/*.ail</code></td>
+<td>3-5 worked example frames the EBNF must accept</td>
+</tr>
+<tr>
+<td><code>docs/language/0025-ail-morphemes.md</code></td>
+<td>≤80-entry morpheme/register/op table</td>
+</tr>
+<tr>
+<td><code>protocol/rfcs/0009-ail-register-language.md</code></td>
+<td>RFC, <code>hcp-rfc-author</code> structure</td>
+</tr>
+<tr>
+<td><code>docs/superpowers/specs/2026-06-14-ail-bench-design.md</code></td>
+<td>Bench DESIGN (metrics/modes/matrix) — no Python</td>
+</tr>
+</tbody>
+</table>
+<p>Placement note: AIL-0 lives under <code>protocol/ail/</code> (NOT <code>vaked/grammar/</code>, which is the Vaked<br />
+language). AIL is ARP's register protocol → protocol/ tree. This is a decision; record it in the RFC.</p>
+<hr />
+<h2 id="task-1-bootstrap-bridge-doc">Task 1: Bootstrap / bridge doc</h2>
+<p><strong>Files:</strong> Create <code>docs/context/cuc-v2-ail-bootstrap.md</code></p>
+<ul>
+<li>[ ] <strong>Step 1:</strong> Write the doc. Required content:</li>
+<li>The name stack table (AIL / AIL-0 / CUC / ARP / HCP) from <code>00-repo-ctx.md</code>.</li>
+<li>One paragraph: CUC V1 = compression <em>style</em> (wenyan-ultra, PR #203); AIL = grammar-governed<br />
+    substrate; ARP (#202) = the model-agnostic protocol that carries AIL frames.</li>
+<li>The core rule (keep-exact vs compress) with its two lists.</li>
+<li>A "keeps PR #203 honest" note: #203 stays a rename+bench PR; AIL-0 is the V2 bridge on its own<br />
+    branch and references it.</li>
+<li>A forward-pointer: artifact gate stays English-normalized until the AIL-0 parser exists.</li>
+<li>[ ] <strong>Step 2:</strong> Acceptance (inspection): file exists; name stack matches <code>00-repo-ctx.md</code><br />
+  exactly; no claim that the parser/bench already runs; links to #202, #203 present.</li>
+<li>[ ] <strong>Step 3:</strong> Commit <code>docs(context): add CUC-V2/AIL-0 bootstrap bridge note</code>.</li>
+</ul>
+<h2 id="task-2-ail-0-ebnf-grammar-examples-glyph-decision-resolved-ascii-canonical">Task 2: AIL-0 EBNF grammar + examples  (glyph decision RESOLVED → ASCII-canonical)</h2>
+<p><strong>Files:</strong> Create <code>protocol/ail/ail-v0.ebnf</code>, <code>protocol/ail/examples/{plan,risk,artifact}.ail</code></p>
+<ul>
+<li>[ ] <strong>Step 1:</strong> Write the EBNF. Start from the boot grammar (message → frame+; frame =<br />
+<code>[</code> register <code>]</code> stmt (<code>;</code> stmt)<em>; register/stmt/relation/action/gate/atom productions). Operators<br />
+  are </em><em>ASCII-canonical</em>* (<code>-&gt; =&gt; bc so par merge conflict != ~= &lt;= &gt;=</code>); Unicode forms are optional<br />
+  sugar only, marked non-normative. Registers:<br />
+<code>R:think R:plan R:tool R:risk R:artifact R:commit R:review R:bench</code>. gate_name:<br />
+<code>artifact english no_cjk ci bench parse</code>; gate_state: <code>pass fail warn skip</code>. Keep it SMALL<br />
+  (coverage-cliff constraint).</li>
+<li>[ ] <strong>Step 2:</strong> Encode the artifact gate AS grammar but <strong>only on output registers</strong>:<br />
+<code>artifact-frame ::= "[R:artifact]" english-text</code> and a <code>[R:commit]</code> conventional-commit-English<br />
+  rule. <code>[R:think]</code>/<code>[R:plan]</code> bodies are free-text (a permissive production) — do NOT impose tight<br />
+  structure on reasoning (it collapses accuracy; see research). <code>[R:tool]</code> preserves exact literals.</li>
+<li>[ ] <strong>Step 3:</strong> Write 3 example <code>.ail</code> files (a plan frame, a risk frame, an artifact frame)<br />
+  that the grammar must accept — these are the conformance fixtures.</li>
+<li>[ ] <strong>Step 4:</strong> Acceptance (inspection — NO parser run): every example frame is derivable from<br />
+  the EBNF by hand-trace; keep-exact atoms (path/symbol) have productions; glyph set matches the<br />
+  research decision. <strong>Do not run any parser/generator.</strong></li>
+<li>[ ] <strong>Step 5:</strong> Commit <code>feat(ail): AIL-0 v0 EBNF grammar + conformance examples</code>.</li>
+</ul>
+<h2 id="task-3-morpheme-table-depends-on-task-2-grammar">Task 3: Morpheme table  (depends on Task 2 grammar)</h2>
+<p><strong>Files:</strong> Create <code>docs/language/0025-ail-morphemes.md</code>  (0025 — 0019 is taken; see 00-repo-ctx)</p>
+<ul>
+<li>[ ] <strong>Step 1:</strong> Write a ≤80-entry table grouped: Registers, Causal ops, Parallel ops, State,<br />
+  Actions, Safety/gates. Each row: token, one-atomic-concept gloss, which registers use it.</li>
+<li>[ ] <strong>Step 2:</strong> Add a "tokenizer-observed, not tokenizer-perfect" note: per-provider token cost<br />
+  varies; the bench measures it. Cite the research finding on symbol/CJK token cost.</li>
+<li>[ ] <strong>Step 3:</strong> Acceptance: ≤80 entries; every register/op/gate used in the EBNF appears here<br />
+  and vice-versa (no orphans); header follows the <code>docs/language/00NN-*</code> series style.</li>
+<li>[ ] <strong>Step 4:</strong> Commit <code>docs(language): 0025 AIL-0 morpheme table</code>.</li>
+</ul>
+<h2 id="task-4-rfc-stub-depends-on-task-2-use-hcp-rfc-author-skill">Task 4: RFC stub  (depends on Task 2; use hcp-rfc-author skill)</h2>
+<p><strong>Files:</strong> Create <code>protocol/rfcs/0009-ail-register-language.md</code>  (0009 — 0008 claimed; see 00-repo-ctx)</p>
+<ul>
+<li>[ ] <strong>Step 1:</strong> Invoke the <code>hcp-rfc-author</code> skill and follow its required RFC structure.</li>
+<li>[ ] <strong>Step 2:</strong> Content: AIL-0 core register language. Acceptance criteria (from the boot spec):<br />
+  EBNF parses all sample frames; morpheme table ≤80; <code>[R:artifact]</code> requires English output; bench<br />
+  compares <code>normal / wenyan-ultra / ailish-pidgin / ailish-strict</code>; gate reports token savings,<br />
+  char reduction, parse success, artifact CJK leakage, literal preservation, register compliance,<br />
+  repair cost. Dock to issue #202 (ARP); reference PR #203. Record the <code>protocol/ail/</code> placement<br />
+  decision and the glyph decision with the research rationale.</li>
+<li>[ ] <strong>Step 3:</strong> Acceptance: matches <code>hcp-rfc-author</code> structure; numbered 0009; cross-links #202,<br />
+  #203, the EBNF, and the morpheme doc; no off-convention <code>LFC-</code> prefix.</li>
+<li>[ ] <strong>Step 4:</strong> Commit <code>rfc(0009): AIL-0 register language</code>.</li>
+</ul>
+<h2 id="task-5-bench-design-spec-design-only-no-python">Task 5: Bench DESIGN spec  (design only — NO Python)</h2>
+<p><strong>Files:</strong> Create <code>docs/superpowers/specs/2026-06-14-ail-bench-design.md</code></p>
+<ul>
+<li>[ ] <strong>Step 1:</strong> Specify the bench WITHOUT implementing it: corpus shape, the 4 modes, the metric<br />
+  definitions (token savings vs char reduction kept SEPARATE; parse-success; literal-preservation;<br />
+  register-compliance; repair-cost; artifact-CJK-leakage), and the model matrix (general chat,<br />
+  thinking, single-turn/diff, local GGUF).</li>
+<li>[ ] <strong>Step 2:</strong> Add an explicit "runs on dev-cx53/GHA, never locally" note and a 3-gate pointer.<br />
+  State that #202's 49-62% is a hypothesis the bench must confirm/refute on TOKENS not chars.</li>
+<li>[ ] <strong>Step 3:</strong> Acceptance: every metric has a one-line operational definition; token vs char<br />
+  separation explicit; no Python; ties each metric to a research finding where one exists.</li>
+<li>[ ] <strong>Step 4:</strong> Commit <code>docs(spec): AIL-0 bench design (metrics/modes/matrix)</code>.</li>
+</ul>
+<h2 id="task-6-github-issue-controller-only-outward-gated-on-user-confirm">Task 6: GitHub issue  (controller-only; OUTWARD — gated on user confirm)</h2>
+<ul>
+<li>[ ] Open an issue "AIL-0: core register language (CUC V2 / AI-lish)" docked under #202, listing<br />
+  the Task-4 acceptance criteria and linking the RFC + EBNF. <strong>Do not auto-open</strong>; the controller<br />
+  confirms with the user first (outward action).</li>
+</ul>
+<hr />
+<h2 id="execution-order-fan-out">Execution order (fan-out)</h2>
+<ul>
+<li>Resolve the glyph decision from research → then:</li>
+<li>Parallel-safe set A (disjoint files): Task 1, Task 5. Task 2 (spine) authored first or alongside.</li>
+<li>After Task 2 settles: Task 3, Task 4 (they reference the grammar).</li>
+<li>Task 6 last, gated.</li>
+</ul>
+<h2 id="self-review-checklist-controller-before-kickoff">Self-review checklist (controller, before kickoff)</h2>
+<ul>
+<li>[ ] Glyph decision resolved from research and reflected in Tasks 2 &amp; 3.</li>
+<li>[ ] Numbering: morphemes=0025, RFC=0009. No <code>.claude/skills/cuc/</code> touched.</li>
+<li>[ ] Every task is author-only; no step runs a build/test/parser locally.</li>
+<li>[ ] Each register/op/gate appears in BOTH the EBNF and the morpheme table.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/batch/2026-06-14-ail-0/02-plan.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

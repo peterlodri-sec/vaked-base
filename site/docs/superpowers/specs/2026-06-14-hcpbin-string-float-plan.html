@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>hcpbin `string` + `f32`/`f64` — deferred-scalar implementation plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#0-citation-correction-read-first" style="padding-left:0.5rem">0. Citation correction (read first)</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-normative-inputs-rfcs-repo" style="padding-left:1rem">  2.1 Normative inputs (RFCs / repo)</a><a href="#22-in-text-golden-vectors-the-positive-oracle" style="padding-left:1rem">  2.2 In-text golden vectors (the positive oracle)</a><a href="#23-nfc-conformance-oracle-vendored-executable-m1" style="padding-left:1rem">  2.3 NFC conformance oracle (vendored, executable, M1)</a><a href="#3-design" style="padding-left:0.5rem">3. Design</a><a href="#31-the-unicode-version-pin-the-load-bearing-decision" style="padding-left:1rem">  3.1 The Unicode-version pin (the load-bearing decision)</a><a href="#32-float-encodedecode" style="padding-left:1rem">  3.2 Float encode/decode</a><a href="#33-string-encodedecode" style="padding-left:1rem">  3.3 String encode/decode</a><a href="#34-files-to-create-modify" style="padding-left:1rem">  3.4 Files to create / modify</a><a href="#4-worked-encodings-golden-from-22" style="padding-left:0.5rem">4. Worked encodings (golden, from §2.2)</a><a href="#5-test-plan" style="padding-left:0.5rem">5. Test plan</a><a href="#51-where-it-runs" style="padding-left:1rem">  5.1 Where it runs</a><a href="#52-negative-strictness-vectors-the-decision-rule-oracle" style="padding-left:1rem">  5.2 Negative / strictness vectors (the decision-rule oracle)</a><a href="#53-nfc-conformance-harness" style="padding-left:1rem">  5.3 NFC conformance harness</a><a href="#54-needs-dev-cx53-linux" style="padding-left:1rem">  5.4 Needs `dev-cx53` / Linux</a><a href="#6-m1-vs-dev-cx53-split-summary" style="padding-left:0.5rem">6. M1-vs-dev-cx53 split (summary)</a><a href="#7-risks-open-questions" style="padding-left:0.5rem">7. Risks / open questions</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a><a href="#9-dependencies-on-other-sprints" style="padding-left:0.5rem">9. Dependencies on other sprints</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-hcpbin-string-float-plan</div>
+<h1>hcpbin `string` + `f32`/`f64` — deferred-scalar implementation plan</h1>
+<h1 id="hcpbin-string-f32f64-deferred-scalar-implementation-plan">hcpbin <code>string</code> + <code>f32</code>/<code>f64</code> — deferred-scalar implementation plan</h1>
+<h2 id="status">Status</h2>
+<p>Spec (2026-06-14). Planning artifact for the two scalar encoders explicitly<br />
+<strong>deferred</strong> out of WP3-S1 in the <code>hcpbin</code> codec<br />
+(<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a><br />
+lines 18-23, 488-492): <code>string</code> (with NFC normalisation) and <code>f32</code>/<code>f64</code><br />
+(NaN / signed-zero canonicalisation). WP3-S1 landed varints, <code>bool</code>, <code>bytes</code>,<br />
+and <code>hash</code> and left these two TODOs. This document is the implementation-ready<br />
+plan for closing them. The work is small, pure, and <strong>fully verifiable on the<br />
+M1 dev box</strong> (<code>cargo test</code>) — it needs nothing from <code>dev-cx53</code> (see §6).</p>
+<p>This is a planning artifact: the actual edit is future work, sequenced behind the<br />
+WP3 freeze and the citation reconciliation below. It is written to the<br />
+adversarial-independence golden convention already established in<br />
+<code>protocol/hcp/hcpbin/tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>)<br />
+(every expectation derived from the RFC, blind to the implementation).</p>
+<h2 id="0-citation-correction-read-first">0. Citation correction (read first)</h2>
+<p>The WP3 kickoff<br />
+(<a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a><br />
+line 43) and issue #167 cite <strong>"RFC 0002 §4 / Appendix A"</strong> for the byte<br />
+encoding and golden vectors. That wording is <strong>stale and wrong</strong> (same correction<br />
+as the S3 spec §0 and the S7 spec header):</p>
+<ul>
+<li>The byte encoding of values is <strong>RFC 0002 §6</strong> ("<code>hcpbin</code> encoding rules"),<br />
+  not §4. The two scalars in scope are specified in <strong>RFC 0002 §6.4</strong><br />
+  ("Scalar canonicalisation") — NaN/signed-zero for floats, NFC-against-a-pinned-<br />
+  Unicode-version for strings — with the scalar table in <strong>§5.1</strong> and the<br />
+  length-prefix primitive rule in <strong>§6.1</strong>.</li>
+<li><strong>There is no Appendix A in RFC 0002.</strong> Golden vectors are the worked examples<br />
+  in RFC 0002 <strong>§6.1.1</strong> (primitives — includes the only in-text float and string<br />
+  vectors), §6.3.1, §6.6.1, §6.7.1, and §10. The only <code>Appendix A</code> in the RFC set<br />
+  is <strong>RFC 0003 Appendix A</strong> (the <code>hcp.wire</code> control schema), unrelated to scalars.</li>
+<li><strong>Internal-citation correction (this task's deps).</strong><br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>lib.rs</code></a> line 19 attributes <code>string</code><br />
+  to <strong>"WP3-S2"</strong>. That is mislabelled: the kickoff's WP3-S2 deliverable is the<br />
+<strong>frame layer (RFC 0003)</strong> in the <code>litany</code> crate<br />
+  (<a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a><br />
+  line 25), <strong>not</strong> an <code>hcpbin</code> scalar. Both <code>string</code> and <code>f32</code>/<code>f64</code> are<br />
+<code>hcpbin</code>-S1 <em>deferred scalars</em> (this plan owns them); they belong to the<br />
+<code>hcpbin</code> crate (<code>protocol/hcp/hcpbin/</code>), not <code>litany</code>. The <code>lib.rs:19</code><br />
+<code>TODO(WP3-S2)</code> should be re-tagged to this plan on landing.</li>
+</ul>
+<p>All citations below use the corrected section numbers.</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Add canonical <code>hcpbin</code> encode/decode for the two remaining scalar types, matching<br />
+the existing <code>Reader</code>/<code>Writer</code> + free-function API surface exactly, so that the<br />
+codec's canonicality property (RFC 0002 §6.8 — exactly one byte string per value,<br />
+two implementations agree byte-for-byte) holds for <code>string</code> and <code>f32</code>/<code>f64</code>:</p>
+<ol>
+<li><strong><code>f32</code> / <code>f64</code></strong> (RFC 0002 §5.1, §6.4): 4-/8-byte <strong>little-endian</strong> IEEE-754,<br />
+   with two canonicalisations applied <strong>before</strong> emission:</li>
+<li><strong>NaN</strong> → the single canonical quiet-NaN bit pattern<br />
+     (<code>f32</code>: <code>0x7FC00000</code>; <code>f64</code>: <code>0x7FF8000000000000</code>).</li>
+<li><strong>Signed zero</strong> → <code>-0.0</code> encodes as <code>+0.0</code>.</li>
+<li><strong><code>string</code></strong> (RFC 0002 §5.1, §6.1, §6.4): length-prefixed UTF-8<br />
+   (<code>varint(byte_len)</code> + bytes, exactly like <code>bytes</code> but with the payload<br />
+<strong>NFC-normalised against a pinned Unicode version</strong> first). The pin is<br />
+<strong>Unicode 15.1.0</strong> (§6.4, frozen for this spec revision). <code>bytes</code> is <em>never</em><br />
+   normalised — that distinction is the whole point of having both types.</li>
+</ol>
+<p>Non-objective: this plan does <strong>not</strong> touch records/frames/unions/maps/enums<br />
+(§6.2/§6.3/§6.6/§6.7) or the frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>),<br />
+which is the <strong>WIRE layer (RFC 0003)</strong>, explicitly <em>not</em> <code>hcpbin</code><br />
+(RFC 0002 §4.2, §6 scope note; mirrored in<br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>lib.rs</code></a> lines 22-23, 497-498).</p>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-normative-inputs-rfcs-repo">2.1 Normative inputs (RFCs / repo)</h3>
+<ul>
+<li><strong>RFC 0002 §5.1</strong> — scalar table: <code>f32</code>/<code>f64</code> are "4/8 bytes, little-endian;<br />
+  NaN canonicalised (§6.4)"; <code>string</code> is "length-prefixed UTF-8 bytes<br />
+  (NFC-normalised, §6.4)".</li>
+<li><strong>RFC 0002 §6.1</strong> — length-prefix primitive: <code>string</code> is prefixed by its<br />
+<strong>byte</strong> length as an unsigned minimal varint; "Fixed floats. <code>f32</code>/<code>f64</code> are<br />
+  little-endian IEEE-754 (§6.4 canonicalises NaN/signed-zero)."</li>
+<li><strong>RFC 0002 §6.4</strong> — the load-bearing section (full text the plan implements):</li>
+<li>NaN: "Any NaN encodes to the single canonical quiet-NaN bit pattern<br />
+    (<code>f32</code>: <code>0x7FC00000</code>; <code>f64</code>: <code>0x7FF8000000000000</code>), little-endian on the wire."</li>
+<li>Signed zero: "<code>-0.0</code> encodes as <code>+0.0</code>."</li>
+<li>String: "<code>string</code> values are Unicode-normalised to <strong>NFC</strong> before encoding;<br />
+    decoders MAY assume NFC. (<code>bytes</code> is never normalised.) … conforming<br />
+    implementations MUST normalise to NFC using the normalisation data of<br />
+<strong>Unicode 15.1.0</strong> … The pinned version is part of the canonical-encoding<br />
+    definition, not an implementation detail; changing it is a breaking change to<br />
+<code>hcpbin</code> and MUST be handled as a protocol-version bump … Code points<br />
+    unassigned in the pinned version are normalised as that version's data<br />
+    specifies (left unchanged where it assigns no mapping)."</li>
+<li><strong>RFC 0002 §6.3</strong> — implicit defaults relevant to these scalars (this layer does<br />
+  not implement default-omission, but the values are fixed here): <code>f32</code>/<code>f64</code><br />
+  default is <strong>canonical <code>+0.0</code></strong>; <code>string</code> default is <strong>empty (length 0)</strong>.</li>
+<li><strong>RFC 0002 §6.8</strong> — canonicality requirement: lists "NaN and signed-zero<br />
+  canonicalisation, and NFC normalisation <strong>against the pinned Unicode version</strong><br />
+  (§6.4) so string bytes are reproducible across implementations" as a jointly-<br />
+  sufficient rule; the conformance fixed point is<br />
+<code>encode(decode(encode(v))) == encode(v)</code> and cross-impl byte agreement.</li>
+<li><strong>RFC 0002 §2.3 / §2.3.1</strong> — string <em>literal</em> lexis (escapes) — informative<br />
+  here; this plan encodes runtime UTF-8 string <strong>values</strong>, not source literals.</li>
+<li><strong>Existing API contract.</strong><br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a>:<br />
+<code>Writer</code> (<code>put_uvarint</code>, <code>put_bytes</code>, <code>put_bool</code>, <code>put_hash</code>, <code>into_bytes</code>),<br />
+<code>Reader</code> (<code>get_uvarint</code>, <code>get_bytes</code>, <code>get_raw</code>, <code>is_empty</code>), <code>DecodeError</code><br />
+  enum, and the <code>decode_all</code>/<code>encode_*</code>/<code>decode_*</code> free-function pattern. The new<br />
+  code MUST extend — not reshape — this surface.</li>
+</ul>
+<h3 id="22-in-text-golden-vectors-the-positive-oracle">2.2 In-text golden vectors (the positive oracle)</h3>
+<p>RFC 0002 §6.1.1 is the only place that works floats and strings to bytes:</p>
+<div class="highlight"><pre><span></span><span class="n">f32</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span>
+<span class="n">f32</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">80</span><span class="w"> </span><span class="mi">3</span><span class="n">f</span>
+<span class="n">f32</span><span class="p">(</span><span class="n">NaN</span><span class="p">)</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="mi">7</span><span class="n">f</span><span class="w">          </span><span class="c1"># canonical quiet NaN, not any other variant</span>
+<span class="n">f32</span><span class="p">(</span><span class="o">-</span><span class="mf">0.0</span><span class="p">)</span><span class="w">  </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w">          </span><span class="c1"># canonicalised to +0.0 (NOT 00 00 00 80)</span>
+
+<span class="s2">&quot;&quot;</span><span class="w">               </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w">             </span><span class="c1"># varint(len=0)</span>
+<span class="s2">&quot;hi&quot;</span><span class="w">             </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">02</span><span class="w"> </span><span class="mi">68</span><span class="w"> </span><span class="mi">69</span>
+<span class="s2">&quot;café&quot;</span><span class="w"> </span><span class="p">(</span><span class="n">NFC</span><span class="w"> </span><span class="err">é</span><span class="p">)</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">05</span><span class="w"> </span><span class="mi">63</span><span class="w"> </span><span class="mi">61</span><span class="w"> </span><span class="mi">66</span><span class="w"> </span><span class="n">c3</span><span class="w"> </span><span class="n">a9</span>
+<span class="w">  </span><span class="c1"># if input is decomposed &quot;café&quot;, NFC converts it to the precomposed bytes above</span>
+</pre></div>
+
+<p><code>f64</code> vectors are <strong>not</strong> worked in-text; they are <strong>derived</strong> from the §6.4 bit<br />
+patterns and IEEE-754 little-endian, and committed as golden vectors:</p>
+<div class="highlight"><pre><span></span><span class="n">f64</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span>
+<span class="n">f64</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="n">f0</span><span class="w"> </span><span class="mf">3f</span>
+<span class="n">f64</span><span class="p">(</span><span class="n">NaN</span><span class="p">)</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="n">f8</span><span class="w"> </span><span class="mf">7f</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="mh">0x7FF8000000000000</span><span class="w"> </span><span class="n">LE</span>
+<span class="n">f64</span><span class="p">(</span><span class="o">-</span><span class="mf">0.0</span><span class="p">)</span><span class="w">  </span><span class="o">-&gt;</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">canonicalised</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="o">+</span><span class="mf">0.0</span>
+</pre></div>
+
+<h3 id="23-nfc-conformance-oracle-vendored-executable-m1">2.3 NFC conformance oracle (vendored, executable, M1)</h3>
+<p>The Unicode Character Database <strong><code>NormalizationTest.txt</code> for Unicode 15.1.0</strong> is<br />
+the external oracle for the string normaliser. It is vendored into the repo<br />
+(§3.4) and drives a conformance test (§5.3): each line gives source / NFC / NFD /<br />
+NFKC / NFKD columns; the test asserts <code>nfc(c1) == c3</code> for the NFC column across<br />
+every row. This makes the pin <strong>self-verifying</strong>: if the chosen crate ever ships<br />
+data other than 15.1.0, the conformance test fails the build. Provenance:<br />
+<code>https://www.unicode.org/Public/15.1.0/ucd/NormalizationTest.txt</code><br />
+(SHA-256 recorded in the vendored file's header comment).</p>
+<h2 id="3-design">3. Design</h2>
+<h3 id="31-the-unicode-version-pin-the-load-bearing-decision">3.1 The Unicode-version pin (the load-bearing decision)</h3>
+<p>§6.4 pins NFC to <strong>Unicode 15.1.0 data</strong>. The critical subtlety: <strong>the dependency<br />
+crate's semver tells you nothing about which Unicode version it bundles</strong> — the<br />
+pin is on the <em>Unicode data</em>, not the crate. A crate can bump its own version many<br />
+times while moving the bundled Unicode data underneath. So the crate is selected<br />
+<em>by its verified bundled Unicode version</em>, exact-pinned, and then guarded by the<br />
+vendored UCD corpus (§2.3) so drift is a build failure.</p>
+<p><strong>Verified facts</strong> (read off the <code>UNICODE_VERSION</code> constant in each tagged<br />
+release of <code>unicode-rs/unicode-normalization</code>, 2026-06-14):</p>
+<table>
+<thead>
+<tr>
+<th>Crate version</th>
+<th>Bundled <code>UNICODE_VERSION</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>0.1.22</code></td>
+<td><code>(15, 0, 0)</code></td>
+</tr>
+<tr>
+<td><strong><code>0.1.23</code></strong></td>
+<td><strong><code>(15, 1, 0)</code></strong> ← the pin</td>
+</tr>
+<tr>
+<td><code>0.1.24</code></td>
+<td><code>(16, 0, 0)</code></td>
+</tr>
+<tr>
+<td><code>0.1.25</code> / master</td>
+<td><code>(17, 0, 0)</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Decision: depend on <code>unicode-normalization = "=0.1.23"</code></strong> (exact-version pin),<br />
+chosen <em>because</em> 0.1.23 bundles Unicode 15.1.0 — verified, not inferred from<br />
+semver. Rationale vs. the alternative:</p>
+<ul>
+<li><code>unicode-normalization 0.1.23</code> has <strong>version == data</strong> (the crate <em>is</em> one<br />
+  frozen Unicode table), is dependency-light, and <code>str::nfc()</code> →<br />
+<code>chars()</code>-iterator maps cleanly onto a streaming encoder. It is the cleaner fit<br />
+  for a foundation crate that has been deliberately kept dependency-free.</li>
+<li><strong>ICU4X (<code>icu_normalizer</code>)</strong> is present <em>transitively</em> elsewhere in the repo<br />
+  (<code>vaked-agents/ci/{provost,label-tagger}</code> lockfiles pin <code>icu_normalizer 2.2.0</code>),<br />
+  but (a) those are unrelated CI tools — <code>hcpbin</code> has <strong>zero</strong> deps and is in no<br />
+  workspace, so it would gain the dependency fresh regardless; "already vendored"<br />
+  buys nothing; and (b) <strong>ICU4X 2.x bundles Unicode 16.0</strong>, which <em>violates</em> the<br />
+  15.1.0 pin. Using ICU4X to hit 15.1.0 would require an <code>icu4x-datagen</code>-frozen<br />
+  15.1.0 <code>DataProvider</code> vendored in-repo — strictly more machinery than the<br />
+<code>=0.1.23</code> pin for no benefit here. Rejected.</li>
+</ul>
+<p><strong>Pin enforcement (three layers):</strong><br />
+1. <strong>Exact version</strong> in <code>Cargo.toml</code>: <code>unicode-normalization = "=0.1.23"</code>, and the<br />
+   resolved entry committed in <code>Cargo.lock</code>.<br />
+2. <strong>Compile-time assertion</strong> that the crate's declared Unicode version is 15.1.0:<br />
+<code>const _: () = assert!(unicode_normalization::UNICODE_VERSION == (15, 1, 0));</code><br />
+   (the crate exports <code>UNICODE_VERSION</code>). A future <code>cargo update</code> that moves the<br />
+   data version breaks the build immediately.<br />
+3. <strong>Runtime/test corpus</strong>: the vendored 15.1.0 <code>NormalizationTest.txt</code> conformance<br />
+   test (§2.3 / §5.3). Belt-and-braces against the data ever diverging from the<br />
+   declared constant.</p>
+<p>Doc note in code: "Bumping <code>unicode-normalization</code> past <code>=0.1.23</code> (i.e. changing<br />
+the bundled Unicode data version) is a <strong>breaking change to <code>hcpbin</code></strong> and MUST be<br />
+handled as a protocol-version bump (RFC 0002 §6.4): it alters the bytes — and thus<br />
+the digests — of already-chained <code>eventd</code> frames (§9)."</p>
+<p><strong>Design implication (stated, per CLAUDE.md):</strong> this introduces <code>hcpbin</code>'s<br />
+<strong>first-ever dependency</strong>. The crate has been intentionally dependency-free (empty<br />
+<code>[dependencies]</code>). NFC against a pinned Unicode version is irreducibly a data<br />
+table; hand-vendoring the table is strictly worse than a pinned, audited,<br />
+data-versioned crate. The dependency is justified and the cost (one exact-pinned,<br />
+no-default-features, no-transitive-deps crate) is minimal.</p>
+<h3 id="32-float-encodedecode">3.2 Float encode/decode</h3>
+<p>Encoding (NaN canonicalisation must emit the canonical bits <strong>literally</strong>, never<br />
+<code>to_bits()</code> of an arbitrary NaN — signaling/payload NaNs are not guaranteed<br />
+quiet):</p>
+<div class="highlight"><pre><span></span><span class="c1">// f32 (mirror for f64 with 0x7FF8000000000000 / to_le_bytes()/from_le_bytes())</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">put_f32</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="kt">f32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bits</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">value</span><span class="p">.</span><span class="n">is_nan</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="mh">0x7FC0_0000</span><span class="w">                 </span><span class="c1">// canonical quiet NaN (§6.4)</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mf">0.0</span><span class="w"> </span><span class="p">{</span><span class="w">        </span><span class="c1">// matches BOTH +0.0 and -0.0 (-0.0 == 0.0)</span>
+<span class="w">        </span><span class="mh">0x0000_0000</span><span class="w">                 </span><span class="c1">// canonical +0.0 (§6.4)</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">value</span><span class="p">.</span><span class="n">to_bits</span><span class="p">()</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">put_raw</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bits</span><span class="p">.</span><span class="n">to_le_bytes</span><span class="p">());</span><span class="w">   </span><span class="c1">// 4 bytes LE (§6.1, §6.4)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The <code>value == 0.0</code> branch catches <code>-0.0</code> because <code>-0.0 == 0.0</code> is <code>true</code> in IEEE<br />
+arithmetic; emitting <code>+0.0</code>'s all-zero bits canonicalises signed zero. The<br />
+<code>is_nan()</code> branch is checked first so a NaN never reaches <code>to_bits()</code>.</p>
+<p><strong>Decode — strictness decision (RFC leaves this open; stated with rationale).</strong><br />
+§6.4 mandates <em>encoder</em> canonicalisation but, unlike <code>bool</code> (where §6.4 says<br />
+non-<code>0x00</code>/<code>0x01</code> bytes are rejected), says only that decoders "MAY assume NFC" and<br />
+is <strong>silent on whether a decoder must reject a non-canonical NaN or a <code>-0.0</code> on the<br />
+wire.</strong> The existing codec is strict everywhere it can be (<code>NonMinimal</code>,<br />
+<code>InvalidBool</code>, <code>WidthOverflow</code>, <code>TrailingBytes</code>). Two defensible options:</p>
+<ul>
+<li><strong>(A) Strict-reject</strong> non-canonical float bits (any NaN bit pattern other than<br />
+  the canonical quiet pattern; any <code>-0.0</code>). Makes "valid wire bytes == canonical<br />
+  bytes," giving a <em>decode-side</em> fixed point and matching the codec's strict ethos<br />
+  and the §6.8 "two implementations agree byte-for-byte" goal.</li>
+<li><strong>(B) Canonicalise-on-decode</strong> (read bits, re-canonicalise, accept). Matches the<br />
+  literal "decoders MAY assume" latitude; more lenient; lets a sloppy peer's frame<br />
+  through but normalises it.</li>
+</ul>
+<p><strong>Recommended: (A) strict-reject</strong>, for consistency with the rest of the codec and<br />
+because a non-canonical float on the wire is, like a non-minimal varint, a producer<br />
+that is not canonical — surfacing it as a <code>DecodeError</code> is the same contract.<br />
+This is a genuine spec gap; it is <strong>logged as Open question OQ1 (§7)</strong> for sign-off<br />
+by the WP3 owner before landing, because it changes the accept-set and is observable<br />
+across implementations.</p>
+<div class="highlight"><pre><span></span><span class="c1">// Under decision (A):</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">get_f32</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="kt">f32</span><span class="p">,</span><span class="w"> </span><span class="n">DecodeError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">get_raw</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u32</span><span class="p">::</span><span class="n">from_le_bytes</span><span class="p">(</span><span class="n">raw</span><span class="p">.</span><span class="n">try_into</span><span class="p">().</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;get_raw(4) is 4 bytes&quot;</span><span class="p">));</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">f32</span><span class="p">::</span><span class="n">from_bits</span><span class="p">(</span><span class="n">bits</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">v</span><span class="p">.</span><span class="n">is_nan</span><span class="p">()</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="n">bits</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mh">0x7FC0_0000</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">DecodeError</span><span class="p">::</span><span class="n">NonCanonicalFloat</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">bits</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mh">0x8000_0000</span><span class="w"> </span><span class="p">{</span><span class="w">                 </span><span class="c1">// -0.0 on the wire</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">DecodeError</span><span class="p">::</span><span class="n">NonCanonicalFloat</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3 id="33-string-encodedecode">3.3 String encode/decode</h3>
+<div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">unicode_normalization</span><span class="p">::{</span><span class="n">UnicodeNormalization</span><span class="p">,</span><span class="w"> </span><span class="n">is_nfc_quick</span><span class="p">,</span><span class="w"> </span><span class="n">IsNormalized</span><span class="p">};</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">put_string</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// NFC against the pinned Unicode 15.1.0 data (§6.4). `bytes` is NOT normalised.</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">nfc</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">value</span><span class="p">.</span><span class="n">nfc</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span><span class="w">      </span><span class="c1">// idempotent; if already NFC, identity</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">put_bytes</span><span class="p">(</span><span class="n">nfc</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">());</span><span class="w">                </span><span class="c1">// varint(byte_len) + UTF-8 bytes (§6.1)</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">get_string</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;&amp;&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="w"> </span><span class="cm">/* or String, see below */</span><span class="p">,</span><span class="w"> </span><span class="n">DecodeError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">get_bytes</span><span class="p">()</span><span class="o">?</span><span class="p">;</span><span class="w">                   </span><span class="c1">// varint(len) + len bytes</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">core</span><span class="p">::</span><span class="kt">str</span><span class="p">::</span><span class="n">from_utf8</span><span class="p">(</span><span class="n">raw</span><span class="p">).</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">_</span><span class="o">|</span><span class="w"> </span><span class="n">DecodeError</span><span class="p">::</span><span class="n">InvalidUtf8</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">// NFC validation: see decision below.</span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Notes:<br />
+- The encoder is a thin NFC pass over the existing <code>put_bytes</code>. The decoder is<br />
+<code>get_bytes</code> + UTF-8 validation. UTF-8 validity is <strong>always</strong> enforced on decode<br />
+  (<code>DecodeError::InvalidUtf8</code>) — that is not optional; a <code>string</code> field that is not<br />
+  valid UTF-8 is malformed regardless of the NFC question.<br />
+- <strong>NFC-on-decode strictness (OQ2, §7).</strong> §6.4: "decoders MAY assume NFC." So a<br />
+  spec-conformant decoder <em>may skip</em> re-checking NFC. Options:<br />
+  - <strong>(A) trust</strong> (skip the NFC check; cheapest; spec-permitted) — but a<br />
+    non-NFC-producing peer would smuggle non-canonical bytes past the decoder,<br />
+    weakening the §6.8 cross-impl guarantee at the seam where it is cheapest to<br />
+    catch.<br />
+  - <strong>(B) validate</strong> via <code>is_nfc_quick</code>/<code>is_nfc</code> and reject non-NFC with a<br />
+<code>DecodeError::NonCanonicalString</code>, consistent with decision (A) for floats and<br />
+    the codec's strict ethos.<br />
+  - <strong>Recommended: (B) validate</strong>, using <code>is_nfc()</code> (the exact, not the quick,<br />
+    check) so it shares the 15.1.0 pinned data. Logged as <strong>OQ2</strong>; same sign-off<br />
+    gate as OQ1 (it changes the accept-set).<br />
+- <strong>Borrow vs. owned return.</strong> <code>get_bytes</code> returns <code>&amp;'a [u8]</code>; under <strong>trust (A)</strong><br />
+<code>get_string</code> can return <code>&amp;'a str</code> (zero-copy). Under <strong>validate (B)</strong> it still<br />
+  returns <code>&amp;'a str</code> (validation is read-only). The free-function <code>decode_string</code><br />
+  returns an owned <code>String</code> (mirrors <code>decode_bytes -&gt; Vec&lt;u8&gt;</code>).</p>
+<h3 id="34-files-to-create-modify">3.4 Files to create / modify</h3>
+<div class="highlight"><pre><span></span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">hcpbin</span><span class="o">/</span>
+<span class="w">  </span><span class="n">Cargo</span><span class="p">.</span><span class="n">toml</span><span class="w">                         </span><span class="err">#</span><span class="w"> </span><span class="k">MODIFY</span><span class="err">:</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="o">[</span><span class="n">dependencies</span><span class="o">]</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="nf">unicode</span><span class="o">-</span><span class="n">normalization</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">&quot;=0.1.23&quot;</span><span class="p">,</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">     </span><span class="k">default</span><span class="o">-</span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="w"> </span><span class="err">}</span>
+<span class="w">  </span><span class="n">Cargo</span><span class="p">.</span><span class="n">lock</span><span class="w">                         </span><span class="err">#</span><span class="w"> </span><span class="k">MODIFY</span><span class="err">:</span><span class="w"> </span><span class="k">commit</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">resolved</span><span class="w"> </span><span class="mf">0.1.23</span><span class="w"> </span><span class="n">entry</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span>
+<span class="w">    </span><span class="n">lib</span><span class="p">.</span><span class="n">rs</span><span class="w">                           </span><span class="err">#</span><span class="w"> </span><span class="k">MODIFY</span><span class="err">:</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="nl">Writer</span><span class="p">:</span><span class="err">:</span><span class="n">put_f32</span><span class="o">/</span><span class="n">put_f64</span><span class="o">/</span><span class="n">put_string</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="nl">Reader</span><span class="p">:</span><span class="err">:</span><span class="n">get_f32</span><span class="o">/</span><span class="n">get_f64</span><span class="o">/</span><span class="n">get_string</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="k">free</span><span class="w"> </span><span class="n">fns</span><span class="w"> </span><span class="n">encode_f32</span><span class="o">/</span><span class="n">decode_f32</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="n">f64</span><span class="p">,</span><span class="w"> </span><span class="o">+</span><span class="n">string</span><span class="p">)</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="nl">DecodeError</span><span class="p">:</span><span class="err">:{</span><span class="n">InvalidUtf8</span><span class="p">,</span><span class="w"> </span><span class="n">NonCanonicalFloat</span><span class="p">,</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">       </span><span class="n">NonCanonicalString</span><span class="err">}</span><span class="w">  </span><span class="p">(</span><span class="n">NonCanonical</span><span class="o">*</span><span class="w"> </span><span class="n">gated</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">OQ1</span><span class="o">/</span><span class="n">OQ2</span><span class="p">)</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="n">const</span><span class="w"> </span><span class="nl">_</span><span class="p">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">assert</span><span class="err">!</span><span class="p">(</span><span class="n">UNICODE_VERSION</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">));</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="n">retarget</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">lib</span><span class="p">.</span><span class="nl">rs</span><span class="p">:</span><span class="mi">19</span><span class="w"> </span><span class="n">TODO</span><span class="p">(</span><span class="n">WP3</span><span class="o">-</span><span class="n">S2</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="k">plan</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="o">-</span><span class="w"> </span><span class="k">delete</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">two</span><span class="w"> </span><span class="n">satisfied</span><span class="w"> </span><span class="n">TODOs</span><span class="w"> </span><span class="p">(</span><span class="n">lib</span><span class="p">.</span><span class="nl">rs</span><span class="p">:</span><span class="mi">488</span><span class="o">-</span><span class="mi">492</span><span class="p">)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">golden</span><span class="p">.</span><span class="n">rs</span><span class="w">                        </span><span class="err">#</span><span class="w"> </span><span class="k">MODIFY</span><span class="w"> </span><span class="p">(</span><span class="n">extend</span><span class="w"> </span><span class="n">existing</span><span class="w"> </span><span class="n">adversarial</span><span class="o">-</span><span class="n">independence</span><span class="w"> </span><span class="n">suite</span><span class="p">)</span><span class="err">:</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w">   </span><span class="nc">float</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">positive</span><span class="o">/</span><span class="n">negative</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="n">vectors</span>
+<span class="w">    </span><span class="n">nfc_conformance</span><span class="p">.</span><span class="n">rs</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="k">CREATE</span><span class="err">:</span><span class="w"> </span><span class="n">drives</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">vendored</span><span class="w"> </span><span class="n">UCD</span><span class="w"> </span><span class="n">corpus</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">5.3</span><span class="p">)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span><span class="k">data</span><span class="o">/</span>
+<span class="w">    </span><span class="n">NormalizationTest</span><span class="o">-</span><span class="mf">15.1.0</span><span class="p">.</span><span class="n">txt</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="k">CREATE</span><span class="w"> </span><span class="p">(</span><span class="n">vendored</span><span class="w"> </span><span class="n">UCD</span><span class="p">;</span><span class="w"> </span><span class="n">provenance</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">SHA</span><span class="o">-</span><span class="mi">256</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">header</span><span class="p">)</span>
+</pre></div>
+
+<p>No new crate, no workspace change; <code>hcpbin</code> stays a single leaf crate (now with one<br />
+pinned dependency). <code>golden.rs</code> is <strong>extended in place</strong> to preserve its<br />
+adversarial-independence convention (every new vector cites the RFC §, written blind<br />
+to <code>lib.rs</code>).</p>
+<h2 id="4-worked-encodings-golden-from-22">4. Worked encodings (golden, from §2.2)</h2>
+<div class="highlight"><pre><span></span><span class="c1"># floats</span>
+<span class="n">put_f32</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span><span class="w">             </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span>
+<span class="n">put_f32</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span><span class="w">             </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">80</span><span class="w"> </span><span class="mi">3</span><span class="n">f</span>
+<span class="n">put_f32</span><span class="p">(</span><span class="n">f32</span><span class="p">::</span><span class="bp">NAN</span><span class="p">)</span><span class="w">        </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="mi">7</span><span class="n">f</span>
+<span class="n">put_f32</span><span class="p">(</span><span class="o">-</span><span class="mf">0.0</span><span class="p">)</span><span class="w">            </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w">          </span><span class="c1"># canonicalised</span>
+<span class="n">put_f64</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span><span class="w">             </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="n">f0</span><span class="w"> </span><span class="mi">3</span><span class="n">f</span>
+<span class="n">put_f64</span><span class="p">(</span><span class="n">f64</span><span class="p">::</span><span class="bp">NAN</span><span class="p">)</span><span class="w">        </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="n">f8</span><span class="w"> </span><span class="mi">7</span><span class="n">f</span>
+
+<span class="c1"># adversarial NaN: a signaling/payload NaN must still emit the canonical quiet bits</span>
+<span class="n">put_f32</span><span class="p">(</span><span class="n">f32</span><span class="p">::</span><span class="n">from_bits</span><span class="p">(</span><span class="mh">0x7F80</span><span class="n">_0001</span><span class="p">))</span><span class="w">   </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="mi">00</span><span class="w"> </span><span class="n">c0</span><span class="w"> </span><span class="mi">7</span><span class="n">f</span><span class="w">   </span><span class="c1"># NOT 01 00 80 7f</span>
+
+<span class="c1"># strings</span>
+<span class="n">put_string</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span><span class="w">           </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">00</span>
+<span class="n">put_string</span><span class="p">(</span><span class="s2">&quot;hi&quot;</span><span class="p">)</span><span class="w">         </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">02</span><span class="w"> </span><span class="mi">68</span><span class="w"> </span><span class="mi">69</span>
+<span class="n">put_string</span><span class="p">(</span><span class="s2">&quot;café&quot;</span><span class="p">)</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">05</span><span class="w"> </span><span class="mi">63</span><span class="w"> </span><span class="mi">61</span><span class="w"> </span><span class="mi">66</span><span class="w"> </span><span class="n">c3</span><span class="w"> </span><span class="n">a9</span><span class="w">            </span><span class="c1"># NFC precomposed é</span>
+<span class="n">put_string</span><span class="p">(</span><span class="s2">&quot;cafe\u{301}&quot;</span><span class="p">)</span><span class="o">-&gt;</span><span class="w"> </span><span class="mi">05</span><span class="w"> </span><span class="mi">63</span><span class="w"> </span><span class="mi">61</span><span class="w"> </span><span class="mi">66</span><span class="w"> </span><span class="n">c3</span><span class="w"> </span><span class="n">a9</span><span class="w">            </span><span class="c1"># decomposed input -&gt; same NFC bytes</span>
+</pre></div>
+
+<p>The last string row is the key NFC golden: two distinct Rust <code>&amp;str</code> inputs (one<br />
+precomposed, one decomposed) MUST encode to identical bytes — the property §6.4 /<br />
+§6.8 exist to guarantee, and the reason a bare "normalise to NFC" without a pinned<br />
+version is insufficient.</p>
+<h2 id="5-test-plan">5. Test plan</h2>
+<h3 id="51-where-it-runs">5.1 Where it runs</h3>
+<p><strong>All of it runs on M1 via <code>cargo test -p hcpbin</code>.</strong> The codec is pure (no<br />
+namespace syscalls, no transport, no async). The kickoff's "No local builds on M1"<br />
+applies to the <em>transport / perf</em> targets (RFC 0003 wire I/O, the ≤10µs/frame<br />
+bench on the 8-core box), <strong>not</strong> to the pure value codec — the same scoping the<br />
+S3 spec §5 already established for the equally-pure router. <code>dev-cx53</code> is needed<br />
+for <strong>nothing</strong> in this plan's acceptance criteria (§8).</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Command</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Float + string positive golden vectors (§2.2, §4)</td>
+<td><code>cargo test -p hcpbin --test golden</code></td>
+<td>M1</td>
+</tr>
+<tr>
+<td>Float + string negative / strictness vectors (§5.2)</td>
+<td><code>cargo test -p hcpbin --test golden</code></td>
+<td>M1</td>
+</tr>
+<tr>
+<td>Round-trip fixed point <code>encode(decode(encode(v)))==encode(v)</code></td>
+<td><code>cargo test -p hcpbin</code></td>
+<td>M1</td>
+</tr>
+<tr>
+<td>NFC conformance vs vendored UCD 15.1.0 (§5.3)</td>
+<td><code>cargo test -p hcpbin --test nfc_conformance</code></td>
+<td>M1</td>
+</tr>
+<tr>
+<td>Unicode-version pin compile assertion (§3.1)</td>
+<td><code>cargo build -p hcpbin</code> (fails to compile if data != 15.1.0)</td>
+<td>M1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-negative-strictness-vectors-the-decision-rule-oracle">5.2 Negative / strictness vectors (the decision-rule oracle)</h3>
+<p>Mirrors <code>golden.rs</code>'s existing rejection tables. Each asserts an error per cited §:</p>
+<ul>
+<li><code>decode_string</code> of invalid UTF-8 (e.g. <code>[0x01, 0xff]</code>) -&gt; <code>InvalidUtf8</code>.</li>
+<li><code>decode_string</code> / <code>decode_f*</code> with <strong>trailing bytes</strong> -&gt; <code>TrailingBytes</code><br />
+  (consume-all, via the existing <code>decode_all</code> wrapper).</li>
+<li><code>decode_f32</code> of a truncated 3-byte input -&gt; <code>UnexpectedEof</code>.</li>
+<li><strong>(if OQ1 = strict-reject)</strong> <code>decode_f32</code> of <code>[01,00,80,7f]</code> (non-canonical NaN)<br />
+  and <code>[00,00,00,80]</code> (<code>-0.0</code>) -&gt; <code>NonCanonicalFloat</code>; <code>f64</code> analogues.</li>
+<li><strong>(if OQ2 = validate)</strong> <code>decode_string</code> of valid-UTF-8-but-non-NFC bytes<br />
+  (the decomposed <code>cafe\u{301}</code> byte sequence <code>63 61 66 65 cc 81</code>) -&gt;<br />
+<code>NonCanonicalString</code>.</li>
+<li>Encoder canonicalisation asserts: <code>put_f32</code> of every NaN variant and of <code>-0.0</code><br />
+  produces the §2.2 canonical bytes; <code>put_string</code> of decomposed input produces the<br />
+  precomposed bytes.</li>
+</ul>
+<p>These negative vectors are gated on the OQ1/OQ2 decisions (§7); if the owner picks<br />
+the lenient branch, the corresponding rows become <em>acceptance</em> (round-trip)<br />
+vectors instead of rejection vectors. The positive vectors (§4) are unconditional.</p>
+<h3 id="53-nfc-conformance-harness">5.3 NFC conformance harness</h3>
+<p><code>tests/nfc_conformance.rs</code> parses <code>tests/data/NormalizationTest-15.1.0.txt</code><br />
+(semicolon-delimited UCD format; skip <code>#</code>/<code>@</code> lines), and for each row with columns<br />
+<code>(c1 source, c2 NFC, c3 NFD, c4 NFKC, c5 NFKD)</code> asserts<br />
+<code>hcpbin string-encode(c1)</code> decodes-or-normalises to the same bytes as<br />
+<code>hcpbin string-encode(c2)</code> — i.e. <code>nfc(source) == NFC column</code> — for the NFC<br />
+relation. This is what makes the 15.1.0 pin <strong>self-verifying</strong>: a future data-version<br />
+drift produces a row mismatch and a red test, enforcing the "changing the pin is a<br />
+breaking protocol bump" rule (§3.1, §6.4) mechanically. The corpus is committed;<br />
+no network access at test time.</p>
+<h3 id="54-needs-dev-cx53-linux">5.4 Needs <code>dev-cx53</code> / Linux</h3>
+<p><strong>Nothing in §8.</strong> For completeness, the items that <em>are</em> Linux/dev-cx53-gated<br />
+remain other sprints' concerns and are unaffected by this plan: the ≤10µs/frame<br />
+perf baseline (WP3-S6, 8-core box), the Zig port of the codec for the daemon fleet<br />
+(WP4; <code>zig build -Dtarget=x86_64-linux</code> is compile-only on M1), and live <code>eventd</code><br />
+integration (WP3-S5). The string/float scalars feed those later, but their own<br />
+verification is 100% M1-local.</p>
+<h2 id="6-m1-vs-dev-cx53-split-summary">6. M1-vs-dev-cx53 split (summary)</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>M1 (<code>cargo test</code>)</th>
+<th>dev-cx53 / Linux</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Float encode/decode + canonicalisation</td>
+<td>✅ all</td>
+<td>—</td>
+</tr>
+<tr>
+<td>String encode/decode + NFC pin</td>
+<td>✅ all</td>
+<td>—</td>
+</tr>
+<tr>
+<td>NFC conformance vs UCD 15.1.0</td>
+<td>✅ vendored corpus</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Pin compile-assertion</td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Perf (≤10µs/frame)</td>
+<td>—</td>
+<td>WP3-S6 (not this plan)</td>
+</tr>
+<tr>
+<td>Zig port of these scalars</td>
+<td>compile-only (<code>zig build -Dtarget=x86_64-linux</code>)</td>
+<td>WP4 runtime</td>
+</tr>
+</tbody>
+</table>
+<p>The split is clean because the deliverable is pure value codec + a committed data<br />
+table — both fully exercisable on the M1 host. This matches the S3 spec's already-<br />
+ratified reasoning that the pure layers of the HCP stack are M1-testable.</p>
+<h2 id="7-risks-open-questions">7. Risks / open questions</h2>
+<ul>
+<li><strong>OQ1 — float decode strictness (§3.2).</strong> §6.4 mandates encoder<br />
+  canonicalisation but is silent on decoder rejection of non-canonical NaN /<br />
+<code>-0.0</code> (contrast <code>bool</code>, which §6.4 explicitly makes strict). Recommended:<br />
+<strong>strict-reject</strong> (<code>DecodeError::NonCanonicalFloat</code>), for consistency with the<br />
+  codec's strict ethos and the §6.8 cross-impl-agreement goal. Decision changes<br />
+  the accept-set, so <strong>must be signed off by the WP3 owner before landing</strong>; the<br />
+  RFC could also be amended to state the rule explicitly (recommended — close the<br />
+  gap in the spec, not just the code).</li>
+<li><strong>OQ2 — NFC-on-decode strictness (§3.3).</strong> §6.4 says "decoders MAY assume NFC."<br />
+  Recommended: <strong>validate</strong> (<code>is_nfc()</code> against the pinned data;<br />
+<code>DecodeError::NonCanonicalString</code>) for the same reasons as OQ1. Same sign-off<br />
+  gate. UTF-8 validity (<code>InvalidUtf8</code>) is enforced unconditionally regardless of<br />
+  OQ2.</li>
+<li><strong>First dependency on <code>hcpbin</code> (§3.1).</strong> Introduces the crate's only dependency<br />
+  (<code>unicode-normalization =0.1.23</code>, <code>default-features = false</code>). Justified (NFC is<br />
+  irreducibly a Unicode data table; a pinned audited crate beats hand-vendoring the<br />
+  table). Pin guarded three ways (exact version + compile assert + UCD corpus).</li>
+<li><strong>Pin drift / supply chain.</strong> A <code>cargo update</code> that bumps past <code>=0.1.23</code> would<br />
+  silently change the bundled Unicode data and corrupt determinism. Mitigated by<br />
+  the exact <code>=</code> pin, the committed <code>Cargo.lock</code>, and the compile-time<br />
+<code>UNICODE_VERSION == (15,1,0)</code> assertion — any drift is a build failure.</li>
+<li><strong><code>unicode-normalization</code> <code>no_std</code> / features.</strong> Confirm the crate compiles with<br />
+<code>default-features = false</code> for the daemon-embeddable build path; the NFC API<br />
+  (<code>UnicodeNormalization::nfc</code>, <code>is_nfc</code>, <code>UNICODE_VERSION</code>) is in the default<br />
+  surface. Verify at landing.</li>
+<li><strong>Zig parity (WP4).</strong> The eventual Zig port of the codec MUST normalise NFC<br />
+  against the <strong>same</strong> Unicode 15.1.0 data, or Zig↔Rust round-trip (RFC 0002 §7.2)<br />
+  diverges on strings. The Zig port must vendor an equivalent 15.1.0 table and run<br />
+  the same UCD conformance corpus. Out of scope here; flagged for WP4-S4.</li>
+</ul>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>Done when ALL hold (all verifiable on M1, none requiring dev-cx53):</p>
+<ol>
+<li><code>cargo build -p hcpbin</code> is clean <strong>and</strong> the <code>UNICODE_VERSION == (15,1,0)</code><br />
+   compile assertion is present and passing (proves the data pin, not just the<br />
+   crate version).</li>
+<li><code>Writer::{put_f32,put_f64,put_string}</code> and <code>Reader::{get_f32,get_f64,get_string}</code><br />
+   exist, plus the matching <code>encode_*</code>/<code>decode_*</code> free functions, extending the<br />
+   existing API surface (no reshaping of <code>Reader</code>/<code>Writer</code>/<code>DecodeError</code>/<code>decode_all</code>).</li>
+<li>Positive golden vectors (§2.2/§4) pass in <code>golden.rs</code>, including the<br />
+   precomposed-vs-decomposed <code>café</code>/<code>cafe\u{301}</code> → identical-bytes NFC vector and<br />
+   the signaling-NaN → canonical-quiet-bits vector.</li>
+<li>Round-trip fixed point <code>encode(decode(encode(v))) == encode(v)</code> holds for floats<br />
+   (incl. NaN, ±0.0, ±inf, subnormals) and strings (incl. multi-byte UTF-8 and a<br />
+   decomposed input that normalises).</li>
+<li>Negative/strictness vectors (§5.2) pass, matching whatever OQ1/OQ2 decision is<br />
+   ratified (strict-reject vectors <em>or</em> lenient round-trip vectors — not both).<br />
+<code>InvalidUtf8</code> rejection of non-UTF-8 string bytes is unconditional.</li>
+<li>NFC conformance test (§5.3) passes against the vendored Unicode 15.1.0<br />
+<code>NormalizationTest.txt</code> (the NFC column), with the corpus committed and its<br />
+   provenance + SHA-256 recorded.</li>
+<li>The satisfied <code>TODO</code>s in <code>lib.rs</code> (lines 488-492) are removed and the mislabelled<br />
+<code>TODO(WP3-S2)</code> on line 19 is retargeted to this plan; the <code>string</code>/<code>float</code> items<br />
+   no longer appear in the crate's "out of scope" header list.</li>
+<li>OQ1 and OQ2 are explicitly resolved (sign-off recorded) before merge — the spec<br />
+   gaps are closed by decision, not left implicit in the code.</li>
+<li>No dependency on <code>dev-cx53</code> for 1-8; the perf baseline remains a WP3-S6 gate and<br />
+   is not a criterion here.</li>
+</ol>
+<h2 id="9-dependencies-on-other-sprints">9. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Relationship</th>
+<th>Item</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Builds on</strong></td>
+<td>WP3-S1 <code>hcpbin</code> primitives (<code>Reader</code>/<code>Writer</code>, <code>decode_all</code>, <code>DecodeError</code>, <code>golden.rs</code> convention)</td>
+<td>Landed (<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>lib.rs</code></a>, <code>golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>))</td>
+</tr>
+<tr>
+<td><strong>New external dep</strong></td>
+<td><code>unicode-normalization =0.1.23</code> (Unicode 15.1.0 data)</td>
+<td>Available on crates.io; verified <code>UNICODE_VERSION (15,1,0)</code></td>
+</tr>
+<tr>
+<td><strong>Consumed by</strong></td>
+<td>WP3-S2 frame layer / records-frames-unions encoders (need <code>string</code>/<code>f*</code> as field types)</td>
+<td>Future; these scalars are a precondition for any schema with <code>string</code>/<code>f32</code>/<code>f64</code> fields</td>
+</tr>
+<tr>
+<td><strong>Consumed by</strong></td>
+<td><code>eventd</code> hash chain / <code>litanyreplay</code> (RFC 0002 §9) — rely on canonical string/float bytes</td>
+<td>Determinism guaranteed only once these scalars + the pin land</td>
+</tr>
+<tr>
+<td><strong>Parity obligation</strong></td>
+<td>WP4 Zig port must use the same 15.1.0 NFC data + UCD corpus (§7)</td>
+<td>Future (WP4-S4)</td>
+</tr>
+</tbody>
+</table>
+<p>The two scalars are a <strong>precondition</strong> for the compound encoders (§6.2/§6.6/§6.7):<br />
+no schema carrying a <code>string</code>, <code>f32</code>, or <code>f64</code> field can be encoded canonically<br />
+until this lands. It is the smallest remaining gap between the current primitive<br />
+codec and a codec that can serialise the worked example in RFC 0002 §10.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-hcpbin-string-float-plan.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

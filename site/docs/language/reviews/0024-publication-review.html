@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Publication review - 0024 MLIR lowering contract and staged adoption — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-section-diagnosis" style="padding-left:0.5rem">1. Section diagnosis</a><a href="#2-claim-audit-table" style="padding-left:0.5rem">2. Claim audit table</a><a href="#3-enrichment-opportunities" style="padding-left:0.5rem">3. Enrichment opportunities</a><a href="#4-missing-evidence-benchmark-list" style="padding-left:0.5rem">4. Missing evidence / benchmark list</a><a href="#5-publication-ready-rewritten-section-proposed-2" style="padding-left:0.5rem">5. Publication-ready rewritten section (proposed §2)</a><a href="#6-suggested-figures-tables" style="padding-left:0.5rem">6. Suggested figures / tables</a><a href="#7-follow-up-research-tasks" style="padding-left:0.5rem">7. Follow-up research tasks</a><a href="#appendix---research-digests-primary-sources-2026-06-14" style="padding-left:0.5rem">Appendix - research digests (primary sources, 2026-06-14)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / <a href="/docs/language/reviews/">reviews</a> / 0024-publication-review</div>
+<h1>Publication review - 0024 MLIR lowering contract and staged adoption</h1>
+<h1 id="publication-review-0024-mlir-lowering-contract-and-staged-adoption">Publication review - 0024 MLIR lowering contract and staged adoption</h1>
+<p>Status: <strong>Editorial artifact</strong> (review companion; does not mutate the spec) | Created: 2026-06-14 | Track: Language / MLIR<br />
+Target: <a href="../0024-mlir-lowering-staged-adoption.md"><code>0024-mlir-lowering-staged-adoption.md</code></a> · Umbrella: <a href="../0013-mlir-topology-compilation.md"><code>0013</code></a> · Issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/23">#23</a> · Epic <a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<p>This artifact is the output of the V1.0 publication pipeline applied to 0024. It is intentionally non-destructive: it audits the existing spec, anchors its claims, and proposes a publication-ready rewrite of the load-bearing sections (§2). Folding the rewrite into 0024 itself is a separate, gated step (design -&gt; plan -&gt; implement).</p>
+<hr />
+<h2 id="1-section-diagnosis">1. Section diagnosis</h2>
+<p><strong>Thesis (extracted, current):</strong> "Stage-1 MLIR lowering must faithfully reproduce Stage-0 LPG pass behavior; the Stage-0 implementation is the oracle."</p>
+<p><strong>Thesis (sharpened, proposed):</strong> <em>Stage-1 is a translation-validated reimplementation of the Stage-0 LPG pipeline in MLIR: it must be </em><em>observationally equivalent</em><em> to Stage-0 on the compiler-artifact set (topology, WAL sequences, supervisor index), verified by differential round-trip testing, with the executable Stage-0 passes as the reference oracle.</em></p>
+<p>What is strong:<br />
+- Clear Stage-0/Stage-1 boundary; the "what never enters MLIR" table (§3.1) is precise and well-authored.<br />
+- The oracle principle (§4.1) is the right call and is stated cleanly.<br />
+- Verification <em>approaches</em> (§2.2, §7.3) already describe differential testing - the rigor is present in the procedure but not in the vocabulary.</p>
+<p>What weakens it for publication:<br />
+1. <strong>Vocabulary gap.</strong> The document reinvents three named, well-established concepts without naming them: <em>translation validation</em> (§2.1, §4.1), <em>reproducible build</em> (§2.2), and <em>MLIR ODS/TableGen verifiers</em> (§2.3). A reviewer from the compiler community will expect the terms.<br />
+2. <strong>One overclaim.</strong> "Semantically equivalent" (§2.1, §9.2) is stronger than what the method delivers. Differential testing establishes <em>observational</em> equivalence on a finite, chosen artifact set - not general semantic equivalence (which is undecidable in the limit and, where tractable, requires bounded SMT translation validation à la Alive2 or a Coq proof à la CompCert). Downgrade the word or upgrade the method.<br />
+3. <strong>One self-contradiction.</strong> "byte-identical artifacts (modulo timestamps and random tokens)" (§2.2) - "byte-identical <em>modulo</em> X" is not byte-identical. The field's term for what is meant is <em>reproducible after canonicalization</em>: strip non-deterministic inputs, then compare bit-for-bit.<br />
+4. <strong>Zero external anchors.</strong> The MLIR dialect/verifier/lowering machinery is assumed (SSA, ODS, ConversionTarget) with no citation. Acceptable for an internal draft; insufficient for a publication-grade artifact.<br />
+5. <strong>No empirical claims, and that is correct</strong> - but the "O(1) subscription lookup" / "flat-array read" claim (inherited from 0013 terminology and 0023) is asserted, not shown. It is true <em>only if</em> agent IDs are dense integers indexing a packed array; §5 establishes sequential IDs, which makes it true, but the artifact should connect those two facts explicitly.</p>
+<p><strong>Status recommendation:</strong> 0024 is currently <code>Review</code> and marked <em>optional</em> for implementation-gating in 0013. With the §2 rewrite below it is publication-grade and can stand at <code>Accepted</code>. The gating docs 0019-0023 carry the implementable precision; 0024 carries the contract, so <code>Accepted</code> here is a framing-quality bar, not an implementation bar.</p>
+<hr />
+<h2 id="2-claim-audit-table">2. Claim audit table</h2>
+<p>Classification key: <strong>PUB</strong> public-source-backed · <strong>INT</strong> internal-design-backed · <strong>SPEC</strong> speculative / benchmark-required · <strong>RW</strong> remove-or-rewrite.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Claim (loc)</th>
+<th>Class</th>
+<th>Source anchor / action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td>Stage-1 must preserve Stage-0 semantics; differ -&gt; Stage-0 wins (§2.1, §4.1)</td>
+<td>INT + PUB</td>
+<td>Internal oracle decision; the <em>technique</em> is <strong>translation validation</strong> (Pnueli 1998; Alive2 PLDI'21). Anchor the term.</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>"Semantically equivalent" artifacts (§2.1, §9.2)</td>
+<td>RW</td>
+<td>Overclaim. Rewrite to <strong>observational equivalence on the artifact set, by differential round-trip testing</strong>. Full semantic equivalence is bounded (Alive2) or proof-heavy (CompCert).</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>"byte-identical artifacts (modulo timestamps and random tokens)" (§2.2)</td>
+<td>RW</td>
+<td>Self-contradictory. Rewrite as <strong>reproducible build</strong>: canonicalize (strip timestamps/tokens, sort arrays), then bit-for-bit compare. Anchor reproducible-builds.org definition.</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>Normalize -&gt; hash -&gt; hashes must match (§2.2)</td>
+<td>PUB</td>
+<td>Canonical reproducible-build verification. Correct; keep, anchor.</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>Stage-1 dialect verifiers enforce same invariants as Stage-0 checker (§2.3)</td>
+<td>INT + PUB</td>
+<td>Realizable via MLIR <strong>ODS/TableGen</strong> declarative verifiers (mlir.llvm.org ODS). Anchor that this is a supported MLIR mechanism, not a bespoke invention.</td>
+</tr>
+<tr>
+<td>C6</td>
+<td><code>vaked</code>/<code>hcp</code> dialects are "TableGen-ready" (0013 §, inherited)</td>
+<td>PUB</td>
+<td>Confirmed: ODS <code>.td</code> records generate op classes + verifiers. Anchor.</td>
+</tr>
+<tr>
+<td>C7</td>
+<td>Excluded subsystems stay in runtime (§3.1 table)</td>
+<td>INT</td>
+<td>Internal design decision; well-cited internally (0014, DEPLOY.md, RFC 0004). Keep as-is - exemplary.</td>
+</tr>
+<tr>
+<td>C8</td>
+<td>Stage-0 passes are the oracle (§4.1)</td>
+<td>INT</td>
+<td>Internal decision; sound. Frame as translation-validation <em>reference semantics</em>.</td>
+</tr>
+<tr>
+<td>C9</td>
+<td>Agent IDs sequential in source order, stable, no hashing (§5)</td>
+<td>INT</td>
+<td>Internal; this is the <em>precondition</em> that makes C11 (O(1)) true. Cross-link explicitly.</td>
+</tr>
+<tr>
+<td>C10</td>
+<td>depth(A)=0 if source else 1+max(producers); critical path = max depth (§6.1)</td>
+<td>PUB</td>
+<td>Standard DAG longest-path / topological-sort DP. Anchor as classical; keep.</td>
+</tr>
+<tr>
+<td>C11</td>
+<td>"O(1) runtime subscription lookups / flat-array read" (0013, 0023)</td>
+<td>INT (needs link)</td>
+<td>True <em>iff</em> IDs are dense integers (C9). Not benchmarked, but does not need a benchmark - it is a data-structure property. State the precondition; do not call it a performance result.</td>
+</tr>
+<tr>
+<td>C12</td>
+<td>WAL sequence register -&gt; log -&gt; fetch, fixed order, no intervening ops (§7)</td>
+<td>INT</td>
+<td>Internal; bound to RFC 0004 §2-§3. Keep, cross-link.</td>
+</tr>
+<tr>
+<td>C13</td>
+<td><code>hcp</code> ops correctly implement RFC 0004; discrepancy = spec bug (§13.3)</td>
+<td>INT</td>
+<td>Internal coherence requirement. Keep.</td>
+</tr>
+<tr>
+<td>C14</td>
+<td>Round-trip equivalence on a "diverse test suite" (§2.2, §11)</td>
+<td>SPEC</td>
+<td>The suite does not yet exist. This is the <strong>one genuine evidence gap</strong> - see §4.</td>
+</tr>
+</tbody>
+</table>
+<p>Tally: PUB 4 · INT 7 · RW 2 (C2, C3) · SPEC 1 (C14) · INT-needs-link 1 (C11). No claim requires removal; two require rewrite; one requires a (testing) artifact before it can be checked off.</p>
+<hr />
+<h2 id="3-enrichment-opportunities">3. Enrichment opportunities</h2>
+<ul>
+<li><strong>Name the discipline.</strong> Add one sentence to the Abstract: "This is a <em>translation validation</em> contract: Stage-1 is validated against Stage-0 as the reference, in the sense of Pnueli et al. and the LLVM Alive2 line of work." Lifts the doc from ad-hoc to situated.</li>
+<li><strong>Distinguish three equivalence strengths</strong> in a short table (semantic / observational / structural) and state which one each verification step delivers. This pre-empts the reviewer's single sharpest objection (C2).</li>
+<li><strong>Connect §5 (ID assignment) to the O(1) claim</strong> with one explicit sentence: dense sequential IDs are <em>why</em> the supervisor index is a flat-array lookup. Turns an asserted complexity into a derived property.</li>
+<li><strong>Add a "Threats to validity" subsection</strong> - bounded test suite (C14), Stage-0-as-oracle means Stage-0 bugs become "correct" (§4.1 already implies this; make it explicit), and MLIR/LLVM version drift. Standard for publication-grade systems work.</li>
+<li><strong>MLIR anchor box.</strong> One sidebar listing the three upstream mechanisms relied on (ODS, dialect verifiers, dialect-conversion to LLVM) with links, so the dialect docs (0019/0020) inherit external grounding.</li>
+</ul>
+<hr />
+<h2 id="4-missing-evidence-benchmark-list">4. Missing evidence / benchmark list</h2>
+<ol>
+<li><strong>The differential test corpus (C14) - required before §11 checkboxes can be ticked.</strong> Need a named set of <code>.vaked</code> programs spanning: single-agent, linear chain, diamond (fan-out/fan-in), max-depth-bound boundary, and a known-cyclic (must-reject) case. Each runs Stage-0 and (eventually) Stage-1, canonicalizes, hashes, compares. Until this exists, "round-trip equivalence on a diverse test suite" is a <em>plan</em>, not <em>evidence</em>.</li>
+<li><strong>Canonicalization spec.</strong> §2.2 says "strip timestamps, sort arrays" - enumerate exactly which fields are non-deterministic in the supervisor-index JSON (token fields, any map iteration order). Reproducible-builds practice: make the list exhaustive or the comparison is unsound.</li>
+<li><strong>O(1) lookup - no benchmark needed, but state the data structure.</strong> A micro-benchmark would be theater here; the honest evidence is "dense integer IDs index a packed array." Document that, not a latency number.</li>
+<li><strong>MLIR-version pin.</strong> When Stage-1 lands, the ODS/verifier/lowering APIs are version-sensitive. Record the target LLVM/MLIR release as an assumption.</li>
+<li><strong>(Optional, future) bounded translation validation.</strong> If stronger-than-observational assurance is ever wanted, Alive2-style SMT validation applies only at the LLVM-IR tail of the pipeline, not at the <code>vaked</code>/<code>hcp</code> dialect level. Note as a non-goal with the reason.</li>
+</ol>
+<hr />
+<h2 id="5-publication-ready-rewritten-section-proposed-2">5. Publication-ready rewritten section (proposed §2)</h2>
+<blockquote>
+<h3 id="2-the-lowering-contract">2. The lowering contract</h3>
+<p>Stage-1 is a <strong>translation-validated</strong> reimplementation of the Stage-0 LPG pipeline in MLIR. "Translation-validated" is used in the sense established by Pnueli et al. and exercised by the LLVM Alive2 project: rather than proving the two pipelines equal in general, we validate that Stage-1 reproduces Stage-0 on every program in a reference corpus, with the executable Stage-0 passes as the oracle.</p>
+<h4 id="21-observational-equivalence-not-general-semantic-equivalence">2.1 Observational equivalence (not general semantic equivalence)</h4>
+<p><strong>Requirement.</strong> For any <code>.vaked</code> source <code>P</code>, let <code>A_0 = {pass1(P), pass2(P), pass3(P)}</code> be the Stage-0 artifacts and <code>A_1</code> the Stage-1 artifacts. Stage-1 is correct on <code>P</code> when <code>A_1</code> is <strong>observationally equivalent</strong> to <code>A_0</code>: after canonicalization (§2.2) the two are identical in<br />
+- agent topology (agents, dependencies, depths),<br />
+- WAL sequence structure and order, and<br />
+- supervisor-index agent IDs, subscriptions, and depths.</p>
+<p>We claim observational equivalence on the corpus, not general semantic equivalence: the latter is undecidable in the limit and, where tractable, demands bounded SMT translation validation (Alive2) or machine-checked proof (CompCert) - both out of scope for the dialect level (see §12, Threats to validity). Observational equivalence on a representative corpus is the appropriate and sufficient contract for a faithful reimplementation.</p>
+<h4 id="22-reproducibility-deterministic-canonicalized-comparison">2.2 Reproducibility (deterministic, canonicalized comparison)</h4>
+<p><strong>Requirement.</strong> Both stages must be <strong>reproducible builds</strong>: compiling the same source in the same environment yields bit-for-bit identical artifacts <em>after canonicalization</em>. There is no non-determinism in graph traversal, ID assignment, or serialization.</p>
+<p>"Byte-identical" is meaningful only post-canonicalization, because artifacts legitimately embed non-reproducible inputs (timestamps, random session tokens). The canonicalization step removes exactly these:<br />
+1. Compile <code>P</code> with Stage-0 -&gt; <code>A_0</code>; with Stage-1 -&gt; <code>A_1</code>.<br />
+2. Canonicalize both: strip the enumerated non-deterministic fields (timestamps, tokens), sort all unordered collections.<br />
+3. Hash each canonical form.<br />
+4. The hashes must be equal.</p>
+<p>The set of stripped fields is specified exhaustively in the canonicalization appendix; an incomplete list makes the comparison unsound (a known reproducible-builds failure mode).</p>
+<h4 id="23-verifier-equivalence-via-mlir-ods">2.3 Verifier equivalence (via MLIR ODS)</h4>
+<p><strong>Requirement.</strong> The Stage-1 dialect verifiers enforce the same invariants as the Stage-0 type checker. These verifiers are not bespoke: they are declared in MLIR's Operation Definition Specification (ODS/TableGen), which generates the op classes and their verifier hooks. The mapping is<br />
+- <code>vaked</code> dialect verifier &lt;-&gt; <code>vakedc</code> type checking + structure validation,<br />
+- <code>hcp</code> dialect verifier &lt;-&gt; WAL discipline constraints (RFC 0004).</p>
+<p>Each invalid input Stage-0 rejects (consume of a nonexistent agent; a cycle; a WAL-ordering violation) must be rejected by the corresponding Stage-1 verifier.</p>
+</blockquote>
+<p>(Sections §3-§13 are sound as written; only the C9&lt;-&gt;C11 cross-link sentence in §5/§6 and a "Threats to validity" subsection in §12 are recommended. Full bodies omitted here to keep the artifact non-destructive.)</p>
+<hr />
+<h2 id="6-suggested-figures-tables">6. Suggested figures / tables</h2>
+<ul>
+<li><strong>Fig. 1 - Equivalence-strength ladder.</strong> Three rows (semantic / observational / structural), columns: definition, what verifies it, where 0024 uses it. Directly answers the reviewer's sharpest question.</li>
+<li><strong>Fig. 2 - Canonicalization pipeline.</strong> <code>A_0</code>,<code>A_1</code> -&gt; [strip non-det fields] -&gt; [sort collections] -&gt; [hash] -&gt; compare. Makes §2.2 unambiguous.</li>
+<li><strong>Fig. 3 - Stage-0/Stage-1 correspondence.</strong> Existing two ASCII pipelines (§1) redrawn side-by-side with the pass&lt;-&gt;reference-code arrows (check.py / lower.py line ranges) as the bridge. Shows the oracle relationship at a glance.</li>
+<li><strong>Table A - Non-deterministic field inventory</strong> for the supervisor-index JSON (field, source of variance, canonicalization action). Doubles as the §2.2 appendix.</li>
+<li>Reuse the existing §3.1 exclusion table verbatim - it is already publication quality.</li>
+</ul>
+<hr />
+<h2 id="7-follow-up-research-tasks">7. Follow-up research tasks</h2>
+<ol>
+<li><strong>Build the differential corpus</strong> (single / chain / diamond / depth-bound / cyclic) and wire Stage-0 round-trip + canonical-hash as a <code>task</code> target. Unblocks C14 and the §11 checklist. <em>(Design -&gt; plan -&gt; implement; build runs on dev-cx53, never locally.)</em></li>
+<li><strong>Write the canonicalization appendix</strong> by enumerating non-deterministic fields in <code>vakedc/lower.py:1893-1953</code> index output. Static read - allowed locally.</li>
+<li><strong>Add external anchors to 0019/0020</strong> (ODS, dialect verifiers, dialect conversion) so the dialect specs inherit grounding; keeps the citation work where the implementable precision lives.</li>
+<li><strong>Decide the equivalence bar for the LLVM tail.</strong> If anything beyond observational equivalence is ever wanted, scope an Alive2-style bounded check at LLVM-IR only; record as explicit non-goal otherwise.</li>
+<li><strong>Reconcile diagnostic naming</strong> (<code>E-TOPO-CYCLE</code> vs <code>E-WORKFLOW-CYCLE</code>, 0013 open Q) before declaring verifier equivalence checkable.</li>
+</ol>
+<hr />
+<h2 id="appendix-research-digests-primary-sources-2026-06-14">Appendix - research digests (primary sources, 2026-06-14)</h2>
+<p><strong>Probe A - MLIR dialect/verifier/lowering machinery.</strong> ODS (Operation Definition Specification) is MLIR's table-driven, TableGen-based mechanism: a <code>.td</code> record expands to an <code>mlir::Op</code> C++ specialization and declares the op's verifier. Custom dialects are built from <code>FooOps.td</code>; lowering to LLVM uses a <code>ConversionTarget</code> + <code>TypeConverter</code>. Confirms C5/C6: the <code>vaked</code>/<code>hcp</code> verifier-equivalence and "TableGen-ready" claims are supported upstream mechanisms. Primary: <a href="https://mlir.llvm.org/docs/DefiningDialects/Operations/">ODS</a>, <a href="https://mlir.llvm.org/docs/Tutorials/CreatingADialect/">Creating a Dialect</a>, <a href="https://mlir.llvm.org/docs/Tutorials/Toy/Ch-6/">Lowering to LLVM (Toy Ch.6)</a>.</p>
+<p><strong>Probe B - translation validation / equivalence checking.</strong> "Translation validation" is the precise term for validating that a translated/recompiled program preserves the source's behavior (Pnueli et al., 1998). Alive2 performs <em>bounded</em> translation validation for LLVM IR via SMT, automatically, no LLVM changes - but bounds resources (e.g., unrolls loops) and so "there are circumstances in which it misses bugs"; it found 47 new LLVM bugs. CompCert achieves semantic preservation by Coq proof, with high manual overhead. Both are confined to a single IR and cannot verify equivalence across distinct high-level languages. Confirms C2 as overclaim: unqualified "semantically equivalent" is stronger than differential testing delivers; the honest claim is observational equivalence on a corpus. Primary: <a href="https://users.cs.utah.edu/~regehr/alive2-pldi21.pdf">Alive2, PLDI'21 (PDF)</a>, <a href="https://dl.acm.org/doi/10.1145/3453483.3454030">ACM DL</a>.</p>
+<p><strong>Probe C - reproducible builds / determinism.</strong> Canonical definition: "a build is reproducible if given the same source code, build environment and build instructions, any party can recreate bit-by-bit identical copies of all specified artifacts." Central challenge is eliminating non-determinism; named root causes include embedded timestamps, build paths, filesystem/archive ordering, and random numbers. Confirms C3/C4: 0024's "byte-identical (modulo timestamps)" is imprecise phrasing of <em>reproducible-after-canonicalization</em>; the §2.2 normalize-then-hash procedure is canonical practice; the field-standard fix is an exhaustive non-deterministic-field inventory. Primary: <a href="https://reproducible-builds.org/docs/definition/">reproducible-builds.org definition</a>, <a href="https://reproducible-builds.org/">reproducible-builds.org</a>.</p>
+<p><em>Method note: per the session's abstain-safe protocol, each probe sought primary sources and would mark a claim "unverified/abstain" (never auto-refute) on a fetch/rate-limit failure. No probe hit a rate limit; all three resolved against primary sources and confirmed (two with sharpening, none refuted).</em></p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/reviews/0024-publication-review.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

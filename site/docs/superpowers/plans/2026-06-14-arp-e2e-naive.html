@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ARP (Agent Register Protocol) — naive e2e Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#deviations-from-the-agentopsplan-default-honest-log" style="padding-left:0.5rem">Deviations from the `/agentops:plan` default (honest log)</a><a href="#what-arp-is-and-is-not-from-issue-202" style="padding-left:0.5rem">What ARP IS and IS NOT (from issue #202)</a><a href="#file-wave-dependency-matrix" style="padding-left:0.5rem">File / wave dependency matrix</a><a href="#wave-1-ail-0-grammar-spec-layer-author-only-this-branch" style="padding-left:0.5rem">Wave 1 — AIL-0 grammar + spec layer (author-only, this branch)</a><a href="#wave-2-naive-arp-driver-author-local-run-dev-cx53gha" style="padding-left:0.5rem">Wave 2 — naive ARP driver (author local, run dev-cx53/GHA)</a><a href="#wave-3-drive-e2e-bench-run-dev-cx53gha" style="padding-left:0.5rem">Wave 3 — drive e2e + bench (run dev-cx53/GHA)</a><a href="#execution-order-gating" style="padding-left:0.5rem">Execution order & gating</a><a href="#next-steps" style="padding-left:0.5rem">Next steps</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-14-arp-e2e-naive</div>
+<h1>ARP (Agent Register Protocol) — naive e2e Implementation Plan</h1>
+<h1 id="arp-agent-register-protocol-naive-e2e-implementation-plan">ARP (Agent Register Protocol) — naive e2e Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or<br />
+superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>)<br />
+tracking. This is the UMBRELLA plan; AIL-0 (Wave 1) has its own detail bundle at<br />
+<code>docs/superpowers/batch/2026-06-14-ail-0/</code>.</p>
+</blockquote>
+<p><strong>Goal:</strong> Build and drive end-to-end the cheapest possible model-agnostic <strong>ARP</strong> — a register<br />
+layer that lives entirely in the context window (no SDK, no DB, no network), per issue #202 —<br />
+and measure that it actually works across ≥2 model families.</p>
+<p><strong>Architecture:</strong> ARP is pure text convention. An ARP-wrapped completion = (1) a system-prompt<br />
+preamble teaching the register tags, (2) frames the model emits in those registers, (3) a thin<br />
+stdlib validator that parses frames against the <strong>AIL-0</strong> EBNF and enforces the artifact gate.<br />
+AIL-0 is the formal grammar for ARP's conventions; the "driver" is a system prompt + a parser +<br />
+a token-diff. Model-agnostic = per-family adapter notes, no per-model code paths.</p>
+<p><strong>Tech stack:</strong> Markdown/EBNF (author-only, this machine); Python stdlib validator + bench<br />
+(authored here, RUN only on <code>dev-cx53</code>/GHA — see NEVER BUILD rule); OpenRouter for multi-model.</p>
+<p><strong>Provenance:</strong> issue #202 (ARP definition) · PR #187 (CUC origin — claimed 49–62% token savings,<br />
+artifact gate across 3 families) · PR #203 (caveman→cuc rename + 5-model bench) · this branch<br />
+(AIL-0 grammar). Research run <code>wru7qq2ax</code> adversarially re-verifies the token-savings claims.</p>
+<hr />
+<h2 id="deviations-from-the-agentopsplan-default-honest-log">Deviations from the <code>/agentops:plan</code> default (honest log)</h2>
+<p>The skill's heavyweight regime is intentionally NOT used here:<br />
+- <code>bd</code> / <code>ao</code> CLIs and <code>.agents/</code> are <strong>absent</strong> in this repo → no bead issues, no <code>ao</code> ratchet,<br />
+  no findings registry. Tracking is native tasks + this markdown doc (the skill's documented<br />
+  fallback).<br />
+- Plan lives at <code>docs/superpowers/plans/</code> (repo convention), not <code>.agents/plans/</code>.<br />
+- Protocol design is captured as an <strong>RFC via <code>hcp-rfc-author</code></strong> (Wave 1), per CLAUDE.md, not as a<br />
+  hexagon/BDD packet.<br />
+- The goal explicitly says "naive / no-frills"; #202 itself defines ARP as "the cheapest possible<br />
+  layer." So the ceremony (PR-001..007 planning rules, slice-validation surface, custom_rubric<br />
+  judges) is dropped as not-applicable. Lightweight acceptance criteria + waves + a file matrix<br />
+  are kept because they are cheap and genuinely useful.</p>
+<hr />
+<h2 id="what-arp-is-and-is-not-from-issue-202">What ARP IS and IS NOT (from issue #202)</h2>
+<p>IN: register tags (<code>[R:plan]</code> <code>[R:tool]</code> <code>[R:artifact]</code> ...), causal/state operators, the artifact<br />
+gate (final outputs English-only, exact literals preserved), all as text in the context window.</p>
+<p>OUT (explicitly not ARP): any SDK, database, network transport, fine-tuning, or per-model code.<br />
+If a task here reaches for one of those, it is out of scope — stop and report.</p>
+<hr />
+<h2 id="file-wave-dependency-matrix">File / wave dependency matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Wave</th>
+<th>Task</th>
+<th>Files (access)</th>
+<th>Runs where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>AIL-0 grammar+spec</td>
+<td>see <code>docs/superpowers/batch/2026-06-14-ail-0/02-plan.md</code> (write: EBNF, <code>docs/language/0025-*</code>, <code>protocol/rfcs/0009-*</code>, <code>docs/context/*bootstrap*</code>, bench-design spec)</td>
+<td>local (author-only)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>ARP driver</td>
+<td>write: <code>tools/arp/preamble.md</code>, <code>tools/arp/validate.py</code>, <code>tools/arp/adapters.md</code></td>
+<td>author local · RUN dev-cx53/GHA</td>
+</tr>
+<tr>
+<td>3</td>
+<td>e2e drive + bench</td>
+<td>write: <code>tools/cuc-bench/*</code> (per AIL-0 bench design), <code>tools/arp/e2e_demo.md</code>, results under <code>tools/cuc-bench/reports/</code></td>
+<td>RUN dev-cx53/GHA</td>
+</tr>
+</tbody>
+</table>
+<p>No two same-wave tasks write the same file. Wave 2 reads Wave 1's EBNF. Wave 3 reads Wave 2's<br />
+validator + Wave 1's bench design.</p>
+<hr />
+<h2 id="wave-1-ail-0-grammar-spec-layer-author-only-this-branch">Wave 1 — AIL-0 grammar + spec layer (author-only, this branch)</h2>
+<p>This wave IS the AIL-0 batch. Full task detail lives in<br />
+<code>docs/superpowers/batch/2026-06-14-ail-0/02-plan.md</code> (authored after research run <code>wru7qq2ax</code><br />
+lands). Summary of deliverables:</p>
+<ul>
+<li>[ ] <strong>1a</strong> <code>docs/context/cuc-v2-ail-bootstrap.md</code> — bridge note (CUC=style, AIL=grammar, ARP=protocol).</li>
+<li>[ ] <strong>1b</strong> AIL-0 EBNF grammar file (placement decided in AIL-0 spec: <code>protocol/ail/ail-v0.ebnf</code>).</li>
+<li>[ ] <strong>1c</strong> <code>docs/language/0025-ail-morphemes.md</code> — ≤80-entry morpheme table.</li>
+<li>[ ] <strong>1d</strong> <code>protocol/rfcs/0009-ail-register-language.md</code> — RFC stub via <code>hcp-rfc-author</code>.</li>
+<li>[ ] <strong>1e</strong> Bench DESIGN spec (metrics, modes, model matrix) — design only, no Python.</li>
+<li>[ ] <strong>1f</strong> GitHub issue for the versioned-language change, docked under #202.</li>
+</ul>
+<p><strong>Acceptance (Wave 1):</strong> every file exists; EBNF parses all sample frames in the spec by<br />
+inspection; RFC follows <code>hcp-rfc-author</code> structure; numbering is <code>0025</code>/<code>0009</code> (collision-free);<br />
+no <code>.claude/skills/cuc/</code> touched.</p>
+<hr />
+<h2 id="wave-2-naive-arp-driver-author-local-run-dev-cx53gha">Wave 2 — naive ARP driver (author local, run dev-cx53/GHA)</h2>
+<p>The "driver" is deliberately three flat files — no framework.</p>
+<ul>
+<li>
+<p>[ ] <strong>2a — ARP system-prompt preamble.</strong> Create <code>tools/arp/preamble.md</code>: a model-agnostic<br />
+  preamble that teaches the registers + artifact gate in &lt;40 lines, ready to prepend to any<br />
+  system prompt. Content = the AIL-0 register list + the keep-exact/compress rule + the<br />
+  artifact-gate rule.</p>
+</li>
+<li>
+<p>[ ] <strong>2b — stdlib validator.</strong> Create <code>tools/arp/validate.py</code> (Python stdlib ONLY): reads ARP<br />
+  frames on stdin, (i) parses each <code>[R:*]</code> frame against the AIL-0 EBNF, (ii) enforces the gate:<br />
+<code>[R:artifact]</code>/<code>[R:commit]</code> bodies contain no CJK; <code>[R:tool]</code> args preserve exact paths/symbols,<br />
+  reports <code>parse_success</code>, <code>gate_pass</code>, and a <code>repair_needed</code> flag. Author the file + a few inline<br />
+  sample frames as docstring fixtures. <strong>Do NOT run pytest locally</strong> — running is Wave 3 / dev-cx53.</p>
+</li>
+<li>
+<p>[ ] <strong>2c — per-family adapter notes.</strong> Create <code>tools/arp/adapters.md</code>: one short section per<br />
+  family (GPT, Llama, DeepSeek, Qwen, Morph single-turn, Gemma local) capturing the known failure<br />
+  mode and the preamble tweak (e.g. Qwen thinking-CJK → reinforce gate; Morph single-turn → fold<br />
+  registers into one message). Seed from PR #203 bench findings + research <code>wru7qq2ax</code>.</p>
+</li>
+</ul>
+<p><strong>Acceptance (Wave 2):</strong> validator parses every sample frame and flags a deliberately<br />
+gate-violating frame (CJK in <code>[R:artifact]</code>); preamble &lt; 40 lines; adapters.md covers ≥5 families.<br />
+Validator execution gated to dev-cx53/GHA.</p>
+<hr />
+<h2 id="wave-3-drive-e2e-bench-run-dev-cx53gha">Wave 3 — drive e2e + bench (run dev-cx53/GHA)</h2>
+<ul>
+<li>[ ] <strong>3a — bench harness.</strong> Implement <code>tools/cuc-bench/*</code> per the Wave-1 bench DESIGN spec<br />
+  (corpus, modes <code>normal|cuc-wenyan-ultra|ailish-pidgin|ailish-strict</code>, metrics). Stdlib + an<br />
+  OpenRouter client.</li>
+<li>[ ] <strong>3b — e2e drive.</strong> <code>tools/arp/e2e_demo.md</code> + script: take one real task, wrap it with the<br />
+  ARP preamble, drive it through registers on ≥2 model families via OpenRouter, run output through<br />
+  the Wave-2 validator, record token counts vs the unwrapped baseline.</li>
+<li>[ ] <strong>3c — measure + report.</strong> Produce <code>tools/cuc-bench/reports/</code>: per-model token savings,<br />
+  parse-success, artifact-CJK-leakage, repair-cost.</li>
+</ul>
+<p><strong>Acceptance (Wave 3):</strong> e2e runs green on ≥2 families; report shows <strong>TOKEN</strong> (not char) savings<br />
+with the unwrapped baseline stated; artifact gate holds (0 CJK leaks in <code>[R:artifact]</code>). Treat</p>
+<h1 id="202s-4962-as-a-hypothesis-to-confirm-or-refute-report-the-measured-number-whatever-it-is">202's 49–62% as a hypothesis to confirm or refute — report the measured number whatever it is.</h1>
+<hr />
+<h2 id="execution-order-gating">Execution order &amp; gating</h2>
+<ol>
+<li>Wave 1 (this branch, author-only) — proceeds now (after research lands), via the AIL-0 batch.</li>
+<li>Wave 2 authoring local; <strong>3-gate verify-confirm</strong> before any dev-cx53/GHA run.</li>
+<li>Wave 3 entirely on dev-cx53/GHA. Outward action (GitHub issue 1f, any model spend) requires<br />
+   explicit user confirmation at the time.</li>
+</ol>
+<h2 id="next-steps">Next steps</h2>
+<ul>
+<li>Let research <code>wru7qq2ax</code> land → enrich Wave-1 bench design + Wave-2 adapters.</li>
+<li>Author the AIL-0 batch bundle (Wave 1 detail).</li>
+<li>Then kick off the fan-out batch for Wave 1; Waves 2–3 follow on dev-cx53/GHA.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-14-arp-e2e-naive.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

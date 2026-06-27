@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MLIR Pass 1 — topology analysis (critical path, cycle, depth bound) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#1-input-and-the-graph-it-builds" style="padding-left:0.5rem">1. Input and the graph it builds</a><a href="#2-the-two-analyses" style="padding-left:0.5rem">2. The two analyses</a><a href="#21-cycle-analysis-dag-enforcement" style="padding-left:1rem">  2.1 Cycle analysis (DAG enforcement)</a><a href="#22-critical-path-depth-bound" style="padding-left:1rem">  2.2 Critical-path / depth bound</a><a href="#3-diagnostic-naming-the-reconciliation-normative" style="padding-left:0.5rem">3. Diagnostic naming — the reconciliation (normative)</a><a href="#4-prepostconditions-the-pass-contract" style="padding-left:0.5rem">4. Pre/postconditions (the pass contract)</a><a href="#5-stage-0-fidelity" style="padding-left:0.5rem">5. Stage-0 fidelity</a><a href="#security-considerations" style="padding-left:0.5rem">Security considerations</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0021-mlir-pass-topology-analysis</div>
+<h1>MLIR Pass 1 — topology analysis (critical path, cycle, depth bound)</h1>
+<h1 id="0021-pass-1-static-topology-analysis">0021 — Pass 1: static topology analysis</h1>
+<p>Status: <strong>Accepted</strong> (2026-06-14) · Series: language design notes · Track:<br />
+<strong>Language / MLIR</strong> · Issue<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/23">#23</a> · Epic<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<p>Part of the MLIR set; umbrella in<br />
+<a href="./0013-mlir-topology-compilation.md">0013</a>. <strong>Stage-0 reference semantics:</strong><br />
+<code>vakedc/check.py</code> (<code>_check_workflow</code>) and <code>vakedc/lower.py</code> (<code>_workflow_depth</code>),<br />
+specified for the language in <a href="./0015-workflow.md">0015</a>. <strong>Protocol anchor:</strong><br />
+<a href="../../protocol/rfcs/0004-multi-agent-state-dependency.md">RFC 0004</a> §5<br />
+(<code>VerifyStateDependencyDAG</code>).</p>
+<h2 id="abstract">Abstract</h2>
+<p>Pass 1 runs over the <code>vaked</code> dialect (<a href="./0019-mlir-vaked-dialect.md">0019</a>). It<br />
+builds the <strong>state-dependency subgraph</strong> from the <code>vaked.consume</code> edges, rejects<br />
+the build on a forbidden cycle, computes the <strong>critical path</strong> (longest<br />
+dependency depth), and rejects the build when a declared depth bound is<br />
+exceeded — all before any agent is spawned. This part also <strong>reconciles the<br />
+three diagnostic names</strong> the codebase and RFCs currently use for these two<br />
+failures into one canonical pair.</p>
+<h2 id="1-input-and-the-graph-it-builds">1. Input and the graph it builds</h2>
+<p>Pass 1 reads a verified <code>vaked</code> module and builds a directed graph <code>G</code>:</p>
+<ul>
+<li><strong>Nodes</strong> — every <code>vaked.agent</code> (by <code>sym_name</code>).</li>
+<li><strong>Edges</strong> — one <code>producer → consumer</code> edge per <code>vaked.consume</code> op, where<br />
+<code>consumer</code> is the enclosing <code>vaked.agent</code> and <code>producer</code> is the op's resolved<br />
+<code>producer</code> symbol (V-CONSUME, <a href="./0019-mlir-vaked-dialect.md">0019</a> §2.3).</li>
+</ul>
+<p><code>G</code> is precisely the <code>state_dependency</code> subgraph of RFC 0004 §5 — observation,<br />
+control-signal, and metrics edges are not <code>vaked.consume</code> and never enter it, so<br />
+feedback loops on those axes remain legal.</p>
+<h2 id="2-the-two-analyses">2. The two analyses</h2>
+<h3 id="21-cycle-analysis-dag-enforcement">2.1 Cycle analysis (DAG enforcement)</h3>
+<blockquote>
+<p>The state-dependency subgraph MUST be acyclic per topology epoch (RFC 0004 §5).</p>
+</blockquote>
+<p>On a cycle, <strong>the build is rejected</strong> with a single deterministic diagnostic<br />
+naming the cycle path. Determinism matches Stage 0: iterate agents in module<br />
+order, run a coloured DFS (<code>WHITE/GREY/BLACK</code>), report the <strong>first</strong> back-edge<br />
+reached — the exact algorithm in <code>vakedc/check.py</code> <code>_check_workflow</code>. Revision<br />
+loops are expressed as step <code>retries</code>, never as a back-edge (0015).</p>
+<h3 id="22-critical-path-depth-bound">2.2 Critical-path / depth bound</h3>
+<p>Dependency cascades have O(depth) propagation latency. Pass 1 computes the<br />
+<strong>longest chain in <code>G</code>, counted in agents/steps</strong> — the memoized longest-path<br />
+recurrence of <code>vakedc/lower.py</code> <code>_workflow_depth</code>:</p>
+<div class="highlight"><pre><span></span>depth(n) = 1 + max(depth(s) for s in successors(n)),  default 0
+critical_path = max(depth(n) for n in G)
+</pre></div>
+
+<p>When a depth bound is declared (<code>maxDepth</code> on the <code>workflow</code>/agent record), a<br />
+critical path exceeding it <strong>rejects the build</strong>. The computed per-node depth is<br />
+annotated onto each <code>vaked.agent</code> (a <code>depth</code> attribute) and carried into Pass 3<br />
+(<a href="./0023-mlir-pass-aot-supervisor-index.md">0023</a>), which is why this analysis<br />
+runs first.</p>
+<h2 id="3-diagnostic-naming-the-reconciliation-normative">3. Diagnostic naming — the reconciliation (normative)</h2>
+<p>Three names exist in the tree for these two failures. This section is their<br />
+single source of truth.</p>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Shipped (canonical)</th>
+<th>Also seen as</th>
+<th>Retired</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>state-dependency cycle</td>
+<td><strong><code>E-WORKFLOW-CYCLE</code></strong> — <code>vakedc/check.py</code>, <a href="./0015-workflow.md">0015</a></td>
+<td><code>E-TOPO-CYCLE</code> (0013 sketch); <code>E-CYCLE-DETECTED</code> (RFC 0004 §5.1 algorithm)</td>
+<td>the latter two</td>
+</tr>
+<tr>
+<td>depth bound exceeded</td>
+<td><strong><code>E-WORKFLOW-DEPTH</code></strong> — <code>vakedc/check.py</code>, <a href="./0015-workflow.md">0015</a></td>
+<td><code>E-TOPO-DEPTH</code> (0013 sketch)</td>
+<td><code>E-TOPO-DEPTH</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Decision.</strong> The canonical codes are the <strong>shipped</strong> <code>E-WORKFLOW-CYCLE</code> and<br />
+<code>E-WORKFLOW-DEPTH</code>. Rationale: they are emitted by the running checker and cited<br />
+in 0015; forking a parallel <code>E-TOPO-*</code> / <code>E-CYCLE-DETECTED</code> namespace for the<br />
+identical property would split diagnostics across two names for one bug. When<br />
+Pass 1 generalizes from <code>workflow</code> step edges to <em>all</em> <code>state_dependency</code> edges<br />
+(mesh / fiber / parallel agents), the <strong>same two codes apply</strong> — <code>workflow</code> is<br />
+simply the first edge class to reach the pass. RFC 0004 §5.1's <code>E-CYCLE-DETECTED</code><br />
+and the 0013 <code>E-TOPO-*</code> sketch are hereby aliases of the canonical pair and<br />
+should be updated to it on next edit (tracked under #27).</p>
+<blockquote>
+<p>Implementation note: a future 0011 revision may host these codes under a<br />
+topology-neutral spelling; until then the <code>E-WORKFLOW-*</code> codes own them and no<br />
+new code is minted.</p>
+</blockquote>
+<h2 id="4-prepostconditions-the-pass-contract">4. Pre/postconditions (the pass contract)</h2>
+<p><strong>Preconditions</strong><br />
+- The module passes the <code>vaked</code> dialect verifier (<a href="./0019-mlir-vaked-dialect.md">0019</a>);<br />
+  in particular every <code>vaked.consume.producer</code> resolves.</p>
+<p><strong>Postcondition — success</strong><br />
+- <code>G</code> is acyclic and <code>critical_path ≤ maxDepth</code> (when declared).<br />
+- Each <code>vaked.agent</code> is annotated with its <code>depth</code>; the module is unchanged<br />
+  otherwise (Pass 1 is analysis + annotation, not rewrite — rewriting is Pass 2).</p>
+<p><strong>Postcondition — failure</strong><br />
+- Exactly one diagnostic, <code>E-WORKFLOW-CYCLE</code> (with the cycle path) or<br />
+<code>E-WORKFLOW-DEPTH</code> (with <code>critical_path</code> and the bound); the build stops. On a<br />
+  cycle, depth is <strong>undefined and not reported</strong> (matches <code>_check_workflow</code>,<br />
+  which returns before the depth check on a cyclic graph).</p>
+<h2 id="5-stage-0-fidelity">5. Stage-0 fidelity</h2>
+<p>The Stage-1 pass MUST produce the <strong>same verdict</strong> as the shipped Stage-0 check<br />
+on every graph (<a href="./0024-mlir-lowering-staged-adoption.md">0024</a> §4):</p>
+<table>
+<thead>
+<tr>
+<th>Pass 1 (Stage 1)</th>
+<th>Stage 0</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cycle detection, first back-edge in module order</td>
+<td><code>_check_workflow</code> coloured-DFS, <code>E-WORKFLOW-CYCLE</code></td>
+</tr>
+<tr>
+<td>longest-chain depth, counted in steps</td>
+<td><code>_workflow_depth</code> memoized recurrence</td>
+</tr>
+<tr>
+<td><code>critical_path &gt; maxDepth</code> → reject</td>
+<td><code>_check_workflow</code> <code>E-WORKFLOW-DEPTH</code> (depth vs <code>maxDepth</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>A divergence between the MLIR pass and these functions is a <strong>bug in the pass</strong>,<br />
+not a spec freedom — Stage 0 is authoritative until Stage 1 ships and is proven<br />
+equivalent.</p>
+<h2 id="security-considerations">Security considerations</h2>
+<ul>
+<li><strong>Fail-closed.</strong> A graph Pass 1 cannot fully analyze (e.g. an unresolved<br />
+  producer that slipped the verifier) MUST reject, never warn-and-continue — an<br />
+  un-analyzed topology is one whose acyclicity is unproven (RFC 0004's reason<br />
+  for the invariant: prevent state-consumption deadlock).</li>
+<li><strong>Determinism is a review property.</strong> A single, order-stable diagnostic means<br />
+  the same source always fails the same way, so a reviewer can trust a green<br />
+  Pass 1 and diff a red one.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>Generalizing <code>G</code> beyond <code>workflow</code> edges to mesh/fiber/parallel<br />
+<code>state_dependency</code> edges (RFC 0004 §5's full edge-kind taxonomy) — staged with<br />
+  those kinds' Stage-0 checks; the diagnostic codes (§3) are already fixed for<br />
+  it.</li>
+<li>Whether the per-node <code>depth</code> annotation should also carry the critical-path<br />
+<em>witness</em> (the longest chain itself) for Pass 3 diagnostics — non-gating.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0021-mlir-pass-topology-analysis.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

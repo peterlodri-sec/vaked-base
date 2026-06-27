@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP4-S3 — agent-supervisord: OTP child spec + restart strategy (control plane) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-read-first-language-and-citation-notes" style="padding-left:0.5rem">0. Read first — language and citation notes</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-what-this-sprint-is-not-scope-boundary-normative" style="padding-left:1rem">  1.1 What this sprint is NOT (scope boundary — normative)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-normative-inputs-rfcs" style="padding-left:1rem">  2.1 Normative inputs (RFCs)</a><a href="#22-code-oracles-frozen-contracts-s3-reproduces-never-re-derives" style="padding-left:1rem">  2.2 Code oracles (frozen contracts S3 reproduces, never re-derives)</a><a href="#23-calibration-target-example-system" style="padding-left:1rem">  2.3 Calibration target / example system</a><a href="#3-design" style="padding-left:0.5rem">3. Design</a><a href="#31-process-tree-what-s3-builds" style="padding-left:1rem">  3.1 Process tree (what S3 builds)</a><a href="#32-the-restart-strategy-for-the-top-level-supervisor-the-core-s3-decision" style="padding-left:1rem">  3.2 The restart strategy for the top-level supervisor (the core S3 decision)</a><a href="#33-the-oracle-port-bridge-eventdport-eventdwriter" style="padding-left:1rem">  3.3 The oracle-port bridge (`eventd_port` + `eventd_writer`)</a><a href="#34-control-plane-intake-and-the-lifecycle-gate" style="padding-left:1rem">  3.4 Control-plane intake and the lifecycle gate</a><a href="#35-rewind-is-explicitly-deferred" style="padding-left:1rem">  3.5 Rewind is explicitly deferred</a><a href="#4-algorithm-boot-one-control-cycle" style="padding-left:0.5rem">4. Algorithm (boot + one control cycle)</a><a href="#5-test-plan" style="padding-left:0.5rem">5. Test plan</a><a href="#51-tier-a-local-on-m1-no-beam-required-python-oracle-contract" style="padding-left:1rem">  5.1 Tier A — local on M1, no BEAM required (Python oracle contract)</a><a href="#52-tier-b-local-on-m1-inside-the-devshell-nix-develop-beam-present" style="padding-left:1rem">  5.2 Tier B — local on M1 inside the devshell (`nix develop`, BEAM present)</a><a href="#53-what-needs-dev-cx53-linux-and-is-out-of-s3-scope" style="padding-left:1rem">  5.3 What needs dev-cx53 / Linux (and is OUT of S3 scope)</a><a href="#6-ci-posture" style="padding-left:0.5rem">6. CI posture</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a><a href="#9-open-questions-carried-from-the-daemon-design-not-resolved-in-s3" style="padding-left:0.5rem">9. Open questions (carried from the daemon design, not resolved in S3)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp4-s3</div>
+<h1>WP4-S3 — agent-supervisord: OTP child spec + restart strategy (control plane)</h1>
+<h1 id="wp4-s3-agent-supervisord-otp-child-spec-restart-strategy-control-plane">WP4-S3 — agent-supervisord: OTP child spec + restart strategy (control plane)</h1>
+<ul>
+<li><strong>Status:</strong> Draft (planning artifact; work is dependency-blocked / future, see §7)</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Track:</strong> WP4 (daemon MVP — <code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md</code>)</li>
+<li><strong>Sprint:</strong> WP4-S3, Jul 24–Aug 6, 2026 (Engineer B)</li>
+<li><strong>Code home:</strong> <code>daemons/agent-supervisord/</code> (new subtree; the kickoff §"Code home"<br />
+  assigns this path)</li>
+<li><strong>Builds on (already shipped, NOT re-done here):</strong> Track C <code>otp.supervision</code><br />
+  lowering (#19) and the eventd Python oracle (#18)</li>
+</ul>
+<h2 id="0-read-first-language-and-citation-notes">0. Read first — language and citation notes</h2>
+<p><strong>This daemon is Erlang/OTP, not Zig.</strong> The runtime roster<br />
+(<code>docs/runtime/README.md</code>) lists <code>agent-supervisord | Erlang/OTP | process |
+"Control plane: supervision trees, lifecycle, restart strategy, orchestration of
+the Zig daemons"</code>, and the daemon design (<code>docs/superpowers/specs/2026-06-12-agent-supervisord-design.md</code>)<br />
+opens with "One BEAM application per host". Engineer B's "Zig/eBPF/Linux"<br />
+descriptor in the WP4 kickoff is the <em>person's</em> profile across the whole work<br />
+package; it is not this daemon's implementation language. The Zig daemons<br />
+(<code>sandboxd</code>, the eventd Zig port, <code>mcp-brokerd</code>) are what <code>agent-supervisord</code><br />
+<em>supervises and orchestrates</em> — they are not this sprint. Do not propose a Zig<br />
+rewrite of the supervisor.</p>
+<p><strong>Citation scope.</strong> The stale "RFC 0002 §4 / Appendix A" wording that appears in<br />
+the WP3 kickoff concerns <code>hcpbin</code> byte golden-vectors — that is wire-protocol<br />
+(WP3) territory and is irrelevant to a supervisor spec. agent-supervisord has <strong>no<br />
+hcpbin golden-vector dependency</strong>. Its oracles are (a) the eventd Python oracle's<br />
+frozen exit-code contract and (b) the lowered OTP goldens under<br />
+<code>vaked/examples/lowering/gen/otp/</code>. The normative protocol citations below are<br />
+RFC 0004 (<code>protocol/rfcs/0004-multi-agent-state-dependency.md</code>) and RFC 0005<br />
+(<code>protocol/rfcs/0005-control-frames.md</code>), cited by section.</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Stand up the <strong>hand-written BEAM application skeleton</strong> of <code>agent-supervisord</code>:<br />
+the top-level OTP application + supervisor that boots the machine-generated<br />
+runtime tree as one of its children, plus the three hand-written <code>gen_server</code><br />
+processes the daemon design names. The deliverable of <em>this</em> sprint is the<br />
+<strong>application supervisor's own child spec list and restart strategy</strong> (the new,<br />
+hand-written supervision boundary), the <strong>oracle-port bridge</strong> that keeps byte<br />
+semantics in the Python oracle, and the <strong>control-file intake</strong> that drives the<br />
+ralph <code>Control</code> scheduling model — enough to boot, observe children alive, and<br />
+drive one <code>pause → step → resume</code> cycle observable on the eventd log.</p>
+<p>This corresponds to Plan item 1 of the daemon design<br />
+(<code>docs/superpowers/specs/2026-06-12-agent-supervisord-design.md</code> §Plan: "Skeleton<br />
+BEAM app … application + the three gen_servers, oracle-port bridge, control-file<br />
+intake. (impl PR 1)") plus the explicit restart-strategy decision for the<br />
+hand-written tier.</p>
+<h3 id="11-what-this-sprint-is-not-scope-boundary-normative">1.1 What this sprint is NOT (scope boundary — normative)</h3>
+<p>S3 is the <strong>first daemon sprint</strong>; it is deliberately narrow. The following are<br />
+real components of <code>agent-supervisord</code> but belong to later sprints/PRs, and a<br />
+reviewer should reject S3 work that drifts into them:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Owner / when</th>
+<th>Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The <em>generated</em> OTP tree (<code>gen/otp/&lt;slug&gt;_sup.erl</code>, <code>vaked_fiber_worker.erl</code>) and its <code>one_for_one</code> strategy</td>
+<td><strong>Already shipped</strong> — Track C <code>otp.supervision</code> (#19); the <em>compiler</em> emits it</td>
+<td><code>docs/superpowers/specs/2026-06-12-otp-supervision-lowering-design.md</code></td>
+</tr>
+<tr>
+<td>BEAM-native fold / canonical-hash computation</td>
+<td>Later PR, gated by #15-era parity tooling; <strong>oracle owns the bytes</strong> in S3</td>
+<td>agent-supervisord design §"Reference phase bridge"</td>
+</tr>
+<tr>
+<td>RFC 0005 control frames over Litany Wire (<code>PauseControl</code>, <code>RewindControl</code>, … as wire frames)</td>
+<td>Later (needs the wire, WP3); S3 uses the <strong>control-file</strong> transport</td>
+<td>RFC 0005 §1; design Plan item 3</td>
+</tr>
+<tr>
+<td>Workflow engine driving <code>gen/workflow/&lt;name&gt;.json</code> step events</td>
+<td>impl PR 2</td>
+<td>design §Purpose.5, Plan item 2</td>
+</tr>
+<tr>
+<td>Replacing placeholder workers with real Zig-daemon ports</td>
+<td>WP4-S5/S6 (with the daemons)</td>
+<td>roster; design Plan §follow-ups</td>
+</tr>
+<tr>
+<td><code>preceptord</code> authority enforcement</td>
+<td>Later (no preceptord exists yet); S3 stubs <strong>allow-all + log the principal</strong></td>
+<td>design §Open; RFC 0005 §2.3</td>
+</tr>
+<tr>
+<td>Cold-start verification <em>algorithm</em> (re)implementation</td>
+<td>Never on the BEAM in S3 — <strong>shell out to the oracle</strong> (<code>eventd coldstart</code>)</td>
+<td>RFC 0004 §6.1; design §Purpose.3</td>
+</tr>
+</tbody>
+</table>
+<p>If S3 reimplements <code>verify_cold_start</code> or the canonical hash on the BEAM, it has<br />
+accidentally written a later sprint. The supervisor's job in S3 is: boot the<br />
+generated tree, hold the writer funnel, run the scheduling-control model, and<br />
+delegate every byte/verification question to the oracle port.</p>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-normative-inputs-rfcs">2.1 Normative inputs (RFCs)</h3>
+<ul>
+<li><strong>RFC 0004 §6 / §6.1</strong> (<code>protocol/rfcs/0004-multi-agent-state-dependency.md:570</code>)<br />
+  — the boot lifecycle <code>STOPPED → BOOT_SCANNING → DEPENDENCY_VERIFYING →
+  RUNNING | PAUSED(stale_dependency)</code> is <strong>owned by <code>agent-supervisord</code></strong>. S3<br />
+  must wire the <em>transitions</em> and the verify gate, but the verification itself is<br />
+  the oracle's <code>coldstart</code> verb. "operators cannot force-resume agents with stale<br />
+  dependencies" (§6) is a hard rule the control plane must honor.</li>
+<li><strong>RFC 0004 §7 / §7.1</strong> (<code>:685</code> / <code>:698</code>) — the supervisor <strong>owns the topology<br />
+  epoch counter</strong> ("Epoch is supervisor-assigned, never caller-asserted"). S3<br />
+  holds the counter as <code>control_plane</code> state (single host, in-memory; bump<br />
+  logged write-ahead is a later concern once topology mutation is wired).</li>
+<li><strong>RFC 0004 §4 / §4.3</strong> (<code>:212</code> / <code>:389</code>) — GC floor / checkpoint liveness. S3<br />
+  does <strong>not</strong> compute floors; it shells to <code>eventd floor</code>. Listed as an input so<br />
+  the writer's append discipline is understood, not implemented here.</li>
+<li><strong>RFC 0005 §1</strong> (<code>:43</code>) — the control-frame catalog and the <code>ControlRefusal</code><br />
+  enum (<code>denied=1, unknown_target=2, stale_epoch=3, not_paused=4,
+  invalid_interval=5, invalid_rewind=6</code>). S3 reproduces the <strong>semantics</strong> of<br />
+<code>pause/resume/slow/step</code> (§2, §2.1, §2.2) via the control file; the wire frames<br />
+  themselves are out of scope (§1.1).</li>
+<li><strong>RFC 0005 §2.1 / §2.2</strong> (<code>:151</code> / <code>:173</code>) — graceful pause (in-flight<br />
+  completes, new work queues, no rollback) and non-transactional single-tick<br />
+  step. These are the ralph <code>Control</code> semantics the supervisor promotes.</li>
+<li><strong>RFC 0005 §3 (rewind, <code>:261</code>) / §4 (idempotency &amp; logging, <code>:271</code>)</strong> — applied<br />
+  control actions are <code>control_action</code> eventd entries; <strong>the corr→outcome map is<br />
+  rebuilt from the log on supervisor restart</strong>. §4 is the load-bearing fact for<br />
+  the restart-strategy decision in §3.2 (control-plane state is <em>recoverable from<br />
+  the log</em>, not lost on crash).</li>
+<li><strong>RFC 0005 §6</strong> (<code>:437</code>) — refusal taxonomy; refused actions are <strong>not</strong> logged<br />
+  (<code>applied=false</code>, no <code>control_action</code> entry). In S3 (file transport, no<br />
+<code>ControlAck</code> channel) refusals are log-visible only as the <em>absence</em> of a<br />
+<code>control_action</code> plus a daemon log line (design §"Control intake (reference)").</li>
+</ul>
+<h3 id="22-code-oracles-frozen-contracts-s3-reproduces-never-re-derives">2.2 Code oracles (frozen contracts S3 reproduces, never re-derives)</h3>
+<ul>
+<li><strong>eventd CLI</strong> (<code>eventd/__main__.py:1-28</code>) — the <strong>STABLE ORACLE CONTRACT</strong>.<br />
+  Exit codes are the API the BEAM port consumes:</li>
+<li><code>0</code> — ok / chain verified / dependencies verified ⇒ RUNNING</li>
+<li><code>2</code> — usage error</li>
+<li><code>3</code> — <code>PAUSED(stale_dependency)</code> — coldstart refused the RUNNING transition</li>
+<li><code>4</code> — tampered / malformed log — the audit spine is broken</li>
+<li><code>5</code> — writer refused — single-writer lock held elsewhere</li>
+</ul>
+<p>Verbs S3 invokes over ports: <code>verify &lt;log&gt;</code> (boot precondition,<br />
+<code>verify_on_boot</code>), <code>append &lt;log&gt; '&lt;payload json&gt;'</code> (the single-writer funnel),<br />
+<code>coldstart &lt;log&gt; &lt;consumer-agent&gt;</code> (the §6 gate), <code>state &lt;log&gt; [--at N]</code><br />
+  (observability for the smoke test), <code>floor &lt;log&gt; &lt;producer&gt;</code> (reserved for the<br />
+  later GC path). These verbs and exit codes are frozen — S3 must not fork them.<br />
+- <strong>Lowered OTP goldens</strong> — <code>vaked/examples/lowering/gen/otp/operator_field_sup.erl</code><br />
+  and <code>vaked/examples/lowering/gen/otp/vaked_fiber_worker.erl</code> (15→17-entry golden<br />
+  manifest, #15 parity contract). The application supervisor boots a generated<br />
+<code>&lt;slug&gt;_sup</code> module as a child; S3 must treat these as read-only inputs and<br />
+  never hand-edit them (the <code>gen/</code> boundary, design §Shape). Generated strategy is<br />
+<code>one_for_one, intensity =&gt; 3, period =&gt; 10</code> (<code>operator_field_sup.erl:16</code>).<br />
+- <strong>ralph <code>Control</code> model</strong> — <code>tools/ralph/ralphcore.py</code> (<code>Control</code> dataclass:<br />
+<code>paused: bool</code>, <code>interval: float|None</code>, <code>step: bool</code>; <code>parse_control(dict)</code>).<br />
+  This is the proven scheduling model the supervisor promotes to <code>control_plane</code><br />
+  state. The control-file intake parses the same JSON shape.</p>
+<h3 id="23-calibration-target-example-system">2.3 Calibration target / example system</h3>
+<p><code>vaked/examples/agentfield-swe.vaked</code> — the daily-use target. Its<br />
+<code>parallel "field-runtime"</code> block (<code>:143</code>) declares <code>fibers = [transcriptMiner,
+fieldView]</code>, <code>strategy = "supervised-dag"</code>, <code>supervisor = otp</code>. Lowering it yields<br />
+<code>gen/otp/agent_field_sup.erl</code> (children <code>transcriptMiner</code> (fiber, config<br />
+<code>gen/zig/…</code>), <code>fieldView</code> (surface, config <code>none</code>)) and<br />
+<code>gen/otp/vaked_fiber_worker.erl</code>. This is the tree S3 boots in its smoke test;<br />
+<code>tests/spec/test_otp_lowering.py</code> already asserts the structure of those artifacts.</p>
+<h2 id="3-design">3. Design</h2>
+<h3 id="31-process-tree-what-s3-builds">3.1 Process tree (what S3 builds)</h3>
+<p>S3 builds the <strong>hand-written</strong> supervisor that wraps the generated tree. The<br />
+generated tree is a <em>child</em> of the daemon, not the daemon itself (design §Shape):<br />
+the hand-written application supervises the machine-written supervisor, and the<br />
+hand/generated boundary is exactly the <code>gen/</code> boundary.</p>
+<div class="highlight"><pre><span></span>agent_supervisord                (application; .app + application:start/2)
+└── agent_supervisord_sup        (top-level supervisor — THE S3 deliverable)
+    ├── [0] eventd_writer        (gen_server: serializes ALL appends via the
+    │                             oracle port — the RFC 0004 single-writer funnel)
+    ├── [1] control_plane        (gen_server: holds Control{paused,interval,step}
+    │                             per target + the topology-epoch counter; intakes
+    │                             control.json; emits control_action via writer)
+    ├── [2] workflow_engine      (gen_server STUB in S3: registered, init/1 only;
+    │                             body lands in impl PR 2)
+    └── [3] agent_field_sup      (THE LOWERED TREE — generated module, started as a
+        │                         child by start_link/0; never hand-edited)
+        ├── worker &#39;transcriptMiner&#39;  (vaked_fiber_worker — placeholder, heartbeats)
+        └── worker &#39;fieldView&#39;        (vaked_fiber_worker — placeholder, heartbeats)
+</pre></div>
+
+<p>File layout to create under <code>daemons/agent-supervisord/</code>:</p>
+<div class="highlight"><pre><span></span>daemons/agent-supervisord/
+├── README.md                          # per-daemon entry (mirrors agent_guardd/, eventd/)
+├── rebar.config                       # build config (devshell `erlang` toolchain)
+├── src/
+│   ├── agent_supervisord.app.src      # OTP application resource file
+│   ├── agent_supervisord_app.erl      # application behaviour: start/2, stop/1
+│   ├── agent_supervisord_sup.erl      # TOP-LEVEL supervisor — child specs + strategy (§3.2)
+│   ├── eventd_writer.erl              # gen_server: single-writer funnel over the oracle port
+│   ├── eventd_port.erl               # oracle-port bridge: spawn `python3 -m eventd …`, map exit codes
+│   ├── control_plane.erl             # gen_server: ralph Control + epoch counter + control-file intake
+│   └── workflow_engine.erl           # gen_server STUB (PR2 fills the body)
+├── priv/
+│   └── control.json.example          # the control-file transport shape (paused/interval/step)
+└── test/
+    ├── agent_supervisord_SUITE.erl    # Common Test: boot + child-alive + pause/step/resume
+    └── eventd_port_SUITE.erl          # exit-code mapping against the real oracle
+</pre></div>
+
+<h3 id="32-the-restart-strategy-for-the-top-level-supervisor-the-core-s3-decision">3.2 The restart strategy for the top-level supervisor (the core S3 decision)</h3>
+<p>The generated tree's strategy is already fixed by Track C<br />
+(<code>one_for_one, intensity =&gt; 3, period =&gt; 10</code>,<br />
+<code>operator_field_sup.erl:16</code>). S3 must independently choose the <strong>top-level</strong><br />
+<code>agent_supervisord_sup</code> strategy. The discriminating question (per the OTP<br />
+restart-coupling model): <em>does any child cache another child's pid, or do<br />
+children reference each other by registered name and rebuild transient state from<br />
+the log?</em></p>
+<p><strong>Decision: <code>one_for_one</code>, <code>intensity =&gt; 4</code>, <code>period =&gt; 10</code>.</strong></p>
+<p>Rationale, child by child:</p>
+<ul>
+<li><strong><code>eventd_writer</code></strong> is the single-writer funnel. It holds no other child's pid:<br />
+  it talks to the Python oracle over a port and (later) holds the flock itself. If<br />
+  it crashes, restarting <em>it alone</em> re-opens the port and re-acquires the<br />
+  funnel; siblings keep their registered-name references and resume appending once<br />
+  it is back. No sibling state is invalidated by a writer restart.</li>
+<li><strong><code>control_plane</code></strong> holds <code>Control{paused, interval, step}</code> per target plus the<br />
+  epoch counter and the corr→outcome map. <strong>RFC 0005 §4</strong> is the tie-breaker: that<br />
+  map is <em>rebuilt from the log on supervisor restart</em> — i.e. control-plane state<br />
+  is recoverable, not lost, on crash. So a <code>control_plane</code> crash does not require<br />
+  bouncing siblings; on restart it replays <code>control_action</code> entries (via<br />
+<code>eventd state</code>) to rebuild its outcome map. <code>one_for_one</code> is correct.</li>
+<li><strong><code>workflow_engine</code></strong> (S3 stub) holds no cross-child pid; independent restart.</li>
+<li><strong><code>agent_field_sup</code></strong> is itself a supervisor. Its own children<br />
+  (<code>vaked_fiber_worker</code> placeholders) <strong>do not write eventd at all</strong> in v0<br />
+  (lowering design §"Worker contract": "No I/O, no eventd writes") — so a worker<br />
+  crash, or a restart of the whole generated tree, cannot corrupt the log or<br />
+  invalidate writer/control_plane state. <code>one_for_one</code> at the top means a crash of<br />
+  the generated supervisor restarts only the generated subtree.</li>
+</ul>
+<p>Why <strong>not</strong> <code>rest_for_one</code> / <code>one_for_all</code>: those couple sibling lifecycles by<br />
+position. There is no shared transient pid-cache among these four children that a<br />
+crash would dangle (the cross-references are by registered name and the only<br />
+durable shared resource — the log — is reconstructable), so blanket sibling<br />
+restarts would only add restart amplification with no consistency benefit. This is<br />
+the same reasoning the lowering design used to reject <code>rest_for_one</code> for the<br />
+generated tree (<code>2026-06-12-otp-supervision-lowering-design.md</code> §"Strategy<br />
+mapping").</p>
+<p><code>intensity =&gt; 4</code> (one more than the generated tree's <code>3</code>): the top level tolerates<br />
+one extra restart in the window because a writer-port flap (oracle subprocess<br />
+restart) is an expected, recoverable event during the reference phase; <code>period =&gt;
+10</code> matches the generated tier for consistency.</p>
+<p><strong>Child specs</strong> (uniform with the generated tier where it makes sense):</p>
+<table>
+<thead>
+<tr>
+<th>Child</th>
+<th><code>restart</code></th>
+<th><code>shutdown</code></th>
+<th><code>type</code></th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>eventd_writer</code></td>
+<td><code>permanent</code></td>
+<td><code>5000</code></td>
+<td><code>worker</code></td>
+<td><strong>start order [0]</strong>: must be up before any writer; <strong>shutdown last</strong> so in-flight <code>control_action</code>/step events still land during graceful shutdown</td>
+</tr>
+<tr>
+<td><code>control_plane</code></td>
+<td><code>permanent</code></td>
+<td><code>5000</code></td>
+<td><code>worker</code></td>
+<td>start [1]; depends on writer being registered</td>
+</tr>
+<tr>
+<td><code>workflow_engine</code></td>
+<td><code>permanent</code></td>
+<td><code>5000</code></td>
+<td><code>worker</code></td>
+<td>start [2]; stub in S3</td>
+</tr>
+<tr>
+<td><code>agent_field_sup</code></td>
+<td><code>permanent</code></td>
+<td><code>infinity</code></td>
+<td><code>supervisor</code></td>
+<td>start [3], last; <code>shutdown =&gt; infinity</code> is the OTP rule for supervisor children (let it shut its own tree down)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Child start order is load-bearing</strong>, not cosmetic: OTP starts children<br />
+left-to-right and shuts them down right-to-left. <code>eventd_writer</code> first/last means<br />
+the writer is available before any sibling tries to append and is the last to go<br />
+during a graceful stop, so control actions emitted while the tree drains still<br />
+reach the log.</p>
+<h3 id="33-the-oracle-port-bridge-eventd_port-eventd_writer">3.3 The oracle-port bridge (<code>eventd_port</code> + <code>eventd_writer</code>)</h3>
+<p>The single-writer discipline (RFC 0004) is enforced by funneling <strong>every</strong> append<br />
+through <code>eventd_writer</code>, which calls the Python oracle over an Erlang port. During<br />
+the reference phase the oracle takes the flock per append (design §Shape: "the<br />
+oracle takes the flock per append"); the BEAM-native flock holder is a later PR.</p>
+<p><code>eventd_port</code> responsibilities:<br />
+1. Spawn <code>python3 -m eventd &lt;verb&gt; &lt;args&gt;</code> via <code>erlang:open_port/2</code><br />
+   (<code>{spawn_executable, …}</code>), capture stdout/stderr and the <strong>exit status</strong>.<br />
+2. Map the frozen exit codes (§2.2) to typed Erlang results:<br />
+<code>0 → {ok, …}</code>, <code>2 → {error, usage}</code>, <code>3 → {paused, stale_dependency}</code>,<br />
+<code>4 → {error, tampered}</code>, <code>5 → {error, writer_locked}</code>. The mapping table is<br />
+   the contract <code>eventd_port_SUITE.erl</code> pins.<br />
+3. Surface <code>{error, tampered}</code> from <code>verify</code> as a <strong>hard boot failure</strong><br />
+   (<code>verify_on_boot</code>, design §Purpose.2) — the application refuses to start a tree<br />
+   over a broken audit spine.</p>
+<p><code>eventd_writer</code> API (S3): <code>append(Payload) -&gt; {ok, Seq} | {error, Reason}</code>,<br />
+serialized through the gen_server mailbox so concurrent callers cannot race the<br />
+single writer. <code>control_plane</code> emits <code>control_action</code> entries exclusively through<br />
+this call.</p>
+<h3 id="34-control-plane-intake-and-the-lifecycle-gate">3.4 Control-plane intake and the lifecycle gate</h3>
+<ul>
+<li><strong>Transport (S3):</strong> <code>control.json</code> polled per tick (design §"Control intake<br />
+  (reference)"), parsed into the ralph <code>Control</code> shape<br />
+  (<code>paused</code>/<code>interval</code>/<code>step</code>). RFC 0005 wire frames replace the file later; both<br />
+  funnel into the same <code>control_plane</code> state. File-driven actions <strong>synthesize<br />
+  their <code>corr</code></strong> and refusals are log-visible only (no <code>ControlAck</code> channel until<br />
+  the wire).</li>
+<li><strong>Verbs (S3, semantics from RFC 0005 §2):</strong> <code>pause</code>/<code>resume</code>/<code>slow</code>/<code>step</code><br />
+  mutate <code>control_plane</code> scheduling state only — never the log, never worker<br />
+  state. <code>step</code> on a non-paused target is a no-op refusal (<code>not_paused</code>, §2,<br />
+  §6) and is <strong>not</strong> logged. An applied <code>pause</code>/<code>resume</code>/<code>slow</code>/<code>step</code> writes one<br />
+<code>control_action</code> entry via <code>eventd_writer</code> (RFC 0005 §4: "applied control<br />
+  actions are events").</li>
+<li><strong>Lifecycle gate (RFC 0004 §6):</strong> the boot transition for each worker is<br />
+<code>STOPPED → BOOT_SCANNING → DEPENDENCY_VERIFYING → RUNNING |
+  PAUSED(stale_dependency)</code>. In S3 the workers are placeholders with no real<br />
+  dependencies, so <code>DEPENDENCY_VERIFYING</code> shells <code>eventd coldstart &lt;log&gt;
+  &lt;agent&gt;</code>: exit <code>0</code> ⇒ permit RUNNING; exit <code>3</code> ⇒ hold <code>PAUSED(stale_dependency)</code>.<br />
+  The transition machinery is wired in S3; the verification <em>result</em> comes from<br />
+  the oracle. The §6 hard rule (no force-resume past a stale dependency) is<br />
+  honored by routing every RUNNING transition through this gate.</li>
+<li><strong>Epoch counter (RFC 0004 §7):</strong> <code>control_plane</code> holds an in-memory <code>u64</code> epoch,<br />
+  initialized at boot. S3 does not yet bump it (no topology-mutation path is<br />
+  wired); it exists so the later frame intake has a single owner. Caller-asserted<br />
+  epochs are never trusted (§7.1).</li>
+<li><strong>Authority (stub):</strong> no <code>preceptord</code> exists; S3 is <strong>allow-all + log the<br />
+  principal</strong>, with the deny path stubbed but wired (design §Open). Every control<br />
+  action records the principal in the <code>control_action</code> payload so the later<br />
+  policy check has its input.</li>
+</ul>
+<h3 id="35-rewind-is-explicitly-deferred">3.5 Rewind is explicitly deferred</h3>
+<p>The five-verb control model (control-plane design<br />
+<code>2026-06-12-control-plane-design.md</code>) includes <code>rewind</code>, which in RFC 0005 §3<br />
+composes RFC 0004 machinery (pause affected workers → append <code>RewindEvent</code> →<br />
+restart workers → cold-start re-anchors or parks them). <strong>S3 does not implement<br />
+rewind.</strong> It is the epic's acceptance-3 demo and lands once the writer + control<br />
+intake + cold-start gate (all S3) are in place plus the workflow/step path (PR2).<br />
+S3's job is to make the substrate rewind needs (writer funnel, restart of a<br />
+producer's worker via <code>one_for_one</code>, cold-start gate) exist and be observable.</p>
+<h2 id="4-algorithm-boot-one-control-cycle">4. Algorithm (boot + one control cycle)</h2>
+<div class="highlight"><pre><span></span>application:start/2:
+  1. read gen/eventd.json → log path L
+  2. eventd_port: `python3 -m eventd verify L`
+        exit 4 → crash the application (verify_on_boot precondition; tampered spine)
+        exit 0 → continue
+  3. start agent_supervisord_sup (strategy one_for_one, §3.2):
+        a. eventd_writer  (opens the oracle port; ready to funnel appends)
+        b. control_plane  (loads control.json shape; epoch := boot epoch)
+        c. workflow_engine (stub)
+        d. agent_field_sup:start_link/0   (the lowered generated tree)
+             for each worker child:
+               STOPPED → BOOT_SCANNING → DEPENDENCY_VERIFYING
+               `eventd coldstart L &lt;child&gt;`:
+                  exit 0 → RUNNING
+                  exit 3 → PAUSED(stale_dependency)   (held; no force-resume)
+  4. children alive; placeholders heartbeat (vaked_fiber_worker tick)
+
+one pause → step → resume cycle (control.json poll tick):
+  control.json {&quot;paused&quot;: true}:
+     control_plane sets target paused (graceful: in-flight completes, new queues)
+     append control_action{verb=pause, target, corr=synth, principal} via eventd_writer
+  control.json {&quot;paused&quot;: true, &quot;step&quot;: true}:
+     if target paused: advance one scheduler tick, return to paused
+        append control_action{verb=step, …}
+     else: refuse not_paused (NO log entry)
+  control.json {&quot;paused&quot;: false}:
+     control_plane resumes normal scheduling
+     append control_action{verb=resume, …}
+
+observe: `python3 -m eventd state L` shows the control_action entries (per-kind
+counts), proving the cycle hit the log; refused not_paused step is absent.
+</pre></div>
+
+<h2 id="5-test-plan">5. Test plan</h2>
+<p>Two tiers. The split is governed by <strong>what each tier needs</strong>, and one fact decides<br />
+it: <code>flake.nix</code> (<code>:21-43</code>) provides <code>erlang</code> and <code>elixir</code> in the devshell for<br />
+<strong>all four systems including <code>aarch64-darwin</code></strong>. So BEAM compilation and boot are<br />
+<strong>runnable on the M1 host via <code>nix develop</code></strong> — they are <em>not</em> dev-cx53-only. The<br />
+only things genuinely needing dev-cx53/Linux are the real Zig-daemon ports the<br />
+supervisor will later spawn (namespace/cgroup syscalls), which are <strong>out of S3<br />
+scope</strong> (§1.1).</p>
+<h3 id="51-tier-a-local-on-m1-no-beam-required-python-oracle-contract">5.1 Tier A — local on M1, no BEAM required (Python oracle contract)</h3>
+<p>These pin the byte/verification contracts S3 delegates to. They are the honest<br />
+"verifiable locally today" floor and need only <code>python3</code>:</p>
+<ul>
+<li><strong>A1 — boot precondition (<code>verify_on_boot</code>).</strong> On a tampered/truncated log,<br />
+<code>python3 -m eventd verify</code> exits <code>4</code>. Regression: the spec asserts S3's port<br />
+  must treat exit 4 as a hard boot failure. Verify: existing <code>eventd</code> tamper tests<br />
+  under <code>tests/spec/</code> already produce exit 4; A1 references them as the oracle<br />
+  contract.</li>
+<li><strong>A2 — cold-start gate.</strong> <code>python3 -m eventd coldstart &lt;log&gt; &lt;consumer&gt;</code> exits<br />
+<code>0</code> (⇒ RUNNING) on a verified anchor and <code>3</code> (⇒ PAUSED(stale_dependency)) on a<br />
+  missing/stale anchor. This is the exact gate <code>control_plane</code> consults; the test<br />
+  fixes the two exit codes S3 branches on.</li>
+<li><strong>A3 — single-writer refusal.</strong> Concurrent <code>eventd append</code> while the flock is<br />
+  held exits <code>5</code>; the port maps it to <code>{error, writer_locked}</code>.</li>
+<li><strong>A4 — lowering structure (already shipped).</strong> <code>tests/spec/test_otp_lowering.py</code><br />
+  asserts <code>vakedc lower</code> emits <code>gen/otp/agent_field_sup.erl</code> +<br />
+<code>vaked_fiber_worker.erl</code> with the right children/strategy and is byte-<br />
+  deterministic. S3 depends on this output; A4 is the existing guard that the tree<br />
+  S3 boots is well-formed. Run: <code>task test</code> (<code>python3 -m pytest tests -q</code>).</li>
+</ul>
+<p>Command surface for Tier A: <code>python3 -m pytest tests -q</code> and direct<br />
+<code>python3 -m eventd …</code> invocations. No <code>cargo</code>, no <code>zig</code>, no <code>erl</code> needed.</p>
+<h3 id="52-tier-b-local-on-m1-inside-the-devshell-nix-develop-beam-present">5.2 Tier B — local on M1 inside the devshell (<code>nix develop</code>, BEAM present)</h3>
+<p>These need <code>erlc</code>/<code>erl</code>, which the devshell provides on <code>aarch64-darwin</code>. They run<br />
+on the M1 dev machine under <code>nix develop</code>; <strong>they do not require dev-cx53.</strong></p>
+<ul>
+<li><strong>B1 — compile.</strong> <code>rebar3 compile</code> (or <code>erlc src/*.erl</code>) under the devshell:<br />
+  the application + four <code>gen_server</code>/supervisor modules compile clean. Module<br />
+  name == filename for every module (OTP rule).</li>
+<li><strong>B2 — boot + children alive (extends <code>task otp-smoke</code>).</strong> The existing<br />
+<code>otp-smoke</code> target (<code>Taskfile.yml:67-85</code>) lowers <code>agentfield-swe</code>, <code>erlc</code>s the<br />
+  generated <code>gen/otp/*.erl</code>, and boots the generated <code>&lt;slug&gt;_sup</code> directly. S3<br />
+  extends this to boot the <strong>application</strong> (<code>agent_supervisord</code> wrapping the<br />
+  generated tree) and assert all four top-level children + the two placeholder<br />
+  workers are alive after one heartbeat window (≈6s). This is the design's "Shape<br />
+  smoke" (<code>2026-06-12-agent-supervisord-design.md</code> §Verification.1).</li>
+<li><strong>B3 — one control cycle.</strong> Drive <code>pause → step → resume</code> via <code>control.json</code><br />
+  and assert via <code>python3 -m eventd state</code> that <code>control_action</code> entries appear<br />
+  for the three applied verbs, and that a <code>step</code> issued while <em>not</em> paused<br />
+  produces <strong>no</strong> entry (<code>not_paused</code>, RFC 0005 §6). This is the §4 algorithm's<br />
+  control cycle, end to end, observable on the log.</li>
+<li><strong>B4 — restart strategy assertion.</strong> Common Test (<code>agent_supervisord_SUITE.erl</code>):<br />
+  kill <code>eventd_writer</code> and assert (a) it restarts, (b) <code>control_plane</code> and the<br />
+  generated tree keep their pids (proving <code>one_for_one</code>, not <code>one_for_all</code>); then<br />
+  kill a <code>vaked_fiber_worker</code> and assert only that worker restarts. This is the<br />
+  test that proves the §3.2 decision; it FAILS under <code>one_for_all</code>/<code>rest_for_one</code><br />
+  and PASSES under <code>one_for_one</code> (regression-test discipline: the ordering proves<br />
+  it catches the wrong strategy).</li>
+<li><strong>B5 — determinism of generated inputs.</strong> Two <code>vakedc lower</code> runs produce<br />
+  byte-identical <code>gen/otp/*.erl</code> (already an A4/lowering guarantee); B5 just<br />
+  confirms the boot is reproducible from identical inputs.</li>
+</ul>
+<h3 id="53-what-needs-dev-cx53-linux-and-is-out-of-s3-scope">5.3 What needs dev-cx53 / Linux (and is OUT of S3 scope)</h3>
+<ul>
+<li>Spawning the <strong>real Zig daemons</strong> (<code>sandboxd</code>, eventd Zig port) as supervised<br />
+  ports requires Linux namespaces/cgroups (<code>unshare</code>, cgroup-v2) — WP4-S5/S6, not<br />
+  S3. S3's workers stay <code>vaked_fiber_worker</code> placeholders, so S3 has <strong>no Linux<br />
+  syscall dependency</strong>.</li>
+<li>The eventd Zig port's byte-parity suite (WP4-S4) runs against the same goldens<br />
+  but is a separate sprint.</li>
+</ul>
+<p>The orchestrator's M1 toolchain note (Rust via <code>cargo test</code>, Zig via <code>zig build
+-Dtarget=x86_64-linux</code> compile-only) is satisfied: S3 introduces <strong>no</strong> Rust/Zig<br />
+code (it is an Erlang daemon), so neither <code>cargo</code> nor <code>zig</code> is on S3's critical<br />
+path; the BEAM tooling it does need is M1-local via the devshell.</p>
+<h2 id="6-ci-posture">6. CI posture</h2>
+<p>CI has no Erlang (the lowering design and <code>test_otp_lowering.py</code> docstring both<br />
+state "CI has no Erlang"). Therefore:<br />
+- <strong>CI gate = Tier A</strong> (<code>python3 -m pytest tests -q</code>) plus a structure/lint check<br />
+  of the new <code>daemons/agent-supervisord/src/*.erl</code> (presence, module/filename<br />
+  agreement, no hand-edits to <code>gen/</code>).<br />
+- <strong>Tier B is a devshell/PR gate</strong>, recorded in the landing PR exactly as<br />
+<code>otp-smoke</code> output is recorded today (design §Verification.3, lowering design<br />
+  §Verification). The PR that lands S3 includes the <code>task otp-smoke</code>-extended<br />
+  transcript (boot + control cycle + restart assertion) run under <code>nix develop</code> on<br />
+  the author's machine.</p>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Direction</th>
+<th>State</th>
+<th>Effect on S3</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Track C <code>otp.supervision</code> lowering (#19)</td>
+<td>S3 <strong>consumes</strong></td>
+<td><strong>Shipped</strong> — goldens exist</td>
+<td>S3 boots the generated <code>&lt;slug&gt;_sup</code>; must not hand-edit <code>gen/</code></td>
+</tr>
+<tr>
+<td>eventd Python oracle (#18)</td>
+<td>S3 <strong>consumes</strong></td>
+<td><strong>Shipped</strong> — frozen exit codes</td>
+<td>The writer/cold-start/verify bridge calls it over ports</td>
+</tr>
+<tr>
+<td>ralph <code>Control</code> model</td>
+<td>S3 <strong>promotes</strong></td>
+<td><strong>Shipped</strong> (<code>tools/ralph/ralphcore.py</code>)</td>
+<td>Control-file shape + scheduling semantics</td>
+</tr>
+<tr>
+<td>WP3 Litany Wire + RFC 0005 frame intake</td>
+<td>S3 <strong>awaits</strong></td>
+<td>Future (WP3)</td>
+<td>S3 uses control-file transport; wire frames replace it later (design Plan 3)</td>
+</tr>
+<tr>
+<td>Workflow engine (impl PR 2)</td>
+<td>S3 <strong>precedes</strong></td>
+<td>Future</td>
+<td>S3 ships <code>workflow_engine</code> as a registered stub</td>
+</tr>
+<tr>
+<td>sandboxd / eventd Zig port (WP4-S1/2/4)</td>
+<td>S3 <strong>precedes</strong>; later <strong>supervises</strong></td>
+<td>Future</td>
+<td>Placeholders now; real ports at WP4-S5/S6 (Linux, dev-cx53)</td>
+</tr>
+<tr>
+<td>BEAM-native fold + #15-era parity (design Plan 4)</td>
+<td>S3 <strong>precedes</strong></td>
+<td>Future</td>
+<td>Oracle owns bytes in S3; BEAM fold replaces the port later</td>
+</tr>
+<tr>
+<td><code>preceptord</code> authority</td>
+<td>S3 <strong>stubs</strong></td>
+<td>Does not exist</td>
+<td>Allow-all + log principal; deny path wired but inert</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>S3 is done when:</p>
+<ol>
+<li><strong>Subtree exists</strong> at <code>daemons/agent-supervisord/</code> with the §3.1 layout; a<br />
+<code>README.md</code> mirrors the <code>agent_guardd/</code> / <code>eventd/</code> per-daemon convention and<br />
+   the roster row.</li>
+<li><strong>Compiles</strong> clean under the devshell (<code>rebar3 compile</code> / <code>erlc src/*.erl</code>),<br />
+   module==filename for all modules (B1).</li>
+<li><strong>Boots the generated tree</strong> as child <code>[3]</code> of <code>agent_supervisord_sup</code>; all<br />
+   four top-level children and both <code>agentfield-swe</code> placeholder workers are alive<br />
+   after a heartbeat window (B2). <code>verify_on_boot</code> hard-fails on a tampered log<br />
+   (A1 + the port mapping).</li>
+<li><strong>Restart strategy is <code>one_for_one</code></strong> at the top level with the §3.2 child<br />
+   specs/order, and B4 proves it: an <code>eventd_writer</code> kill restarts only the writer<br />
+   (siblings keep pids); a worker kill restarts only that worker. The test FAILS<br />
+   under <code>one_for_all</code>/<code>rest_for_one</code>.</li>
+<li><strong>One control cycle lands on the log</strong>: <code>pause → step → resume</code> via<br />
+<code>control.json</code> produces three <code>control_action</code> entries visible via <code>eventd
+   state</code>, and a <code>step</code> while not paused produces none (<code>not_paused</code>) (B3).</li>
+<li><strong>Cold-start gate is wired</strong>: a worker whose <code>eventd coldstart</code> returns exit 3<br />
+   is held <code>PAUSED(stale_dependency)</code> and is not force-resumable; exit 0 permits<br />
+   RUNNING (A2 + transition wiring).</li>
+<li><strong>Byte semantics stay in the oracle</strong>: no canonical-hash or <code>verify_cold_start</code><br />
+   reimplementation on the BEAM (grep the subtree; the only path to those facts is<br />
+<code>eventd_port</code>).</li>
+<li><strong>CI green</strong> on Tier A; the landing PR records the Tier B devshell transcript<br />
+   (§6).</li>
+</ol>
+<h2 id="9-open-questions-carried-from-the-daemon-design-not-resolved-in-s3">9. Open questions (carried from the daemon design, not resolved in S3)</h2>
+<ul>
+<li>One daemon per host supervising many runtimes, vs one per runtime (design<br />
+  §Open — lean per-host with one <code>&lt;runtime&gt;_sup</code> child per runtime; S3's<br />
+  single-example layout does not force the choice).</li>
+<li>Where the <code>preceptord</code> authority check physically runs once it exists (design<br />
+  §Open — S3 leaves the deny path stubbed).</li>
+<li>Whether <code>eventd_writer</code> should later hold the flock BEAM-native vs keep the<br />
+  oracle taking it per append (design §Shape — S3 keeps the oracle holding it).</li>
+<li>Budget enforcement point for workflow steps (engine-side vs worker-side) —<br />
+  deferred with the workflow engine (PR2).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp4-s3.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

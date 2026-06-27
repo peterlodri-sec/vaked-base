@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SPIRE PQC design — RFC 0007 Q3 research spike — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#summary-finding" style="padding-left:0.5rem">Summary finding</a><a href="#1-spires-current-pqc-posture" style="padding-left:0.5rem">1. SPIRE's current PQC posture</a><a href="#11-key-types-classical-only" style="padding-left:1rem">  1.1 Key types — classical only</a><a href="#12-pq-kem-transport-spire-to-spire" style="padding-left:1rem">  1.2 PQ-KEM transport (SPIRE-to-SPIRE)</a><a href="#13-community-poc-not-production" style="padding-left:1rem">  1.3 Community PoC — not production</a><a href="#14-upstream-roadmap" style="padding-left:1rem">  1.4 Upstream roadmap</a><a href="#2-if-native-support-becomes-available" style="padding-left:0.5rem">2. If native support becomes available</a><a href="#3-hybrid-x509-shim-design-recommended-for-vakedos" style="padding-left:0.5rem">3. Hybrid X.509 shim design (recommended for vakedos)</a><a href="#31-architecture-overview" style="padding-left:1rem">  3.1 Architecture overview</a><a href="#32-x509-extension-encoding" style="padding-left:1rem">  3.2 X.509 extension encoding</a><a href="#33-ml-dsa-keypair-management" style="padding-left:1rem">  3.3 ML-DSA keypair management</a><a href="#34-liboqs-as-the-ml-dsa-implementation" style="padding-left:1rem">  3.4 liboqs as the ML-DSA implementation</a><a href="#35-shim-deployment-on-vakedos" style="padding-left:1rem">  3.5 Shim deployment on vakedos</a><a href="#36-verifier-logic" style="padding-left:1rem">  3.6 Verifier logic</a><a href="#4-recommendation-for-vakedos" style="padding-left:0.5rem">4. Recommendation for vakedos</a><a href="#5-open-questions-remaining" style="padding-left:0.5rem">5. Open questions remaining</a><a href="#references" style="padding-left:0.5rem">References</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-spire-pqc-design</div>
+<h1>SPIRE PQC design — RFC 0007 Q3 research spike</h1>
+<hr />
+<p>date: 2026-06-13<br />
+status: Spike<br />
+track: Protocol<br />
+author: agent-session<br />
+relates-to: protocol/rfcs/0007-post-quantum-litany-sealed-image.md §4, Open Question 3</p>
+<hr />
+<h1 id="spire-pqc-design-rfc-0007-q3-research-spike">SPIRE PQC design — RFC 0007 Q3 research spike</h1>
+<h2 id="status">Status</h2>
+<p>Spike (2026-06-13). Answers RFC 0007 Open Question 3: <em>"Does the chosen SPIRE<br />
+deployment issue ML-DSA SVIDs natively, or is a hybrid-cert shim needed?"</em><br />
+Supersedes the open question; a follow-on design note (or RFC amendment) will<br />
+carry any implementation decision.</p>
+<h2 id="summary-finding">Summary finding</h2>
+<p><strong>Native ML-DSA SVIDs from SPIRE are not available in any stable release as of<br />
+June 2026.</strong> SPIRE's <code>ca_key_type</code> supports four classical key types only:<br />
+<code>ec-p256</code>, <code>ec-p384</code>, <code>rsa-2048</code>, <code>rsa-4096</code>. The <code>require_pq_kem</code> flag (added<br />
+experimentally, circa SPIRE 1.10+) enforces ML-KEM-based TLS key exchange<br />
+between SPIRE components, but it does not change the SVID signature algorithm —<br />
+SVIDs remain ECDSA-signed X.509 certificates.</p>
+<p>A community proof-of-concept (<code>marques-ma/SPIRE-PostQuantum-PoC</code>) has shown the<br />
+architecture is feasible via a SPIRE fork that calls into oqs-openssl for hybrid<br />
+PQ material, but that PoC is explicitly non-production and not upstreamed. No<br />
+SPIRE upstream issue or roadmap item tracks native ML-DSA SVID support as of the<br />
+research date.</p>
+<p><strong>Recommendation for vakedos: implement the hybrid X.509 shim described in §3.</strong></p>
+<hr />
+<h2 id="1-spires-current-pqc-posture">1. SPIRE's current PQC posture</h2>
+<h3 id="11-key-types-classical-only">1.1 Key types — classical only</h3>
+<p>SPIRE server accepts <code>ca_key_type</code> (and <code>jwt_key_type</code>) from the set:</p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Algorithm</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ec-p256</code></td>
+<td>ECDSA P-256 (default)</td>
+<td>Standard SVID type for most deployments</td>
+</tr>
+<tr>
+<td><code>ec-p384</code></td>
+<td>ECDSA P-384</td>
+<td>Higher classical security margin</td>
+</tr>
+<tr>
+<td><code>rsa-2048</code></td>
+<td>RSA-2048</td>
+<td>Legacy; only for compliance requirements</td>
+</tr>
+<tr>
+<td><code>rsa-4096</code></td>
+<td>RSA-4096</td>
+<td>Larger RSA</td>
+</tr>
+</tbody>
+</table>
+<p>ML-DSA, SLH-DSA, Dilithium, or any NIST PQC signature algorithm are not in<br />
+this list and cannot be added through configuration alone. The underlying Go<br />
+<code>crypto/x509</code> standard library on which SPIRE is built does not support FIPS 204<br />
+key OIDs, so even a custom <code>KeyManager</code> plugin that returns ML-DSA key handles<br />
+would fail at the cert-signing layer.</p>
+<h3 id="12-pq-kem-transport-spire-to-spire">1.2 PQ-KEM transport (SPIRE-to-SPIRE)</h3>
+<p>SPIRE has an experimental <code>require_pq_kem</code> flag (server and agent<br />
+configuration), defaulting to <code>false</code>, that enforces a post-quantum-safe key<br />
+encapsulation mechanism for the TLS channel between SPIRE server and SPIRE<br />
+agent. When <code>true</code>, an ML-KEM-based TLS 1.3 group is required. This protects<br />
+SPIRE's own internal control plane against harvest-now-decrypt-later, but it is<br />
+orthogonal to SVID content: the SVID certificates issued through this channel<br />
+are still ECDSA-signed. The workload SVID keys and signatures are classical<br />
+regardless of whether <code>require_pq_kem</code> is set.</p>
+<h3 id="13-community-poc-not-production">1.3 Community PoC — not production</h3>
+<p><code>marques-ma/SPIRE-PostQuantum-PoC</code> (GitHub) demonstrates a SPIRE fork that<br />
+adds a <code>GenWorkloadPQX509SVID</code> function to the SPIRE server CA. The fork calls<br />
+a custom <code>oqsopenssl</code> Go package wrapping the OQS-OpenSSL docker image to<br />
+generate hybrid PQ key material. The certificate's PQ public key and signature<br />
+are smuggled into a DNSName SAN extension because oqs-openssl does not produce<br />
+standard X.509 PQ extensions. Key drawbacks explicitly noted by the PoC:</p>
+<ul>
+<li><strong>Not upstreamed.</strong> The patch is against an older SPIRE version and is<br />
+  unmaintained.</li>
+<li><strong>SAN field abuse.</strong> Encoding PQ material in DNSName SANs is non-standard and<br />
+  conflicts with real DNS SAN validation in most mTLS stacks.</li>
+<li><strong>Docker shim architecture.</strong> The oqsopenssl package shells out to a running<br />
+  OQS-OpenSSL docker container for crypto operations, adding latency and<br />
+  architectural coupling.</li>
+<li><strong>Not FIPS 204 compliant.</strong> The PoC predates the final ML-DSA standard; its<br />
+  Dilithium parameters do not match FIPS 204 exactly.</li>
+</ul>
+<p>This PoC validates the feasibility of the shim approach (§3) but does not<br />
+provide a production path.</p>
+<h3 id="14-upstream-roadmap">1.4 Upstream roadmap</h3>
+<p>No tracked issue, RFC, or milestone in <code>spiffe/spire</code> addresses native PQC SVID<br />
+support as of the research date. The SPIFFE community is watching IETF work on<br />
+PQC X.509 extensions (ITU-T Rec. X.509 §9.8; IETF Hackathon pqc-certificates),<br />
+but no timeline commitment exists. A reasonable assumption: native ML-DSA SVIDs<br />
+in SPIRE upstream are 2–4 years away from stable availability, contingent on<br />
+Go's crypto library absorbing FIPS 204 support.</p>
+<hr />
+<h2 id="2-if-native-support-becomes-available">2. If native support becomes available</h2>
+<p>This section is forward-looking — captured for the crypto-agility (RFC 0007 §6)<br />
+migration path, not for immediate implementation.</p>
+<p>When SPIRE upstream gains a <code>ml-dsa-65</code> (or composite <code>ed25519+ml-dsa-65</code>)<br />
+<code>ca_key_type</code>:</p>
+<div class="highlight"><pre><span></span><span class="c1"># spire-server.conf — hypothetical future config</span>
+<span class="nb">server</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="na">trust_domain</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;agentfield.vakedos&quot;</span>
+<span class="w">  </span><span class="na">ca_key_type</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ml-dsa-65&quot;</span><span class="c1">       # FIPS 204 parameter set II</span>
+<span class="w">  </span><span class="na">ca_ttl</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;24h&quot;</span>
+<span class="w">  </span><span class="na">svid_ttl</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;1h&quot;</span>
+<span class="w">  </span><span class="na">require_pq_kem</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">true</span><span class="c1">              # already available today</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>SVIDs would carry an OID from the FIPS 204 namespace, the SPIRE bundle would<br />
+include the ML-DSA trust anchor, and workloads would present ML-DSA-signed<br />
+X.509 certs for mTLS. The Litany Wire implementation (RFC 0007 §3) would<br />
+validate the hybrid transcript signature against the ML-DSA half of the SVID.</p>
+<p>Until that is available, §3 is the operational path.</p>
+<hr />
+<h2 id="3-hybrid-x509-shim-design-recommended-for-vakedos">3. Hybrid X.509 shim design (recommended for vakedos)</h2>
+<p>Since SPIRE cannot natively issue ML-DSA SVIDs, the recommended approach is a<br />
+<strong>post-processing shim</strong> that attaches ML-DSA-65 material to the classical SVID<br />
+as a non-critical X.509v3 extension. Verifiers that understand the extension<br />
+check both; legacy verifiers that do not understand it ignore the extension<br />
+(X.509 non-critical semantics) and validate classically.</p>
+<h3 id="31-architecture-overview">3.1 Architecture overview</h3>
+<div class="highlight"><pre><span></span><span class="n">SPIRE</span><span class="w"> </span><span class="n">Workload</span><span class="w"> </span><span class="n">API</span>
+<span class="w">    </span><span class="err">│</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">classical</span><span class="w"> </span><span class="n">X</span><span class="o">.</span><span class="mi">509</span><span class="w"> </span><span class="n">SVID</span><span class="w"> </span><span class="p">(</span><span class="n">ECDSA</span><span class="w"> </span><span class="n">P</span><span class="o">-</span><span class="mi">256</span><span class="p">,</span><span class="w"> </span><span class="n">short</span><span class="o">-</span><span class="n">lived</span><span class="p">)</span>
+<span class="w">    </span><span class="err">▼</span>
+<span class="n">PQC</span><span class="w"> </span><span class="n">Shim</span><span class="w"> </span><span class="p">(</span><span class="n">local</span><span class="w"> </span><span class="n">sidecar</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">library</span><span class="p">)</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">reads</span><span class="w"> </span><span class="n">SVID</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">Workload</span><span class="w"> </span><span class="n">API</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">generates</span><span class="w"> </span><span class="n">ephemeral</span><span class="w"> </span><span class="n">ML</span><span class="o">-</span><span class="n">DSA</span><span class="o">-</span><span class="mi">65</span><span class="w"> </span><span class="n">keypair</span><span class="w"> </span><span class="p">(</span><span class="n">liboqs</span><span class="p">)</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="n">OR</span><span class="w"> </span><span class="n">fetches</span><span class="w"> </span><span class="n">long</span><span class="o">-</span><span class="n">lived</span><span class="w"> </span><span class="n">ML</span><span class="o">-</span><span class="n">DSA</span><span class="w"> </span><span class="n">key</span><span class="w"> </span><span class="n">from</span><span class="w"> </span><span class="n">KMS</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">appends</span><span class="w"> </span><span class="n">extension</span><span class="w"> </span><span class="n">OID</span><span class="w"> </span><span class="mf">1.3</span><span class="o">.</span><span class="mf">9999.2</span><span class="o">.</span><span class="mf">7.1</span><span class="w"> </span><span class="p">(</span><span class="n">ml</span><span class="o">-</span><span class="n">dsa</span><span class="o">-</span><span class="mi">65</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">key</span><span class="p">)</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">appends</span><span class="w"> </span><span class="n">extension</span><span class="w"> </span><span class="n">OID</span><span class="w"> </span><span class="mf">1.3</span><span class="o">.</span><span class="mf">9999.2</span><span class="o">.</span><span class="mf">7.2</span><span class="w"> </span><span class="p">(</span><span class="n">ml</span><span class="o">-</span><span class="n">dsa</span><span class="o">-</span><span class="mi">65</span><span class="w"> </span><span class="n">signature</span><span class="w"> </span><span class="n">over</span><span class="w"> </span><span class="n">TBSCertificate</span><span class="p">)</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">emits</span><span class="w"> </span><span class="n">cert</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">extensions</span><span class="w"> </span><span class="n">added</span><span class="w"> </span><span class="p">(</span><span class="n">DER</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">encoding</span><span class="p">)</span>
+<span class="w">    </span><span class="err">▼</span>
+<span class="n">Workload</span><span class="w"> </span><span class="p">(</span><span class="n">Litany</span><span class="w"> </span><span class="n">Wire</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">RFC</span><span class="w"> </span><span class="mi">0007</span><span class="w"> </span><span class="err">§</span><span class="mi">3</span><span class="p">)</span>
+<span class="w">    </span><span class="err">│</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">presents</span><span class="w"> </span><span class="n">shim</span><span class="o">-</span><span class="n">augmented</span><span class="w"> </span><span class="n">SVID</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">mTLS</span><span class="w"> </span><span class="n">handshake</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">peer</span><span class="w"> </span><span class="n">verifies</span><span class="p">:</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="n">ECDSA</span><span class="w"> </span><span class="n">signature</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">classical</span><span class="w"> </span><span class="n">validation</span><span class="w"> </span><span class="n">path</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="n">ML</span><span class="o">-</span><span class="n">DSA</span><span class="o">-</span><span class="mi">65</span><span class="w"> </span><span class="n">extension</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">PQC</span><span class="w"> </span><span class="n">validation</span><span class="w"> </span><span class="n">path</span>
+<span class="w">    </span><span class="err">│</span><span class="w"> </span><span class="n">connection</span><span class="w"> </span><span class="n">accepted</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">both</span><span class="w"> </span><span class="n">paths</span><span class="w"> </span><span class="n">hold</span>
+<span class="w">    </span><span class="err">▼</span>
+<span class="n">preceptord</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">oraclefd</span>
+</pre></div>
+
+<h3 id="32-x509-extension-encoding">3.2 X.509 extension encoding</h3>
+<p>Two non-critical extensions are added to the SVID DER after SPIRE issues it:</p>
+<table>
+<thead>
+<tr>
+<th>OID</th>
+<th>Content</th>
+<th>Format</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>1.3.9999.2.7.1</code></td>
+<td>ML-DSA-65 SubjectPublicKeyInfo (SPKI)</td>
+<td>DER-encoded SPKI, per FIPS 204</td>
+</tr>
+<tr>
+<td><code>1.3.9999.2.7.2</code></td>
+<td>ML-DSA-65 signature over TBSCertificate</td>
+<td>Raw ML-DSA signature bytes</td>
+</tr>
+</tbody>
+</table>
+<p>The OID <code>1.3.9999</code> is used by the Open Quantum Safe project for prototype/test<br />
+PQ algorithms and is the conventional space for pre-standard work. When<br />
+IETF/IANA allocates permanent OIDs for composite ML-DSA certificates (in<br />
+progress as of mid-2026 via IETF LAMPS WG draft <code>lamps-pq-composite-sigs</code>),<br />
+the shim should be updated; the crypto-agility machinery (RFC 0007 §6) makes<br />
+this a suite version bump.</p>
+<p>The signature in <code>1.3.9999.2.7.2</code> is computed over the <strong>unmodified<br />
+TBSCertificate</strong> (the same bytes SPIRE signed with ECDSA). This means:<br />
+- SPIRE's ECDSA signature and the shim's ML-DSA signature cover the same<br />
+  content.<br />
+- The ML-DSA signature does not cover the extensions themselves (to avoid<br />
+  circularity), consistent with the alt-signature approach in ITU-T X.509 §9.8.<br />
+- A verifier can check ML-DSA independently of ECDSA by extracting<br />
+  TBSCertificate from the modified cert and verifying against the public key in<br />
+<code>1.3.9999.2.7.1</code>.</p>
+<h3 id="33-ml-dsa-keypair-management">3.3 ML-DSA keypair management</h3>
+<p>Two models for the ML-DSA keypair attached to each SVID:</p>
+<p><strong>Model A — ephemeral per-rotation (simpler, recommended for v1):</strong></p>
+<p>Each time the Workload API delivers a new SVID (on rotation, typically every<br />
+hour), the shim generates a fresh ML-DSA-65 keypair from <code>liboqs</code>, signs the<br />
+TBSCertificate, and embeds the public key in the extension. The private key is<br />
+held in memory for the lifetime of the SVID and discarded on rotation. The<br />
+classical SPIRE rotation schedule drives everything.</p>
+<p>Advantages:<br />
+- No key storage problem — the ML-DSA key lives as long as the SVID.<br />
+- No KMS dependency in v1.<br />
+- Rotation is automatic, same cadence as the SPIFFE rotation (RFC 0006 §1.5).</p>
+<p>Disadvantages:<br />
+- The ML-DSA private key is in process memory; a memory-disclosure attack<br />
+  against the workload process exposes it.<br />
+- Peers cannot pin or cache the ML-DSA public key across rotations (it changes<br />
+  every hour).</p>
+<p><strong>Model B — long-lived ML-DSA key in KMS (stronger, v2):</strong></p>
+<p>A hardware-backed ML-DSA-65 key (e.g., stored in a Zig-managed memory-mapped<br />
+file under <code>agent-guardd</code>'s namespace, or in a future HSM) is bound to the<br />
+agent's SPIFFE ID. The shim fetches the public key from the KMS and signs with<br />
+the private key. The KMS key rotates on a longer schedule (quarterly or annually)<br />
+than the SVID (hourly).</p>
+<p>Advantages:<br />
+- ML-DSA private key never in workload process memory.<br />
+- Peers can cache the ML-DSA public key across SVID rotations.</p>
+<p>Disadvantages:<br />
+- Requires a key management daemon not yet in the vakedos roster.<br />
+- Rotation decoupled from SVID rotation; cert renewal flow is more complex (§5<br />
+  open question 1).</p>
+<p><strong>Recommendation:</strong> Start with Model A for the v1 spike (RFC 0007 Open Question<br />
+5). Graduate to Model B when <code>agent-guardd</code> or a dedicated key-management daemon<br />
+is specified.</p>
+<h3 id="34-liboqs-as-the-ml-dsa-implementation">3.4 liboqs as the ML-DSA implementation</h3>
+<p><code>liboqs</code> (Open Quantum Safe / PQCA) is the reference implementation:</p>
+<ul>
+<li>Version 0.14.0 (latest as of mid-2026) supports ML-DSA-44/65/87 (FIPS 204<br />
+  final) and drops the older Dilithium round-3 variants.</li>
+<li>Available in nixpkgs as <code>pkgs.liboqs</code>; compatible with the vakedos NixOS<br />
+  environment.</li>
+<li><code>oqs-provider</code> wraps <code>liboqs</code> as an OpenSSL 3 provider, enabling PQ key<br />
+  generation and signing via the standard OpenSSL API.</li>
+<li>For a shim in Go (consistent with SPIRE's own language),<br />
+<code>github.com/open-quantum-safe/liboqs-go</code> provides CGo bindings to liboqs.</li>
+<li>For a Zig shim, <code>liboqs</code> can be linked directly as a C library via Zig's<br />
+  native C interop; no CGo overhead.</li>
+</ul>
+<p><strong>Key selection:</strong> ML-DSA-65 (parameter set II, NIST security level 3) for<br />
+per-agent SVIDs, matching RFC 0007 §4. The trust-domain root uses SLH-DSA<br />
+(available in liboqs as FIPS 205 variant), consistent with RFC 0007 §4's<br />
+conservatism for long-lived roots.</p>
+<h3 id="35-shim-deployment-on-vakedos">3.5 Shim deployment on vakedos</h3>
+<p>The shim runs as a small sidecar or in-process library alongside each workload.<br />
+On vakedos (NixOS, <code>hosts/vakedos/configuration.nix</code>), the shim is packaged as<br />
+a NixOS module that:</p>
+<ol>
+<li>Is declared in the lowered <code>gen/zig/&lt;fiber&gt;.json</code> as a sidecar entry (or<br />
+   as a library linked into the Litany Wire implementation).</li>
+<li>Receives the Workload API socket path and the augmented-SVID output path.</li>
+<li>Watches the SVID via the SPIRE Workload API streaming gRPC interface and<br />
+   re-issues the augmented cert within milliseconds of each rotation.</li>
+<li>Exposes the augmented cert on a local path; the workload reads from this<br />
+   path rather than directly from SPIRE.</li>
+</ol>
+<div class="highlight"><pre><span></span><span class="c1"># future nixosModule fragment (illustrative)</span>
+services<span class="o">.</span><span class="ss">vakedPqcShim</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="ss">enable</span>       <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+  <span class="ss">spireSocket</span>  <span class="o">=</span> <span class="s2">&quot;/run/spire/agent.sock&quot;</span><span class="p">;</span>
+  <span class="ss">outputPath</span>   <span class="o">=</span> <span class="s2">&quot;/run/vaked-pqc/%i/svid.pem&quot;</span><span class="p">;</span>
+  <span class="ss">keyType</span>      <span class="o">=</span> <span class="s2">&quot;ml-dsa-65&quot;</span><span class="p">;</span>
+  <span class="ss">liboqsPackage</span> <span class="o">=</span> pkgs<span class="o">.</span>liboqs<span class="p">;</span>
+<span class="p">};</span>
+</pre></div>
+
+<p>The host already provides the prerequisites: <code>liboqs</code> can be added to<br />
+<code>environment.systemPackages</code> or pulled into the daemon's closure; user<br />
+namespaces, systemd services, and the Zig toolchain (<code>pkgs.zig</code>) are in place.</p>
+<p>The AMD EPYC 4345P (Zen 5, AVX-512) performs ML-DSA-65 operations in the<br />
+low-microsecond range; there is no performance concern for the SVID rotation<br />
+cadence (hourly) or for handshake overhead at the agent count expected on a<br />
+single-host deployment.</p>
+<h3 id="36-verifier-logic">3.6 Verifier logic</h3>
+<p>Litany Wire peers (RFC 0007 §3) verify the SVID on a TLS handshake by:</p>
+<ol>
+<li>Extracting the peer certificate's two OQS extensions.</li>
+<li>If both extensions are present:</li>
+<li>Verify the ECDSA signature on TBSCertificate (classical path).</li>
+<li>Reconstruct the ML-DSA-65 public key from extension <code>1.3.9999.2.7.1</code>.</li>
+<li>Verify the ML-DSA-65 signature in <code>1.3.9999.2.7.2</code> over TBSCertificate.</li>
+<li><strong>Accept if both succeed.</strong> A cert that passes only one half indicates<br />
+     tampering or certificate substitution; reject and log to <code>eventd</code>.</li>
+<li>If extensions are absent (classical-only peer or pre-shim SVID):</li>
+<li>Verify ECDSA only; accept if the peer's <code>crypto_suite</code> field indicates<br />
+     classical-only mode.</li>
+<li>If local policy requires hybrid (<code>pq-required</code>), emit<br />
+<code>REFUSE{pq-required}</code> per RFC 0007 §3 negotiation and record to <code>eventd</code>.</li>
+</ol>
+<p>The "accept if both succeed" rule is stricter than the "secure if either holds"<br />
+framing used for the forward-secrecy property of the key exchange (§3 of RFC<br />
+0007). The distinction: hybrid KEM protects <em>sessions in transit</em> (secure if<br />
+either KEM holds against future decryption), while the shim protects <em>identity<br />
+assertions</em> (a forger must break both ECDSA and ML-DSA to mint a valid cert;<br />
+once generated, both halves should verify). Both properties are present and<br />
+complementary.</p>
+<hr />
+<h2 id="4-recommendation-for-vakedos">4. Recommendation for vakedos</h2>
+<p><strong>Deploy SPIRE with <code>require_pq_kem = true</code> for the SPIRE control plane (no<br />
+code change required), and implement the hybrid X.509 shim (§3) for workload<br />
+SVIDs to provide PQ-signed identity at the Litany Wire layer.</strong></p>
+<p>Concrete steps:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Action</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Enable <code>require_pq_kem = true</code> in <code>spire-server.conf</code> and <code>spire-agent.conf</code></td>
+<td>Config-only; unblocked</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Add <code>liboqs</code> to vakedos <code>environment.systemPackages</code> in <code>configuration.nix</code></td>
+<td>Nixpkgs package exists</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Implement shim (Zig, Model A) reading Workload API, writing augmented SVIDs</td>
+<td>New implementation</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Wire shim output into the Litany Wire handshake path</td>
+<td>Requires RFC 0003/0007 wire impl</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Implement verifier logic for the two OQS extensions in the wire layer</td>
+<td>Part of wire impl</td>
+</tr>
+<tr>
+<td>6</td>
+<td>RFC 0007 spike: lower a minimal <code>network</code> membrane, attach votive seal, verify measured admit/refuse with shim-augmented identity</td>
+<td>RFC 0007 Open Question 5</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Version:</strong> SPIRE v1.10 or later (for <code>require_pq_kem</code> support); pin in<br />
+<code>flake.nix</code> to a specific release hash.</p>
+<p><strong>Key algorithm choices:</strong><br />
+- Per-agent SVIDs: Ed25519 (classical) + ML-DSA-65 (PQ) hybrid shim.<br />
+- Trust-domain root: SLH-DSA (FIPS 205) via a separately managed offline<br />
+  signing ceremony; not issued through SPIRE's CA path.<br />
+- liboqs ≥ 0.14.0 required for FIPS 204 final (not round-3 Dilithium).</p>
+<hr />
+<h2 id="5-open-questions-remaining">5. Open questions remaining</h2>
+<ol>
+<li>
+<p><strong>Cert renewal flow for Model B (long-lived ML-DSA key):</strong> When the SPIRE<br />
+   SVID rotates (hourly) but the ML-DSA key rotates quarterly, what is the<br />
+   update protocol? Peers that have cached the ML-DSA public key must be<br />
+   notified of ML-DSA key rotation separately from SVID rotation. Lean: treat<br />
+   ML-DSA rotation as a topology-epoch bump (RFC 0006 §1.4) so in-flight<br />
+   epoch-valid frames remain valid through the rotation window.</p>
+</li>
+<li>
+<p><strong>SPIRE upstream PQC timeline:</strong> When Go's <code>crypto/x509</code> adds FIPS 204 OID<br />
+   support and SPIRE upstream incorporates it, the shim should be retired and<br />
+   replaced by native <code>ca_key_type = "ml-dsa-65"</code>. Track the Go issue tracker<br />
+   and <code>spiffe/spire</code> releases; the crypto-agility machinery (RFC 0007 §6)<br />
+   makes the migration a suite version bump with no wire-format change.</p>
+</li>
+<li>
+<p><strong>SLH-DSA root signing ceremony:</strong> The trust-domain root using SLH-DSA<br />
+   (RFC 0007 §4) is not covered by the SPIRE CA path. This requires an offline<br />
+   key ceremony and a SPIRE UpstreamAuthority plugin that can present an<br />
+   SLH-DSA-signed root bundle. Liboqs supports SLH-DSA from 0.12+; the plugin<br />
+   design is deferred until the SPIRE native PQC path is clearer.</p>
+</li>
+<li>
+<p><strong>OID finalization:</strong> The <code>1.3.9999.2.7.*</code> namespace is OQS prototype space.<br />
+   IETF LAMPS WG is working on composite ML-DSA certificate OIDs; track and<br />
+   migrate when IANA allocates stable OIDs. The shim's OID values should be<br />
+   constants behind a named suite version (RFC 0007 §6 crypto-agility).</p>
+</li>
+<li>
+<p><strong>Composite vs. dual-extension:</strong> IETF's composite approach encodes the PQ<br />
+   key + signature and classical key + signature as a single composite OID<br />
+   (e.g., <code>id-MLDSA65-Ed25519</code>), rather than two separate extensions. The<br />
+   composite approach is more standards-aligned and produces a single verifiable<br />
+   object; the dual-extension approach described here is easier to implement<br />
+   today without a composite-capable X.509 library. Revisit when <code>oqs-provider</code><br />
+   and Go's crypto stack support composite certificates in a production-grade<br />
+   release.</p>
+</li>
+</ol>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li><a href="../../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md">RFC 0007</a> §4 — Post-quantum identity &amp; attestation</li>
+<li><a href="../../../protocol/rfcs/0006-transport-identity-distribution.md">RFC 0006</a> — SPIFFE/SPIRE identity model</li>
+<li><a href="../../../hosts/vakedos/configuration.nix"><code>hosts/vakedos/configuration.nix</code></a> — Target host</li>
+<li><a href="https://spiffe.io/docs/latest/deploying/spire_server/">SPIRE Server Configuration Reference</a> — <code>ca_key_type</code>, <code>require_pq_kem</code></li>
+<li><a href="https://github.com/marques-ma/SPIRE-PostQuantum-PoC">marques-ma/SPIRE-PostQuantum-PoC</a> — Community PoC</li>
+<li><a href="https://github.com/open-quantum-safe/liboqs">open-quantum-safe/liboqs</a> — ML-DSA implementation</li>
+<li><a href="https://github.com/open-quantum-safe/oqs-provider">open-quantum-safe/oqs-provider</a> — OpenSSL 3 PQ provider</li>
+<li><a href="https://openquantumsafe.org/applications/x509.html">Open Quantum Safe X.509</a> — PQ X.509 tooling</li>
+<li><a href="https://github.com/IETF-Hackathon/pqc-certificates">IETF-Hackathon/pqc-certificates</a> — PQ X.509 certificate work</li>
+<li><a href="https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.204.pdf">FIPS 204 (ML-DSA)</a> — NIST standard</li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9794.html">RFC 9794 — Terminology for PQ/Traditional Hybrid Schemes</a></li>
+<li><a href="https://pqca.org/blog/2025/pqca-announces-release-of-liboqs-version-0-14-0-from-open-quantum-safe-project/">liboqs 0.14.0 release announcement</a> — ML-DSA FIPS 204 final</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-spire-pqc-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

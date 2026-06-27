@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>OpenRouter Cost Analysis — 2026-06-14 — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#dashboard-snapshot" style="padding-left:0.5rem">Dashboard snapshot</a><a href="#top-api-keys" style="padding-left:1rem">  Top API keys</a><a href="#top-apps" style="padding-left:1rem">  Top apps</a><a href="#root-cause-analysis" style="padding-left:0.5rem">Root cause analysis</a><a href="#1-label-tagger-over-triggering" style="padding-left:1rem">  1. Label-tagger over-triggering</a><a href="#2-provider-scatter-busting-the-kv-cache" style="padding-left:1rem">  2. Provider scatter busting the KV cache</a><a href="#3-unknown-app-724k-tokens" style="padding-left:1rem">  3. "Unknown" app (724K tokens)</a><a href="#changes-made" style="padding-left:0.5rem">Changes made</a><a href="#githubworkflowslabel-taggeryml-paths-filter" style="padding-left:1rem">  `.github/workflows/label-tagger.yml` — paths filter</a><a href="#vaked-agentscilabel-taggersrcmainrs-provider-pinning-model-upgrade" style="padding-left:1rem">  `vaked-agents/ci/label-tagger/src/main.rs` — provider pinning + model upgrade</a><a href="#deployllmproxyconfigyaml-app-attribution-headers" style="padding-left:1rem">  `deploy/llmproxy/config.yaml` — app attribution headers</a><a href="#expected-outcome" style="padding-left:0.5rem">Expected outcome</a><a href="#verification-checklist" style="padding-left:0.5rem">Verification checklist</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/context/">context</a> / openrouter-cost-analysis-2026-06-14</div>
+<h1>OpenRouter Cost Analysis — 2026-06-14</h1>
+<h1 id="openrouter-cost-analysis-2026-06-14">OpenRouter Cost Analysis — 2026-06-14</h1>
+<h2 id="dashboard-snapshot">Dashboard snapshot</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+<th>Signal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total spend</td>
+<td>$8.69 (+14,735% vs prev)</td>
+<td>Near-zero baseline; absolute cost is low</td>
+</tr>
+<tr>
+<td>Requests</td>
+<td>3K (+10,268% vs prev)</td>
+<td>Same baseline effect</td>
+</tr>
+<tr>
+<td>Token volume</td>
+<td>30.3M (+23,722% vs prev)</td>
+<td>Same</td>
+</tr>
+<tr>
+<td>Cache hit rate</td>
+<td>64.4%</td>
+<td>36% miss is recoverable</td>
+</tr>
+</tbody>
+</table>
+<h3 id="top-api-keys">Top API keys</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Tokens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vakedgit</code></td>
+<td>16.3M</td>
+</tr>
+<tr>
+<td><code>claude.ai</code></td>
+<td>13.9M</td>
+</tr>
+<tr>
+<td><code>agents</code></td>
+<td>18</td>
+</tr>
+</tbody>
+</table>
+<h3 id="top-apps">Top apps</h3>
+<table>
+<thead>
+<tr>
+<th>App</th>
+<th>Tokens</th>
+<th>Share</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>vaked-label-tagger</td>
+<td>29.6M</td>
+<td>97.7%</td>
+</tr>
+<tr>
+<td>Unknown</td>
+<td>724K</td>
+<td>2.4%</td>
+</tr>
+<tr>
+<td>liteLLM</td>
+<td>18</td>
+<td>&lt;0.01%</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="root-cause-analysis">Root cause analysis</h2>
+<h3 id="1-label-tagger-over-triggering">1. Label-tagger over-triggering</h3>
+<p><code>label-tagger.yml</code> fired on <strong>all</strong> <code>pull_request</code> synchronize events and <strong>all</strong> <code>push</code> to main — no path filter. Every social-post commit, landing-page regeneration, and CHANGELOG bot commit triggered a full LLM run. Average tokens per request (~10,100) was 2.5–5× the expected 2,000–4,000.</p>
+<h3 id="2-provider-scatter-busting-the-kv-cache">2. Provider scatter busting the KV cache</h3>
+<p><code>allow_fallbacks: true</code> with no <code>order</code> list let OpenRouter route label-tagger requests across multiple DeepSeek nodes. Each cold node has an empty KV cache, forcing full prompt re-evaluation — explaining the 64.4% (vs expected 85%+) hit rate.</p>
+<h3 id="3-unknown-app-724k-tokens">3. "Unknown" app (724K tokens)</h3>
+<p>The LiteLLM proxy was forwarding requests to OpenRouter without <code>HTTP-Referer</code> or <code>X-Title</code> headers. OpenRouter attributed those 724K tokens to an anonymous source.</p>
+<hr />
+<h2 id="changes-made">Changes made</h2>
+<p>All three fixes landed in a single commit on branch <code>claude/clever-fermat-ertx42</code>:</p>
+<p><strong>Commit <a href="https://github.com/peterlodri-sec/vaked-base/commit/0fcdc86"><code>0fcdc86</code></a></strong> — <a href="https://github.com/peterlodri-sec/vaked-base/pull/181">PR #181</a></p>
+<h3 id="githubworkflowslabel-taggeryml-paths-filter"><code>.github/workflows/label-tagger.yml</code> — paths filter</h3>
+<p>Added <code>paths:</code> to both the <code>pull_request</code> and <code>push</code> triggers so the agent only fires when substantive source changes land:</p>
+<div class="highlight"><pre><span></span><span class="nt">pull_request</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">types</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">opened</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">synchronize</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">reopened</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">paths</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;vaked/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;vakedc/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;vakedz/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;protocol/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;docs/language/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;daemons/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;agent_guardd/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;eventd/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;.github/labels.yml&#39;</span>
+
+<span class="nt">push</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">branches</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">main</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">paths</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;vaked/**&#39;</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;vakedc/**&#39;</span>
+<span class="w">    </span><span class="c1"># ... same set, minus labels.yml</span>
+</pre></div>
+
+<p>Social posts, landing-page rebuilds, and CHANGELOG bot commits no longer trigger a run.</p>
+<h3 id="vaked-agentscilabel-taggersrcmainrs-provider-pinning-model-upgrade"><code>vaked-agents/ci/label-tagger/src/main.rs</code> — provider pinning + model upgrade</h3>
+<p>Changed from DeepSeek V4 Flash to <code>openai/gpt-oss-120b</code> and pinned to a single provider:</p>
+<div class="highlight"><pre><span></span><span class="c1">// model: deepseek/deepseek-v4-flash  →  openai/gpt-oss-120b</span>
+<span class="k">const</span><span class="w"> </span><span class="n">DEFAULT_MODEL</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;openai/gpt-oss-120b&quot;</span><span class="p">;</span>
+
+<span class="p">.</span><span class="n">with_provider_preferences</span><span class="p">(</span><span class="n">OpenRouterProviderPreferences</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">allow_fallbacks</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="kc">false</span><span class="p">),</span><span class="w">   </span><span class="c1">// was: true</span>
+<span class="w">    </span><span class="n">order</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="fm">vec!</span><span class="p">[</span><span class="s">&quot;OpenAI&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">()]),</span>
+<span class="w">    </span><span class="o">..</span><span class="nb">Default</span><span class="p">::</span><span class="n">default</span><span class="p">()</span>
+<span class="p">})</span>
+</pre></div>
+
+<p>Pinning to a single provider forces all requests through the same KV-cache-warmed endpoint.</p>
+<h3 id="deployllmproxyconfigyaml-app-attribution-headers"><code>deploy/llmproxy/config.yaml</code> — app attribution headers</h3>
+<div class="highlight"><pre><span></span><span class="nt">litellm_settings</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">default_headers</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">HTTP-Referer</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://github.com/peterlodri-sec/vaked-base&quot;</span>
+<span class="w">    </span><span class="nt">X-Title</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;vaked-llmproxy&quot;</span>
+</pre></div>
+
+<p>Every proxy request now carries identifying headers; the "Unknown" block disappears from the OpenRouter Top Apps list.</p>
+<hr />
+<h2 id="expected-outcome">Expected outcome</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Before</th>
+<th>After</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cache hit rate</td>
+<td>64.4%</td>
+<td>82–88%</td>
+</tr>
+<tr>
+<td>Label-tagger token share</td>
+<td>97.7%</td>
+<td>70–80%</td>
+</tr>
+<tr>
+<td>Tokens/request (avg)</td>
+<td>~10,100</td>
+<td>~4,000–6,000</td>
+</tr>
+<tr>
+<td>Monthly cost</td>
+<td>baseline</td>
+<td>~40–60% reduction</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="verification-checklist">Verification checklist</h2>
+<ul>
+<li>[ ] PR touching only <code>.github/social/</code> — label-tagger does <strong>not</strong> trigger</li>
+<li>[ ] PR touching <code>vaked/</code> — label-tagger triggers normally</li>
+<li>[ ] Social-post commit to main — changelog workflow does <strong>not</strong> fire</li>
+<li>[ ] After 50+ runs: OpenRouter dashboard cache hit rate &gt;80%</li>
+<li>[ ] "Unknown" app disappears from OpenRouter Top Apps after next LiteLLM request</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/context/openrouter-cost-analysis-2026-06-14.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Spec — WP3-S6: Docs + perf baseline (latency vs grpc/cbor) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-reading-note-correction-load-bearing-do-this-first" style="padding-left:0.5rem">0. Reading-note correction (load-bearing; do this first)</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-the-10s-target-disambiguated-normative-for-this-sprint" style="padding-left:1rem">  1.1 The 10µs target — disambiguated (normative for this sprint)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#3-file-layout-paths-to-create" style="padding-left:0.5rem">3. File layout (paths to create)</a><a href="#4-algorithm-design" style="padding-left:0.5rem">4. Algorithm / design</a><a href="#41-frame-corpus-with-a-size-distribution-the-10s-gate-is-meaningless-on-tiny-fra" style="padding-left:1rem">  4.1 Frame corpus (with a size distribution — the 10µs gate is meaningless on tiny frames only)</a><a href="#42-the-10s-gate-benchesframelatencyrs-hcpbinlitany-only" style="padding-left:1rem">  4.2 The 10µs gate (`benches/frame_latency.rs`, hcpbin/litany only)</a><a href="#43-codec-comparison-benchescodeccomparers" style="padding-left:1rem">  4.3 Codec comparison (`benches/codec_compare.rs`)</a><a href="#44-no-alloc-hot-path-the-cross-arch-correctness-proxy-see-52" style="padding-left:1rem">  4.4 No-alloc hot path (the cross-arch correctness proxy — see §5.2)</a><a href="#5-test-plan-what-m1-certifies-vs-what-needs-dev-cx53linux" style="padding-left:0.5rem">5. Test plan — what M1 certifies vs what needs dev-cx53/Linux</a><a href="#51-locally-on-m1-certifiable" style="padding-left:1rem">  5.1 Locally on M1 — CERTIFIABLE</a><a href="#52-on-dev-cx53-linux-x86-8-core-required-for-the-headline-number" style="padding-left:1rem">  5.2 On dev-cx53 (Linux x86, 8-core) — REQUIRED for the headline number</a><a href="#53-regression-guard" style="padding-left:1rem">  5.3 Regression guard</a><a href="#6-docs-deliverables-the-other-half-of-the-sprint" style="padding-left:0.5rem">6. Docs deliverables (the other half of the sprint)</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a><a href="#9-open-questions-resolve-in-spec-at-impl-time-not-blocking" style="padding-left:0.5rem">9. Open questions (resolve in-spec at impl time, not blocking)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp3-s6</div>
+<h1>Spec — WP3-S6: Docs + perf baseline (latency vs grpc/cbor)</h1>
+<h1 id="spec-wp3-s6-docs-perf-baseline-latency-vs-grpccbor">Spec — WP3-S6: Docs + perf baseline (latency vs grpc/cbor)</h1>
+<p><strong>Date:</strong> 2026-06-14 · <strong>Status:</strong> spec (planning artifact; work is dependency-blocked on WP3-S2..S5) ·<br />
+<strong>Sprint:</strong> WP3-S6 (Sep 4–Sep 17 2026), Engineer A (Rust/async networking) ·<br />
+<strong>Plan:</strong> <a href="../plans/2026-06-14-wp3-kickoff.md"><code>../plans/2026-06-14-wp3-kickoff.md</code></a> (sprint table line 29; success criteria lines 52–55) ·<br />
+<strong>Spec sources:</strong> <a href="../../../protocol/rfcs/0002-hcplang.md"><code>../../../protocol/rfcs/0002-hcplang.md</code></a> (§4.2, §6, §6.1, §6.1.1, §6.8, §9, §10), <a href="../../../protocol/rfcs/0003-litany-wire.md"><code>../../../protocol/rfcs/0003-litany-wire.md</code></a> (§4.2, §4.4, §4.4.1, §4.6, §10, §11) ·<br />
+<strong>Code home:</strong> <code>protocol/hcp/hcpbin/</code> (S1 codec, exists), <code>protocol/hcp/litany/</code> (S2+ frame layer), <code>protocol/hcp/perf/</code> (new, this sprint)</p>
+<hr />
+<h2 id="0-reading-note-correction-load-bearing-do-this-first">0. Reading-note correction (load-bearing; do this first)</h2>
+<p>The WP3 kickoff plan (<code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code> line 43) and issue #167 say golden vectors derive from <strong>"RFC 0002 §4 / Appendix A."</strong> This wording is <strong>stale and wrong</strong> and S6 must correct it as a docs deliverable (§6 below):</p>
+<ul>
+<li>The byte encoding ("<code>hcpbin</code> encoding rules") lives in <strong>RFC 0002 §6</strong> (<code>0002-hcplang.md:439</code>), not §4. RFC 0002 §4 ("The Votive Frame model", line 194) is the <em>frame model</em>, and §4.2 (line 226) explicitly states the frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) is <strong>supplied/validated by the wire layer and never in <code>hcpbin</code></strong> ("The wire-layer representation of header fields is normative in RFC 0003 §4", <code>0002-hcplang.md:241</code>).</li>
+<li>There is <strong>no Appendix A of golden vectors</strong>. RFC 0002 <em>does</em> have an "Appendix A: Generated code examples" (<code>0002-hcplang.md:1287</code>) — Zig/Erlang codegen, not byte vectors. The actual golden byte vectors are in the <strong>worked examples</strong>: §6.1.1 (primitives, <code>0002-hcplang.md:473</code>), §6.3.1 (default omission, line 622), §6.6.1 (lists/maps, line 825), §6.7.1 (unions/enums, line 774), and §10 / §10.1 (full frame bodies, lines 1009 / 1079). The frame-header-on-wire vectors are in <strong>RFC 0003 §4.4.1</strong> (<code>0003-litany-wire.md:293</code>) and §4.6 (worked framing example, line 386).</li>
+</ul>
+<p>The hcpbin crate already documents the correct scope (<code>protocol/hcp/hcpbin/src/lib.rs:22-23</code>, <code>:497-498</code>): "the frame header (kind/corr/stream/seq/end) lives in the WIRE layer (RFC 0003), explicitly NOT in hcpbin (RFC 0002 §4.2, §6 scope note)." S6 propagates that correction into the kickoff plan and any docs that still cite "§4 / Appendix A."</p>
+<hr />
+<h2 id="1-objective">1. Objective</h2>
+<p>Two deliverables, equal weight (the sprint is literally "Docs + perf baseline"):</p>
+<ol>
+<li>
+<p><strong>Docs.</strong> Ship publishable documentation for the <code>litany</code> frame layer and the <code>hcpbin</code> codec: crate-level rustdoc, a <code>protocol/hcp/litany/README.md</code>, and a perf-results writeup that becomes the <strong>WP3 results section of the paper eval (#113)</strong> required "ready by Oct 15" (kickoff line 55). Fix the stale §4/Appendix-A references (§0).</p>
+</li>
+<li>
+<p><strong>Perf baseline.</strong> A reproducible, spec-anchored microbenchmark that measures <strong>encode and decode latency per frame</strong> for the Litany wire frame (header + body, RFC 0003 §4.4) and compares it, <strong>at the codec boundary only</strong>, against protobuf and CBOR encodings of the <em>same logical message</em>. Headline acceptance: <strong>≤10µs per direction per frame</strong> on <code>dev-cx53</code> for the designated profile (§4.2). The number is produced on <code>dev-cx53</code>; M1 certifies everything <em>except</em> the absolute latency (§5).</p>
+</li>
+</ol>
+<h3 id="11-the-10s-target-disambiguated-normative-for-this-sprint">1.1 The 10µs target — disambiguated (normative for this sprint)</h3>
+<p>The kickoff says "≤10µs per frame encode/decode" (line 54), which is ambiguous. <strong>S6 adopts the per-direction reading</strong> (stricter, more useful): for the designated profile, <code>encode(frame) ≤ 10µs</code> <strong>and</strong> <code>decode(frame_bytes) ≤ 10µs</code> measured independently, not a combined round-trip budget. Reported as median and p99 from criterion; the p99 is the gate, the median is for the paper.</p>
+<p>This is a <code>dev-cx53</code> figure (8-core, "no alloc hot path", kickoff line 54). M1 (Apple ARM, different microarchitecture, different memory subsystem) <strong>cannot certify a Linux x86 latency number</strong> and S6 must not claim it does (§5).</p>
+<hr />
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Path / source</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hcpbin</code> codec</td>
+<td><code>protocol/hcp/hcpbin/src/lib.rs</code> (S1, exists; 50 tests pass)</td>
+<td>The value codec under test (encode/decode primitives §6.1, bool §6.4, bytes §6.1, hash §6.5).</td>
+</tr>
+<tr>
+<td><code>litany</code> frame layer</td>
+<td><code>protocol/hcp/litany/</code> (S2+, <strong>dependency</strong>)</td>
+<td>Produces <code>frame-bytes</code> = header (RFC 0003 §4.4) ++ body (RFC 0002 §6). The unit the 10µs target is <em>about</em>.</td>
+</tr>
+<tr>
+<td>Frame-body golden vectors</td>
+<td>RFC 0002 §6.1.1 / §6.3.1 / §6.6.1 / §6.7.1 / §10</td>
+<td>Define the canonical bytes each corpus message must encode to — the <strong>correctness oracle</strong> for the perf corpus.</td>
+</tr>
+<tr>
+<td>Frame-header golden vectors</td>
+<td>RFC 0003 §4.4.1 (<code>0003-litany-wire.md:336-351</code>), §4.6 (line 386)</td>
+<td>Canonical header bytes; oracle for header encode in the multi-frame profile.</td>
+</tr>
+<tr>
+<td>Canonicality fixed-point</td>
+<td>RFC 0002 §6.8 (<code>0002-hcplang.md:891</code>): <code>encode(decode(encode(v))) == encode(v)</code></td>
+<td>Correctness invariant the bench must satisfy before any timing is trusted.</td>
+</tr>
+<tr>
+<td>Comparison message</td>
+<td>RFC 0002 §10 <code>ToolCallRequest{ tool="fs.read", args=&lt;0x6b6579&gt; }</code> (<code>0002-hcplang.md:1045-1054</code>)</td>
+<td>The shared logical message encoded three ways (hcpbin / protobuf / CBOR). It already has a golden byte vector, so the comparison is spec-anchored, not invented.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Why §10 <code>ToolCallRequest</code> is the shared message:</strong> its hcpbin body is exactly <code>01 07 66 73 2e 72 65 61 64 02 03 6b 65 79</code> (14 bytes, <code>0002-hcplang.md:1050-1053</code>). The bench asserts the hcpbin arm reproduces these bytes before timing, anchoring the comparison to the RFC.</p>
+<hr />
+<h2 id="3-file-layout-paths-to-create">3. File layout (paths to create)</h2>
+<p>A dedicated bench crate keeps protobuf/CBOR dev-deps out of the <code>litany</code> and <code>hcpbin</code> dependency graphs (those crates stay lean; perf tooling is isolated).</p>
+<div class="highlight"><pre><span></span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">perf</span><span class="o">/</span>
+<span class="w">  </span><span class="n">Cargo</span><span class="p">.</span><span class="n">toml</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="s">&quot;hcp-perf&quot;</span><span class="p">;</span><span class="w"> </span><span class="p">[[</span><span class="n">bench</span><span class="p">]]</span><span class="w"> </span><span class="n">entries</span><span class="p">;</span><span class="w"> </span><span class="n">dev</span><span class="o">-</span><span class="n">deps</span><span class="o">:</span><span class="w"> </span><span class="n">criterion</span><span class="p">,</span><span class="w"> </span><span class="n">prost</span><span class="p">,</span><span class="w"> </span><span class="n">ciborium</span><span class="w"> </span><span class="p">(</span><span class="n">or</span><span class="w"> </span><span class="n">minicbor</span><span class="p">),</span><span class="w"> </span><span class="n">dhat</span>
+<span class="w">  </span><span class="n">build</span><span class="p">.</span><span class="n">rs</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="n">prost</span><span class="o">-</span><span class="n">build</span><span class="o">:</span><span class="w"> </span><span class="n">compile</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="p">.</span><span class="n">proto</span><span class="w"> </span><span class="n">comparison</span><span class="w"> </span><span class="n">schema</span><span class="w"> </span><span class="p">(</span><span class="n">protobuf</span><span class="w"> </span><span class="n">arm</span><span class="w"> </span><span class="n">only</span><span class="p">)</span>
+<span class="w">  </span><span class="n">proto</span><span class="o">/</span>
+<span class="w">    </span><span class="n">hcp_core</span><span class="p">.</span><span class="n">proto</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="n">protobuf</span><span class="w"> </span><span class="n">mirror</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">RFC</span><span class="w"> </span><span class="mo">0002</span><span class="w"> </span><span class="err">§</span><span class="mi">10</span><span class="w"> </span><span class="n">ToolCallRequest</span><span class="o">/</span><span class="n">Response</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ToolResult</span><span class="w"> </span><span class="k">union</span>
+<span class="w">  </span><span class="nc">src</span><span class="o">/</span>
+<span class="w">    </span><span class="n">lib</span><span class="p">.</span><span class="n">rs</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="n">corpus</span><span class="w"> </span><span class="n">builders</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.1</span><span class="p">),</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">three</span><span class="w"> </span><span class="n">codec</span><span class="w"> </span><span class="n">arms</span><span class="p">,</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="n">constructors</span>
+<span class="w">    </span><span class="n">corpus</span><span class="p">.</span><span class="n">rs</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">four</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="n">profiles</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.1</span><span class="p">)</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="n">litany</span><span class="w"> </span><span class="n">frames</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">their</span><span class="w"> </span><span class="n">golden</span><span class="o">-</span><span class="n">byte</span><span class="w"> </span><span class="n">assertions</span>
+<span class="w">    </span><span class="n">arms</span><span class="p">.</span><span class="n">rs</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="n">encode</span><span class="o">/</span><span class="n">decode</span><span class="w"> </span><span class="n">closures</span><span class="o">:</span><span class="w"> </span><span class="n">hcpbin</span><span class="o">/</span><span class="n">litany</span><span class="p">,</span><span class="w"> </span><span class="n">protobuf</span><span class="w"> </span><span class="p">(</span><span class="n">prost</span><span class="p">),</span><span class="w"> </span><span class="n">cbor</span><span class="w"> </span><span class="p">(</span><span class="n">ciborium</span><span class="p">)</span>
+<span class="w">  </span><span class="n">benches</span><span class="o">/</span>
+<span class="w">    </span><span class="n">frame_latency</span><span class="p">.</span><span class="n">rs</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="n">criterion</span><span class="o">:</span><span class="w"> </span><span class="n">encode</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="n">decode</span><span class="p">,</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">profile</span><span class="p">,</span><span class="w"> </span><span class="n">hcpbin</span><span class="w"> </span><span class="n">only</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="mi">10</span><span class="n">µs</span><span class="w"> </span><span class="n">gate</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.2</span><span class="p">)</span>
+<span class="w">    </span><span class="n">codec_compare</span><span class="p">.</span><span class="n">rs</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="n">criterion</span><span class="o">:</span><span class="w"> </span><span class="n">hcpbin</span><span class="w"> </span><span class="n">vs</span><span class="w"> </span><span class="n">protobuf</span><span class="w"> </span><span class="n">vs</span><span class="w"> </span><span class="n">cbor</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="err">§</span><span class="mi">10</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.3</span><span class="p">)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">alloc</span><span class="p">.</span><span class="n">rs</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="n">dhat</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">counting</span><span class="o">-</span><span class="n">allocator</span><span class="o">:</span><span class="w"> </span><span class="n">zero</span><span class="o">-</span><span class="n">alloc</span><span class="w"> </span><span class="n">hot</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="n">assertion</span><span class="w"> </span><span class="p">(</span><span class="n">M1</span><span class="o">-</span><span class="n">certifiable</span><span class="p">,</span><span class="w"> </span><span class="err">§</span><span class="mf">5.2</span><span class="p">)</span>
+<span class="w">    </span><span class="n">corpus_golden</span><span class="p">.</span><span class="n">rs</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="n">corpus</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="n">encodes</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">its</span><span class="w"> </span><span class="n">RFC</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">§</span><span class="mf">6.8</span><span class="w"> </span><span class="n">fixed</span><span class="o">-</span><span class="n">point</span>
+
+<span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">litany</span><span class="o">/</span><span class="n">README</span><span class="p">.</span><span class="n">md</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="n">frame</span><span class="o">-</span><span class="n">layer</span><span class="w"> </span><span class="n">docs</span><span class="w"> </span><span class="p">(</span><span class="n">cites</span><span class="w"> </span><span class="n">RFC</span><span class="w"> </span><span class="mo">0003</span><span class="w"> </span><span class="err">§</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="err">§</span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="err">§</span><span class="mi">11</span><span class="p">)</span><span class="w">   </span><span class="p">[</span><span class="n">docs</span><span class="w"> </span><span class="n">deliverable</span><span class="p">]</span>
+<span class="n">docs</span><span class="o">/</span><span class="n">superpowers</span><span class="o">/</span><span class="n">research</span><span class="o">/</span><span class="mi">2026-09-17</span><span class="o">-</span><span class="n">wp3</span><span class="o">-</span><span class="n">perf</span><span class="o">-</span><span class="n">results</span><span class="p">.</span><span class="n">md</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="err">#</span><span class="mi">113</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="n">writeup</span><span class="w"> </span><span class="p">(</span><span class="n">dev</span><span class="o">-</span><span class="n">cx53</span><span class="w"> </span><span class="n">numbers</span><span class="p">)</span><span class="w">  </span><span class="p">[</span><span class="n">docs</span><span class="w"> </span><span class="n">deliverable</span><span class="p">]</span>
+</pre></div>
+
+<p><strong>Edits to existing files (docs deliverable, §6):</strong><br />
+- <code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md:43</code> — replace "RFC 0002 Appendix A" / "§4" with "RFC 0002 §6 worked examples (§6.1.1, §6.3.1, §6.6.1, §6.7.1, §10) + RFC 0003 §4.4.1/§4.6".<br />
+- <code>protocol/hcp/README.md</code> — add a "Perf" row pointing at <code>perf/</code> and the results writeup.</p>
+<p><strong><code>hcp-perf</code> is <code>publish = false</code></strong> and is <strong>not</strong> a member that <code>litany</code>/<code>hcpbin</code> depend on (it depends on them, never the reverse).</p>
+<hr />
+<h2 id="4-algorithm-design">4. Algorithm / design</h2>
+<h3 id="41-frame-corpus-with-a-size-distribution-the-10s-gate-is-meaningless-on-tiny-frames-only">4.1 Frame corpus (with a size distribution — the 10µs gate is meaningless on tiny frames only)</h3>
+<p>The §10 <code>ToolCallRequest</code> body is ~14 bytes and encodes in tens of nanoseconds; a corpus of only small frames passes 10µs trivially and proves nothing. The corpus therefore spans sizes, and the gate (§4.2) is pinned to the profile where 10µs actually bites.</p>
+<table>
+<thead>
+<tr>
+<th>Profile</th>
+<th>Frame shape (RFC anchor)</th>
+<th>Approx <code>frame-bytes</code> size</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>P1_small_request</code></td>
+<td>Single-shot <code>ToolCallRequest</code>, header <code>{kind=0, corr}</code> only (RFC 0003 §4.6, line 386; body RFC 0002 §10)</td>
+<td>~31 B (16 B uuid + body)</td>
+<td>Lower bound; sanity; the spec's own worked example.</td>
+</tr>
+<tr>
+<td><code>P2_response_union</code></td>
+<td><code>ToolCallResponse</code> with <code>ToolResult</code> union arm + omitted default <code>severity</code> (RFC 0002 §10 lines 1060–1077, §6.7.1)</td>
+<td>~50 B</td>
+<td>Exercises union arm-tag + byte-len framing and default omission.</td>
+</tr>
+<tr>
+<td><code>P3_event_stream</code></td>
+<td><code>event</code> with full header <code>{kind=2, corr, stream, seq, end=true}</code> (RFC 0003 §4.4.1 lines 343–351)</td>
+<td>~40 B</td>
+<td>Exercises every optional header field — header encode path that P1 skips.</td>
+</tr>
+<tr>
+<td><code>P4_chunked_large</code></td>
+<td><code>ToolCallResponse</code> with a <code>binary</code> arm payload sized to <strong><code>max_frame</code> floor (64 KiB, RFC 0003 §11 item 3)</strong> minus header</td>
+<td>~64 KiB</td>
+<td><strong>The 10µs gate profile.</strong> Large <code>bytes</code> copy is where per-frame latency is real.</td>
+</tr>
+</tbody>
+</table>
+<p>Each corpus message is built as a real <code>litany</code> frame (header + hcpbin body) and <code>corpus_golden.rs</code> asserts:<br />
+1. The body bytes equal the RFC §6/§10 golden vector (for P1/P2 these are byte-exact from the RFC; for P3 the header bytes match RFC 0003 §4.4.1; for P4 only the framing structure is asserted, payload is fixed-seed pseudorandom).<br />
+2. The §6.8 fixed point: <code>encode(decode(encode(frame))) == encode(frame)</code>.</p>
+<p>Timing runs <strong>only after</strong> these pass — a fast-but-wrong codec is not a baseline.</p>
+<h3 id="42-the-10s-gate-benchesframe_latencyrs-hcpbinlitany-only">4.2 The 10µs gate (<code>benches/frame_latency.rs</code>, hcpbin/litany only)</h3>
+<p>Criterion benchmark groups, one per profile, two functions each:<br />
+- <code>encode/&lt;profile&gt;</code>: build the typed frame once outside the timed loop; time <code>litany::encode_frame(&amp;frame) -&gt; Vec&lt;u8&gt;</code> (or the no-alloc <code>encode_into(&amp;frame, &amp;mut buf)</code> variant once it exists, §4.4).<br />
+- <code>decode/&lt;profile&gt;</code>: pre-encode <code>frame_bytes</code> once; time <code>litany::decode_frame(&amp;frame_bytes) -&gt; Frame</code>.</p>
+<p><strong>Gate (normative):</strong> for <strong><code>P4_chunked_large</code></strong>, both <code>encode</code> and <code>decode</code> p99 ≤ 10µs on <code>dev-cx53</code> (§1.1, per-direction). P1–P3 are reported for the paper but are not the gate (they are expected to be sub-microsecond and so the 10µs ceiling is not informative for them). Criterion config: <code>sample_size = 200</code>, <code>measurement_time = 10s</code>, <code>warm_up_time = 3s</code>.</p>
+<h3 id="43-codec-comparison-benchescodec_comparers">4.3 Codec comparison (<code>benches/codec_compare.rs</code>)</h3>
+<p>Apples-to-apples at the <strong>codec boundary</strong>, never the transport. The comparison measures encode+decode of the <strong>same logical message</strong> (RFC 0002 §10 <code>ToolCallRequest</code>) in three encodings:</p>
+<table>
+<thead>
+<tr>
+<th>Arm</th>
+<th>Crate</th>
+<th>What is timed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hcpbin</code></td>
+<td><code>hcpbin</code> + <code>litany</code> (this repo)</td>
+<td><code>encode_frame</code> / <code>decode_frame</code> of the §10 frame (header + body).</td>
+</tr>
+<tr>
+<td><code>protobuf</code></td>
+<td><code>prost</code> (codec only; <strong>do not</strong> pull <code>tonic</code>/HTTP-2)</td>
+<td><code>Message::encode</code> / <code>Message::decode</code> of the <code>hcp_core.proto</code> mirror.</td>
+</tr>
+<tr>
+<td><code>cbor</code></td>
+<td><code>ciborium</code> (or <code>minicbor</code> — decide at impl time)</td>
+<td>serialize / deserialize the equivalent CBOR map.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Honesty constraint (normative):</strong> this is a <strong>codec</strong> comparison. gRPC's value is its transport (HTTP/2, multiplexing) — that is RFC 0003's concern, not the codec's. Folding tonic's HTTP/2 stack in would measure the transport and make "vs grpc" dishonest. We therefore compare against <strong>prost (protobuf codec)</strong> and state in the writeup that the gRPC framing layer is out of scope for the codec baseline, with a forward-pointer to a future transport-level comparison (Litany wire vs gRPC HTTP/2) if #113 needs it. The protobuf arm is labelled "protobuf (prost codec)", not "gRPC", in all outputs.</p>
+<p><strong>Versions:</strong> crate versions are <strong>pinned at implementation time</strong>, not guessed here (per CLAUDE.md: do not guess versions). The <code>Cargo.toml</code> stub lists the crate <em>names</em> only; <code>cargo add</code> resolves exact versions in the dev shell on <code>dev-cx53</code> / locally.</p>
+<h3 id="44-no-alloc-hot-path-the-cross-arch-correctness-proxy-see-52">4.4 No-alloc hot path (the cross-arch correctness proxy — see §5.2)</h3>
+<p>The kickoff requires "no alloc hot path" (line 54). The bench drives the <strong>allocation-free</strong> encode/decode surface:<br />
+- <code>encode_into(&amp;frame, &amp;mut Vec&lt;u8&gt;)</code> reusing a caller buffer across iterations (the <code>Writer</code> in <code>hcpbin</code> already appends into an owned <code>Vec</code>; litany exposes a buffer-reuse variant). Timed loop must not allocate beyond a one-time buffer grow.<br />
+- <code>decode_frame</code> over <code>litany</code>'s borrowed <code>Reader&lt;'a&gt;</code> (<code>hcpbin/src/lib.rs:193</code>, zero-copy slice reader) — <code>get_bytes</code> returns <code>&amp;'a [u8]</code> (line 343), so the body large-payload path borrows rather than copies; only <code>to_vec()</code>-using convenience wrappers allocate and the bench avoids them.</p>
+<p>Allocation count on the hot path is <strong>deterministic across architectures</strong> — this is what M1 can certify (§5.2).</p>
+<hr />
+<h2 id="5-test-plan-what-m1-certifies-vs-what-needs-dev-cx53linux">5. Test plan — what M1 certifies vs what needs dev-cx53/Linux</h2>
+<p>The dev-cx53 build target is <strong>OFF-LIMITS for autoresearcher windows</strong> and is in any case a remote Linux x86 host; M1 is the local dev machine (confirmed: <code>cargo 1.95.0</code>, <code>zig 0.16.0</code>). The split is the spine of this sprint.</p>
+<h3 id="51-locally-on-m1-certifiable">5.1 Locally on M1 — CERTIFIABLE</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bench harness compiles</td>
+<td><code>cargo bench --manifest-path protocol/hcp/perf/Cargo.toml --no-run</code></td>
+<td>criterion + prost (build.rs) + cbor arms build; <code>[[bench]]</code> wiring correct.</td>
+</tr>
+<tr>
+<td>Corpus correctness</td>
+<td><code>cargo test --manifest-path protocol/hcp/perf/Cargo.toml --test corpus_golden</code></td>
+<td>Every corpus message encodes to its RFC §6/§10 golden bytes and satisfies §6.8 fixed point. <strong>Arch-independent.</strong></td>
+</tr>
+<tr>
+<td>Codec arms agree on a message</td>
+<td>(in <code>corpus_golden.rs</code>)</td>
+<td>All three arms round-trip the §10 message; hcpbin arm matches the RFC byte vector.</td>
+</tr>
+<tr>
+<td><strong>Zero-alloc hot path</strong></td>
+<td><code>cargo test --manifest-path protocol/hcp/perf/Cargo.toml --test alloc</code> (dhat-rs or a counting <code>#[global_allocator]</code>)</td>
+<td>Hot-path encode/decode performs <strong>0 allocations</strong> after warm-up. <strong>Deterministic across arch → this is the strongest M1 acceptance proxy for the perf design.</strong></td>
+</tr>
+<tr>
+<td>Bench <em>runs</em> and emits a number</td>
+<td><code>cargo bench --manifest-path protocol/hcp/perf/Cargo.toml</code></td>
+<td>criterion produces medians/p99 — but the <strong>absolute M1 numbers are advisory only</strong> (recorded as "M1 reference", never compared to 10µs).</td>
+</tr>
+<tr>
+<td>Relative shape on M1</td>
+<td>criterion output</td>
+<td>The <em>ranking</em> hcpbin vs protobuf vs cbor and the <em>scaling</em> across P1→P4 are informative on M1 even though absolute µs differ; recorded as a sanity cross-check, not a gate.</td>
+</tr>
+</tbody>
+</table>
+<p>Zig is not exercised by S6 (the litany crate is Rust); <code>zig build -Dtarget=x86_64-linux</code> is irrelevant here and is noted only to confirm S6 has no Zig surface.</p>
+<h3 id="52-on-dev-cx53-linux-x86-8-core-required-for-the-headline-number">5.2 On dev-cx53 (Linux x86, 8-core) — REQUIRED for the headline number</h3>
+<p>The ≤10µs gate (§4.2) is <strong>only valid on dev-cx53</strong> and can be produced <strong>only when dev-cx53 is in-bounds</strong> (not during an autoresearcher reservation). Reproducibility controls (Linux-specific, listed so the run is repeatable):</p>
+<ul>
+<li>Pin to one isolated core: <code>taskset -c 3 cargo bench ...</code>, criterion single-threaded.</li>
+<li><code>cpufreq</code> governor = <code>performance</code> (disable turbo variance): <code>sudo cpupower frequency-set -g performance</code>.</li>
+<li>Disable ASLR jitter for the run if needed; record kernel + CPU model + rustc version in the writeup.</li>
+<li>Run the gate three times; the gate passes iff <strong>P4 encode p99 ≤ 10µs AND P4 decode p99 ≤ 10µs</strong> in all three.</li>
+</ul>
+<p>The dev-cx53 number, the comparison table (hcpbin/protobuf/cbor across P1–P4), and the methodology go into <code>docs/superpowers/research/2026-09-17-wp3-perf-results.md</code> → the #113 paper results section.</p>
+<h3 id="53-regression-guard">5.3 Regression guard</h3>
+<p>After the first green dev-cx53 run, commit a criterion baseline (<code>--save-baseline wp3-s6</code>) so later sprints (S7 hardening) detect regressions with <code>--baseline wp3-s6</code>. On M1, the regression guard is the zero-alloc test (a new allocation on the hot path fails locally before it ever reaches dev-cx53).</p>
+<hr />
+<h2 id="6-docs-deliverables-the-other-half-of-the-sprint">6. Docs deliverables (the other half of the sprint)</h2>
+<ol>
+<li><strong><code>protocol/hcp/litany/README.md</code></strong> — frame layer overview citing RFC 0003 §4 (framing), §4.4 (header), §10 (determinism), §11 (conformance); links to the hcpbin codec README.</li>
+<li><strong>Crate rustdoc</strong> — <code>litany</code> public API documented to the standard already set by <code>hcpbin/src/lib.rs</code> (every fn cites its RFC §). <code>cargo doc --no-deps</code> builds clean (M1-certifiable).</li>
+<li><strong><code>docs/superpowers/research/2026-09-17-wp3-perf-results.md</code></strong> — the perf writeup feeding paper eval #113: corpus definition, methodology (§4–§5), dev-cx53 numbers, the codec comparison table, and an explicit "codec vs transport" caveat (§4.3).</li>
+<li><strong>Stale-reference fix (§0)</strong> — edit <code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md:43</code> and audit the repo for other "§4 / Appendix A" golden-vector references; repoint to §6 worked examples + RFC 0003 §4.4.1/§4.6.</li>
+</ol>
+<hr />
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>Why</th>
+<th>Blocking severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP3-S2</strong> (frame layer, RFC 0003)</td>
+<td>The ≤10µs target is about the <strong>litany frame</strong> (header + body), not S1 hcpbin primitives alone. No <code>litany::encode_frame</code>/<code>decode_frame</code> → no headline number.</td>
+<td><strong>Hard.</strong> S6's perf gate cannot run until S2 lands.</td>
+</tr>
+<tr>
+<td>WP3-S3 (routing), S4 (control frames), S5 (eventd integration)</td>
+<td>Determine the realistic corpus (P3 event/stream header needs S3/S4 semantics; eventd chaining context for the writeup). Corpus profiles P1/P2/P4 are buildable on S2 alone.</td>
+<td>Medium. P3 and the "realistic mix" need S3–S5; the gate (P4) does not.</td>
+</tr>
+<tr>
+<td>WP3-S1 (hcpbin)</td>
+<td>Done — codec exists, 50 tests pass (<code>cargo test</code> clean). Provides the body codec and the zero-copy <code>Reader</code>/buffer-reuse <code>Writer</code> the no-alloc path relies on.</td>
+<td>Satisfied.</td>
+</tr>
+<tr>
+<td>RFC 0002 frozen (kickoff gate line 35)</td>
+<td>Golden vectors (the perf-corpus oracle) must be stable.</td>
+<td>Satisfied (S1 shipped against frozen §6).</td>
+</tr>
+<tr>
+<td>dev-cx53 availability</td>
+<td>Headline number only. M1 work (harness, corpus correctness, zero-alloc) proceeds regardless.</td>
+<td>Scheduling, not code.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Consequence for sprint sequencing:</strong> S6 can begin its <strong>docs</strong> half and its <strong>M1-certifiable</strong> half (harness, corpus, golden assertions, zero-alloc test, codec-compare build) as soon as S2 exposes the frame API. The <strong>dev-cx53 headline latency</strong> is the last thing to land and depends on dev-cx53 being in-bounds.</p>
+<hr />
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p><strong>M1-certifiable (gates this sprint locally):</strong><br />
+1. <code>cargo bench --manifest-path protocol/hcp/perf/Cargo.toml --no-run</code> builds (all three arms + criterion).<br />
+2. <code>cargo test -p hcp-perf --test corpus_golden</code> passes: every corpus message matches its RFC §6/§10 (and RFC 0003 §4.4.1 for P3) golden bytes, and <code>encode(decode(encode(v))) == encode(v)</code> holds (RFC 0002 §6.8).<br />
+3. <code>cargo test -p hcp-perf --test alloc</code> passes: <strong>0 heap allocations on the hot encode/decode path</strong> after warm-up.<br />
+4. <code>cargo doc --no-deps -p litany</code> builds clean; <code>protocol/hcp/litany/README.md</code> exists and cites RFC 0003 §4/§10/§11.<br />
+5. Stale "RFC 0002 §4 / Appendix A" references corrected to §6 worked examples + RFC 0003 §4.4.1/§4.6 (kickoff line 43 and any others found).</p>
+<p><strong>dev-cx53-required (gates the headline, run when in-bounds):</strong><br />
+6. On <code>dev-cx53</code> with the §5.2 controls, <strong>P4_chunked_large</strong>: <code>encode</code> p99 ≤ 10µs <strong>and</strong> <code>decode</code> p99 ≤ 10µs (per-direction, §1.1), reproduced across 3 runs.<br />
+7. Codec comparison table (hcpbin vs prost-protobuf vs cbor, P1–P4, encode+decode medians) recorded in <code>docs/superpowers/research/2026-09-17-wp3-perf-results.md</code>, with the codec-vs-transport caveat (§4.3) stated.<br />
+8. A criterion <code>--save-baseline wp3-s6</code> committed for S7 regression detection.</p>
+<p><strong>#113 paper readiness:</strong><br />
+9. The WP3 results section (corpus, methodology, numbers, comparison, caveats) is complete in the writeup by Oct 15 (kickoff line 55).</p>
+<hr />
+<h2 id="9-open-questions-resolve-in-spec-at-impl-time-not-blocking">9. Open questions (resolve in-spec at impl time, not blocking)</h2>
+<ul>
+<li><strong>CBOR crate:</strong> <code>ciborium</code> (serde, ergonomic) vs <code>minicbor</code> (no-serde, lower overhead — fairer to hcpbin's no-alloc story). Pick <code>minicbor</code> if the no-alloc comparison must be symmetric; else <code>ciborium</code>. Decide when writing <code>arms.rs</code>.</li>
+<li><strong>Should P4's payload be incompressible random or structured?</strong> Use fixed-seed pseudorandom so the <code>bytes</code> copy cost is realistic and the run is reproducible (no entropy-dependent variance).</li>
+<li><strong>Transport-level gRPC comparison:</strong> explicitly deferred (§4.3). If #113 reviewers ask for it, that is a follow-up (Litany wire RFC 0003 framing vs gRPC HTTP/2), not part of the codec baseline.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp3-s6.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

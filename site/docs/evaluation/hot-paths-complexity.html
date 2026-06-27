@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked — core hot-paths: data structures, algorithms & complexity — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-vakedc-python-compiler-trunk-vakedc" style="padding-left:0.5rem">1. `vakedc` — Python compiler ✅ trunk (`vakedc/`)</a><a href="#2-vakedz-zig-front-end-trunk-vakedz-cache-native-port" style="padding-left:0.5rem">2. `vakedz` — Zig front-end ✅ trunk (`vakedz/`, cache-native port)</a><a href="#3-eventd-toolsralph-event-log-autonomous-loop-trunk" style="padding-left:0.5rem">3. `eventd` + `tools/ralph` — event log & autonomous loop ✅ trunk</a><a href="#4-agentguardd-protocol-egress-membrane-wire" style="padding-left:0.5rem">4. `agent_guardd` + `protocol` — egress membrane & wire</a><a href="#5-toolsoptitron-go-toolsdogfood-kernel-python" style="padding-left:0.5rem">5. `tools/optitron` (Go) + `tools/dogfood` kernel (Python)</a><a href="#cross-cutting-techniques" style="padding-left:0.5rem">Cross-cutting techniques</a><a href="#notable-non-linear-spots-the-things-to-watch" style="padding-left:0.5rem">Notable non-linear spots (the things to watch)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/evaluation/">evaluation</a> / hot-paths-complexity</div>
+<h1>Vaked — core hot-paths: data structures, algorithms & complexity</h1>
+<h1 id="vaked-core-hot-paths-data-structures-algorithms-complexity">Vaked — core hot-paths: data structures, algorithms &amp; complexity</h1>
+<p>A reference map of the <strong>performance-sensitive / critical</strong> code paths across the<br />
+Vaked subsystems, with the data structure + algorithm/technique each uses and its<br />
+<strong>time</strong> and <strong>space</strong> complexity (Big-O; <em>space</em> = auxiliary/total memory as a<br />
+function of input size).</p>
+<p><strong>Methodology.</strong> Complexities are grounded in the actual loop/recursion structure<br />
+of the code (not guessed). Where a path was empirically measured, that measurement<br />
+is cited (see <code>scalability-analysis-v0.1.md</code>). Source links are repo-relative.</p>
+<p><strong>Provenance caveats.</strong><br />
+- ✅ <strong>trunk</strong> = on <code>origin/main</code>.<br />
+- 🌿 <strong>branch</strong> = on a feature branch not yet merged (named inline).<br />
+- 📄 <strong>SPEC ONLY</strong> = normative RFC prose, no implementation yet.</p>
+<p><strong>Variable legend (per subsystem):</strong> <code>N</code> = declarations/graph nodes · <code>E</code> = graph<br />
+edges · <code>B</code> = output bytes · <code>T</code> = tokens · <code>G</code> = capability grants in a domain ·<br />
+<code>P</code> = principals · <code>L</code> = ledger lines/bytes · <code>R</code> = membrane rules.</p>
+<hr />
+<h2 id="1-vakedc-python-compiler-trunk-vakedc">1. <code>vakedc</code> — Python compiler ✅ trunk (<code>vakedc/</code>)</h2>
+<p>Pipeline: lex → resolve (<code>build_graph</code>) → check → lower. A controlled GHA sweep<br />
+(<code>scalability-analysis-v0.1.md</code>) measured <strong>parse, check, and lower all O(N)<br />
+linear</strong> after the #268 fix (empirical slope ≈ 1.0).</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Source</th>
+<th>DS · Technique</th>
+<th>Time</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lexer scan</td>
+<td><code>vakedc/lexer.py</code></td>
+<td>char array · single-pass scan + bounded lookahead</td>
+<td>O(N), N = src bytes</td>
+<td>O(T)</td>
+</tr>
+<tr>
+<td>Parser</td>
+<td><code>vakedc/parser.py</code></td>
+<td>recursive descent + soft-keyword lookahead</td>
+<td>O(N)</td>
+<td>O(AST) + O(depth) stack</td>
+</tr>
+<tr>
+<td>resolve / <code>build_graph</code></td>
+<td><code>vakedc/resolve.py:78</code></td>
+<td>dict-keyed lexical scopes + deferred-ref worklist</td>
+<td>O(N) (dict ops O(1))</td>
+<td>O(N) nodes+edges</td>
+</tr>
+<tr>
+<td><code>_resolve_ref</code></td>
+<td><code>vakedc/resolve.py:224</code></td>
+<td>scope dict chain</td>
+<td>O(1) per ref (depth-bounded)</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td><code>_transitive_closure</code> (capability <code>≤</code>)</td>
+<td><code>vakedc/check.py:323</code></td>
+<td>reachability DFS + antisymmetry over <strong>grants</strong></td>
+<td>O(G²+E·G), G small per domain</td>
+<td>O(G²) closure</td>
+</tr>
+<tr>
+<td>POLA use-check (<code>E-CAP-USE</code>)</td>
+<td><code>vakedc/check.py:1757</code></td>
+<td>per-principal grant↦need dominance via precomputed <code>_leq</code></td>
+<td>~O(P·g·n) — worst-case quadratic in decl size (not hit by flat archs)</td>
+<td>O(P)</td>
+</tr>
+<tr>
+<td><code>enrich_graph</code></td>
+<td><code>vakedc/lower.py:1571</code></td>
+<td><code>#&lt;chain&gt;</code>→node <strong>suffix index</strong> (one O(N) pass)</td>
+<td><strong>O(N)</strong> — was O(N²) before #268</td>
+<td>O(N) index</td>
+</tr>
+<tr>
+<td><code>_children_of</code></td>
+<td><code>vakedc/lower.py:206</code></td>
+<td><code>contains</code> edge scan → adjacency index (PR #269)</td>
+<td>O(E)·~6 today → <strong>O(deg)</strong> with #269</td>
+<td>O(E) index (with #269)</td>
+</tr>
+<tr>
+<td><code>lower</code> (emit)</td>
+<td><code>vakedc/lower.py:1233</code></td>
+<td><code>_runtime_view</code>×~6 (<code>nodes_sorted</code>) + per-fiber emit + provenance sort</td>
+<td>O(N log N)</td>
+<td>O(N)</td>
+</tr>
+<tr>
+<td>canonical-JSON + region hash</td>
+<td><code>vakedc/lower.py:162</code></td>
+<td>recursive sorted-key serialize + SHA-256</td>
+<td>O(B)</td>
+<td>O(B)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>🌿 <code>lang/execution-semantics</code> (unmerged) adds <code>overlay.py</code>/<code>schedule.py</code>: a static<br />
+<strong>wavefront schedule via Kahn topological sort</strong> O(V+E) and a memoized<br />
+critical-path DFS O(V+E).</p>
+</blockquote>
+<h2 id="2-vakedz-zig-front-end-trunk-vakedz-cache-native-port">2. <code>vakedz</code> — Zig front-end ✅ trunk (<code>vakedz/</code>, cache-native port)</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Source</th>
+<th>DS · Technique</th>
+<th>Time</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lexer</td>
+<td><code>vakedz/lexer.zig:109</code></td>
+<td><code>ArrayList(Token)</code> · single-pass switch dispatch</td>
+<td>O(N) bytes</td>
+<td>O(T)</td>
+</tr>
+<tr>
+<td>Parser edge lookahead</td>
+<td><code>vakedz/parser.zig:331</code></td>
+<td>token array · forward scan to <code>-&gt;</code></td>
+<td>O(N) parse; O(k)/lookahead</td>
+<td>O(AST)</td>
+</tr>
+<tr>
+<td>Graph build (index + build)</td>
+<td><code>vakedz/graph.zig:65,86</code></td>
+<td><code>StringHashMap</code> name/kind index</td>
+<td>O(D), O(1)/insert</td>
+<td>O(D)</td>
+</tr>
+<tr>
+<td>Ref resolution</td>
+<td><code>vakedz/graph.zig:234</code></td>
+<td>2× HashMap lookup</td>
+<td>O(1) expected/ref</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>Graph emit</td>
+<td><code>vakedz/graph.zig:350</code></td>
+<td>pdqsort nodes+edges + canonical write</td>
+<td>O(N log N + E log E + B)</td>
+<td>O(N+E)</td>
+</tr>
+<tr>
+<td>Canonical JSON</td>
+<td><code>vakedz/json.zig:37,70</code></td>
+<td>tagged-union recursive descent + in-place key pdqsort</td>
+<td>O(B) write; O(T log T) sort</td>
+<td>O(1) streamed</td>
+</tr>
+<tr>
+<td>Span lookup</td>
+<td><code>vakedz/check.zig:75</code></td>
+<td>sorted token-starts · <strong>binary search</strong></td>
+<td>O(log T)/lookup</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>Transitive closure</td>
+<td><code>vakedz/check.zig:288</code></td>
+<td>Floyd-style over grants</td>
+<td>O(G²+E·G)</td>
+<td>O(G²)</td>
+</tr>
+<tr>
+<td>⚠️ Cache lookup</td>
+<td><code>vakedz/cache.zig:102</code></td>
+<td>append-only ledger · <strong>linear scan</strong> + JSON parse</td>
+<td>O(L) ledger lines</td>
+<td>O(K)/entry</td>
+</tr>
+<tr>
+<td>⚠️ Cache append</td>
+<td><code>vakedz/cache.zig:139</code></td>
+<td><strong>whole-ledger rewrite</strong> + SHA-256 hash-chain</td>
+<td><strong>O(L)/append</strong> (→ O(L²)/session; capped at 64 MB)</td>
+<td>O(L) buffer</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>The two ⚠️ cache paths are the only super-linear spots — same shape as ralph's<br />
+former #58 bug. Bounded by the 64 MB ledger cap, so acceptable today; an index or<br />
+tail-append would make them O(1) if the cache grows.</p>
+</blockquote>
+<h2 id="3-eventd-toolsralph-event-log-autonomous-loop-trunk">3. <code>eventd</code> + <code>tools/ralph</code> — event log &amp; autonomous loop ✅ trunk</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Source</th>
+<th>DS · Technique</th>
+<th>Time</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>EventLog.append</code></td>
+<td><code>eventd/log.py:205</code> (Py)</td>
+<td><code>flock</code> single-writer · SHA-256 hash-chain · fsync</td>
+<td>O(payload)</td>
+<td>O(payload)</td>
+</tr>
+<tr>
+<td>ralph <code>append_event</code></td>
+<td><code>tools/ralph/ralph.py</code></td>
+<td>single-writer head cache, primed once</td>
+<td><strong>O(1) amortized</strong> — was O(N²) before #58</td>
+<td>O(1) state</td>
+</tr>
+<tr>
+<td><code>verify_chain</code> / <code>longest_valid_prefix</code> (boot)</td>
+<td><code>tools/ralph/ralphcore.py:489,504</code></td>
+<td>linear re-hash + torn-tail recovery</td>
+<td>O(N) entries at boot</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td><code>window_log</code> (flat-cost context)</td>
+<td><code>tools/ralph/ralphcore.py:365</code></td>
+<td>regex split · keep-last-K + collapse older</td>
+<td>O(N) scan, O(K) out</td>
+<td>O(K) — <strong>flat (#57)</strong></td>
+</tr>
+<tr>
+<td><code>replay_events</code> (state fold)</td>
+<td><code>tools/ralph/ralph.py</code></td>
+<td>single-pass fold</td>
+<td>O(N)</td>
+<td>O(S) subjects</td>
+</tr>
+<tr>
+<td><code>_next_in_ring</code> (round-robin)</td>
+<td><code>tools/ralph/ralphcore.py:181</code></td>
+<td>list + skip-set · modular step</td>
+<td>O(S)</td>
+<td>O(1)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-agent_guardd-protocol-egress-membrane-wire">4. <code>agent_guardd</code> + <code>protocol</code> — egress membrane &amp; wire</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Source</th>
+<th>DS · Technique</th>
+<th>Time</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>eBPF egress verdict ✅</td>
+<td><code>agent_guardd/bpf.py:~60</code></td>
+<td>2-insn <code>CGROUP_SKB</code> · deny-by-default posture</td>
+<td><strong>O(1)/packet</strong></td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td><code>policy.decide</code> ✅ (userspace ref)</td>
+<td><code>agent_guardd/policy.py:~90</code></td>
+<td>rule list · linear scan (no IP trie)</td>
+<td>O(R) rules/conn</td>
+<td>O(R)</td>
+</tr>
+<tr>
+<td><code>enforce</code> + <code>testify</code> ✅</td>
+<td><code>agent_guardd/enforce.py:~30</code></td>
+<td>connect + hash-chain to eventd</td>
+<td>O(R) + connect latency</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>Litany varint framing 📄</td>
+<td><code>protocol/rfcs/0003-litany-wire.md</code> §4</td>
+<td>LEB128 + overlong-reject</td>
+<td>O(k≤3)/frame</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>Flow-control credit 📄</td>
+<td><code>protocol/rfcs/0003-litany-wire.md</code> §8</td>
+<td>per-stream credit map + control-frame bypass</td>
+<td>O(1)/frame</td>
+<td>O(streams)</td>
+</tr>
+<tr>
+<td>Frame-header codec 📄</td>
+<td><code>protocol/rfcs/0002-hcplang.md</code> §4</td>
+<td>tagged <code>hcpbin</code> fixed header</td>
+<td>O(1)/frame</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>Schema-digest negotiate 📄</td>
+<td><code>protocol/rfcs/0003-litany-wire.md</code> §5.4</td>
+<td>set intersection at handshake</td>
+<td>O(d₁·d₂), d ≤ ~10</td>
+<td>O(d₁+d₂)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-toolsoptitron-go-toolsdogfood-kernel-python">5. <code>tools/optitron</code> (Go) + <code>tools/dogfood</code> kernel (Python)</h2>
+<p>🌿 dogfood kernel lives on <code>feat/local-dogfood-kernel</code> (pushed, unmerged).</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Source</th>
+<th>DS · Technique</th>
+<th>Time</th>
+<th>Space</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Ledger.Append</code></td>
+<td><code>tools/optitron/internal/ledger/ledger.go:162</code> (Go)</td>
+<td><code>sync.Mutex</code> single-writer · SHA-256 chain · fsync</td>
+<td>O(1) under lock</td>
+<td>O(N) in-mem</td>
+</tr>
+<tr>
+<td><code>VerifyChain</code> (boot)</td>
+<td><code>tools/optitron/internal/ledger/ledger.go:64</code></td>
+<td>linear re-hash from genesis</td>
+<td>O(N·payload)</td>
+<td>O(1)</td>
+</tr>
+<tr>
+<td>Deterministic gate</td>
+<td><code>tools/optitron/internal/gate/gate.go:24</code></td>
+<td>map-set source-dedup · regex bench · fail-closed</td>
+<td>O(text)+O(sources)</td>
+<td>O(sources)</td>
+</tr>
+<tr>
+<td>Git change-detect</td>
+<td><code>tools/dogfood/kernel.py:63</code></td>
+<td><code>git status --porcelain</code> ×2 + dict-diff (leans on git mtime/index)</td>
+<td><strong>O(tracked·stat + changed·bytes)</strong> — was O(repo²) full-hash</td>
+<td>O(tracked)</td>
+</tr>
+<tr>
+<td><code>tree_snapshot</code>/<code>tree_hash</code></td>
+<td><code>tools/dogfood/transition.py:62</code></td>
+<td>per-file SHA + sorted-canonical hash</td>
+<td>O(scope·bytes + scope log scope)</td>
+<td>O(scope)</td>
+</tr>
+<tr>
+<td>Capability gate (POLA)</td>
+<td><code>tools/dogfood/capability.py:23</code></td>
+<td>segment-aware prefix match · all-or-nothing</td>
+<td>O(paths·scope)</td>
+<td>O(violations)</td>
+</tr>
+<tr>
+<td><code>scope_from_vaked</code></td>
+<td><code>tools/dogfood/scope_from_vaked.py:43</code></td>
+<td>LPG <code>graph.json</code> traversal</td>
+<td>O(nodes·caps) (graph small)</td>
+<td>O(caps)</td>
+</tr>
+<tr>
+<td>LD_PRELOAD fold</td>
+<td><code>tools/dogfood/observe_preload.py:26</code> (C+Py)</td>
+<td>set-dedup of W/D log lines</td>
+<td>O(syscalls)</td>
+<td>O(observed)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="cross-cutting-techniques">Cross-cutting techniques</h2>
+<ul>
+<li><strong>Hash-chained append-only ledgers</strong> — <code>eventd</code>, ralph, optitron, and the vakedz<br />
+  cache all share <code>sha256(prev_hex ‖ canonical_json(payload))</code> links for tamper<br />
+  evidence and deterministic replay.</li>
+<li><strong>Canonical JSON</strong> (sorted keys, compact separators) — byte-identical output<br />
+  across runs/machines; the foundation of the determinism oracle and the hash chain.</li>
+<li><strong>Single-writer + <code>fsync</code>/<code>flock</code></strong> — durability + a serial chain invariant.</li>
+<li><strong>Capability attenuation as a partial order <code>≤</code></strong> — transitive closure over the<br />
+  grant lattice; the basis of <code>E-CAP-ATTENUATION</code> / <code>E-CAP-USE</code>.</li>
+</ul>
+<h2 id="notable-non-linear-spots-the-things-to-watch">Notable non-linear spots (the things to watch)</h2>
+<ol>
+<li><strong>vakedz cache append</strong> — O(L) per call (whole-ledger rewrite); bounded by the<br />
+   64 MB cap. Index/tail-append would fix it.</li>
+<li><strong>POLA use-check</strong> (<code>check.py:1757</code>) — worst-case ~quadratic in declaration size;<br />
+   not exercised by flat architectures, flagged in the paper's Future Work.</li>
+<li><strong><code>enrich_graph</code></strong> — was the dominant O(N²) (full <code>graph.nodes</code> scan per decl);<br />
+   fixed to O(N) in #268. <code>_children_of</code> is the remaining constant-factor scan,<br />
+   addressed in PR #269.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/evaluation/hot-paths-complexity.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

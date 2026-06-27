@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>POLA formalization — mechanizing the §4.5 soundness argument in Lean 4 — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#motivation" style="padding-left:0.5rem">Motivation</a><a href="#scope" style="padding-left:0.5rem">Scope</a><a href="#prerequisite-blocking" style="padding-left:0.5rem">Prerequisite (blocking)</a><a href="#datatypes-sketch" style="padding-left:0.5rem">Datatypes (sketch)</a><a href="#key-lemmas" style="padding-left:0.5rem">Key lemmas</a><a href="#top-theorem" style="padding-left:0.5rem">Top theorem</a><a href="#tool-choice" style="padding-left:0.5rem">Tool choice</a><a href="#effort" style="padding-left:0.5rem">Effort</a><a href="#references" style="padding-left:0.5rem">References</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0027-pola-formalization</div>
+<h1>POLA formalization — mechanizing the §4.5 soundness argument in Lean 4</h1>
+<h1 id="0027-pola-formalization-mechanizing-the-45-soundness-argument-in-lean-4">0027 — POLA formalization: mechanizing the §4.5 soundness argument in Lean 4</h1>
+<p>Status: <strong>Draft (deferred)</strong> · Series: language design notes · Track: Language</p>
+<h2 id="abstract">Abstract</h2>
+<p>0011 §4.5 gives an <strong>informal</strong>, hand-written argument that the Vaked POLA check<br />
+is sound: any capability a principal can exercise is bounded by the grants held by<br />
+its upstream delegators, so authority is non-increasing along delegation paths.<br />
+This note plans the <strong>mechanization</strong> of that argument as a machine-checked proof<br />
+in <strong>Lean 4 + Mathlib</strong>. The scope is deliberately <em>spec-level</em>: we formalize the<br />
+abstract model (the capability partial order, the grant-set preorder, the<br />
+attenuation and use rules) and prove the top-level POLA invariant as a theorem<br />
+over that model. We do <strong>not</strong> attempt to prove that the implementation<br />
+(<code>vakedc/check.py</code>) faithfully realizes the model, nor anything about runtime<br />
+enforcement. The deliverable is a Lean development that turns §4.5 from prose into<br />
+a checked theorem, closing the gap between the paper's "POLA at compile time"<br />
+claim and what is actually verified today.</p>
+<p>This work is <strong>deferred</strong>: it is scaffolded here so the claim-honesty fixes in<br />
+0011 §4.5, the paper abstract, and <code>THREAT_MODEL.md</code> can reference a concrete plan<br />
+(RFC 0027) rather than an open promise. It is <strong>not</strong> scheduled until its<br />
+prerequisite (below) lands.</p>
+<h2 id="motivation">Motivation</h2>
+<p>The trunk currently <strong>overclaims</strong>:</p>
+<ul>
+<li>0011 §4.5 previously read "the check <strong>is sound</strong>" with no hedge.</li>
+<li>The paper abstract previously read the type system "<strong>enforces</strong> POLA."</li>
+<li><code>THREAT_MODEL.md</code> itself states that runtime enforcement is <strong>not</strong> guaranteed,<br />
+  and §4.1 lists "bugs in the Vaked type checker" as an unmitigated risk.</li>
+</ul>
+<p>No machine-checked proof exists. The honest position — now reflected in 0011 §4.5,<br />
+the abstract, and <code>THREAT_MODEL.md</code> — is that POLA soundness rests on an <em>informal</em><br />
+argument. A mechanized proof would:</p>
+<ol>
+<li><strong>Substantiate the central security claim.</strong> "POLA at compile time" is the<br />
+   paper's headline contribution; a checked theorem makes it defensible.</li>
+<li><strong>Find argument bugs.</strong> Mechanization routinely surfaces missing side<br />
+   conditions (e.g. the cyclic-mesh equality case, the same-domain requirement on<br />
+<code>⊑</code>) that prose glosses over.</li>
+<li><strong>Pin the model.</strong> A Lean datatype for grant-sets and the order relation forces<br />
+   the abstract semantics to be stated precisely once, as a reference other docs<br />
+   (0011, 0026, the paper) cite.</li>
+</ol>
+<h2 id="scope">Scope</h2>
+<p><strong>In scope (spec-level model + proof):</strong></p>
+<ul>
+<li>The per-domain attenuation relation <code>≤</code> as a <strong>partial order</strong> (the<br />
+  reflexive–transitive closure of declared <code>&lt;</code>, with antisymmetry from acyclicity)<br />
+  — 0011 §4.2.</li>
+<li>The grant-set authorization relation <code>⊑</code> as a <strong>preorder</strong> over grant-sets<br />
+  (reflexive, transitive; same-domain domination) — 0011 §4.3/§4.4.</li>
+<li>The <strong>path-attenuation induction lemma</strong>: along any delegation path <code>s -&gt;* r</code>,<br />
+<code>granted(r) ⊑ granted(s)</code>.</li>
+<li>The <strong>cyclic-case antisymmetry lemma</strong>: a <code>⊑</code>-cycle forces grant-set equality<br />
+  (the mesh-cycle degeneration in §4.5 / <code>THREAT_MODEL.md</code> Scenario D).</li>
+<li>The <strong>top POLA theorem</strong>: any exercised capability is bounded by the root grant.</li>
+</ul>
+<p><strong>Out of scope (explicitly not proven here):</strong></p>
+<ul>
+<li><strong>Faithfulness of <code>vakedc/check.py</code></strong> (and <code>vakedz</code>) to the Lean model — i.e. that<br />
+  the implementation computes exactly the modeled relations. This is a separate<br />
+  refinement/extraction effort; the risk it covers stays in <code>THREAT_MODEL.md</code> §4.1.</li>
+<li><strong>Runtime enforcement</strong> — membranes, syscall filtering, revocation (Zig daemons +<br />
+  eBPF). Out of scope per 0011 §Scope; mechanizing the <em>static</em> model says nothing<br />
+  about the running system.</li>
+</ul>
+<h2 id="prerequisite-blocking">Prerequisite (blocking)</h2>
+<p><strong><code>E-CAP-USE</code> must be implemented and negative-tested before this RFC starts.</strong><br />
+The §4.5 argument composes the <strong>use check</strong> (§4.3) with the <strong>attenuation check</strong><br />
+(§4.4); the top theorem is vacuous if the use check is not actually enforced.<br />
+Mechanizing a model of a rule the compiler does not run would be misleading.<br />
+Tracked as <strong>Risk 6 / <code>feat/cap-use-check</code></strong>. Until <code>E-CAP-USE</code> is implemented and<br />
+has negative tests (cases that <em>must</em> be rejected, and are), RFC 0027 stays<br />
+deferred.</p>
+<h2 id="datatypes-sketch">Datatypes (sketch)</h2>
+<p>A first-cut Lean 4 model. Names are indicative, not final.</p>
+<div class="highlight"><pre><span></span>Domain      -- an enumeration / opaque type of capability domains (fs, network, …)
+Grant       -- a (Domain, label) pair: a single capability domain.grant
+GrantSet    -- a finite set of Grant
+Principal   -- an opaque id (node / fiber / surface)
+MeshEdge    -- a directed delegation edge (Principal × Principal)
+</pre></div>
+
+<ul>
+<li>The per-domain order is a relation <code>le : Domain → Grant → Grant → Prop</code>, assumed<br />
+  to be a <code>PartialOrder</code> on the grants of each fixed domain (from §4.2<br />
+  acyclicity).</li>
+<li><code>granted : Principal → GrantSet</code> and <code>used : Principal → GrantSet</code> are the model<br />
+  inputs.</li>
+<li><code>⊑</code> (<code>authorizes</code>) is defined on <code>GrantSet × GrantSet</code> (and on <code>Grant × GrantSet</code>)<br />
+  via same-domain domination.</li>
+<li>A <code>Mesh</code> is a finite set of <code>MeshEdge</code>; <code>s -&gt;* r</code> is the reflexive–transitive<br />
+  closure (<code>Relation.ReflTransGen</code>).</li>
+</ul>
+<h2 id="key-lemmas">Key lemmas</h2>
+<table>
+<thead>
+<tr>
+<th>Lemma</th>
+<th>Statement</th>
+<th>Proof sketch</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>attenuation_partial_order</code></td>
+<td>For each domain, <code>le dom</code> is a partial order.</td>
+<td>From §4.2: refl/trans by closure construction; antisymmetry by acyclicity of declared <code>&lt;</code>. In Lean, derive a <code>PartialOrder</code> instance from the acyclic <code>&lt;</code> (well-founded ⇒ antisymmetric).</td>
+</tr>
+<tr>
+<td><code>grantset_preorder</code></td>
+<td><code>⊑</code> is a preorder on <code>GrantSet</code>.</td>
+<td>Reflexivity: each grant dominates itself (refl of <code>le</code>). Transitivity: chain same-domain dominations using <code>le</code>-transitivity; <code>Preorder</code> instance.</td>
+</tr>
+<tr>
+<td><code>path_attenuation</code></td>
+<td>If <code>s -&gt;* r</code> then <code>granted r ⊑ granted s</code>.</td>
+<td>Induction on <code>ReflTransGen</code>: base case refl (<code>⊑</code>-refl); step case composes the per-edge attenuation hypothesis with <code>⊑</code>-transitivity.</td>
+</tr>
+<tr>
+<td><code>cyclic_case</code></td>
+<td>If <code>s -&gt;* r</code> and <code>r -&gt;* s</code> then <code>granted r = granted s</code>.</td>
+<td>Two applications of <code>path_attenuation</code> give <code>⊑</code> both ways; antisymmetry of the lifted order on grant-sets ⇒ equality (the mesh-cycle degeneration).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="top-theorem">Top theorem</h2>
+<div class="highlight"><pre><span></span>theorem pola_invariant :
+  -- given: per-edge attenuation holds for every mesh edge,
+  --        and the use check holds for every principal,
+  -- for any principal p, any capability c ∈ used p, and any upstream
+  -- delegator a with a -&gt;* p:
+  --   ∃ g ∈ granted a, same_domain g c ∧ le _ c g
+  -- i.e. every exercised capability is ≤ a grant held by every ancestor,
+  --      hence bounded by the root grant and non-increasing along paths.
+</pre></div>
+
+<p>Proof composes <code>path_attenuation</code> (authority bounded by each ancestor) with the<br />
+use-check hypothesis (<code>used p ⊑ granted p</code>) and <code>⊑</code>/<code>le</code> transitivity. This is the<br />
+mechanized counterpart of the "composing 2 and 3" paragraph in 0011 §4.5.</p>
+<h2 id="tool-choice">Tool choice</h2>
+<p><strong>Lean 4 + Mathlib.</strong> Rationale:</p>
+<ul>
+<li><strong>Mathlib supplies the order theory off the shelf</strong> — <code>PartialOrder</code>, <code>Preorder</code>,<br />
+<code>Relation.ReflTransGen</code>, finite sets, and antisymmetry-from-well-foundedness —<br />
+  which is exactly the algebra §4.5 leans on. Little bespoke library is needed.</li>
+<li><strong>Active, maintained, and proof-stable</strong> for this style of relational<br />
+  combinatorics; good automation (<code>decide</code>, <code>omega</code>, <code>aesop</code>) for the finite,<br />
+  decidable side conditions that mirror the checker's totality.</li>
+<li><strong>Alternatives considered.</strong> Coq + stdpp/mathcomp is equally capable and was named<br />
+  as an option in the paper's future-work list; Lean 4 is chosen for the lighter<br />
+  order-theory ramp via Mathlib and the smaller proof surface. Agda and Isabelle/HOL<br />
+  are viable but offer no advantage for this specific, order-theoretic obligation.</li>
+</ul>
+<p>The development is <strong>spec-only</strong>: no extraction to executable code and no attempt to<br />
+connect Lean terms to <code>vakedc</code> Python (that is the out-of-scope faithfulness step).</p>
+<h2 id="effort">Effort</h2>
+<p><strong>2–4 person-weeks</strong> for someone fluent in Lean 4 + Mathlib:</p>
+<ul>
+<li>~3–5 days: model datatypes, <code>le</code>/<code>⊑</code> definitions, the two order instances.</li>
+<li>~3–5 days: <code>path_attenuation</code> + <code>cyclic_case</code> over <code>ReflTransGen</code>.</li>
+<li>~2–4 days: <code>pola_invariant</code>, polish, and a short note mapping each Lean lemma back<br />
+  to its §4.5 prose step.</li>
+</ul>
+<p>Risk skews longer if the chosen <code>GrantSet</code>/domain encoding fights Mathlib's order<br />
+typeclasses; budget the upper bound. This estimate excludes the prerequisite<br />
+<code>E-CAP-USE</code> work, which is tracked separately (Risk 6).</p>
+<h2 id="references">References</h2>
+<ul>
+<li>0011 §4 (capabilities: taxonomy + attenuation), §4.5 (the informal soundness<br />
+  argument this RFC mechanizes), §6.4 (totality/termination argument) —<br />
+<a href="./0011-type-system.md"><code>0011-type-system.md</code></a></li>
+<li><a href="./THREAT_MODEL.md"><code>THREAT_MODEL.md</code></a> — POLA guarantee, scope, and the<br />
+  type-checker-bug risk (§4.1) this work does <em>not</em> close</li>
+<li><a href="./0026-capability-reachability-pola.md"><code>0026-capability-reachability-pola.md</code></a><br />
+  — graph-level POLA/confused-deputy lints over the same authority graph</li>
+<li>Lean 4 + Mathlib order theory (<code>PartialOrder</code>, <code>Preorder</code>,<br />
+<code>Relation.ReflTransGen</code>)</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0027-pola-formalization.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

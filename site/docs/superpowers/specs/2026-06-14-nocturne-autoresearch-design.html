@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>nocturne — a nightly, GPU-rented auto-researcher loop (Karpathy `autoresearch` → Vaked fleet) (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#constraints-honoured-owner-direction" style="padding-left:0.5rem">Constraints honoured (owner direction)</a><a href="#the-loop-nocturne-run-one-nightly-run-abstain-by-default" style="padding-left:0.5rem">The loop (`nocturne run` — one nightly run; abstain by default)</a><a href="#the-strict-gate-step-8-pure-reads-harvested-results-every-condition-holds-else-a" style="padding-left:1rem">  The strict gate (step 8 — pure, reads harvested results; every condition holds, else abstain)</a><a href="#mutation-driver-decided-openrouter-driven-pipeline-fleet-native" style="padding-left:0.5rem">Mutation driver — DECIDED: OpenRouter-driven pipeline (fleet-native)</a><a href="#reconciled-decisions-were-open-now-resolved-against-vast-autoresearcher" style="padding-left:0.5rem">Reconciled decisions (were `⟨OPEN⟩` — now resolved against `vast-autoresearcher`)</a><a href="#files-proposed-mirrors-the-optitron-module-layout" style="padding-left:0.5rem">Files (proposed — mirrors the optitron module layout)</a><a href="#economy-the-dominant-risk-gpu-dollars-not-tokens" style="padding-left:0.5rem">Economy (the dominant risk — GPU dollars, not tokens)</a><a href="#one-time-owner-setup" style="padding-left:0.5rem">One-time owner setup</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#build-order-design-plan-implement-per-project-convention" style="padding-left:0.5rem">Build order (design → plan → implement, per project convention)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-nocturne-autoresearch-design</div>
+<h1>nocturne — a nightly, GPU-rented auto-researcher loop (Karpathy `autoresearch` → Vaked fleet) (design)</h1>
+<h1 id="nocturne-a-nightly-gpu-rented-auto-researcher-loop-karpathy-autoresearch-vaked-fleet-design">nocturne — a nightly, GPU-rented auto-researcher loop (Karpathy <code>autoresearch</code> → Vaked fleet) (design)</h1>
+<blockquote>
+<p>Vaked declares the experiment. Vast.ai materializes the GPU. The ledger supervises.<br />
+The agent mutates. BPB testifies. Mastodon reveals.</p>
+</blockquote>
+<h2 id="status">Status</h2>
+<p>Design / brainstorm (2026-06-14). <strong>Tooling</strong>, not the Vaked language — no grammar gate.<br />
+Owner-directed: integrate <a href="https://github.com/karpathy/autoresearch"><code>karpathy/autoresearch</code></a><br />
+into the fleet, running <strong>every night for ~6 hours</strong> on a <strong>rented Vast.ai GPU</strong>.</p>
+<blockquote>
+<p><strong>Reconciled against the reference port (2026-06-14).</strong> The <code>⟨OPEN⟩</code>/<code>⟨VERIFY⟩</code> items below were<br />
+flagged when the private <a href="https://github.com/peterlodri-sec/vast-autoresearcher"><code>peterlodri-sec/vast-autoresearcher</code></a><br />
+couldn't be read. It has since been read, and every marker is now resolved inline.<br />
+<strong>One premise was wrong and is corrected throughout:</strong> <code>vast-autoresearcher</code> is <strong>not</strong> a port of<br />
+the <code>autoresearch</code> BPB loop. It is a <em>separate, simpler</em> vast.ai box — a single-shot<br />
+<code>arXiv → LLM-designs-one-experiment → run → report → ntfy</code> pipeline (stdlib harness, one LLM pass,<br />
+<strong>no <code>train.py</code>, no BPB, no baseline</strong>). What it actually contributes is <strong>proven scaffolding</strong>:<br />
+on-demand vast rent + mandatory teardown (<code>watch-and-destroy</code>), OpenBao / credential-scrubbed-env<br />
+secret handling, and an <strong>OpenRouter</strong> driver (<code>LLM_API_KEY</code> + <code>LLM_BASE_URL=https://openrouter.ai/api/v1</code>,<br />
+default <code>deepseek/deepseek-chat</code>). The <strong>BPB mutate→train→keep/discard loop itself comes from the<br />
+now-public <a href="https://github.com/karpathy/autoresearch"><code>karpathy/autoresearch</code></a></strong> (AI agents running<br />
+research on single-GPU nanochat training; metric <code>val_bpb</code>), which nocturne ports onto that<br />
+scaffolding.</p>
+</blockquote>
+<p>A <strong>third sibling</strong> to <code>ralph</code> (nightly decision loop) and <code>optitron</code> (nightly optimization<br />
+crawl): same abstain-by-default rhythm, same hash-chained ledger, same <code>agent</code>-issue → swe_af<br />
+hand-off, same staged-toot announce — but the "finding" is a <strong>trained model improvement</strong><br />
+(lower validation bits-per-byte) instead of a decision or a compiler tweak.</p>
+<h2 id="why">Why</h2>
+<p>Karpathy's <code>autoresearch</code> is an <strong>autonomous ML-experiment loop</strong>, not a literature agent. One<br />
+trial is: <em>"It modifies the code, trains for 5 minutes, checks if the result improved, keeps or<br />
+discards, and repeats."</em> Three files: <code>prepare.py</code> (frozen harness: data + tokenizer + runtime),<br />
+<code>train.py</code> (the <strong>only</strong> file the agent edits — nanoGPT-style model + optimizer + loop), and<br />
+<code>program.md</code> (the human-written objective the agent reasons toward). ~100 five-minute trials fit<br />
+in a night on a single H100; <strong>6 hours ⇒ ~60–70 keep/discard trials/night.</strong></p>
+<p>Nothing in the fleet currently does <strong>empirical</strong> research — ralph reasons over structure,<br />
+optitron crawls literature, and <code>fleet-introspect</code> mines telemetry (both on <code>main</code>, the latter a<br />
+second binary inside the optitron Go module). nocturne closes the last loop:<br />
+<strong>run real experiments overnight, keep what measurably wins, and only escalate a confirmed<br />
+improvement to a human/swe_af.</strong> It also dogfoods Vaked's theses on a new axis — <em>immutable<br />
+ledger of trials</em> (replayable experiment history) and <em>control</em> (stop/teardown at runtime, hard<br />
+budget cap).</p>
+<p>The center of gravity is <strong>GPU compute + an experiment ledger</strong>, not search/synthesis. The GHA<br />
+side never trains — it is only the <em>clock, the wallet, and the scribe</em>; this keeps nocturne<br />
+trivially inside the project's <code>NEVER BUILD ON DEVELOPER MACHINE</code> rule (nothing compiles or<br />
+trains locally — ever).</p>
+<h2 id="constraints-honoured-owner-direction">Constraints honoured (owner direction)</h2>
+<ul>
+<li><strong>Nightly, ~6 hours, Vast.ai rented GPU</strong> — provision on demand, run, <strong>always tear down</strong>.</li>
+<li><strong>Abstain by default</strong> (the optitron move) — a night that beats nothing produces a<br />
+  ledger entry + digest toot and <strong>no issue</strong>. Silence is success; a hallucinated "win" is worse.</li>
+<li><strong><code>agent</code>-labelled issue → swe_af</strong> when (and only when) a trial genuinely beats the committed<br />
+  baseline, <strong>confirmed on an independent re-run seed</strong>.</li>
+<li><strong>Hash-chained ledger</strong>, committed, replayable (<code>events --replay</code>) — the experiment memory and<br />
+  cross-night novelty source, exactly like optitron/ralph.</li>
+<li><strong>Double-confirmed manual dispatch</strong> (typed <code>confirm: RUN</code> + a protected <code>nocturne-manual</code><br />
+  Environment reviewer) — same gate as optitron, because a manual run <strong>spends real GPU money</strong>.</li>
+<li><strong>Non-bypassable cost caps</strong> — max <code>$/hr</code> bid, mandatory teardown trap, monthly spend ceiling<br />
+  that disables the cron. GPU dollars are the dominant risk here, unlike the API-only siblings.</li>
+</ul>
+<h2 id="the-loop-nocturne-run-one-nightly-run-abstain-by-default">The loop (<code>nocturne run</code> — one nightly run; abstain by default)</h2>
+<p>GHA cron (~02:00 UTC) is a <strong>thin orchestrator</strong> with no GPU; the rented box runs the real loop.</p>
+<div class="highlight"><pre><span></span><span class="err">┌─</span><span class="w"> </span><span class="nt">02</span><span class="p">:</span><span class="nd">00</span><span class="w"> </span><span class="nt">cron</span><span class="w"> </span><span class="nt">fires</span><span class="w"> </span><span class="o">(</span><span class="nt">GHA</span><span class="w"> </span><span class="nt">orchestrator</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">no</span><span class="w"> </span><span class="nt">GPU</span><span class="o">,</span><span class="w"> </span><span class="nt">just</span><span class="w"> </span><span class="nt">clock</span><span class="o">+</span><span class="nt">wallet</span><span class="o">+</span><span class="nt">scribe</span><span class="o">)</span><span class="w"> </span><span class="err">──┐</span>
+<span class="err">│</span><span class="w"> </span><span class="nt">1</span><span class="o">.</span><span class="w"> </span><span class="nt">PROVISION</span><span class="w">  </span><span class="nt">vastai</span><span class="w"> </span><span class="nt">search</span><span class="o">/</span><span class="nt">create</span><span class="o">:</span><span class="w"> </span><span class="nt">cheapest</span><span class="w"> </span><span class="nt">GPU</span><span class="w"> </span><span class="err">≥</span><span class="w"> </span><span class="nt">spec</span><span class="w"> </span><span class="nt">under</span><span class="w"> </span><span class="o">$/</span><span class="nt">hr</span><span class="w"> </span><span class="nt">cap</span><span class="o">;</span><span class="w">   </span><span class="err">│</span>
+<span class="err">│</span><span class="w">               </span><span class="nt">abort</span><span class="w"> </span><span class="nt">cleanly</span><span class="w"> </span><span class="nt">if</span><span class="w"> </span><span class="nt">none</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="nt">cap</span><span class="w"> </span><span class="o">(</span><span class="nt">event</span><span class="o">:</span><span class="w"> </span><span class="err">`</span><span class="nt">none</span><span class="p">{</span><span class="n">reason</span><span class="p">:</span><span class="n">no-gpu</span><span class="p">}</span><span class="err">`</span><span class="o">)</span><span class="w">  </span><span class="err">│</span>
+<span class="err">│</span><span class="w"> </span><span class="nt">2</span><span class="o">.</span><span class="w"> </span><span class="nt">SYNC</span><span class="w">       </span><span class="nt">ssh</span><span class="o">:</span><span class="w"> </span><span class="nt">clone</span><span class="w"> </span><span class="nt">repo</span><span class="w"> </span><span class="o">@</span><span class="w"> </span><span class="nt">current</span><span class="w"> </span><span class="nt">baseline</span><span class="w"> </span><span class="nt">train</span><span class="p">.</span><span class="nc">py</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">program</span><span class="p">.</span><span class="nc">md</span><span class="w">    </span><span class="err">│</span>
+<span class="err">│</span><span class="w"> </span><span class="nt">3</span><span class="o">.</span><span class="w"> </span><span class="nt">RUN</span><span class="w"> </span><span class="err">≤</span><span class="o">~</span><span class="nt">5</span><span class="p">.</span><span class="nc">5h</span><span class="w"> </span><span class="nt">ssh</span><span class="w"> </span><span class="err">`</span><span class="nt">timeout</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">search-budget</span><span class="o">&gt;</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">driver</span><span class="o">&gt;</span><span class="err">`</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">Karpathy</span><span class="s1">&#39;s         │</span>
+<span class="s1">│               mutate→train 5min→read val BPB→keep/discard, each trial →    │</span>
+<span class="s1">│               results.jsonl (reserve the tail of the 6h for step 4)       │</span>
+<span class="s1">│ 4. CONFIRM    ON THE BOX, before teardown: re-train the night&#39;</span><span class="nt">s</span><span class="w"> </span><span class="nt">best</span><span class="w">      </span><span class="err">│</span>
+<span class="err">│</span><span class="w">  </span><span class="o">(</span><span class="nt">on</span><span class="w"> </span><span class="nt">GPU</span><span class="o">)</span><span class="w">     </span><span class="nt">train</span><span class="p">.</span><span class="nc">py</span><span class="w"> </span><span class="nt">on</span><span class="w"> </span><span class="nt">N</span><span class="w"> </span><span class="nt">fresh</span><span class="w"> </span><span class="nt">seeds</span><span class="o">;</span><span class="w"> </span><span class="nt">append</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">confirm</span><span class="w"> </span><span class="nt">runs</span><span class="w"> </span><span class="nt">to</span><span class="w">        </span><span class="err">│</span>
+<span class="err">│</span><span class="w">               </span><span class="nt">results</span><span class="p">.</span><span class="nc">jsonl</span><span class="o">.</span><span class="w"> </span><span class="nt">THIS</span><span class="w"> </span><span class="nt">is</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">gate</span><span class="s1">&#39;s &quot;independent re-run&quot; — it  │</span>
+<span class="s1">│               MUST happen here because the runner has no GPU.              │</span>
+<span class="s1">│ 5. HARVEST    scp results.jsonl + best train.py back to the runner        │</span>
+<span class="s1">│ 6. TEARDOWN   vastai destroy — ALWAYS (trap/finally); the cost lynchpin   │</span>
+<span class="s1">│ 7. LEDGER     append state/events.jsonl (hash-chained), commit            │</span>
+<span class="s1">│ 8. GATE       (pure, on runner — reads only the harvested results.jsonl)  │</span>
+<span class="s1">│               best_bpb &lt; committed_baseline − ε  AND  confirm seeds held?  │</span>
+<span class="s1">│               ├─ yes → dispatch swe_af with the winning train.py diff      │</span>
+<span class="s1">│               └─ no  → abstain (ledger-only)                              │</span>
+<span class="s1">│ 9. ANNOUNCE   stage toot.txt + telegram.txt → post inline, or push with a │</span>
+<span class="s1">│               PAT (a GITHUB_TOKEN push alone won&#39;</span><span class="nt">t</span><span class="w"> </span><span class="nt">trigger</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">social</span><span class="w"> </span><span class="nt">CI</span><span class="o">)</span><span class="w">  </span><span class="err">│</span>
+<span class="err">└────────────────────────────────────────────────────────────────────────────┘</span>
+</pre></div>
+
+<blockquote>
+<p><strong>Confirmation runs on the GPU, before teardown (step 4) — not in the gate.</strong> The seed<br />
+re-confirmation needs a GPU, and the runner has none, so it cannot live after teardown. The box<br />
+measures it and writes it to <code>results.jsonl</code>; the post-teardown gate (step 8) is then <strong>pure</strong> —<br />
+it only <em>reads</em> already-measured numbers and never trains. The 6h wall-clock budgets the search<br />
+(step 3) to leave room for the confirm re-runs (step 4).</p>
+</blockquote>
+<h3 id="the-strict-gate-step-8-pure-reads-harvested-results-every-condition-holds-else-abstain">The strict gate (step 8 — pure, reads harvested results; every condition holds, else abstain)</h3>
+<ol>
+<li><strong>Measured, not claimed.</strong> The improvement comes from <code>results.jsonl</code> rows the harness wrote<br />
+   from a real 5-minute training run — never from model prose. A trial with no metric is discarded.</li>
+<li><strong>Beats the committed baseline</strong> by ≥ <code>min_bpb_delta</code> (e.g. 0.002 BPB), not just the night's<br />
+   own running best.</li>
+<li><strong>Confirmed on independent re-runs</strong> — the winning <code>train.py</code>, re-trained <strong>on the box in<br />
+   step 4</strong> on N <em>different seeds</em>, still clears the baseline (kills lucky-seed noise; the<br />
+   empirical analogue of optitron's "≥2 independent sources"). The gate only <em>checks</em> these rows;<br />
+   it does not train.</li>
+<li><strong>Novel</strong> — the winning diff's <code>signature</code> isn't already in the ledger or the committed<br />
+   baseline history (<code>git grep</code> + ledger dedupe), so we don't re-surface a known win.</li>
+<li><strong>Sane</strong> — the run produced no NaN/divergence and stayed within the harness's fixed wall-clock<br />
+   and token budget (no "won" by changing the rules).</li>
+</ol>
+<p>A survivor's swe_af request is <em>"promote this <code>train.py</code> diff to the baseline"</em> — with the BPB<br />
+delta, the diff, the seed-confirmation rows, and a link to the ledger event.</p>
+<p><strong>swe_af hand-off — <code>workflow_dispatch</code>, not a bare label (verified).</strong><br />
+<code>.github/workflows/swe-af.yml</code> gates its <code>agent</code>-label trigger on<br />
+<code>github.event.sender.login == github.repository_owner</code> (lines ~37–42) and otherwise only runs on an<br />
+explicit <code>workflow_dispatch</code> whose single input is the <code>issue</code> number. <strong>Verified against optitron<br />
+(<code>origin/claude/vaked-optitron</code>):</strong> optitron files a <strong>bare <code>agent</code> label</strong> via<br />
+<code>gh issue create … --label agent</code> (<code>tools/optitron/internal/run/act.go</code>) using the default<br />
+<code>GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}</code> (<code>optitron-crawl.yml</code>). That path does <strong>not</strong> auto-fire<br />
+swe_af from a scheduled run — twice over: (a) the sender is <code>github-actions[bot]</code>, not the owner, so<br />
+the gate fails; and (b) GitHub suppresses workflow triggers from events created with the default<br />
+<code>GITHUB_TOKEN</code>. So optitron's scheduled finding lands a <strong>labelled issue the owner then picks up</strong>;<br />
+it does not chain into swe_af automatically. (<code>fleet-introspect</code> — a second binary in the optitron<br />
+module, <strong>on <code>main</code></strong> — files the same bare <code>agent</code> label via the default token, so it shares the<br />
+same gap; there is no in-tree precedent that auto-chains to mirror.)</p>
+<p>nocturne therefore <strong>improves on the bare-label path deliberately</strong>: it opens the issue (audit<br />
+trail) and then <strong><code>workflow_dispatch</code>es <code>swe-af.yml</code></strong> against that issue number — the one path that<br />
+actually clears both the sender gate and the <code>GITHUB_TOKEN</code> trigger-suppression. This is a justified<br />
+divergence from optitron, not an inconsistency; mirroring optitron's bare label (and letting the<br />
+owner hand-pick the issue) stays available if auto-chaining is unwanted.</p>
+<h2 id="mutation-driver-decided-openrouter-driven-pipeline-fleet-native">Mutation driver — DECIDED: OpenRouter-driven pipeline (fleet-native)</h2>
+<p><strong>Resolved (2026-06-14, owner).</strong> Each trial's <code>train.py</code> mutation is proposed by an<br />
+<strong>optitron-style OpenRouter pipeline</strong>, not a full headless coding agent and not a fixed search.<br />
+Rationale: controllable + cheaper per call, bounded by a <code>--budget-total</code> cap like optitron, and<br />
+it <strong>reuses the fleet's existing LLM machinery</strong> (<code>tools/optitron/internal/llm</code> — the Eino<br />
+OpenRouter wrapper with strict <code>json_schema</code> structured output) instead of standing up a new<br />
+agent runtime. Mechanics per iteration, on the rented box:</p>
+<ol>
+<li>The driver builds a prompt from <code>program.md</code> + the current <code>train.py</code> + recent <code>results.jsonl</code><br />
+   trials, and asks the model (via OpenRouter) for <strong>one structured mutation</strong> (a diff/patch to<br />
+<code>train.py</code> + a rationale + a <code>signature</code>).</li>
+<li>The driver applies the patch and invokes the <strong>frozen Python/PyTorch harness</strong> for the fixed<br />
+   5-minute train + score (the <em>training</em> stays PyTorch-on-GPU; only the <em>mutation generation</em> is<br />
+   the API call).</li>
+<li>It reads back val BPB from <code>results.jsonl</code>, keeps or discards, and loops.</li>
+</ol>
+<p>Implications — two viable shapes (<strong>resolved: the port's harness is stdlib Python with an<br />
+OpenAI-compatible client, so Python-local is the natural fit</strong>; Go-reuse stays available since<br />
+optitron is already on <code>main</code>, if tighter wrapper reuse is ever wanted):<br />
+- <strong>Go-reuse — must live INSIDE the optitron module.</strong> Go <code>internal/</code> packages are only importable<br />
+  by code rooted under <code>tools/optitron/</code>, so to reuse <code>internal/llm</code> + <code>internal/ledger</code> the driver<br />
+  must be a <strong>new binary in the optitron module</strong> (<code>tools/optitron/cmd/nocturne</code> +<br />
+<code>tools/optitron/internal/nocturne</code>) — the <code>cmd/introspect</code> (fleet-introspect) binary on <code>main</code><br />
+  already does exactly this, so the precedent <strong>does</strong> exist in-tree (verified 2026-06-14). It would<br />
+  still shell out to the Python training harness on the box. A sibling <code>tools/nocturne/</code> tree could<br />
+<strong>not</strong> import those <code>internal/</code> packages. Python-local is still chosen (below) for the harness's<br />
+  own sake, not for lack of precedent.<br />
+- <strong>Python-local.</strong> A thin Python driver co-located with PyTorch on the rented image that calls<br />
+  OpenRouter directly (own small ledger matching ralph's chain format). Simpler on the box; no Go<br />
+  module-boundary constraint; doesn't reuse optitron's wrapper.</p>
+<p>Either way, the orchestration shell (<code>provision.sh</code>, <code>nocturne.yml</code>, <code>program.md</code>, ledger state)<br />
+can live under <code>tools/nocturne/</code>; only the <strong>Go</strong> driver, if chosen, must sit in the optitron<br />
+module. Models: env-overridable like optitron (a capable codegen model for the mutation, e.g. an<br />
+<code>anthropic/claude-fable-5</code> / <code>deepseek-v4</code> tier).</p>
+<p><strong>Secret forwarding (verified against the port's contract).</strong> The driver runs <strong>on the rented<br />
+box</strong>, where the <code>ci</code> environment's OpenRouter key does <strong>not</strong> exist by default — a naive flow<br />
+would provision the GPU then fail on the first mutation call. The port already solves this two ways,<br />
+and nocturne should reuse them rather than invent a third:<br />
+- <strong>Preferred — OpenBao (the port's default).</strong> Stage the OpenRouter key in OpenBao and pass the box<br />
+  only a <strong>scoped, revocable <code>BAO_TOKEN</code></strong> (+ <code>BAO_ADDR</code> / <code>BAO_SECRET_PATH</code>); the harness pulls the<br />
+  real key at startup into the pipeline process only, so the vast template never holds a raw key.<br />
+- <strong>Fallback — inject at dispatch.</strong> <code>ssh box LLM_API_KEY=… LLM_BASE_URL=https://openrouter.ai/api/v1
+  &lt;driver&gt;</code> on the remote command (not via <code>~/.ssh</code>), or a <strong>short-lived env file</strong> (<code>chmod 600</code>,<br />
+  deleted on teardown).</p>
+<p>The port's var name is <strong><code>LLM_API_KEY</code></strong> (it holds the OpenRouter key), not <code>OPENROUTER_API_KEY</code> —<br />
+mirror that on the box. The port additionally <strong>scrubs every credential-looking var from the<br />
+untrusted experiment's subprocess env</strong> and can drop it to an unprivileged <code>EXPERIMENT_USER</code>; keep<br />
+both, since the mutated <code>train.py</code> is model-written code. Never bake any key into the image.</p>
+<h2 id="reconciled-decisions-were-open-now-resolved-against-vast-autoresearcher">Reconciled decisions (were <code>⟨OPEN⟩</code> — now resolved against <code>vast-autoresearcher</code>)</h2>
+<ol>
+<li><strong>Local GPU vs. API — RESOLVED: local on the box.</strong> The port runs its experiment on the rented<br />
+   GPU (PyTorch image), confirming the local-training shape. <strong>Caveat captured above:</strong> the port<br />
+   executes a <em>one-shot LLM-written experiment script</em>, not a persistent <code>train.py</code> BPB loop — so<br />
+   nocturne's mutate→train→keep/discard loop is <strong>ported from <code>karpathy/autoresearch</code>, not inherited<br />
+   from the port.</strong> The port only proves local-GPU execution + the rent/secrets/teardown scaffolding.</li>
+<li><strong>One objective or a rotating queue — RESOLVED: single <code>program.md</code> first.</strong> The port already<br />
+   supports batching (<code>RESEARCH_QUEUE_FILE</code>, newline-delimited, crash-skipped), so an<br />
+<code>objectives.json</code> rotation (ralph's <code>tracks.json</code> shape) is cheap to add later. Start pinned to<br />
+   one objective; add rotation once the loop is proven.</li>
+<li><strong>Baseline persistence — RESOLVED: net-new, version-controlled.</strong> The port keeps <strong>no</strong> baseline<br />
+   (it is stateless — output is pulled off <code>/workspace/output</code>, then the box is destroyed). So<br />
+   nocturne must <strong>add</strong> persistence: the winning <code>train.py</code> is committed under<br />
+<code>tools/nocturne/state/baseline/train.py</code> (promoted via the swe_af PR), so the running-best<br />
+   survives the ephemeral GPU box. This is nocturne's own design, not inherited.</li>
+<li><strong>GPU spec + bid — DECIDED (owner): H100, karpathy-matched.</strong> A single <strong>H100</strong> under a <code>$/hr</code><br />
+   bid cap, on-demand by default (~$6–18/night; the cost-guards below are sized for this tier). The<br />
+   port's RTX 4090 @ <code>dph&lt;0.4</code> is its own cheaper profile, not nocturne's target. <strong>Interruptible</strong><br />
+   stays a cheaper option <strong>only with</strong> the checkpoint rule: <code>results.jsonl</code> is flushed per-trial so<br />
+   a mid-night reclaim yields a partial-night ledger entry, not a lost night.</li>
+</ol>
+<h2 id="files-proposed-mirrors-the-optitron-module-layout">Files (proposed — mirrors the optitron module layout)</h2>
+<ul>
+<li><strong><code>tools/nocturne/</code></strong> — the orchestrator + provisioning, sibling to <code>tools/optitron/</code>:</li>
+<li><code>PURPOSE.md</code> — the abstain-by-default mission preamble (optitron/ralph pattern).</li>
+<li><code>provision.sh</code> — <code>vastai</code> search/create/destroy with <code>$/hr</code> cap + <strong>mandatory teardown trap</strong>.</li>
+<li>the <strong>driver</strong> — proposes each mutation via an OpenRouter call, applies the patch, invokes the<br />
+    training harness; the on-GPU mutate→train→score→keep/discard loop writes <code>results.jsonl</code>.<br />
+<strong>Resolved: Python-local</strong> — <code>tools/nocturne/driver.py</code> co-located with PyTorch on the rented<br />
+    image (matches the port's stdlib-Python harness; no Go module-boundary constraint). The<br />
+    Go-reuse alternative (<code>tools/optitron/cmd/nocturne</code> + <code>tools/optitron/internal/nocturne</code>, since<br />
+    Go <code>internal/</code> can't be imported by a sibling tree) stays open only if optitron merges to<br />
+<code>main</code> first and reusing its <code>internal/llm</code> + <code>internal/ledger</code> is preferred.</li>
+<li><code>program.md</code> — the research objective (human-edited, the only "knob" for direction).</li>
+<li><code>gate.py</code> / gate module — <strong>pure</strong> deterministic check over harvested <code>results.jsonl</code>:<br />
+    baseline delta, confirm-seed rows hold, novelty, sanity (never trains).</li>
+<li><code>ledger.*</code> — single-writer hash-chained appends (reuse optitron's <code>internal/ledger</code> shape if<br />
+    Go, or a small Python port matching ralph's chain format).</li>
+<li><code>state/events.jsonl</code> — append-only, hash-chained, committed. Events: <code>provision</code>, <code>trial</code>,<br />
+<code>kept</code>, <code>discarded</code>, <code>found{issue,bpb,delta}</code>, <code>none{reason}</code>, <code>teardown</code>, <code>error</code>.</li>
+<li><code>state/baseline/train.py</code> — the current best (the running-best that survives the box).</li>
+<li><strong><code>.github/workflows/nocturne.yml</code></strong> — nightly <code>schedule</code> (~02:00 UTC) + double-confirmed<br />
+<code>workflow_dispatch</code> (<code>approve</code> job on the protected <strong><code>nocturne-manual</code></strong> Environment, then the<br />
+  run in <code>ci</code> where secrets live). <code>permissions: contents: write</code> (commit the ledger + promoted<br />
+  baseline) + <code>issues: write</code> (open the survivor issue) + <code>actions: write</code> (so it can<br />
+<code>workflow_dispatch</code> <code>swe-af.yml</code> — the gate-satisfying hand-off, see the strict-gate section).<br />
+  Holds the cost guardrails: <code>$/hr</code> cap input, monthly-ceiling check that no-ops the cron when<br />
+  exceeded.</li>
+<li><strong>Registry/docs</strong>: <code>VAKED_AGENTS.md</code> (add <code>nocturne</code>), <code>docs/agents/ci.md</code>, this spec, a<br />
+<code>tools/nocturne/README.md</code>. Update root <code>CLAUDE.md</code> "CI agent fleet" + status tables.</li>
+</ul>
+<h2 id="economy-the-dominant-risk-gpu-dollars-not-tokens">Economy (the dominant risk — GPU dollars, not tokens)</h2>
+<ul>
+<li><strong>GPU:</strong> ~6 h/night on a Vast.ai H100 ≈ <strong>$6–18/night</strong> (≈ <strong>$180–540/month</strong>) depending on<br />
+  bid and on-demand vs interruptible. This is <strong>1–2 orders of magnitude</strong> above the API-only<br />
+  sibling (optitron ~$1–3/day) — the cost design must be proportionally stricter.</li>
+<li><strong>Per-trial model spend</strong> (decided: OpenRouter pipeline): ~60–70 trials/night × <strong>one<br />
+  structured mutation call</strong> each (not a multi-turn agent), so far cheaper than a headless-agent<br />
+  driver — a single bounded codegen call per trial. Still bound it with a per-night<br />
+<code>--budget-total</code> cap like optitron, and pick a cost-appropriate codegen model; the cap is<br />
+  non-bypassable and checked before every call.</li>
+<li><strong>Hard controls:</strong> <code>$/hr</code> bid cap (abort if no GPU under it) · mandatory teardown trap (no<br />
+  orphaned instances) · monthly spend ceiling that disables the cron · per-night model-budget cap<br />
+  · spend reported in every ledger event + digest toot + a Telegram alert on each night's total.</li>
+</ul>
+<h2 id="one-time-owner-setup">One-time owner setup</h2>
+<ul>
+<li><strong>Vast.ai:</strong> account + the vast API key as a secret in the GitHub <code>ci</code> Environment (the<br />
+  orchestrator runs <code>vastai set api-key</code> from it — the port authenticates the CLI that way, not via<br />
+  a box-side env var); SSH key for the rented box. <strong>Box-side env contract (verified from the<br />
+  port):</strong> <code>LLM_API_KEY</code> (holds the OpenRouter key), <code>LLM_BASE_URL=https://openrouter.ai/api/v1</code>,<br />
+<code>LLM_MODEL</code>, <code>RESEARCH_*</code> / <code>OUTPUT_DIR</code> / <code>EXPERIMENT_USER</code>, and OpenBao<br />
+<code>BAO_ADDR</code> / <code>BAO_TOKEN</code> / <code>BAO_SECRET_PATH</code>.</li>
+<li><strong>Driver secrets forwarded to the box:</strong> the OpenRouter key already lives in the <code>ci</code> Environment<br />
+  for the siblings — no new secret, but the orchestrator must get it onto the box as <strong><code>LLM_API_KEY</code></strong><br />
+  (the port's var), preferably via a scoped OpenBao <code>BAO_TOKEN</code>, else injected on the remote SSH<br />
+  command / a short-lived env file (see the mutation-driver section). It is not on the rented box<br />
+  otherwise.</li>
+<li><strong>GitHub</strong> → Settings → Environments → create <strong><code>nocturne-manual</code></strong> → add yourself as a Required<br />
+  reviewer (no secrets — purely the manual-run approval gate, like <code>optitron-manual</code>).</li>
+<li><strong>Monthly ceiling:</strong> set the spend cap value (workflow input/secret) the cron checks before<br />
+  provisioning.</li>
+<li><strong>Social plumbing — verified, and it needs care.</strong> nocturne reuses <code>social-post.yml</code> /<br />
+<code>telegram-post.yml</code>, but both are <strong><code>on: push</code> (paths-triggered)</strong> by design — their headers note<br />
+<code>workflow_dispatch</code> <em>can't fire from a feature branch</em>, so adding a <code>workflow_dispatch:</code> trigger<br />
+  would not help. The catch: <strong>a push made by a scheduled job's <code>GITHUB_TOKEN</code> does not trigger<br />
+  another workflow</strong> (GitHub recursion prevention), so a staged-then-pushed digest is committed but<br />
+  never posted. <strong>How the siblings post today (verified):</strong> ralph stages <code>toot.txt</code> and <code>git push</code>es,<br />
+  relying on the push trigger; optitron stages + pushes for Mastodon <strong>but posts Telegram inline</strong> via<br />
+<code>appleboy/telegram-action</code> in its own job (<code>optitron-crawl.yml</code>), sidestepping the trigger. nocturne<br />
+  should mirror that — <strong>post inline</strong> (Mastodon <code>cbrgm/mastodon-github-action</code> + Telegram<br />
+<code>appleboy/telegram-action</code>) from its own job, <strong>or</strong> push the staging commit with a <strong>PAT/App<br />
+  token</strong> so the push trigger fires. (<code>workflow_dispatch</code>-ing the social workflows is not an option —<br />
+  they carry no such trigger by design.)</li>
+<li><strong>swe_af hand-off:</strong> the bare <code>agent</code> label does <strong>not</strong> trigger swe_af from a scheduled job —<br />
+  both the owner-sender gate (<code>swe-af.yml</code> ~37–42) and GitHub's <code>GITHUB_TOKEN</code> trigger-suppression<br />
+  block it (verified: optitron files a bare <code>agent</code> label with the default <code>GITHUB_TOKEN</code>, so its<br />
+  scheduled findings wait for the owner). nocturne instead opens the issue and <code>workflow_dispatch</code>es<br />
+<code>swe-af.yml</code> against it (it is on the default branch and accepts a <code>workflow_dispatch</code> <code>issue</code><br />
+  input) — so the only setup is granting the workflow <code>actions: write</code> (above).</li>
+</ul>
+<h2 id="verification">Verification</h2>
+<ul>
+<li><code>bash tools/nocturne/provision.sh --dry-run</code> — print the <code>vastai</code> search/create/destroy plan +<br />
+<code>$/hr</code> cap + estimated nightly cost, <strong>no GPU rented, $0</strong>.</li>
+<li><code>NOCTURNE_DRY_ACT=1 nocturne run --once</code> — full pipeline on a tiny CPU smoke config (or a<br />
+  short-rented box), but issue/toot only <strong>drafted</strong>, not sent.</li>
+<li><code>nocturne events --replay</code> — verify the hash chain + list nights/findings.</li>
+<li>Teardown safety drill: kill the orchestrator mid-run ⇒ confirm the <code>vastai destroy</code> trap fired<br />
+  and no instance is left billing.</li>
+<li>Dispatch <code>nocturne.yml</code> with <code>confirm=RUN</code> ⇒ pauses on the <code>nocturne-manual</code> approval <strong>before</strong><br />
+  any spend.</li>
+</ul>
+<h2 id="build-order-design-plan-implement-per-project-convention">Build order (design → plan → implement, per project convention)</h2>
+<ol>
+<li>~~Reconcile the <code>⟨OPEN⟩</code> items against <code>vast-autoresearcher</code>~~ — <strong>done (2026-06-14; see the<br />
+   reconciliation note + resolved-decisions section above).</strong> Adapt the port's proven scaffolding:<br />
+<code>onstart.sh</code> (box bootstrap), <code>watch-and-destroy</code> (teardown trap), the OpenBao / scrubbed-env<br />
+   secret handling, and the <code>LLM_*</code> OpenRouter env contract.</li>
+<li>Provisioning shell first (<code>provision.sh</code> + teardown trap + <code>nocturne.yml</code> dry-run) — prove<br />
+   rent/teardown/cost-cap in isolation, no training, before any model or GPU spend.</li>
+<li>Port/adapt the on-GPU loop + <code>results.jsonl</code> contract.</li>
+<li>Gate + ledger (reuse optitron's hash-chain).</li>
+<li>Announce + <code>agent</code>-issue hand-off; register in the fleet docs.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-nocturne-autoresearch-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

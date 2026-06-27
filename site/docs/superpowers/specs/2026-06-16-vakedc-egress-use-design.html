@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vakedc E-EGRESS-USE + W-EGRESS-UNREFINED (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#one-liner" style="padding-left:0.5rem">One-liner</a><a href="#why-context" style="padding-left:0.5rem">Why / context</a><a href="#blast-radius-verified" style="padding-left:0.5rem">Blast radius (verified)</a><a href="#rules" style="padding-left:0.5rem">Rules</a><a href="#e-egress-use-error" style="padding-left:1rem">  E-EGRESS-USE (error)</a><a href="#w-egress-unrefined-warning" style="padding-left:1rem">  W-EGRESS-UNREFINED (warning)</a><a href="#components-files" style="padding-left:0.5rem">Components / files</a><a href="#vakedccheckpy-modify" style="padding-left:1rem">  `vakedc/check.py` (MODIFY)</a><a href="#fixtures-vakedexamplestypes-new" style="padding-left:1rem">  Fixtures `vaked/examples/types/` (NEW)</a><a href="#tests-testsspectestvakedccheckpy-modify" style="padding-left:1rem">  Tests `tests/spec/test_vakedc_check.py` (MODIFY)</a><a href="#docs" style="padding-left:1rem">  Docs</a><a href="#error-handling-determinism" style="padding-left:0.5rem">Error handling / determinism</a><a href="#out-of-scope-follow-ups" style="padding-left:0.5rem">Out of scope (follow-ups)</a><a href="#constraints" style="padding-left:0.5rem">Constraints</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-16-vakedc-egress-use-design</div>
+<h1>vakedc E-EGRESS-USE + W-EGRESS-UNREFINED (design)</h1>
+<h1 id="vakedc-e-egress-use-w-egress-unrefined-design">vakedc E-EGRESS-USE + W-EGRESS-UNREFINED (design)</h1>
+<p><strong>Date:</strong> 2026-06-16<br />
+<strong>Status:</strong> approved (brainstorm) — ready for plan<br />
+<strong>Base:</strong> <code>origin/main</code> @ <code>ec06b3f</code></p>
+<h2 id="one-liner">One-liner</h2>
+<p>Add a vakedc checker pass that makes network egress POLA-sound at the <strong>language</strong> level: a<br />
+<code>networkMembrane</code> may not authorize egress beyond its principal's held <code>network</code> grant<br />
+(<strong>E-EGRESS-USE</strong>, error), and a node holding <code>network.egress</code>/<code>lan</code> with no refining membrane<br />
+is flagged as unbounded (<strong>W-EGRESS-UNREFINED</strong>, advisory). The network-domain dual of<br />
+<code>E-CAP-USE</code> (error) + <code>W-POLA-EXCESS</code> (warning); completes thread-1's tool-local egress check<br />
+as a real language pass.</p>
+<h2 id="why-context">Why / context</h2>
+<p><code>network</code> is a builtin capability domain (<code>none &lt; loopback &lt; lan &lt; egress</code>) and<br />
+<code>networkMembrane</code> refines a grant into <code>allow = [egress(host, port)]</code> rules. Today (verified):<br />
+- a node with bare <code>network.egress</code> and no membrane → checks clean (unbounded egress, no flag);<br />
+- a node holding only <code>network.loopback</code> with a membrane allowing <code>egress("203.0.113.10",443)</code><br />
+  → <strong>checks clean</strong> — the membrane authorizes egress the capability graph never granted. Unsound.</p>
+<p><code>E-CAP-USE</code> already enforces <code>used ⊑ granted</code> for <code>needs</code>. This pass extends the same POLA<br />
+discipline to the network membrane.</p>
+<h2 id="blast-radius-verified">Blast radius (verified)</h2>
+<p>9 example files use <code>network.egress</code>/<code>lan</code> <strong>without</strong> a membrane (<code>editorial-pipeline</code>,<br />
+<code>hcp-litany-dev-loop</code>, <code>issue-driver-team</code>, <code>ralph-dogfood-loop</code>, <code>redteam-swarm</code>,<br />
+<code>session-drive-loop</code>, <code>supply-chain-pipeline</code>, <code>swe-swarm-100k/1m</code>). So the <strong>error</strong> is framed<br />
+as <em>membrane-over-reach</em> (which no corpus example does → zero new errors), NOT <em>membrane-required</em><br />
+(which would break all 9). The unrefined-egress smell is the <strong>warning</strong> (advisory; those 9 nodes<br />
+get a non-blocking <code>W-EGRESS-UNREFINED</code>). <code>oracle-team.vaked</code> stays clean (egress grant covers its<br />
+cordons). The <code>cap-use-*</code> type fixtures hold egress but no membrane → they gain a<br />
+<code>W-EGRESS-UNREFINED</code> warning; their existing <code>E-CAP-USE</code> assertions are unaffected (warnings are a<br />
+separate code) — the egress-use test cases must account for the added warning where it co-occurs.</p>
+<h2 id="rules">Rules</h2>
+<h3 id="e-egress-use-error">E-EGRESS-USE (error)</h3>
+<p>For each <code>network &lt;name&gt;</code> membrane decl (runtime-level, sibling of the mesh):<br />
+1. resolve <code>principal</code> → a mesh node; if it names no node in the mesh → error.<br />
+2. <code>held</code> = the node's strongest <code>network</code> grant (<code>max</code> under the lattice; <code>none</code>/absent if no<br />
+   network grant).<br />
+3. for each <code>allow = [egress(host, port)]</code> rule, classify <code>host</code> → required grant via<br />
+<code>_required_grant</code> (stdlib <code>ipaddress</code>): loopback host/IP (or <code>"localhost"</code>) → <code>loopback</code>;<br />
+   private IP (<code>is_private</code>) → <code>lan</code>; any other IP or a DNS name → <code>egress</code>. <code>required</code> = the<br />
+   strongest across all rules.<br />
+4. if <code>held</code> does <strong>not</strong> dominate <code>required</code> (<code>not _leq(cap, required, held)</code>) → emit<br />
+<strong>E-EGRESS-USE</strong> (error): <code>membrane `&lt;name&gt;` allows egress at level `&lt;required&gt;` for principal
+   `&lt;node&gt;` which holds `network.&lt;held&gt;` — a membrane cannot authorize egress beyond the
+   principal's granted network capability (0026)</code>.</p>
+<p>One error per offending membrane; deterministic (membranes sorted by name).</p>
+<h3 id="w-egress-unrefined-warning">W-EGRESS-UNREFINED (warning)</h3>
+<p>For each mesh node holding <code>network.egress</code> or <code>network.lan</code> with <strong>no</strong> membrane whose<br />
+<code>principal</code> == the node name → emit <strong>W-EGRESS-UNREFINED</strong> (warning): <code>node `&lt;n&gt;` holds
+`network.&lt;g&gt;` but no networkMembrane refines it — egress is unbounded (least-authority advisory;
+add a `network` membrane with an `allow` set)</code>. <code>loopback</code>/<code>none</code> need no membrane. Non-blocking.</p>
+<h2 id="components-files">Components / files</h2>
+<h3 id="vakedccheckpy-modify"><code>vakedc/check.py</code> (MODIFY)</h3>
+<ul>
+<li><code>_check_mesh(...)</code> (~1640) — accept a new <code>network_decls</code> arg (dict <code>{name: Decl}</code> of sibling<br />
+<code>kind=="network"</code> decls); thread it to a new <code>_check_egress_use(...)</code> call placed right after<br />
+<code>_check_capability_reachability</code> (~1725).</li>
+<li><code>_check_decl_tree</code> (~1654) — build <code>child_networks = {st.name: st for st in decl.body if
+  isinstance(st, P.Decl) and st.kind == "network"}</code> and pass to <code>_check_mesh</code>.</li>
+<li>new <code>_check_egress_use(mesh_decl, node_decls, node_grants, network_decls, registry, smap, file,
+  diags)</code> — implements both rules; <code>_required_grant(host)</code> helper (stdlib <code>ipaddress</code>);<br />
+<code>_membrane_bindings(decl)</code> reads <code>principal</code>/<code>allow</code> (reuse the <code>_node_bindings</code>/value-prop<br />
+  pattern); <code>_egress_rule(entry)</code> → <code>(host, port)</code> from an <code>egress(...)</code> app-call (<code>ref=="egress"</code>,<br />
+<code>args=[str, int]</code>); skips malformed rules (fail-soft).</li>
+<li>emit via <code>_emit(..., severity="error"|"warning")</code>; lattice via <code>_leq(registry.caps["network"],
+  required, held)</code>.</li>
+</ul>
+<h3 id="fixtures-vakedexamplestypes-new">Fixtures <code>vaked/examples/types/</code> (NEW)</h3>
+<ul>
+<li><code>egress-use-exceeds.vaked</code> — node holds <code>network.loopback</code>, a membrane allows<br />
+<code>egress("203.0.113.10",443)</code> → <strong>E-EGRESS-USE</strong>.</li>
+<li><code>egress-use-ok.vaked</code> — node holds <code>network.egress</code>, membrane allows <code>egress("203.0.113.10",443)</code><br />
+  → clean (no egress-use error; no unrefined warning since refined).</li>
+<li><code>egress-unrefined.vaked</code> — node holds <code>network.egress</code>, no membrane → <strong>W-EGRESS-UNREFINED</strong> only.</li>
+<li><code>egress-use-bad-principal.vaked</code> — membrane principal names a non-node → <strong>E-EGRESS-USE</strong>.</li>
+<li>(loopback membrane on a loopback-grant node → clean; covered by <code>egress-use-ok</code> variant or an<br />
+  inline case.)</li>
+</ul>
+<h3 id="tests-testsspectest_vakedc_checkpy-modify">Tests <code>tests/spec/test_vakedc_check.py</code> (MODIFY)</h3>
+<p>Add a group mirroring the E-CAP-USE block: a <code>_EGRESS_CASES</code> list mapping each fixture →<br />
+expected codes; assert exact code set, severities (<code>E-EGRESS-USE</code>=error, <code>W-EGRESS-UNREFINED</code><br />
+=warning), message contains the principal/node name + a <code>(0026)</code> ref, and source-mapped span<br />
+(<code>!= (0,0)</code>). Plus a corpus guard: checking <code>vaked/examples/oracle-team.vaked</code> yields <strong>no</strong><br />
+<code>E-EGRESS-USE</code> (its cordons match its grants).</p>
+<h3 id="docs">Docs</h3>
+<p><code>docs/language/</code> — a short note (or extend the POLA/0026/0027 reference) documenting<br />
+E-EGRESS-USE + W-EGRESS-UNREFINED as the network-domain dual. <code>.DEV.TODO</code> — item done; link to<br />
+the thread-1 tool-local <code>check_roster_egress</code> it promotes.</p>
+<h2 id="error-handling-determinism">Error handling / determinism</h2>
+<ul>
+<li>No clocks/randomness (pure). Sorted iteration (membranes by name, nodes by name).</li>
+<li>Malformed <code>allow</code> entries / non-IP non-DNS hosts → <code>_required_grant</code> returns <code>egress</code><br />
+  (conservative); a totally malformed rule is skipped (the <code>networkMembrane</code> schema conformance<br />
+  owns type errors).</li>
+<li>A membrane whose principal node exists but holds no <code>network</code> grant → <code>held = none</code> → any<br />
+  non-<code>none</code> required → error (membrane refines a grant the node lacks).</li>
+</ul>
+<h2 id="out-of-scope-follow-ups">Out of scope (follow-ups)</h2>
+<ul>
+<li>Per-rule (vs per-membrane) error granularity.</li>
+<li>An RFC formalizing the network-domain POLA dual (note it; RFC like 0027 for E-CAP-USE).</li>
+<li>Porting the check to <code>vakedz</code> (Zig front-end) — separate cycle.</li>
+</ul>
+<h2 id="constraints">Constraints</h2>
+<p>Pure stdlib (incl. <code>ipaddress</code>); M3-safe (<code>vakedc check</code> is pure Python, no compile); in-lane<br />
+(vakedc is ours; E-CAP-USE precedent); must not add ERRORS to the existing example corpus (only<br />
+the advisory warning); Snyk OFF.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-16-vakedc-egress-use-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

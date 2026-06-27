@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>fleet-introspect — a daily, gated fleet self-improvement loop over Langfuse telemetry (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#constraints-honoured-owner-direction" style="padding-left:0.5rem">Constraints honoured (owner direction)</a><a href="#the-loop-introspect-run-one-daily-run-abstain-by-default" style="padding-left:0.5rem">The loop (`introspect run` — one daily run; abstain by default)</a><a href="#files" style="padding-left:0.5rem">Files</a><a href="#economy-own-cost-measured-at-first-dry-run" style="padding-left:0.5rem">Economy (own cost — measured at first dry-run)</a><a href="#one-time-owner-setup" style="padding-left:0.5rem">One-time owner setup</a><a href="#verification" style="padding-left:0.5rem">Verification</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-fleet-introspect-design</div>
+<h1>fleet-introspect — a daily, gated fleet self-improvement loop over Langfuse telemetry (design)</h1>
+<h1 id="fleet-introspect-a-daily-gated-fleet-self-improvement-loop-over-langfuse-telemetry-design">fleet-introspect — a daily, gated fleet self-improvement loop over Langfuse telemetry (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design + shipped (2026-06-14). <strong>Tooling</strong>, not the Vaked language — no grammar gate.<br />
+Owner-approved scope. A <strong>second binary in the optitron Go module</strong> (<code>cmd/introspect</code>) that<br />
+<strong>reuses optitron's core</strong> (<code>internal/ledger</code>, <code>internal/llm</code>) rather than re-implementing it.<br />
+Stacks on the optitron PR (#157).</p>
+<h2 id="why">Why</h2>
+<p>Every CI bot emits Langfuse traces, but <strong>nothing reads them back</strong> — the fleet's own<br />
+observability never feeds improvement. fleet-introspect closes the loop: once a day it ingests the<br />
+last ≤2 days of the fleet's Langfuse traces (+ the hash-chained ledgers + recent CI), <strong>auto-detects<br />
+the most salient finding</strong>, ideates <strong>one</strong> novel solution, <strong>always reviews</strong> it (fail-closed), and<br />
+hands a survivor to <strong>swe_af</strong>. It also surfaces the <strong>fleet economy</strong> — real spend projected to a<br />
+normal day/week/month — so cost creep stays visible.</p>
+<h2 id="constraints-honoured-owner-direction">Constraints honoured (owner direction)</h2>
+<ul>
+<li><strong>Reuse the optitron core</strong> for the agent implementation — so it lives <em>inside</em> the optitron Go<br />
+  module (Go's <code>internal/</code> packages can't be imported across module boundaries). It shares<br />
+<code>internal/ledger</code> (its own ledger file) and <code>internal/llm</code> (the Eino OpenRouter wrapper +<br />
+<code>CallJSON</code>); the only new public surface is <code>llm.NamedSchema</code>/<code>llm.NewSchema</code> so the agent can<br />
+  register its own strict schemas.</li>
+<li><strong>ralph is live — read only.</strong> The loop reads <code>tools/ralph/state/events.jsonl</code> as a data source<br />
+  and never modifies <code>tools/ralph/</code> (no ralph code is touched).</li>
+<li><strong>Auto-detect the finding</strong> (with an optional <code>--focus</code> operator override at dispatch).</li>
+<li><strong>agent issue → swe_af</strong> hand-off; <strong>always review</strong> (the fail-closed gate); <strong>double-confirmed</strong><br />
+  manual trigger.</li>
+</ul>
+<h2 id="the-loop-introspect-run-one-daily-run-abstain-by-default">The loop (<code>introspect run</code> — one daily run; abstain by default)</h2>
+<ol>
+<li><strong>Ingest (no LLM).</strong> <code>internal/introspect/langfuse.go</code> pages<br />
+<code>GET /api/public/observations?type=GENERATION&amp;fromStartTime=…&amp;toStartTime=…</code> (HTTP Basic from the<br />
+   key pair). Real (OTel) spans are named <code>gen_ai.generate</code>, so it <strong>groups by <code>model</code></strong> (always<br />
+   present) and <strong>computes cost client-side from tokens</strong> (Langfuse self-hosted omits server cost);<br />
+   per-span-name counts give the bot signal. Plus the ralph (read-only) + optitron ledgers via<br />
+<code>ledger.Load</code>, and recent <code>gh run list</code> outcomes.</li>
+<li><strong>Economy roll-up.</strong> Real per-model spend → a <em>normal, non-optimistic</em> projection (<code>/day</code>, <code>×7</code>,<br />
+<code>×30.4</code>), emitted in the digest, CI summary, ledger event, and issue body.</li>
+<li><strong>Detect</strong> (<code>deepseek-v4-flash</code>) — the single most salient finding, grounded in exact numbers.</li>
+<li><strong>Ideate</strong> (<code>claude-opus-4.8</code>) — ONE novel solution: mechanism, novelty, target files, signature.</li>
+<li><strong>Review — always</strong> (<code>claude-opus-4.8</code>) — <code>approved &amp;&amp; novel &amp;&amp; grounded &amp;&amp; actionable &amp;&amp;
+   confidence ≥ 0.75</code>, plus deterministic novelty (<code>git grep</code> signature + ledger title dedupe).</li>
+<li><strong>Act (survivor only)</strong> — <code>agent</code>-labelled issue (swe_af trigger) + announce; append <code>found</code>.<br />
+   Nothing survives ⇒ <code>none</code>, CI log only.</li>
+</ol>
+<h2 id="files">Files</h2>
+<ul>
+<li><strong><code>tools/optitron/internal/llm/</code></strong> — export <code>NamedSchema</code> + add <code>NewSchema()</code> (the only change to<br />
+  optitron's core, enabling schema reuse).</li>
+<li><strong><code>tools/optitron/internal/introspect/</code></strong> — <code>config.go</code>, <code>langfuse.go</code> (REST query client),<br />
+<code>digest.go</code> (aggregate-by-model + economy + ledger/CI), <code>schemas.go</code> (typed stages + prompts),<br />
+<code>gate.go</code>, <code>pipeline.go</code>, <code>PURPOSE.md</code>, <code>introspect_test.go</code>.</li>
+<li><strong><code>tools/optitron/cmd/introspect/main.go</code></strong> — CLI (<code>run</code>, <code>events</code>).</li>
+<li><strong><code>tools/optitron/state/introspect.jsonl</code></strong> — the agent's OWN hash-chained ledger.</li>
+<li><strong><code>.github/workflows/fleet-introspect.yml</code></strong> — daily <code>schedule</code> + gated <code>workflow_dispatch</code><br />
+  (<code>approve</code> job on the protected <strong><code>introspect-manual</code></strong> Environment, confirm #2, gated on typed<br />
+<code>confirm == 'RUN'</code>, confirm #1). Tests ride the existing <code>optitron-go</code> <code>go test ./...</code> job.</li>
+<li>Registry/docs: <code>VAKED_AGENTS.md</code>, <code>docs/agents/ci.md</code>, this spec, <code>tools/optitron/README.md</code>.</li>
+</ul>
+<h2 id="economy-own-cost-measured-at-first-dry-run">Economy (own cost — measured at first dry-run)</h2>
+<p>3 calls/run (~$0.20–0.45 normal; ceiling = the $3 cap). The fleet projection is computed live from<br />
+real Langfuse cost — at design time the measured 2-day fleet spend was ~$0.77 → <strong>~$11.7/month</strong>.</p>
+<h2 id="one-time-owner-setup">One-time owner setup</h2>
+<p>GitHub → Settings → Environments → create <strong><code>introspect-manual</code></strong> → add yourself as a Required<br />
+reviewer. No secrets on it — the loop runs in <code>ci</code>.</p>
+<h2 id="verification">Verification</h2>
+<p><code>go -C tools/optitron run ./cmd/introspect run --dry-run</code> (real digest + economy, no model calls) ·<br />
+<code>go test -race ./...</code> (introspect aggregation incl. client-side cost, economy, the gate) ·<br />
+<code>INTROSPECT_DRY_ACT=1 introspect run --once</code> (full loop, issue/toot only drafted) · dispatch<br />
+<code>fleet-introspect.yml</code> with <code>confirm=RUN</code> ⇒ pauses on the <code>introspect-manual</code> approval.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-fleet-introspect-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Version Governance Across Prompts, Containers, and Documentation — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-section-diagnosis" style="padding-left:0.5rem">1. Section diagnosis</a><a href="#2-claim-audit-table" style="padding-left:0.5rem">2. Claim audit table</a><a href="#3-publication-ready-section" style="padding-left:0.5rem">3. Publication-ready section</a><a href="#from-release-governance-to-artifact-governance" style="padding-left:1rem">  From release governance to artifact governance</a><a href="#the-prompt-is-an-artifact-and-it-is-the-hardest-one" style="padding-left:1rem">  The prompt is an artifact, and it is the hardest one</a><a href="#the-variance-contract" style="padding-left:1rem">  The variance contract</a><a href="#mutable-tags-versus-immutable-digests" style="padding-left:1rem">  Mutable tags versus immutable digests</a><a href="#supply-chain-integrity-vocabulary" style="padding-left:1rem">  Supply-chain integrity vocabulary</a><a href="#documentation-is-a-versioned-artifact-too" style="padding-left:1rem">  Documentation is a versioned artifact too</a><a href="#the-versioned-artifact-matrix" style="padding-left:1rem">  The versioned artifact matrix</a><a href="#4-release-governance-checklist-for-vaked-v10" style="padding-left:0.5rem">4. Release-governance checklist for Vaked V1.0</a><a href="#5-rollback-scenario-examples" style="padding-left:0.5rem">5. Rollback scenario examples</a><a href="#6-suggested-figures-tables" style="padding-left:0.5rem">6. Suggested figures / tables</a><a href="#7-follow-up-research-tasks" style="padding-left:0.5rem">7. Follow-up research tasks</a><a href="#8-appendix-research-digest" style="padding-left:0.5rem">8. Appendix: research digest</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/papers/">papers</a> / v1.0-artifact-governance</div>
+<h1>Version Governance Across Prompts, Containers, and Documentation</h1>
+<h1 id="version-governance-across-prompts-containers-and-documentation">Version Governance Across Prompts, Containers, and Documentation</h1>
+<p><em>Vaked V1.0 whitepaper - bridge section: from product-release governance to technical-artifact governance.</em></p>
+<hr />
+<h2 id="1-section-diagnosis">1. Section diagnosis</h2>
+<p><strong>Thesis (one line):</strong> Product-release governance answers <em>"is this release allowed to ship?"</em>; the bridge to technical-artifact governance answers <em>"and can we name, pin, attest, and roll back every artifact that release is made of - prompts included - under a non-deterministic runtime where a change cannot be proven safe by reading it?"</em></p>
+<hr />
+<h2 id="2-claim-audit-table">2. Claim audit table</h2>
+<p>Tags: <strong>[STD]</strong> published standard/spec · <strong>[PM-LIT]</strong> public literature · <strong>[INTERNAL]</strong> Vaked-internal interpretation · <strong>[CITE?]</strong> needs better citation · <strong>[REFRAME]</strong> vague term replaced.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Claim</th>
+<th>Tag</th>
+<th>Anchor / note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td>An OCI image descriptor's <code>digest</code> is a content identifier (cryptographic hash) enabling content-addressable storage; mismatched length/content "SHOULD NOT be trusted."</td>
+<td>[STD]</td>
+<td>OCI image-spec, <em>descriptor.md</em> (digest is REQUIRED, content-addressable).</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>A Docker tag (e.g. <code>:latest</code>) is mutable - re-pulling may return a different image; a <code>@sha256:</code> digest is immutable and "pins" exact bytes.</td>
+<td>[STD]</td>
+<td>Docker docs, image pull by digest vs tag.</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>SLSA provenance is "verifiable information about software artifacts describing where, when and how something was produced," expressed as an in-toto attestation with predicate type <code>https://slsa.dev/provenance/v1</code>.</td>
+<td>[STD]</td>
+<td>slsa.dev provenance v1.0 (BuildDefinition + RunDetails).</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>SLSA build levels L1-L3 grade build-<strong>platform</strong> hardening (L1: provenance exists; L2: hosted infra + signed provenance; L3: isolated builds, signing keys protected from build steps). At verification, <code>builder.id</code> is the spec's intended <em>sole determiner of the claimed level</em> (trust anchors to the builder identity, not to other provenance fields).</td>
+<td>[STD]</td>
+<td>slsa.dev/spec/v1.0/levels (level criteria) + /provenance (<code>builder.id</code> "intended to be the sole determiner of the SLSA Build level").</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>An in-toto attestation Statement binds a <code>subject</code> (artifact <code>name</code> + mandatory <code>digest</code>) to a <code>predicateType</code> (TypeURI).</td>
+<td>[STD]</td>
+<td>in-toto attestation spec v1, <em>statement.md</em>.</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>SPDX is an open SBOM standard recognized as ISO/IEC 5962:2021; SPDX 3.0 (2024) adds Build/Security/AI profiles.</td>
+<td>[STD]</td>
+<td>spdx.dev overview.</td>
+</tr>
+<tr>
+<td>C7</td>
+<td>Sigstore provides keyless artifact signing (Fulcio short-lived certs + OIDC), with all signing events recorded to Rekor, an immutable append-only transparency log; cosign is the client.</td>
+<td>[STD]</td>
+<td>docs.sigstore.dev overview.</td>
+</tr>
+<tr>
+<td>C8</td>
+<td>NIST SP 800-218 (SSDF v1.1) was developed in response to Executive Order 14028.</td>
+<td>[STD]</td>
+<td>csrc.nist.gov SP 800-218.</td>
+</tr>
+<tr>
+<td>C9</td>
+<td>SSDF prescribes specific artifact provenance/integrity controls.</td>
+<td>[STD]</td>
+<td>NIST SP 800-218 PS.2 "Provide a Mechanism for Verifying Software Release Integrity"; PS.3 "Archive and Protect Each Software Release" - PS.3.1 archive "integrity verification information, provenance data" per release; PS.3.2 "Collect, safeguard, maintain, and share provenance data for all components of each software release (e.g., in a software bill of materials [SBOM])."</td>
+</tr>
+<tr>
+<td>C10</td>
+<td>CycloneDX is a peer SBOM standard to SPDX.</td>
+<td>[STD]</td>
+<td>OWASP CycloneDX, standardized as Ecma International ECMA-424 (TC54); covers SBOM plus SaaSBOM, HBOM, ML-BOM, CBOM, VEX. cyclonedx.org spec overview.</td>
+</tr>
+<tr>
+<td>C11</td>
+<td>In a non-deterministic LLM system, pinning a prompt version is necessary but insufficient for reproducibility: model drift and sampling mean a prompt change cannot be proven safe by static reading - regressions surface empirically.</td>
+<td>[INTERNAL]</td>
+<td>Vaked interpretation; consistent with sampling/temperature semantics in LLM serving.</td>
+</tr>
+<tr>
+<td>C12</td>
+<td>Vaked's durable substrate is <code>eventd</code>: a per-runtime append-only hash-chained event log; a <code>StepHash</code> is the cryptographic anchor; <code>DependencyRegistration</code> is the write-ahead control frame; versioning is by monotonic <strong>topology epoch</strong>.</td>
+<td>[INTERNAL]</td>
+<td>RFC 0004 (terminology + §3-§7). Repo-specific.</td>
+</tr>
+<tr>
+<td>C13</td>
+<td>Every Vaked materialized image (NixOS closure / OCI image / unikernel) is content-addressed with a PQC-signed <code>provenance.json</code> (votive seal); the only mutation path is a code change that re-derives and re-signs the image ("image-as-code"). Signatures are ML-DSA (FIPS 204), hybrid during migration.</td>
+<td>[INTERNAL]</td>
+<td>RFC 0007 §5, §4, terminology. Repo-specific.</td>
+</tr>
+<tr>
+<td>C14</td>
+<td>"Stable outputs" is unfalsifiable for an LLM and is replaced by a pinned tuple with bounded, measured variance.</td>
+<td>[REFRAME]</td>
+<td>See §3, "The variance contract" (metric, p95 statistic, directional threshold, fixed-seed-set policy, pass/fail rule).</td>
+</tr>
+<tr>
+<td>C15</td>
+<td>"Canonical deployment tracks" is replaced by digest-pinned release channels backed by immutable provenance.</td>
+<td>[REFRAME]</td>
+<td>See §3.</td>
+</tr>
+<tr>
+<td>C16</td>
+<td>Vaked lowers a typed semantic graph to artifacts including <code>flake.nix</code>, NixOS modules, Zig configs, eBPF manifests, OTel config, CrabCC indexes, docs (the lowering pass, 0012).</td>
+<td>[INTERNAL]</td>
+<td>PROJECT_CONTEXT.md core stack.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Count by tag:</strong> [STD] 9 · [INTERNAL] 4 · [CITE?] 0 · [REFRAME] 2 · [PM-LIT] 0. (Total 16.)</p>
+<hr />
+<h2 id="3-publication-ready-section">3. Publication-ready section</h2>
+<h3 id="from-release-governance-to-artifact-governance">From release governance to artifact governance</h3>
+<p>The previous section established <em>when</em> a Vaked system is permitted to ship: the gates, approvals, and sign-offs that govern a release as a product decision. That governance is necessary but it operates one level above the things being shipped. A release is not a monolith; it is a closure over a set of versioned artifacts - prompts, container images, API schemas, documentation, semantic schemas, MLIR specifications, and the write-ahead log format itself. Release governance decides <em>whether</em> the bundle is allowed out. <strong>Artifact governance decides whether every component of that bundle can be named, pinned, attested, and - when it goes wrong - rolled back to a known-good state.</strong> This section is the bridge: it takes the release-level "yes" and grounds it in the integrity of the individual artifacts.</p>
+<h3 id="the-prompt-is-an-artifact-and-it-is-the-hardest-one">The prompt is an artifact, and it is the hardest one</h3>
+<p>The instinct to treat a prompt as configuration text rather than as a governed software artifact is the central failure mode this section corrects. A prompt is source: it is the program text that, together with a model and a decoding policy, produces behavior. It deserves the same discipline as any other source artifact - a version, an identity, an owner, a changelog, and a rollback path.</p>
+<p>But the prompt is harder than ordinary source, and the difference is the intellectual core of this bridge. In deterministic software, a version pin <em>fully determines</em> behavior: pin the commit, pin the inputs, and the output is fixed, so a reviewer can verify a change is safe by reading the diff. In an LLM system that property does not hold. Pinning the prompt version is <em>necessary but insufficient</em>: the model can drift underneath you, and sampling (temperature, top-p, seed) makes a single prompt a distribution of behaviors rather than a function. <strong>You cannot prove a prompt change safe by reading it.</strong> Regressions are discovered empirically - in evaluation, in canary, or in production - not statically in review.</p>
+<p>That asymmetry is <em>why</em> fast, governed rollback matters more for prompts than for deterministic code, and why the rollback unit is not the prompt file alone. The integrity unit is a pinned tuple:</p>
+<blockquote>
+<p><strong>(prompt version, model digest, decode params + seed, eval baseline).</strong></p>
+</blockquote>
+<p>Rolling back a prompt regression means restoring that whole tuple, not editing text back. This reframes two terms that recur loosely in prompt-governance writing and should not survive into a serious specification:</p>
+<ul>
+<li>[REFRAME] <strong>"Stable outputs."</strong> In a non-deterministic system you cannot promise stable outputs, and the phrase is unfalsifiable. What is governable is the <em>integrity unit above</em>, with <strong>bounded, measured variance</strong> against the eval baseline - a falsifiable claim ("p95 eval score stays within X of baseline at this seed policy"), not a marketing one.</li>
+<li>[REFRAME] <strong>"Canonical deployment tracks."</strong> Replace with <strong>digest-pinned release channels backed by immutable provenance</strong> - a channel is a named pointer; what makes it trustworthy is that each entry resolves to a content-addressed, attested artifact, not the word "canonical."</li>
+</ul>
+<h3 id="the-variance-contract">The variance contract</h3>
+<p>"Bounded, measured variance" is only governance if it is falsifiable, which means it must name a metric, a statistic, a threshold shape, a seed policy, and a pass/fail rule. Vaked specifies the <em>shape</em> of that contract and leaves the numeric tolerance to per-deployment policy - there is no universal magic constant, because the acceptable variance for a code-generation prompt differs from that of a classification prompt. The contract is the following definition list.</p>
+<ul>
+<li><strong>Metric.</strong> A configurable eval suite that produces one scalar score per run. The default is <code>tool-call-success-rate</code> (the fraction of attempted tool calls that succeed), which aligns the gate with the prompt-regression failure mode in Scenario A; deployments may substitute a task-appropriate scalar (pass-rate, rubric score) so long as the suite is fixed for the comparison.</li>
+<li><strong>Statistic and threshold.</strong> Sample N runs over a fixed seed set, yielding N scores, and take p95 across them. The threshold is <em>directional against the recorded baseline</em>: the candidate's p95 must be no worse than the baseline's p95 by more than a tolerance delta (absolute, or relative as X%). The comparison is one-sided on purpose - an improvement is never a regression - and delta is set by deployment policy.</li>
+<li><strong>Seed policy.</strong> The gate run uses the <em>same fixed seed set</em> as the recorded baseline, so the two p95 figures are computed over identical sampling and the comparison is reproducible. This is distinct from the production sampling policy, which is unconstrained (live traffic uses whatever decode params and seeds the deployment chooses); the fixed seed set exists only to make the gate a controlled experiment against the baseline.</li>
+<li><strong>Pass/fail rule.</strong> The integrity tuple passes the gate iff p95 of the eval metric over the fixed seed set is within the threshold of the baseline. Otherwise the change is blocked before release, or - if already shipped - rolled back to the prior tuple.</li>
+</ul>
+<p>Because the unit that passes or fails is the integrity tuple <em>(prompt version, model digest, decode params + seed, eval baseline)</em>, the rollback unit is that whole tuple, not the prompt text alone: a regression restores the last tuple whose p95 was within threshold. The tolerance is a policy parameter, set once per deployment and recorded alongside the baseline, so "within bounded variance" resolves to a concrete, re-runnable check rather than a promise.</p>
+<h3 id="mutable-tags-versus-immutable-digests">Mutable tags versus immutable digests</h3>
+<p>The container layer makes the mutable/immutable distinction concrete and standards-anchored, and it generalizes to every artifact class. A tag such as <code>:latest</code> is a <strong>mutable</strong> name: re-pulling it may return different bytes over time [STD, C2]. A digest reference, <code>image@sha256:…</code>, is <strong>immutable</strong>: the OCI image-spec defines the descriptor <code>digest</code> as a content identifier - a cryptographic hash enabling content-addressable storage - such that content from an insecure source can be re-verified by recomputing the hash, and content whose length or hash does not match SHOULD NOT be trusted [STD, C1]. Docker's own guidance is that pulling by digest "pins" an image so it is "always the same," whereas a tag may move [STD, C2].</p>
+<p>The governance rule that falls out of this is a single sentence: <strong>tags are for humans; digests are for deployments.</strong> A release channel may be addressed by a friendly tag, but what is deployed, attested, and recorded must always be a digest. Vaked takes this further than convention. Per RFC 0007, every materialized image - NixOS closure, OCI image, or MirageOS unikernel - is content-addressed and carries a PQC-signed <code>provenance.json</code> (a <em>votive seal</em>); the <em>only</em> path to mutate a running system is a code change that re-derives and re-signs the image. Signatures default to ML-DSA (FIPS 204), hybrid with a classical primitive during migration [INTERNAL, C13]. "Image-as-code" is the digest discipline promoted from a recommendation to an invariant.</p>
+<h3 id="supply-chain-integrity-vocabulary">Supply-chain integrity vocabulary</h3>
+<p>The container example is one instance of a general supply-chain integrity model with mature primary standards, which Vaked adopts rather than reinvents:</p>
+<ul>
+<li><strong>Provenance / attestations.</strong> SLSA provenance is "verifiable information about software artifacts describing where, when and how something was produced," carried as an in-toto attestation with predicate type <code>https://slsa.dev/provenance/v1</code> (BuildDefinition + RunDetails) [STD, C3]. SLSA build levels L1-L3 grade the hardening of the build <em>platform</em> (L1: provenance exists; L2: hosted infrastructure with signed provenance; L3: isolated builds with signing keys protected from user-defined steps); at verification time the spec makes <code>builder.id</code> the intended sole determiner of the <em>claimed</em> level, because trust is anchored to the builder identity rather than to other provenance fields [STD, C4]. An in-toto attestation Statement binds a <code>subject</code> (artifact <code>name</code> + mandatory <code>digest</code>) to a <code>predicateType</code> URI - the generic frame under which provenance, SBOMs, and custom claims all travel [STD, C5].</li>
+<li><strong>SBOM.</strong> SPDX is an open SBOM standard, recognized as ISO/IEC 5962:2021, with SPDX 3.0 adding Build, Security, and AI profiles [STD, C6]. CycloneDX is a peer standard - an OWASP project standardized as Ecma International ECMA-424 (TC54), spanning SBOM, SaaSBOM, HBOM, ML-BOM, CBOM, and VEX [STD, C10].</li>
+<li><strong>Signing + transparency.</strong> Sigstore provides keyless signing (Fulcio short-lived certificates bound to OIDC identity) with every signing event recorded to Rekor, an immutable append-only transparency log; cosign is the client [STD, C7].</li>
+<li><strong>Policy baseline.</strong> NIST SP 800-218 (SSDF v1.1) was developed in response to EO 14028 [STD, C8]; it prescribes specific artifact integrity and provenance controls - PS.2 "Provide a Mechanism for Verifying Software Release Integrity," and PS.3 "Archive and Protect Each Software Release," whose tasks require archiving "integrity verification information, provenance data" per release (PS.3.1) and to "Collect, safeguard, maintain, and share provenance data for all components of each software release (e.g., in a software bill of materials [SBOM])" (PS.3.2) [STD, C9].</li>
+</ul>
+<p>Vaked's <code>eventd</code> log - an append-only, hash-chained, per-runtime event log - is the local analogue of a transparency log [INTERNAL, C12]: the votive seal of an image is recorded to it, so "which image is this runtime actually running, and who signed it?" stays answerable forever.</p>
+<h3 id="documentation-is-a-versioned-artifact-too">Documentation is a versioned artifact too</h3>
+<p>Documentation versioning is not a courtesy; it is part of the integrity envelope. It expands into four governed sub-classes:</p>
+<ul>
+<li><strong>Release branches / migration docs</strong> - versioned with the release, telling an operator how to move <em>between</em> pinned versions (the rollback and roll-forward runbooks).</li>
+<li><strong>Operator docs</strong> - versioned with the runtime daemons they describe (OTP supervision plane, Zig enforcement daemons), so the surface matches the binary.</li>
+<li><strong>Compliance evidence</strong> - the SBOMs, attestations, and provenance records, retained per release and addressable by the same digests as the artifacts they describe.</li>
+</ul>
+<p>Documentation drift is a governance defect of the same kind as an unpinned tag: a doc that describes a version other than the one deployed is a mutable pointer masquerading as a fact.</p>
+<h3 id="the-versioned-artifact-matrix">The versioned artifact matrix</h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Versioning scheme</th>
+<th>Mutability</th>
+<th>Identity (name / pin)</th>
+<th>Rollback unit</th>
+<th>Integrity / attestation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Prompts</strong></td>
+<td>SemVer-tagged in VCS</td>
+<td>Immutable once tagged; channel pointer mutable</td>
+<td>Content hash of prompt text + tuple <em>(prompt ver, model digest, decode+seed, eval baseline)</em></td>
+<td>The whole tuple, not the text [C11]</td>
+<td>Git object hash + eval-baseline record; in-toto attestation over the tuple [C5]</td>
+</tr>
+<tr>
+<td><strong>Containers / images</strong></td>
+<td>OCI tag (human) + digest (deploy)</td>
+<td>Tag mutable; <code>@sha256:</code> digest immutable [C1,C2]</td>
+<td><code>image@sha256:…</code>; Vaked: content-addressed closure</td>
+<td>Pinned digest</td>
+<td>OCI digest + PQC-signed <code>provenance.json</code> / votive seal in <code>eventd</code> (RFC 0007) [C13]; SLSA provenance [C3]</td>
+</tr>
+<tr>
+<td><strong>APIs</strong></td>
+<td>SemVer; deprecation windows</td>
+<td>Mutable surface, immutable per-version contract</td>
+<td><code>vMAJOR</code> path / schema hash</td>
+<td>Last compatible major/minor</td>
+<td>Schema attestation; contract tests as evidence</td>
+</tr>
+<tr>
+<td><strong>Docs</strong></td>
+<td>Versioned with release branch</td>
+<td>Mutable (living) but snapshotted per release</td>
+<td>Release tag + doc commit hash</td>
+<td>Release-pinned doc snapshot</td>
+<td>Commit hash; bundled as compliance evidence</td>
+</tr>
+<tr>
+<td><strong>Schemas</strong> (Vaked semantic / data)</td>
+<td>SemVer; evolution rules</td>
+<td>Immutable per version</td>
+<td>Schema digest</td>
+<td>Prior schema version + migration</td>
+<td>SBOM-listed (SPDX) [C6]; in-toto subject digest</td>
+</tr>
+<tr>
+<td><strong>MLIR specs</strong> (0013 topology / dialects)</td>
+<td>Dialect version + topology epoch</td>
+<td>Immutable per epoch</td>
+<td>Dialect version + topology epoch id</td>
+<td>Prior topology epoch</td>
+<td>Epoch stamped on every dependency artifact (RFC 0004 §7) [C12]</td>
+</tr>
+<tr>
+<td><strong>WAL format</strong> (<code>eventd</code>)</td>
+<td>Format version; topology epoch</td>
+<td>Append-only, immutable history</td>
+<td><code>StepHash</code> (entry hash); <code>DependencyRegistration</code> frame</td>
+<td>GC floor / rewind to pinned <code>StepHash</code></td>
+<td>Hash-chain self-attests; dependency-aware GC; <code>RewindEvent</code> (RFC 0004) [C12]</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-release-governance-checklist-for-vaked-v10">4. Release-governance checklist for Vaked V1.0</h2>
+<p>Concrete and tickable. A release is blocked if any unchecked.</p>
+<ul>
+<li>[ ] Every deployed artifact is referenced by an <strong>immutable identity</strong> (digest / content hash / <code>StepHash</code>), never by a mutable tag. [C1,C2]</li>
+<li>[ ] Each container image has a <strong>PQC-signed <code>provenance.json</code></strong> (votive seal) recorded to <code>eventd</code>. [C13]</li>
+<li>[ ] SLSA provenance is generated for the build, predicate type <code>slsa.dev/provenance/v1</code>, with a recorded <code>builder.id</code>. [C3,C4]</li>
+<li>[ ] An <strong>SBOM (SPDX)</strong> is produced and attached for the release. [C6]</li>
+<li>[ ] Signatures are recorded to a transparency log (<code>eventd</code> locally; Sigstore/Rekor for externally distributed artifacts). [C7]</li>
+<li>[ ] Every prompt change ships the full <strong>integrity tuple</strong> <em>(prompt ver, model digest, decode+seed, eval baseline)</em> and an eval run against baseline within bounded variance. [C11,C14]</li>
+<li>[ ] Each API change declares its <strong>SemVer impact</strong> and, if breaking, a deprecation window and migration doc.</li>
+<li>[ ] Each <strong>MLIR/topology change</strong> bumps the topology epoch; all dependency artifacts carry it. [C12]</li>
+<li>[ ] Any <strong>WAL-format change</strong> has a forward/backward read path and a tested rewind procedure. [C12]</li>
+<li>[ ] <strong>Docs match the deployed version</strong>: operator docs, migration docs, and compliance evidence are pinned to the release tag.</li>
+<li>[ ] A <strong>rollback runbook</strong> exists per artifact class, naming the rollback unit and the last known-good identity.</li>
+</ul>
+<hr />
+<h2 id="5-rollback-scenario-examples">5. Rollback scenario examples</h2>
+<p><strong>Scenario A - Prompt regression.</strong> A prompt update raises tool-call error rate in canary. Because the prompt is governed as a tuple, recovery is not "edit the text back" - it is restoring the last tuple <em>(prompt v1.4.2, model digest D, decode policy P, eval baseline B)</em> whose eval score was within bounded variance. The bad tuple's eval record stays in the log as evidence of <em>why</em> it was reverted, and the rollback is itself an <code>eventd</code> entry. The fix is empirical: re-evaluate, do not re-read. [C11,C14]</p>
+<p><strong>Scenario B - Bad container digest.</strong> A new image digest passes build but fails attestation verification (votive seal does not validate, or SLSA <code>builder.id</code> is unexpected). Deployment refuses the digest - there is no mutable <code>:latest</code> to fall through to, so the running system stays on its current content-addressed closure. Recovery is repointing the release channel to the prior verified <code>image@sha256:…</code>. The mutable-tag failure mode (silently pulling drifted bytes) is structurally impossible. [C1,C2,C13]</p>
+<p><strong>Scenario C - API schema break.</strong> A minor release accidentally removes a required field. Consumers fail contract tests, which are the attested evidence. Because each API major/minor is an immutable per-version contract, rollback is repinning callers to the last compatible version and re-issuing the change behind a SemVer-major bump with a deprecation window and migration doc - turning an accidental break into a governed one.</p>
+<p><strong>Scenario D - WAL-format change.</strong> An <code>eventd</code> format change makes a runtime unable to read prior history. Recovery uses RFC 0004 machinery: the format change must carry a read path for the prior format; failing that, the runtime rewinds to a pinned <code>StepHash</code> below the affected region (a <code>RewindEvent</code>), and dependency-aware GC guarantees no downstream consumer's checkpoint was pinned to truncated history. The hash chain self-attests that the recovered prefix is intact. [C12]</p>
+<hr />
+<h2 id="6-suggested-figures-tables">6. Suggested figures / tables</h2>
+<ol>
+<li><strong>Mutable-vs-immutable spectrum</strong> - a one-axis figure placing <code>:latest</code> → SemVer tag → <code>@sha256:</code> digest → <code>StepHash</code>, annotated with "who may safely depend on this."</li>
+<li><strong>The integrity tuple</strong> - a boxed diagram of <em>(prompt, model, decode+seed, eval baseline)</em> as the atomic rollback unit, contrasted with the deterministic-software single-commit pin.</li>
+<li><strong>Versioned artifact matrix</strong> (§3) - reproduce as the section's anchor table.</li>
+<li><strong>Attestation flow</strong> - source → build → SLSA provenance (in-toto subject+predicate) → SBOM → signature → <code>eventd</code>/Rekor transparency record, one arrow chain.</li>
+<li><strong>Topology-epoch timeline</strong> - epochs as immutable version bars with dependency artifacts stamped to each (RFC 0004).</li>
+</ol>
+<hr />
+<h2 id="7-follow-up-research-tasks">7. Follow-up research tasks</h2>
+<ul>
+<li>~~Fetch NIST SP 800-218 PDF to upgrade C9~~ DONE: C9 is now [STD] anchored on PS.2 / PS.3 / PS.3.1 / PS.3.2 (the correct provenance/integrity practices; PO.5 is dev-environment hardening, not artifact provenance).</li>
+<li>~~Fetch the CycloneDX specification to upgrade C10~~ DONE: C10 is now [STD] (OWASP / Ecma ECMA-424). Open decision remains: whether Vaked SBOMs standardize on SPDX 3.0, CycloneDX, or both.</li>
+<li>Confirm the <code>eventd</code> design doc (<code>docs/superpowers/specs/2026-06-12-eventd-design.md</code>) for exact WAL format-version field naming, to make the WAL matrix row byte-accurate.</li>
+<li>~~Define the measurable "bounded variance" metric and seed policy for the prompt integrity tuple (which eval, which percentile, what delta).~~ DONE: §3 "The variance contract" pins the metric (configurable eval suite, default <code>tool-call-success-rate</code>), the statistic (p95 over a fixed seed set), the threshold shape (directional vs baseline p95, delta absolute or relative %, deployment-configured), the seed policy (gate uses the same fixed seed set as the baseline; production sampling separate), and the pass/fail rule (tuple passes iff p95 within threshold, else block / roll back the tuple).</li>
+<li>Specify how Vaked SLSA provenance and the votive seal compose (is the votive seal an in-toto predicate, or a parallel attestation?).</li>
+</ul>
+<hr />
+<h2 id="8-appendix-research-digest">8. Appendix: research digest</h2>
+<p>Primary sources cited (all fetched this session unless noted):</p>
+<ul>
+<li>OCI image-spec, descriptor / digests - <a href="https://github.com/opencontainers/image-spec/blob/main/descriptor.md">github.com/opencontainers/image-spec/blob/main/descriptor.md</a></li>
+<li>Docker docs, pull by digest vs tag - <a href="https://docs.docker.com/engine/reference/commandline/pull/">docs.docker.com/engine/reference/commandline/pull/</a></li>
+<li>SLSA provenance v1.0 - <a href="https://slsa.dev/spec/v1.0/provenance">slsa.dev/spec/v1.0/provenance</a></li>
+<li>in-toto attestation Statement spec v1 - <a href="https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md">github.com/in-toto/attestation/blob/main/spec/v1/statement.md</a></li>
+<li>in-toto project overview - <a href="https://in-toto.io/">in-toto.io</a></li>
+<li>SPDX overview / ISO/IEC 5962:2021 - <a href="https://spdx.dev/about/overview/">spdx.dev/about/overview/</a></li>
+<li>Sigstore overview (Fulcio / Rekor / cosign) - <a href="https://docs.sigstore.dev/about/overview/">docs.sigstore.dev/about/overview/</a></li>
+<li>NIST SP 800-218 (SSDF v1.1) - <a href="https://csrc.nist.gov/pubs/sp/800/218/final">csrc.nist.gov/pubs/sp/800/218/final</a>; full text PDF (PS.2 / PS.3 / PS.3.1 / PS.3.2) - <a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf">nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-218.pdf</a></li>
+<li>OWASP CycloneDX specification overview (Ecma ECMA-424, TC54) - <a href="https://cyclonedx.org/specification/overview/">cyclonedx.org/specification/overview/</a></li>
+</ul>
+<p>Repo grounding (read, not web): <code>docs/context/PROJECT_CONTEXT.md</code>; <code>protocol/rfcs/0004-multi-agent-state-dependency.md</code> (eventd / StepHash / DependencyRegistration / topology epoch / RewindEvent); <code>protocol/rfcs/0007-post-quantum-litany-sealed-image.md</code> (content-addressed image / PQC <code>provenance.json</code> / votive seal / ML-DSA / image-as-code).</p>
+<p><strong>Abstain-safe method note:</strong> One earlier probe still abstains and is NOT marked refuted: the CISA SBOM-types PDF returned HTTP 403 - SBOM grounding falls back to the SPDX/ISO-5962 primary source instead. The two previously [CITE?]-tagged claims were upgraded this session against primary sources: (1) C9 is now [STD] - the NIST SP 800-218 landing page returns scope only, but the full-text PDF was fetched and parsed, yielding the verbatim PS.2 / PS.3 / PS.3.1 / PS.3.2 practice IDs and titles quoted above. (2) C10 is now [STD] - the CycloneDX specification overview confirms it is an OWASP project standardized as Ecma International ECMA-424 (TC54), covering SBOM and related bill-of-material varieties. A rate-limited or forbidden fetch is treated as missing evidence, never as evidence against the claim.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/papers/v1.0-artifact-governance.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

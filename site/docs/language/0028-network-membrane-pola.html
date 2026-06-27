@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0028 — Network-membrane POLA: the egress-use rule & vakedz parity — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#the-network-lattice" style="padding-left:0.5rem">The network lattice</a><a href="#the-rule" style="padding-left:0.5rem">The rule</a><a href="#soundness" style="padding-left:0.5rem">Soundness</a><a href="#deny-by-default-the-lower-time-dns-gap-honest-scope" style="padding-left:1rem">  Deny-by-default & the lower-time DNS gap (honest scope)</a><a href="#implementation-status" style="padding-left:0.5rem">Implementation status</a><a href="#vakedz-parity-planned-cycle-this-note-is-its-spec" style="padding-left:0.5rem">vakedz parity (planned cycle — this note is its spec)</a><a href="#prerequisite-blockers-found-2026-06-16-must-clear-before-the-port-verifies" style="padding-left:1rem">  Prerequisite blockers (found 2026-06-16 — must clear before the port verifies)</a><a href="#references" style="padding-left:0.5rem">References</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0028-network-membrane-pola</div>
+<h1>0028 — Network-membrane POLA: the egress-use rule & vakedz parity</h1>
+<h1 id="0028-network-membrane-pola-the-egress-use-rule-vakedz-parity">0028 — Network-membrane POLA: the egress-use rule &amp; vakedz parity</h1>
+<p><strong>Status:</strong> implemented in <code>vakedc</code> (PR #282); <code>vakedz</code> parity is a planned cycle (this note specs it).<br />
+<strong>Depends on:</strong> <a href="./0026-capability-reachability-pola.md">0026 — capability reachability &amp; POLA</a>,<br />
+<a href="./0027-pola-formalization.md">0027 — POLA formalization (Lean)</a>.</p>
+<h2 id="abstract">Abstract</h2>
+<p><code>E-CAP-USE</code> (0026 §<code>The lints</code>) enforces the POLA use-check on the <strong>capability</strong> layer —<br />
+<code>used(p) ⊑ granted(p)</code>: a node may not <em>exercise</em> (via <code>needs</code>) authority no held grant<br />
+dominates. This note formalizes the <strong>network-membrane</strong> dual on the <strong>egress</strong> layer —<br />
+<code>allowed(m) ⊑ granted(principal(m))</code>: a <code>networkMembrane</code> may not <em>authorize</em> egress beyond<br />
+its principal's held <code>network</code> grant. Two diagnostics realize it: <strong><code>E-EGRESS-USE</code></strong> (error)<br />
+and <strong><code>W-EGRESS-UNREFINED</code></strong> (advisory warning). It is the language-level promotion of the<br />
+oracle's tool-local egress drift-check (<code>tools/oracle/roster_from_vaked.check_roster_egress</code>,<br />
+slice-4b thread 1).</p>
+<h2 id="the-network-lattice">The network lattice</h2>
+<p>The builtin <code>network</code> capability domain is a chain (<code>vaked/schema/builtins.vaked</code>):</p>
+<div class="highlight"><pre><span></span>none &lt; loopback &lt; lan &lt; egress
+</pre></div>
+
+<p>A <code>networkMembrane</code> refines a principal's grant into a concrete allow-set of<br />
+<code>egress(host, port)</code> rules (deny-by-default). Each allow <strong>host</strong> classifies to the lattice<br />
+level it <em>requires</em> of the principal, via <code>host_level : Host → {loopback, lan, egress}</code>:</p>
+<ul>
+<li><code>host</code> is a loopback name/IP (<code>localhost</code>, <code>127.0.0.0/8</code>, <code>::1</code>) ⇒ <code>loopback</code></li>
+<li><code>host</code> is a private IP (<code>is_private</code>: <code>10/8</code>, <code>172.16/12</code>, <code>192.168/16</code>, ULA …) ⇒ <code>lan</code></li>
+<li>any other IP, <strong>or a DNS name</strong> ⇒ <code>egress</code> (conservative: an unresolvable name is treated<br />
+  as public)</li>
+</ul>
+<p><code>required(m) = ⨆ { host_level(h) | egress(h, _) ∈ allow(m) }</code> (the join / strongest level).</p>
+<h2 id="the-rule">The rule</h2>
+<p>Let <code>held(p) = ⨆ { g | (network, g) ∈ grants(p) }</code> (the principal's strongest network grant;<br />
+<code>none</code> if it holds none).</p>
+<p><strong><code>E-EGRESS-USE</code></strong> (severity <code>error</code>) holds for membrane <code>m</code> with principal <code>p</code> iff:</p>
+<div class="highlight"><pre><span></span>principal(m) ∉ nodes(mesh)              ∨    ¬ ( required(m) ⊑ held(principal(m)) )
+</pre></div>
+
+<p>i.e. the membrane names no real node, <strong>or</strong> it allows egress at a level the principal's<br />
+network grant does not dominate — the membrane authorizes connections the capability graph<br />
+never granted. This is <em>unsound</em>: the lowered eBPF policy (<code>agent_guardd</code>) would enforce an<br />
+allow-set the principal was never entitled to.</p>
+<p><strong><code>W-EGRESS-UNREFINED</code></strong> (severity <code>warning</code>, advisory — never blocks) holds for node <code>n</code> iff:</p>
+<div class="highlight"><pre><span></span>held(n) ∈ {lan, egress}    ∧    ¬∃ m. principal(m) = n
+</pre></div>
+
+<p>i.e. <code>n</code> holds non-trivial egress authority with <strong>no</strong> refining membrane — its egress is<br />
+<em>unbounded</em>. The dual of <code>W-POLA-EXCESS</code> (held &gt; needed): here the grant is held but never<br />
+scoped. <code>loopback</code>/<code>none</code> need no membrane (already narrowest).</p>
+<h2 id="soundness">Soundness</h2>
+<p>The rule is the membrane-side instance of the same order-theoretic obligation 0027 mechanizes<br />
+for <code>E-CAP-USE</code>. Where <code>E-CAP-USE</code> proves <code>used ⊑ granted</code>, <code>E-EGRESS-USE</code> proves<br />
+<code>allowed ⊑ granted</code> over the <strong>same</strong> <code>network</code> attenuation order. Because <code>host_level</code> is<br />
+monotone into the lattice and <code>required</code> is the join, a graph that passes <code>E-EGRESS-USE</code> admits<br />
+<strong>no</strong> membrane whose allow-set exceeds its principal's grant — so the lowered egress policy is a<br />
+sub-policy of the granted authority. (A Lean obligation mirroring 0027 §<code>Key lemmas</code>, with<br />
+<code>host_level</code>/<code>required</code> as the new definitions, is a follow-up; the proof shape is identical to<br />
+the cap-use lemma.)</p>
+<h3 id="deny-by-default-the-lower-time-dns-gap-honest-scope">Deny-by-default &amp; the lower-time DNS gap (honest scope)</h3>
+<p>Two layers, intentionally distinct:<br />
+- <strong>Language layer (this rule):</strong> hostname-aware — <code>required</code> classifies DNS names to <code>egress</code>,<br />
+  so the check is sound for <code>egress("openrouter.ai", 443)</code>.<br />
+- <strong>Packet layer (<code>agent_guardd</code> / <code>0012</code> lowering):</strong> IP-literal only. The <code>0012</code> emitter<br />
+<strong>drops</strong> a non-IP <code>egress(host, …)</code> rule (no CIDR for a DNS name) → the lowered membrane is<br />
+  deny-all for that host. So an <code>openrouter.ai</code> cordon is enforced at the <strong>tool layer</strong><br />
+  (<code>roster_from_vaked.check_roster_egress</code>), not the packet layer. The language check and the<br />
+  packet enforcer agree on IP rules; on DNS rules the language check is the binding one. Closing<br />
+  the packet gap needs a pinned-IP egress proxy (tracked separately).</p>
+<h2 id="implementation-status">Implementation status</h2>
+<ul>
+<li><strong><code>vakedc</code></strong> (Python front-end): shipped (PR #282). <code>_check_egress_use</code> in <code>vakedc/check.py</code>;<br />
+  fixtures <code>vaked/examples/types/egress-*.vaked</code>; tests in <code>tests/spec/test_vakedc_check.py</code>.<br />
+  Corpus-safe: the rule adds <strong>zero</strong> errors to the example corpus (no example over-reaches a<br />
+  membrane); 10 unrefined-egress examples gain the advisory warning. <code>oracle-team.vaked</code> is<br />
+  clean (PR #283 cordoned its operator/coordinator).</li>
+</ul>
+<h2 id="vakedz-parity-planned-cycle-this-note-is-its-spec">vakedz parity (planned cycle — this note is its spec)</h2>
+<p><code>vakedz/src/check.zig</code> (the Zig front-end) currently implements the type system, schema<br />
+conformance, capability-domain validation, capability-ref checks, the per-node <strong>node-grant map</strong><br />
+(<code>checkMesh</code>), the lattice <strong><code>leqGrant</code></strong>, and <strong>edge attenuation</strong> (<code>E-CAP-ATTENUATION</code>) — but<br />
+<strong>not</strong> the <code>needs</code>-based POLA use-check (<code>E-CAP-USE</code>), <code>W-POLA-EXCESS</code>, <code>W-CONFUSED-DEPUTY</code>, or<br />
+membrane/network handling. Porting <code>E-EGRESS-USE</code> in isolation is incoherent; the parity work is<br />
+the <strong>whole reachability layer</strong> as one WP.</p>
+<h3 id="prerequisite-blockers-found-2026-06-16-must-clear-before-the-port-verifies">Prerequisite blockers (found 2026-06-16 — must clear before the port verifies)</h3>
+<p>A timeboxed attempt added an additive <code>E-CAP-USE</code> loop to <code>checkMesh</code> (it compiled clean and<br />
+<code>zig build test</code> stayed green — no regression), but it could <strong>not</strong> be verified end-to-end, for<br />
+two pre-existing reasons the parity cycle must fix <strong>first</strong>:</p>
+<ul>
+<li><strong>A — parser-parity gap (blocking all <code>check</code>).</strong> <code>vakedz parse vaked/schema/builtins.vaked</code><br />
+  fails: <code>parse error: expected operator</code> at <strong><code>builtins.vaked:91:33</code></strong>. Because <code>vakedz check</code><br />
+  loads <code>--builtins</code> (default <code>vaked/schema/builtins.vaked</code>) and aborts if it can't parse it, the<br />
+  CLI checker is currently <strong>non-functional on the live builtins</strong> — no fixture can be checked<br />
+  through the real path until the vakedz parser is brought up to the builtins' current syntax.</li>
+<li><strong>B — top-level-mesh check wiring.</strong> With a minimal stub builtins (to bypass A),<br />
+<code>vakedz check --json</code> on the top-level-mesh fixture <code>cap-use-partial.vaked</code> returned<br />
+<code>{"diagnostics": []}</code> — the additive <code>E-CAP-USE</code> did <strong>not</strong> fire. The <code>cap-use-*</code> fixtures are<br />
+<strong>top-level</strong> meshes (not runtime-nested); confirm <code>checkMesh</code> (and thus the reachability pass)<br />
+  is actually invoked on a top-level <code>mesh</code> decl, or wire it so it is. vakedc's <code>check_source</code><br />
+  checks top-level meshes; vakedz must match.</li>
+</ul>
+<p>With A and B cleared, the WP is, in order:</p>
+<ol>
+<li><strong>Node-grant map + lattice <code>leq</code></strong> — build <code>{node → [(domain, grant)]}</code> from <code>mesh</code> node<br />
+<code>capabilities</code> (the capability parsing at <code>check.zig:1083</code> already extracts these); reuse the<br />
+<code>CapabilitySpec</code> order (<code>capabilityFromDecl</code>) for a <code>leq(cap, a, b)</code> helper.</li>
+<li><strong><code>E-CAP-USE</code> + <code>W-POLA-EXCESS</code> + <code>W-CONFUSED-DEPUTY</code></strong> — port 0026's reachability pass<br />
+   (needs the mesh edge list + <code>needs</code> extraction).</li>
+<li><strong><code>E-EGRESS-USE</code> + <code>W-EGRESS-UNREFINED</code></strong> — iterate sibling <code>network</code> (membrane) decls,<br />
+   read <code>principal</code>/<code>allow</code>, classify hosts (<code>std.net.Address.parseIp</code> + a private/loopback<br />
+   predicate; a non-IP host ⇒ <code>egress</code>), compare <code>required</code> to <code>held</code> via the <code>leq</code> helper.</li>
+<li><strong>Parity fixtures</strong> — the same <code>vaked/examples/types/{cap-use,egress}-*.vaked</code> must yield the<br />
+<strong>identical</strong> diagnostic code-sets under both front-ends (a cross-front-end conformance test).</li>
+</ol>
+<p>The acceptance bar: <code>vakedz check</code> and <code>vakedc check</code> emit the same diagnostic codes on the<br />
+shared fixtures — the determinism/parity contract the cache-native port is built to honor.</p>
+<h2 id="references">References</h2>
+<ul>
+<li>0026 — capability reachability &amp; POLA (the design + <code>E-CAP-USE</code>/<code>W-POLA-EXCESS</code>).</li>
+<li>0027 — POLA formalization (the Lean soundness argument this rule extends).</li>
+<li><code>tools/oracle/roster_from_vaked.py</code> — the tool-local egress check this rule promotes.</li>
+<li><code>agent_guardd/policy.py</code> — the packet-layer egress enforcer (IP-literal, deny-by-default).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0028-network-membrane-pola.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

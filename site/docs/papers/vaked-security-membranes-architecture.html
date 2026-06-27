@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked Security Membranes: an Object-Capability Architecture Chapter — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-the-distinction-this-chapter-exists-to-make" style="padding-left:0.5rem">0. The distinction this chapter exists to make</a><a href="#1-object-capability-theory-external-verified" style="padding-left:0.5rem">1. Object-capability theory (external, verified)</a><a href="#2-what-the-sandbox-primitives-actually-give-external-verified" style="padding-left:0.5rem">2. What the sandbox primitives actually give (external, verified)</a><a href="#3-what-a-vaked-membrane-actually-is-repo-grounded-status-labeled" style="padding-left:0.5rem">3. What a Vaked membrane actually is (repo-grounded, status-labeled)</a><a href="#4-threat-model" style="padding-left:0.5rem">4. Threat model</a><a href="#5-membrane-lifecycle-state-diagram" style="padding-left:0.5rem">5. Membrane lifecycle (state diagram)</a><a href="#6-capability-attenuation-examples" style="padding-left:0.5rem">6. Capability attenuation examples</a><a href="#7-stress-tests-honest-answers" style="padding-left:0.5rem">7. Stress tests (honest answers)</a><a href="#8-implementation-invariants-for-hcplang" style="padding-left:0.5rem">8. Implementation invariants for .hcplang</a><a href="#9-honest-summary" style="padding-left:0.5rem">9. Honest summary</a><a href="#appendix-sources" style="padding-left:0.5rem">Appendix: sources</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/papers/">papers</a> / vaked-security-membranes-architecture</div>
+<h1>Vaked Security Membranes: an Object-Capability Architecture Chapter</h1>
+<h1 id="vaked-security-membranes-an-object-capability-architecture-chapter">Vaked Security Membranes: an Object-Capability Architecture Chapter</h1>
+<p>Status: <strong>Architecture chapter (draft)</strong> | Created: 2026-06-14 | Track: Security / Runtime<br />
+Method: external claims primary-source-verified (deep-research, adversarial 3-vote, abstain-safe); Vaked internals repo-grounded with IMPLEMENTED / DESIGN-ONLY / ABSENT labels. No claim is left hand-wavy: each carries a citation or an explicit status tag.</p>
+<h2 id="0-the-distinction-this-chapter-exists-to-make">0. The distinction this chapter exists to make</h2>
+<p>A reader who sees "object-capability" and "membrane" in the same document will assume Vaked is a Miller-style ocap runtime: unforgeable references, forwarding-proxy membranes, transitive revocation. <strong>It is not, and saying so plainly is the point.</strong></p>
+<ul>
+<li><strong>Object-capability theory</strong> (Miller) enforces authority <em>at runtime</em> through unforgeable references and proxy membranes.</li>
+<li><strong>Vaked</strong> moves the authority proof to <strong>compile-time static type-checking</strong> (POLA certified before any code runs) and then enforces <em>coarse, per-kind</em> boundaries at runtime through <strong>single-purpose daemons</strong> (network egress, filesystem, process), not per-reference proxies.</li>
+</ul>
+<blockquote>
+<p>Vaked's <code>RELATED_WORK.md</code> states it directly: "Traditional object capabilities rely on runtime membranes and unforgeable object references. Vaked moves the enforcement to static type-checking ... a compile-time proof of POLA compliance, not a runtime enforcement mechanism." [INTERNAL: docs/language/RELATED_WORK.md]</p>
+</blockquote>
+<p>So in this chapter, <strong>"membrane" = a per-kind runtime enforcement boundary owned by a daemon</strong> (the <code>network</code>/<code>fs</code>/<code>process</code>/<code>ebpf</code> membranes of <code>PROJECT_CONTEXT.md</code>), <em>not</em> a Miller forwarding proxy. The ocap vocabulary Vaked borrows (attenuation, POLA, delegation) is a <em>type-system discipline</em>; the ocap mechanisms Vaked does <strong>not</strong> implement (proxy shells, transitive revocation) are named here as ABSENT so no reader over-reads the guarantee.</p>
+<h2 id="1-object-capability-theory-external-verified">1. Object-capability theory (external, verified)</h2>
+<p>All claims in this section are confirmed against primary sources by adversarial verification (3-0 votes).</p>
+<ul>
+<li><strong>Canonical source.</strong> The model is grounded in Mark S. Miller, <em>Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control</em>, PhD thesis, Johns Hopkins University, May 2006. [Source: erights.org/talks/thesis/; worrydream.com/refs/Miller_2006_-_Robust_Composition.pdf] (Note: arXiv:1907.07154 is a 2019 <em>secondary</em> report citing Miller and must NOT be cited as the origin - this was explicitly refuted in verification.)</li>
+<li><strong>Only connectivity begets connectivity</strong> (Miller's heading; the question's "Rule of Connectivity"). All access derives from previous access; two disjoint object subgraphs cannot become connected because no one can introduce them. For Alice to authorize Bob to reach Carol, Alice must already hold both capabilities. Permission is analyzable by <strong>graph reachability</strong>. [Source: Miller 2006 §9.2.5; Agorics "Capability Myths Demolished"]</li>
+<li><strong>Four acquisition paths</strong> (Miller's "Rule of Acquisition"): <strong>initial conditions, parenthood (creation), endowment, introduction (message passing)</strong>. Mutation alone cannot acquire a reference. [Source: Miller 2006 §9.2.1-9.2.4]</li>
+<li><strong>Unforgeability depends on memory safety.</strong> Even knowing Carol's memory address, Bob cannot synthesize a reference to Carol - one of four pointer-safety properties (integrity, confidentiality, unforgeability, unspoofability) that safe-language references have and C/C++ pointers lack. The guarantee is <em>contingent</em> on language-level memory safety and non-forgeable references. [Source: Miller 2006]</li>
+<li><strong>Object-capability patterns are wrapper/closure constructions</strong> (e.g. a read-only forwarder) that hide private state from untrusted linked code, formalized as <em>robust safety</em>: a program exporting only properly-wrapped values cannot have its invariants violated by any untrusted environment. [Source: Swasey, Garg, Dreyer, OOPSLA 2017, DOI 10.1145/3133913]</li>
+<li><strong>Revocation and attenuation</strong> use the <strong>caretaker pattern</strong> (Redell, 1974) and the <strong>membrane pattern</strong> (Marc Stiegler): a membrane wraps an object subgraph so that revoking the membrane's caretaker revokes <em>all</em> references that passed through it - <strong>transitive revocation</strong> ("all caretakers revoke together"). [Source: verified, 3-0; "transitive" is a faithful paraphrase, not Miller-verbatim]</li>
+</ul>
+<p><strong>The load-bearing caveat for Vaked:</strong> every one of these guarantees is a <em>runtime, reference-level</em> property contingent on a memory-safe object graph. Vaked has no such runtime object graph for agents; it has a <em>compiled topology</em> and <em>OS/kernel boundaries</em>. The theory is the vocabulary, not the implementation.</p>
+<h2 id="2-what-the-sandbox-primitives-actually-give-external-verified">2. What the sandbox primitives actually give (external, verified)</h2>
+<ul>
+<li><strong>Bubblewrap (bwrap)</strong> is a coarse, configuration-driven sandbox: Linux user/mount/pid/net namespaces, seccomp filters, and bind-mounted filesystem views. It ships <strong>no built-in security policy</strong> and is <strong>explicitly not a complete sandbox</strong> and <strong>not an ocap runtime</strong> - it gives namespace/FS/seccomp isolation, never per-reference capability attenuation or revocation. [Source: bubblewrap README; Arch man page]</li>
+<li><strong>Nix flakes / reproducibility.</strong> <code>flake.lock</code> pins every input to a content hash; closures are pinned; sandboxed builds aim at bit-identical outputs, reducing environment drift. But reproducibility is <strong>empirical/probabilistic, not a hard guarantee</strong>, and it is <strong>build-time, not run-time</strong> - <strong>reproducibility is not isolation</strong>. [Source: official Nix docs]</li>
+</ul>
+<p><strong>Consequence:</strong> a sandbox (Bubblewrap) bounds <em>what a process can touch</em>; reproducibility (Nix) bounds <em>what was built</em>. Neither is object-capability attenuation. Vaked's runtime membranes are of the <em>sandbox</em> family, and its provenance is of the <em>reproducibility</em> family - so the chapter must not claim ocap revocation from either.</p>
+<h2 id="3-what-a-vaked-membrane-actually-is-repo-grounded-status-labeled">3. What a Vaked membrane actually is (repo-grounded, status-labeled)</h2>
+<table>
+<thead>
+<tr>
+<th>Membrane aspect</th>
+<th>Vaked reality</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Proxy shell</strong> (Miller forwarding proxy)</td>
+<td>Not used. Vaked enforces directly via eBPF/namespaces, not by wrapping references.</td>
+<td><strong>ABSENT</strong></td>
+</tr>
+<tr>
+<td><strong>Attenuation rules</strong></td>
+<td>Type-checked partial order on grants; <code>granted(receiver) &lt;= granted(sender)</code> along every delegation edge. Compile-time only. [docs/language/THREAT_MODEL.md Rule 2; 0011 §4]</td>
+<td><strong>IMPLEMENTED (static)</strong></td>
+</tr>
+<tr>
+<td><strong>Delegation tree</strong></td>
+<td>Mesh edges form the authority-flow graph; the checker enforces monotone (non-increasing) authority.</td>
+<td><strong>IMPLEMENTED (static)</strong></td>
+</tr>
+<tr>
+<td><strong>Revocation state</strong></td>
+<td>Vaked specifies authority <em>statically</em>; mid-execution revocation is a runtime membrane op, "not Vaked's job" - deferred to the OTP supervisor + Zig daemons. [THREAT_MODEL.md §1.3]</td>
+<td><strong>DESIGN-ONLY</strong></td>
+</tr>
+<tr>
+<td><strong>Audit emission</strong></td>
+<td>Every enforcement decision testifies to the <code>eventd</code> append-only hash-chained log; tamper-evident. [agent_guardd/evidence.py; eventd/]</td>
+<td><strong>IMPLEMENTED</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>The network membrane today.</strong> <code>agent_guardd</code> owns the <code>network</code>/<code>ebpf</code> membranes: deny-by-default egress (<code>policy.py: decide()</code> - allow-rule match wins, else deny; non-IP host denied as un-attestable). The eBPF program is <strong>loaded and verifier-probed but not left attached as the live enforcer</strong> (the userspace reference datapath is authoritative today; the allow-set-aware cgroup/skb program is the follow-on). So the honest claim is: <em>deny-by-default egress is enforced in userspace and testified to eventd; kernel-level eBPF enforcement is probed, not live.</em> [agent_guardd/policy.py, bpf.py, docs/runtime/agent-guardd.md] [IMPLEMENTED (userspace) / DESIGN-ONLY (live eBPF)]</p>
+<p><strong>Bubblewrap in Vaked:</strong> deferred. <code>sandboxd</code> (process membrane) uses <strong>raw namespaces/cgroups</strong>, not bwrap. [docs/superpowers/specs/2026-06-13-sandboxd-design.md] [ABSENT/deferred]</p>
+<h2 id="4-threat-model">4. Threat model</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Threat</th>
+<th>Mitigation layer</th>
+<th>Status</th>
+<th>Citation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td>Agent declares authority it was never granted</td>
+<td>Compile-time attenuation check (<code>granted(r) &lt;= granted(s)</code>) rejects the graph before lowering</td>
+<td>IMPLEMENTED (static)</td>
+<td>THREAT_MODEL Rule 2</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>Agent exceeds granted egress at runtime</td>
+<td><code>agent_guardd</code> deny-by-default egress; non-allow-listed destination dropped</td>
+<td>IMPLEMENTED (userspace)</td>
+<td>policy.py</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>Compromised daemon tampers with the audit trail</td>
+<td><code>eventd</code> hash chain; any byte change breaks the chain</td>
+<td>IMPLEMENTED</td>
+<td>eventd/core.py, verify.py</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>Compromised agent must lose authority mid-flight (revocation)</td>
+<td>OTP supervisor revokes the daemon's membrane</td>
+<td>DESIGN-ONLY</td>
+<td>THREAT_MODEL §1.3</td>
+</tr>
+<tr>
+<td>T5</td>
+<td>Forged kernel-level egress enforcement bypass</td>
+<td>eBPF cgroup attach as live per-destination enforcer</td>
+<td>DESIGN-ONLY</td>
+<td>agent-guardd.md</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>Peer impersonation across hosts</td>
+<td>SPIFFE/SPIRE SVID checked at TLS before frame parse (identity, NOT attenuation)</td>
+<td>DESIGN-ONLY</td>
+<td>RFC 0006</td>
+</tr>
+<tr>
+<td>T7</td>
+<td>Authority leaks via state-dependency frames</td>
+<td><code>DependencyRegistration</code> carries topology epoch, no capability grant; preceptord decides admission</td>
+<td>DESIGN-ONLY</td>
+<td>RFC 0004, 0005</td>
+</tr>
+<tr>
+<td>T8</td>
+<td>Build/env drift smuggles unverified bytes</td>
+<td>Nix flake.lock pinning + provenance.json chain (reproducibility, NOT isolation)</td>
+<td>IMPLEMENTED (provenance)</td>
+<td>GOALS.md, lower.py</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-membrane-lifecycle-state-diagram">5. Membrane lifecycle (state diagram)</h2>
+<p>This is the <em>daemon-enforcement</em> lifecycle, not an ocap proxy lifecycle. Revocation states are DESIGN-ONLY.</p>
+<div class="highlight"><pre><span></span><span class="w">            </span><span class="n">compile</span><span class="w"> </span><span class="p">(</span><span class="n">vakedc</span><span class="p">)</span><span class="w">                 </span><span class="n">boot</span><span class="w"> </span><span class="p">(</span><span class="n">agent</span><span class="o">-</span><span class="n">supervisord</span><span class="p">)</span>
+<span class="w">   </span><span class="p">.</span><span class="n">vaked</span><span class="w">  </span><span class="c1">-----------------&gt;  membrane spec  -----------------&gt;  [ARMED]</span>
+<span class="w">   </span><span class="n">topology</span><span class="w">   </span><span class="n">attenuation</span><span class="w">                </span><span class="n">JSON</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">supervisor</span><span class="w"> </span><span class="k">index</span><span class="w">      </span><span class="o">|</span>
+<span class="w">   </span><span class="p">(</span><span class="n">T1</span><span class="w"> </span><span class="n">gate</span><span class="p">)</span><span class="w">  </span><span class="n">checked</span><span class="w">                                                 </span><span class="o">|</span><span class="w"> </span><span class="n">request</span><span class="w"> </span><span class="n">egress</span>
+<span class="w">                                                                      </span><span class="n">v</span>
+<span class="w">                                                          </span><span class="n">decide</span><span class="p">(</span><span class="k">host</span><span class="p">,</span><span class="n">port</span><span class="p">)</span><span class="w">  </span><span class="c1">--deny--&gt; [DENIED] -&gt; testify(eventd)</span>
+<span class="w">                                                                      </span><span class="o">|</span><span class="w"> </span><span class="n">allow</span>
+<span class="w">                                                                      </span><span class="n">v</span>
+<span class="w">                                                              </span><span class="o">[</span><span class="n">PERMITTED</span><span class="o">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">testify</span><span class="p">(</span><span class="n">eventd</span><span class="p">)</span>
+<span class="w">                                                                      </span><span class="o">|</span>
+<span class="w">                          </span><span class="p">(</span><span class="n">DESIGN</span><span class="o">-</span><span class="k">ONLY</span><span class="p">)</span><span class="w"> </span><span class="n">supervisor</span><span class="w"> </span><span class="k">revoke</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">RewindEvent</span>
+<span class="w">                                                                      </span><span class="n">v</span>
+<span class="w">                                                              </span><span class="o">[</span><span class="n">REVOKED</span><span class="o">]</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">membrane</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">armed</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">daemon</span><span class="w"> </span><span class="n">restarted</span>
+</pre></div>
+
+<p>States ARMED / DENIED / PERMITTED are IMPLEMENTED (userspace datapath + eventd). REVOKED is DESIGN-ONLY (OTP supervisor, RFC 0004 §6 RewindEvent pauses; it does not auto-retry-loop - it pauses until explicit recovery).</p>
+<h2 id="6-capability-attenuation-examples">6. Capability attenuation examples</h2>
+<p>Attenuation in Vaked is a <strong>type-system partial order</strong>, checked at compile time:</p>
+<div class="highlight"><pre><span></span><span class="err">#</span><span class="w"> </span><span class="n">delegation</span><span class="w"> </span><span class="n">edge</span><span class="w"> </span><span class="n">sender</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">receiver</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">satisfy</span><span class="w"> </span><span class="n">granted</span><span class="p">(</span><span class="n">receiver</span><span class="p">)</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">granted</span><span class="p">(</span><span class="n">sender</span><span class="p">)</span>
+
+<span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="w">  </span><span class="o">&gt;</span><span class="w">  </span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="k">read</span><span class="o">-</span><span class="k">write</span><span class="w"> </span><span class="n">strictly</span><span class="w"> </span><span class="n">dominates</span><span class="w"> </span><span class="k">read</span><span class="o">-</span><span class="k">only</span>
+<span class="nv">@orchestrator</span><span class="err">{</span><span class="k">grant</span><span class="o">=</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="err">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nv">@worker</span><span class="err">{</span><span class="k">grant</span><span class="o">=</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="err">}</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nl">OK</span><span class="p">:</span><span class="w"> </span><span class="n">attenuates</span>
+<span class="nv">@orchestrator</span><span class="err">{</span><span class="k">grant</span><span class="o">=</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="err">}</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nv">@worker</span><span class="err">{</span><span class="k">grant</span><span class="o">=</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="err">}</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">REJECTED</span><span class="w"> </span><span class="k">at</span><span class="w"> </span><span class="k">check</span><span class="w"> </span><span class="nc">time</span><span class="err">:</span><span class="w"> </span><span class="n">amplification</span>
+</pre></div>
+
+<p>This is the <em>static analogue</em> of the ocap read-only-wrapper pattern (Swasey/Garg/Dreyer): instead of a runtime forwarder that drops the write method, Vaked's checker proves the receiver's grant is a lower bound before lowering. <strong>No runtime proxy exists</strong> - the guarantee is "the compiled topology never grants amplification", enforced afterward by the daemons that materialize each grant.</p>
+<h2 id="7-stress-tests-honest-answers">7. Stress tests (honest answers)</h2>
+<ul>
+<li><strong>An agent leaks a reference.</strong> In ocap theory this is contained: a capability is unforgeable, and the leak only transfers authority the leaker already held (Rule of Connectivity). In <em>Vaked</em> there is no runtime reference to leak - authority is the compiled topology + daemon-enforced membranes. Leaking a <em>secret/handle</em> is a runtime-secret problem (out of the membrane model); the membrane still denies egress the topology never granted. <strong>Vaked does not get ocap's leak-containment for free</strong> - it gets coarse egress denial. [Inference, grounded in T1/T2]</li>
+<li><strong>A membrane is revoked mid-tool-call.</strong> DESIGN-ONLY today. Per RFC 0004 §6, a RewindEvent does not loop or retry-count; it voids the anchor and the consumer re-enters verification and <strong>pauses until explicit recovery</strong> (handled by <code>agent-supervisord</code>, outside MLIR). Vaked has no transitive ocap revocation; revocation is daemon/supervisor-level and currently unimplemented. [DESIGN-ONLY: RFC 0004, THREAT_MODEL §1.3]</li>
+<li><strong>What is unforgeable in practice?</strong> Not agent references (there are none at runtime). What is tamper-evident is the <strong>eventd hash chain</strong> (cryptographic, IMPLEMENTED) and <strong>PQC-signed provenance</strong> (RFC 0007, DESIGN). The ocap notion of unforgeable references requires a memory-safe object graph Vaked does not have; the practical unforgeability is <em>evidentiary</em> (the log), not <em>referential</em>. [IMPLEMENTED (log) / theory-contingent]</li>
+<li><strong>What must each layer enforce separately?</strong></li>
+<li><strong>Compiler (vakedc):</strong> attenuation/POLA, acyclicity, depth bounds - reject amplifying or malformed topologies (T1). [IMPLEMENTED]</li>
+<li><strong>Runtime daemons (Zig/Python ref):</strong> the per-kind membranes - egress deny-by-default, fs mounts, process namespaces (T2). [IMPLEMENTED userspace / DESIGN-ONLY Zig+eBPF-live]</li>
+<li><strong>Kernel (eBPF):</strong> evidence + (future) live per-destination egress enforcement (T5). [DESIGN-ONLY live]</li>
+<li><strong>Supervisor (OTP):</strong> lifecycle, restart, and revocation (T4). [DESIGN-ONLY]</li>
+</ul>
+<h2 id="8-implementation-invariants-for-hcplang">8. Implementation invariants for .hcplang</h2>
+<p><code>.hcplang</code> has <strong>no capability primitive</strong>; <code>@cap=network</code> is a <em>generic attribute</em> (the grammar accepts any <code>@ident(args)</code>), and capability <em>semantics</em> live in <code>preceptord</code>, not the language. [INTERNAL: protocol/hcplang/grammar.ebnf; RFC 0001 capability-scoping prose] The invariants a Vaked frame layer must hold (today by convention, candidates for enforcement):</p>
+<ol>
+<li><strong>Frame header carries no grant.</strong> Authority is decided by <code>preceptord</code> from the proven SPIFFE identity, not from frame fields (RFC 0006: identity checked at TLS before parse). [DESIGN]</li>
+<li><strong><code>@cap</code> is advisory until parsed.</strong> A <code>@cap=network</code> annotation is a policy hint; it MUST be evaluated by <code>preceptord</code> before dispatch, never trusted as self-asserted authority. [INTERNAL]</li>
+<li><strong>Attenuation is proven upstream, not in the frame.</strong> The wire layer transports; it does not attenuate. Per-reference attenuation is explicitly out of the wire model. [Inference, consistent with RFC 0003 "frame body is opaque"]</li>
+<li><strong>Audit is mandatory, not optional.</strong> Every admitted frame's effect testifies to eventd; non-canonical frames are frame-level errors, not chained. [INTERNAL: RFC 0001 §canonicality]</li>
+</ol>
+<h2 id="9-honest-summary">9. Honest summary</h2>
+<p>Vaked is a <strong>compile-time-attenuated, daemon-enforced, evidence-audited</strong> authority system that <strong>borrows ocap vocabulary</strong> but <strong>does not implement runtime object capabilities</strong>. Its real guarantees today: static POLA proof (IMPLEMENTED), deny-by-default userspace egress (IMPLEMENTED), tamper-evident audit (IMPLEMENTED). Its aspirational guarantees: live eBPF enforcement, revocation, PQC-sealed provenance (all DESIGN-ONLY). What it categorically lacks: ocap proxy shells and transitive revocation (ABSENT). Stating this boundary is the security claim - everything stronger would be hand-waving.</p>
+<h2 id="appendix-sources">Appendix: sources</h2>
+<p>External (deep-research, adversarial 3-0 unless noted; abstain-safe applied):<br />
+- Miller, <em>Robust Composition</em> (PhD, JHU, May 2006) - <a href="http://www.erights.org/talks/thesis/">erights.org/talks/thesis</a>, <a href="https://worrydream.com/refs/Miller_2006_-_Robust_Composition.pdf">PDF mirror</a><br />
+- Miller/Yee/Shapiro, <em>Capability Myths Demolished</em> - <a href="https://papers.agoric.com/assets/pdf/papers/capability-myths-demolished.pdf">Agorics PDF</a><br />
+- Swasey, Garg, Dreyer, <em>Robust and Compositional Verification of Object Capability Patterns</em>, OOPSLA 2017 - <a href="https://dl.acm.org/doi/10.1145/3133913">DOI 10.1145/3133913</a><br />
+- Bubblewrap - README + Arch man page (namespace/seccomp sandbox, not a complete sandbox, no built-in policy)<br />
+- Nix flakes / reproducibility - official Nix docs (flake.lock content-hash pinning; reproducibility is build-time, empirical, not isolation)<br />
+- Caretaker pattern (Redell 1974); membrane pattern (Marc Stiegler) - transitive revocation<br />
+- Refuted (1-2): arXiv:1907.07154 as canonical origin - it is a secondary 2019 report; do not cite as foundational.<br />
+- Abstained (fetch failed, NOT refuted): erights.org direct (ECONNREFUSED) and JHU handle (403) - corroborated via mirrors.</p>
+<p>Internal (repo-grounded, file:line in body): RELATED_WORK.md, THREAT_MODEL.md (Rule 2, §1.3), 0011-type-system.md, PROJECT_CONTEXT.md, agent_guardd/{policy,bpf,evidence,verify}.py, eventd/, RFC 0001/0004/0005/0006/0007, sandboxd design spec, protocol/hcplang/grammar.ebnf.</p>
+<p>Method note: external claims passed 3-vote adversarial verification; rate-limited/forbidden fetches were marked ABSTAIN (never auto-refuted) and corroborated via mirrors. Internal claims are labeled IMPLEMENTED / DESIGN-ONLY / ABSENT so no aspirational capability reads as a runtime guarantee.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/papers/vaked-security-membranes-architecture.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

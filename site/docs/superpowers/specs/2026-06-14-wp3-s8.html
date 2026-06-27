@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP3-S8 — Integration spec + paper eval (#113) (spec) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-integration-spec-the-contract" style="padding-left:1rem">  1.1 Integration spec (the contract)</a><a href="#12-paper-eval-113" style="padding-left:1rem">  1.2 Paper eval (#113)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#3-file-layout-paths-to-create" style="padding-left:0.5rem">3. File layout (paths to create)</a><a href="#4-algorithm-design" style="padding-left:0.5rem">4. Algorithm / design</a><a href="#41-wire-size-message-overhead-comparison-the-m1-centerpiece" style="padding-left:1rem">  4.1 Wire-size / message-overhead comparison (the M1 centerpiece)</a><a href="#42-latency-throughput-arch-sensitive-see-5" style="padding-left:1rem">  4.2 Latency / throughput (arch-sensitive — see §5)</a><a href="#43-replay-determinism-the-protocol-baselinejson" style="padding-left:1rem">  4.3 Replay determinism (the protocol `baseline.json`)</a><a href="#44-cross-implementation-interop-the-m1-integration-spine" style="padding-left:1rem">  4.4 Cross-implementation interop (the M1 integration spine)</a><a href="#45-protocol-threat-model-eval" style="padding-left:1rem">  4.5 Protocol threat-model eval</a><a href="#46-the-honesty-ledger-examplesevaluationprotocolmethodologymd" style="padding-left:1rem">  4.6 The honesty ledger (`examples/evaluation/protocol/METHODOLOGY.md`)</a><a href="#5-test-plan-m1-local-vs-dev-cx53linux" style="padding-left:0.5rem">5. Test plan — M1-local vs `dev-cx53`/Linux</a><a href="#51-runs-fully-on-m1-aarch64-darwin" style="padding-left:1rem">  5.1 Runs fully on M1 (aarch64-darwin)</a><a href="#52-requires-dev-cx53-linux-x8664" style="padding-left:1rem">  5.2 Requires `dev-cx53` (Linux x86_64)</a><a href="#53-ci-wiring" style="padding-left:1rem">  5.3 CI wiring</a><a href="#6-acceptance-criteria" style="padding-left:0.5rem">6. Acceptance criteria</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#71-blocking-risks-open-questions-to-track" style="padding-left:1rem">  7.1 Blocking risks / open questions to track</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp3-s8</div>
+<h1>WP3-S8 — Integration spec + paper eval (#113) (spec)</h1>
+<h1 id="wp3-s8-integration-spec-paper-eval-113-spec">WP3-S8 — Integration spec + paper eval (#113) (spec)</h1>
+<h2 id="status">Status</h2>
+<p>Spec (2026-06-14). Planning artifact for WP3-S8 (Oct 2 – Oct 15) of the WP3 HCP<br />
+wire-protocol epic (<a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a>,<br />
+line 31). This is the <strong>terminal</strong> WP3 sprint: it consumes the outputs of<br />
+WP3-S1..S7 and turns them into (a) a stable <strong>integration contract</strong> between the<br />
+<code>litany</code> wire stack and the rest of the fleet, and (b) the <strong>evaluation section<br />
+of the #113 protocol paper</strong> (<a href="../../../ROADMAP_2026-2027.md"><code>ROADMAP_2026-2027.md</code></a><br />
+§"WP3 Completion → #113 Paper", lines 150–162; arxiv target Nov 15).</p>
+<p>S8 is <strong>dependency-blocked</strong> on WP3-S2..S7 landing first (see §7) and on RFC 0003<br />
+Open Question 1 closing (the <code>hcp.wire</code> schema digest + official conformance<br />
+vectors, RFC 0003 §5.6 / §11 Conformance). The work is therefore future, not<br />
+codeable now. The deliverable here is the implementation-ready plan: what the<br />
+integration contract and the paper eval must contain, which numbers are<br />
+<strong>M1-computable</strong> vs <strong><code>dev-cx53</code>-only</strong>, and the honesty discipline that gates<br />
+every cited figure.</p>
+<blockquote>
+<p><strong>Boundary with WP3-S7.</strong> S7 (<a href="2026-06-14-wp3-s7.md"><code>docs/superpowers/specs/2026-06-14-wp3-s7.md</code></a>)<br />
+<em>produces</em> the robustness evidence — fuzz campaigns, the negative golden /<br />
+decision-rule table, the deadlock-freedom harness, the stress binaries. <strong>S8<br />
+does not re-specify any of those.</strong> S8 <em>consumes</em> their results as paper<br />
+evidence and adds only the integration contract + evaluation artifacts. If this<br />
+spec starts re-describing a cargo-fuzz target, it has drifted into S7's lane.</p>
+<p><strong>Correction to the kickoff wording (carried from S7 §"Correction", sharpened).</strong><br />
+The kickoff (line 43) and issue #167 cite "RFC 0002 §4 / Appendix A" for the<br />
+byte encoding and golden vectors. That is <strong>stale</strong>:<br />
+- byte encoding of values → <strong>RFC 0002 §6</strong> (<a href="../../../protocol/rfcs/0002-hcplang.md"><code>protocol/rfcs/0002-hcplang.md</code></a><br />
+  "<code>hcpbin</code> encoding rules", header at line 439);<br />
+- frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) → <strong>RFC 0003</strong> WIRE layer<br />
+  (<a href="../../../protocol/rfcs/0003-litany-wire.md"><code>protocol/rfcs/0003-litany-wire.md</code></a><br />
+  §4.4 / §4.4.1), explicitly <strong>NOT</strong> in <code>hcpbin</code> (RFC 0002 §4.2 "frame header<br />
+  reserved/implicit"; §6 scope note; mirrored in<br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a> header doc);<br />
+- golden vectors → RFC 0002 <strong>worked examples</strong> §6.1.1 (line 473), §6.3.1<br />
+  (line 622), §6.7.1 (line 774), §6.6.1 (line 825), and the full §10 worked<br />
+  example (line 1009) + §10.1 (line 1079); RFC 0003 §4.6 (framing, line 386) and<br />
+  §5.8 (handshake, line 594).<br />
+- <strong>Precision point (sharper than S7's note).</strong> RFC 0002 <strong>does</strong> have an<br />
+<code>Appendix A</code> — but it is <strong>"Generated code examples"</strong> (§A.1 Zig struct<br />
+  codegen, line 1289; §A.2 Erlang/OTP record codegen, line 1349), <strong>not</strong> golden<br />
+  vectors. S7 §"Correction" stated "the only <code>Appendix A</code> in the RFC set is RFC<br />
+  0003 Appendix A"; that was imprecise. There are <strong>two</strong> <code>Appendix A</code>s — RFC<br />
+  0002's (codegen examples) and RFC 0003's (the normative <code>hcp.wire</code> control<br />
+  schema, RFC 0003 line 1510). Neither contains golden vectors. The stale<br />
+  "Appendix A → golden vectors" mapping is wrong against both.<br />
+- <strong>Disambiguation:</strong> RFC 0003 has <strong>two</strong> <code>## 11</code> headers — "11. Conformance"<br />
+  (line 1186) and "11. Chapter &amp; connection lifecycle state machine" (line<br />
+  1231). This spec cites the first as <strong>"§11 Conformance item N"</strong> to avoid<br />
+  ambiguity.</p>
+</blockquote>
+<h2 id="1-objective">1. Objective</h2>
+<p>Two coupled deliverables, both due Oct 15.</p>
+<h3 id="11-integration-spec-the-contract">1.1 Integration spec (the contract)</h3>
+<p>A normative, versioned <strong>integration contract</strong> for the <code>litany</code> wire stack as<br />
+consumed by the rest of the Vaked fleet, so WP4 daemons and the <code>eventd</code> audit<br />
+spine can depend on a frozen surface. It must pin, with RFC citations:</p>
+<ol>
+<li><strong>The <code>litany</code> ↔ <code>eventd</code> chain-admission contract</strong> — <code>litany</code> feeds <code>eventd</code><br />
+<strong>only</strong> strictly-canonical <code>frame-bytes</code> (header + body) per RFC 0002 §6.8,<br />
+   plus connection-lifecycle events; a header-clean-but-non-canonical body is a<br />
+   frame-level <code>error</code> that is <strong>never</strong> chained (RFC 0003 §11 Conformance item 9;<br />
+   §9.2; §10). The contract names the exact bytes handed across and the rejection<br />
+   point, cross-referencing <a href="2026-06-12-eventd-design.md"><code>docs/superpowers/specs/2026-06-12-eventd-design.md</code></a><br />
+   and the <code>eventd</code> reference impl (<a href="../../../eventd/"><code>eventd/</code></a>, tests in<br />
+<a href="../../../tests/spec/test_eventd.py"><code>tests/spec/test_eventd.py</code></a>).</li>
+<li><strong>The handshake / capability surface</strong> WP4 peers must satisfy: magic <code>HCP\0</code><br />
+   preamble, <code>wire_version</code>, <code>max_frame</code> ≥ 64 KiB, schema-digest intersection,<br />
+   orderly <code>REFUSE</code> + graceful close on incompatibility (RFC 0003 §5, §9.1a; §11<br />
+   Conformance items 3–4).</li>
+<li><strong>The transport-binding profiles</strong> a daemon may bind: <code>stdio</code> (RFC 0003 §13.1),<br />
+   Unix domain socket (§13.2), <code>vsock</code> for the MirageOS unikernel surface (§13.3) —<br />
+   marked normatively non-normative per §13's own framing.</li>
+<li><strong>The decision-rule boundary</strong> (RFC 0003 §9.3): which failures a consumer sees<br />
+   as transport faults (connection torn down) vs frame-level <code>error</code>s (connection<br />
+   survives), so daemon error-handling code is written against a stable taxonomy<br />
+   (RFC 0003 §9.1, §9.1a, §9.2, §9.2.1).</li>
+<li><strong>The codegen contract</strong> for non-Rust consumers: the Zig and Erlang/OTP shapes<br />
+   the wire types lower to (RFC 0002 §7 mapping table line 907; §7.1; Appendix<br />
+   A.1/A.2), so the WP4 Zig daemons and any OTP peer share one schema source.</li>
+</ol>
+<h3 id="12-paper-eval-113">1.2 Paper eval (#113)</h3>
+<p>The <strong>evaluation section</strong> of the #113 protocol paper, structured exactly like the</p>
+<h1 id="103-language-papers-eval-benchmarks-interopcase-studies-threat-model">103 language paper's eval (benchmarks + interop/case studies + threat model;</h1>
+<p><a href="../../../docs/papers/vaked-language-v0.1.md"><code>docs/papers/vaked-language-v0.1.md</code></a><br />
+§5, §1.4 "Contributions at a Glance"), and governed by the <strong>same honesty<br />
+contract</strong> as <a href="../../../examples/evaluation/METHODOLOGY.md"><code>examples/evaluation/METHODOLOGY.md</code></a><br />
+(every number labelled <strong>Measured / Projected / Retracted</strong>, with environment<br />
+provenance; "if a number appears in a paper table but not in the ledger, treat it<br />
+as unverified").</p>
+<p>The headline claims the eval must <strong>measure</strong> (not assert from estimates):</p>
+<ol>
+<li><strong>Wire-size / message-overhead reduction</strong> vs JSON-RPC 2.0 / CBOR / protobuf,<br />
+   computed by byte-counting the <em>same</em> semantic messages — the strongest claim<br />
+   fully verifiable on M1 (§4.1).</li>
+<li><strong>Encode/decode latency &amp; throughput</strong>, including the kickoff's <strong>≤10µs/frame</strong><br />
+   gate (kickoff line 54) — arch-specific, <code>dev-cx53</code>-only as an absolute number;<br />
+   relative-regression-only on M1 (§4.2, §5).</li>
+<li><strong>Determinism / replay reproducibility</strong> — session capture → <code>litanyreplay</code> →<br />
+   byte-identical, the protocol analogue of the language paper's <code>baseline.json</code><br />
+   determinism oracle (RFC 0002 §9; RFC 0003 §10) (§4.3).</li>
+<li><strong>Cross-implementation interop</strong> — Rust <code>litany</code> ↔ the Python reference impl on<br />
+   the shared golden + rejection corpus (§4.4).</li>
+<li><strong>The protocol-layer threat model</strong> — DoS resistance, tamper-evidence via<br />
+   canonical encoding, control-plane deadlock-freedom — sourced from S7's<br />
+   empirical results and RFC 0003 §14.1–§14.5 + RFC 0002 §11 (§4.5).</li>
+</ol>
+<blockquote>
+<p><strong>Honesty guard, explicit.</strong> <a href="../../../ROADMAP_2026-2027.md"><code>ROADMAP_2026-2027.md</code></a><br />
+line 160 states "2–3 KB message overhead reduction" as if it were a result. Per<br />
+this project's culture (#103 retracted a "&gt;120s" figure; see METHODOLOGY.md),<br />
+the eval <strong>measures</strong> overhead from golden vectors and reports the measured<br />
+value with provenance — it does <strong>not</strong> cite the a-priori roadmap estimate as a<br />
+finding. If the measurement disagrees with "2–3 KB", the measurement wins and<br />
+the estimate is dropped.</p>
+</blockquote>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<table>
+<thead>
+<tr>
+<th>Oracle</th>
+<th>Source of truth</th>
+<th>What it proves</th>
+<th>Host</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Golden vectors (positive)</strong></td>
+<td>RFC 0002 §6.1.1/§6.3.1/§6.6.1/§6.7.1/§10/§10.1; RFC 0003 §4.6/§5.8</td>
+<td>Canonical bytes for the messages the overhead/latency tables encode</td>
+<td>M1</td>
+</tr>
+<tr>
+<td><strong>Rejection vectors (negative)</strong></td>
+<td>S7's negative golden / decision-rule corpus (<a href="../../../tests/spec/golden/"><code>tests/spec/golden/hcpbin_reject/</code></a> produced by S7) + RFC 0002 §6.1/§6.4/§6.5; RFC 0003 §4.1–§4.3/§4.4.1/§9.2.1</td>
+<td>Interop + threat-model claims: both impls reject the same malformed bytes in the same §9.3 category</td>
+<td>M1</td>
+</tr>
+<tr>
+<td><strong>Round-trip fixed point</strong></td>
+<td>RFC 0002 §6.8 (<code>encode(decode(encode(v)))==encode(v)</code>)</td>
+<td>Canonicality underpinning the determinism/replay claim</td>
+<td>M1</td>
+</tr>
+<tr>
+<td><strong>Replay determinism</strong></td>
+<td>RFC 0002 §9; RFC 0003 §10 (<code>litanydump</code> / <code>litanyreplay</code>)</td>
+<td>Byte-identical capture→replay (protocol analogue of <code>baseline.json</code>)</td>
+<td>M1 (logic), <code>dev-cx53</code> (under load)</td>
+</tr>
+<tr>
+<td><strong>eventd chain admission</strong></td>
+<td>RFC 0003 §11 Conformance item 9; §9.2; §10; <a href="../../../tests/spec/test_eventd.py"><code>tests/spec/test_eventd.py</code></a></td>
+<td>Canonical frames chained, non-canonical never chained</td>
+<td>M1 (logic), <code>dev-cx53</code> (under load)</td>
+</tr>
+<tr>
+<td><strong>Comparand encoders</strong></td>
+<td>JSON-RPC 2.0 spec; CBOR (RFC 8949); protobuf (proto3 wire format)</td>
+<td>The denominators in the overhead table</td>
+<td>M1</td>
+</tr>
+<tr>
+<td><strong>S6 perf baseline</strong></td>
+<td>WP3-S6 deliverable (<code>protocol/hcp/litany/benches/</code>)</td>
+<td>Regression comparand for relative latency on M1; absolute gate on <code>dev-cx53</code></td>
+<td>both</td>
+</tr>
+<tr>
+<td><strong>S7 robustness results</strong></td>
+<td>S7 fuzz/stress/deadlock outputs</td>
+<td>The empirical backing for the threat-model eval (§4.5)</td>
+<td>per S7 §5</td>
+</tr>
+<tr>
+<td><strong>Honesty ledger model</strong></td>
+<td><a href="../../../examples/evaluation/METHODOLOGY.md"><code>examples/evaluation/METHODOLOGY.md</code></a></td>
+<td>The Measured/Projected/Retracted contract every number obeys</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>No oracle invents bytes the RFC does not give.</strong> Where RFC 0003 Open Question 1<br />
+(§5.6, §11 Conformance) leaves the <code>hcp.wire</code> schema digest and the <strong>official<br />
+conformance vectors</strong> "a companion artifact that does not exist yet," S8 <strong>must<br />
+not invent a digest</strong> and <strong>must not present locally-constructed <code>hcp.wire</code><br />
+handshake transcripts as conformance evidence</strong>. Any paper claim or contract<br />
+clause that depends on the pinned digest is pinned behind the dependency in §7.1.</p>
+<h2 id="3-file-layout-paths-to-create">3. File layout (paths to create)</h2>
+<p><code>hcpbin/</code> <strong>exists</strong> (<a href="../../../protocol/hcp/"><code>protocol/hcp/hcpbin/</code></a>, with<br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>src/lib.rs</code></a> and the<br />
+adversarial-independence <code>tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>)).<br />
+The frame crate <code>litany/</code> is a <strong>WP3-S2+ deliverable that does not yet exist</strong><br />
+(today <code>protocol/hcp/</code> contains only <code>hcpbin/</code> + a README). S8 adds:</p>
+<div class="highlight"><pre><span></span><span class="n">docs</span><span class="o">/</span><span class="n">protocol</span><span class="o">/</span>
+<span class="w">  </span><span class="n">integration</span><span class="o">-</span><span class="n">contract</span><span class="p">.</span><span class="n">md</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">1.1</span><span class="w"> </span><span class="n">normative</span><span class="w"> </span><span class="n">contract</span><span class="p">;</span><span class="w"> </span><span class="n">versioned</span><span class="p">;</span><span class="w"> </span><span class="n">RFC</span><span class="o">-</span><span class="n">cited</span><span class="w">   </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">  </span><span class="n">litany</span><span class="o">-</span><span class="n">overhead</span><span class="o">-</span><span class="n">eval</span><span class="p">.</span><span class="n">md</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">1.2</span><span class="w"> </span><span class="n">eval</span><span class="w"> </span><span class="k">section</span><span class="w"> </span><span class="n">draft</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">#113</span><span class="w"> </span><span class="p">(</span><span class="n">prose</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">tables</span><span class="p">)</span><span class="w"> </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+
+<span class="n">examples</span><span class="o">/</span><span class="n">evaluation</span><span class="o">/</span><span class="n">protocol</span><span class="o">/</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">#113</span><span class="w"> </span><span class="n">eval</span><span class="w"> </span><span class="k">data</span><span class="w"> </span><span class="n">home</span><span class="w"> </span><span class="p">(</span><span class="n">mirrors</span><span class="w"> </span><span class="n">examples</span><span class="o">/</span><span class="n">evaluation</span><span class="o">/</span><span class="p">)</span><span class="w"> </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">  </span><span class="n">METHODOLOGY</span><span class="p">.</span><span class="n">md</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="n">protocol</span><span class="o">-</span><span class="n">eval</span><span class="w"> </span><span class="n">honesty</span><span class="w"> </span><span class="n">contract</span><span class="w"> </span><span class="p">(</span><span class="n">Measured</span><span class="o">/</span><span class="n">Projected</span><span class="o">/</span><span class="n">Retracted</span><span class="p">)</span>
+<span class="w">  </span><span class="n">OVERHEAD</span><span class="p">.</span><span class="n">md</span><span class="w">                        </span><span class="err">#</span><span class="w"> </span><span class="n">wire</span><span class="o">-</span><span class="k">size</span><span class="w"> </span><span class="n">comparison</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">how</span><span class="w"> </span><span class="n">computed</span><span class="w"> </span><span class="p">(</span><span class="n">M1</span><span class="p">)</span>
+<span class="w">  </span><span class="n">BENCHMARK</span><span class="p">.</span><span class="n">md</span><span class="w">                       </span><span class="err">#</span><span class="w"> </span><span class="n">latency</span><span class="o">/</span><span class="n">throughput</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="p">(</span><span class="k">relative</span><span class="o">=</span><span class="n">M1</span><span class="p">,</span><span class="w"> </span><span class="k">absolute</span><span class="o">=</span><span class="n">dev</span><span class="o">-</span><span class="n">cx53</span><span class="p">)</span>
+<span class="w">  </span><span class="n">overhead</span><span class="p">.</span><span class="n">json</span><span class="w">                      </span><span class="err">#</span><span class="w"> </span><span class="n">committed</span><span class="w"> </span><span class="n">byte</span><span class="o">-</span><span class="nf">count</span><span class="w"> </span><span class="k">data</span><span class="err">:</span><span class="w"> </span><span class="n">per</span><span class="o">-</span><span class="n">message</span><span class="w"> </span><span class="err">{</span><span class="n">hcpbin</span><span class="p">,</span><span class="n">jsonrpc</span><span class="p">,</span><span class="n">cbor</span><span class="p">,</span><span class="n">protobuf</span><span class="err">}</span>
+<span class="w">  </span><span class="n">replay_baseline</span><span class="p">.</span><span class="n">json</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="n">capture</span><span class="err">→</span><span class="n">replay</span><span class="w"> </span><span class="n">determinism</span><span class="w"> </span><span class="n">oracle</span><span class="w"> </span><span class="p">(</span><span class="n">analogue</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="n">baseline</span><span class="p">.</span><span class="n">json</span><span class="p">)</span>
+<span class="w">  </span><span class="n">bench_wire</span><span class="p">.</span><span class="n">py</span><span class="w">                      </span><span class="err">#</span><span class="w"> </span><span class="nl">driver</span><span class="p">:</span><span class="w"> </span><span class="n">counts</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">encoding</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">each</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="p">(</span><span class="n">M1</span><span class="p">)</span>
+<span class="w">  </span><span class="n">comparand_encoders</span><span class="p">.</span><span class="n">py</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="n">JSON</span><span class="o">-</span><span class="n">RPC</span><span class="o">/</span><span class="n">CBOR</span><span class="o">/</span><span class="n">protobuf</span><span class="w"> </span><span class="n">encoders</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="k">set</span>
+
+<span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">litany</span><span class="o">/</span><span class="w">                 </span><span class="err">#</span><span class="w"> </span><span class="n">frame</span><span class="o">/</span><span class="n">wire</span><span class="w"> </span><span class="n">crate</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">created</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">S2</span><span class="p">;</span><span class="w"> </span><span class="n">S8</span><span class="w"> </span><span class="n">adds</span><span class="w"> </span><span class="n">eval</span><span class="o">/</span><span class="n">interop</span><span class="w"> </span><span class="n">bins</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span><span class="n">bin</span><span class="o">/</span>
+<span class="w">    </span><span class="n">litanydump</span><span class="p">.</span><span class="n">rs</span><span class="w">                    </span><span class="err">#</span><span class="w"> </span><span class="n">capture</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">portable</span><span class="w"> </span><span class="n">form</span><span class="w"> </span><span class="p">(</span><span class="n">RFC</span><span class="w"> </span><span class="mi">0003</span><span class="w"> </span><span class="err">§</span><span class="mi">10</span><span class="p">)</span><span class="w">   </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">litanyreplay</span><span class="p">.</span><span class="n">rs</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="n">replay</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">capture</span><span class="p">;</span><span class="w"> </span><span class="n">assert</span><span class="w"> </span><span class="n">byte</span><span class="o">-</span><span class="n">identical</span><span class="w"> </span><span class="p">(</span><span class="n">RFC</span><span class="w"> </span><span class="mi">0002</span><span class="w"> </span><span class="err">§</span><span class="mi">9</span><span class="p">,</span><span class="w"> </span><span class="mi">0003</span><span class="w"> </span><span class="err">§</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">  </span><span class="n">benches</span><span class="o">/</span>
+<span class="w">    </span><span class="n">overhead</span><span class="p">.</span><span class="n">rs</span><span class="w">                      </span><span class="err">#</span><span class="w"> </span><span class="nl">criterion</span><span class="p">:</span><span class="w"> </span><span class="n">encode</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="k">set</span><span class="p">;</span><span class="w"> </span><span class="n">emits</span><span class="w"> </span><span class="n">byte</span><span class="w"> </span><span class="n">counts</span><span class="w"> </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">                                     </span><span class="err">#</span><span class="w"> </span><span class="p">(</span><span class="n">latency</span><span class="w"> </span><span class="n">benches</span><span class="w"> </span><span class="n">themselves</span><span class="w"> </span><span class="k">are</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">S6</span><span class="w"> </span><span class="n">deliverable</span><span class="p">;</span><span class="w"> </span><span class="n">S8</span><span class="w"> </span><span class="n">reuses</span><span class="w"> </span><span class="n">them</span><span class="p">)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">interop_python</span><span class="p">.</span><span class="n">rs</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="n">Rust</span><span class="w"> </span><span class="n">encode</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Python</span><span class="w"> </span><span class="n">decode</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">back</span><span class="p">,</span><span class="w"> </span><span class="k">over</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="p">.</span><span class="n">hex</span><span class="w"> </span><span class="n">vectors</span><span class="w"> </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">eventd_admission</span><span class="p">.</span><span class="n">rs</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="n">canonical</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="n">chained</span><span class="p">;</span><span class="w"> </span><span class="n">non</span><span class="o">-</span><span class="n">canonical</span><span class="w"> </span><span class="n">rejected</span><span class="w"> </span><span class="p">(</span><span class="n">RFC</span><span class="w"> </span><span class="mi">0003</span><span class="w"> </span><span class="err">§</span><span class="mi">11</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="mi">9</span><span class="p">)</span><span class="w"> </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+
+<span class="n">tests</span><span class="o">/</span><span class="n">spec</span><span class="o">/</span>
+<span class="w">  </span><span class="n">test_wire_interop</span><span class="p">.</span><span class="n">py</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="n">Python</span><span class="w"> </span><span class="n">side</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="k">cross</span><span class="o">-</span><span class="n">impl</span><span class="w"> </span><span class="n">interop</span><span class="w"> </span><span class="p">(</span><span class="n">decode</span><span class="w"> </span><span class="n">Rust</span><span class="w"> </span><span class="k">output</span><span class="p">,</span><span class="w"> </span><span class="n">encode</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Rust</span><span class="p">)</span><span class="w"> </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">  </span><span class="n">golden</span><span class="o">/</span><span class="n">wire_messages</span><span class="o">/</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="n">semantic</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="k">set</span><span class="p">,</span><span class="w"> </span><span class="n">one</span><span class="w"> </span><span class="n">dir</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">message</span><span class="w">     </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">tool_call_request</span><span class="p">.</span><span class="n">hcpbin</span><span class="p">.</span><span class="n">hex</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="n">canonical</span><span class="w"> </span><span class="n">hcpbin</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="p">(</span><span class="k">from</span><span class="w"> </span><span class="n">RFC</span><span class="w"> </span><span class="mi">0002</span><span class="w"> </span><span class="err">§</span><span class="mi">10</span><span class="o">/</span><span class="err">§</span><span class="mf">6.</span><span class="n">x</span><span class="w"> </span><span class="n">worked</span><span class="w"> </span><span class="n">examples</span><span class="p">)</span>
+<span class="w">    </span><span class="n">tool_call_request</span><span class="p">.</span><span class="n">jsonrpc</span><span class="p">.</span><span class="n">json</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">JSON</span><span class="o">-</span><span class="n">RPC</span><span class="w"> </span><span class="mf">2.0</span>
+<span class="w">    </span><span class="n">tool_call_request</span><span class="p">.</span><span class="n">cbor</span><span class="p">.</span><span class="n">hex</span><span class="w">       </span><span class="err">#</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">CBOR</span><span class="w"> </span><span class="p">(</span><span class="n">RFC</span><span class="w"> </span><span class="mi">8949</span><span class="p">)</span>
+<span class="w">    </span><span class="n">tool_call_request</span><span class="p">.</span><span class="n">proto</span><span class="p">.</span><span class="n">hex</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="n">same</span><span class="w"> </span><span class="n">message</span><span class="p">,</span><span class="w"> </span><span class="n">protobuf</span><span class="w"> </span><span class="n">proto3</span>
+<span class="w">    </span><span class="p">...</span><span class="w"> </span><span class="p">(</span><span class="n">one</span><span class="w"> </span><span class="k">set</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">message</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">comparison</span><span class="w"> </span><span class="nc">table</span><span class="p">)</span>
+</pre></div>
+
+<p>The <code>.hex</code>/<code>.json</code> message files are language-agnostic so both the Rust crate and<br />
+the Python spec harness (<a href="../../../tests/spec/run_all.py"><code>tests/spec/run_all.py</code></a>,<br />
+which exists) validate the same corpus, and so the future Zig codegen path (RFC<br />
+0002 §7) can be checked against identical bytes.</p>
+<h2 id="4-algorithm-design">4. Algorithm / design</h2>
+<h3 id="41-wire-size-message-overhead-comparison-the-m1-centerpiece">4.1 Wire-size / message-overhead comparison (the M1 centerpiece)</h3>
+<p>The strongest claim that is <strong>fully verifiable on M1</strong> because it is deterministic<br />
+byte-counting, not timing.</p>
+<ol>
+<li><strong>Fix the semantic message set.</strong> Take the worked-example messages the RFCs<br />
+   already define canonically: the <code>hcp.core.ToolCallRequest</code> family from RFC 0002<br />
+   §10 (line 1009) / §10.1, the primitive/record/map/union worked examples (§6.1.1,<br />
+   §6.3.1, §6.6.1, §6.7.1), and the framed examples from RFC 0003 §4.6 / §5.8.<br />
+   These are the only messages whose canonical <code>hcpbin</code> bytes are RFC-given; do not<br />
+   add messages whose canonical form must be invented.</li>
+<li><strong>Encode the <em>same</em> semantics</strong> in JSON-RPC 2.0, CBOR (RFC 8949 canonical<br />
+   form), and protobuf proto3 (<code>comparand_encoders.py</code>). For protobuf, the proto<br />
+   schema is derived from the <code>.hcplang</code> record (a deterministic, documented<br />
+   mapping — record fields → numbered proto fields by tag).</li>
+<li><strong>Tabulate</strong> per-message byte counts into <code>overhead.json</code> and render the table<br />
+   in <code>OVERHEAD.md</code> / the paper section. Report absolute bytes and the<br />
+   reduction-vs-each-comparand, <strong>with the message set named</strong> so the claim is<br />
+   reproducible. This replaces the roadmap's a-priori "2–3 KB" estimate with a<br />
+   measured number (§1.2 honesty guard).</li>
+<li><strong>Caveat in the ledger:</strong> the comparison is over the worked-example corpus, not<br />
+   a production trace; label it <strong>Measured (corpus)</strong>, and state the corpus, the<br />
+   comparand library versions, and CBOR/protobuf canonicalization settings — the<br />
+   #103 paper's "small examples dominated by startup floor" honesty move<br />
+   (METHODOLOGY.md §1), applied here as "results are over the RFC worked-example<br />
+   corpus, not field traffic."</li>
+</ol>
+<h3 id="42-latency-throughput-arch-sensitive-see-5">4.2 Latency / throughput (arch-sensitive — see §5)</h3>
+<p>The kickoff success criterion is <strong>≤10µs per frame encode/decode on <code>dev-cx53</code><br />
+(8-core, no-alloc hot path)</strong> (kickoff line 54). As established in S7 §4.6, an<br />
+<strong>absolute µs threshold is not portable to M1 (aarch64-darwin)</strong>. S8 therefore:</p>
+<ul>
+<li>on <strong>M1</strong>, runs the S6 criterion benches for <strong>relative regression</strong> vs the S6<br />
+  baseline only, and labels every M1 latency number <strong>Measured (M1, relative<br />
+  only — not the gate)</strong> in the ledger;</li>
+<li>pins the <strong>absolute ≤10µs gate</strong> to <code>dev-cx53</code> and labels it <strong>Projected</strong> in<br />
+  any draft written before a <code>dev-cx53</code> run, flipping to <strong>Measured (dev-cx53)</strong><br />
+  only after the canonical host run (which is off-limits this window — §5.2);</li>
+<li>reuses the S6 latency benches; it does <strong>not</strong> author new latency<br />
+  micro-benchmarks (that is S6's deliverable). The only new bench S8 adds is<br />
+<code>overhead.rs</code> (byte counts, §4.1), which is size not time.</li>
+</ul>
+<h3 id="43-replay-determinism-the-protocol-baselinejson">4.3 Replay determinism (the protocol <code>baseline.json</code>)</h3>
+<p><code>litanydump</code> captures a live or synthetic frame stream to a portable form;<br />
+<code>litanyreplay</code> replays it and asserts the re-emitted <code>frame-bytes</code> are<br />
+<strong>byte-identical</strong> to the capture (RFC 0002 §9 source-mapping/evidence; RFC 0003<br />
+§10 determinism/evidence/replay). The committed <code>replay_baseline.json</code> records N<br />
+iterations per scenario, exactly mirroring the language paper's determinism oracle<br />
+(<code>examples/evaluation/baseline.json</code>, 20 iterations/example). The eval reports the<br />
+iteration count actually committed — never a larger figure than the data shows<br />
+(the #103 paper's "earlier 100-iteration figures are not what the committed data<br />
+shows" lesson, METHODOLOGY.md / paper §5.4 item 4).</p>
+<h3 id="44-cross-implementation-interop-the-m1-integration-spine">4.4 Cross-implementation interop (the M1 integration spine)</h3>
+<p><code>interop_python.rs</code> + <code>tests/spec/test_wire_interop.py</code> run the round-trip across<br />
+two independent implementations over the shared corpus:</p>
+<ul>
+<li><strong>Positive:</strong> Rust <code>litany</code> encodes each golden message → Python reference<br />
+  decodes → re-encodes → bytes equal the golden (and vice versa). This is the RFC<br />
+  0002 §6.8 "two conforming implementations MUST agree byte-for-byte" claim,<br />
+  demonstrated empirically — the protocol analogue of the language paper's<br />
+  differential oracle.</li>
+<li><strong>Negative:</strong> both implementations reject the S7 rejection corpus, and land each<br />
+  malformed input in the <strong>same</strong> RFC 0003 §9.3 category (transport fault vs<br />
+  frame-level <code>error</code>). This reuses S7's negative table; it does not author a new<br />
+  one.</li>
+</ul>
+<blockquote>
+<p><strong>Precondition, not in-repo today.</strong> The Python reference <code>hcpbin</code>/wire impl is<br />
+a future precondition: <a href="../../../ROADMAP_2026-2027.md"><code>ROADMAP_2026-2027.md</code></a><br />
+line 108 says it is "available by Jun 26" (today is Jun 14), and a repo search<br />
+finds <strong>no</strong> Python <code>hcpbin</code> module (only the Rust crate under<br />
+<code>protocol/hcp/hcpbin/</code>). Until it lands, the interop leg is <strong>blocked</strong> (§7.1);<br />
+the single-impl round-trip fixed point (§4.3) still runs on M1.</p>
+</blockquote>
+<h3 id="45-protocol-threat-model-eval">4.5 Protocol threat-model eval</h3>
+<p>A prose section sourced <strong>entirely from existing artifacts</strong> — it states no new<br />
+empirical claim of its own:</p>
+<ul>
+<li><strong>Resource-exhaustion DoS resistance</strong> — <code>max_frame</code> bounds per-frame alloc,<br />
+  per-stream credit bounds per-stream buffering, liveness bounds idle cost (RFC<br />
+  0003 §14.4; RFC 0002 §11.1), backed by S7's <code>flood</code>/<code>soak</code>/<code>credit_stall</code><br />
+  results (S7 §4.5, cited, not re-run here).</li>
+<li><strong>Tamper-evidence via canonical encoding</strong> — non-canonical bytes cannot enter<br />
+  the <code>eventd</code> chain (RFC 0003 §14.3, §11 Conformance item 9), backed by the<br />
+<code>eventd_admission</code> integration test (§4.4) and S7's decision-rule table.</li>
+<li><strong>Control-plane deadlock-freedom</strong> — RFC 0003 §14.5, §11 Conformance items 5–7,<br />
+  backed by S7's <code>deadlock_freedom</code> harness.</li>
+<li><strong>Scope honesty</strong> — mirror the language paper's "What Vaked does NOT guarantee"<br />
+  (paper §5.3): the wire gives canonical framing + flow-control liveness, <strong>not</strong><br />
+  substrate confidentiality (delegated to the transport, RFC 0003 §14.1) and<br />
+<strong>not</strong> authority/policy decisions (delegated to <code>preceptord</code>, RFC 0003 §14.2).</li>
+</ul>
+<h3 id="46-the-honesty-ledger-examplesevaluationprotocolmethodologymd">4.6 The honesty ledger (<code>examples/evaluation/protocol/METHODOLOGY.md</code>)</h3>
+<p>A direct adaptation of <a href="../../../examples/evaluation/METHODOLOGY.md"><code>examples/evaluation/METHODOLOGY.md</code></a>:<br />
+every number in the paper's eval tables appears here labelled <strong>Measured /<br />
+Projected / Retracted</strong>, with environment provenance (host = M1 or <code>dev-cx53</code>,<br />
+toolchain versions, comparand library versions, iteration counts). "If a number<br />
+appears in a paper table but not in this ledger, treat it as unverified." Each<br />
+table cell in the paper carries a host tag.</p>
+<h2 id="5-test-plan-m1-local-vs-dev-cx53linux">5. Test plan — M1-local vs <code>dev-cx53</code>/Linux</h2>
+<p>Toolchain on this host (verified 2026-06-14, carried from S7 §5): <code>cargo 1.95.0</code>,<br />
+<code>cargo-fuzz 0.13.1</code>, <code>arch = arm64</code>; Python 3.11.x for the spec harness. <code>dev-cx53</code><br />
+is <strong>OFF-LIMITS</strong> for the current 6h autoresearch window (orchestrator note);<br />
+everything marked M1-local must pass without it.</p>
+<h3 id="51-runs-fully-on-m1-aarch64-darwin">5.1 Runs fully on M1 (aarch64-darwin)</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Why M1 is sufficient</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Wire-size overhead table (§4.1)</td>
+<td><code>python3 examples/evaluation/protocol/bench_wire.py</code> + <code>cargo bench -p litany --bench overhead</code></td>
+<td>Deterministic byte counting; arch-independent. <strong>The headline claim is fully M1-verifiable.</strong></td>
+</tr>
+<tr>
+<td>Round-trip fixed point (§4.3)</td>
+<td><code>cargo test -p hcpbin</code> / <code>cargo test -p litany</code></td>
+<td>Pure logic; arch-independent</td>
+</tr>
+<tr>
+<td>Replay determinism logic (§4.3)</td>
+<td><code>cargo run -p litany --bin litanyreplay</code> over <code>replay_baseline.json</code></td>
+<td>Byte-identity is host-independent</td>
+</tr>
+<tr>
+<td>Cross-impl interop (§4.4)</td>
+<td><code>cargo test -p litany --test interop_python</code> + <code>python3 -m pytest tests/spec/test_wire_interop.py</code></td>
+<td>Byte-exact; needs only both impls present (Python impl is the §7.1 blocker)</td>
+</tr>
+<tr>
+<td>eventd chain admission logic (§4.4)</td>
+<td><code>cargo test -p litany --test eventd_admission</code>; <code>python3 -m pytest tests/spec/test_eventd.py</code></td>
+<td>Admission decision is pure logic</td>
+</tr>
+<tr>
+<td>Relative latency regression (§4.2)</td>
+<td><code>cargo bench -p litany</code> vs S6 baseline</td>
+<td>Relative deltas meaningful on any single host</td>
+</tr>
+<tr>
+<td>Zig codegen target (RFC 0002 §7)</td>
+<td><code>zig build -Dtarget=x86_64-linux</code> (compile-only)</td>
+<td>Compiles on M1; namespace syscalls do not run here</td>
+</tr>
+<tr>
+<td>Spec-harness integration</td>
+<td><code>python3 tests/spec/run_all.py</code></td>
+<td>Shared corpus validated by the existing harness</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-requires-dev-cx53-linux-x86_64">5.2 Requires <code>dev-cx53</code> (Linux x86_64)</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Why it cannot gate on M1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>≤10µs/frame absolute gate</strong> (kickoff line 54)</td>
+<td>Absolute µs threshold is arch-specific; aarch64-darwin numbers are not comparable to the x86_64 target</td>
+</tr>
+<tr>
+<td><strong>Throughput / soak under load</strong> (§4.3 replay, §4.5 DoS)</td>
+<td>Long-run RSS + sustained-rate behaviour depends on the production allocator + kernel on the target host (S7 §5.2)</td>
+</tr>
+<tr>
+<td><strong>eventd end-to-end chaining under load</strong> (§4.4)</td>
+<td>Exercises the runtime <code>eventd</code> daemon; integration host is Linux (<a href="2026-06-12-eventd-design.md"><code>docs/superpowers/specs/2026-06-12-eventd-design.md</code></a>)</td>
+</tr>
+<tr>
+<td><strong>vsock transport profile</strong> (RFC 0003 §13.3)</td>
+<td><code>AF_VSOCK</code> is Linux-only; no macOS equivalent — stdio (§13.1) and UDS (§13.2) profiles exercise on M1</td>
+</tr>
+<tr>
+<td><strong>Namespace-isolated daemon integration</strong> (Zig daemons, RFC 0002 §7)</td>
+<td>Linux namespaces/seccomp run only on Linux</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-ci-wiring">5.3 CI wiring</h3>
+<p>M1-local checks run in the dev shell pre-PR. <code>dev-cx53</code> checks run in the WP3 CI<br />
+lane via <code>nix develop</code> (kickoff line 37). The shared <code>.hex</code>/<code>.json</code> message corpus<br />
+is validated by both the Rust crate and <code>tests/spec/run_all.py</code>, so the Rust path<br />
+and the future Zig codegen path validate identical bytes. Every paper-table number<br />
+must trace to a CI-run command and a ledger row before the paper section is<br />
+considered "verified" (§4.6).</p>
+<h2 id="6-acceptance-criteria">6. Acceptance criteria</h2>
+<p>S8 is done when <strong>all</strong> hold:</p>
+<ol>
+<li><strong>Integration contract published</strong> (<a href="../../../docs/protocol/"><code>docs/protocol/integration-contract.md</code></a>)<br />
+   pinning the five surfaces of §1.1, each clause RFC-cited, versioned, and<br />
+   reviewed by a WP4 consumer — M1-reviewable (prose).</li>
+<li><strong>Wire-size overhead table is Measured on M1</strong>: <code>overhead.json</code> committed,<br />
+<code>bench_wire.py</code> + <code>cargo bench --bench overhead</code> reproduce it, the table names<br />
+   its message corpus and comparand versions, and the paper cites the <strong>measured</strong><br />
+   reduction — <strong>not</strong> the roadmap's "2–3 KB" estimate (§1.2 honesty guard).</li>
+<li><strong>Replay determinism oracle committed</strong> (<code>replay_baseline.json</code>) with<br />
+<code>litanyreplay</code> proving byte-identity for the committed iteration count; the<br />
+   paper cites no figure larger than the committed data (§4.3).</li>
+<li><strong>Cross-impl interop passes on M1</strong> (positive: byte-for-byte agreement per RFC<br />
+   0002 §6.8; negative: same-category rejection per RFC 0003 §9.3) — <strong>or</strong>, if the<br />
+   Python reference impl has not landed, the leg is explicitly marked blocked in<br />
+   the ledger with the §7.1 dependency named (no silent skip).</li>
+<li><strong>eventd chain-admission test passes on M1</strong> (canonical chained, non-canonical<br />
+   never chained — RFC 0003 §11 Conformance item 9, §9.2, §10).</li>
+<li><strong>Threat-model section</strong> written from S7 results + RFC 0003 §14.1–§14.5 / RFC<br />
+   0002 §11, including the explicit "what the wire does NOT guarantee" scope<br />
+   (substrate confidentiality, authority decisions) — no new empirical claim<br />
+   originates here.</li>
+<li><strong>Honesty ledger complete</strong> (<code>examples/evaluation/protocol/METHODOLOGY.md</code>):<br />
+   every paper-eval number labelled Measured / Projected / Retracted with host<br />
+   provenance; the ≤10µs gate is <strong>Projected</strong> until a <code>dev-cx53</code> run flips it to<br />
+<strong>Measured (dev-cx53)</strong>; no unledgered number appears in any table.</li>
+<li><strong>No invented <code>hcp.wire</code> digest or conformance vectors</strong> anywhere in the<br />
+   contract or paper (RFC 0003 OQ1, §5.6 / §11). Any clause needing the pinned<br />
+   digest is marked blocked on OQ1 (§7.1).</li>
+<li>Every new test/eval file cites the RFC § it enforces, matching the<br />
+   adversarial-independence convention of<br />
+<code>protocol/hcp/hcpbin/tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>).</li>
+</ol>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>What S8 needs from it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP3-S1</strong> (done)</td>
+<td><code>hcpbin</code> codec (<a href="../../../protocol/hcp/"><code>protocol/hcp/hcpbin/</code></a>) + <code>golden.rs</code> convention to extend</td>
+</tr>
+<tr>
+<td><strong>WP3-S2</strong></td>
+<td>The <code>litany</code> frame crate must exist (it does <strong>not</strong> today — <code>protocol/hcp/</code> holds only <code>hcpbin/</code>): frame records, <code>@0..@4</code> header (RFC 0003 §4.4.1), round-trip suite</td>
+</tr>
+<tr>
+<td><strong>WP3-S3</strong></td>
+<td>Routing / state-dep model (RFC 0004) for multi-exchange replay + interop scenarios</td>
+</tr>
+<tr>
+<td><strong>WP3-S4</strong></td>
+<td>Control frames (RFC 0005) + <code>hcp.wire</code> verbs (RFC 0003 §5.6) for the handshake/replay captures</td>
+</tr>
+<tr>
+<td><strong>WP3-S5</strong></td>
+<td>eventd integration so the chain-admission test (criterion 5) and contract clause §1.1(1) are end-to-end</td>
+</tr>
+<tr>
+<td><strong>WP3-S6</strong></td>
+<td>The latency <strong>baseline</strong> S8's relative-regression leg compares against (criterion 2) and the latency benches S8 reuses (§4.2)</td>
+</tr>
+<tr>
+<td><strong>WP3-S7</strong></td>
+<td>The robustness evidence S8's threat-model section cites (§4.5) and the negative golden / decision-rule corpus the interop leg reuses (§4.4)</td>
+</tr>
+<tr>
+<td><strong>eventd</strong></td>
+<td><a href="2026-06-12-eventd-design.md"><code>docs/superpowers/specs/2026-06-12-eventd-design.md</code></a> + <a href="../../../tests/spec/test_eventd.py"><code>tests/spec/test_eventd.py</code></a> — chain-admission semantics (RFC 0003 §10)</td>
+</tr>
+<tr>
+<td><strong>#113 paper</strong></td>
+<td>The eval section S8 produces feeds the paper outline (ROADMAP lines 150–162); arxiv target Nov 15 is <strong>after</strong> S8, so S8 delivers the <em>eval</em>, not the full paper</td>
+</tr>
+</tbody>
+</table>
+<h3 id="71-blocking-risks-open-questions-to-track">7.1 Blocking risks / open questions to track</h3>
+<ul>
+<li><strong>Python reference impl missing today.</strong> The cross-impl interop leg (§4.4,<br />
+  criterion 4) needs a Python <code>hcpbin</code>/wire impl. ROADMAP line 108 dates it "Jun<br />
+  26"; no such module exists in-repo at spec time (only the Rust crate). Until it<br />
+  lands, mark the interop leg blocked in the ledger; the single-impl fixed point<br />
+  (§4.3) still runs.</li>
+<li><strong>RFC 0003 Open Question 1</strong> (§5.6, §11 Conformance): the <code>hcp.wire</code> schema<br />
+  digest is "value TBD until the layout lands," and the <strong>official conformance<br />
+  vectors are a companion artifact that does not exist yet</strong>. The paper <strong>must<br />
+  not</strong> present locally-constructed <code>hcp.wire</code> transcripts as conformance evidence<br />
+  and <strong>must not</strong> pin a digest; contract clause §1.1(2)'s schema-digest<br />
+  intersection is described structurally and the concrete digest is left to OQ1.</li>
+<li><strong><code>error_kind</code> normative set</strong> (RFC 0003 §9.2.1): "provisional; the normative set<br />
+  is in the <code>hcp.wire</code> schema" (RFC 0003 Appendix A) — also OQ1-gated. The interop<br />
+  negative leg asserts the <strong>category</strong> (fault vs frame-level <code>error</code>) firmly;<br />
+  exact <code>error_kind</code> strings stay provisional until OQ1.</li>
+<li><strong>Capability defaults</strong> (RFC 0003 §5.5, §8.2; §7.3): initial credit 16,<br />
+<code>max_frame</code> floor 64 KiB / default 1 MiB, idle 15s / liveness 30s are the<br />
+  scenario constants for replay/eventd captures; if S2–S5 negotiate differently,<br />
+  update the captures accordingly.</li>
+<li><strong><code>dev-cx53</code> off-limits this window</strong>: the absolute ≤10µs gate and all<br />
+  under-load legs are Projected until a canonical-host run; the M1 legs (the<br />
+  overhead table, interop, replay logic, eventd admission logic) carry the sprint.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp3-s8.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

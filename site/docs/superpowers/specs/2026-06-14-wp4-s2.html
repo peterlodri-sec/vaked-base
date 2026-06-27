@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP4-S2 — sandboxd isolation backend: namespaces + cgroups v2 + seccomp-bpf (native-exec, pure Zig) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-in-scope" style="padding-left:1rem">  1.1 In scope</a><a href="#12-out-of-scope-explicit-with-provenance-so-a-reader-does-not-think-they-were-mi" style="padding-left:1rem">  1.2 Out of scope (explicit, with provenance so a reader does not think they were missed)</a><a href="#2-inputs-and-oracles" style="padding-left:0.5rem">2. Inputs and oracles</a><a href="#21-oracles-per-module-python-reference" style="padding-left:1rem">  2.1 Oracles (per-module Python reference)</a><a href="#22-config-input-the-step-0-gap-made-concrete" style="padding-left:1rem">  2.2 Config input (the step-0 gap, made concrete)</a><a href="#23-host-substrate-inputs-already-present-no-host-change" style="padding-left:1rem">  2.3 Host substrate inputs (already present, no host change)</a><a href="#3-the-seccomp-asymmetry" style="padding-left:0.5rem">3. The seccomp asymmetry</a><a href="#4-file-layout-paths-to-create-modify" style="padding-left:0.5rem">4. File layout (paths to create / modify)</a><a href="#5-algorithm-design" style="padding-left:0.5rem">5. Algorithm / design</a><a href="#51-per-worker-spawn-sequence" style="padding-left:1rem">  5.1 Per-worker spawn sequence</a><a href="#52-namespacezig-mountzig" style="padding-left:1rem">  5.2 namespace.zig / mount.zig</a><a href="#53-seccompzig-the-allowlist-filter" style="padding-left:1rem">  5.3 seccomp.zig — the allowlist filter</a><a href="#54-cgroupzig" style="padding-left:1rem">  5.4 cgroup.zig</a><a href="#55-policyzig" style="padding-left:1rem">  5.5 policy.zig</a><a href="#6-test-plan-m1-local-vs-dev-cx53linux" style="padding-left:0.5rem">6. Test plan — M1-local vs dev-cx53/Linux</a><a href="#61-runs-fully-on-m1-aarch64-darwin-pure-logic-assembly" style="padding-left:1rem">  6.1 Runs fully on M1 (aarch64-darwin) — pure logic & assembly</a><a href="#62-requires-dev-cx53-linux-x8664-kernel-effects" style="padding-left:1rem">  6.2 Requires dev-cx53 (Linux x86_64) — kernel effects</a><a href="#63-ci-wiring" style="padding-left:1rem">  6.3 CI wiring</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp4-s2</div>
+<h1>WP4-S2 — sandboxd isolation backend: namespaces + cgroups v2 + seccomp-bpf (native-exec, pure Zig)</h1>
+<h1 id="wp4-s2-sandboxd-isolation-backend-namespaces-cgroups-v2-seccomp-bpf-native-exec-pure-zig">WP4-S2 — sandboxd isolation backend: namespaces + cgroups v2 + seccomp-bpf (native-exec, pure Zig)</h1>
+<h2 id="status">Status</h2>
+<p>Implementation spec (2026-06-14). Sprint <strong>WP4-S2</strong> of the WP4 daemon-MVP track<br />
+(<a href="../plans/2026-06-14-wp4-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md</code></a>,<br />
+table row "WP4-S2 | Jul 9–Jul 23 | sandboxd: isolation backend (namespaces +<br />
+cgroups)"). This is the implementation of <strong>Plan step 2</strong> ("native-exec for<br />
+real") of the sandboxd design<br />
+(<a href="2026-06-13-sandboxd-design.md"><code>docs/superpowers/specs/2026-06-13-sandboxd-design.md</code></a>),<br />
+extended with the <strong>seccomp-bpf allowlist</strong> that the task title and kickoff line<br />
+44 (<code>CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWNET | CLONE_NEWUSER</code> + seccomp-bpf<br />
+allowlist) place in this backend.</p>
+<p><strong>Scope reconciliation (named, not silently resolved):</strong> the kickoff <em>table</em><br />
+labels S2 "namespaces + cgroups" and puts "capability enforcement hooks" in S5;<br />
+the kickoff <em>decision/first-task</em> prose (lines 44, 60–61) and this task's title<br />
+both name seccomp as part of native-exec. This spec follows the task + the<br />
+design's native-exec mechanics §step 5 ("apply the seccomp / no-new-privs<br />
+posture, then <code>execve</code>"): the seccomp <strong>filter install</strong> is S2; the<br />
+<em>capability→syscall-set lowering</em> (which grant maps to which allowlist) is the<br />
+S5 hook. S2 ships a fixed, conservative allowlist; S5 makes it grant-driven.</p>
+<p>Build target is <code>dev-cx53</code> (Linux x86_64, Nix 2.34.7, kernel 6.x, cgroup-v2;<br />
+kickoff lines 21–22). Min Zig <strong>0.16</strong> (verified on this host: <code>zig version</code> →<br />
+<code>0.16.0</code>). <code>dev-cx53</code> is OFF-LIMITS for the current autoresearch window;<br />
+everything below marked <strong>M1-local</strong> must pass on aarch64-darwin without it.</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Replace the WP4-S1 no-op/echo runner in <code>daemons/sandboxd/</code> with a real<br />
+native-exec isolation boundary: per worker, sandboxd</p>
+<ol>
+<li>enters a <strong>user + mount + pid + net</strong> namespace set<br />
+   (<code>CLONE_NEWUSER | CLONE_NEWNS | CLONE_NEWPID | CLONE_NEWNET</code>),</li>
+<li>joins a <strong>delegated cgroup-v2 leaf</strong> and writes kernel-enforced hard limits<br />
+   (<code>memory.max</code>, <code>pids.max</code>, <code>cpu.max</code>, <code>io.max</code>),</li>
+<li>assembles an <strong>overlayfs rootfs</strong> (ro <code>lowerdir</code> + writable <code>upperdir</code>/<code>workdir</code>)<br />
+   and <strong>explicit bind-mounts only</strong> (deny-by-default fs view),</li>
+<li>installs a <strong>seccomp-bpf allowlist</strong> under <code>PR_SET_NO_NEW_PRIVS</code>,</li>
+<li><strong>drops privileges</strong> and <code>execve</code>s the workload, then <strong>supervises</strong> the child<br />
+   (reap, report exit) and appends spawn/kill/exit audit events to eventd.</li>
+</ol>
+<p>The bound is the <strong>kernel's</strong> (OOM-kill, <code>clone</code> refusal, seccomp KILL/ERRNO,<br />
+absent mounts) — "mathematical bound, not policy" (design §native-exec<br />
+mechanics, §Security model). The Python package<br />
+<a href="../../../agent_sandboxd/"><code>agent_sandboxd/</code></a> is the behavioural oracle for every<br />
+module except seccomp (which the reference never implemented — see §3).</p>
+<h3 id="11-in-scope">1.1 In scope</h3>
+<ul>
+<li>The five mechanics above, in pure Zig syscall wrappers (no libc sandbox lib,<br />
+  no libseccomp, no runc/OCI; matches the empty <code>dependencies</code> in<br />
+<a href="../../../daemons/sandboxd/build.zig.zon"><code>daemons/sandboxd/build.zig.zon</code></a>).</li>
+<li>A test suite split into M1-local pure-logic assertions and dev-cx53 kernel<br />
+  effects (§5).</li>
+</ul>
+<h3 id="12-out-of-scope-explicit-with-provenance-so-a-reader-does-not-think-they-were-missed">1.2 Out of scope (explicit, with provenance so a reader does not think they were missed)</h3>
+<ul>
+<li><strong>S1 skeleton</strong> — CLI flag parsing, <code>gen/zig/&lt;fiber&gt;.json</code> parse, the<br />
+  no-op runner shell. Assumed to exist from WP4-S1 (kickoff "First task"); this<br />
+  spec extends it. (Today only the stub <code>daemons/sandboxd/src/main.zig</code> exists;<br />
+  if S1 has not landed, its deliverables are a hard prerequisite — see §6.)</li>
+<li><strong>Config projection (design Plan step 0, grammar-first, gated)</strong> — lowering<br />
+<code>capability fs</code>/<code>capability process</code> grants + a new OS-resource-limits field<br />
+  to <code>gen/zig/&lt;fiber&gt;.json</code>, resolving <code>engine_package</code> to a binary+argv, and<br />
+  routing an agent-workload fiber's config to sandboxd. This is a <strong>blocking<br />
+  dependency</strong>, not S2 work (design §Config contract, §Open). S2 runs against<br />
+  hand-written fixture configs (§2.2) until step 0 lands.</li>
+<li><strong>S3 supervisord→sandboxd port</strong> (design Plan step 3, "Zig-port era") — the<br />
+<code>vaked_fiber_worker</code> port and OTP lifecycle wiring. S2 appends to the existing<br />
+  eventd log; it does not build the supervisord port. <strong>No second lifecycle:</strong> the<br />
+  STOPPED→…→RUNNING transitions are owned by <code>agent-supervisord</code><br />
+  (<a href="../../../protocol/rfcs/0004-multi-agent-state-dependency.md">RFC 0004 §6</a>, which<br />
+  mandates supervisord rejects RUNNING until cold-start verification passes; and<br />
+<a href="../../../protocol/rfcs/0001-hcp.md">RFC 0001 §5</a> "Supervision and state<br />
+  dependencies: <code>agent-supervisord</code>") — sandboxd is only the <strong>exec mechanism</strong> the<br />
+  worker is run through (design §Relationship to the roster). S2 starts/stops the<br />
+  process; it does not transition agent state.</li>
+<li><strong>fs-snapshotd accounting</strong> — diffs / write-budgets / artifact capture over the<br />
+<code>upperdir</code>. S2 <em>mounts</em> the overlay; it does not account (design §Relationship<br />
+  to the roster).</li>
+<li><strong>No canonical hashing</strong> — the eventd oracle owns bytes; sandboxd emits payloads<br />
+  only (design §What is deliberately NOT here;<br />
+<a href="../../../agent_sandboxd/eventd.py"><code>agent_sandboxd/eventd.py</code></a> docstring).</li>
+<li><strong>netns programming</strong> — sandboxd <em>creates</em> the netns; agent-guardd programs its<br />
+  firewall (design §Open "Network-namespace ownership";<br />
+<a href="../../../agent_sandboxd/namespace.py"><code>agent_sandboxd/namespace.py</code></a> lines 19–23).</li>
+</ul>
+<h2 id="2-inputs-and-oracles">2. Inputs and oracles</h2>
+<h3 id="21-oracles-per-module-python-reference">2.1 Oracles (per-module Python reference)</h3>
+<p>Each Zig module's correctness oracle is its 1:1 Python counterpart in<br />
+<code>agent_sandboxd/</code>. Zig modules must reproduce the oracle's <em>decisions</em> and<br />
+<em>emitted bytes/strings</em>, not its mechanism (the reference uses the <code>unshare(1)</code><br />
+CLI and writes files; Zig uses raw syscalls — design §native-exec mechanics<br />
+notes this divergence explicitly).</p>
+<table>
+<thead>
+<tr>
+<th>Zig module (to create)</th>
+<th>Python oracle</th>
+<th>What is held identical</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>config.zig</code></td>
+<td>(S1) + <a href="../../../agent_sandboxd/daemon.py"><code>agent_sandboxd/daemon.py</code></a> <code>_parse_spawn_request</code></td>
+<td>field set + defaults of the spawn request</td>
+</tr>
+<tr>
+<td><code>namespace.zig</code></td>
+<td><a href="../../../agent_sandboxd/namespace.py"><code>namespace.py</code></a> <code>build_namespace_plan</code></td>
+<td>the <code>unshare</code>/<code>clone</code> flag set, mount step list, overlay opts string, uid/gid map</td>
+</tr>
+<tr>
+<td><code>cgroup.zig</code></td>
+<td><a href="../../../agent_sandboxd/cgroup.py"><code>cgroup.py</code></a> <code>apply_cgroup_limits</code></td>
+<td>exact file <strong>contents</strong> (<code>memory.max</code>, <code>pids.max</code>, <code>cpu.max</code> = <code>"&lt;quota&gt; &lt;period&gt;"</code>/<code>"max &lt;period&gt;"</code>, <code>io.max</code> per-device line) and leaf path <code>vaked/&lt;agent-id&gt;/</code></td>
+</tr>
+<tr>
+<td><code>policy.zig</code></td>
+<td><a href="../../../agent_sandboxd/policy.py"><code>policy.py</code></a> <code>decide_path</code></td>
+<td>deny-by-default verdict + reason per <code>(path, mode)</code>; fs lattice <code>none&lt;repo_ro&lt;repo_rw&lt;host_rw</code>, <code>repo_ro&lt;host_ro</code></td>
+</tr>
+<tr>
+<td><code>event.zig</code></td>
+<td><a href="../../../agent_sandboxd/eventd.py"><code>eventd.py</code></a> <code>spawn_event</code>/<code>kill_event</code>/<code>access_event</code></td>
+<td>payload <code>kind</code>/<code>v</code>/field set; no wall-time in the chained body</td>
+</tr>
+<tr>
+<td><code>seccomp.zig</code></td>
+<td><strong>none</strong> (see §3)</td>
+<td>modelled on <a href="../../../agent_guardd/bpf.py"><code>agent_guardd/bpf.py</code></a> ABI pattern</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-config-input-the-step-0-gap-made-concrete">2.2 Config input (the step-0 gap, made concrete)</h3>
+<p>The canonical lowered config the design cites is<br />
+<a href="../../../vaked/examples/lowering/gen/zig/mediaCompress.json"><code>vaked/examples/lowering/gen/zig/mediaCompress.json</code></a>.<br />
+Its full body today:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;_generated&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;generated by Vaked from operator-field.vaked:fiber mediaCompress — do not edit&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;engine&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;zigDaemon&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;engine_package&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;packages.zigDaemon&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;input&quot;</span><span class="p">:</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;stream&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;screenrec&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;agentpipe.screenrec&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Media.Frame&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;fps&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;output&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;target&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;artifacts.compressedMedia&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;policy&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;strip_metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max_pixels&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;4K&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;formats&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;png&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;webp&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;observe&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>It carries <strong>no</strong> namespace set, <strong>no</strong> mount/overlay plan, <strong>no</strong><br />
+cpu/mem/io/pids fields, and <code>engine_package</code> is a <strong>flake attribute name</strong><br />
+(<code>packages.zigDaemon</code>), not a store path / binary / argv the daemon can<br />
+<code>execve</code>. This is exactly the unsourced operational projection the design flags<br />
+(design §Config contract: <code>budget</code> is closed to<br />
+<code>tokens</code>/<code>wallClock</code>/<code>toolCalls</code>/<code>approvals</code>/<code>fuel</code>; <code>engine_package</code> is a flake<br />
+attr). <strong>Therefore S2's config-driven path is blocked on design step 0.</strong> Until<br />
+step 0 lands, S2 reads a <strong>fixture sandbox config</strong> — the operational projection<br />
+sketched but not yet a lowering output — checked in under<br />
+<code>daemons/sandboxd/testdata/</code>:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fixture-worker&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;namespaces&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;mount&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;pid&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;net&quot;</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;uid_map&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0 1000 1&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;gid_map&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0 1000 1&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;rootfs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;lowerdir&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/nix/store/...-base&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;upperdir&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/var/lib/vaked/work/fixture/upper&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;workdir&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/var/lib/vaked/work/fixture/work&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;binds&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;src&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/var/lib/vaked/repo&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;dst&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/repo&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;ro&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;limits&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;mem_max_bytes&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">268435456</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;pids_max&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;cpu_quota_us&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">50000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;cpu_period_us&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;io&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;major&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">8</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;minor&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;wbps&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10485760</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;exec&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/repo/bin/worker&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;argv&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;worker&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--once&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;env&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;fs_policy&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;grant&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;repo_rw&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;allowed_read&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/repo&quot;</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;allowed_write&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/repo/out&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;process_policy&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;grant&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;spawn_sandboxed&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;seccomp&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;profile&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;default&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The fixture schema is the <strong>proposed shape</strong> of step-0's projection (a design<br />
+input, captured here so the gap is concrete), <strong>not</strong> a settled contract. When<br />
+step 0 lands, <code>config.zig</code> switches its source from the fixture to the lowered<br />
+<code>gen/zig/&lt;fiber&gt;.json</code> with no change to the downstream modules.</p>
+<h3 id="23-host-substrate-inputs-already-present-no-host-change">2.3 Host substrate inputs (already present, no host change)</h3>
+<ul>
+<li><code>kernel.unprivileged_userns_clone = 1</code> (or <code>CAP_SYS_ADMIN</code>) — vakedos sets it<br />
+  (namespace.py lines 44–47; design line 24 "no host change is required").</li>
+<li>cgroup-v2 unified hierarchy mounted at <code>/sys/fs/cgroup</code>, <code>vaked</code> subtree<br />
+<strong>delegated</strong> to sandboxd's uid (cgroup.py §Privilege note;<br />
+<code>Delegate=</code> in the systemd unit). agent-guardd's eBPF cgroup hooks attach to<br />
+  the same subtree (kickoff line 43).</li>
+</ul>
+<h2 id="3-the-seccomp-asymmetry">3. The seccomp asymmetry</h2>
+<p><code>seccomp.zig</code> is the one module with <strong>no Python oracle</strong> — the reference<br />
+<code>agent_sandboxd</code> never implemented seccomp (grep confirms: seccomp appears only<br />
+in design/README/threat-model prose, not in <code>agent_sandboxd/*.py</code>). Its model is<br />
+the ABI-driven pattern of <a href="../../../agent_guardd/bpf.py"><code>agent_guardd/bpf.py</code></a>:<br />
+assemble the BPF program as <strong>struct-packed instructions directly</strong> (no<br />
+libseccomp, no libbpf — guardd drives <code>bpf()</code> with raw structs and<br />
+architecture-neutral bytecode; seccomp.zig does the same for the classic-BPF<br />
+filter). This is the runtime defense the threat model assigns to the daemon layer<br />
+(<a href="../../language/THREAT_MODEL.md"><code>docs/language/THREAT_MODEL.md</code></a> §Scenario C<br />
+item 1: "Zig daemons should run in OS-level sandboxes (seccomp, …)").</p>
+<p>Because there is no byte-oracle, the seccomp acceptance bar is <strong>self-consistent<br />
+byte assertions</strong> (the filter bytes equal a hand-derived golden, §5.1) plus the<br />
+<strong>kernel behaviour</strong> (a disallowed syscall is killed/ERRNO'd, §5.2).</p>
+<h2 id="4-file-layout-paths-to-create-modify">4. File layout (paths to create / modify)</h2>
+<p>All under <a href="../../../daemons/sandboxd/"><code>daemons/sandboxd/</code></a> (the WP4-S1 home).</p>
+<div class="highlight"><pre><span></span><span class="n">daemons</span><span class="o">/</span><span class="n">sandboxd</span><span class="o">/</span>
+<span class="w">  </span><span class="n">build</span><span class="o">.</span><span class="n">zig</span><span class="w">                 </span><span class="c1"># MODIFY: add the new modules + a `seccomp-asm` test step</span>
+<span class="w">  </span><span class="n">build</span><span class="o">.</span><span class="n">zig</span><span class="o">.</span><span class="n">zon</span><span class="w">             </span><span class="c1"># unchanged (no deps — pure syscalls)</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span>
+<span class="w">    </span><span class="n">main</span><span class="o">.</span><span class="n">zig</span><span class="w">                </span><span class="c1"># MODIFY: replace the stub; wire S1 CLI → spawn()</span>
+<span class="w">    </span><span class="n">config</span><span class="o">.</span><span class="n">zig</span><span class="w">              </span><span class="c1"># NEW: parse the sandbox config (fixture; later gen/zig/&lt;fiber&gt;.json)</span>
+<span class="w">    </span><span class="n">namespace</span><span class="o">.</span><span class="n">zig</span><span class="w">           </span><span class="c1"># NEW: clone/unshare flag plan + entry; bind/overlay mounts</span>
+<span class="w">    </span><span class="n">mount</span><span class="o">.</span><span class="n">zig</span><span class="w">               </span><span class="c1"># NEW: overlayfs + bind-mount + pivot_root primitives</span>
+<span class="w">    </span><span class="n">cgroup</span><span class="o">.</span><span class="n">zig</span><span class="w">              </span><span class="c1"># NEW: delegated leaf + memory/pids/cpu/io limit writes</span>
+<span class="w">    </span><span class="n">policy</span><span class="o">.</span><span class="n">zig</span><span class="w">              </span><span class="c1"># NEW: decide_path (fs lattice, deny-by-default)</span>
+<span class="w">    </span><span class="n">seccomp</span><span class="o">.</span><span class="n">zig</span><span class="w">             </span><span class="c1"># NEW: classic-BPF allowlist assembly + install (no oracle)</span>
+<span class="w">    </span><span class="n">exec</span><span class="o">.</span><span class="n">zig</span><span class="w">                </span><span class="c1"># NEW: clone child, drop privs, execve, reap (supervision)</span>
+<span class="w">    </span><span class="n">event</span><span class="o">.</span><span class="n">zig</span><span class="w">               </span><span class="c1"># NEW: spawn/kill/exit/access payloads → eventd append</span>
+<span class="w">    </span><span class="n">linux</span><span class="o">.</span><span class="n">zig</span><span class="w">               </span><span class="c1"># NEW: syscall numbers, CLONE_*/MS_*/PR_*/SECCOMP_* constants, structs</span>
+<span class="w">  </span><span class="n">testdata</span><span class="o">/</span>
+<span class="w">    </span><span class="n">fixture</span><span class="o">.</span><span class="n">sandbox</span><span class="o">.</span><span class="n">json</span><span class="w">    </span><span class="c1"># NEW: the §2.2 fixture config</span>
+<span class="w">    </span><span class="n">seccomp</span><span class="o">.</span><span class="n">default</span><span class="o">.</span><span class="n">golden</span><span class="w">  </span><span class="c1"># NEW: hex of the assembled default filter (M1 byte oracle)</span>
+<span class="w">  </span><span class="n">test</span><span class="o">/</span>
+<span class="w">    </span><span class="n">config_test</span><span class="o">.</span><span class="n">zig</span><span class="w">         </span><span class="c1"># NEW: parse → struct (M1)</span>
+<span class="w">    </span><span class="n">namespace_plan_test</span><span class="o">.</span><span class="n">zig</span><span class="w"> </span><span class="c1"># NEW: flag/mount plan vs namespace.py oracle (M1)</span>
+<span class="w">    </span><span class="n">cgroup_content_test</span><span class="o">.</span><span class="n">zig</span><span class="w"> </span><span class="c1"># NEW: limit-file CONTENT vs cgroup.py, mock root (M1)</span>
+<span class="w">    </span><span class="n">policy_test</span><span class="o">.</span><span class="n">zig</span><span class="w">         </span><span class="c1"># NEW: decide_path table vs policy.py (M1)</span>
+<span class="w">    </span><span class="n">seccomp_asm_test</span><span class="o">.</span><span class="n">zig</span><span class="w">    </span><span class="c1"># NEW: assembled filter bytes == golden (M1)</span>
+<span class="w">    </span><span class="n">event_test</span><span class="o">.</span><span class="n">zig</span><span class="w">          </span><span class="c1"># NEW: payload field set vs eventd.py (M1)</span>
+<span class="w">    </span><span class="n">linux_smoke_test</span><span class="o">.</span><span class="n">zig</span><span class="w">    </span><span class="c1"># NEW: real ns/cgroup/seccomp effects (dev-cx53 only; gated)</span>
+</pre></div>
+
+<p><code>linux.zig</code> centralises the <strong>x86_64</strong> ABI (target is x86_64-linux): syscall<br />
+numbers (<code>__NR_clone</code>, <code>__NR_unshare</code>, <code>__NR_mount</code>, <code>__NR_pivot_root</code>,<br />
+<code>__NR_prctl</code>, <code>__NR_seccomp</code>, <code>__NR_execve</code>, <code>__NR_setresuid</code>/<code>setresgid</code>),<br />
+<code>CLONE_NEW*</code>, <code>MS_BIND|MS_REC|MS_PRIVATE</code>, <code>PR_SET_NO_NEW_PRIVS</code>,<br />
+<code>SECCOMP_SET_MODE_FILTER</code>, <code>SECCOMP_RET_*</code>, <code>AUDIT_ARCH_X86_64</code>, and the<br />
+<code>sock_filter</code>/<code>sock_fprog</code>/<code>seccomp_data</code> layouts. Keep <code>std.os.linux</code><br />
+constants where Zig 0.16 provides them; define the rest locally (the<br />
+guardd-bpf.py precedent: drive the ABI directly).</p>
+<h2 id="5-algorithm-design">5. Algorithm / design</h2>
+<h3 id="51-per-worker-spawn-sequence">5.1 Per-worker spawn sequence</h3>
+<p><code>exec.zig: spawn(cfg)</code> runs, in order (mirrors design §native-exec mechanics<br />
+1→5 and <code>daemon.py: SandboxDaemon.spawn</code>):</p>
+<div class="highlight"><pre><span></span><span class="n">spawn</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span><span class="o">:</span>
+<span class="w">  </span><span class="mf">0.</span><span class="w"> </span><span class="n">policy</span><span class="w"> </span><span class="n">gate</span><span class="w">    </span><span class="err">—</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">cfg</span><span class="p">.</span><span class="n">process_policy</span><span class="p">.</span><span class="n">grant</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="nl">none:</span><span class="w"> </span><span class="n">write</span><span class="w"> </span><span class="n">deny</span><span class="w"> </span><span class="k">event</span><span class="p">,</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Denied</span>
+<span class="w">                      </span><span class="p">(</span><span class="n">reference</span><span class="w"> </span><span class="nl">phase:</span><span class="w"> </span><span class="n">allow</span><span class="o">-</span><span class="n">all</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">log</span><span class="w"> </span><span class="n">otherwise</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">design</span><span class="w"> </span><span class="err">§</span><span class="n">Security</span><span class="w"> </span><span class="n">model</span><span class="p">;</span>
+<span class="w">                       </span><span class="n">daemon</span><span class="p">.</span><span class="n">py</span><span class="w"> </span><span class="n">lines</span><span class="w"> </span><span class="mh">149</span><span class="err">–</span><span class="mf">170.</span><span class="w"> </span><span class="n">Authority</span><span class="w"> </span><span class="n">ultimately</span><span class="w"> </span><span class="n">belongs</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">preceptord</span><span class="p">,</span>
+<span class="w">                       </span><span class="n">RFC</span><span class="w"> </span><span class="mh">0001</span><span class="w"> </span><span class="err">§</span><span class="mh">5</span><span class="w"> </span><span class="s">&quot;Authority and policy: preceptord&quot;</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">authority</span><span class="w"> </span><span class="n">plane</span><span class="w"> </span><span class="n">that</span>
+<span class="w">                       </span><span class="n">checks</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">peer</span><span class="w"> </span><span class="n">may</span><span class="w"> </span><span class="n">access</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">process</span><span class="o">/</span><span class="n">filesystem</span><span class="w"> </span><span class="n">capability</span><span class="p">;</span><span class="w"> </span><span class="n">absent</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">the</span>
+<span class="w">                       </span><span class="n">reference</span><span class="w"> </span><span class="n">phase</span><span class="p">,</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">grant</span><span class="w"> </span><span class="n">check</span><span class="w"> </span><span class="n">is</span><span class="w"> </span><span class="n">stubbed</span><span class="o">-</span><span class="n">but</span><span class="o">-</span><span class="n">wired</span><span class="w"> </span><span class="n">here</span><span class="p">.)</span>
+<span class="w">  </span><span class="mf">1.</span><span class="w"> </span><span class="n">write</span><span class="o">-</span><span class="n">ahead</span><span class="w">    </span><span class="err">—</span><span class="w"> </span><span class="k">event</span><span class="p">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="n">fs_grant</span><span class="p">,</span><span class="w"> </span><span class="n">proc_grant</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="o">=</span><span class="s">&quot;allow&quot;</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">eventd</span>
+<span class="w">  </span><span class="mf">2.</span><span class="w"> </span><span class="n">cgroup</span><span class="w"> </span><span class="n">leaf</span><span class="w">    </span><span class="err">—</span><span class="w"> </span><span class="n">cgroup</span><span class="p">.</span><span class="n">create_leaf</span><span class="p">(</span><span class="n">agent_id</span><span class="p">);</span><span class="w"> </span><span class="n">cgroup</span><span class="p">.</span><span class="n">write_limits</span><span class="p">(</span><span class="n">cfg</span><span class="p">.</span><span class="n">limits</span><span class="p">)</span>
+<span class="w">                      </span><span class="p">(</span><span class="n">BEFORE</span><span class="w"> </span><span class="n">clone</span><span class="p">,</span><span class="w"> </span><span class="n">so</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="n">is</span><span class="w"> </span><span class="n">born</span><span class="w"> </span><span class="n">already</span><span class="w"> </span><span class="n">accounted</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">write</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">child</span>
+<span class="w">                       </span><span class="n">pid</span><span class="w"> </span><span class="n">into</span><span class="w"> </span><span class="n">cgroup</span><span class="p">.</span><span class="n">procs</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="n">clone</span><span class="p">,</span><span class="w"> </span><span class="n">before</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">execs</span><span class="p">)</span>
+<span class="w">  </span><span class="mf">3.</span><span class="w"> </span><span class="n">clone</span><span class="w"> </span><span class="n">child</span><span class="w">    </span><span class="err">—</span><span class="w"> </span><span class="n">clone</span><span class="p">(</span><span class="n">CLONE_NEWUSER</span><span class="o">|</span><span class="n">CLONE_NEWNS</span><span class="o">|</span><span class="n">CLONE_NEWPID</span><span class="o">|</span><span class="n">CLONE_NEWNET</span><span class="o">|</span><span class="n">SIGCHLD</span><span class="p">)</span>
+<span class="w">                      </span><span class="nl">parent:</span><span class="w"> </span><span class="n">record</span><span class="w"> </span><span class="n">host</span><span class="o">-</span><span class="n">view</span><span class="w"> </span><span class="n">pid</span><span class="p">;</span><span class="w"> </span><span class="nl">child:</span><span class="w"> </span><span class="k">continue</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="mh">4</span>
+<span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="p">(</span><span class="n">child</span><span class="p">)</span><span class="w"> </span><span class="n">userns</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">write</span><span class="w"> </span><span class="o">/</span><span class="n">proc</span><span class="o">/</span><span class="n">self</span><span class="o">/</span><span class="n">uid_map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cfg</span><span class="p">.</span><span class="n">uid_map</span><span class="p">,</span><span class="w"> </span><span class="n">gid_map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cfg</span><span class="p">.</span><span class="n">gid_map</span><span class="p">,</span>
+<span class="w">                      </span><span class="n">setgroups</span><span class="o">=</span><span class="n">deny</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="p">(</span><span class="n">kernel</span><span class="w"> </span><span class="n">requires</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">before</span><span class="w"> </span><span class="n">gid_map</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">unpriv</span><span class="p">)</span>
+<span class="w">  </span><span class="mf">5.</span><span class="w"> </span><span class="p">(</span><span class="n">child</span><span class="p">)</span><span class="w"> </span><span class="n">mountns</span><span class="err">—</span><span class="w"> </span><span class="n">mount</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="s">&quot;/&quot;</span><span class="p">,</span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="n">MS_REC</span><span class="o">|</span><span class="n">MS_PRIVATE</span><span class="p">);</span><span class="w"> </span><span class="n">assemble</span><span class="w"> </span><span class="n">overlay</span><span class="w"> </span><span class="n">rootfs</span>
+<span class="w">                      </span><span class="p">(</span><span class="n">mount</span><span class="p">.</span><span class="nl">zig:</span><span class="w"> </span><span class="n">overlay</span><span class="w"> </span><span class="n">lowerdir</span><span class="o">/</span><span class="n">upperdir</span><span class="o">/</span><span class="n">workdir</span><span class="p">),</span><span class="w"> </span><span class="n">bind</span><span class="w"> </span><span class="n">cfg</span><span class="p">.</span><span class="n">binds</span>
+<span class="w">                      </span><span class="p">(</span><span class="n">ro</span><span class="w"> </span><span class="n">binds</span><span class="w"> </span><span class="n">get</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">second</span><span class="w"> </span><span class="n">MS_REMOUNT</span><span class="o">|</span><span class="n">MS_RDONLY</span><span class="w"> </span><span class="n">pass</span><span class="p">),</span><span class="w"> </span><span class="n">then</span><span class="w"> </span><span class="n">pivot_root</span>
+<span class="w">                      </span><span class="n">into</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="n">rootfs</span><span class="p">;</span><span class="w"> </span><span class="n">unmount</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">old</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="p">(</span><span class="n">deny</span><span class="o">-</span><span class="n">by</span><span class="o">-</span><span class="k">default</span><span class="w"> </span><span class="n">fs</span><span class="w"> </span><span class="n">view</span><span class="p">)</span>
+<span class="w">  </span><span class="mf">6.</span><span class="w"> </span><span class="p">(</span><span class="n">child</span><span class="p">)</span><span class="w"> </span><span class="n">cgjoin</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">already</span><span class="w"> </span><span class="n">joined</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">parent</span><span class="w"> </span><span class="n">writing</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">cgroup</span><span class="p">.</span><span class="n">procs</span><span class="w"> </span><span class="p">(</span><span class="n">step</span><span class="w"> </span><span class="mh">2</span><span class="w"> </span><span class="n">note</span><span class="p">)</span>
+<span class="w">  </span><span class="mf">7.</span><span class="w"> </span><span class="p">(</span><span class="n">child</span><span class="p">)</span><span class="w"> </span><span class="n">seccomp</span><span class="err">—</span><span class="w"> </span><span class="n">prctl</span><span class="p">(</span><span class="n">PR_SET_NO_NEW_PRIVS</span><span class="p">,</span><span class="mh">1</span><span class="p">);</span><span class="w"> </span><span class="n">seccomp</span><span class="p">(</span><span class="n">SECCOMP_SET_MODE_FILTER</span><span class="p">,</span><span class="w"> </span><span class="n">filter</span><span class="p">)</span>
+<span class="w">                      </span><span class="p">(</span><span class="n">filter</span><span class="w"> </span><span class="n">built</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">seccomp</span><span class="p">.</span><span class="n">zig</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="mf">5.3</span><span class="p">).</span><span class="w"> </span><span class="n">MUST</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">after</span><span class="w"> </span><span class="n">no_new_privs</span><span class="p">,</span>
+<span class="w">                      </span><span class="n">BEFORE</span><span class="w"> </span><span class="n">drop</span><span class="o">-</span><span class="n">privs</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="n">execve</span><span class="p">.</span>
+<span class="w">  </span><span class="mf">8.</span><span class="w"> </span><span class="p">(</span><span class="n">child</span><span class="p">)</span><span class="w"> </span><span class="n">drop</span><span class="w">   </span><span class="err">—</span><span class="w"> </span><span class="n">setresgid</span><span class="o">/</span><span class="n">setresuid</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">unprivileged</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="p">(</span><span class="n">root</span><span class="w"> </span><span class="n">only</span><span class="w"> </span><span class="n">inside</span><span class="w"> </span><span class="n">userns</span><span class="p">)</span>
+<span class="w">  </span><span class="mf">9.</span><span class="w"> </span><span class="p">(</span><span class="n">child</span><span class="p">)</span><span class="w"> </span><span class="n">exec</span><span class="w">   </span><span class="err">—</span><span class="w"> </span><span class="n">execve</span><span class="p">(</span><span class="n">cfg</span><span class="p">.</span><span class="n">exec</span><span class="p">.</span><span class="n">path</span><span class="p">,</span><span class="w"> </span><span class="n">argv</span><span class="p">,</span><span class="w"> </span><span class="n">env</span><span class="p">)</span>
+<span class="w"> </span><span class="mf">10.</span><span class="w"> </span><span class="p">(</span><span class="n">parent</span><span class="p">)</span><span class="w"> </span><span class="n">reap</span><span class="w">  </span><span class="err">—</span><span class="w"> </span><span class="n">waitpid</span><span class="p">;</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">exit</span><span class="w"> </span><span class="n">write</span><span class="w"> </span><span class="k">event</span><span class="p">.</span><span class="n">exit</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">eventd</span>
+</pre></div>
+
+<p>Ordering invariants that make this implementation-ready:<br />
+<code>setgroups=deny</code> <strong>before</strong> <code>gid_map</code>; <code>PR_SET_NO_NEW_PRIVS</code> <strong>before</strong><br />
+<code>SECCOMP_SET_MODE_FILTER</code>; seccomp install <strong>after</strong> all privileged setup<br />
+(mounts, cgroup, uid_map) and <strong>before</strong> drop-privs+<code>execve</code> (so the filter<br />
+covers the workload but not sandboxd's own setup syscalls); cgroup limits written<br />
+<strong>before</strong> the child can fork (so <code>pids.max</code> is enforced from pid 1).</p>
+<h3 id="52-namespacezig-mountzig">5.2 namespace.zig / mount.zig</h3>
+<ul>
+<li><code>build_plan(cfg)</code> (pure, M1-testable) produces the same logical plan as<br />
+<code>namespace.py: build_namespace_plan</code>: the <code>CLONE_*</code> flag mask, the ordered<br />
+  bind-mount list, the overlay options string<br />
+<code>lowerdir=&lt;l&gt;,upperdir=&lt;u&gt;,workdir=&lt;w&gt;</code>, the uid/gid map lines. This is the<br />
+  unit under M1 byte/string assertions; it performs <strong>no</strong> syscalls.</li>
+<li><code>enter(plan)</code> (effectful, dev-cx53) issues the syscalls. Divergence from the<br />
+  reference: the reference uses overlay mounted at <code>/</code> then no pivot; the Zig<br />
+  impl mounts overlay into a staging dir and <code>pivot_root</code>s (design line 189<br />
+  "the Zig daemon will construct an overlay rootfs + pivot_root instead").</li>
+</ul>
+<h3 id="53-seccompzig-the-allowlist-filter">5.3 seccomp.zig — the allowlist filter</h3>
+<p>Classic-BPF program (the format <code>seccomp(SECCOMP_SET_MODE_FILTER)</code> consumes),<br />
+assembled as a <code>[]sock_filter</code> then wrapped in <code>sock_fprog</code>. Structure:</p>
+<div class="highlight"><pre><span></span><span class="c1"># 1. arch gate: load seccomp_data.arch; if != AUDIT_ARCH_X86_64 → RET_KILL_PROCESS</span>
+<span class="c1"># 2. load seccomp_data.nr (syscall number)</span>
+<span class="c1"># 3. for each nr in ALLOWLIST: jeq nr → RET_ALLOW</span>
+<span class="c1"># 4. fallthrough: RET_ERRNO(EPERM)   (default-deny; KILL_PROCESS is the harder variant)</span>
+</pre></div>
+
+<p>S2 ships <strong>one fixed <code>default</code> profile</strong> (a conservative allowlist sufficient for<br />
+a typical compute worker: <code>read write openat close fstat lseek mmap munmap
+mprotect brk rt_sigaction rt_sigprocmask rt_sigreturn ioctl(restricted)
+clock_gettime exit exit_group nanosleep futex getrandom pread64 pwrite64 …</code> —<br />
+the exact set is fixed in <code>seccomp.default.golden</code>). The default action is<br />
+<code>SECCOMP_RET_ERRNO | EPERM</code> (fail-closed but observable; <code>RET_KILL_PROCESS</code> is a<br />
+config toggle for the strict profile). Grant-driven profile selection<br />
+(<code>spawn_sandboxed</code> ⊂ <code>spawn</code> ⊂ <code>exec_host</code> ⇒ progressively wider allowlists) is<br />
+the <strong>S5 hook</strong>, not S2; S2 leaves the selection point stubbed-but-wired (the<br />
+<code>cfg.seccomp.profile</code> field is read and routed; only <code>"default"</code> resolves today).</p>
+<p>Assembly is <strong>pure</strong> — <code>assemble(profile) []sock_filter</code> does no syscalls and is<br />
+M1-tested by asserting the byte array equals <code>seccomp.default.golden</code> (the<br />
+guardd-<code>_insn</code> precedent: assert exact instruction bytes). <code>install(filter)</code> is<br />
+the effectful <code>prctl</code>+<code>seccomp</code> pair, dev-cx53 only.</p>
+<h3 id="54-cgroupzig">5.4 cgroup.zig</h3>
+<p>Pure helpers (<code>leaf_path(agent_id) = "vaked/&lt;agent-id&gt;"</code>,<br />
+<code>format_cpu_max(quota, period)</code>, <code>format_io_max(dev)</code>) plus effectful writers.<br />
+The pure formatters reproduce <code>cgroup.py</code>'s exact strings; the writers take a<br />
+<code>cgroup_root</code> parameter so M1 tests redirect to a temp dir (the <code>cgroup_root</code><br />
+mock discipline of <code>cgroup.py</code> §Mock path). Teardown <code>rmdir</code>s the leaf after the<br />
+last process exits (kernel refuses otherwise — cgroup.py <code>teardown_cgroup</code>).</p>
+<p>Oracle note: the parity boundary is <code>apply_cgroup_limits</code> (same input → same file<br />
+contents), <strong>not</strong> <code>daemon.py: SandboxDaemon.spawn</code>. <code>daemon.spawn</code> hardcodes<br />
+<code>cpu_quota_us=None</code> (writing <code>"max &lt;period&gt;"</code>) and defers the <code>cpu_weight</code>→<code>cpu.max</code><br />
+wiring as an impl detail; the §2.2 fixture supplies a concrete <code>cpu_quota_us</code>, so<br />
+<code>format_cpu_max</code> is tested against the formatter directly. A reader comparing to<br />
+<code>daemon.spawn</code>'s call site will see that omission — it is intentional, not a<br />
+discrepancy.</p>
+<h3 id="55-policyzig">5.5 policy.zig</h3>
+<p>Port of <code>decide_path</code>: deny-by-default prefix match (<code>commonpath</code>-equivalent via<br />
+normalised-path prefix check), write ⇒ only <code>allowed_write</code>, read ⇒<br />
+<code>allowed_read ∪ allowed_write</code>, <code>grant == none</code> ⇒ always deny. Pure; M1-tested<br />
+against the same table the reference uses (<code>__main__.py: cmd_demo</code> cases:<br />
+<code>/repo/out</code> write allow, <code>/repo</code> read allow, <code>/etc/passwd</code> read deny).</p>
+<h2 id="6-test-plan-m1-local-vs-dev-cx53linux">6. Test plan — M1-local vs dev-cx53/Linux</h2>
+<p>Toolchain verified on this host (2026-06-14): <code>zig 0.16.0</code>, <code>cargo 1.95.0</code>,<br />
+arch arm64. The split mirrors the WP3-S7 posture<br />
+(<a href="2026-06-14-wp3-s7.md"><code>2026-06-14-wp3-s7.md</code></a> §5) and the design's verification<br />
+posture (§Verification posture: "CI stays bytes/structure; runnability is a<br />
+devshell gate"): <strong>assembly and formatting are pure logic and M1-testable; only<br />
+kernel effects need dev-cx53.</strong></p>
+<h3 id="61-runs-fully-on-m1-aarch64-darwin-pure-logic-assembly">6.1 Runs fully on M1 (aarch64-darwin) — pure logic &amp; assembly</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Why M1 is sufficient</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Config parse (§2.2 fixture)</td>
+<td><code>zig build test</code> (<code>config_test.zig</code>)</td>
+<td>Pure JSON→struct; arch-independent</td>
+</tr>
+<tr>
+<td>Namespace flag/mount <strong>plan</strong> (§5.2)</td>
+<td><code>zig build test</code> (<code>namespace_plan_test.zig</code>)</td>
+<td>Pure; asserts flag mask + overlay-opts string vs <code>namespace.py</code></td>
+</tr>
+<tr>
+<td>cgroup limit-file <strong>content</strong> (§5.4)</td>
+<td><code>zig build test</code> (<code>cgroup_content_test.zig</code>)</td>
+<td>Writes to a temp <code>cgroup_root</code>; asserts file bytes vs <code>cgroup.py</code></td>
+</tr>
+<tr>
+<td><code>decide_path</code> table (§5.5)</td>
+<td><code>zig build test</code> (<code>policy_test.zig</code>)</td>
+<td>Pure verdict logic vs <code>policy.py</code></td>
+</tr>
+<tr>
+<td>seccomp filter <strong>byte assembly</strong> (§5.3)</td>
+<td><code>zig build test</code> (<code>seccomp_asm_test.zig</code>)</td>
+<td>Asserts <code>assemble("default")</code> == <code>seccomp.default.golden</code>; pure, no <code>seccomp()</code> call</td>
+</tr>
+<tr>
+<td>eventd payload field set (§2.1)</td>
+<td><code>zig build test</code> (<code>event_test.zig</code>)</td>
+<td>Payload struct vs <code>eventd.py</code> builders; no chaining</td>
+</tr>
+<tr>
+<td>Cross-compile to the build target</td>
+<td><code>zig build -Dtarget=x86_64-linux</code> (compile-only)</td>
+<td>Compiles on M1; the ns/cgroup/seccomp <strong>syscalls do not run here</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The Python oracle is runnable on M1 as a cross-check for the pure modules:<br />
+<code>python3 -m agent_sandboxd demo</code> (dry-run; cgroup mock path) exercises<br />
+policy/namespace-plan/cgroup-content/eventd and must agree with the Zig units.</p>
+<h3 id="62-requires-dev-cx53-linux-x86_64-kernel-effects">6.2 Requires dev-cx53 (Linux x86_64) — kernel effects</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Why it cannot gate on M1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Real namespace entry: child sees itself as <strong>pid 1</strong>, host mounts <strong>absent</strong></td>
+<td><code>CLONE_NEW*</code> + <code>pivot_root</code> are Linux-only; macOS has no equivalent</td>
+</tr>
+<tr>
+<td><strong>cgroup bound enforced</strong>: over-<code>memory.max</code> child OOM-killed; <code>pids.max</code> breach → <code>clone</code> EAGAIN</td>
+<td>Requires the delegated cgroup-v2 subtree + kernel OOM/clone-refusal</td>
+</tr>
+<tr>
+<td><strong>seccomp behaviour</strong>: a syscall outside the allowlist → ERRNO(EPERM)/KILL</td>
+<td><code>prctl</code>+<code>seccomp(SECCOMP_SET_MODE_FILTER)</code> are Linux-only</td>
+</tr>
+<tr>
+<td><strong>overlay is the rootfs</strong>; writes land on <code>upperdir</code>; <strong>declared mounts only</strong> (undeclared host path absent)</td>
+<td>overlayfs + bind-mount semantics are kernel-only</td>
+</tr>
+<tr>
+<td>eventd end-to-end chaining for spawn/kill/exit under a real run</td>
+<td>Exercises the runtime eventd daemon; integration host is Linux</td>
+</tr>
+</tbody>
+</table>
+<p>This is the future <code>task sandbox-smoke</code> gate the design names (§Verification<br />
+posture): exec a trivial command in a native-exec sandbox and assert the four<br />
+boundary properties (separate pid+mount ns, cgroup bound, overlay rootfs,<br />
+declared-mounts-only) <strong>plus</strong> the seccomp KILL/ERRNO that S2 adds.</p>
+<h3 id="63-ci-wiring">6.3 CI wiring</h3>
+<p>M1-local <code>zig build test</code> runs in the dev shell pre-PR (CI has no privileged<br />
+sandbox — design §Verification posture). The dev-cx53 leg runs in the WP4 CI<br />
+lane via <code>nix develop</code> on the build host. Every new test file cites the design §<br />
+or oracle function it enforces (the WP3-S7 adversarial-independence convention,<br />
+<a href="2026-06-14-wp3-s7.md"><code>2026-06-14-wp3-s7.md</code></a> criterion 8).</p>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>What S2 needs</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP4-S1</strong> (sandboxd build shell + CLI skeleton)</td>
+<td>CLI flag parse, no-op runner shell, <code>gen/zig/&lt;fiber&gt;.json</code> parse stub to extend</td>
+<td>Prereq; today only the <code>main.zig</code> stub exists — S1 deliverables are a hard prerequisite</td>
+</tr>
+<tr>
+<td><strong>Design Plan step 0</strong> (config projection, grammar-first, <strong>gated</strong>)</td>
+<td>concrete mount/ns plan + OS-resource-limit fields in <code>gen/zig/&lt;fiber&gt;.json</code>, <code>engine_package</code>→binary+argv resolution, NixOS-module routing of an agent-workload fiber's config to sandboxd</td>
+<td><strong>BLOCKER for the config-driven path.</strong> S2 lands boundary mechanics against the §2.2 fixture; the lowered-config source is blocked until step 0 (design §Config contract, §Open)</td>
+</tr>
+<tr>
+<td><strong>eventd</strong> (Python ref / Zig port WP4-S4)</td>
+<td>the append-only hash-chained audit log (<a href="../../../protocol/rfcs/0001-hcp.md">RFC 0001 §5</a> "Event log and tamper-evidence: <code>eventd</code>"); S2 write-aheads payloads before effect (RFC 0004 §3.1 write-ahead discipline), eventd owns canonical hashing</td>
+<td>Python ref exists (<a href="../../../agent_sandboxd/eventd.py"><code>agent_sandboxd/eventd.py</code></a>); Zig port is WP4-S4</td>
+</tr>
+<tr>
+<td><strong>agent-guardd</strong> (eBPF cgroup hooks)</td>
+<td>the <code>vaked/&lt;agent-id&gt;</code> cgroup subtree S2 creates is where guardd's egress program attaches; netns programming is guardd's</td>
+<td>Reference exists (<a href="../../../agent_guardd/bpf.py"><code>agent_guardd/bpf.py</code></a>); ownership boundary is design §Open</td>
+</tr>
+<tr>
+<td><strong>vakedos host config</strong></td>
+<td><code>unprivileged_userns_clone=1</code>, cgroup-v2 mounted, <code>vaked</code> subtree delegated</td>
+<td>Present (kickoff line 66; namespace.py/cgroup.py privilege notes)</td>
+</tr>
+<tr>
+<td><strong>WP4-S5</strong> (capability enforcement hooks)</td>
+<td>grant→seccomp-profile and grant→mount/ns lowering</td>
+<td>Downstream; S2 ships a fixed <code>default</code> profile + stubbed-but-wired selection point</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>S2 is done when <strong>all</strong> hold:</p>
+<ol>
+<li><strong>Pure-logic parity (M1-local).</strong> <code>config.zig</code>, <code>namespace.zig</code> (plan),<br />
+<code>cgroup.zig</code> (formatters + content), <code>policy.zig</code>, <code>event.zig</code> produce<br />
+   outputs identical to their Python oracles (§2.1) for the §2.2 fixture and the<br />
+<code>agent_sandboxd demo</code> cases. <code>zig build test</code> is green on aarch64-darwin.</li>
+<li><strong>seccomp filter assembly (M1-local).</strong> <code>seccomp.zig: assemble("default")</code><br />
+   equals <code>testdata/seccomp.default.golden</code> byte-for-byte; the filter encodes<br />
+   arch-gate (<code>AUDIT_ARCH_X86_64</code> mismatch → KILL), the fixed allowlist<br />
+   (each → <code>RET_ALLOW</code>), and default <code>RET_ERRNO(EPERM)</code> (§5.3).</li>
+<li><strong>Cross-compile (M1-local).</strong> <code>zig build -Dtarget=x86_64-linux</code> compiles the<br />
+   full daemon (no syscall executed on M1).</li>
+<li><strong>Boundary holds (dev-cx53).</strong> <code>task sandbox-smoke</code> asserts: child is pid 1 in<br />
+   its pid ns and host mounts are absent; over-<code>memory.max</code> child is OOM-killed<br />
+   and a <code>pids.max</code> breach refuses <code>clone</code>; the overlay is the rootfs and writes<br />
+   land on <code>upperdir</code>; an undeclared host path is absent; <strong>a syscall outside the<br />
+   allowlist is ERRNO'd/killed</strong> (the S2-specific addition).</li>
+<li><strong>Audit (dev-cx53).</strong> A real spawn writes write-ahead <code>sandbox_spawn</code><br />
+   (action <code>allow</code>/<code>deny</code>), and exit writes a <code>sandbox_exit</code>/<code>sandbox_kill</code><br />
+   payload to eventd; <code>grant == none</code> is refused and logged <code>action="deny"</code><br />
+   (daemon.py parity). No canonical hashing in sandboxd (eventd owns bytes).</li>
+<li><strong>Ordering invariants (dev-cx53, asserted by the smoke harness where<br />
+   observable).</strong> <code>setgroups=deny</code> precedes <code>gid_map</code>; <code>no_new_privs</code> precedes<br />
+   the seccomp filter; the filter is installed after privileged setup and before<br />
+   drop-privs+<code>execve</code>; cgroup limits are written before the child can fork.</li>
+<li><strong>Config-driven path remains correctly gated.</strong> S2 ships against the §2.2<br />
+   fixture and <strong>does not</strong> claim end-to-end shippability from a lowered<br />
+<code>gen/zig/&lt;fiber&gt;.json</code> — the spec, code comments, and PR description name<br />
+   design step 0 as the blocker (criterion exists to prevent over-claiming).</li>
+<li><strong>Convention.</strong> Every test file cites the design § or oracle function it<br />
+   enforces; no third-party Zig dependency is added (<code>build.zig.zon</code><br />
+<code>dependencies</code> stays empty — pure syscalls, the guardd-bpf precedent).</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp4-s2.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP3-S2 — Litany frame layer (RFC 0003 §4) + round-trip suite (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#scope-decision-load-bearing-read-first" style="padding-left:0.5rem">Scope decision (load-bearing — read first)</a><a href="#in-this-sprint" style="padding-left:1rem">  IN (this sprint)</a><a href="#out-deferred-later-sprints-with-reason" style="padding-left:1rem">  OUT (deferred — later sprints, with reason)</a><a href="#objective" style="padding-left:0.5rem">Objective</a><a href="#inputs-oracles" style="padding-left:0.5rem">Inputs / oracles</a><a href="#frame-header-byte-layout-normative-for-this-crate-resolves-rfc-0003-gaps" style="padding-left:0.5rem">Frame-header byte layout (normative for this crate — resolves RFC 0003 gaps)</a><a href="#errata-r1-kind-is-fully-tagged-00-varintkind" style="padding-left:1rem">  Errata R1 — `kind` is fully tagged (`00 ++ varint(kind)`)</a><a href="#errata-r2-kind-and-corr-are-exempt-from-default-omission" style="padding-left:1rem">  Errata R2 — `kind` and `corr` are exempt from default-omission</a><a href="#errata-r3-headerbody-boundary-seq-requires-stream-end-requires-stream" style="padding-left:1rem">  Errata R3 — header/body boundary; `seq` requires `stream`; `end` requires `stream`</a><a href="#worked-header-golden-vectors-byte-exact-normative-for-s2" style="padding-left:1rem">  Worked header golden vectors (byte-exact, normative for S2)</a><a href="#file-layout-paths-to-create" style="padding-left:0.5rem">File layout (paths to create)</a><a href="#algorithm-design" style="padding-left:0.5rem">Algorithm / design</a><a href="#in-memory-model-framers" style="padding-left:1rem">  In-memory model (`frame.rs`)</a><a href="#header-codec-headerrs" style="padding-left:1rem">  Header codec (`header.rs`)</a><a href="#record-codec-recordrs" style="padding-left:1rem">  Record codec (`record.rs`)</a><a href="#error-model-librs" style="padding-left:1rem">  Error model (`lib.rs`)</a><a href="#test-plan" style="padding-left:0.5rem">Test plan</a><a href="#local-m1-cargo-test-the-entire-deliverable" style="padding-left:1rem">  Local (M1, `cargo test`) — the entire deliverable</a><a href="#requires-dev-cx53-linux-none-of-the-deliverable-only-the-perf-gate" style="padding-left:1rem">  Requires `dev-cx53` / Linux — NONE of the deliverable; only the perf *gate*</a><a href="#dependencies-on-other-sprints" style="padding-left:0.5rem">Dependencies on other sprints</a><a href="#acceptance-criteria" style="padding-left:0.5rem">Acceptance criteria</a><a href="#risks-open-items" style="padding-left:0.5rem">Risks / open items</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp3-s2</div>
+<h1>WP3-S2 — Litany frame layer (RFC 0003 §4) + round-trip suite (design)</h1>
+<h1 id="wp3-s2-litany-frame-layer-rfc-0003-4-round-trip-suite-design">WP3-S2 — Litany frame layer (RFC 0003 §4) + round-trip suite (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-14). WP3 sprint S2 (Jul 9–Jul 23) of the HCP wire epic<br />
+(<code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code>). Depends on WP3-S1<br />
+(<code>protocol/hcp/hcpbin</code>, codec types already landed). Creates the new<br />
+<code>protocol/hcp/litany/</code> Rust crate. Convention here: design → plan → impl; this<br />
+is the design.</p>
+<p>This sprint delivers the <strong>synchronous frame codec</strong>: the canonical<br />
+delimitation of Votive Frames on a byte-stream (RFC 0003 §4) and the frame<br />
+header encode/decode (RFC 0003 §4.4 / §4.4.1), plus a round-trip + golden +<br />
+violation test suite. It is <strong>pure <code>bytes → (header, opaque body) → bytes</code></strong> with<br />
+<strong>no I/O and no connection state machine</strong>, so the whole deliverable is<br />
+<code>cargo test</code>-verifiable on the M1 dev machine.</p>
+<h2 id="scope-decision-load-bearing-read-first">Scope decision (load-bearing — read first)</h2>
+<p>RFC 0003 (<code>protocol/rfcs/0003-litany-wire.md</code>) is the entire wire stack:<br />
+transport contract (§3), frame delimitation (§4), handshake/negotiation (§5),<br />
+chapter/stream lifecycle (§6), liveness (§7), flow control (§8), errors (§9),<br />
+evidence (§10), conformance (§11), transport bindings (§12). That is many<br />
+sprints of work and most of it requires async I/O, a connection state machine,<br />
+and (for vsock/namespaces) Linux. A 2-week sprint whose stated dependency is<br />
+"WP3-S1 codec types" and whose stated deliverable is a "round-trip suite" can<br />
+only own the part that is a <strong>pure function over bytes</strong>.</p>
+<p><strong>Discriminator:</strong> anything that is <code>bytes ↔ frame-record</code> with no socket and no<br />
+state is IN; anything that needs a socket, a timer, or a multi-frame state<br />
+machine is OUT.</p>
+<h3 id="in-this-sprint">IN (this sprint)</h3>
+<ul>
+<li><strong>§4.1 frame record</strong> — <code>length := varint(byte-len of frame-bytes)</code> followed by<br />
+<code>frame-bytes := header-bytes ++ body-bytes</code>; back-to-back, no padding (§4.1).</li>
+<li><strong>§4.2 length prefix</strong> — unsigned LEB128 varint, reusing hcpbin's varint<br />
+  verbatim; strict overlong/non-minimal rejection; the <code>max_frame</code>-width overlong<br />
+  bound (§4.2, §4.3).</li>
+<li><strong>§4.3 max-frame guard</strong> — <code>length &gt; max_frame</code> is a framing violation rejected<br />
+<em>without reading the body</em>; <code>length == 0</code> is illegal (§4.1, §4.3).</li>
+<li><strong>§4.4 / §4.4.1 frame header</strong> — encode/decode of <code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<br />
+<code>end</code> (the reserved <code>@0..@4</code> space, RFC 0002 §4.2), byte-exact per the resolved<br />
+  layout in §"Frame-header byte layout" below.</li>
+<li><strong>§4.4.1 decoder invariant</strong> — header/body boundary, optional-field omission,<br />
+  out-of-order / duplicate-tag / out-of-range rejection.</li>
+<li><strong>Frame-stream codec</strong> — encode a <code>Vec&lt;Frame&gt;</code> to one byte string and decode a<br />
+  byte string to <code>Vec&lt;Frame&gt;</code> (the canonical-framing fixed point of §4, §10).</li>
+<li><strong>§4.5 violation taxonomy</strong> — every framing violation classified and surfaced<br />
+  as a typed <code>FrameError</code>; <strong>no mid-stream resync</strong> (§4.5).</li>
+<li><strong>Round-trip + golden + violation test suite</strong> (the named deliverable).</li>
+</ul>
+<h3 id="out-deferred-later-sprints-with-reason">OUT (deferred — later sprints, with reason)</h3>
+<table>
+<thead>
+<tr>
+<th>Deferred</th>
+<th>Reason</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Handshake / version / schema-digest negotiation (§5)</td>
+<td>live exchange + <code>hcp.wire</code> digest is <strong>TBD</strong> (RFC 0003 Open question 1)</td>
+<td>WP3-S2.5 / S3</td>
+</tr>
+<tr>
+<td>Chapter &amp; stream lifecycle, multiplexing runtime (§6)</td>
+<td>connection state machine</td>
+<td>WP3-S3 (RFC 0004 routing)</td>
+</tr>
+<tr>
+<td>Liveness timers (§7), flow-control runtime / credit (§8)</td>
+<td>async + timers</td>
+<td>WP3-S4 (RFC 0005 control)</td>
+</tr>
+<tr>
+<td>Transport-fault vs orderly close at the <em>connection</em> level (§9.1/§9.1a)</td>
+<td>needs a live connection; S2 produces the typed <em>framing-violation</em> values only</td>
+<td>WP3-S3+</td>
+</tr>
+<tr>
+<td><code>eventd</code> admission / hash chain (§10)</td>
+<td>integration</td>
+<td>WP3-S5</td>
+</tr>
+<tr>
+<td>Transport bindings stdio / unix / vsock (§12)</td>
+<td>I/O + Linux (vsock)</td>
+<td>WP3-S6+</td>
+</tr>
+<tr>
+<td><code>hcp.wire</code> control-frame <em>bodies</em> (Appendix A schema)</td>
+<td>digest TBD; needs RFC 0002 §6.2/§6.3 record codec</td>
+<td>WP3-S2.5</td>
+</tr>
+<tr>
+<td>≤10µs/frame perf gate (kickoff success criterion)</td>
+<td>threshold is <code>dev-cx53</code> hardware</td>
+<td>WP3-S6</td>
+</tr>
+</tbody>
+</table>
+<p>The frame <em>header</em> codec is in scope; frame <em>body</em> parsing is <strong>not</strong> — the wire<br />
+treats the body as an opaque self-delimiting <code>hcpbin</code> blob (RFC 0003 §4.1, §4.4:<br />
+"the wire treats <code>frame-bytes</code> as opaque except for parsing the header it itself<br />
+wrote"). S2 carries the body bytes verbatim and never decodes them.</p>
+<h2 id="objective">Objective</h2>
+<p>A <code>litany</code> crate exposing a synchronous, allocation-conscious frame codec such<br />
+that:</p>
+<ol>
+<li><code>decode_frame(&amp;[u8], max_frame) -&gt; Result&lt;(Frame, consumed), FrameError&gt;</code> reads<br />
+   exactly one frame record (§4.1) and reports how many octets it consumed.</li>
+<li><code>encode_frame(&amp;Frame) -&gt; Vec&lt;u8&gt;</code> produces byte-identical output to the<br />
+   delimitation of §4.1/§4.2 (canonical framing — §4, §10).</li>
+<li>The pair is a <strong>fixed point</strong>: <code>encode(decode(bytes)) == bytes</code> for every<br />
+   canonical input, and <code>decode(encode(frame)) == frame</code> for every frame (the<br />
+   §6.8 / §7.2 conformance shape, applied to the framing layer).</li>
+<li>Every framing violation in the §4.5 set is rejected with a typed error and<br />
+<em>no</em> attempt at resynchronization.</li>
+</ol>
+<h2 id="inputs-oracles">Inputs / oracles</h2>
+<p><strong>Primary normative oracles (cite in tests):</strong></p>
+<ul>
+<li><strong>RFC 0003 §4.1–§4.6</strong> (<code>protocol/rfcs/0003-litany-wire.md</code>) — frame record,<br />
+  length prefix, max-frame guard, header position, violation set, worked example.</li>
+<li><strong>RFC 0003 §4.4.1</strong> — the frame-header field table, canonical-encoding list,<br />
+  and decoder invariant. <strong>This is the byte-exact oracle for the header</strong>, with<br />
+  the three resolutions below.</li>
+<li><strong>RFC 0002 §4.2</strong> (<code>protocol/rfcs/0002-hcplang.md</code>) — the reserved header<br />
+  fields (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) and the <code>@0</code> reservation; the<br />
+  statement that the header is "supplied and validated by the Litany Wire layer."</li>
+<li><strong>RFC 0002 §6.1, §6.2, §6.3, §6.8</strong> — varint/minimal-decode, ascending-tag /<br />
+  default-omission rules the header obeys, canonicality requirement.</li>
+<li><strong>WP3-S1 codec</strong> (<code>protocol/hcp/hcpbin/src/lib.rs</code>) — the <code>Reader</code>/<code>Writer</code><br />
+  primitives and free functions S2 builds on (see §Dependencies).</li>
+</ul>
+<p><strong>Worked-example oracles to reproduce as golden vectors:</strong></p>
+<ul>
+<li>RFC 0003 §4.6 — single-shot <code>ToolCallRequest</code> frame record (<code>&lt;len&gt; &lt;header&gt;
+  01 07 "fs.read" 02 03 6b 65 79</code>).</li>
+<li>RFC 0003 §4.4.1 single-shot and multi-frame header examples.</li>
+<li>RFC 0002 §10 — the <code>ToolCallRequest{ tool="fs.read", args=0x6b6579 }</code> body<br />
+  bytes (<code>01 07 66 73 2e 72 65 61 64  02 03 6b 65 79</code>), reused as the opaque body.</li>
+</ul>
+<p><strong>Non-oracles / blocked (do NOT fabricate):</strong></p>
+<ul>
+<li>The <code>hcp.wire</code> <strong>schema digest</strong> is <code>[TBD: computed after RFC exits Draft]</code><br />
+  (RFC 0003 Appendix A "Schema digest pinning"; Open question 1). Any<br />
+  handshake/digest conformance is deferred. RFC 0003 <strong>does</strong> have an Appendix A<br />
+  (the <code>hcp.wire</code> schema) — but its digest value and the §11 conformance vectors<br />
+  are explicitly unfinished, so they are not oracles for S2.</li>
+<li>The kickoff plan's "RFC 0002 Appendix A" and "dev-cx53 only" wording is stale:<br />
+  RFC 0002 has <strong>no</strong> Appendix A (golden vectors live in §6.1.1, §6.3.1, §6.6.1,<br />
+  §6.7.1, §10), and the byte encoding is RFC 0002 §6, not §4. The frame header is<br />
+  the <strong>wire</strong> layer (RFC 0003), not hcpbin (RFC 0002 §4.2 / §6 scope note;<br />
+  echoed in <code>hcpbin/src/lib.rs</code> lines 22–23, 497–498). This spec follows the RFCs,<br />
+  not the stale kickoff text.</li>
+</ul>
+<h2 id="frame-header-byte-layout-normative-for-this-crate-resolves-rfc-0003-gaps">Frame-header byte layout (normative for this crate — resolves RFC 0003 gaps)</h2>
+<p>RFC 0003 §4.4.1 is internally inconsistent in three places. The spec resolves<br />
+each by ranking <strong>normative prose + RFC 0002 §6.2</strong> above example annotations,<br />
+and pins the result with a byte-exact golden vector. These are flagged as RFC<br />
+0003 errata to fold back when the RFC leaves Draft.</p>
+<p>The header is a record encoded under hcpbin canonicality (RFC 0002 §6.2):<br />
+<strong><code>field := varint(tag) value-bytes</code>, fields in strictly ascending tag order.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Name</th>
+<th>Type</th>
+<th>Wire form</th>
+<th>Present when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>@0</td>
+<td><code>kind</code></td>
+<td>enum u8 (0–4)</td>
+<td><code>varint(0)</code> <code>varint(kind)</code></td>
+<td><strong>always</strong> (errata R2)</td>
+</tr>
+<tr>
+<td>@1</td>
+<td><code>corr</code></td>
+<td>uuid</td>
+<td><code>varint(1)</code> + <strong>16 raw bytes</strong> (big-endian, NOT length-prefixed)</td>
+<td><strong>always</strong></td>
+</tr>
+<tr>
+<td>@2</td>
+<td><code>stream</code></td>
+<td>u64?</td>
+<td><code>varint(2)</code> <code>varint(stream)</code></td>
+<td>only if stream present</td>
+</tr>
+<tr>
+<td>@3</td>
+<td><code>seq</code></td>
+<td>u64?</td>
+<td><code>varint(3)</code> <code>varint(seq)</code></td>
+<td>only if stream present (R3)</td>
+</tr>
+<tr>
+<td>@4</td>
+<td><code>end</code></td>
+<td>bool</td>
+<td><code>varint(4)</code> <code>0x01</code></td>
+<td>only if <code>end == true</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="errata-r1-kind-is-fully-tagged-00-varintkind">Errata R1 — <code>kind</code> is fully tagged (<code>00 ++ varint(kind)</code>)</h3>
+<p>§4.4.1's own annotated examples show <code>kind</code> <em>bare</em> (<code>00</code> = kind 0; <code>02</code> = kind 2,<br />
+no tag byte), but §4.4 prose says the header is "encoded with the same <code>hcpbin</code><br />
+rules as the body," and RFC 0002 §6.2 fixes <code>field := varint(tag) value-bytes</code>.<br />
+The §5.8 handshake transcript agrees: it shows <code>01 01</code> for "tag @0: kind=1" (two<br />
+bytes: tag <code>0x00</code>? — see note). <strong>Resolution:</strong> every header field is fully<br />
+tagged. <code>kind</code> is <code>0x00</code> (tag @0) followed by <code>varint(kind)</code>. The bare-byte<br />
+annotations in §4.4.1 are a documentation shorthand, not the wire form.</p>
+<p>Note on §5.8: that transcript writes <code>01 01</code> and labels it "tag @0: kind=1"; the<br />
+leading <code>01</code> there is mislabeled (tag @0 is byte <code>0x00</code>). The correct encoding of<br />
+<code>kind=1</code> is <code>00 01</code> (tag @0, value 1). This spec uses <code>00 ++ varint(kind)</code>. (R1<br />
+erratum covers both the bare-byte and the §5.8 mislabel.)</p>
+<h3 id="errata-r2-kind-and-corr-are-exempt-from-default-omission">Errata R2 — <code>kind</code> and <code>corr</code> are exempt from default-omission</h3>
+<p>RFC 0002 §6.3 would <em>omit</em> an enum field whose value equals case 0, and would<br />
+omit any field at its default. The frame <strong>class must always be explicit</strong> on the<br />
+wire (the wire routes by it, §6.3 of RFC 0003), and §4.4.1's "Canonical<br />
+encoding" list emits <code>kind</code> unconditionally and <code>corr</code> unconditionally.<br />
+<strong>Resolution:</strong> <code>kind</code> (@0) and <code>corr</code> (@1) are <strong>always emitted</strong>, overriding<br />
+the generic §6.3 default-omission for these two header fields. <code>stream</code>/<code>seq</code>/<br />
+<code>end</code> <em>do</em> obey omission (absent / false ⇒ omitted), per §4.4.1 "Optional fields<br />
+are omitted." (<code>corr</code> is a <code>uuid</code>, which RFC 0002 §6.3 already lists as<br />
+"no implicit default, always emit," so its always-emit is consistent; the<br />
+exception is only really needed for <code>kind</code>.)</p>
+<h3 id="errata-r3-headerbody-boundary-seq-requires-stream-end-requires-stream">Errata R3 — header/body boundary; <code>seq</code> requires <code>stream</code>; <code>end</code> requires <code>stream</code></h3>
+<p>§4.4.1 step 6 says "any tag &gt; @4 begins the frame body," but §4.6 and RFC 0002<br />
+§6.2 restart <strong>body</strong> tags at @1. A monotonic single tag space across header and<br />
+body is impossible (body @1 &lt; header @4). <strong>Resolution:</strong></p>
+<ul>
+<li>The <strong>header</strong> is the leading run of fields with tags in <code>{@0, @1, @2, @3, @4}</code><br />
+  in ascending order; the <strong>body</strong> is the remainder, an opaque <code>hcpbin</code> blob whose<br />
+  own tags restart at @1 (RFC 0002 §6.2, §4.6). The decoder stops reading header<br />
+  fields after it has consumed the <code>@0..@4</code> prefix; everything after is body bytes<br />
+  it does not parse.</li>
+<li>The decoder distinguishes "header @1 (<code>corr</code>)" from "body @1" by <strong>position</strong>:<br />
+<code>corr</code> is the first field after <code>kind</code> and is mandatory, so exactly one @1 is a<br />
+  header field (the one immediately after @0). After the optional <code>@2/@3/@4</code><br />
+  prefix, the next field (whatever its tag, including a second @1) is body.</li>
+<li><code>seq</code> (@3) MUST NOT appear unless <code>stream</code> (@2) is present (a per-stream<br />
+  sequence number with no stream is meaningless). <code>end</code> (@4) MUST NOT appear<br />
+  unless <code>stream</code> (@2) is present (§4.4.1 step 5 normative rule: "@4 is INVALID if<br />
+  @2 is absent"). Violations ⇒ <code>FrameError::HeaderViolation</code>.</li>
+<li>Out-of-order header tags (e.g. @4 before @2) or duplicate header tags are<br />
+  framing violations (§4.4.1 step 5, RFC 0002 §6.2 rule 1).</li>
+</ul>
+<h3 id="worked-header-golden-vectors-byte-exact-normative-for-s2">Worked header golden vectors (byte-exact, normative for S2)</h3>
+<p>Let <code>CORR = 11 22 33 44 55 66 77 88 99 aa bb cc dd ee ff 00</code> (16 bytes).</p>
+<p><strong>G-H1 — single-shot request</strong> (kind=0, corr, no stream/seq/end):</p>
+<div class="highlight"><pre><span></span><span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w">                                  </span><span class="err">#</span><span class="w"> </span><span class="mi">@0</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">varint</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="mo">01</span><span class="w"> </span><span class="mi">11</span><span class="w"> </span><span class="mi">22</span><span class="w"> </span><span class="mi">33</span><span class="w"> </span><span class="mi">44</span><span class="w"> </span><span class="mi">55</span><span class="w"> </span><span class="mi">66</span><span class="w"> </span><span class="mi">77</span><span class="w"> </span><span class="mi">88</span><span class="w"> </span><span class="mi">99</span><span class="w"> </span><span class="n">aa</span><span class="w"> </span><span class="n">bb</span><span class="w"> </span><span class="n">cc</span><span class="w"> </span><span class="n">dd</span><span class="w"> </span><span class="n">ee</span><span class="w"> </span><span class="n">ff</span><span class="w"> </span><span class="mo">00</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="mi">@1</span><span class="w"> </span><span class="n">corr</span><span class="w"> </span><span class="p">(</span><span class="mi">16</span><span class="w"> </span><span class="n">raw</span><span class="w"> </span><span class="n">bytes</span><span class="p">)</span>
+</pre></div>
+
+<p><code>header-bytes</code> length = 2 + 17 = 19 octets.</p>
+<p><strong>G-H2 — multi-frame event, final chunk</strong> (kind=2 event, stream=5, seq=9, end):</p>
+<div class="highlight"><pre><span></span><span class="mo">00</span><span class="w"> </span><span class="mo">02</span><span class="w">                                  </span><span class="err">#</span><span class="w"> </span><span class="mi">@0</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">varint</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="mo">01</span><span class="w"> </span><span class="o">&lt;</span><span class="n">CORR</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="n">bytes</span><span class="o">&gt;</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="mi">@1</span><span class="w"> </span><span class="n">corr</span>
+<span class="mo">02</span><span class="w"> </span><span class="mo">05</span><span class="w">                                  </span><span class="err">#</span><span class="w"> </span><span class="mi">@2</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">varint</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="mo">03</span><span class="w"> </span><span class="mi">09</span><span class="w">                                  </span><span class="err">#</span><span class="w"> </span><span class="mi">@3</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">varint</span><span class="p">(</span><span class="mi">9</span><span class="p">)</span>
+<span class="mo">04</span><span class="w"> </span><span class="mo">01</span><span class="w">                                  </span><span class="err">#</span><span class="w"> </span><span class="mi">@4</span><span class="w"> </span><span class="n">end</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="w"> </span><span class="p">(</span><span class="mh">0x01</span><span class="p">)</span>
+</pre></div>
+
+<p><strong>G-F1 — full frame record</strong> (G-H1 header + RFC 0002 §10 body), reproducing<br />
+RFC 0003 §4.6:</p>
+<div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="n">len</span><span class="o">&gt;</span><span class="w">                                  </span><span class="err">#</span><span class="w"> </span><span class="n">varint</span><span class="p">(</span><span class="mi">19</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">13</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">varint</span><span class="p">(</span><span class="mi">32</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0x20</span>
+<span class="mo">00</span><span class="w"> </span><span class="mo">00</span><span class="w">                                  </span><span class="err">#</span><span class="w"> </span><span class="n">header</span><span class="o">:</span><span class="w"> </span><span class="mi">@0</span><span class="w"> </span><span class="n">kind</span><span class="o">=</span><span class="mi">0</span>
+<span class="mo">01</span><span class="w"> </span><span class="o">&lt;</span><span class="n">CORR</span><span class="w"> </span><span class="mi">16</span><span class="w"> </span><span class="n">bytes</span><span class="o">&gt;</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="n">header</span><span class="o">:</span><span class="w"> </span><span class="mi">@1</span><span class="w"> </span><span class="n">corr</span>
+<span class="mo">01</span><span class="w"> </span><span class="mo">07</span><span class="w"> </span><span class="mi">66</span><span class="w"> </span><span class="mi">73</span><span class="w"> </span><span class="mi">2</span><span class="n">e</span><span class="w"> </span><span class="mi">72</span><span class="w"> </span><span class="mi">65</span><span class="w"> </span><span class="mi">61</span><span class="w"> </span><span class="mi">64</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="n">body</span><span class="o">:</span><span class="w"> </span><span class="mi">@1</span><span class="w"> </span><span class="n">string</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="s">&quot;fs.read&quot;</span>
+<span class="mo">02</span><span class="w"> </span><span class="mo">03</span><span class="w"> </span><span class="mi">6</span><span class="n">b</span><span class="w"> </span><span class="mi">65</span><span class="w"> </span><span class="mi">79</span><span class="w">                         </span><span class="err">#</span><span class="w"> </span><span class="n">body</span><span class="o">:</span><span class="w"> </span><span class="mi">@2</span><span class="w"> </span><span class="n">bytes</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="mh">0x6b</span><span class="w"> </span><span class="mh">0x65</span><span class="w"> </span><span class="mh">0x79</span>
+</pre></div>
+
+<p><code>frame-bytes</code> = 19 (header) + 13 (body) = 32 octets ⇒ <code>length = 0x20</code>.<br />
+Total record = 1 + 32 = 33 octets. (Body bytes are the RFC 0002 §10 vector,<br />
+carried opaque.)</p>
+<p>These three vectors are committed as the canonical fixtures; the test suite<br />
+encodes to them and decodes from them.</p>
+<h2 id="file-layout-paths-to-create">File layout (paths to create)</h2>
+<p>All under <code>protocol/hcp/litany/</code> (the kickoff plan's named home for the frame<br />
+layer; README at <code>protocol/hcp/README.md</code> reserves <code>litany/</code> for "frame +<br />
+routing layer").</p>
+<div class="highlight"><pre><span></span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">litany</span><span class="o">/</span>
+<span class="w">  </span><span class="n">Cargo</span><span class="o">.</span><span class="n">toml</span><span class="w">                 </span><span class="c1"># crate &quot;litany&quot;, path-dep on ../hcpbin</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span>
+<span class="w">    </span><span class="n">lib</span><span class="o">.</span><span class="n">rs</span><span class="w">                   </span><span class="c1"># crate root: re-exports, module wiring, FrameError</span>
+<span class="w">    </span><span class="n">frame</span><span class="o">.</span><span class="n">rs</span><span class="w">                 </span><span class="c1"># Frame struct + FrameKind enum (the in-memory model)</span>
+<span class="w">    </span><span class="n">header</span><span class="o">.</span><span class="n">rs</span><span class="w">                </span><span class="c1"># header encode/decode (RFC 0003 §4.4.1; errata R1–R3)</span>
+<span class="w">    </span><span class="n">record</span><span class="o">.</span><span class="n">rs</span><span class="w">                </span><span class="c1"># length prefix + frame-record encode/decode (§4.1–§4.5)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">golden_header</span><span class="o">.</span><span class="n">rs</span><span class="w">         </span><span class="c1"># G-H1, G-H2 byte-exact (adversarial-independent)</span>
+<span class="w">    </span><span class="n">golden_record</span><span class="o">.</span><span class="n">rs</span><span class="w">         </span><span class="c1"># G-F1 byte-exact; §4.6 reproduction</span>
+<span class="w">    </span><span class="n">roundtrip</span><span class="o">.</span><span class="n">rs</span><span class="w">             </span><span class="c1"># encode/decode fixed-point, property-ish loops</span>
+<span class="w">    </span><span class="n">violations</span><span class="o">.</span><span class="n">rs</span><span class="w">            </span><span class="c1"># §4.5 + §4.4.1 rejection cases</span>
+</pre></div>
+
+<p><code>Cargo.toml</code> (siblings model — see §Dependencies for the workspace decision):</p>
+<div class="highlight"><pre><span></span><span class="k">[package]</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;litany&quot;</span>
+<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span>
+<span class="n">edition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2021&quot;</span>
+<span class="n">description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Litany Wire frame codec for HCP (RFC 0003)&quot;</span>
+<span class="n">license</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Apache-2.0&quot;</span>
+
+<span class="k">[dependencies]</span>
+<span class="n">hcpbin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;../hcpbin&quot;</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+
+<h2 id="algorithm-design">Algorithm / design</h2>
+<h3 id="in-memory-model-framers">In-memory model (<code>frame.rs</code>)</h3>
+<div class="highlight"><pre><span></span><span class="cp">#[derive(Debug, Clone, Copy, PartialEq, Eq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">FrameKind</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Request</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">Event</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">Control</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">}</span>
+
+<span class="cp">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Frame</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kind</span><span class="p">:</span><span class="w"> </span><span class="nc">FrameKind</span><span class="p">,</span><span class="w">         </span><span class="c1">// @0, always present (errata R2)</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">corr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">16</span><span class="p">],</span><span class="w">          </span><span class="c1">// @1, always present (uuid, 16 raw bytes)</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">stream</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">,</span><span class="w">     </span><span class="c1">// @2</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">seq</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">,</span><span class="w">        </span><span class="c1">// @3 (only valid when stream is Some)</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">end</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span><span class="w">               </span><span class="c1">// @4 (only true when stream is Some)</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">body</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="p">,</span><span class="w">           </span><span class="c1">// opaque hcpbin body bytes (NOT parsed by S2)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><code>body</code> is the bytes after the header in <code>frame-bytes</code>; the codec never inspects<br />
+or validates it (RFC 0003 §4.1, §4.4). Whether the body is canonical hcpbin is a<br />
+<em>frame-level</em> concern (RFC 0003 §9.2) owned by a later sprint; S2 round-trips it<br />
+verbatim.</p>
+<h3 id="header-codec-headerrs">Header codec (<code>header.rs</code>)</h3>
+<p><code>corr</code> is the gap WP3-S1 leaves: hcpbin has <strong>no <code>uuid</code> type</strong> (confirmed —<br />
+<code>hcpbin/src/lib.rs</code> implements only varint/bool/bytes/hash; uuid is a 16-byte raw<br />
+field per RFC 0003 §4.4.1 "16 raw bytes … not length-prefixed"). RFC 0002 §6.2/<br />
+§6.3 tagged-record + default-omission are also explicit TODOs in <code>lib.rs</code> (lines<br />
+494–495). <strong>Decision: hand-roll a bespoke 5-field header codec in <code>litany</code></strong> using<br />
+hcpbin's <code>Reader</code>/<code>Writer</code> primitives, rather than extend hcpbin. Rationale<br />
+(Simplicity First): the header is a fixed 5-field shape with non-generic rules<br />
+(R1–R3), the only consumer is the wire, and leaving the general record/uuid codec<br />
+to whichever sprint owns <code>hcp.wire</code> bodies keeps S2 surgical and keeps hcpbin's<br />
+scope (RFC 0002 §6) clean.</p>
+<p><code>encode_header(&amp;Frame, &amp;mut hcpbin::Writer)</code>:<br />
+1. <code>w.put_uvarint(0); w.put_uvarint(kind as u64);</code>  // @0, always<br />
+2. <code>w.put_uvarint(1); w.put_raw(&amp;corr);</code>            // @1, always, 16 raw bytes<br />
+3. if <code>stream</code> Some: <code>w.put_uvarint(2); w.put_uvarint(stream);</code><br />
+4. if <code>stream</code> Some &amp;&amp; <code>seq</code> Some: <code>w.put_uvarint(3); w.put_uvarint(seq);</code><br />
+5. if <code>end</code>: <code>w.put_uvarint(4); w.put_bool(true);</code>  // bool true = 0x01</p>
+<p>Encoder invariants asserted before emit (debug + release): if <code>seq.is_some()</code> or<br />
+<code>end</code> then <code>stream.is_some()</code> (R3); <code>kind</code> numeric in 0..=4. These are the<br />
+"wire layer guarantees" of §4.4.1; a <code>Frame</code> that violates them is a programmer<br />
+error, not decodable input — return <code>FrameError::HeaderViolation</code> from a checked<br />
+<code>encode</code> entry point rather than panicking.</p>
+<p><code>decode_header(&amp;mut hcpbin::Reader) -&gt; Result&lt;Frame-without-body, FrameError&gt;</code>:<br />
+1. Read tag (uvarint); MUST be 0 ⇒ else <code>HeaderViolation</code>. Read <code>kind</code> (uvarint),<br />
+   MUST be ≤ 4 ⇒ else <code>KindOutOfRange</code> (a framing violation, §4.4.1 step 1).<br />
+2. Read tag; MUST be 1 ⇒ else <code>HeaderViolation</code>. Read 16 raw bytes into <code>corr</code><br />
+   (EOF ⇒ <code>UnexpectedEof</code>).<br />
+3. Peek next tag. If 2: read <code>stream</code> (uvarint). If absent, stream = None and<br />
+   steps 4–5 must not see @3/@4.<br />
+4. If next tag 3: require stream present (R3) else <code>HeaderViolation</code>; read <code>seq</code>.<br />
+5. If next tag 4: require stream present (R3) else <code>HeaderViolation</code>; read <code>end</code><br />
+   (hcpbin <code>get_bool</code>, which already rejects non-<code>0x00/0x01</code>, §6.4).<br />
+6. Enforce ascending order: a tag ≤ the last header tag read ⇒ <code>HeaderViolation</code><br />
+   (duplicate / out-of-order, §4.4.1 step 5). Once a tag &gt; 4 (or a second @1, or<br />
+   anything not continuing the @2→@3→@4 run) is seen, the header is finished and<br />
+   that field begins the body.<br />
+7. Remaining <code>Reader</code> bytes are the opaque body.</p>
+<p>Header decode is driven inside the <code>frame-bytes</code> slice the record layer already<br />
+delimited, so "remaining bytes = body" is well-defined.</p>
+<h3 id="record-codec-recordrs">Record codec (<code>record.rs</code>)</h3>
+<p><code>encode_frame(&amp;Frame, max_frame) -&gt; Result&lt;Vec&lt;u8&gt;, FrameError&gt;</code>:<br />
+1. Encode header + append body into a scratch <code>Writer</code> ⇒ <code>frame-bytes</code>.<br />
+2. <code>if frame_bytes.len() == 0 || frame_bytes.len() as u64 &gt; max_frame { Err(FrameTooLarge) }</code><br />
+   (length 0 illegal §4.1; &gt; max_frame §4.3).<br />
+3. Prepend <code>varint(frame_bytes.len())</code> ⇒ record.</p>
+<p><code>decode_frame(&amp;[u8], max_frame) -&gt; Result&lt;(Frame, usize), FrameError&gt;</code>:<br />
+1. <code>len = get_uvarint(input)</code> — strict/minimal (hcpbin already enforces non-minimal<br />
+   and overlong rejection, §6.1; reused verbatim per §4.2). On <code>NonMinimal</code>/<br />
+<code>Overlong</code> ⇒ map to <code>FramingViolation</code>.<br />
+2. <strong>Overlong-by-construction bound (§4.2):</strong> reject any <code>length</code> varint encoded<br />
+   in more bytes than the minimal width of <code>max_frame</code>, even if numerically valid<br />
+   — the canonical-width guard. Compute <code>minimal_width(max_frame)</code> once.<br />
+3. <code>if len == 0 ⇒ FramingViolation</code> (§4.1).<br />
+4. <code>if len &gt; max_frame ⇒ FrameTooLarge</code> — <strong>without reading the body</strong> (§4.3).<br />
+5. Slice exactly <code>len</code> octets as <code>frame-bytes</code>; short input ⇒ <code>UnexpectedEof</code><br />
+   (mid-frame EOF is a framing violation, §4.5).<br />
+6. <code>decode_header</code> over the slice; the rest is <code>body</code>.<br />
+7. Return <code>(Frame, 1?+len)</code> = <code>length-prefix-bytes + len</code>.</p>
+<p><strong>Frame-stream helpers</strong> (the round-trip target of §4, §10):</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">encode_frames</span><span class="p">(</span><span class="n">frames</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">Frame</span><span class="p">],</span><span class="w"> </span><span class="n">max_frame</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">FrameError</span><span class="o">&gt;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">decode_frames</span><span class="p">(</span><span class="n">bytes</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="kt">u8</span><span class="p">],</span><span class="w"> </span><span class="n">max_frame</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Frame</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">FrameError</span><span class="o">&gt;</span>
+</pre></div>
+
+<p><code>decode_frames</code> loops <code>decode_frame</code>, advancing by <code>consumed</code>, until the input is<br />
+exhausted; back-to-back with no padding (§4.1). A trailing partial record ⇒<br />
+<code>UnexpectedEof</code>. <code>encode_frames</code> concatenates <code>encode_frame</code> outputs. The pair is<br />
+the canonical-framing fixed point of §4 / §10.</p>
+<h3 id="error-model-librs">Error model (<code>lib.rs</code>)</h3>
+<div class="highlight"><pre><span></span><span class="cp">#[derive(Debug, Clone, PartialEq, Eq)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">FrameError</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">UnexpectedEof</span><span class="p">,</span><span class="w">                  </span><span class="c1">// mid-frame / mid-header EOF (§4.5)</span>
+<span class="w">    </span><span class="n">FramingViolation</span><span class="p">,</span><span class="w">               </span><span class="c1">// non-minimal/overlong/zero length (§4.1, §4.2, §4.5)</span>
+<span class="w">    </span><span class="n">FrameTooLarge</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">len</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">,</span><span class="w"> </span><span class="n">max</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="c1">// length &gt; max_frame (§4.3)</span>
+<span class="w">    </span><span class="n">KindOutOfRange</span><span class="p">(</span><span class="kt">u64</span><span class="p">),</span><span class="w">            </span><span class="c1">// kind not in 0..=4 (§4.4.1 step 1)</span>
+<span class="w">    </span><span class="n">HeaderViolation</span><span class="p">,</span><span class="w">                </span><span class="c1">// out-of-order/dup tag, seq/end without stream (R3, §4.4.1)</span>
+<span class="w">    </span><span class="n">Codec</span><span class="p">(</span><span class="n">hcpbin</span><span class="p">::</span><span class="n">DecodeError</span><span class="p">),</span><span class="w">     </span><span class="c1">// wrapped primitive-decode failure</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Every variant maps to a §4.5 "framing violation": the record envelope or header<br />
+could not be trusted, so (in the live wire, later sprints) the connection would<br />
+abort with <strong>no resync</strong> (§4.5). S2 only returns the typed value; it performs no<br />
+I/O and tears nothing down. This is the clean boundary the spec keeps: S2 owns<br />
+<em>classification</em>, the connection runtime (S3+) owns <em>reaction</em> (abort vs orderly<br />
+close, §9.1/§9.1a).</p>
+<p><strong>Explicitly NOT in S2's error model:</strong> the <em>frame-level</em> <code>error</code> Votive Frame<br />
+(RFC 0003 §9.2) and non-canonical-<em>body</em> rejection (§9.2, RFC 0002 §6.8). The body<br />
+is opaque here; body canonicality is a later sprint that decodes bodies.</p>
+<h2 id="test-plan">Test plan</h2>
+<p>All tests are <code>cargo test</code> in <code>protocol/hcp/litany/</code>, <strong>fully runnable on the M1<br />
+dev machine</strong> (pure functions, zero I/O, no Linux dependency). Follow the<br />
+adversarial-independence convention of <code>hcpbin/tests/golden.rs</code>: expectations are<br />
+derived only from the RFCs (and the errata resolutions above), written against<br />
+the public API, citing the exact RFC clause.</p>
+<h3 id="local-m1-cargo-test-the-entire-deliverable">Local (M1, <code>cargo test</code>) — the entire deliverable</h3>
+<ol>
+<li><strong>Golden header (<code>golden_header.rs</code>)</strong> — encode produces G-H1, G-H2 byte-exact;<br />
+   decode of G-H1/G-H2 yields the expected <code>Frame</code> fields. Cite §4.4.1.</li>
+<li><strong>Golden record (<code>golden_record.rs</code>)</strong> — G-F1 byte-exact, reproducing RFC 0003<br />
+   §4.6 (<code>length = 0x20</code>, header + opaque §10 body). Decode recovers the frame and<br />
+   the verbatim body bytes. Cite §4.1, §4.6.</li>
+<li><strong>Round-trip fixed point (<code>roundtrip.rs</code>)</strong> —</li>
+<li><code>decode_frame(encode_frame(f)) == f</code> for a matrix of frames: every<br />
+<code>FrameKind</code>; corr all-zero / all-0xff / mixed; stream None vs Some; seq None<br />
+     vs Some(0)/Some(large); end true/false; body empty / small / spanning a<br />
+     multi-byte length prefix (≥128 octets, forcing a 2-byte <code>length</code>).</li>
+<li><code>encode_frame(decode_frame(bytes)) == bytes</code> for the golden byte fixtures<br />
+     (the §6.8 re-encode fixed point applied to framing).</li>
+<li><code>decode_frames(encode_frames(v)) == v</code> for multi-frame streams (back-to-back,<br />
+     §4.1) including interleaved kinds and a stream id retired then a fresh frame.</li>
+<li><strong>Violations (<code>violations.rs</code>)</strong> — each rejected with the right <code>FrameError</code>:</li>
+<li><code>length == 0</code> ⇒ <code>FramingViolation</code> (§4.1).</li>
+<li>non-minimal <code>length</code> (<code>0x80 0x00</code>, i.e. 0 overlong) ⇒ <code>FramingViolation</code><br />
+     (§4.2; mirrors hcpbin <code>uvarint_strict_reject_overlong</code>).</li>
+<li><code>length</code> overlong-by-construction (more bytes than minimal width of<br />
+<code>max_frame</code>) ⇒ <code>FramingViolation</code> (§4.2 width bound).</li>
+<li><code>length &gt; max_frame</code> ⇒ <code>FrameTooLarge</code>, asserting the body slice is <strong>not</strong><br />
+     read (e.g. truncated input after the length still errors as too-large, not<br />
+     EOF) (§4.3).</li>
+<li>mid-frame EOF (input shorter than declared <code>length</code>) ⇒ <code>UnexpectedEof</code> (§4.5).</li>
+<li><code>kind</code> tag missing / not @0 ⇒ <code>HeaderViolation</code>; <code>kind</code> value 5 ⇒<br />
+<code>KindOutOfRange</code> (§4.4.1 step 1).</li>
+<li>missing <code>corr</code> / short corr (&lt;16 bytes) ⇒ <code>UnexpectedEof</code>/<code>HeaderViolation</code>.</li>
+<li>out-of-order header tags (@2 then @1-as-header, @4 before @2) ⇒<br />
+<code>HeaderViolation</code> (§4.4.1 step 5).</li>
+<li>duplicate header tag (two @2) ⇒ <code>HeaderViolation</code>.</li>
+<li><code>seq</code> (@3) without <code>stream</code> (@2) ⇒ <code>HeaderViolation</code> (R3).</li>
+<li><code>end</code> (@4) without <code>stream</code> (@2) ⇒ <code>HeaderViolation</code> (§4.4.1 step 5 / R3).</li>
+<li><code>end</code> byte <code>0x02</code> ⇒ <code>Codec(InvalidBool(0x02))</code> (hcpbin §6.4, reused).</li>
+<li><strong>No-resync assertion</strong> — a frame-stream with a corrupt record in the middle:<br />
+<code>decode_frames</code> errors at that record and does <strong>not</strong> attempt to scan forward<br />
+   (assert it returns the error rather than recovering later frames) (§4.5).</li>
+<li><strong><code>zig build</code> is N/A for S2.</strong> No Zig in this sprint. Cross-language Zig⇄BEAM<br />
+   round-trip is RFC 0002 §7.2, a later concern; do not add a Zig target here.<br />
+   (The orchestrator's <code>zig build -Dtarget=x86_64-linux</code> note applies to other<br />
+   work packages, not S2.)</li>
+</ol>
+<h3 id="requires-dev-cx53-linux-none-of-the-deliverable-only-the-perf-gate">Requires <code>dev-cx53</code> / Linux — NONE of the deliverable; only the perf <em>gate</em></h3>
+<ul>
+<li><strong>Perf gate (≤10µs/frame encode+decode, kickoff success criterion):</strong> write a<br />
+<code>cargo bench</code> (or a <code>#[test]</code>-gated timing harness) for <code>encode_frame</code> /<br />
+<code>decode_frame</code> over the golden frames. It <strong>runs on M1 for sanity / regression<br />
+  signal</strong>, but the <strong>≤10µs threshold is defined against <code>dev-cx53</code> (8-core, no-<br />
+  alloc hot path)</strong> and is only <em>gated</em> there. S2 lands the benchmark and an M1<br />
+  baseline number; the threshold assertion is deferred to WP3-S6 on <code>dev-cx53</code>.<br />
+  (dev-cx53 is off-limits for this planning window; the bench is written now and<br />
+  the gate is run later — no S2 acceptance criterion depends on dev-cx53.)</li>
+<li>Everything else in RFC 0003 that <em>would</em> need Linux (vsock binding §12.3,<br />
+  namespace-isolated transport) is OUT of S2 (see scope table); S2 has <strong>zero</strong><br />
+  Linux-only verification.</li>
+</ul>
+<h2 id="dependencies-on-other-sprints">Dependencies on other sprints</h2>
+<ul>
+<li><strong>WP3-S1 (<code>protocol/hcp/hcpbin</code>) — hard dependency, already landed.</strong> S2 uses<br />
+<code>hcpbin::{Reader, Writer}</code> (<code>put_uvarint</code>/<code>get_uvarint</code>, <code>put_bool</code>/<code>get_bool</code><br />
+  with strict §6.4, <code>put_raw</code>/<code>get_raw</code>) and the strict varint decode (non-<br />
+  minimal/overlong rejection) that §4.2 mandates the length prefix reuse. S2 must<br />
+  not duplicate varint logic. <strong>Gaps S1 leaves that S2 fills locally (bespoke):</strong><br />
+  the <code>uuid</code> 16-raw-byte field and the tagged-header record shape (S1 leaves<br />
+  records/§6.2/§6.3 as TODO).</li>
+<li><strong>WP3-S2.5 / S3 (downstream)</strong> — the live connection: handshake (§5),<br />
+  chapter/stream lifecycle (§6), the frame-level <code>error</code> frame and body<br />
+  canonicality (§9.2). They consume S2's <code>Frame</code>/<code>encode_frame</code>/<code>decode_frame</code>.</li>
+<li><strong>WP3-S5 (<code>eventd</code>)</strong> — admits canonical <code>frame-bytes</code> to the hash chain (§10);<br />
+  S2 produces exactly the delimited <code>frame-bytes</code> it will hash (§4.1, §10).</li>
+<li><strong>Blocked external input:</strong> the <code>hcp.wire</code> schema digest (Appendix A, "value<br />
+  TBD") and the RFC 0003 §11 conformance vectors (Open question 1) — needed for<br />
+  handshake conformance, <strong>not</strong> for S2. Do not invent a digest.</li>
+</ul>
+<p><strong>Workspace decision (flag for the pre-start gate):</strong> there is currently <strong>no</strong><br />
+workspace <code>Cargo.toml</code> (the kickoff pre-start gate "<code>Cargo.toml</code> workspace wired<br />
+into dev shell" is unchecked, and <code>find -name Cargo.toml</code> finds only the hcpbin<br />
+crate). S2 ships <code>litany</code> as a <strong>standalone crate with a path-dependency on<br />
+<code>../hcpbin</code></strong> (mirroring hcpbin's standalone setup) so it is buildable today<br />
+without blocking on the workspace. When the workspace lands, both crates become<br />
+members; the path-dep is forward-compatible with a workspace member. This is a<br />
+deliberate Simplicity-First choice to avoid coupling S2 to an unchecked gate.</p>
+<h2 id="acceptance-criteria">Acceptance criteria</h2>
+<ol>
+<li><code>protocol/hcp/litany/</code> exists with the layout above; <code>cargo build</code> and<br />
+<code>cargo test</code> pass on the M1 dev machine with <strong>zero</strong> I/O and zero Linux<br />
+   dependency.</li>
+<li><code>encode_frame</code> reproduces G-H1, G-H2, and G-F1 (the §4.6 record)<br />
+<strong>byte-for-byte</strong>; <code>decode_frame</code> recovers the exact <code>Frame</code> and the verbatim<br />
+   opaque body.</li>
+<li>Round-trip fixed point holds: <code>decode(encode(f)) == f</code> over the test matrix,<br />
+   and <code>encode(decode(bytes)) == bytes</code> over the golden fixtures (§6.8 / §4<br />
+   canonicality). <code>decode_frames(encode_frames(v)) == v</code> for multi-frame streams.</li>
+<li>Every §4.5 + §4.4.1 violation in the test plan is rejected with the specified<br />
+   typed <code>FrameError</code>; <strong>no mid-stream resync</strong> is attempted (assertion #5 in the<br />
+   test plan).</li>
+<li><code>length</code> reuses hcpbin's strict varint (no duplicated varint code); the<br />
+<code>max_frame</code> guard rejects oversize lengths <strong>without reading the body</strong>; the<br />
+   overlong-by-construction width bound is enforced.</li>
+<li>The three RFC 0003 errata (R1 fully-tagged <code>kind</code>, R2 <code>kind</code>/<code>corr</code> always<br />
+   emitted, R3 header/body boundary + <code>seq</code>/<code>end</code> require <code>stream</code>) are encoded in<br />
+   the codec and pinned by golden vectors, and recorded in the spec for fold-back<br />
+   into RFC 0003 before it leaves Draft.</li>
+<li>A perf benchmark for <code>encode_frame</code>/<code>decode_frame</code> exists and reports an M1<br />
+   baseline; the ≤10µs/frame <strong>threshold</strong> is explicitly deferred to WP3-S6 on<br />
+<code>dev-cx53</code> (no S2 criterion depends on dev-cx53).</li>
+<li>Test files are adversarially independent (expectations from RFCs + errata,<br />
+   each citing its clause), matching the <code>hcpbin/tests/golden.rs</code> convention.</li>
+</ol>
+<h2 id="risks-open-items">Risks / open items</h2>
+<ul>
+<li><strong>RFC 0003 §4.4.1 inconsistencies (R1–R3)</strong> are resolved here by spec fiat<br />
+  ranking prose over example annotations. If the RFC authors resolve them<br />
+  differently when Draft closes, the golden vectors and codec must follow the RFC;<br />
+  the resolutions are isolated in <code>header.rs</code> + <code>golden_header.rs</code> to make that a<br />
+  contained change.</li>
+<li><strong><code>hcp.wire</code> digest / §11 conformance vectors are TBD.</strong> S2 deliberately scopes<br />
+<em>below</em> them; handshake conformance cannot be tested until Open question 1<br />
+  closes. This is a known, accepted gap, not a defect.</li>
+<li><strong>Body opacity.</strong> S2 never validates body canonicality (§9.2 / RFC 0002 §6.8);<br />
+  a non-canonical body round-trips verbatim through S2. That is correct for the<br />
+  wire framing layer (the body is opaque, §4.1) and is the later sprint's concern.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp3-s2.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

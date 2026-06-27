@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>DEV_GUIDE.md — Vaked Language, Compiler & MLIR Layer — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-quick-start-get-running" style="padding-left:0.5rem">1. Quick Start — Get Running</a><a href="#full-dev-shell-nix" style="padding-left:1rem">  Full dev shell (Nix)</a><a href="#2-repo-map-language-compiler-scope" style="padding-left:0.5rem">2. Repo Map — Language & Compiler Scope</a><a href="#3-language-layer-grammar-schemas-examples" style="padding-left:0.5rem">3. Language Layer — Grammar, Schemas, Examples</a><a href="#the-grammar-is-the-spec" style="padding-left:1rem">  The grammar is the spec</a><a href="#declaration-kinds-ebnf" style="padding-left:1rem">  Declaration kinds (EBNF)</a><a href="#examples-as-executable-specs" style="padding-left:1rem">  Examples as executable specs</a><a href="#the-builtins-catalog" style="padding-left:1rem">  The builtins catalog</a><a href="#4-compiler-pipeline" style="padding-left:0.5rem">4. Compiler Pipeline</a><a href="#running-specific-stages" style="padding-left:1rem">  Running specific stages</a><a href="#5-mlir-layer-pass-pipeline" style="padding-left:0.5rem">5. MLIR Layer — Pass Pipeline</a><a href="#stage-0-python-working" style="padding-left:1rem">  Stage 0 (Python, working)</a><a href="#adding-a-new-pass" style="padding-left:1rem">  Adding a new pass</a><a href="#stage-1-mlir-c-buildable-on-linux" style="padding-left:1rem">  Stage 1 (MLIR C++, buildable on Linux)</a><a href="#differential-testing-0024" style="padding-left:1rem">  Differential testing (0024)</a><a href="#6-testing-what-goes-where" style="padding-left:0.5rem">6. Testing — What Goes Where</a><a href="#adding-a-test-fixture-for-passes" style="padding-left:1rem">  Adding a test fixture for passes</a><a href="#7-live-coding-workflow" style="padding-left:0.5rem">7. Live Coding Workflow</a><a href="#8-contribution-workflow-for-languagecompiler" style="padding-left:0.5rem">8. Contribution Workflow (for language/compiler)</a><a href="#quick-reference-when-to-update-what" style="padding-left:1rem">  Quick reference: when to update what</a><a href="#9-design-docs-index-language-mlir" style="padding-left:0.5rem">9. Design Docs Index (Language & MLIR)</a><a href="#10-common-tasks-cheat-sheet" style="padding-left:0.5rem">10. Common Tasks — Cheat Sheet</a><a href="#see-also" style="padding-left:0.5rem">See Also</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/context/">context</a> / DEV_GUIDE</div>
+<h1>DEV_GUIDE.md — Vaked Language, Compiler & MLIR Layer</h1>
+<h1 id="dev_guidemd-vaked-language-compiler-mlir-layer">DEV_GUIDE.md — Vaked Language, Compiler &amp; MLIR Layer</h1>
+<p>A companion to <code>CONTRIBUTING.md</code> and <code>CLAUDE.md</code> focused on the <strong>language<br />
+definition, compiler pipeline, and MLIR pass layer</strong>. If you're working on<br />
+grammar, vakedc, the type checker, lowering, or the MLIR passes, this is<br />
+your starting point.</p>
+<hr />
+<h2 id="1-quick-start-get-running">1. Quick Start — Get Running</h2>
+<div class="highlight"><pre><span></span><span class="c1"># From the repo root (any machine with Python 3.12+):</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>parse<span class="w">   </span>vaked/examples/operator-field.vaked<span class="w"> </span>--print
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w">   </span>vaked/examples/operator-field.vaked<span class="w"> </span>--json
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>lower<span class="w">   </span>vaked/examples/operator-field.vaked<span class="w"> </span>--out<span class="w"> </span>/tmp/out
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>passes<span class="w">  </span>vaked/examples/operator-field.vaked<span class="w"> </span>--json
+</pre></div>
+
+<p>Stdlib only — no install, no build. The Zig front-end (<code>vakedz</code>) is a<br />
+separate binary built with <code>zig build</code>.</p>
+<h3 id="full-dev-shell-nix">Full dev shell (Nix)</h3>
+<div class="highlight"><pre><span></span>nix<span class="w"> </span>develop<span class="w"> </span>.<span class="w">   </span><span class="c1"># gives: zig, erlang, elixir, rust, mlir-tblgen, d2</span>
+</pre></div>
+
+<hr />
+<h2 id="2-repo-map-language-compiler-scope">2. Repo Map — Language &amp; Compiler Scope</h2>
+<p>These are the directories and files you'll touch most.</p>
+<div class="highlight"><pre><span></span><span class="nx">vaked</span><span class="o">/</span><span class="w">                      </span><span class="err">#</span><span class="w"> </span><span class="nx">The</span><span class="w"> </span><span class="nx">language</span><span class="w"> </span><span class="nx">itself</span>
+<span class="w">  </span><span class="nx">grammar</span><span class="o">/</span>
+<span class="w">    </span><span class="nx">vaked</span><span class="o">-</span><span class="nx">v0</span><span class="o">-</span><span class="nx">plus</span><span class="p">.</span><span class="nx">ebnf</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">EBNF</span><span class="w"> </span><span class="nx">grammar</span><span class="w"> </span><span class="p">(</span><span class="mi">307</span><span class="w"> </span><span class="nx">lines</span><span class="p">)</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nx">THE</span><span class="w"> </span><span class="nx">spec</span>
+<span class="w">  </span><span class="nx">schema</span><span class="o">/</span>
+<span class="w">    </span><span class="nx">builtins</span><span class="p">.</span><span class="nx">vaked</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="nx">Built</span><span class="o">-</span><span class="k">in</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nx">catalog</span><span class="w"> </span><span class="p">(</span><span class="nx">schemas</span><span class="p">,</span><span class="w"> </span><span class="nx">capabilities</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">examples</span><span class="o">/</span><span class="w">                 </span><span class="err">#</span><span class="w"> </span><span class="nx">Executable</span><span class="w"> </span><span class="nx">specifications</span>
+<span class="w">    </span><span class="nx">operator</span><span class="o">-</span><span class="nx">field</span><span class="p">.</span><span class="nx">vaked</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nx">Canonical</span><span class="w"> </span><span class="s">&quot;full stack&quot;</span><span class="w"> </span><span class="nx">example</span>
+<span class="w">    </span><span class="nx">agentfield</span><span class="o">-</span><span class="nx">swe</span><span class="p">.</span><span class="nx">vaked</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nx">SWE</span><span class="w"> </span><span class="nx">agent</span><span class="w"> </span><span class="nx">workflow</span><span class="w"> </span><span class="nx">example</span>
+<span class="w">    </span><span class="nx">membrane</span><span class="o">/</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="nx">Network</span><span class="o">/</span><span class="nx">filesystem</span><span class="w"> </span><span class="nx">membrane</span><span class="w"> </span><span class="nx">examples</span>
+<span class="w">    </span><span class="nx">primitives</span><span class="o">/</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="nx">Individual</span><span class="w"> </span><span class="nx">primitive</span><span class="w"> </span><span class="nx">examples</span>
+<span class="w">    </span><span class="nx">lowering</span><span class="o">/</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="nx">Lowering</span><span class="w"> </span><span class="nx">output</span><span class="w"> </span><span class="nx">fixtures</span>
+
+<span class="nx">vakedc</span><span class="o">/</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="nx">Python</span><span class="w"> </span><span class="nx">prototype</span><span class="w"> </span><span class="nx">front</span><span class="o">-</span><span class="nx">end</span>
+<span class="w">  </span><span class="nx">lexer</span><span class="p">.</span><span class="nx">py</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="nx">NFC</span><span class="o">-</span><span class="nx">normalizing</span><span class="w"> </span><span class="nx">tokenizer</span><span class="w"> </span><span class="p">(</span><span class="nx">Stage</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">parser</span><span class="p">.</span><span class="nx">py</span><span class="w">                 </span><span class="err">#</span><span class="w"> </span><span class="nx">PEG</span><span class="o">-</span><span class="nx">ordered</span><span class="w"> </span><span class="nx">recursive</span><span class="w"> </span><span class="nx">descent</span><span class="w"> </span><span class="p">(</span><span class="nx">Stage</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">resolve</span><span class="p">.</span><span class="nx">py</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="nx">LPG</span><span class="w"> </span><span class="nx">builder</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">symbol</span><span class="w"> </span><span class="nx">resolution</span><span class="w"> </span><span class="p">(</span><span class="nx">Stage</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">graph</span><span class="p">.</span><span class="nx">py</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="nx">Labeled</span><span class="w"> </span><span class="nx">Property</span><span class="w"> </span><span class="nx">Graph</span><span class="w"> </span><span class="nx">model</span>
+<span class="w">  </span><span class="nx">check</span><span class="p">.</span><span class="nx">py</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="nx">Type</span><span class="w"> </span><span class="nx">checker</span><span class="w"> </span><span class="p">(</span><span class="nx">Stages</span><span class="w"> </span><span class="mi">3</span><span class="err">–</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">0011</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">lower</span><span class="p">.</span><span class="nx">py</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="nx">Multi</span><span class="o">-</span><span class="nx">target</span><span class="w"> </span><span class="nx">lowering</span><span class="w"> </span><span class="p">(</span><span class="mi">0012</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">emit</span><span class="p">.</span><span class="nx">py</span><span class="w">                   </span><span class="err">#</span><span class="w"> </span><span class="nx">Canonical</span><span class="w"> </span><span class="nx">JSON</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="nx">SQLite</span><span class="w"> </span><span class="nx">serialization</span>
+<span class="w">  </span><span class="nx">lsp</span><span class="p">.</span><span class="nx">py</span><span class="w">                    </span><span class="err">#</span><span class="w"> </span><span class="nx">LSP</span><span class="w"> </span><span class="m m-Double">3.17</span><span class="w"> </span><span class="nx">server</span><span class="w"> </span><span class="p">(</span><span class="k">for</span><span class="w"> </span><span class="nx">vaked</span><span class="o">-</span><span class="nx">ide</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">__main__</span><span class="p">.</span><span class="nx">py</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="nx">CLI</span><span class="p">:</span><span class="w"> </span><span class="nx">parse</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">check</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">lower</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">passes</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">lsp</span>
+<span class="w">  </span><span class="nx">passes</span><span class="o">/</span><span class="w">                   </span><span class="err">#</span><span class="w"> </span><span class="err">★</span><span class="w"> </span><span class="nx">MLIR</span><span class="o">-</span><span class="nx">mirror</span><span class="w"> </span><span class="nx">pass</span><span class="w"> </span><span class="nx">pipeline</span><span class="w"> </span><span class="p">(</span><span class="nx">Stage</span><span class="o">-</span><span class="mi">0</span><span class="w"> </span><span class="nx">Python</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">__init__</span><span class="p">.</span><span class="nx">py</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="nx">Pipeline</span><span class="w"> </span><span class="nx">orchestrator</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="nx">types</span>
+<span class="w">    </span><span class="nx">pass01_topology</span><span class="p">.</span><span class="nx">py</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">Pass</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="nx">cycle</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">depth</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">bound</span><span class="w"> </span><span class="p">(</span><span class="mi">0021</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">pass02_wal</span><span class="p">.</span><span class="nx">py</span><span class="w">           </span><span class="err">#</span><span class="w"> </span><span class="nx">Pass</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="nx">WAL</span><span class="w"> </span><span class="nx">frame</span><span class="w"> </span><span class="nx">injection</span><span class="w"> </span><span class="p">(</span><span class="mi">0022</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">pass03_aot_index</span><span class="p">.</span><span class="nx">py</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="nx">Pass</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="nx">supervisor</span><span class="w"> </span><span class="nx">index</span><span class="w"> </span><span class="nx">gen</span><span class="w"> </span><span class="p">(</span><span class="mi">0023</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">mlir</span><span class="o">/</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="err">★</span><span class="w"> </span><span class="nx">Stage</span><span class="o">-</span><span class="mi">1</span><span class="w"> </span><span class="nx">MLIR</span><span class="w"> </span><span class="nx">dialect</span><span class="w"> </span><span class="nx">definitions</span>
+<span class="w">    </span><span class="nx">VakedDialect</span><span class="p">.</span><span class="nx">td</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="nx">vaked</span><span class="w"> </span><span class="nx">dialect</span><span class="w"> </span><span class="nx">ops</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="nx">types</span><span class="w"> </span><span class="p">(</span><span class="mi">247</span><span class="w"> </span><span class="nx">lines</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">HcpDialect</span><span class="p">.</span><span class="nx">td</span><span class="w">           </span><span class="err">#</span><span class="w"> </span><span class="nx">hcp</span><span class="w"> </span><span class="nx">dialect</span><span class="w"> </span><span class="nx">ops</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="nx">types</span><span class="w"> </span><span class="p">(</span><span class="mi">235</span><span class="w"> </span><span class="nx">lines</span><span class="p">)</span>
+<span class="w">    </span><span class="nx">VakedDialect</span><span class="p">.</span><span class="nx">cpp</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nx">C</span><span class="o">++</span><span class="w"> </span><span class="nx">dialect</span><span class="w"> </span><span class="nx">registration</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">verifiers</span>
+<span class="w">    </span><span class="nx">HcpDialect</span><span class="p">.</span><span class="nx">cpp</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="nx">C</span><span class="o">++</span><span class="w"> </span><span class="nx">dialect</span><span class="w"> </span><span class="nx">registration</span>
+<span class="w">    </span><span class="nx">CMakeLists</span><span class="p">.</span><span class="nx">txt</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="nx">CMake</span><span class="w"> </span><span class="nx">build</span><span class="p">:</span><span class="w"> </span><span class="nx">TableGen</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">dialect</span><span class="w"> </span><span class="kn">library</span>
+<span class="w">    </span><span class="nx">run_tests</span><span class="p">.</span><span class="nx">sh</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">Test</span><span class="p">:</span><span class="w"> </span><span class="nx">mlir</span><span class="o">-</span><span class="nx">tblgen</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">Stage</span><span class="o">-</span><span class="mi">0</span><span class="w"> </span><span class="nx">corpus</span>
+
+<span class="nx">vakedz</span><span class="o">/</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="nx">Zig</span><span class="w"> </span><span class="nx">production</span><span class="w"> </span><span class="nx">front</span><span class="o">-</span><span class="nx">end</span><span class="w"> </span><span class="p">(</span><span class="nx">v0</span><span class="m m-Double">.1.0</span><span class="p">,</span><span class="w"> </span><span class="nx">Zig</span><span class="w"> </span><span class="m m-Double">0.16</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">src</span><span class="o">/</span>
+<span class="w">    </span><span class="nx">lexer</span><span class="p">.</span><span class="nx">zig</span><span class="p">,</span><span class="w"> </span><span class="nx">parser</span><span class="p">.</span><span class="nx">zig</span><span class="p">,</span><span class="w"> </span><span class="nx">check</span><span class="p">.</span><span class="nx">zig</span><span class="p">,</span><span class="w"> </span><span class="nx">lower</span><span class="p">.</span><span class="nx">zig</span><span class="p">,</span><span class="w"> </span><span class="nx">cache</span><span class="p">.</span><span class="nx">zig</span><span class="p">,</span><span class="w"> </span><span class="nx">graph</span><span class="p">.</span><span class="nx">zig</span><span class="p">,</span><span class="w"> </span><span class="nx">json</span><span class="p">.</span><span class="nx">zig</span>
+<span class="w">  </span><span class="nx">test</span><span class="o">/</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="nx">Unit</span><span class="w"> </span><span class="nx">tests</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">crossverify</span><span class="p">.</span><span class="nx">sh</span>
+
+<span class="nx">tests</span><span class="o">/</span>
+<span class="w">  </span><span class="nx">spec</span><span class="o">/</span><span class="w">                     </span><span class="err">#</span><span class="w"> </span><span class="nx">Spec</span><span class="w"> </span><span class="nx">conformance</span><span class="w"> </span><span class="nx">tests</span><span class="w"> </span><span class="p">(</span><span class="nx">grammar</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nx">system</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">corpus</span><span class="o">/</span>
+<span class="w">    </span><span class="mi">0024</span><span class="o">-</span><span class="nx">differential</span><span class="o">/</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">Differential</span><span class="w"> </span><span class="nx">test</span><span class="w"> </span><span class="nx">corpus</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nx">MLIR</span><span class="w"> </span><span class="nx">passes</span>
+<span class="w">      </span><span class="nx">fixtures</span><span class="o">/</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="mi">6</span><span class="w"> </span><span class="nx">topology</span><span class="w"> </span><span class="nx">classes</span><span class="p">:</span><span class="w"> </span><span class="nx">single</span><span class="o">/</span><span class="nx">linear</span><span class="o">/</span><span class="nx">diamond</span><span class="o">/</span><span class="nx">cycle</span><span class="o">/</span><span class="nx">bound</span>
+<span class="w">      </span><span class="nx">run_corpus</span><span class="p">.</span><span class="nx">py</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="nx">Harness</span><span class="p">:</span><span class="w"> </span><span class="nx">lower</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">byte</span><span class="o">-</span><span class="nx">compare</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">passes</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">depth</span><span class="o">/</span><span class="nx">WAL</span><span class="w"> </span><span class="nx">check</span>
+
+<span class="nx">docs</span><span class="o">/</span><span class="nx">language</span><span class="o">/</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="nx">Design</span><span class="w"> </span><span class="nx">series</span><span class="w"> </span><span class="p">(</span><span class="nx">the</span><span class="w"> </span><span class="nx">normative</span><span class="w"> </span><span class="nx">specs</span><span class="p">)</span>
+<span class="w">  </span><span class="mi">0001</span><span class="o">-</span><span class="nx">manifesto</span><span class="p">.</span><span class="nx">md</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="mi">0018</span><span class="o">-</span><span class="nx">compiler</span><span class="p">.</span><span class="nx">md</span>
+<span class="w">  </span><span class="mi">0019</span><span class="o">-</span><span class="nx">mlir</span><span class="o">-</span><span class="nx">vaked</span><span class="o">-</span><span class="nx">dialect</span><span class="p">.</span><span class="nx">md</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="mi">0024</span><span class="o">-</span><span class="nx">mlir</span><span class="o">-</span><span class="nx">lowering</span><span class="o">-</span><span class="nx">staged</span><span class="o">-</span><span class="nx">adoption</span><span class="p">.</span><span class="nx">md</span>
+<span class="w">  </span><span class="nx">reviews</span><span class="o">/</span><span class="w">                  </span><span class="err">#</span><span class="w"> </span><span class="nx">Publication</span><span class="w"> </span><span class="nx">reviews</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="nx">specs</span>
+<span class="w">  </span><span class="nx">references</span><span class="o">/</span><span class="w">               </span><span class="err">#</span><span class="w"> </span><span class="nx">External</span><span class="w"> </span><span class="nx">reference</span><span class="w"> </span><span class="nx">notes</span>
+</pre></div>
+
+<p><strong>Key convention:</strong> Grammar (EBNF) is <em>the</em> specification. The parser in<br />
+<code>vakedc/parser.py</code> implements the EBNF. If they disagree, the EBNF wins.</p>
+<hr />
+<h2 id="3-language-layer-grammar-schemas-examples">3. Language Layer — Grammar, Schemas, Examples</h2>
+<h3 id="the-grammar-is-the-spec">The grammar is the spec</h3>
+<p><code>vaked/grammar/vaked-v0-plus.ebnf</code> defines 29 declaration kinds. To add a<br />
+new language construct:</p>
+<div class="highlight"><pre><span></span><span class="mi">1</span><span class="p">.</span><span class="w"> </span><span class="nx">Write</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">EBNF</span><span class="w"> </span><span class="nx">production</span><span class="w">       </span><span class="err">→</span><span class="w"> </span><span class="nx">vaked</span><span class="o">/</span><span class="nx">grammar</span><span class="o">/</span>
+<span class="mi">2</span><span class="p">.</span><span class="w"> </span><span class="nx">Add</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">schema</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nx">it</span><span class="w">             </span><span class="err">→</span><span class="w"> </span><span class="nx">vaked</span><span class="o">/</span><span class="nx">schema</span><span class="o">/</span><span class="nx">builtins</span><span class="p">.</span><span class="nx">vaked</span>
+<span class="mi">3</span><span class="p">.</span><span class="w"> </span><span class="nx">Write</span><span class="w"> </span><span class="nx">an</span><span class="w"> </span><span class="nx">example</span><span class="w">                 </span><span class="err">→</span><span class="w"> </span><span class="nx">vaked</span><span class="o">/</span><span class="nx">examples</span><span class="o">/</span>
+<span class="mi">4</span><span class="p">.</span><span class="w"> </span><span class="nx">Update</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">parser</span><span class="w">                 </span><span class="err">→</span><span class="w"> </span><span class="nx">vakedc</span><span class="o">/</span><span class="nx">parser</span><span class="p">.</span><span class="nx">py</span><span class="w"> </span><span class="p">(</span><span class="k">if</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">grammar</span><span class="w"> </span><span class="nx">changed</span><span class="p">)</span>
+<span class="mi">5</span><span class="p">.</span><span class="w"> </span><span class="nx">Update</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nx">checker</span><span class="w">           </span><span class="err">→</span><span class="w"> </span><span class="nx">vakedc</span><span class="o">/</span><span class="nx">check</span><span class="p">.</span><span class="nx">py</span><span class="w"> </span><span class="p">(</span><span class="k">if</span><span class="w"> </span><span class="nx">new</span><span class="w"> </span><span class="nx">constraints</span><span class="p">)</span>
+<span class="mi">6</span><span class="p">.</span><span class="w"> </span><span class="nx">Update</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">lowerer</span><span class="w">                </span><span class="err">→</span><span class="w"> </span><span class="nx">vakedc</span><span class="o">/</span><span class="nx">lower</span><span class="p">.</span><span class="nx">py</span><span class="w"> </span><span class="p">(</span><span class="k">if</span><span class="w"> </span><span class="nx">new</span><span class="w"> </span><span class="nx">artifacts</span><span class="p">)</span>
+<span class="mi">7</span><span class="p">.</span><span class="w"> </span><span class="nx">Add</span><span class="w"> </span><span class="nx">pass</span><span class="w"> </span><span class="nx">logic</span><span class="w"> </span><span class="p">(</span><span class="k">if</span><span class="w"> </span><span class="nx">workflow</span><span class="o">-</span><span class="k">like</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nx">vakedc</span><span class="o">/</span><span class="nx">passes</span><span class="o">/</span>
+<span class="mi">8</span><span class="p">.</span><span class="w"> </span><span class="nx">Add</span><span class="w"> </span><span class="nx">spec</span><span class="w"> </span><span class="nx">tests</span><span class="w">                    </span><span class="err">→</span><span class="w"> </span><span class="nx">tests</span><span class="o">/</span><span class="nx">spec</span><span class="o">/</span>
+</pre></div>
+
+<h3 id="declaration-kinds-ebnf">Declaration kinds (EBNF)</h3>
+<div class="highlight"><pre><span></span><span class="k">kind </span><span class="o">=</span> <span class="s2">&quot;runtime&quot;</span> <span class="p">|</span> <span class="s2">&quot;engine&quot;</span> <span class="p">|</span> <span class="s2">&quot;host&quot;</span> <span class="p">|</span> <span class="s2">&quot;network&quot;</span> <span class="p">|</span> <span class="s2">&quot;filesystem&quot;</span>
+     <span class="p">|</span> <span class="s2">&quot;mcp&quot;</span> <span class="p">|</span> <span class="s2">&quot;ebpf&quot;</span> <span class="p">|</span> <span class="s2">&quot;index&quot;</span> <span class="p">|</span> <span class="s2">&quot;catalog&quot;</span> <span class="p">|</span> <span class="s2">&quot;stream&quot;</span>
+     <span class="p">|</span> <span class="s2">&quot;fiber&quot;</span> <span class="p">|</span> <span class="s2">&quot;surface&quot;</span> <span class="p">|</span> <span class="s2">&quot;mesh&quot;</span> <span class="p">|</span> <span class="s2">&quot;device&quot;</span> <span class="p">|</span> <span class="s2">&quot;mediaPipeline&quot;</span>
+     <span class="p">|</span> <span class="s2">&quot;parallel&quot;</span> <span class="p">|</span> <span class="s2">&quot;workflow&quot;</span> <span class="p">|</span> <span class="s2">&quot;memory&quot;</span> <span class="p">|</span> <span class="s2">&quot;budget&quot;</span> <span class="p">|</span> <span class="s2">&quot;runclass&quot;</span>
+     <span class="p">|</span> <span class="s2">&quot;observability&quot;</span>
+</pre></div>
+
+<p>Each kind maps to a schema in <code>builtins.vaked</code>. If a kind has no schema,<br />
+the checker treats it as semi-opaque (rejects unknown fields but does not<br />
+enforce type constraints on known ones).</p>
+<h3 id="examples-as-executable-specs">Examples as executable specs</h3>
+<p>Every <code>.vaked</code> file under <code>vaked/examples/</code> is tested by spec tests and the<br />
+differential corpus. To add an example:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Create the example</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">&#39;runtime my { … }&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>vaked/examples/my-feature.vaked
+
+<span class="c1"># Verify it parses, checks, and lowers</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w">  </span>vaked/examples/my-feature.vaked
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>lower<span class="w">  </span>vaked/examples/my-feature.vaked<span class="w"> </span>--out<span class="w"> </span>/tmp/verify
+</pre></div>
+
+<h3 id="the-builtins-catalog">The builtins catalog</h3>
+<p><code>vaked/schema/builtins.vaked</code> defines schemas for every declaration kind,<br />
+capability domain hierarchy, and type aliases. It is loaded by the checker<br />
+before processing user code. Changes here affect every <code>.vaked</code> file.</p>
+<hr />
+<h2 id="4-compiler-pipeline">4. Compiler Pipeline</h2>
+<div class="highlight"><pre><span></span><span class="o">.</span><span class="n">vaked</span><span class="w"> </span><span class="n">source</span>
+<span class="w">  </span><span class="err">│</span>
+<span class="w">  </span><span class="err">▼</span><span class="w"> </span><span class="p">[</span><span class="n">Stage</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">Lex</span><span class="p">]</span><span class="w">          </span><span class="n">lexer</span><span class="o">.</span><span class="n">py</span>
+<span class="w">  </span><span class="n">tokens</span>
+<span class="w">  </span><span class="err">▼</span><span class="w"> </span><span class="p">[</span><span class="n">Stage</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">Parse</span><span class="p">]</span><span class="w">        </span><span class="n">parser</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">resolve</span><span class="o">.</span><span class="n">py</span>
+<span class="w">  </span><span class="n">Labeled</span><span class="w"> </span><span class="n">Property</span><span class="w"> </span><span class="n">Graph</span>
+<span class="w">  </span><span class="err">▼</span><span class="w"> </span><span class="p">[</span><span class="n">Stage</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">Elaborate</span><span class="p">]</span><span class="w">    </span><span class="n">check</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="p">(</span><span class="n">schema</span><span class="w"> </span><span class="n">registry</span><span class="p">,</span><span class="w"> </span><span class="n">capability</span><span class="w"> </span><span class="n">order</span><span class="p">)</span>
+<span class="w">  </span><span class="n">Elaborated</span><span class="w"> </span><span class="n">LPG</span>
+<span class="w">  </span><span class="err">▼</span><span class="w"> </span><span class="p">[</span><span class="n">Stage</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">Check</span><span class="p">]</span><span class="w">        </span><span class="n">check</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="p">(</span><span class="n">conformance</span><span class="p">,</span><span class="w"> </span><span class="n">constraints</span><span class="p">,</span><span class="w"> </span><span class="n">caps</span><span class="p">,</span><span class="w"> </span><span class="n">generics</span><span class="p">)</span>
+<span class="w">  </span><span class="n">Validated</span><span class="w"> </span><span class="n">LPG</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="w">  </span><span class="err">▼</span><span class="w"> </span><span class="p">[</span><span class="n">Stage</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">Lower</span><span class="p">]</span><span class="w">        </span><span class="n">lower</span><span class="o">.</span><span class="n">py</span>
+<span class="w">  </span><span class="n">Artifacts</span><span class="w"> </span><span class="p">(</span><span class="n">flake</span><span class="o">.</span><span class="n">nix</span><span class="p">,</span><span class="w"> </span><span class="n">gen</span><span class="o">/*</span><span class="p">,</span><span class="w"> </span><span class="n">provenance</span><span class="o">.</span><span class="n">json</span><span class="p">)</span>
+<span class="w">  </span><span class="err">│</span>
+<span class="w">  </span><span class="err">▼</span><span class="w"> </span><span class="p">[</span><span class="n">Pass</span><span class="w"> </span><span class="n">Pipeline</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">MLIR</span><span class="o">-</span><span class="n">mirror</span><span class="p">]</span>
+<span class="w">  </span><span class="n">Pass</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">(</span><span class="n">topology</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Pass</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">(</span><span class="n">WAL</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">Pass</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="p">(</span><span class="n">AOT</span><span class="w"> </span><span class="n">index</span><span class="p">)</span>
+<span class="w">  </span><span class="n">gen</span><span class="o">/</span><span class="n">workflow</span><span class="o">/&lt;</span><span class="n">name</span><span class="o">&gt;.</span><span class="n">json</span>
+</pre></div>
+
+<h3 id="running-specific-stages">Running specific stages</h3>
+<div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>parse<span class="w">   </span>file.vaked<span class="w"> </span>--print<span class="w">          </span><span class="c1"># Stage 1-2: just parse</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w">   </span>file.vaked<span class="w">                   </span><span class="c1"># Stage 1-4: parse+check</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>lower<span class="w">   </span>file.vaked<span class="w"> </span>--out<span class="w"> </span>/tmp/out<span class="w">    </span><span class="c1"># Stage 1-5: full pipeline</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>passes<span class="w">  </span>file.vaked<span class="w"> </span>--json<span class="w">             </span><span class="c1"># Stage 1-4 + pass pipeline</span>
+</pre></div>
+
+<hr />
+<h2 id="5-mlir-layer-pass-pipeline">5. MLIR Layer — Pass Pipeline</h2>
+<h3 id="stage-0-python-working">Stage 0 (Python, working)</h3>
+<p>The <code>vakedc/passes/</code> package implements a reference pass pipeline that<br />
+mirrors the planned MLIR dialect passes. Three passes run in order:</p>
+<table>
+<thead>
+<tr>
+<th>Pass</th>
+<th>Spec</th>
+<th>What it does</th>
+<th>Output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 — TopologyAnalysis</td>
+<td>0021</td>
+<td>DFS cycle detection, critical-path depth, maxDepth bound</td>
+<td>Diagnostics (E-WORKFLOW-CYCLE, E-WORKFLOW-DEPTH)</td>
+</tr>
+<tr>
+<td>2 — WALInjection</td>
+<td>0022</td>
+<td>Inject WAL frames per dependency edge</td>
+<td>wal_frames on WorkflowIR</td>
+</tr>
+<tr>
+<td>3 — AOTIndexGeneration</td>
+<td>0023</td>
+<td>Emit supervisor index JSON</td>
+<td>gen/workflow/<name>.json</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><span class="c1"># Run passes on a file</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>passes<span class="w"> </span>vaked/examples/my-workflow.vaked<span class="w"> </span>--json
+
+<span class="c1"># Run the differential test corpus</span>
+python3<span class="w"> </span>tests/corpus/0024-differential/run_corpus.py
+
+<span class="c1"># Expected output: 10/10 fixtures PASS</span>
+<span class="c1">#   lower+determinism: 4 fixtures</span>
+<span class="c1">#   passes (depth/WAL/artifact): 4 fixtures</span>
+<span class="c1">#   reject (cycle/depth): 2 fixtures</span>
+</pre></div>
+
+<h3 id="adding-a-new-pass">Adding a new pass</h3>
+<ol>
+<li>Create <code>vakedc/passes/pass04_*.py</code> with a <code>run(graph, workflows)</code> method</li>
+<li>Wire it into <code>vakedc/passes/__init__.py</code> in <code>run_pipeline()</code></li>
+<li>Add expected-depth/WAL values to <code>PASS_EXPECTED</code> in <code>run_corpus.py</code></li>
+<li>Add a fixture to <code>tests/corpus/0024-differential/fixtures/</code></li>
+<li>Verify: <code>python3 tests/corpus/0024-differential/run_corpus.py</code></li>
+</ol>
+<h3 id="stage-1-mlir-c-buildable-on-linux">Stage 1 (MLIR C++, buildable on Linux)</h3>
+<p>The <code>vakedc/mlir/</code> directory holds TableGen dialect definitions and C++<br />
+implementations. Two build methods:</p>
+<h4 id="method-a-reproducible-nix-build-preferred">Method A: Reproducible Nix build (preferred)</h4>
+<div class="highlight"><pre><span></span><span class="c1"># From repo root — fully isolated, deterministic, uses pre-built MLIR</span>
+nix<span class="w"> </span>build<span class="w"> </span>.#vaked-mlir
+<span class="c1"># Output: result/lib/libVakedMLIRDialects.a + result/include/*.inc</span>
+</pre></div>
+
+<p>This is a proper Nix derivation (<code>nix/vaked-mlir.nix</code>). It uses the<br />
+pre-built MLIR package from nixpkgs — no LLVM source build, no network<br />
+during build, byte-identical across machines. This is the method that<br />
+reflects Vaked's own principles: reproducible and deterministic.</p>
+<h4 id="method-b-from-source-build-for-development">Method B: From-source build (for development)</h4>
+<div class="highlight"><pre><span></span><span class="c1"># On dev-cx53 (Linux x86_64, builds LLVM MLIR from source):</span>
+bash<span class="w"> </span>tools/build-mlir-stage1.sh
+
+<span class="c1"># Or step by step (inside nix develop):</span>
+<span class="nb">cd</span><span class="w"> </span>vakedc/mlir<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>cmake<span class="w"> </span>-G<span class="w"> </span>Ninja<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DMLIR_DIR<span class="o">=</span><span class="k">$(</span>mlir-tblgen<span class="w"> </span>--print-mlir-dir<span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ninja
+</pre></div>
+
+<p>The build produces:<br />
+- <code>build/generated/VakedDialect.h.inc</code> / <code>.cpp.inc</code><br />
+- <code>build/generated/HcpDialect.h.inc</code> / <code>.cpp.inc</code><br />
+- <code>build/lib/libVakedMLIRDialects.a</code></p>
+<h3 id="differential-testing-0024">Differential testing (0024)</h3>
+<p>When Stage-1 MLIR is built, the corpus harness gets a <code>lower_stage1()</code> leg:</p>
+<div class="highlight"><pre><span></span>For each fixture:
+  A_0 = Stage-0(vakedc passes --json)   # running Python
+  A_1 = Stage-1(mlir-run-pass --json)   # running C++
+  compare(A_0, A_1)                     # must be observationally equivalent
+</pre></div>
+
+<p>The comparison excludes <code>provenance.json</code> paths/hashes (they differ by<br />
+host) and compares only semantic artifacts:<br />
+<code>gen/workflow/*.json</code>, <code>gen/eventd.json</code>, <code>flake.nix</code>, <code>gen/RUNTIME.md</code>.</p>
+<p>See <code>docs/language/0024-mlir-lowering-staged-adoption.md §2.1</code>.</p>
+<hr />
+<h2 id="6-testing-what-goes-where">6. Testing — What Goes Where</h2>
+<table>
+<thead>
+<tr>
+<th>Test type</th>
+<th>Location</th>
+<th>How to run</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Spec tests (grammar, types)</td>
+<td><code>tests/spec/</code></td>
+<td><code>python3 -m pytest tests/spec/</code></td>
+</tr>
+<tr>
+<td>Differential corpus</td>
+<td><code>tests/corpus/0024-differential/</code></td>
+<td><code>python3 tests/corpus/0024-differential/run_corpus.py</code></td>
+</tr>
+<tr>
+<td>Golden fixtures</td>
+<td><code>vaked/examples/lowering/</code></td>
+<td>Checked by spec tests</td>
+</tr>
+<tr>
+<td>vakedc unit tests</td>
+<td>Inline in modules</td>
+<td><code>python3 -m doctest vakedc/*.py</code></td>
+</tr>
+<tr>
+<td>vakedz unit tests</td>
+<td><code>vakedz/test/</code></td>
+<td><code>cd vakedz &amp;&amp; zig build test</code></td>
+</tr>
+<tr>
+<td>MLIR TableGen</td>
+<td><code>vakedc/mlir/run_tests.sh</code></td>
+<td><code>bash vakedc/mlir/run_tests.sh</code></td>
+</tr>
+<tr>
+<td>CI (GitHub Actions)</td>
+<td><code>.github/workflows/</code></td>
+<td>Push PR — see <code>ci-gate.yml</code>, <code>vakedz-ci.yml</code>, <code>corpus-0024.yml</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="adding-a-test-fixture-for-passes">Adding a test fixture for passes</h3>
+<div class="highlight"><pre><span></span><span class="c1"># 1. Create fixture</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>tests/corpus/0024-differential/fixtures/my-topology.vaked<span class="w"> </span><span class="s">&lt;&lt; &#39;EOF&#39;</span>
+<span class="s">runtime &quot;my-topology&quot; {</span>
+<span class="s">  systems = [&quot;x86_64-linux&quot;]</span>
+<span class="s">  mesh f { node a { role = &quot;work&quot; capabilities = [fs.repo_ro] } }</span>
+<span class="s">  workflow wf {</span>
+<span class="s">    maxDepth = N</span>
+<span class="s">    node A { agent = f.a }</span>
+<span class="s">    ...</span>
+<span class="s">    A -&gt; B</span>
+<span class="s">  }</span>
+<span class="s">}</span>
+<span class="s">EOF</span>
+
+<span class="c1"># 2. Add expected values in run_corpus.py</span>
+<span class="c1">#    PASS_EXPECTED.append((&quot;my-topology.vaked&quot;, exp_depth, exp_wal))</span>
+
+<span class="c1"># 3. Run</span>
+python3<span class="w"> </span>tests/corpus/0024-differential/run_corpus.py
+</pre></div>
+
+<hr />
+<h2 id="7-live-coding-workflow">7. Live Coding Workflow</h2>
+<p>For rapid iteration on the compiler:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Parse + print JSON graph (fastest feedback)</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>parse<span class="w"> </span>my.vaked<span class="w"> </span>--print<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.nodes[] | {id, kind, name}&#39;</span>
+
+<span class="c1"># Check with structured diagnostics</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w"> </span>my.vaked<span class="w"> </span>--json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.diagnostics[]&#39;</span>
+
+<span class="c1"># Full lowering pipeline</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>lower<span class="w"> </span>my.vaked<span class="w"> </span>--out<span class="w"> </span>/tmp/lower<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>ls<span class="w"> </span>-la<span class="w"> </span>/tmp/lower/
+
+<span class="c1"># Pass pipeline with structured output</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>passes<span class="w"> </span>my.vaked<span class="w"> </span>--json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.workflows[0]&#39;</span>
+
+<span class="c1"># Watch mode (incremental re-check on save, requires entr)</span>
+find<span class="w"> </span>.<span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*.py&#39;</span><span class="w"> </span>-o<span class="w"> </span>-name<span class="w"> </span><span class="s1">&#39;*.vaked&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>entr<span class="w"> </span>-c<span class="w"> </span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w"> </span>my.vaked
+</pre></div>
+
+<hr />
+<h2 id="8-contribution-workflow-for-languagecompiler">8. Contribution Workflow (for language/compiler)</h2>
+<ol>
+<li><strong>Open an issue</strong> — describe the gap. Labels: <code>language</code> for grammar changes,<br />
+<code>design</code> for spec-only, <code>track:mlir</code> for pass changes.</li>
+<li><strong>Write the spec first</strong> — EBNF grammar update + design doc in <code>docs/language/</code><br />
+   or <code>protocol/rfcs/</code> if it touches the wire protocol.</li>
+<li><strong>Use the skills</strong> — <code>vaked-language-author</code> for grammar changes,<br />
+<code>hcp-rfc-author</code> for protocol RFCs, <code>caveman</code> for dense technical notes.</li>
+<li><strong>Implement</strong> — parser → checker → lowerer → passes, in that order.</li>
+<li><strong>Test</strong> — spec tests + corpus + golden fixtures.</li>
+<li><strong>PR</strong> — the CI runs <code>corpus-0024.yml</code> (10 fixtures), <code>vakedz-ci.yml</code>, and<br />
+<code>ci-gate.yml</code> (spec tests). All must pass.</li>
+</ol>
+<h3 id="quick-reference-when-to-update-what">Quick reference: when to update what</h3>
+<table>
+<thead>
+<tr>
+<th>You change...</th>
+<th>Also update</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>EBNF grammar</td>
+<td><code>parser.py</code>, <code>check.py</code> (if new constraints)</td>
+</tr>
+<tr>
+<td>A schema in <code>builtins.vaked</code></td>
+<td><code>lower.py</code> (if new emit fields)</td>
+</tr>
+<tr>
+<td>A checker rule in <code>check.py</code></td>
+<td><code>tests/spec/</code> (positive + negative cases)</td>
+</tr>
+<tr>
+<td>An emitter in <code>lower.py</code></td>
+<td>Golden fixtures in <code>tests/</code></td>
+</tr>
+<tr>
+<td>The pass pipeline</td>
+<td><code>run_corpus.py</code> expected values</td>
+</tr>
+<tr>
+<td>A <code>.td</code> dialect file</td>
+<td><code>mlir-tblgen</code> output changes (re-generate <code>.inc</code>)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="9-design-docs-index-language-mlir">9. Design Docs Index (Language &amp; MLIR)</h2>
+<table>
+<thead>
+<tr>
+<th>Doc</th>
+<th>Title</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0001</td>
+<td>Manifesto</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0002</td>
+<td>Primitives</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0008</td>
+<td>Parallel, fibers, indexes, surfaces</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0010</td>
+<td>MirageOS unikernel surface</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0011</td>
+<td>Type system (0011)</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0012</td>
+<td>Lowering (0012)</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0013</td>
+<td>MLIR topology compilation</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0014</td>
+<td>Memory primitive</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0015</td>
+<td>Workflow primitive</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0018</td>
+<td>Compiler architecture</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0019</td>
+<td>vaked MLIR dialect</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0020</td>
+<td>hcp MLIR dialect</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0021</td>
+<td>Pass 1: topology analysis</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0022</td>
+<td>Pass 2: WAL injection</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0023</td>
+<td>Pass 3: AOT supervisor index</td>
+<td>✅ Accepted</td>
+</tr>
+<tr>
+<td>0024</td>
+<td>Staged MLIR adoption</td>
+<td>✅ Accepted</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="10-common-tasks-cheat-sheet">10. Common Tasks — Cheat Sheet</h2>
+<div class="highlight"><pre><span></span><span class="c1"># &quot;How do I see the LPG for this file?&quot;</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>parse<span class="w"> </span>my.vaked<span class="w"> </span>--print<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.nodes[] | {id, kind, name, props}&#39;</span>
+
+<span class="c1"># &quot;Does this grammar change parse correctly?&quot;</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>parse<span class="w"> </span>my-test.vaked
+
+<span class="c1"># &quot;Add a new workflow topology fixture&quot;</span>
+cp<span class="w"> </span>tests/corpus/0024-differential/fixtures/diamond.vaked<span class="w"> </span><span class="se">\</span>
+<span class="w">   </span>tests/corpus/0024-differential/fixtures/my.vaked
+<span class="c1"># edit my.vaked, then add to PASS_EXPECTED in run_corpus.py</span>
+
+<span class="c1"># &quot;Run just the pass pipeline tests&quot;</span>
+python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<span class="s2">from vakedc.passes import PassPipeline as P</span>
+<span class="s2">from vakedc import parse_source, build_graph</span>
+<span class="s2"># ... inline test code ...</span>
+<span class="s2">&quot;</span>
+
+<span class="c1"># &quot;Check if my MLIR .td files are valid TableGen&quot;</span>
+mlir-tblgen<span class="w"> </span>--gen-op-defs<span class="w"> </span>vakedc/mlir/VakedDialect.td<span class="w"> </span>&gt;<span class="w"> </span>/dev/null<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;valid&quot;</span>
+
+<span class="c1"># &quot;Build the MLIR library on dev-cx53&quot;</span>
+bash<span class="w"> </span>tools/build-mlir-stage1.sh
+</pre></div>
+
+<hr />
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><code>CLAUDE.md</code> — project-wide conventions, agent fleet, CI</li>
+<li><code>CONTRIBUTING.md</code> — general contribution guidelines</li>
+<li><code>docs/language/</code> — all 24 language design docs</li>
+<li><code>docs/context/PROJECT_CONTEXT.md</code> — high-level project overview</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/context/DEV_GUIDE.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

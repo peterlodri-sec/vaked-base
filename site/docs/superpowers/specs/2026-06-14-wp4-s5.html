@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP4-S5 — Capability enforcement hooks (all 3 daemons) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-scope-note-which-three-daemons-read-first" style="padding-left:0.5rem">0. Scope note — *which* three daemons (read first)</a><a href="#01-agentguardd-and-agentmemoryd-are-reference-oracles-not-subjects" style="padding-left:1rem">  0.1 `agent_guardd` and `agent_memoryd` are reference oracles, not subjects</a><a href="#02-the-discriminating-constraint-who-decides" style="padding-left:1rem">  0.2 The discriminating constraint: who *decides*?</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-out-of-scope-normative-scope-boundary" style="padding-left:1rem">  1.1 Out of scope (normative scope boundary)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-normative-inputs-rfcs" style="padding-left:1rem">  2.1 Normative inputs (RFCs)</a><a href="#22-oracle-reference-implementations-python-in-repo" style="padding-left:1rem">  2.2 Oracle / reference implementations (Python, in-repo)</a><a href="#23-design-docs" style="padding-left:1rem">  2.3 Design docs</a><a href="#3-design" style="padding-left:0.5rem">3. Design</a><a href="#30-the-common-spine-all-three-daemons" style="padding-left:1rem">  3.0 The common spine (all three daemons)</a><a href="#31-sandboxd-hook-decision-wire-the-deny-path" style="padding-left:1rem">  3.1 sandboxd hook (decision: wire the deny path)</a><a href="#32-agent-supervisord-hook-decision-real-preceptord-point-deny-path-live" style="padding-left:1rem">  3.2 agent-supervisord hook (decision: real preceptord point, deny path live)</a><a href="#33-eventd-hook-verification-the-shared-conformance-prover-the-writer-seam" style="padding-left:1rem">  3.3 eventd hook (verification: the shared conformance prover) + the writer seam</a><a href="#4-contracts" style="padding-left:0.5rem">4. Contracts</a><a href="#41-the-common-capabilityverdict-testimony-payload" style="padding-left:1rem">  4.1 The common `CapabilityVerdict` testimony payload</a><a href="#42-the-lattices-frozen-from-existing-specs" style="padding-left:1rem">  4.2 The lattices (frozen, from existing specs)</a><a href="#43-policy-input-contract" style="padding-left:1rem">  4.3 Policy input contract</a><a href="#44-verifier-kind-set" style="padding-left:1rem">  4.4 Verifier kind-set</a><a href="#5-test-plan" style="padding-left:0.5rem">5. Test plan</a><a href="#51-tier-l-local-on-m1-the-conformance-backbone" style="padding-left:1rem">  5.1 Tier L — local on M1 (the conformance backbone)</a><a href="#52-tier-k-needs-dev-cx53-linux-deferred-to-wp4-s6-integration" style="padding-left:1rem">  5.2 Tier K — needs dev-cx53 / Linux (deferred to WP4-S6 integration)</a><a href="#6-file-layout-paths-to-create" style="padding-left:0.5rem">6. File layout (paths to create)</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp4-s5</div>
+<h1>WP4-S5 — Capability enforcement hooks (all 3 daemons)</h1>
+<h1 id="wp4-s5-capability-enforcement-hooks-all-3-daemons">WP4-S5 — Capability enforcement hooks (all 3 daemons)</h1>
+<ul>
+<li><strong>Status:</strong> Draft (planning artifact; work is dependency-blocked, see §8)</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Track:</strong> WP4 (daemon MVP — <code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md</code>)</li>
+<li><strong>Sprint:</strong> WP4-S5, Aug 21 – Sep 3, 2026 (Engineer B — Zig/eBPF/Linux)</li>
+<li><strong>Code home:</strong> <code>daemons/sandboxd/</code>, <code>daemons/agent-supervisord/</code>, <code>daemons/eventd/</code><br />
+  (the WP4 kickoff §"Code home", line 18)</li>
+</ul>
+<h2 id="0-scope-note-which-three-daemons-read-first">0. Scope note — <em>which</em> three daemons (read first)</h2>
+<p>A reader arriving from the capability lattices in the codebase will reasonably<br />
+assume "the 3 daemons" means the trio that already enforces capabilities today —<br />
+<code>agent_guardd</code> (network/ebpf), <code>agent_sandboxd</code> (fs/process), <code>agent_memoryd</code><br />
+(mem). <strong>That is the wrong set for this sprint.</strong> The WP4 kickoff fixes the<br />
+daemon set exactly once and reuses it:</p>
+<ul>
+<li><strong>Scope</strong> (<code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md</code> line 7): "Three<br />
+  daemons to MVP: <strong>sandboxd + agent-supervisord + eventd</strong> (Zig port)."</li>
+<li><strong>WP4-S6</strong> (line 33): "integration test (<strong>3 daemons</strong> running on vakedos)."</li>
+<li><strong>Success criteria</strong> (lines 72-73): sandboxd, agent-supervisord, eventd Zig;<br />
+  "all 3 daemons start from systemd units generated by <code>vakedz lower</code>."</li>
+</ul>
+<p>WP4-S5's "all 3 daemons" inherits that antecedent. The three subjects of this<br />
+spec are therefore the <strong>Zig daemons under <code>daemons/</code></strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Subject daemon</th>
+<th>Code home</th>
+<th>What "capability hook" means here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>sandboxd</strong></td>
+<td><code>daemons/sandboxd/</code></td>
+<td>A real grant check on the <code>fs</code>/<code>process</code> lattice (the deny path, currently stubbed) at the exec/access boundary, emitting a common-shaped capability verdict.</td>
+</tr>
+<tr>
+<td><strong>agent-supervisord</strong></td>
+<td><code>daemons/agent-supervisord/</code></td>
+<td>The preceptord authority point: turn the <strong>stubbed-but-wired</strong> deny path into a real grant check on RFC 0005 control frames and worker spawn, with typed <code>ControlRefusal</code>, write-ahead logged.</td>
+</tr>
+<tr>
+<td><strong>eventd</strong></td>
+<td><code>daemons/eventd/</code></td>
+<td>The <strong>conformance-verification leg</strong>: a shared prover that replays the chain and proves every testified capability verdict conformed to the declared policy. eventd makes <em>no</em> per-request allow/deny decision (see §0.2).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="01-agent_guardd-and-agent_memoryd-are-reference-oracles-not-subjects">0.1 <code>agent_guardd</code> and <code>agent_memoryd</code> are reference oracles, not subjects</h3>
+<p>Neither is part of WP4 (no code home under <code>daemons/</code>). Both already implement<br />
+the cap-hook + testimony pattern that the three subject daemons must conform to,<br />
+and serve as the <strong>Python reference / oracle</strong> in the <code>#15</code> pattern (Python<br />
+fixes the decision + the bytes; the Zig daemon reproduces them — see<br />
+<code>docs/runtime/agent-guardd.md</code> lines 14-18):</p>
+<ul>
+<li><code>agent_guardd</code>: <code>policy.decide</code> (the pure deny-by-default verdict),<br />
+<code>evidence.egress_event</code> (the on-chain testimony shape), <code>verify.verify_run</code><br />
+  (the conformance prover). This is the <strong>canonical pattern</strong> the eventd prover<br />
+  generalizes.</li>
+<li><code>agent_memoryd</code>: <code>capability.CapabilityToken</code> + the <code>mem</code> lattice<br />
+  (<code>none &lt; recall &lt; append &lt; admin</code>) + <code>capability.check_capability</code> (the<br />
+  POLA enforcement point raising <code>PermissionError</code>).</li>
+</ul>
+<p><strong>Illustrative gap (the bar the subjects must clear):</strong> <code>agent_memoryd</code><br />
+<em>decides</em> at three sites (<code>daemon.py</code> lines 109/171/209 call<br />
+<code>check_capability</code> for APPEND/RECALL/ADMIN) but <strong>never testifies the capability<br />
+verdict</strong> to eventd — its only testimony event is <code>memory_tombstone</code><br />
+(<code>agent_memoryd/eventd.py</code> line 127), and it has no conformance prover. By<br />
+contrast <code>agent_guardd</code> testifies <em>every</em> verdict and ships <code>verify_run</code>. WP4-S5<br />
+requires the three subject daemons to clear the guardd bar (decide → testify in<br />
+the common shape → be provable by the shared verifier), closing the gap memoryd<br />
+illustrates. memoryd itself is out of scope; it is shown here only as the<br />
+counter-example that motivates the common spine.</p>
+<h3 id="02-the-discriminating-constraint-who-decides">0.2 The discriminating constraint: who <em>decides</em>?</h3>
+<p>The hook looks different per daemon because not every daemon makes a per-request<br />
+decision:</p>
+<ul>
+<li><strong>sandboxd — yes.</strong> Per <code>(path, mode)</code> and per spawn: allow/deny at the<br />
+  exec/access boundary.</li>
+<li><strong>agent-supervisord — yes.</strong> Per RFC 0005 control frame and per worker spawn:<br />
+  allow/deny (the preceptord authority point).</li>
+<li><strong>eventd — no.</strong> eventd verifies <em>after the fact</em>. Its hook is the<br />
+<strong>verification leg</strong>, not a decision leg. We deliberately do <strong>not</strong> invent a<br />
+  per-request decision point in eventd to make the trio symmetric.</li>
+</ul>
+<p>The single concern that <em>could</em> be double-assigned is <strong>append authority</strong> (who<br />
+may write to the log). That is <strong>agent-supervisord's</strong>, via its single-writer<br />
+ownership (<code>docs/superpowers/specs/2026-06-12-agent-supervisord-design.md</code> lines<br />
+20-24: "owns the eventd writer — the RFC 0004 single-writer discipline: every<br />
+event flows through supervisord"; <code>docs/superpowers/specs/2026-06-12-eventd-design.md</code><br />
+lines 55-57: "the OTP <code>agent-supervisord</code> owns the writer; fibers emit events to<br />
+it"). It is <strong>not</strong> eventd's hook. Assigning append-admission to eventd would<br />
+reimplement supervisord's concern inside eventd — the scope error the WP3-S3<br />
+spec warns against (<code>docs/superpowers/specs/2026-06-14-wp3-s3.md</code> §1.1).</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Land the <strong>capability-enforcement hook</strong> in the three WP4 daemons so that, for<br />
+every privileged operation a daemon performs on behalf of a principal:</p>
+<ol>
+<li>the operation is <strong>gated by a grant check</strong> against the principal's declared<br />
+   capability (sandboxd: <code>fs</code>/<code>process</code>; supervisord: RFC 0005 control verbs +<br />
+   worker spawn);</li>
+<li>the <strong>verdict is testified</strong> to the eventd hash chain in a single<br />
+   cross-daemon <strong>common testimony shape</strong> (§4.1) — every allow <em>and</em> every<br />
+   deny, deterministically (no wall-clock in the chained payload), so a replay<br />
+   hashes identically;</li>
+<li>the run is <strong>provable</strong>: a shared eventd conformance prover (§4.4) replays<br />
+   the chain and proves (a) chain integrity and (b) that every testified verdict<br />
+   agrees with the declared policy — generalizing <code>agent_guardd.verify.verify_run</code><br />
+   from one <code>kind</code> to the whole capability-verdict family.</li>
+</ol>
+<p>The acceptance shape mirrors the guardd vertical slice<br />
+(<code>docs/runtime/agent-guardd.md</code> "The loop"): <strong>declare → lower → enforce →<br />
+testify → verify</strong> — closed for <code>fs</code>/<code>process</code> (sandboxd) and for control-plane<br />
+authority (supervisord), with eventd owning the verify leg for all of them.</p>
+<h3 id="11-out-of-scope-normative-scope-boundary">1.1 Out of scope (normative scope boundary)</h3>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Owner</th>
+<th>Why not S5</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>network</code>/<code>ebpf</code> membrane enforcement</td>
+<td><code>agent_guardd</code> (oracle) / its eventual Zig port</td>
+<td>guardd is not a WP4 daemon; it is the reference pattern, already done.</td>
+</tr>
+<tr>
+<td><code>mem</code> capability enforcement</td>
+<td><code>agent_memoryd</code> (oracle)</td>
+<td>memoryd is not a WP4 daemon.</td>
+</tr>
+<tr>
+<td>Lowering <code>capability fs</code>/<code>capability process</code> grants → concrete mounts/cgroup limits</td>
+<td><code>vakedc</code> lowering (0012) + NixOS module</td>
+<td>sandboxd consumes the lowered config; it does not compute the projection (<code>docs/superpowers/specs/2026-06-13-sandboxd-design.md</code> lines 130, 243-245).</td>
+</tr>
+<tr>
+<td>The DAG / topology-epoch validation that gates control frames</td>
+<td><code>vakedc</code> pass + the router (WP3-S3)</td>
+<td>RFC 0004 §5; the supervisor <em>consults</em> epoch state, it does not re-derive it.</td>
+</tr>
+<tr>
+<td>Canonical-hash byte format</td>
+<td><code>eventd</code> core (frozen, <code>eventd/core.py</code>)</td>
+<td>S5 reuses it verbatim; it does not change the byte contract.</td>
+</tr>
+<tr>
+<td>The actual <code>preceptord</code> daemon</td>
+<td>future</td>
+<td>does not exist yet; S5 wires the authority <em>point</em> with an allow-all-default policy and a live deny path (§3.2).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-normative-inputs-rfcs">2.1 Normative inputs (RFCs)</h3>
+<ul>
+<li><strong>RFC 0001 §"Authority and policy: <code>preceptord</code>"</strong> (<code>protocol/rfcs/0001-hcp.md</code><br />
+  lines 330-360, 487-499): the authority model. <code>preceptord</code> decides whether a<br />
+  peer (SPIFFE ID) may access a named capability (<code>network, filesystem, mcp,
+  eBPF, process, memory</code>) <strong>before dispatch to the handler</strong>; denied requests<br />
+  produce error frames with a typed <code>ControlRefusal</code> reason; authority is<br />
+  inherited through the OTP tree (agent ← supervisor ← session); revocation is<br />
+  effective on next frame evaluation. This is the contract supervisord's hook<br />
+  implements (with an allow-all default policy until <code>preceptord</code> ships).</li>
+<li><strong>RFC 0005 §1 frame catalog, §3 <code>control_action</code>, §4 <code>ControlRefusal</code></strong><br />
+  (<code>protocol/rfcs/0005-control-frames.md</code>): the control verbs<br />
+  (pause/resume/slow/step/rewind), the eventd payload kind recording an<br />
+<strong>applied</strong> control frame (<code>control_action</code>), and the typed refusal reasons.<br />
+  "Authority is a <code>preceptord</code> policy decision, and <strong>every applied control<br />
+  action is itself an eventd entry</strong>" (RFC 0005 Abstract) — the write-ahead<br />
+  testimony requirement for supervisord.</li>
+<li><strong>RFC 0004 §6 lifecycle + §7 topology epoch</strong> (<code>protocol/rfcs/0004-multi-agent-state-dependency.md</code>):<br />
+  the lifecycle states a worker may be in and the epoch a control action is<br />
+  evaluated under. The supervisor reads these; the hook fences a control verb on<br />
+  a stale epoch as a refusal (§3.2).</li>
+</ul>
+<h3 id="22-oracle-reference-implementations-python-in-repo">2.2 Oracle / reference implementations (Python, in-repo)</h3>
+<ul>
+<li><code>agent_guardd/policy.py</code> — <code>decide(membrane, host, port)</code> returning<br />
+<code>(action, reason)</code>: the canonical pure, deterministic verdict function shape.</li>
+<li><code>agent_guardd/evidence.py</code> — <code>egress_event(...)</code>: the canonical on-chain<br />
+  testimony payload (<code>kind="ebpf_egress"</code>, <code>principal</code>, <code>action</code>, <code>reason</code>,<br />
+<code>mechanism</code>, deterministic, no wall-clock). The §4.1 common shape generalizes<br />
+  this.</li>
+<li><code>agent_guardd/verify.py</code> — <code>verify_run(policy, log_path) -&gt; VerifyReport</code>: the<br />
+  canonical conformance prover (boot-verify the chain, then for each verdict<br />
+  recompute <code>decide</code> and compare to the recorded <code>action</code>; strict<br />
+  principal→policy binding; a forged-but-chained event is caught as a<br />
+  conformance mismatch). The §4.4 eventd prover generalizes this across <code>kind</code>s.</li>
+<li><code>agent_sandboxd/policy.py</code> — <code>decide_path(policy, path, mode) -&gt; PolicyDecision</code><br />
+  and the <code>FsGrant</code> / <code>ProcessGrant</code> lattices. <strong>This is the sandboxd hook's<br />
+  decision oracle</strong> — the Zig daemon reproduces its verdicts byte-for-byte on<br />
+  shared vectors.</li>
+<li><code>agent_sandboxd/eventd.py</code> — <code>spawn_event</code> / <code>access_event</code> (already carry<br />
+<code>action: "allow"|"deny"</code>, <code>reason</code>); these become the §4.1 common shape.</li>
+<li><code>eventd/core.py</code> — the <strong>frozen</strong> canonical-JSON + hash-chain functions<br />
+  (<code>canonical_json</code>, <code>chain_hash</code>, <code>make_entry</code>, <code>verify_chain</code>). The<br />
+  cross-language hash contract; the Zig eventd (WP4-S4) reproduces these bytes.</li>
+<li><code>agent_memoryd/capability.py</code> — <code>CapabilityToken</code> + <code>check_capability</code>: the<br />
+  illustrative POLA pattern (§0.1); used to cross-check the common token shape,<br />
+  not a subject.</li>
+</ul>
+<h3 id="23-design-docs">2.3 Design docs</h3>
+<ul>
+<li><code>docs/superpowers/specs/2026-06-13-sandboxd-design.md</code> — lines 44-46<br />
+  ("enforcement point for the capability a worker was granted"), 163-166<br />
+  ("sandboxd <strong>enforces</strong>, guardd <strong>testifies</strong>"; eventd lifecycle audit; <strong>no</strong><br />
+  canonical hashing in sandboxd — the oracle owns bytes), 176-178 + 263-264<br />
+  (sandbox grants subject to <strong>preceptord</strong> authority; reference phase =<br />
+<strong>allow-all + log the principal, deny path stubbed</strong>). The deny path is<br />
+  sandboxd's S5 hook.</li>
+<li><code>docs/superpowers/specs/2026-06-12-agent-supervisord-design.md</code> — lines 20-24<br />
+  (owns the eventd writer; single-writer discipline), 31-33 (serves RFC 0005<br />
+  with preceptord authority, epoch fencing, typed refusals, write-ahead<br />
+<code>control_action</code>), 110-112 (reference phase: <strong>allow-all + log, deny path<br />
+  stubbed but wired</strong>). That stub is supervisord's S5 hook.</li>
+<li><code>docs/superpowers/specs/2026-06-12-eventd-design.md</code> — lines 45-49 (verify +<br />
+  fold), 55-61 (supervisord owns the writer; tamper-check on boot). eventd's S5<br />
+  contribution is the conformance prover over the verify+fold it already owns.</li>
+</ul>
+<h2 id="3-design">3. Design</h2>
+<h3 id="30-the-common-spine-all-three-daemons">3.0 The common spine (all three daemons)</h3>
+<div class="highlight"><pre><span></span><span class="n">declare</span><span class="w">        </span><span class="n">capability</span><span class="w"> </span><span class="n">fs</span><span class="o">/</span><span class="n">process</span><span class="w"> </span><span class="p">(</span><span class="n">sandboxd</span><span class="p">)</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">RFC</span><span class="w"> </span><span class="mi">0005</span><span class="w"> </span><span class="n">verb</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">worker</span><span class="w"> </span><span class="n">grant</span><span class="w"> </span><span class="p">(</span><span class="n">supervisord</span><span class="p">)</span>
+<span class="w">   </span><span class="err">│</span><span class="w">             </span><span class="n">vaked</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">vakedc</span><span class="w"> </span><span class="n">lower</span>
+<span class="w">   </span><span class="err">▼</span><span class="w"> </span><span class="n">lower</span><span class="w">      </span><span class="n">gen</span><span class="o">/</span><span class="n">zig</span><span class="o">/&lt;</span><span class="n">fiber</span><span class="o">&gt;.</span><span class="n">json</span><span class="w"> </span><span class="p">(</span><span class="n">sandboxd</span><span class="w"> </span><span class="n">policy</span><span class="p">)</span><span class="w">  </span><span class="p">;</span><span class="w">  </span><span class="n">gen</span><span class="o">/</span><span class="n">otp</span><span class="o">/&lt;</span><span class="n">slug</span><span class="o">&gt;</span><span class="n">_sup</span><span class="o">.</span><span class="n">erl</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">policy</span><span class="w"> </span><span class="p">(</span><span class="n">supervisord</span><span class="p">)</span>
+<span class="w">   </span><span class="err">│</span>
+<span class="w">   </span><span class="err">▼</span><span class="w"> </span><span class="n">DECIDE</span><span class="w">     </span><span class="n">sandboxd</span><span class="o">.</span><span class="n">decide_path</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">spawn</span><span class="o">-</span><span class="n">grant</span><span class="w">   </span><span class="p">;</span><span class="w">   </span><span class="n">supervisord</span><span class="w"> </span><span class="n">preceptord</span><span class="o">-</span><span class="n">point</span><span class="w"> </span><span class="n">grant</span><span class="w"> </span><span class="n">check</span>
+<span class="w">   </span><span class="err">│</span><span class="w">            </span><span class="p">(</span><span class="n">allow</span><span class="o">/</span><span class="n">deny</span><span class="p">,</span><span class="w"> </span><span class="n">reason</span><span class="p">)</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">pure</span><span class="p">,</span><span class="w"> </span><span class="n">deterministic</span>
+<span class="w">   </span><span class="err">▼</span><span class="w"> </span><span class="n">TESTIFY</span><span class="w">    </span><span class="n">one</span><span class="w"> </span><span class="n">CapabilityVerdict</span><span class="w"> </span><span class="n">payload</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.1</span><span class="p">)</span><span class="w"> </span><span class="n">appended</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">chain</span>
+<span class="w">   </span><span class="err">│</span><span class="w">            </span><span class="err">—</span><span class="w"> </span><span class="n">supervisord</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">single</span><span class="w"> </span><span class="n">writer</span><span class="p">;</span><span class="w"> </span><span class="n">sandboxd</span><span class="w"> </span><span class="n">emits</span><span class="w"> </span><span class="n">THROUGH</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">3.3</span><span class="p">)</span>
+<span class="w">   </span><span class="err">▼</span><span class="w"> </span><span class="n">VERIFY</span><span class="w">     </span><span class="n">eventd</span><span class="w"> </span><span class="n">shared</span><span class="w"> </span><span class="n">prover</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.4</span><span class="p">):</span><span class="w"> </span><span class="n">chain</span><span class="w"> </span><span class="n">intact</span><span class="w"> </span><span class="err">∧</span><span class="w"> </span><span class="n">every</span><span class="w"> </span><span class="n">verdict</span><span class="w"> </span><span class="n">conforms</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">policy</span>
+<span class="w">                </span><span class="err">⇒</span><span class="w"> </span><span class="s2">&quot;the capability held&quot;</span>
+</pre></div>
+
+<p>The three legs that are <strong>new</strong> in S5 are DECIDE (sandboxd + supervisord), the<br />
+<strong>common</strong> TESTIFY shape (§4.1, replacing each daemon's bespoke payload), and the<br />
+<strong>generalized</strong> VERIFY prover in eventd (§4.4). guardd already does all three for<br />
+<code>network</code>; S5 makes the other two daemons match and folds the verify into eventd.</p>
+<h3 id="31-sandboxd-hook-decision-wire-the-deny-path">3.1 sandboxd hook (decision: wire the deny path)</h3>
+<p>Today (Python ref, <code>agent_sandboxd/daemon.py</code>) the spawn path is <strong>allow-all +<br />
+log the principal</strong> with the deny path stubbed (sandboxd design lines 176-178).<br />
+S5 makes the grant check authoritative:</p>
+<ol>
+<li><strong>Inputs.</strong> From the lowered config <code>gen/zig/&lt;fiber&gt;.json</code> (a 0012 lowering<br />
+   output): the principal id, the <code>capability fs</code> grant (<code>none &lt; repo_ro &lt;
+   repo_rw &lt; host_ro &lt; host_rw</code>), the <code>capability process</code> grant<br />
+   (<code>none &lt; spawn_sandboxed &lt; spawn &lt; exec_host</code>), and the concrete<br />
+<code>allowed_read</code> / <code>allowed_write</code> path sets (sandboxd design §"Config<br />
+   contract"; mirrored by <code>agent_sandboxd/policy.py</code> <code>FilesystemPolicy</code>).</li>
+<li><strong>fs decision.</strong> At every <code>open</code>/<code>exec</code> access boundary, call the verdict<br />
+   function (Zig port of <code>decide_path</code>): deny-by-default; a path is allowed iff<br />
+   it falls under an <code>allowed_read</code> prefix (read) or <code>allowed_write</code> prefix<br />
+   (write); <code>grant=none</code> denies everything; writes outside declared write bounds<br />
+   are denied even if readable. Output <code>(action, reason)</code>.</li>
+<li><strong>process decision.</strong> At spawn: the requested exec mode must be <code>≤</code> the<br />
+<code>process</code> grant in the lattice. <code>spawn_sandboxed</code> requires the new namespace<br />
+   set (<code>CLONE_NEWNS|NEWPID|NEWNET|NEWUSER</code>, kickoff line 44); <code>exec_host</code> is<br />
+   refused unless the grant is <code>exec_host</code>. Output <code>(action, reason)</code>.</li>
+<li><strong>Enforce.</strong> A <code>deny</code> aborts the operation (no exec, no fd) — the membrane<br />
+   holds whether or not a cgroup/seccomp layer is also attached, exactly as the<br />
+   guardd reference datapath refuses a <code>connect</code> before a packet leaves<br />
+   (<code>agent_guardd/enforce.py</code> lines 49-59).</li>
+<li><strong>Testify.</strong> Emit one <code>CapabilityVerdict</code> (§4.1) per decision through the<br />
+   supervisord writer (§3.3). sandboxd does <strong>no canonical hashing</strong> itself — the<br />
+   eventd oracle owns the bytes (sandboxd design lines 165-166, 190).</li>
+</ol>
+<p>The reference oracle for legs 2-3 is <code>agent_sandboxd/policy.py</code>; the Zig daemon<br />
+must reproduce its verdicts byte-for-byte on shared vectors (§5.1).</p>
+<h3 id="32-agent-supervisord-hook-decision-real-preceptord-point-deny-path-live">3.2 agent-supervisord hook (decision: real preceptord point, deny path live)</h3>
+<p>Today the authority point is "allow-all + log the principal, with the deny path<br />
+<strong>stubbed but wired</strong>" (supervisord design lines 110-112). S5 turns the stub<br />
+into a live check at two sites:</p>
+<ol>
+<li><strong>Control-frame authority (RFC 0005).</strong> For every inbound RFC 0005 <code>request</code><br />
+   frame (pause/resume/slow/step/rewind), before applying it:</li>
+<li>resolve the <strong>target</strong> against the current topology epoch (RFC 0005 §2.4);</li>
+<li><strong>epoch fence</strong> (RFC 0004 §7): a control frame carrying a non-current<br />
+<code>topology_epoch</code> is refused <code>stale_epoch</code>;</li>
+<li><strong>grant check</strong> (the preceptord point, RFC 0001 lines 487-499): does the<br />
+     peer (SPIFFE ID) hold the capability the verb requires under the policy in<br />
+     force? Default policy is <strong>allow-all</strong> (no <code>preceptord</code> daemon yet), but the<br />
+<strong>deny path is live</strong>: a policy that denies <em>does</em> refuse, with a typed<br />
+<code>ControlRefusal</code> reason (RFC 0005 §4). This is the one behavioral change<br />
+     from today — denials are no longer impossible.</li>
+<li>On <strong>allow</strong>: apply the verb and write a <strong>write-ahead</strong> <code>control_action</code><br />
+     eventd entry (RFC 0005 §3; RFC 0005 Abstract "every applied control action<br />
+     is itself an eventd entry"). On <strong>deny</strong>: emit a <code>ControlAck</code> refusal and a<br />
+<code>CapabilityVerdict</code> (§4.1) with <code>action="deny"</code>.</li>
+<li><strong>Worker-spawn authority.</strong> When the OTP tree starts a worker whose fiber<br />
+   declares a <code>capability</code> grant, the supervisor verifies the grant is<br />
+   authorized under policy before starting the child, emitting a<br />
+<code>CapabilityVerdict</code>. (sandboxd then performs the <em>fs/process</em> enforcement at<br />
+   exec; the supervisor's check is the coarse-grained "may this principal hold<br />
+   this grant at all".)</li>
+</ol>
+<p><strong>Reference-phase intake</strong> (supervisord design lines 65-70): RFC 0005 frames<br />
+over Litany Wire are not available until WP3 lands the wire. Until then control<br />
+verbs arrive via the ralph <code>control.json</code> polled per tick; file-driven actions<br />
+synthesize their <code>corr</code> and refusals are <strong>log-visible only</strong> (no <code>ControlAck</code><br />
+channel). The grant check and the <code>CapabilityVerdict</code>/<code>control_action</code> testimony<br />
+run identically on both intakes — the file is just a transport.</p>
+<h3 id="33-eventd-hook-verification-the-shared-conformance-prover-the-writer-seam">3.3 eventd hook (verification: the shared conformance prover) + the writer seam</h3>
+<p>eventd makes <strong>no per-request decision</strong> (§0.2). Its two S5 responsibilities:</p>
+<ol>
+<li><strong>Be the single-writer funnel's sink (writer = supervisord).</strong> Append<br />
+   authority is supervisord's single-writer discipline (§0.2). eventd provides<br />
+   the <code>append</code> primitive (<code>flock</code> single-writer, fsync-on-append, boot-time<br />
+   chain verify — <code>eventd/core.py</code> + the <code>EventLog</code> daemon). sandboxd's<br />
+<code>CapabilityVerdict</code> events flow <strong>through</strong> the supervisord writer<br />
+   (eventd design lines 55-57). S5 does not change the byte format or add an<br />
+   admission decision to eventd — it reuses the frozen contract verbatim.</li>
+<li><strong>The shared conformance prover</strong> — the real new eventd code. Generalize<br />
+<code>agent_guardd.verify.verify_run</code> from one <code>kind</code> (<code>ebpf_egress</code>) to the whole<br />
+   capability-verdict family:</li>
+</ol>
+<div class="highlight"><pre><span></span><span class="w">   </span><span class="n">verify_capabilities</span><span class="p">(</span><span class="n">policies</span><span class="p">,</span><span class="w"> </span><span class="n">log_path</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">CapabilityReport</span>
+<span class="w">     </span><span class="mf">1.</span><span class="w"> </span><span class="n">EventLog</span><span class="p">(</span><span class="n">log_path</span><span class="p">)</span><span class="w">  </span><span class="c1"># boot-verify the hash chain; TamperError ⇒ chain_ok=False</span>
+<span class="w">     </span><span class="mf">2.</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">each</span><span class="w"> </span><span class="n">entry</span><span class="w"> </span><span class="n">whose</span><span class="w"> </span><span class="n">payload</span><span class="o">.</span><span class="n">kind</span><span class="w"> </span><span class="err">∈</span><span class="w"> </span><span class="p">{</span><span class="n">ebpf_egress</span><span class="p">,</span><span class="w"> </span><span class="n">sandbox_fs_access</span><span class="p">,</span>
+<span class="w">        </span><span class="n">sandbox_spawn</span><span class="p">,</span><span class="w"> </span><span class="n">control_action</span><span class="p">,</span><span class="w"> </span><span class="n">capability_verdict</span><span class="p">}:</span>
+<span class="w">          </span><span class="n">principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span><span class="o">.</span><span class="n">principal</span>
+<span class="w">          </span><span class="n">policy</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">policies</span><span class="o">.</span><span class="k">for</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">daemon</span><span class="p">,</span><span class="w"> </span><span class="n">principal</span><span class="p">)</span><span class="w">   </span><span class="c1"># strict binding</span>
+<span class="w">          </span><span class="k">if</span><span class="w"> </span><span class="n">policy</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">None</span><span class="p">:</span><span class="w"> </span><span class="n">mismatch</span><span class="p">(</span><span class="s2">&quot;no-policy-for-principal&quot;</span><span class="p">)</span><span class="w">  </span><span class="c1"># forged principal caught</span>
+<span class="w">          </span><span class="n">expected</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">recompute_decision</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">daemon</span><span class="p">,</span><span class="w"> </span><span class="n">policy</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w">  </span><span class="c1"># re-run the daemon&#39;s</span>
+<span class="w">                                                                           </span><span class="c1"># pure verdict fn</span>
+<span class="w">          </span><span class="k">if</span><span class="w"> </span><span class="n">expected</span><span class="o">.</span><span class="n">action</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">payload</span><span class="o">.</span><span class="n">action</span><span class="p">:</span><span class="w"> </span><span class="n">mismatch</span><span class="p">(</span><span class="n">recorded</span><span class="p">,</span><span class="w"> </span><span class="n">expected</span><span class="p">,</span><span class="w"> </span><span class="n">subject</span><span class="p">)</span>
+<span class="w">     </span><span class="mf">3.</span><span class="w"> </span><span class="n">held</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">chain_ok</span><span class="w"> </span><span class="err">∧</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">mismatches</span>
+<span class="w">   </span>
+</pre></div>
+
+<p><code>recompute_decision</code> dispatches on <code>payload.daemon</code>:<br />
+   - <code>sandboxd</code> → re-run <code>decide_path</code> (fs) or the process-lattice check over the<br />
+     declared policy and <code>payload.subject</code>/<code>payload.mode</code>;<br />
+   - <code>agent-supervisord</code> → re-run the verb-grant lattice check over the policy +<br />
+<code>payload.required_level</code>;<br />
+   - <code>agent_guardd</code> → re-run <code>policy.decide</code> (the existing path, now one branch).</p>
+<p>The prover proves both guarantees from the ledger alone (mirroring<br />
+<code>agent_guardd/verify.py</code> lines 1-13): <strong>integrity</strong> (a flipped byte breaks a<br />
+   link and is refused) and <strong>conformance</strong> (a forged-but-chained verdict whose<br />
+<code>action</code> disagrees with the recomputed decision is caught — so a daemon that<br />
+<em>says</em> allow but policy says deny is "enforcement drift", not a capability<br />
+   that held). Strict principal→policy binding (no silent fallback to an<br />
+   unrelated policy) is carried over verbatim from <code>verify.py</code> lines 56-67.</p>
+<p>During the reference phase the prover is the Python <code>eventd</code> oracle (a new<br />
+<code>eventd.capverify</code> module + <code>python3 -m eventd capverify</code> CLI, frozen exit<br />
+   code alongside the existing 0/2/3/4/5); the Zig eventd port (WP4-S4)<br />
+   reproduces it under the same parity gate.</p>
+<h2 id="4-contracts">4. Contracts</h2>
+<h3 id="41-the-common-capabilityverdict-testimony-payload">4.1 The common <code>CapabilityVerdict</code> testimony payload</h3>
+<p>A cross-daemon <strong>convention</strong> (eventd payloads are arbitrary JSON —<br />
+<code>eventd/core.py</code> lines 13-15 — so this is a shape the prover <em>consumes</em>, not<br />
+something the eventd format imposes). Every subject daemon emits exactly this<br />
+shape at each decision; deterministic, no wall-clock (so replay hashes<br />
+identically — <code>agent_guardd/evidence.py</code> lines 1-9):</p>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;capability_verdict&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;v&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;daemon&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sandboxd&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;agent-supervisord&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;agent_guardd&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;principal&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;agent/peer id&gt;&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;capability&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fs&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;process&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;network&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;control&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;spawn&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;subject&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;path | host:port | target | verb&gt;&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;read&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;write&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;required_level&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;lattice value the op needs&gt;&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;granted_level&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;lattice value the principal holds&gt;&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;action&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;allow&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;reason&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;&lt;human-readable decision basis&gt;&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;mechanism&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;reference&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;ebpf-cgroup&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;seccomp&quot;</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="s2">&quot;ns&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;attempt&quot;</span><span class="p">:</span><span class="w"> </span><span class="err">&lt;i</span><span class="kc">nt</span><span class="p">,</span><span class="w"> </span><span class="err">op</span><span class="kc">t</span><span class="err">io</span><span class="kc">nal</span><span class="w"> </span><span class="err">ordi</span><span class="kc">nal</span><span class="err">&gt;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Migration note: the existing guardd <code>ebpf_egress</code> and sandboxd<br />
+<code>sandbox_fs_access</code>/<code>sandbox_spawn</code> payloads already carry <code>action</code>/<code>reason</code>/<br />
+<code>principal</code>; S5 either (a) maps them into this shape at the verifier, or (b)<br />
+adds <code>capability_verdict</code> as the going-forward kind while the prover keeps<br />
+recognizing the legacy kinds (the §4.4 kind-set lists both). Decision deferred to<br />
+the impl PR; the <strong>verifier must accept both</strong> so no historical chain is<br />
+orphaned.</p>
+<h3 id="42-the-lattices-frozen-from-existing-specs">4.2 The lattices (frozen, from existing specs)</h3>
+<ul>
+<li><code>capability fs</code> (sandboxd; <code>agent_sandboxd/policy.py</code>,<br />
+<code>docs/language/0011-type-system.md §5</code>): <code>none &lt; repo_ro &lt; repo_rw &lt; host_rw</code><br />
+  and <code>none &lt; repo_ro &lt; host_ro</code>.</li>
+<li><code>capability process</code> (sandboxd): <code>none &lt; spawn_sandboxed &lt; spawn &lt; exec_host</code>.</li>
+<li>control-verb grants (supervisord): each RFC 0005 verb maps to a required<br />
+  capability under the RFC 0001 set (<code>network … memory</code>); the lattice is the<br />
+  preceptord policy's, allow-all by default.</li>
+</ul>
+<h3 id="43-policy-input-contract">4.3 Policy input contract</h3>
+<ul>
+<li>sandboxd: <code>gen/zig/&lt;fiber&gt;.json</code> (0012 lowering output) — principal, fs grant,<br />
+  process grant, <code>allowed_read</code>/<code>allowed_write</code>, cgroup limits.</li>
+<li>supervisord: <code>gen/otp/&lt;slug&gt;_sup.erl</code> (lowered tree) + a policy doc (Nix<br />
+  module / runtime ACL — RFC 0001 line 483); allow-all default.</li>
+<li>eventd prover: the union of the above, keyed by <code>(daemon, principal)</code>.</li>
+</ul>
+<h3 id="44-verifier-kind-set">4.4 Verifier kind-set</h3>
+<p><code>{ ebpf_egress (legacy), sandbox_fs_access (legacy), sandbox_spawn (legacy),
+control_action, capability_verdict }</code>. Any other kind is passed over (not a<br />
+capability verdict); an unknown principal for a recognized kind is a mismatch.</p>
+<h2 id="5-test-plan">5. Test plan</h2>
+<p>Two tiers. <strong>Tier L</strong> is everything verifiable locally on the M1 (the oracle +<br />
+decision + testimony + verify legs are pure / userspace — no namespace<br />
+syscalls). <strong>Tier K</strong> is what needs <code>dev-cx53</code> / Linux (real namespaces, cgroup,<br />
+seccomp, BPF attach). <code>dev-cx53</code> is off-limits for the 6h autoresearch window, so<br />
+all S5 <em>spec-suite</em> verification is Tier L; Tier K is the integration-test layer<br />
+folded into WP4-S6.</p>
+<h3 id="51-tier-l-local-on-m1-the-conformance-backbone">5.1 Tier L — local on M1 (the conformance backbone)</h3>
+<p>Run from repo root: <code>python3 tests/spec/run_all.py</code> (register a new<br />
+<code>test_capability_hooks.py</code> exposing <code>run() -&gt; (ok, lines)</code> in<br />
+<code>tests/spec/run_all.py</code>, matching the existing module convention).</p>
+<ol>
+<li><strong>Decision parity (oracle vs Zig).</strong> Shared golden vectors of<br />
+<code>(policy, op) → (action, reason)</code> for sandboxd fs + process. The Python ref<br />
+   (<code>agent_sandboxd/policy.decide_path</code> + the process-lattice check) and the Zig<br />
+   daemon's <code>decide</code> must agree on every vector. Verify on M1 with<br />
+<code>cargo test</code>-style host execution of the Python oracle and<br />
+<code>zig build -Dtarget=x86_64-linux test</code> for the Zig decision unit (the decision<br />
+   function is pure — no syscalls — so it compiles <em>and runs</em> the unit tests via<br />
+   Zig's host test runner even cross-targeted; only the <em>namespace</em> code is<br />
+   compile-only on M1).</li>
+<li><strong>Testimony shape conformance.</strong> Each emitted event validates against the<br />
+   §4.1 schema (deterministic: emit the same op twice → byte-identical<br />
+<code>canonical_json(payload)</code> via <code>eventd/core.canonical_json</code>).</li>
+<li><strong>"Capability held" end-to-end (the slice).</strong> For sandboxd: declare a<br />
+<code>capability fs repo_ro</code> worker, lower it, run a scripted sequence of accesses<br />
+   (an in-bounds read, an out-of-bounds read, a write to a read-only path),<br />
+   testify each through a temp eventd log, then <code>verify_capabilities(policy,
+   log)</code> ⇒ <code>held=True</code> and the deny verdicts are present. Mirrors<br />
+<code>tests/spec/test_agent_guardd.py</code>'s loop.</li>
+<li><strong>Forged-verdict conformance catch.</strong> Append a chained-but-forged<br />
+<code>capability_verdict</code> (e.g. <code>action="allow"</code> for a path the policy denies, or<br />
+<code>principal="intruder"</code> with no policy) ⇒ the prover reports a conformance<br />
+   mismatch (not "held"). This is the regression test that proves the prover<br />
+   catches enforcement drift (write it <em>before</em> the prover — it must fail when<br />
+   the prover is a no-op).</li>
+<li><strong>Byte-flip tamper catch.</strong> Flip one byte in the log ⇒ boot-verify<br />
+<code>TamperError</code> ⇒ <code>chain_ok=False</code>. Reuses the eventd guarantee.</li>
+<li><strong>supervisord deny-path unit (no BEAM in CI — supervisord design line 91).</strong><br />
+   The grant-check + epoch-fence + typed-refusal logic is exercised as a pure<br />
+   function over a policy fixture + a synthesized RFC 0005 frame<br />
+   (control-file intake): allow-all policy → applied + <code>control_action</code>; a<br />
+   deny policy → <code>ControlRefusal</code>; a stale epoch → <code>stale_epoch</code>. Asserted via<br />
+   the testified events (<code>python3 -m eventd state</code> / the prover), exactly the<br />
+<code>task otp-smoke</code> style (supervisord design lines 83-86).</li>
+<li><strong>Zig compile gate.</strong> <code>zig build -Dtarget=x86_64-linux</code> compiles the sandboxd<br />
+   and eventd hook code (namespace/cgroup/BPF call sites compile; they are not<br />
+<em>run</em> on M1).</li>
+</ol>
+<h3 id="52-tier-k-needs-dev-cx53-linux-deferred-to-wp4-s6-integration">5.2 Tier K — needs dev-cx53 / Linux (deferred to WP4-S6 integration)</h3>
+<ul>
+<li>Real <code>unshare(CLONE_NEW*)</code> + <code>execvpe</code> in the new ns; a denied process grant<br />
+  actually refusing exec (exit 1) and testifying (kickoff line 70: "policy<br />
+  violations → eventd + exit 1").</li>
+<li>cgroup-v2 bound enforced (over-<code>memory.max</code> child OOM-killed; clone past<br />
+<code>pids.max</code> refused) — sandboxd design lines 206-207.</li>
+<li>seccomp-bpf allowlist refusal.</li>
+<li>BPF cgroup attach alongside guardd (the attach probe that EINVALs in nested<br />
+  containers — <code>docs/runtime/agent-guardd.md</code> line 51).</li>
+<li>All 3 daemons started from <code>vakedz lower</code>-generated systemd units on vakedos<br />
+  (kickoff success criteria line 73; this is WP4-S6/S7).</li>
+</ul>
+<p><strong>Why Tier K cannot run on M1:</strong> Linux namespaces, cgroup-v2, seccomp-bpf, and<br />
+<code>bpf()</code> are Linux-kernel facilities with no Darwin equivalent. The decision and<br />
+testimony/verify legs (the security-critical logic) are <em>not</em> kernel-bound and<br />
+are fully covered in Tier L — the same posture guardd documents<br />
+(<code>docs/runtime/agent-guardd.md</code> lines 52, 58: "the security-critical decision …<br />
+and the audit spine are real on every host"; only <em>attach</em> can be withheld).</p>
+<h2 id="6-file-layout-paths-to-create">6. File layout (paths to create)</h2>
+<div class="highlight"><pre><span></span><span class="nx">daemons</span><span class="o">/</span><span class="nx">sandboxd</span><span class="o">/</span><span class="nx">src</span><span class="o">/</span>
+<span class="w">  </span><span class="nx">capability</span><span class="p">.</span><span class="nx">zig</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nx">fs</span><span class="o">/</span><span class="nx">process</span><span class="w"> </span><span class="nx">grant</span><span class="o">-</span><span class="nx">check</span><span class="w"> </span><span class="nx">verdict</span><span class="w"> </span><span class="kd">fn</span><span class="w"> </span><span class="p">(</span><span class="nx">port</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="nx">agent_sandboxd</span><span class="o">/</span><span class="nx">policy</span><span class="p">.</span><span class="nx">decide_path</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">testify</span><span class="p">.</span><span class="nx">zig</span><span class="w">           </span><span class="err">#</span><span class="w"> </span><span class="nx">emit</span><span class="w"> </span><span class="nx">CapabilityVerdict</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="m m-Double">4.1</span><span class="p">)</span><span class="w"> </span><span class="nx">through</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">supervisord</span><span class="w"> </span><span class="nx">writer</span>
+<span class="nx">daemons</span><span class="o">/</span><span class="nx">agent</span><span class="o">-</span><span class="nx">supervisord</span><span class="o">/</span><span class="nx">src</span><span class="o">/</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="p">(</span><span class="k">or</span><span class="w"> </span><span class="nx">lib</span><span class="o">/</span><span class="w"> </span><span class="nx">per</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">BEAM</span><span class="w"> </span><span class="nx">layout</span><span class="w"> </span><span class="nx">chosen</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="nx">WP4</span><span class="o">-</span><span class="nx">S3</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">preceptor_point</span><span class="p">.{</span><span class="nx">erl</span><span class="o">|</span><span class="nx">ex</span><span class="p">}</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">grant</span><span class="w"> </span><span class="nx">check</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">epoch</span><span class="w"> </span><span class="nx">fence</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">typed</span><span class="w"> </span><span class="nx">ControlRefusal</span>
+<span class="w">  </span><span class="nx">cap_testify</span><span class="p">.{</span><span class="nx">erl</span><span class="o">|</span><span class="nx">ex</span><span class="p">}</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="nx">write</span><span class="o">-</span><span class="nx">ahead</span><span class="w"> </span><span class="nx">control_action</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">CapabilityVerdict</span>
+<span class="nx">daemons</span><span class="o">/</span><span class="nx">eventd</span><span class="o">/</span><span class="nx">src</span><span class="o">/</span>
+<span class="w">  </span><span class="nx">capverify</span><span class="p">.</span><span class="nx">zig</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">shared</span><span class="w"> </span><span class="nx">conformance</span><span class="w"> </span><span class="nx">prover</span><span class="w"> </span><span class="p">(</span><span class="nx">port</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="err">§</span><span class="m m-Double">4.4</span><span class="p">)</span>
+<span class="err">#</span><span class="w"> </span><span class="nx">Python</span><span class="w"> </span><span class="nx">oracle</span><span class="w"> </span><span class="nx">additions</span><span class="w"> </span><span class="p">(</span><span class="nx">reference</span><span class="w"> </span><span class="nx">phase</span><span class="p">):</span>
+<span class="nx">eventd</span><span class="o">/</span><span class="nx">capverify</span><span class="p">.</span><span class="nx">py</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="nx">verify_capabilities</span><span class="p">(</span><span class="nx">policies</span><span class="p">,</span><span class="w"> </span><span class="nx">log</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">CapabilityReport</span><span class="p">;</span><span class="w"> </span><span class="err">`</span><span class="nx">python3</span><span class="w"> </span><span class="o">-</span><span class="nx">m</span><span class="w"> </span><span class="nx">eventd</span><span class="w"> </span><span class="nx">capverify</span><span class="err">`</span>
+<span class="nx">tests</span><span class="o">/</span><span class="nx">spec</span><span class="o">/</span>
+<span class="w">  </span><span class="nx">test_capability_hooks</span><span class="p">.</span><span class="nx">py</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">Tier</span><span class="w"> </span><span class="nx">L</span><span class="w"> </span><span class="nx">suite</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="m m-Double">5.1</span><span class="p">);</span><span class="w"> </span><span class="nx">registered</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="nx">run_all</span><span class="p">.</span><span class="nx">py</span>
+<span class="w">  </span><span class="nx">golden</span><span class="o">/</span><span class="nx">cap_decision_vectors</span><span class="p">.</span><span class="nx">json</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nx">shared</span><span class="w"> </span><span class="nx">decision</span><span class="w"> </span><span class="nx">golden</span><span class="w"> </span><span class="nx">vectors</span><span class="w"> </span><span class="p">(</span><span class="nx">oracle</span><span class="w"> </span><span class="err">⇔</span><span class="w"> </span><span class="nx">Zig</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">fixtures</span><span class="o">/</span><span class="nx">cap_policies</span><span class="o">/</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="nx">sandboxd</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">supervisord</span><span class="w"> </span><span class="nx">policy</span><span class="w"> </span><span class="nx">fixtures</span>
+<span class="nx">docs</span><span class="o">/</span><span class="nx">superpowers</span><span class="o">/</span><span class="nx">specs</span><span class="o">/</span><span class="mi">2026</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">14</span><span class="o">-</span><span class="nx">wp4</span><span class="o">-</span><span class="nx">s5</span><span class="p">.</span><span class="nx">md</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nx">this</span><span class="w"> </span><span class="nx">spec</span>
+</pre></div>
+
+<p>Edits to existing files: register <code>test_capability_hooks</code> in<br />
+<code>tests/spec/run_all.py</code>; extend <code>agent_guardd.verify</code> callers to route through<br />
+the generalized <code>eventd.capverify</code> (the guardd path becomes one branch — keep<br />
+<code>verify_run</code> as the thin <code>network</code>-only wrapper for back-compat).</p>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Sprint</th>
+<th>Why S5 needs it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sandboxd CLI skeleton + <code>--policy</code> parse</td>
+<td>WP4-S1</td>
+<td>the hook attaches to the exec path it builds.</td>
+</tr>
+<tr>
+<td>sandboxd isolation backend (ns + cgroup)</td>
+<td>WP4-S2</td>
+<td>the <em>enforcement</em> the fs/process deny path gates (Tier K).</td>
+</tr>
+<tr>
+<td>agent-supervisord OTP child spec + restart + control intake</td>
+<td>WP4-S3</td>
+<td>the preceptord point lives in <code>control_plane</code>; the writer it testifies through is supervisord's <code>eventd_writer</code>.</td>
+</tr>
+<tr>
+<td>eventd Zig core (byte-identical, 11 golden vectors)</td>
+<td>WP4-S4</td>
+<td>the prover runs over the Zig chain; reuses the frozen format.</td>
+</tr>
+<tr>
+<td>RFC 0005 frame intake over Litany Wire</td>
+<td>WP3 (wire)</td>
+<td>replaces the control-file transport; until then the file intake is used (§3.2). The grant logic is transport-agnostic, so S5 is <strong>not blocked</strong> on the wire — it lands on the control file and the wire swaps in later.</td>
+</tr>
+<tr>
+<td><code>vakedc</code> lowering of <code>capability fs</code>/<code>process</code> → concrete mounts/limits</td>
+<td>0012 follow-up</td>
+<td>sandboxd's policy input (§4.3); today driven from the fiber config directly (sandboxd design lines 56-61).</td>
+</tr>
+<tr>
+<td><code>preceptord</code> daemon</td>
+<td>future</td>
+<td>S5 ships allow-all default + live deny path; <code>preceptord</code> later supplies the real policy without changing the hook.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Provides downstream:</strong> WP4-S6 (the 3-daemon integration test consumes the<br />
+hooks + the prover) and WP4-S7 (vakedos deploy asserts deny verdicts land on the<br />
+chain).</p>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<ol>
+<li><strong>sandboxd:</strong> an out-of-bounds <code>(path, mode)</code> and an over-grant process mode<br />
+   are <strong>denied</strong> (the deny path is live, not stubbed), the operation is aborted,<br />
+   and a <code>CapabilityVerdict</code> (<code>action="deny"</code>) is testified. The Zig<br />
+<code>decide</code>/<code>capability.zig</code> agrees with <code>agent_sandboxd/policy.decide_path</code> on<br />
+   every golden vector (§5.1.1). [Tier L; enforcement-abort proven Tier K/S6.]</li>
+<li><strong>agent-supervisord:</strong> an RFC 0005 control verb under a deny policy yields a<br />
+   typed <code>ControlRefusal</code>; under allow-all it applies and writes a write-ahead<br />
+<code>control_action</code>; a stale <code>topology_epoch</code> is refused <code>stale_epoch</code>. Each path<br />
+   is log-visible (§5.1.6). [Tier L.]</li>
+<li><strong>eventd:</strong> <code>verify_capabilities</code> reports <code>held=True</code> for a conformant run and<br />
+   a <strong>conformance mismatch</strong> for (a) a forged-but-chained verdict and (b) an<br />
+   unknown-principal verdict; a single flipped byte yields <code>chain_ok=False</code>. The<br />
+   prover recognizes the full §4.4 kind-set including the legacy guardd/sandboxd<br />
+   payloads (no historical chain orphaned). [Tier L.]</li>
+<li><strong>Common shape:</strong> every verdict from all three daemons (and guardd) validates<br />
+   against the §4.1 schema and hashes deterministically (same op twice →<br />
+   identical <code>canonical_json</code>). [Tier L.]</li>
+<li><strong>Regression test (§5.1.4) discipline:</strong> the forged-verdict test fails when<br />
+   the prover is a no-op and passes once the prover lands (proves it catches<br />
+   enforcement drift, per CLAUDE.md §5).</li>
+<li><strong>Local CI green on M1:</strong> <code>python3 tests/spec/run_all.py</code> passes with<br />
+<code>test_capability_hooks</code> registered; <code>zig build -Dtarget=x86_64-linux</code><br />
+   compiles the sandboxd + eventd hook code. [Tier L.]</li>
+<li><strong>Tier K (S6 hand-off, not blocking S5 sign-off):</strong> on <code>dev-cx53</code>, a denied<br />
+   process grant refuses <code>execvpe</code> (exit 1) + testifies; a cgroup bound is<br />
+   kernel-enforced; the 3 daemons start from <code>vakedz lower</code> units.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp4-s5.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

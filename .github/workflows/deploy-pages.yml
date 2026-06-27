@@ -1,10 +1,14 @@
 # Deploy Cloudflare Pages projects via wrangler direct upload
-# Triggers on push to main — bypasses the GitHub App integration
-# which has been failing at clone_repo stage.
+# Triggers on push to main — bypasses the GitHub App integration.
 #
-# Projects deployed:
-#   vaked-dev   from deploy/vaked.dev/
-#   vaked-lang  from site/
+# Projects:
+#   vaked-dev   from deploy/vaked.dev/       → vaked.dev
+#   vaked-lang  from site/ (autogen'd docs)  → vaked-lang.org
+#
+# Steps:
+#   1. Autogen docs from markdown (tools/docs-autogen.py)
+#   2. Deploy vaked-lang
+#   3. Deploy vaked-dev
 #
 # Requires: CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN in repo secrets
 
@@ -13,9 +17,45 @@ name: Deploy Pages
 on:
   push:
     branches: [main]
-  workflow_dispatch:   # allow manual trigger
+  workflow_dispatch:
 
 jobs:
+  autogen-docs:
+    name: Autogen docs from markdown
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          pip install markdown pygments PyYAML
+      - name: Generate docs
+        run: |
+          python3 tools/docs-autogen.py --source docs --output site/docs
+      - name: Upload generated site
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-docs
+          path: site/docs/
+          if-no-files-found: error
+
+  deploy-vaked-lang:
+    name: vaked-lang.org
+    needs: autogen-docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download generated docs
+        uses: actions/download-artifact@v4
+        with:
+          name: site-docs
+          path: site/docs/
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=vaked-lang --branch=main
+
   deploy-vaked-dev:
     name: vaked.dev
     runs-on: ubuntu-latest
@@ -27,15 +67,3 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy deploy/vaked.dev --project-name=vaked-dev --branch=main
-
-  deploy-vaked-lang:
-    name: vaked-lang.org
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy site --project-name=vaked-lang --branch=main

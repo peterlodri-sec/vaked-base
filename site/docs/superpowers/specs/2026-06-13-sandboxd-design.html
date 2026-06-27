@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>sandboxd — the process + filesystem membrane daemon (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#isolation-backend-axis-the-central-decision" style="padding-left:0.5rem">Isolation-backend axis (the central decision)</a><a href="#native-exec-mechanics-v0" style="padding-left:0.5rem">native-exec mechanics (v0)</a><a href="#config-contract" style="padding-left:0.5rem">Config contract</a><a href="#relationship-to-the-roster-delineation" style="padding-left:0.5rem">Relationship to the roster (delineation)</a><a href="#security-model" style="padding-left:0.5rem">Security model</a><a href="#what-is-deliberately-not-here" style="padding-left:0.5rem">What is deliberately NOT here</a><a href="#verification-posture" style="padding-left:0.5rem">Verification posture</a><a href="#plan" style="padding-left:0.5rem">Plan</a><a href="#open" style="padding-left:0.5rem">Open</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-sandboxd-design</div>
+<h1>sandboxd — the process + filesystem membrane daemon (design)</h1>
+<h1 id="sandboxd-the-process-filesystem-membrane-daemon-design">sandboxd — the process + filesystem membrane daemon (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-13). The enforcement daemon for the <strong>process</strong> and<br />
+<strong>filesystem</strong> membranes of the runtime roster<br />
+(<a href="../../runtime/README.md"><code>docs/runtime/README.md</code></a>): the Zig daemon that, per<br />
+worker, builds an isolation boundary and runs the agent workload inside it.<br />
+Tracks issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/86">#86</a> (the<br />
+isolation-backend question) and relates to <a href="https://github.com/peterlodri-sec/vaked-base/issues/50">#50</a><br />
+(the wasm backend). Convention: daemon = design → plan → impl; this is the<br />
+design.</p>
+<p>This document <strong>opens the isolation-backend axis</strong> that the<br />
+<a href="./2026-06-13-wasm-worker-isolation-design.md">wasm-worker-isolation design</a><br />
+explicitly deferred to "the daemon-spec phase" (its Plan item 2). It composes<br />
+already-specified foundations — the RFC 0004 lifecycle, the<br />
+<a href="./2026-06-12-agent-supervisord-design.md">agent-supervisord</a> worker contract<br />
+(<code>vaked_fiber_worker</code> → port), the <a href="./2026-06-12-eventd-design.md">eventd</a> oracle,<br />
+and the lowered <code>gen/zig/&lt;fiber&gt;.json</code> config contract<br />
+(<a href="../../language/0012-lowering.md">0012 §5.2</a>) — and fixes how they snap together<br />
+for a process running under isolation. The host substrate is already in place:<br />
+<code>hosts/vakedos</code> ships user namespaces, cgroup-v2, and the <code>overlay</code> module<br />
+(PR #77/#87), so no host change is required to land native-exec.</p>
+<h2 id="purpose">Purpose</h2>
+<p>One Zig daemon that, per worker, materializes the <strong>process + filesystem<br />
+membranes</strong> declared in Vaked. Given a lowered worker config it:</p>
+<ol>
+<li><strong>builds the isolation boundary</strong> — user / mount / pid namespaces, a delegated<br />
+   cgroup-v2 subtree, and an overlay-assembled rootfs, from the config's<br />
+   membrane fields;</li>
+<li><strong>runs the workload</strong> — supervised <code>exec</code> of the agent process inside that<br />
+   boundary;</li>
+<li><strong>enforces resource and write bounds</strong> — cgroup-v2 controllers (cpu / mem /<br />
+   io / pids) for the process membrane; explicit mounts + overlay options for the<br />
+   filesystem membrane;</li>
+<li><strong>owns the isolation-backend axis</strong> — <code>native-exec | oci | wasm</code>; the worker's<br />
+   isolation kind is a property of the daemon, not a new top-level Vaked kind;</li>
+<li><strong>surfaces process/file events</strong> — the supervised exec's lifecycle and the<br />
+   kernel events it produces become testimony (agent-guardd) and audit (eventd).</li>
+</ol>
+<p>sandboxd is the <strong>enforcement</strong> point for the capability a worker was granted; it<br />
+is not where lifecycle or canonical state lives (those stay with supervisord and<br />
+the eventd oracle, respectively — see <em>Relationship to the roster</em>).</p>
+<h2 id="isolation-backend-axis-the-central-decision">Isolation-backend axis (the central decision)</h2>
+<p>The roster fixes the axis:</p>
+<div class="highlight"><pre><span></span><span class="nv">sandboxd</span><span class="w"> </span><span class="nv">isolation</span><span class="w"> </span><span class="nv">backend</span><span class="w"> </span>∈<span class="w"> </span>{<span class="w"> </span><span class="nv">native</span><span class="o">-</span><span class="k">exec</span>,<span class="w"> </span><span class="nv">oci</span>,<span class="w"> </span><span class="nv">wasm</span><span class="w"> </span>}
+</pre></div>
+
+<p>This axis is <strong>extensible but small</strong> (CLAUDE.md: "small enough to implement and<br />
+remember"); every backend shares one supervision path (the supervisord worker<br />
+port), one eventing path (eventd), and one config contract (<code>gen/zig/&lt;fiber&gt;.json</code>).</p>
+<p><strong>v0 commits to <code>native-exec</code>.</strong> It is the backend that runs an ordinary agent<br />
+process — the common case for the operator runtime — and it needs nothing the<br />
+host does not already provide (namespaces + cgroup-v2 + overlay). <code>oci</code>, <code>wasm</code><br />
+(#50, design already written), and a <strong>Firecracker microVM</strong> backend (#86) are<br />
+deferred to <em>Open / evaluate</em> as <strong>additive</strong> entries on this same axis — not<br />
+contradictions, and each reuses this document's worker port and config contract<br />
+unchanged. (<strong>Bubblewrap</strong>, the briefing's other #86 proposal, is <em>not</em> a backend<br />
+on this axis: it is a candidate <em>implementation mechanism</em> for <code>native-exec</code><br />
+itself — see <em>native-exec mechanics</em>.)</p>
+<h2 id="native-exec-mechanics-v0">native-exec mechanics (v0)</h2>
+<p>native-exec assembles the boundary in Zig directly over the host kernel<br />
+facilities (<code>hosts/vakedos</code> provides each). The sequence, per worker:</p>
+<ol>
+<li><strong>namespaces</strong> — <code>unshare</code>/<code>clone</code> a <strong>user</strong> namespace (rootless: the worker<br />
+   runs as an unprivileged uid that is root only inside its userns), a <strong>mount</strong><br />
+   namespace (private mount propagation), and a <strong>pid</strong> namespace (the worker is<br />
+   pid 1 of its tree, so a kill of pid 1 reaps the whole subtree). The <strong>network</strong><br />
+   namespace is owned jointly with agent-guardd — see <em>Open</em>.</li>
+<li><strong>cgroup-v2</strong> — join a <strong>delegated</strong> cgroup-v2 subtree and write the worker's<br />
+   resource limits into its controllers: <code>memory.max</code>, <code>pids.max</code>, <code>cpu.max</code>,<br />
+<code>io.max</code>. The bound is enforced by the kernel (OOM-kill / clone refusal), not<br />
+   estimated — the same "mathematical bound, not policy" stance the wasm backend<br />
+   takes with fuel. (These limit values are a config-contract dependency — see<br />
+<em>Config contract</em>: the closed <code>budget</code> schema does not carry an OS-resource<br />
+   axis today.)</li>
+<li><strong>rootfs via overlay</strong> — mount an <code>overlayfs</code> with a read-only base<br />
+   (<code>lowerdir</code>) and a writable layer (<code>upperdir</code> + <code>workdir</code>) on the write area<br />
+   fs-snapshotd owns; the worker sees a unified rootfs but every write lands on<br />
+   the upper layer where it can be diffed, budgeted, and captured.</li>
+<li><strong>explicit mounts only</strong> — bind exactly the paths the filesystem membrane<br />
+   grants (deny-by-default); nothing of the host fs is visible unless declared.</li>
+<li><strong>drop privileges &amp; <code>exec</code></strong> — drop to the unprivileged uid, apply the seccomp<br />
+   / no-new-privs posture, then <code>execve</code> the workload. The daemon supervises the<br />
+   child (reaps it, reports exit) as the worker port's run mechanism.</li>
+</ol>
+<p><strong>Bubblewrap vs raw namespaces (open sub-choice).</strong> #86 asks whether native-exec<br />
+is implemented <em>via</em> Bubblewrap or <em>via</em> raw namespace/cgroup syscalls in Zig.<br />
+This is a "how", not a separate backend — recorded in <em>Open</em>. v0 specifies the<br />
+<em>boundary</em> (the five steps above); the implementation mechanism is decided at the<br />
+impl-PR phase.</p>
+<h2 id="config-contract">Config contract</h2>
+<p>A <code>fiber</code> (with its <code>engine</code>) lowers to <code>gen/zig/&lt;fiber&gt;.json</code><br />
+(<a href="../../language/0012-lowering.md">0012 §5.2</a>), the JSON config the Zig daemon<br />
+parses (deterministic key order = schema order; absent optionals omitted;<br />
+leading <code>"_generated"</code> header — see<br />
+<a href="../../../vaked/examples/lowering/gen/zig/mediaCompress.json"><code>gen/zig/mediaCompress.json</code></a>).<br />
+sandboxd reads the <strong>process + filesystem membrane</strong> projection of that config:<br />
+the namespace set, the mount/overlay mapping, the cgroup resource limits, and the<br />
+executable + argv to run.</p>
+<p><strong>What exists today vs. what this design depends on.</strong> The membrane <em>authority</em><br />
+is already in the language: <code>capability fs</code><br />
+(<code>none &lt; repo_ro &lt; repo_rw &lt; host_rw</code>, <code>repo_ro &lt; host_ro</code>) and<br />
+<code>capability process</code> (<code>none &lt; spawn_sandboxed &lt; spawn &lt; exec_host</code>) declare the<br />
+qualitative grant, and <code>runclass</code> carries scheduling/priority. But the<br />
+<strong>operational inputs native-exec enforces with</strong> — the concrete namespace set,<br />
+the mount/overlay mapping, the cgroup resource limits (<code>cpu</code>/<code>mem</code>/<code>io</code>/<code>pids</code>),<br />
+<strong>and the resolved executable + argv</strong> — are <strong>not sourced yet</strong>:<br />
+<a href="../../language/0012-lowering.md">0012 §5.2</a> lowers only<br />
+<code>engine</code>/<code>input</code>/<code>output</code>/<code>policy</code>/<code>budget</code>/<code>observe</code>; the <code>budget</code> schema is<br />
+<strong>closed</strong> to <code>tokens</code>/<code>wallClock</code>/<code>toolCalls</code>/<code>approvals</code>/<code>fuel</code> (no OS-resource<br />
+axis); and <code>engine_package</code> is emitted as a <strong>flake attribute name</strong> (e.g.<br />
+<code>packages.&lt;system&gt;.zigDaemon</code>) the Nix module resolves at build — <em>not</em> a store<br />
+path / binary / argv the daemon can <code>execve</code> from the JSON alone (0012 §5.2,<br />
+§2.3).</p>
+<p>Defining that projection — lowering the <code>fs</code>/<code>process</code> capability grants into a<br />
+concrete mount + namespace plan, a resource-limits field (a new schema, or a<br />
+<code>budget</code>/<code>runclass</code> extension) for cgroup <code>cpu</code>/<code>mem</code>/<code>io</code>/<code>pids</code>, and the<br />
+module-resolved <strong>executable + argv</strong> (from the <code>engine_package</code> attribute) — is<br />
+therefore a <strong>design dependency of this daemon, not a settled contract</strong>. It is exactly the<br />
+"richer … membranes [that] arrives with the daemon designs" the <code>host</code> schema<br />
+comment anticipates; because it adds language surface it <strong>is</strong> subject to the<br />
+grammar-first/issue gate. Tracked in <em>Plan</em> (step 0) and <em>Open</em>. (An earlier draft<br />
+claimed native-exec needs no language change — that was wrong: the <em>authority</em><br />
+exists, the <em>operational lowering</em> does not.)</p>
+<p>This document <strong>references, never redefines</strong> the membrane grammar<br />
+(<a href="../../language/0008-parallel-fibers-indexes-surfaces.md">0008</a> for <code>fiber</code>,<br />
+<a href="../../language/0012-lowering.md">0012</a> for the lowering). The NixOS module installs<br />
+<code>gen/zig/&lt;fiber&gt;.json</code> as the exact file the daemon reads — same bytes, no second<br />
+source of truth (0012 §4.3). <strong>But the §4.3 worked example routes that file to<br />
+<code>fs-snapshotd</code></strong> (the artifact-producing fiber <code>mediaCompress</code>), and no mapping<br />
+yet points an agent-workload fiber's config at <code>sandboxd</code>. <strong>Routing a fiber's<br />
+config to <code>sandboxd</code> by its role/membrane</strong> (which roster daemon consumes it) is<br />
+therefore part of the same lowering/module dependency — tracked below.</p>
+<h2 id="relationship-to-the-roster-delineation">Relationship to the roster (delineation)</h2>
+<ul>
+<li><strong>agent-supervisord</strong> owns the RFC 0004 lifecycle and the <code>vaked_fiber_worker</code><br />
+  port; sandboxd is the <strong>exec mechanism</strong> a worker is run through, <em>not</em> a second<br />
+  lifecycle. supervisord transitions a worker <code>RUNNING</code>; the run it drives is a<br />
+  sandboxd-built boundary + supervised exec.</li>
+<li><strong>fs-snapshotd</strong> — the filesystem membrane is <strong>shared by boundary</strong>: sandboxd<br />
+<em>mounts</em> the overlay at exec; fs-snapshotd owns <em>diffs / write-budgets /<br />
+  artifact capture</em> over the upper layer. sandboxd creates the write area;<br />
+  fs-snapshotd accounts for what lands in it. (This is the one delineation to<br />
+  keep crisp — see <em>Open</em>.)</li>
+<li><strong>agent-guardd</strong> — eBPF <strong>observes</strong> the process/file (and network) events a<br />
+  sandboxed exec produces: sandboxd <strong>enforces</strong>, guardd <strong>testifies</strong>. The same<br />
+  exec is an enforcement boundary to one and an evidence source to the other.</li>
+<li><strong>eventd</strong> — the exec lifecycle (start / exit / refusal) is appended as audit<br />
+  events; sandboxd does <strong>no</strong> canonical hashing (the eventd oracle owns bytes).</li>
+<li><strong>mcp-brokerd</strong> — orthogonal (the <code>mcp</code> membrane / tool calls), not the<br />
+  process/filesystem boundary.</li>
+</ul>
+<h2 id="security-model">Security model</h2>
+<p>The process + filesystem membrane is <strong>deny-by-default</strong>: a worker sees only the<br />
+mounts and holds only the resources its config grants. <strong>Rootless</strong> via user<br />
+namespaces (root only inside the userns, unprivileged on the host); <strong>hard<br />
+bounds</strong> via cgroup-v2 (kernel-enforced, not advisory); <strong>no host-fs leakage</strong><br />
+(explicit binds only). Sandbox grants are subject to <strong>preceptord</strong> authority;<br />
+during the reference phase no preceptord exists, so the stance mirrors the<br />
+supervisord design — <strong>allow-all + log the principal</strong>, with the deny path stubbed<br />
+but wired.</p>
+<h2 id="what-is-deliberately-not-here">What is deliberately NOT here</h2>
+<ul>
+<li><strong>No new top-level Vaked kind</strong> — the isolation backend is a property of the<br />
+  worker/engine, not a new declaration (consistent with the wasm design's<br />
+  "backend follows the engine").</li>
+<li><strong>No second lifecycle</strong> — RFC 0004 transitions are supervisord's; sandboxd only<br />
+  starts/stops the process.</li>
+<li><strong>No fs diff/budget accounting</strong> — that is fs-snapshotd's; sandboxd provides the<br />
+  overlay it accounts over.</li>
+<li><strong>No canonical hashing</strong> — the eventd oracle owns bytes (the supervisord-design<br />
+  rule).</li>
+<li><strong>oci / wasm / Firecracker backends</strong> are <em>Open</em>, not specified here<br />
+  (Bubblewrap is <em>not</em> a backend — it is a <code>native-exec</code> implementation mechanism,<br />
+  also <em>Open</em>).</li>
+</ul>
+<h2 id="verification-posture">Verification posture</h2>
+<p>CI has no privileged sandbox (no userns-delegation, no cgroup write), so — like<br />
+the OTP tree (<code>task otp-smoke</code>) and the wasm backend (<code>task wasm-smoke</code>) —<br />
+runnability is a <strong>devshell gate</strong>, and CI stays bytes/structure.</p>
+<ul>
+<li><code>task sandbox-smoke</code> (future): exec a trivial command in a native-exec sandbox<br />
+  and assert the boundary holds —</li>
+<li>a <strong>separate pid + mount namespace</strong> (the child sees itself as pid 1; host<br />
+    mounts are not visible);</li>
+<li>a <strong>cgroup bound enforced</strong> (an over-<code>memory.max</code> child is OOM-killed; a<br />
+<code>pids.max</code> breach refuses <code>clone</code>);</li>
+<li>the <strong>overlay</strong> is the rootfs and writes land on the upper layer;</li>
+<li><strong>declared mounts only</strong> — an undeclared host path is absent.</li>
+<li>The config-contract parse is CI-coverable now against the lowered example<br />
+  (<code>gen/zig/mediaCompress.json</code>): bytes/structure, no privilege needed.</li>
+</ul>
+<h2 id="plan">Plan</h2>
+<ol>
+<li><em>(grammar-first, gated — blocks PR 2)</em> Define the sandbox config projection:<br />
+   lower <code>capability fs</code> / <code>capability process</code> grants into a concrete mount +<br />
+   namespace plan, and add a resource-limits source (new schema, or a<br />
+<code>budget</code>/<code>runclass</code> extension) for cgroup <code>cpu</code>/<code>mem</code>/<code>io</code>/<code>pids</code>, with the<br />
+<code>gen/zig/&lt;fiber&gt;.json</code> field mapping (<a href="../../language/0012-lowering.md">0012 §5.2</a>),<br />
+   the module-resolved <strong>executable + argv</strong> (the <code>engine_package</code> attribute is a<br />
+   flake attr name, not a binary the daemon can <code>execve</code> from JSON), <strong>and</strong> the<br />
+   NixOS-module routing that points an agent-workload fiber's config at <code>sandboxd</code><br />
+   (today §4.3 wires it only to <code>fs-snapshotd</code>). This is the language/lowering<br />
+   dependency surfaced in <em>Config contract</em>; it needs its own issue.</li>
+<li><em>(impl PR 1)</em> <code>daemons/sandboxd/</code> skeleton (Zig) + <code>gen/zig/&lt;fiber&gt;.json</code><br />
+   parse; native-exec boundary as a no-op/echo runner.</li>
+<li><em>(impl PR 2)</em> native-exec for real: namespaces + cgroup-v2 delegation +<br />
+   overlay rootfs + explicit mounts + supervised exec.</li>
+<li><em>(with the Zig-port era)</em> supervisord <code>vaked_fiber_worker</code> → sandboxd port +<br />
+   eventd lifecycle events.</li>
+<li><em>(later)</em> <code>oci</code> backend (distroless Nix OCI, <a href="../../language/0016-substrate-candidates.md">0016</a>).</li>
+<li><em>(later)</em> <code>wasm</code> backend per <a href="https://github.com/peterlodri-sec/vaked-base/issues/50">#50</a><br />
+   (design already written).</li>
+<li><em>(evaluate)</em> Firecracker microVM <strong>backend</strong> per<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/86">#86</a> (Bubblewrap is a<br />
+<code>native-exec</code> implementation option weighed within step 2, not a separate<br />
+   backend).</li>
+</ol>
+<h2 id="open">Open</h2>
+<ul>
+<li><strong>Sandbox config projection (the language/lowering dependency)</strong> — the concrete<br />
+  mount/namespace plan, cgroup resource-limit fields, and resolved executable/argv<br />
+  native-exec enforces with are not yet sourced by <code>gen/zig/&lt;fiber&gt;.json</code> or the<br />
+  closed <code>budget</code> schema, and <code>engine_package</code> is a flake attr name, not a binary<br />
+  (see <em>Config contract</em>). How <code>capability fs</code>/<code>capability process</code> grants + a new<br />
+  resource-limits field lower to the daemon config — <strong>and the NixOS-module routing<br />
+  that points an agent-workload fiber's config at <code>sandboxd</code> (today §4.3 wires it<br />
+  only to <code>fs-snapshotd</code>)</strong> — is <em>Plan step 0</em> and the gating dependency for the<br />
+  native-exec impl PR.</li>
+<li><strong>fs-snapshotd ⇄ sandboxd overlay-ownership boundary</strong> — who creates<br />
+<code>upperdir</code>/<code>workdir</code>, who unmounts, how the write-budget enforcement point<br />
+  relates to the overlay mount. The one delineation to lock at the impl-PR phase.</li>
+<li><strong>Backend selection</strong> — engine-typed (per the wasm design's lean: the backend<br />
+  follows the <code>engine</code>) vs an explicit <code>fiber.backend</code> field. Grammar-first;<br />
+  deferred to its own issue if engine-typing proves insufficient.</li>
+<li><strong>WIT ↔ gen-config IDL unification</strong> — shared open question with #50 (one IDL or<br />
+  two parallel descriptions); decided when the wasm backend's port lands.</li>
+<li><strong>native-exec implementation mechanism</strong> — Bubblewrap vs raw namespace/cgroup<br />
+  syscalls in Zig (#86); rootless vs privileged on the host.</li>
+<li><strong>Network-namespace ownership</strong> — sandboxd builds the netns, but the <code>network</code><br />
+  membrane (deny-by-default egress, DNS oracle, eBPF cgroup maps) is agent-guardd's<br />
+  (roster). Who creates vs who programs the netns.</li>
+<li><strong>preceptord authority point</strong> — where the grant check physically runs in the<br />
+  reference phase (no preceptord yet): lean allow-all + log, deny path wired.</li>
+<li><strong>Stronger-isolation backends (#86)</strong> — is wasm sufficient for untrusted code,<br />
+  or is a Firecracker microVM backend warranted for non-wasm untrusted workloads?</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-sandboxd-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

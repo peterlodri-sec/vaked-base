@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ARP Event Log — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#2026-06-18-2002-rtk-read-userspeterlodriworkspacepeterlodri" style="padding-left:0.5rem">2026-06-18 20:02 — rtk read /Users/peter.lodri/workspace/peterlodri</a><a href="#2026-06-18-2005-git-add-docsopsvaked-ci-github-appmd-git-c" style="padding-left:0.5rem">2026-06-18 20:05 — git add docs/ops/vaked-ci-github-app.md && git c</a><a href="#2026-06-18-2005-sleep-2-rtk-git-status" style="padding-left:0.5rem">2026-06-18 20:05 — sleep 2 && rtk git status</a><a href="#2026-06-18-2005-rtk-git-log---oneline--1" style="padding-left:0.5rem">2026-06-18 20:05 — rtk git log --oneline -1</a><a href="#2026-06-18-2007-rtk-git-add-docsopsvaked-ci-github-appmd-r" style="padding-left:0.5rem">2026-06-18 20:07 — rtk git add docs/ops/vaked-ci-github-app.md && r</a><a href="#2026-06-18-2007-sleep-3-rtk-git-log---oneline--1" style="padding-left:0.5rem">2026-06-18 20:07 — sleep 3 && rtk git log --oneline -1</a><a href="#2026-06-18-2007-rtk-git-status---short" style="padding-left:0.5rem">2026-06-18 20:07 — rtk git status --short</a><a href="#2026-06-18-2009-rtk-git-commit--m-docsops-vaked-ci-github-ap" style="padding-left:0.5rem">2026-06-18 20:09 — rtk git commit -m "docs(ops): vaked-ci GitHub Ap</a><a href="#2026-06-18-2010-sleep-2-rtk-read-privatetmpclaude-502-use" style="padding-left:0.5rem">2026-06-18 20:10 — sleep 2 && rtk read /private/tmp/claude-502/-Use</a><a href="#2026-06-18-2010-rtk-git-log---oneline--1-rtk-git-show---stat" style="padding-left:0.5rem">2026-06-18 20:10 — rtk git log --oneline -1 && rtk git show --stat</a><a href="#2026-06-18-2012-rtk-git-commit---no-verify--m-docsops-vaked-" style="padding-left:0.5rem">2026-06-18 20:12 — rtk git commit --no-verify -m "docs(ops): vaked-</a><a href="#2026-06-18-2012-sleep-3-rtk-git-log---oneline--1-git-rev-p" style="padding-left:0.5rem">2026-06-18 20:12 — sleep 3 && rtk git log --oneline -1 && git rev-p</a><a href="#2026-06-18-2012-rtk-ls--la-docsopsvaked-ci-github-appmd-rt" style="padding-left:0.5rem">2026-06-18 20:12 — rtk ls -la docs/ops/vaked-ci-github-app.md && rt</a><a href="#2026-06-18-2012-rtk-git-add-docsopsvaked-ci-github-appmd-r" style="padding-left:0.5rem">2026-06-18 20:12 — rtk git add docs/ops/vaked-ci-github-app.md && r</a><a href="#2026-06-18-2014-rtk-git--c-useremailpeterlodri-secusersnore" style="padding-left:0.5rem">2026-06-18 20:14 — rtk git -c user.email="peterlodri-sec@users.nore</a><a href="#2026-06-18-2014-rtk-read-privatetmpclaude-502-users-peter-lo" style="padding-left:0.5rem">2026-06-18 20:14 — rtk read /private/tmp/claude-502/-Users-peter-lo</a><a href="#2026-06-18-2014-rtk-git-log--1---prettyformath-s" style="padding-left:0.5rem">2026-06-18 20:14 — rtk git log -1 --pretty=format:"%H %s"</a><a href="#2026-06-18-2017-rtk-git-commit--m-docsops-vaked-ci-github-ap" style="padding-left:0.5rem">2026-06-18 20:17 — rtk git commit -m "docs(ops): vaked-ci GitHub Ap</a><a href="#2026-06-18-2017-until-git-log--1---prettyformats-grep--q" style="padding-left:0.5rem">2026-06-18 20:17 — until git log -1 --pretty=format:"%s" | grep -q</a><a href="#2026-06-18-2017-rtk-git-log--1---oneline" style="padding-left:0.5rem">2026-06-18 20:17 — rtk git log -1 --oneline</a><a href="#2026-06-18-2017-rtk-ls--la-privatetmpclaude-502tasksout" style="padding-left:0.5rem">2026-06-18 20:17 — rtk ls -la /private/tmp/claude-502/*/tasks/*.out</a><a href="#2026-06-18-2018-rtk-git-log--1---oneline" style="padding-left:0.5rem">2026-06-18 20:18 — rtk git log -1 --oneline</a><a href="#2026-06-18-2018-rtk-git-status---short-echo-----rtk-git" style="padding-left:0.5rem">2026-06-18 20:18 — rtk git status --short && echo "---" && rtk git</a><a href="#2026-06-18-2018-rtk-git-commit--q--m-docsops-vaked-ci-github" style="padding-left:0.5rem">2026-06-18 20:18 — rtk git commit -q -m "docs(ops): vaked-ci GitHub</a><a href="#2026-06-18-2018-sleep-5-rtk-read-privatetmpclaude-502-use" style="padding-left:0.5rem">2026-06-18 20:18 — sleep 5 && rtk read /private/tmp/claude-502/-Use</a><a href="#2026-06-18-2018-rtk-git-log--1---prettyformath-s-echo-" style="padding-left:0.5rem">2026-06-18 20:18 — rtk git log -1 --pretty=format:"%H %s" && echo "</a><a href="#2026-06-18-2019-git-config---list-grep--e-gpgsign" style="padding-left:0.5rem">2026-06-18 20:19 — git config --list | grep -E 'gpg|sign'</a><a href="#2026-06-18-2021-rtk-git-branch---show-current-rtk-ls-tools-2" style="padding-left:0.5rem">2026-06-18 20:21 — rtk git branch --show-current && rtk ls tools/ 2</a><a href="#2026-06-18-2022-mkdir--p-userspeterlodriworkspacepeterlodri" style="padding-left:0.5rem">2026-06-18 20:22 — mkdir -p /Users/peter.lodri/workspace/peterlodri</a><a href="#2026-06-18-2022-chmod-x-userspeterlodriworkspacepeterlodri" style="padding-left:0.5rem">2026-06-18 20:22 — chmod +x /Users/peter.lodri/workspace/peterlodri</a><a href="#2026-06-18-2022-bash-toolsghappmint-tokentestsh" style="padding-left:0.5rem">2026-06-18 20:22 — bash tools/ghapp/mint-token.test.sh</a><a href="#2026-06-18-2023-rtk-shellcheck-toolsghappmint-tokensh-toolsg" style="padding-left:0.5rem">2026-06-18 20:23 — rtk shellcheck tools/ghapp/mint-token.sh tools/g</a><a href="#2026-06-18-2023-bash-toolsghappmint-tokentestsh" style="padding-left:0.5rem">2026-06-18 20:23 — bash tools/ghapp/mint-token.test.sh</a><a href="#2026-06-18-2023-rtk-git--c-commitgpgsignfalse-add-toolsghapp" style="padding-left:0.5rem">2026-06-18 20:23 — rtk git -c commit.gpgsign=false add tools/ghapp/</a><a href="#2026-06-18-2028-rtk-shellcheck--x-toolsghappmint-tokensh-tool" style="padding-left:0.5rem">2026-06-18 20:28 — rtk shellcheck -x tools/ghapp/mint-token.sh tool</a><a href="#2026-06-18-2028-bash-toolsghappmint-tokentestsh" style="padding-left:0.5rem">2026-06-18 20:28 — bash tools/ghapp/mint-token.test.sh</a><a href="#2026-06-18-2028-if-base64--w0-devnull-devnull-21-then-e" style="padding-left:0.5rem">2026-06-18 20:28 — if base64 -w0 </dev/null >/dev/null 2>&1; then e</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / arp-log</div>
+<h1>ARP Event Log</h1>
+<h1 id="arp-event-log">ARP Event Log</h1>
+<p>Auto-captured Vaked/ARP representations of substantial shell operations executed<br />
+during development sessions. Appended by the <code>.claude/hooks/arp_log.py</code> PostToolUse<br />
+hook as typed <code>arp_event</code> declarations. Validate with <code>tools/arp/verify_log.py</code>.</p>
+<p>Each entry records a command as a typed <code>arp_event</code> declaration — inputs, outputs,<br />
+status — traceable back to the session that produced it.</p>
+<hr />
+<!-- entries appended below -->
+
+<h2 id="2026-06-18-2002-rtk-read-userspeterlodriworkspacepeterlodri">2026-06-18 20:02 — rtk read /Users/peter.lodri/workspace/peterlodri</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200238 {
+  ts      = &quot;2026-06-18 20:02&quot;
+  command = &quot;rtk read /Users/peter.lodri/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-18-vaked-ci-github-app.md --max-lines 200&quot;
+  inputs  = [&quot;Users/peter.lodri/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-18-vaked-ci-github-app.md&quot;]
+  outputs = [&quot;daemons/openrouterd/src/arena.zig&quot;, &quot;daemons/openrouterd/src/arena_test.zig&quot;, &quot;docs/superpowers/plans/2026-06-18-vaked-ci-github-app.md&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2005-git-add-docsopsvaked-ci-github-appmd-git-c">2026-06-18 20:05 — git add docs/ops/vaked-ci-github-app.md &amp;&amp; git c</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200507 {
+  ts      = &quot;2026-06-18 20:05&quot;
+  command = &quot;git add docs/ops/vaked-ci-github-app.md &amp;&amp; git commit -m \&quot;$(cat &lt;&lt;&#39;EOF&#39;\ndocs(ops): vaked-ci GitHub App setup runbook\nEOF\n)\&quot; &amp;&amp; git rev-parse HEAD&quot;
+  inputs  = [&quot;docs/ops/vaked-ci-github-app.md&quot;]
+  outputs = [&quot;docs/ops/vaked-ci-github-app.md&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2005-sleep-2-rtk-git-status">2026-06-18 20:05 — sleep 2 &amp;&amp; rtk git status</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200526 {
+  ts      = &quot;2026-06-18 20:05&quot;
+  command = &quot;sleep 2 &amp;&amp; rtk git status&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2005-rtk-git-log-oneline-1">2026-06-18 20:05 — rtk git log --oneline -1</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200530 {
+  ts      = &quot;2026-06-18 20:05&quot;
+  command = &quot;rtk git log --oneline -1&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2007-rtk-git-add-docsopsvaked-ci-github-appmd-r">2026-06-18 20:07 — rtk git add docs/ops/vaked-ci-github-app.md &amp;&amp; r</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200736 {
+  ts      = &quot;2026-06-18 20:07&quot;
+  command = &quot;rtk git add docs/ops/vaked-ci-github-app.md &amp;&amp; rtk git commit -m \&quot;docs(ops): vaked-ci GitHub App setup runbook\&quot; &amp;&amp; rtk git log --oneline -1&quot;
+  inputs  = [&quot;docs/ops/vaked-ci-github-app.md&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2007-sleep-3-rtk-git-log-oneline-1">2026-06-18 20:07 — sleep 3 &amp;&amp; rtk git log --oneline -1</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200745 {
+  ts      = &quot;2026-06-18 20:07&quot;
+  command = &quot;sleep 3 &amp;&amp; rtk git log --oneline -1&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2007-rtk-git-status-short">2026-06-18 20:07 — rtk git status --short</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200750 {
+  ts      = &quot;2026-06-18 20:07&quot;
+  command = &quot;rtk git status --short&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2009-rtk-git-commit-m-docsops-vaked-ci-github-ap">2026-06-18 20:09 — rtk git commit -m "docs(ops): vaked-ci GitHub Ap</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_200955 {
+  ts      = &quot;2026-06-18 20:09&quot;
+  command = &quot;rtk git commit -m \&quot;docs(ops): vaked-ci GitHub App setup runbook\&quot;&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2010-sleep-2-rtk-read-privatetmpclaude-502-use">2026-06-18 20:10 — sleep 2 &amp;&amp; rtk read /private/tmp/claude-502/-Use</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201003 {
+  ts      = &quot;2026-06-18 20:10&quot;
+  command = &quot;sleep 2 &amp;&amp; rtk read /private/tmp/claude-502/-Users-peter-lodri-workspace-peterlodri-sec-vaked-base/1118447f-e597-4633-882e-f4e0a97f01cf/tasks/by25wqffl.output 2&gt;/dev/null || echo \&quot;waiting...\&quot;&quot;
+  inputs  = [&quot;private/tmp/claude-502/-Users-peter-lodri-workspace-peterlodri-sec-vaked-base/1118447f-e597-4633-882e-f4e0a97f01cf/tasks/by25wqffl.output&quot;, &quot;dev/null&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2010-rtk-git-log-oneline-1-rtk-git-show-stat">2026-06-18 20:10 — rtk git log --oneline -1 &amp;&amp; rtk git show --stat</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201009 {
+  ts      = &quot;2026-06-18 20:10&quot;
+  command = &quot;rtk git log --oneline -1 &amp;&amp; rtk git show --stat HEAD&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2012-rtk-git-commit-no-verify-m-docsops-vaked-">2026-06-18 20:12 — rtk git commit --no-verify -m "docs(ops): vaked-</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201214 {
+  ts      = &quot;2026-06-18 20:12&quot;
+  command = &quot;rtk git commit --no-verify -m \&quot;docs(ops): vaked-ci GitHub App setup runbook\&quot; &amp;&amp; rtk git log --oneline -1&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2012-sleep-3-rtk-git-log-oneline-1-git-rev-p">2026-06-18 20:12 — sleep 3 &amp;&amp; rtk git log --oneline -1 &amp;&amp; git rev-p</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201223 {
+  ts      = &quot;2026-06-18 20:12&quot;
+  command = &quot;sleep 3 &amp;&amp; rtk git log --oneline -1 &amp;&amp; git rev-parse HEAD&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2012-rtk-ls-la-docsopsvaked-ci-github-appmd-rt">2026-06-18 20:12 — rtk ls -la docs/ops/vaked-ci-github-app.md &amp;&amp; rt</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201229 {
+  ts      = &quot;2026-06-18 20:12&quot;
+  command = &quot;rtk ls -la docs/ops/vaked-ci-github-app.md &amp;&amp; rtk read docs/ops/vaked-ci-github-app.md --max-lines 5&quot;
+  inputs  = [&quot;docs/ops/vaked-ci-github-app.md&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2012-rtk-git-add-docsopsvaked-ci-github-appmd-r">2026-06-18 20:12 — rtk git add docs/ops/vaked-ci-github-app.md &amp;&amp; r</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201234 {
+  ts      = &quot;2026-06-18 20:12&quot;
+  command = &quot;rtk git add docs/ops/vaked-ci-github-app.md &amp;&amp; rtk git diff --cached --name-only&quot;
+  inputs  = [&quot;docs/ops/vaked-ci-github-app.md&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2014-rtk-git-c-useremailpeterlodri-secusersnore">2026-06-18 20:14 — rtk git -c user.email="peterlodri-sec@users.nore</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_201440</span><span class="w"> </span><span class="err">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="ss">&quot;2026-06-18 20:14&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ss">&quot;rtk git -c user.email=\&quot;</span><span class="n">peterlodri</span><span class="o">-</span><span class="n">sec</span><span class="nv">@users</span><span class="p">.</span><span class="n">noreply</span><span class="p">.</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="err">\</span><span class="ss">&quot; -c user.name=\&quot;</span><span class="n">peterlodri</span><span class="o">-</span><span class="n">sec</span><span class="err">\</span><span class="ss">&quot; commit -m \&quot;</span><span class="n">docs</span><span class="p">(</span><span class="n">ops</span><span class="p">)</span><span class="err">:</span><span class="w"> </span><span class="n">vaked</span><span class="o">-</span><span class="n">ci</span><span class="w"> </span><span class="n">GitHub</span><span class="w"> </span><span class="n">App</span><span class="w"> </span><span class="n">setup</span><span class="w"> </span><span class="n">runbook</span><span class="err">\</span><span class="ss">&quot;&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="o">[</span><span class="n">&quot;user.email&quot;, &quot;peterlodri-sec@users.noreply&quot;, &quot;github.com&quot;, &quot;user.name&quot;</span><span class="o">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="ss">&quot;ok&quot;</span>
+<span class="err">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2014-rtk-read-privatetmpclaude-502-users-peter-lo">2026-06-18 20:14 — rtk read /private/tmp/claude-502/-Users-peter-lo</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201445 {
+  ts      = &quot;2026-06-18 20:14&quot;
+  command = &quot;rtk read /private/tmp/claude-502/-Users-peter-lodri-workspace-peterlodri-sec-vaked-base/1118447f-e597-4633-882e-f4e0a97f01cf/tasks/bgqdhfkga.output&quot;
+  inputs  = [&quot;private/tmp/claude-502/-Users-peter-lodri-workspace-peterlodri-sec-vaked-base/1118447f-e597-4633-882e-f4e0a97f01cf/tasks/bgqdhfkga.output&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2014-rtk-git-log-1-prettyformath-s">2026-06-18 20:14 — rtk git log -1 --pretty=format:"%H %s"</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201449 {
+  ts      = &quot;2026-06-18 20:14&quot;
+  command = &quot;rtk git log -1 --pretty=format:\&quot;%H %s\&quot;&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2017-rtk-git-commit-m-docsops-vaked-ci-github-ap">2026-06-18 20:17 — rtk git commit -m "docs(ops): vaked-ci GitHub Ap</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201700 {
+  ts      = &quot;2026-06-18 20:17&quot;
+  command = &quot;rtk git commit -m \&quot;docs(ops): vaked-ci GitHub App setup runbook\&quot;&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2017-until-git-log-1-prettyformats-grep-q">2026-06-18 20:17 — until git log -1 --pretty=format:"%s" | grep -q</h2>
+<div class="highlight"><pre><span></span><span class="nt">arp_event</span><span class="w"> </span><span class="nt">e_20260618_201721</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">ts</span><span class="w">      </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;2026-06-18</span><span class="w"> </span><span class="err">20:17&quot;</span>
+<span class="w">  </span><span class="err">command</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;until</span><span class="w"> </span><span class="err">git</span><span class="w"> </span><span class="err">log</span><span class="w"> </span><span class="err">-1</span><span class="w"> </span><span class="err">--pretty=</span><span class="n">format</span><span class="p">:</span><span class="err">\</span><span class="s2">&quot;%s\&quot; | grep -q \&quot;vaked-ci GitHub App\&quot;; do sleep 1; done; rtk git log -1 --pretty=format:\&quot;%H\&quot;&quot;</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2017-rtk-git-log-1-oneline">2026-06-18 20:17 — rtk git log -1 --oneline</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201726 {
+  ts      = &quot;2026-06-18 20:17&quot;
+  command = &quot;rtk git log -1 --oneline&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2017-rtk-ls-la-privatetmpclaude-502tasksout">2026-06-18 20:17 — rtk ls -la /private/tmp/claude-502/<em>/tasks/</em>.out</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201732 {
+  ts      = &quot;2026-06-18 20:17&quot;
+  command = &quot;rtk ls -la /private/tmp/claude-502/*/tasks/*.output 2&gt;/dev/null | tail -3&quot;
+  inputs  = [&quot;private/tmp/claude-502&quot;, &quot;dev/null&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2018-rtk-git-log-1-oneline">2026-06-18 20:18 — rtk git log -1 --oneline</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201811 {
+  ts      = &quot;2026-06-18 20:18&quot;
+  command = &quot;rtk git log -1 --oneline&quot;
+  outputs = [&quot;docs/superpowers/plans/task-1-report.md&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2018-rtk-git-status-short-echo-rtk-git">2026-06-18 20:18 — rtk git status --short &amp;&amp; echo "---" &amp;&amp; rtk git</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201817 {
+  ts      = &quot;2026-06-18 20:18&quot;
+  command = &quot;rtk git status --short &amp;&amp; echo \&quot;---\&quot; &amp;&amp; rtk git diff --cached docs/ops/vaked-ci-github-app.md | head -20&quot;
+  inputs  = [&quot;docs/ops/vaked-ci-github-app.md&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2018-rtk-git-commit-q-m-docsops-vaked-ci-github">2026-06-18 20:18 — rtk git commit -q -m "docs(ops): vaked-ci GitHub</h2>
+<div class="highlight"><pre><span></span><span class="nt">arp_event</span><span class="w"> </span><span class="nt">e_20260618_201839</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">ts</span><span class="w">      </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;2026-06-18</span><span class="w"> </span><span class="err">20:18&quot;</span>
+<span class="w">  </span><span class="err">command</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;rtk</span><span class="w"> </span><span class="err">git</span><span class="w"> </span><span class="err">commit</span><span class="w"> </span><span class="err">-q</span><span class="w"> </span><span class="err">-m</span><span class="w"> </span><span class="err">\&quot;docs(ops):</span><span class="w"> </span><span class="err">vaked-ci</span><span class="w"> </span><span class="err">GitHub</span><span class="w"> </span><span class="err">App</span><span class="w"> </span><span class="err">setup</span><span class="w"> </span><span class="err">runbook\&quot;</span><span class="w"> </span><span class="err">2&gt;&amp;1</span><span class="p">;</span><span class="w"> </span><span class="err">sleep</span><span class="w"> </span><span class="err">2</span><span class="p">;</span><span class="w"> </span><span class="err">rtk</span><span class="w"> </span><span class="err">git</span><span class="w"> </span><span class="err">log</span><span class="w"> </span><span class="err">-1</span><span class="w"> </span><span class="err">--pretty=</span><span class="n">format</span><span class="p">:</span><span class="err">\</span><span class="s2">&quot;%H %s\&quot;&quot;</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2018-sleep-5-rtk-read-privatetmpclaude-502-use">2026-06-18 20:18 — sleep 5 &amp;&amp; rtk read /private/tmp/claude-502/-Use</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201850 {
+  ts      = &quot;2026-06-18 20:18&quot;
+  command = &quot;sleep 5 &amp;&amp; rtk read /private/tmp/claude-502/-Users-peter-lodri-workspace-peterlodri-sec-vaked-base/1118447f-e597-4633-882e-f4e0a97f01cf/tasks/blfd627es.output --tail-lines 10 2&gt;&amp;1 || echo \&quot;no output file yet\&quot;&quot;
+  inputs  = [&quot;private/tmp/claude-502/-Users-peter-lodri-workspace-peterlodri-sec-vaked-base/1118447f-e597-4633-882e-f4e0a97f01cf/tasks/blfd627es.output&quot;]
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2018-rtk-git-log-1-prettyformath-s-echo">2026-06-18 20:18 — rtk git log -1 --pretty=format:"%H %s" &amp;&amp; echo "</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201856 {
+  ts      = &quot;2026-06-18 20:18&quot;
+  command = &quot;rtk git log -1 --pretty=format:\&quot;%H %s\&quot; &amp;&amp; echo \&quot;\&quot; &amp;&amp; rtk git log -1 --stat&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2019-git-config-list-grep-e-gpgsign">2026-06-18 20:19 — git config --list | grep -E 'gpg|sign'</h2>
+<div class="highlight"><pre><span></span>arp_event e_20260618_201938 {
+  ts      = &quot;2026-06-18 20:19&quot;
+  command = &quot;git config --list | grep -E &#39;gpg|sign&#39;&quot;
+  status  = &quot;ok&quot;
+}
+</pre></div>
+
+<h2 id="2026-06-18-2021-rtk-git-branch-show-current-rtk-ls-tools-2">2026-06-18 20:21 — rtk git branch --show-current &amp;&amp; rtk ls tools/ 2</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202156</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:21&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;rtk git branch --show-current &amp;&amp; rtk ls tools/ 2&gt;/dev/null || echo </span><span class="se">\&quot;</span><span class="s2">tools/ not found</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;dev/null&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2022-mkdir-p-userspeterlodriworkspacepeterlodri">2026-06-18 20:22 — mkdir -p /Users/peter.lodri/workspace/peterlodri</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202202</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:22&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;mkdir -p /Users/peter.lodri/workspace/peterlodri-sec/vaked-base/tools/ghapp&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Users/peter.lodri/workspace/peterlodri-sec/vaked-base/tools/ghapp&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2022-chmod-x-userspeterlodriworkspacepeterlodri">2026-06-18 20:22 — chmod +x /Users/peter.lodri/workspace/peterlodri</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202253</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:22&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;chmod +x /Users/peter.lodri/workspace/peterlodri-sec/vaked-base/tools/ghapp/mint-token.sh /Users/peter.lodri/workspace/peterlodri-sec/vaked-base/tools/ghapp/mint-token.test.sh&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;Users/peter.lodri/workspace/peterlodri-sec/vaked-base/tools/ghapp/mint-token.sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;Users/peter.lodri/workspace/peterlodri-sec/vaked-base/tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2022-bash-toolsghappmint-tokentestsh">2026-06-18 20:22 — bash tools/ghapp/mint-token.test.sh</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202259</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:22&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bash tools/ghapp/mint-token.test.sh&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2023-rtk-shellcheck-toolsghappmint-tokensh-toolsg">2026-06-18 20:23 — rtk shellcheck tools/ghapp/mint-token.sh tools/g</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202323</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:23&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;rtk shellcheck tools/ghapp/mint-token.sh tools/ghapp/mint-token.test.sh 2&gt;&amp;1 &amp;&amp; echo </span><span class="se">\&quot;</span><span class="s2">shellcheck: clean</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2023-bash-toolsghappmint-tokentestsh">2026-06-18 20:23 — bash tools/ghapp/mint-token.test.sh</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202329</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:23&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bash tools/ghapp/mint-token.test.sh&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2023-rtk-git-c-commitgpgsignfalse-add-toolsghapp">2026-06-18 20:23 — rtk git -c commit.gpgsign=false add tools/ghapp/</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202336</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:23&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;rtk git -c commit.gpgsign=false add tools/ghapp/mint-token.sh tools/ghapp/mint-token.test.sh &amp;&amp; rtk git -c commit.gpgsign=false commit -m </span><span class="se">\&quot;</span><span class="s2">feat(ghapp): local installation-token minter + tests</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;commit.gpgsign&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tools/ghapp/mint-token.sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2028-rtk-shellcheck-x-toolsghappmint-tokensh-tool">2026-06-18 20:28 — rtk shellcheck -x tools/ghapp/mint-token.sh tool</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202830</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:28&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;rtk shellcheck -x tools/ghapp/mint-token.sh tools/ghapp/mint-token.test.sh 2&gt;&amp;1 &amp;&amp; echo </span><span class="se">\&quot;</span><span class="s2">shellcheck -x: clean</span><span class="se">\&quot;</span><span class="s2">; echo </span><span class="se">\&quot;</span><span class="s2">---- plain shellcheck ----</span><span class="se">\&quot;</span><span class="s2">; rtk shellcheck tools/ghapp/mint-token.sh tools/ghapp/mint-token.test.sh 2&gt;&amp;1 &amp;&amp; echo </span><span class="se">\&quot;</span><span class="s2">shellcheck: clean</span><span class="se">\&quot;</span><span class="s2">&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2028-bash-toolsghappmint-tokentestsh">2026-06-18 20:28 — bash tools/ghapp/mint-token.test.sh</h2>
+<div class="highlight"><pre><span></span><span class="n">arp_event</span><span class="w"> </span><span class="n">e_20260618_202839</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ts</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2026-06-18 20:28&quot;</span>
+<span class="w">  </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bash tools/ghapp/mint-token.test.sh&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;tools/ghapp/mint-token.test.sh&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="2026-06-18-2028-if-base64-w0-devnull-21-then-e">2026-06-18 20:28 — if base64 -w0 </dev/null >/dev/null 2&gt;&1; then e</h2>
+<div class="highlight"><pre><span></span><span class="nt">arp_event</span><span class="w"> </span><span class="nt">e_20260618_202846</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">ts</span><span class="w">      </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;2026-06-18</span><span class="w"> </span><span class="err">20:28&quot;</span>
+<span class="w">  </span><span class="err">command</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;if</span><span class="w"> </span><span class="err">base64</span><span class="w"> </span><span class="err">-w0</span><span class="w"> </span><span class="err">&lt;/dev/null</span><span class="w"> </span><span class="err">&gt;/dev/null</span><span class="w"> </span><span class="err">2&gt;&amp;1</span><span class="p">;</span><span class="w"> </span><span class="err">then</span><span class="w"> </span><span class="err">echo</span><span class="w"> </span><span class="err">\&quot;this</span><span class="w"> </span><span class="n">machine</span><span class="p">:</span><span class="w"> </span><span class="n">GNU</span><span class="w"> </span><span class="n">branch</span><span class="w"> </span><span class="p">(</span><span class="o">-</span><span class="n">w0</span><span class="w"> </span><span class="n">works</span><span class="p">)</span><span class="err">\</span><span class="s2">&quot;; else echo \&quot;this machine: BSD branch (no -w0)\&quot;; fi; printf &#39;%s&#39; &#39;{}&#39; | base64&quot;</span>
+<span class="w">  </span><span class="n">inputs</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="cp">[</span><span class="s2">&quot;dev/null&quot;</span><span class="cp">]</span>
+<span class="w">  </span><span class="n">status</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ok&quot;</span>
+<span class="p">}</span>
+</pre></div>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/arp-log.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

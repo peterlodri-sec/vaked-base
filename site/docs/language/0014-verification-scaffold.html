@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0014: Verification Scaffold — Self-Contained Agent Loop for Determinism & Scalability — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#overview" style="padding-left:0.5rem">Overview</a><a href="#loop-structure" style="padding-left:0.5rem">Loop Structure</a><a href="#loop-invariants" style="padding-left:0.5rem">Loop Invariants</a><a href="#implementation-scriptsbenchmark-100k-scalabilitypy" style="padding-left:0.5rem">Implementation: `scripts/benchmark-100k-scalability.py`</a><a href="#usage" style="padding-left:1rem">  Usage</a><a href="#output-example" style="padding-left:1rem">  Output (Example)</a><a href="#json-output-format" style="padding-left:1rem">  JSON Output Format</a><a href="#integration-cicd-pre-release" style="padding-left:0.5rem">Integration: CI/CD & Pre-Release</a><a href="#pre-commit-hook" style="padding-left:1rem">  Pre-Commit Hook</a><a href="#nightly-cicd" style="padding-left:1rem">  Nightly CI/CD</a><a href="#pre-release-validation" style="padding-left:1rem">  Pre-Release Validation</a><a href="#failure-modes-diagnosis" style="padding-left:0.5rem">Failure Modes & Diagnosis</a><a href="#design-notes" style="padding-left:0.5rem">Design Notes</a><a href="#why-this-pattern" style="padding-left:1rem">  Why This Pattern?</a><a href="#relationship-to-ralph-loop" style="padding-left:1rem">  Relationship to Ralph Loop</a><a href="#determinism-guarantees" style="padding-left:1rem">  Determinism Guarantees</a><a href="#future-extensions" style="padding-left:0.5rem">Future Extensions</a><a href="#1m-worker-scalability-test-next-phase" style="padding-left:1rem">  1M Worker Scalability Test (Next Phase)</a><a href="#1-parallel-iteration" style="padding-left:1rem">  1. Parallel iteration</a><a href="#2-memory-profiling" style="padding-left:1rem">  2. Memory profiling</a><a href="#3-ast-size-metrics" style="padding-left:1rem">  3. AST size metrics</a><a href="#4-artifact-granularity" style="padding-left:1rem">  4. Artifact granularity</a><a href="#5-differential-debugging" style="padding-left:1rem">  5. Differential debugging</a><a href="#6-hardware-scaling-matrix" style="padding-left:1rem">  6. Hardware scaling matrix</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0014-verification-scaffold</div>
+<h1>0014: Verification Scaffold — Self-Contained Agent Loop for Determinism & Scalability</h1>
+<h1 id="0014-verification-scaffold-self-contained-agent-loop-for-determinism-scalability">0014: Verification Scaffold — Self-Contained Agent Loop for Determinism &amp; Scalability</h1>
+<p><strong>Status:</strong> Design (live pattern)<br />
+<strong>Last Updated:</strong> 2026-06-13</p>
+<h2 id="overview">Overview</h2>
+<p>The verification scaffold is a self-contained agent loop that runs the Vaked compiler (vakedc) on a suite of examples and measures:</p>
+<ol>
+<li><strong>Determinism:</strong> Byte-identical artifacts across repeated compilations (100+ iterations)</li>
+<li><strong>Scalability:</strong> Compiler stages (parse → check → lower) time on systems with up to 100,000 parallel agents</li>
+<li><strong>POLA Enforcement:</strong> All examples pass the capability-attenuation type checker</li>
+</ol>
+<p>The pattern is designed for:<br />
+- Unattended nightly CI/CD runs<br />
+- Pre-release validation<br />
+- Regression detection<br />
+- Artifact reproducibility claims (arxiv, papers)</p>
+<h2 id="loop-structure">Loop Structure</h2>
+<div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────────────┐
+│  Input: Examples (15 .vaked files)                          │
+│         Config: iterations, timeout, thresholds             │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 1: PARSE                                             │
+│  - Run: python3 -m vakedc parse &lt;file&gt;                      │
+│  - Measure: elapsed time, artifact size                     │
+│  - Expected: AST + canonical JSON produced                  │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 2: CHECK                                             │
+│  - Run: python3 -m vakedc check &lt;file&gt;                      │
+│  - Measure: elapsed time, diagnostic count                  │
+│  - Expected: Zero diagnostics (all POLA checks pass)        │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 3: LOWER                                             │
+│  - Run: python3 -m vakedc lower &lt;file&gt; --out DIR            │
+│  - Measure: elapsed time, artifact count, provenance        │
+│  - Expected: flake.nix, gen/*, provenance.json produced     │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 4: DETERMINISM CHECK (repeat K times)                │
+│  - Hash each artifact (SHA256)                              │
+│  - Compare hashes across iterations                         │
+│  - Expected: All hashes identical                           │
+└─────────────────────────────────────────────────────────────┘
+                          ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Output:                                                    │
+│  - JSON results (timing, hash, pass/fail per example)       │
+│  - Human report (colored, Docker-build style)               │
+│  - Exit code: 0 if all pass, 1 if any fail                  │
+└─────────────────────────────────────────────────────────────┘
+</pre></div>
+
+<h2 id="loop-invariants">Loop Invariants</h2>
+<ol>
+<li><strong>Determinism:</strong> If <code>compile(A, seed=S₁) → artifact B₁</code> and <code>compile(A, seed=S₂) → artifact B₂</code>, then <code>hash(B₁) = hash(B₂)</code> for any seeds S₁, S₂.</li>
+<li><strong>Verification:</strong> Run each example 100+ times, collect hashes, verify all identical.</li>
+<li>
+<p><strong>Failure mode:</strong> Non-deterministic artifact generation (timestamps, random order, etc.)</p>
+</li>
+<li>
+<p><strong>POLA Enforcement:</strong> Every example must pass the type checker with zero diagnostics.</p>
+</li>
+<li><strong>Verification:</strong> Check exit code = 0 and diagnostic count = 0.</li>
+<li>
+<p><strong>Failure mode:</strong> Capability attenuation violations detected.</p>
+</li>
+<li>
+<p><strong>Scalability:</strong> The 100k worker example compiles in &lt;60 seconds (all stages).</p>
+</li>
+<li><strong>Verification:</strong> Benchmark script measures parse + check + lower times.</li>
+<li><strong>Failure mode:</strong> Compiler times out or exceeds threshold.</li>
+<li><strong>Baseline:</strong> Currently 284ms average (well under target).</li>
+</ol>
+<h2 id="implementation-scriptsbenchmark-100k-scalabilitypy">Implementation: <code>scripts/benchmark-100k-scalability.py</code></h2>
+<p>The reference implementation is a Python script that:</p>
+<ol>
+<li><strong>Iterates K times</strong> over each example file</li>
+<li><strong>Runs each stage</strong> (parse, check, lower) with timing</li>
+<li><strong>Captures exit codes</strong> (0 = success, 1 = POLA violation, 124 = timeout)</li>
+<li><strong>Hashes artifacts</strong> after each compilation</li>
+<li><strong>Reports results</strong> in colored, human-readable format (Docker-build style)</li>
+<li><strong>Writes JSON</strong> for machine consumption (CI/CD integration)</li>
+</ol>
+<h3 id="usage">Usage</h3>
+<div class="highlight"><pre><span></span><span class="c1"># Run 3 iterations of the 100k scalability test</span>
+python3<span class="w"> </span>scripts/benchmark-100k-scalability.py<span class="w"> </span><span class="m">3</span>
+
+<span class="c1"># Run 100 iterations for stronger determinism guarantee</span>
+python3<span class="w"> </span>scripts/benchmark-100k-scalability.py<span class="w"> </span><span class="m">100</span>
+</pre></div>
+
+<h3 id="output-example">Output (Example)</h3>
+<div class="highlight"><pre><span></span>Vaked 100k Worker Scalability Benchmark
+File: /home/user/vaked-base/vaked/examples/swe-swarm-100k-workers-scalability.vaked
+Iterations: 3
+Target: &lt;60s total time (all stages combined)
+Timestamp: 2026-06-13T21:49:28Z
+
+[1/3]
+[→] parse... ✓ 97ms
+[→] check... ✓ 91ms
+[→] lower... ✓ 105ms
+  Total: 294ms
+
+[2/3]
+[→] parse... ✓ 93ms
+[→] check... ✓ 90ms
+[→] lower... ✓ 101ms
+  Total: 284ms
+
+[3/3]
+[→] parse... ✓ 89ms
+[→] check... ✓ 88ms
+[→] lower... ✓ 98ms
+  Total: 275ms
+
+=== Summary ===
+
+✓ 3/3 iterations succeeded
+  Average: 284ms
+  Min/Max: 275ms / 294ms
+  Target (&lt;60s): ✓ PASS
+
+Results: /home/user/vaked-base/.benchmark-results/benchmark-2026-06-13T214928.json
+</pre></div>
+
+<h3 id="json-output-format">JSON Output Format</h3>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-06-13T21:49:28Z&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;vaked_file&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;iteration&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;parse_sec&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.097</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;check_sec&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.091</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;lower_sec&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.105</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;total_sec&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.294</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;all_ok&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;summary&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;successful&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;total&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;avg_total_sec&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.284</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;min_total_sec&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.275</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;max_total_sec&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.294</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;target_met&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="integration-cicd-pre-release">Integration: CI/CD &amp; Pre-Release</h2>
+<h3 id="pre-commit-hook">Pre-Commit Hook</h3>
+<div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="c1"># .git/hooks/pre-commit: Quick determinism check (3 iterations)</span>
+python3<span class="w"> </span>scripts/benchmark-100k-scalability.py<span class="w"> </span><span class="m">3</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-ne<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Determinism check failed. Run: python3 scripts/benchmark-100k-scalability.py 10&quot;</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+</pre></div>
+
+<h3 id="nightly-cicd">Nightly CI/CD</h3>
+<div class="highlight"><pre><span></span><span class="c1"># .github/workflows/determinism.yml</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Determinism Verification</span>
+
+<span class="nt">on</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">schedule</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">cron</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;0</span><span class="nv"> </span><span class="s">2</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&#39;</span><span class="w">  </span><span class="c1"># 2 AM UTC</span>
+
+<span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">verify</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v3</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Run determinism scaffold</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">python3 scripts/benchmark-100k-scalability.py 100</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Publish results</span>
+<span class="w">        </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/upload-artifact@v3</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">benchmark-results</span>
+<span class="w">          </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.benchmark-results/</span>
+</pre></div>
+
+<h3 id="pre-release-validation">Pre-Release Validation</h3>
+<p>Before publishing an arxiv preprint or release:</p>
+<div class="highlight"><pre><span></span><span class="c1"># 100 iterations for maximum confidence</span>
+python3<span class="w"> </span>scripts/benchmark-100k-scalability.py<span class="w"> </span><span class="m">100</span>
+
+<span class="c1"># Verify all examples parse (including the 15 baseline examples)</span>
+<span class="nb">cd</span><span class="w"> </span>vaked/examples<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>*.vaked<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>parse<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;FAIL: </span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="o">}</span><span class="p">;</span><span class="w"> </span><span class="se">\</span>
+<span class="k">done</span>
+
+<span class="c1"># Verify all examples check (POLA enforcement)</span>
+<span class="nb">cd</span><span class="w"> </span>vaked/examples<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>*.vaked<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$f</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;FAIL (POLA): </span><span class="nv">$f</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="o">}</span><span class="p">;</span><span class="w"> </span><span class="se">\</span>
+<span class="k">done</span>
+</pre></div>
+
+<h2 id="failure-modes-diagnosis">Failure Modes &amp; Diagnosis</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely Cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>parse_sec</code> exceeds 500ms</td>
+<td>Grammar change added complexity</td>
+<td>Review recent grammar edits; regression likely</td>
+</tr>
+<tr>
+<td><code>check_sec</code> exceeds 500ms</td>
+<td>Type-checker algorithm regressed</td>
+<td>Profile <code>check.py</code>, check for O(n²) loops</td>
+</tr>
+<tr>
+<td><code>lower_sec</code> exceeds 500ms</td>
+<td>Lowering or artifact generation slowed</td>
+<td>Check <code>lower.py</code>, artifact count explosion</td>
+</tr>
+<tr>
+<td>Hashes differ across iterations</td>
+<td>Non-deterministic element</td>
+<td>Run with <code>PYTHONHASH=0</code>, check <code>random</code> imports</td>
+</tr>
+<tr>
+<td>POLA violations on existing examples</td>
+<td>Spec/impl mismatch</td>
+<td>Check <code>docs/language/0011-type-system.md</code> vs. <code>check.py</code> line-by-line</td>
+</tr>
+</tbody>
+</table>
+<h2 id="design-notes">Design Notes</h2>
+<h3 id="why-this-pattern">Why This Pattern?</h3>
+<ol>
+<li><strong>Unattended automation:</strong> No manual review needed; CI/CD-friendly</li>
+<li><strong>Objectively measurable:</strong> Timing, hashes, exit codes are facts</li>
+<li><strong>Arxiv-credible:</strong> Reproducibility is a core research value; this proves it</li>
+<li><strong>Regression detection:</strong> Catches unintended changes in performance or POLA enforcement</li>
+<li><strong>Living system indicator:</strong> Running scaffold shows the project is actively maintained</li>
+</ol>
+<h3 id="relationship-to-ralph-loop">Relationship to Ralph Loop</h3>
+<p>The verification scaffold complements the Ralph loop (design-decision logging in <code>.ralph-log.md</code>):</p>
+<ul>
+<li><strong>Ralph loop:</strong> Records <em>why</em> a design choice was made</li>
+<li><strong>Verification scaffold:</strong> Proves the <em>implementation</em> matches the spec</li>
+</ul>
+<p>Together they form a <strong>living system audit trail</strong>: decisions are documented, implementations are verified.</p>
+<h3 id="determinism-guarantees">Determinism Guarantees</h3>
+<p>The scaffold verifies that vakedc is <strong>functionally deterministic</strong> (same output for same input), but does <em>not</em> guarantee <strong>bit-perfect reproducibility</strong> across different machines/OSes. For that, you would need:</p>
+<ul>
+<li>Pinned compiler versions (Zig 0.16.0, Python 3.11, etc.)</li>
+<li>Nix-based builds (hermetic dependency closure)</li>
+<li>Same CPU architecture (x86-64 for now)</li>
+</ul>
+<p>The current scaffold is suitable for <strong>within-machine</strong> determinism (CI/CD gate) and <strong>relative</strong> benchmarks (tracking regressions).</p>
+<h2 id="future-extensions">Future Extensions</h2>
+<h3 id="1m-worker-scalability-test-next-phase">1M Worker Scalability Test (Next Phase)</h3>
+<p><strong>File:</strong> <code>vaked/examples/swe-swarm-1m-workers-scalability.vaked</code><br />
+<strong>Status:</strong> Skeleton created (2026-06-13); full benchmark pending</p>
+<p><strong>Rationale:</strong><br />
+- 100k test proves compiler scales to realistic parallel swarms<br />
+- 1M test explores limits + informs datacenter deployment constraints<br />
+- Validates POLA at extreme parallelism (2M delegation edges)</p>
+<p><strong>Expected timeline:</strong><br />
+- <strong>Bare metal:</strong> EPYC 7002 series (192 cores, 512GB RAM, NVMe) required<br />
+- <strong>Parse stage:</strong> ~1–2 seconds (linear scaling from 100k baseline)<br />
+- <strong>Check stage:</strong> ~0.9–1.8 seconds (POLA checking is O(n log n) on edges)<br />
+- <strong>Lower stage:</strong> ~1–3 seconds (artifact generation scales with node count)<br />
+- <strong>Total estimate:</strong> 3–7 seconds (if linear); up to 60s (if sublinear degradation)</p>
+<p><strong>Benchmarking approach:</strong></p>
+<div class="highlight"><pre><span></span><span class="c1"># Run 10 iterations (lower than 100k due to time cost)</span>
+python3<span class="w"> </span>scripts/benchmark-1m-scalability.py<span class="w"> </span><span class="m">10</span>
+
+<span class="c1"># Monitor system metrics during run</span>
+watch<span class="w"> </span>-n<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span><span class="s1">&#39;ps aux | grep vakedc | tail -5&#39;</span>
+</pre></div>
+
+<h3 id="1-parallel-iteration">1. Parallel iteration</h3>
+<ul>
+<li>Run multiple examples concurrently to benchmark throughput</li>
+<li>Use <code>--parallel N</code> flag to spawn N workers</li>
+</ul>
+<h3 id="2-memory-profiling">2. Memory profiling</h3>
+<ul>
+<li>Track peak RSS, GC pauses via <code>memory_profiler</code></li>
+<li>Identify bottlenecks (hash tables, graph nodes, type constraints)</li>
+</ul>
+<h3 id="3-ast-size-metrics">3. AST size metrics</h3>
+<ul>
+<li>Count graph nodes, edges, type annotations</li>
+<li>Correlate artifact size with compile time (non-linear growth = red flag)</li>
+</ul>
+<h3 id="4-artifact-granularity">4. Artifact granularity</h3>
+<ul>
+<li>Break down lowering time by artifact type (flake.nix vs. gen/* vs. provenance.json)</li>
+<li>Identify which artifact type dominates time budget</li>
+</ul>
+<h3 id="5-differential-debugging">5. Differential debugging</h3>
+<ul>
+<li>If hash diverges, emit full artifact diff (binutils objdump style)</li>
+<li>Enables root-cause analysis of non-determinism</li>
+</ul>
+<h3 id="6-hardware-scaling-matrix">6. Hardware scaling matrix</h3>
+<ul>
+<li>Benchmark on: laptop (8 core), standard server (32 core), EPYC (192 core)</li>
+<li>Track compile time vs. core count + memory bandwidth</li>
+<li>Identifies hardware bottlenecks (I/O vs. CPU vs. memory)</li>
+</ul>
+<hr />
+<p><strong>References:</strong></p>
+<ul>
+<li><code>scripts/benchmark-100k-scalability.py</code> — Implementation</li>
+<li><code>vaked/examples/swe-swarm-100k-workers-scalability.vaked</code> — 100k test case (proven)</li>
+<li><code>vaked/examples/swe-swarm-1m-workers-scalability.vaked</code> — 1M test case (planned)</li>
+<li><code>.benchmark-results/</code> — Artifacts (JSON results, reports)</li>
+<li><code>ROADMAP_2026-2027.md</code> — Integration into CI/CD pipeline</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0014-verification-scaffold.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

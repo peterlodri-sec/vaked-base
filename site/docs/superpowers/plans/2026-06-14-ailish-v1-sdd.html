@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SDD run — AI-lish V1 runtime (Phase B + C) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#frame-p0" style="padding-left:0.5rem">Frame (P0)</a><a href="#wave-dag" style="padding-left:0.5rem">Wave-DAG</a><a href="#public-api-contract-the-codertest-author-interface-both-build-to-this" style="padding-left:0.5rem">Public API contract (the coder/test-author interface — both build to this)</a><a href="#spec-anchors-coder-test-author-both-cite-these" style="padding-left:0.5rem">Spec anchors (coder + test-author both cite these)</a><a href="#anti-patterns-honored" style="padding-left:0.5rem">Anti-patterns honored</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-14-ailish-v1-sdd</div>
+<h1>SDD run — AI-lish V1 runtime (Phase B + C)</h1>
+<h1 id="sdd-run-ai-lish-v1-runtime-phase-b-c">SDD run — AI-lish V1 runtime (Phase B + C)</h1>
+<p>Date: 2026-06-14 · Target: <a href="../../ailish/2026-06-14-ailish-v1-rfc.md"><code>docs/ailish/2026-06-14-ailish-v1-rfc.md</code></a> · Orchestrator: this session</p>
+<h2 id="frame-p0">Frame (P0)</h2>
+<p>The RFC (Phase A) is the complete normative spec, so P1 research / P2 spec are<br />
+already satisfied — the RFC <em>is</em> the dossier. This run executes P3 (implement),<br />
+P4 (independent tests + bench), P5 (broker PR). Build/test run in the remote<br />
+Linux execution container (<code>cargo</code> present); this is not the M1 dev machine the<br />
+no-build rule protects.</p>
+<h2 id="wave-dag">Wave-DAG</h2>
+<table>
+<thead>
+<tr>
+<th>wave</th>
+<th>role</th>
+<th>output</th>
+<th>acceptance gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W1a</td>
+<td>coder (worktree)</td>
+<td><code>tools/ailish/</code> crate: <code>Cargo.toml</code>, <code>Cargo.lock</code>, <code>src/lib.rs</code> (AST + nom parser + guardrail), <code>src/fmt.rs</code> (ailishfmt + §5 compaction + token bench helper)</td>
+<td><code>cargo build --locked</code> clean, 0 warnings</td>
+</tr>
+<tr>
+<td>W1b</td>
+<td>test-author (worktree, spec-only)</td>
+<td><code>tests/parse.rs</code>, <code>tests/fmt.rs</code> authored from the RFC + API contract below — <strong>without</strong> seeing W1a code</td>
+<td>tests compile against the contract once merged</td>
+</tr>
+<tr>
+<td>W2</td>
+<td>orchestrator</td>
+<td>merge W1a+W1b, <code>cargo test --locked</code></td>
+<td>all tests green, 0 warnings</td>
+</tr>
+<tr>
+<td>W3</td>
+<td>coherence/completeness-critic</td>
+<td>coverage report: every §2 production + §3 rule has parser support AND a test</td>
+<td>0 confirmed-missing, or gaps re-fanned to coder</td>
+</tr>
+<tr>
+<td>W4</td>
+<td>broker</td>
+<td>commit → push <code>claude/e2e-hcp-litany-workflow-pxsflg</code> → PR ready-for-review</td>
+<td>CI gate green</td>
+</tr>
+</tbody>
+</table>
+<h2 id="public-api-contract-the-codertest-author-interface-both-build-to-this">Public API contract (the coder/test-author interface — both build to this)</h2>
+<div class="highlight"><pre><span></span><span class="c1">// ---- AST (src/lib.rs) ----</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Register</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Think</span><span class="p">,</span><span class="w"> </span><span class="n">Plan</span><span class="p">,</span><span class="w"> </span><span class="n">Tool</span><span class="p">,</span><span class="w"> </span><span class="n">Risk</span><span class="p">,</span><span class="w"> </span><span class="n">Artifact</span><span class="p">,</span><span class="w"> </span><span class="n">Commit</span><span class="p">,</span><span class="w"> </span><span class="n">Review</span><span class="p">,</span><span class="w"> </span><span class="n">Bench</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Frame</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">register</span><span class="p">:</span><span class="w"> </span><span class="nc">Register</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">lines</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Line</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Line</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Assign</span><span class="p">(</span><span class="n">SsaAssign</span><span class="p">),</span><span class="w"> </span><span class="n">Stmt</span><span class="p">(</span><span class="n">Stmt</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">SsaAssign</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">var</span><span class="p">:</span><span class="w"> </span><span class="nc">Variable</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">expr</span><span class="p">:</span><span class="w"> </span><span class="nc">Expression</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">annotation</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arg</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Variable</span><span class="p">(</span><span class="k">pub</span><span class="w"> </span><span class="kt">u32</span><span class="p">);</span><span class="w">                 </span><span class="c1">// %N</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Expression</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Action</span><span class="p">(</span><span class="n">Action</span><span class="p">),</span><span class="w"> </span><span class="n">Eval</span><span class="p">(</span><span class="n">Evaluation</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Action</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">verb</span><span class="p">:</span><span class="w"> </span><span class="nc">Verb</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">args</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arg</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Evaluation</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">func</span><span class="p">:</span><span class="w"> </span><span class="nc">Func</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">args</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Arg</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="c1">// combine/join/intersect/depend</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Stmt</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Relation</span><span class="p">(</span><span class="n">Relation</span><span class="p">),</span><span class="w"> </span><span class="n">Gate</span><span class="p">(</span><span class="n">Gate</span><span class="p">),</span><span class="w"> </span><span class="n">Schedule</span><span class="p">(</span><span class="n">Schedule</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Relation</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">lhs</span><span class="p">:</span><span class="w"> </span><span class="nc">Operand</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">flow</span><span class="p">:</span><span class="w"> </span><span class="nc">Dataflow</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">rhs</span><span class="p">:</span><span class="w"> </span><span class="nc">Operand</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Dataflow</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Feeds</span><span class="p">,</span><span class="w"> </span><span class="n">Justifies</span><span class="w"> </span><span class="p">}</span><span class="w">        </span><span class="c1">// &quot;→&quot;, &quot;∵&quot;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Schedule</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">target</span><span class="p">:</span><span class="w"> </span><span class="nc">Action</span><span class="w"> </span><span class="p">}</span><span class="w">    </span><span class="c1">// R:plan only: &quot;→ target(...)&quot;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Gate</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nc">GateName</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">state</span><span class="p">:</span><span class="w"> </span><span class="nc">GateState</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">because</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Operand</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Operand</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Var</span><span class="p">(</span><span class="n">Variable</span><span class="p">),</span><span class="w"> </span><span class="n">Atom</span><span class="p">(</span><span class="n">Atom</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Atom</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Literal</span><span class="p">(</span><span class="n">Literal</span><span class="p">),</span><span class="w"> </span><span class="n">Env</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span><span class="w"> </span><span class="n">Path</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span><span class="w"> </span><span class="n">Symbol</span><span class="p">(</span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Literal</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Number</span><span class="p">(</span><span class="kt">f64</span><span class="p">),</span><span class="w"> </span><span class="n">Quoted</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span><span class="w"> </span><span class="n">Bool</span><span class="p">(</span><span class="kt">bool</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Arg</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="nc">Value</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Value</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Var</span><span class="p">(</span><span class="n">Variable</span><span class="p">),</span><span class="w"> </span><span class="n">Atom</span><span class="p">(</span><span class="n">Atom</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Verb</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Fetch</span><span class="p">,</span><span class="w"> </span><span class="n">Read</span><span class="p">,</span><span class="w"> </span><span class="n">Edit</span><span class="p">,</span><span class="w"> </span><span class="n">Write</span><span class="p">,</span><span class="w"> </span><span class="n">Test</span><span class="p">,</span><span class="w"> </span><span class="n">Build</span><span class="p">,</span><span class="w"> </span><span class="n">Diff</span><span class="p">,</span><span class="w"> </span><span class="n">Commit</span><span class="p">,</span><span class="w"> </span><span class="n">Open</span><span class="p">,</span><span class="w"> </span><span class="n">Merge</span><span class="p">,</span>
+<span class="w">                </span><span class="n">LaunchAgent</span><span class="p">,</span><span class="w"> </span><span class="n">AgentWrite</span><span class="p">,</span><span class="w"> </span><span class="n">CheckPermission</span><span class="p">,</span><span class="w"> </span><span class="n">Block</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Func</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Combine</span><span class="p">,</span><span class="w"> </span><span class="n">Join</span><span class="p">,</span><span class="w"> </span><span class="n">Intersect</span><span class="p">,</span><span class="w"> </span><span class="n">Depend</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">GateName</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Artifact</span><span class="p">,</span><span class="w"> </span><span class="n">English</span><span class="p">,</span><span class="w"> </span><span class="n">NoCjk</span><span class="p">,</span><span class="w"> </span><span class="n">Ci</span><span class="p">,</span><span class="w"> </span><span class="n">Bench</span><span class="p">,</span><span class="w"> </span><span class="n">Parse</span><span class="p">,</span><span class="w"> </span><span class="n">Commit</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">GateState</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Pass</span><span class="p">,</span><span class="w"> </span><span class="n">Fail</span><span class="p">,</span><span class="w"> </span><span class="n">Warn</span><span class="p">,</span><span class="w"> </span><span class="n">Skip</span><span class="w"> </span><span class="p">}</span>
+
+<span class="c1">// ---- parser + guardrail (src/lib.rs) ----</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">parse_message</span><span class="p">(</span><span class="n">input</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Frame</span><span class="o">&gt;</span><span class="p">,</span><span class="w"> </span><span class="n">ParseError</span><span class="o">&gt;</span><span class="p">;</span><span class="w">   </span><span class="c1">// accepts long AND compact</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="n">frames</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">Frame</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">GuardrailError</span><span class="o">&gt;&gt;</span><span class="p">;</span><span class="w">  </span><span class="c1">// §3 register-monad rules</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">is_frozen</span><span class="p">(</span><span class="n">frames</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">Frame</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">;</span><span class="w">  </span><span class="c1">// true iff a live gate(*:fail) precedes any R:commit line</span>
+
+<span class="c1">// ---- formatter (src/fmt.rs) ----</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">FmtMode</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Long</span><span class="p">,</span><span class="w"> </span><span class="n">Compact</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">ailishfmt</span><span class="p">(</span><span class="n">frames</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">Frame</span><span class="p">],</span><span class="w"> </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="nc">FmtMode</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="p">;</span><span class="w">  </span><span class="c1">// idempotent: fmt(parse(fmt(x))) == fmt(x)</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">token_estimate</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">usize</span><span class="p">;</span><span class="w">  </span><span class="c1">// coarse token proxy for long-vs-compact bench</span>
+</pre></div>
+
+<p><code>ParseError</code> and <code>GuardrailError</code> are public, <code>Debug</code>-printable; <code>GuardrailError</code><br />
+carries the offending register + a rule id. All public enums derive<br />
+<code>Debug, Clone, PartialEq</code>.</p>
+<h2 id="spec-anchors-coder-test-author-both-cite-these">Spec anchors (coder + test-author both cite these)</h2>
+<ul>
+<li>§2 grammar EBNF (registers, SSA, operators <code>→</code>/<code>∵</code>, typed atoms, verb/func/gate vocab).</li>
+<li>§3 register-monad table (May/MUST/MUST NOT per register) + the freeze invariant.</li>
+<li>§4 lowering example — MUST parse exactly; round-trips through <code>ailishfmt</code>.</li>
+<li>§5 compaction map — <code>[R:think]↔[!T]</code> … <code>combine(↔&amp;(</code>, <code>intersect(↔^(</code>; both forms one grammar.</li>
+<li>only dependency: <code>nom</code>; edition 2021; warning-free; <code>Cargo.lock</code> committed (<code>--locked</code>).</li>
+</ul>
+<h2 id="anti-patterns-honored">Anti-patterns honored</h2>
+<p>Orchestrator merges only (no code authoring); test-author never sees impl;<br />
+critic is adversarial and distinct from coder; PR opened ready-for-review, never<br />
+self-merged without approval.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-14-ailish-v1-sdd.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

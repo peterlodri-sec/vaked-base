@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Agent CI — how the fleet runs — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#the-ci-github-environment" style="padding-left:0.5rem">The `ci` GitHub Environment</a><a href="#workflow-inventory" style="padding-left:0.5rem">Workflow inventory</a><a href="#triggers-in-use" style="padding-left:0.5rem">Triggers in use</a><a href="#build-deploy-pattern-adk-rust-agents" style="padding-left:0.5rem">Build / deploy pattern (adk-rust agents)</a><a href="#conventions-for-a-new-agent-workflow" style="padding-left:0.5rem">Conventions for a new agent workflow</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/agents/">agents</a> / ci</div>
+<h1>Agent CI — how the fleet runs</h1>
+<h1 id="agent-ci-how-the-fleet-runs">Agent CI — how the fleet runs</h1>
+<p>How the <a href="../../VAKED_AGENTS.md">Vaked agent fleet</a> is wired into GitHub Actions:<br />
+triggers, the shared <code>ci</code> environment, secrets, the build pipeline, and the<br />
+conventions every agent workflow follows. All workflows live in<br />
+<a href="../../.github/workflows"><code>.github/workflows/</code></a>.</p>
+<h2 id="the-ci-github-environment">The <code>ci</code> GitHub Environment</h2>
+<p>Every credential lives in <strong>one</strong> GitHub Environment named <code>ci</code> (Settings →<br />
+Environments → ci). A job reads it by declaring <code>environment: ci</code>; without that the<br />
+<code>${{ secrets.* }}</code> references resolve empty (this exact omission once made every<br />
+<code>pr-review</code> run a green no-op). Agents <strong>guard on the secret</strong> and no-op cleanly<br />
+when it's unset, so the workflows are safe to merge before secrets exist and on<br />
+fork PRs (which get no secrets).</p>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Used by</th>
+<th>Optional?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OPENROUTER_API_KEY</code></td>
+<td>all agents (pr-review, @vaked-ci, ralph, orcli, @vaked/openrouter-ts)</td>
+<td>required for LLM runs</td>
+</tr>
+<tr>
+<td><code>LANGFUSE_HOST</code> (or <code>LANGFUSE_BASE_URL</code>), <code>LANGFUSE_PUBLIC_KEY</code>, <code>LANGFUSE_SECRET_KEY</code></td>
+<td>all agents (pr-review, ralph, @vaked/openrouter-ts)</td>
+<td>optional (tracing). @vaked/openrouter-ts uses the Langfuse v3 SDK directly; pr-review builds the OTLP Basic token from the key pair; legacy <code>LANGFUSE_URL</code>/<code>LANGFUSE_API_KEY</code> still accepted</td>
+</tr>
+<tr>
+<td><code>LANGFUSE_PROJECT_ID</code></td>
+<td>pr-review</td>
+<td>optional (enables comment→trace deep-link)</td>
+</tr>
+<tr>
+<td><code>MASTODON_ACCESS_TOKEN</code></td>
+<td>ralph announce/digest, social-post</td>
+<td>optional</td>
+</tr>
+<tr>
+<td><code>CONTEXT7_API_KEY</code></td>
+<td>@vaked/openrouter-ts</td>
+<td><strong>NEW — add to CI secrets.</strong> Get at <a href="https://context7.com/dashboard">context7.com/dashboard</a>. Keys start with <code>ctx7sk-</code>. Optional — agent tools return error messages when unset, never crash.</td>
+</tr>
+<tr>
+<td><code>CRABCC_INSTALL_TOKEN</code></td>
+<td>pr-review, @vaked-ci</td>
+<td>optional (private crabcc)</td>
+</tr>
+<tr>
+<td><code>RALPH_API_KEY</code>, <code>RALPH_BASE_URL</code></td>
+<td>ralph</td>
+<td>optional (self-hosted endpoint)</td>
+</tr>
+<tr>
+<td><code>TELEGRAM_TOKEN</code>, <code>TELEGRAM_TO</code></td>
+<td>all (failure-notify)</td>
+<td>optional</td>
+</tr>
+</tbody>
+</table>
+<p>Config (non-secret) is passed via env vars (e.g. <code>PR_REVIEW_MODEL</code>,<br />
+<code>PR_REVIEW_USD_PER_MTOK</code>, <code>RALPH_WRITER_MODEL</code>, <code>MASTODON_VISIBILITY</code>) — see each<br />
+agent's README.</p>
+<h2 id="workflow-inventory">Workflow inventory</h2>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>Trigger</th>
+<th>Agentic?</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="../../.github/workflows/ralph-tracks.yml"><code>ralph-tracks.yml</code></a></td>
+<td>cron 3h + 23:00 UTC, dispatch</td>
+<td>LLM</td>
+<td>decide one track → commit ledger → announce/recap to Mastodon</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/optitron-crawl.yml"><code>optitron-crawl.yml</code></a></td>
+<td>daily cron 05:33 UTC; <strong>double-confirmed</strong> dispatch</td>
+<td>LLM (Go/Eino)</td>
+<td>concurrent crawl→verify→bench→adjudicate for ONE proven optimization → open <code>agent</code> issue (swe_af) + announce; else abstain. Manual runs gated by <code>confirm: RUN</code> + the <code>optitron-manual</code> Environment required-reviewer approval</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/fleet-introspect.yml"><code>fleet-introspect.yml</code></a></td>
+<td>cron daily 06:00 UTC; <strong>double-confirmed</strong> dispatch</td>
+<td>LLM (Go/Eino)</td>
+<td>mine the fleet's own Langfuse traces (≤2d) → detect→ideate→<strong>review</strong> one novel improvement → <code>agent</code> issue (swe_af) + economy report; else abstain. Reads ralph's live loop read-only. Manual runs gated by <code>confirm: RUN</code> + the <code>introspect-manual</code> Environment approval</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/nocturne.yml"><code>nocturne.yml</code></a></td>
+<td>cron nightly 02:00 UTC; <strong>double-confirmed</strong> dispatch</td>
+<td>LLM (Python) + Vast.ai GPU</td>
+<td>rent a GPU → mutate→train 5min→read <code>val_bpb</code>→keep/discard → confirm on seeds → <strong>always teardown</strong> → gate → <code>workflow_dispatch</code> swe_af on a confirmed novel win + inline announce; else abstain. The GHA side never trains. Manual runs gated by <code>confirm: RUN</code> + the <code>nocturne-manual</code> Environment approval; first manual dispatch defaults to a no-spend dry run</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/pr-review.yml"><code>pr-review.yml</code></a></td>
+<td><code>pull_request</code></td>
+<td>LLM</td>
+<td>advisory diff review (prebuilt binary; from-source fallback)</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/vaked-ci-respond.yml"><code>vaked-ci-respond.yml</code></a></td>
+<td><code>issue_comment</code> w/ <code>@vaked-ci</code></td>
+<td>LLM</td>
+<td>answer maintainer questions / <code>re-review</code></td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/pr-review-build.yml"><code>pr-review-build.yml</code></a></td>
+<td>push to <code>main</code> (agent crate)</td>
+<td>CI</td>
+<td>compile + publish the rolling <code>pr-review-bin</code> release</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/pr-review-audit.yml"><code>pr-review-audit.yml</code></a></td>
+<td>agent version bump</td>
+<td>CI</td>
+<td><code>cargo-deny</code> + <code>cargo-audit</code></td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/cleanup.yml"><code>cleanup.yml</code></a></td>
+<td>daily cron, dispatch</td>
+<td>bot</td>
+<td>sweep bot-noise + duplicate review comments across open PRs (<code>--cleanup</code>)</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/docs-keeper.yml"><code>docs-keeper.yml</code></a></td>
+<td>doc/protocol push, PR, weekly cron</td>
+<td>checker</td>
+<td>doc/spec/RFC drift gate</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/spec-tests.yml"><code>spec-tests.yml</code></a></td>
+<td>push/tag/PR</td>
+<td>CI</td>
+<td>grammar/examples/lowering harness + nix-parse</td>
+</tr>
+<tr>
+<td><a href="../../.github/workflows/social-post.yml"><code>social-post.yml</code></a></td>
+<td><code>.github/social/toot.txt</code> change</td>
+<td>—</td>
+<td>post a toot to Mastodon</td>
+</tr>
+</tbody>
+</table>
+<h2 id="triggers-in-use">Triggers in use</h2>
+<ul>
+<li><strong><code>pull_request</code></strong> — pr-review (per push to a PR).</li>
+<li><strong><code>issue_comment</code></strong> — @vaked-ci. Runs from the <strong>default branch</strong> with repo<br />
+  secrets regardless of who commented, so it's gated on<br />
+<code>author_association ∈ {OWNER, MEMBER, COLLABORATOR}</code> + non-bot + the <code>@vaked-ci</code><br />
+  mention — the key control against cost-abuse and self-trigger loops.</li>
+<li><strong><code>push</code> + <code>paths</code></strong> — pr-review-build (agent crate), docs-keeper (docs/protocol).</li>
+<li><strong><code>schedule</code></strong> (cron) — ralph (decision cadence), docs-keeper (weekly sweep).</li>
+<li><strong><code>workflow_dispatch</code></strong> — manual runs.</li>
+</ul>
+<h2 id="build-deploy-pattern-adk-rust-agents">Build / deploy pattern (adk-rust agents)</h2>
+<p>Cold-start is avoided by a <strong>rolling prebuilt binary</strong>:<br />
+<a href="../../.github/workflows/pr-review-build.yml"><code>pr-review-build.yml</code></a> compiles the<br />
+crate on <code>main</code> and uploads <code>vaked-pr-review-linux-x86_64</code> to the <code>pr-review-bin</code><br />
+release. pr-review and @vaked-ci <strong>download</strong> it; if the asset is missing (or the<br />
+agent source changed in the PR — dogfooding), they <strong>build from source</strong> with<br />
+<code>sccache</code> + a linker probe (<code>cc -fuse-ld=</code> is validated by a test link, preferring<br />
+wild → lld → mold; gcc rejects an unknown <code>-fuse-ld=wild</code>). The same binary serves<br />
+both review and <code>--respond</code> modes.</p>
+<h2 id="conventions-for-a-new-agent-workflow">Conventions for a new agent workflow</h2>
+<ul>
+<li><code>environment: ci</code>; reference secrets via <code>${{ secrets.* }}</code>; <strong>guard</strong> so a<br />
+  missing key is a clean no-op.</li>
+<li><strong>Advisory / never block:</strong> the agent exits 0 even on error; CI failure is for<br />
+  genuine checker drift (doc-keeper) or infra breakage, not model opinions.</li>
+<li><strong>Telegram failure-notify</strong> step (<code>if: failure()</code>) — shared across workflows.</li>
+<li><strong><code>concurrency</code></strong> group (per PR / per loop) to serialize writes (ledgers) and<br />
+  cancel superseded PR runs.</li>
+<li><strong>Commit before side effects</strong> (ralph commits the decision before announcing);<br />
+<strong>append-only ledgers</strong> over growing context.</li>
+<li>LLM agents trace to <strong>Langfuse</strong> (lazy/no-op when unset) and surface<br />
+<strong>tokens · runtime · cost</strong> in their output footer.</li>
+</ul>
+<p>See the prototypes: <a href="../../tools/ralph/README.md">ralph</a> (Python loop) and<br />
+<a href="../../vaked-agents/ci/pr-review/README.md">pr-review</a> (adk-rust event).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/agents/ci.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

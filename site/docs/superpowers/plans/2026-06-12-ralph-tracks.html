@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Ralph Tracks — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#phase-1-config-pure-core-no-behaviour-change-to-live-calls" style="padding-left:0.5rem">Phase 1 — Config + pure core (no behaviour change to live calls)</a><a href="#task-11-tracksjson-track-loadtracks" style="padding-left:1rem">  Task 1.1 — `tracks.json` + `Track` + `load_tracks`</a><a href="#task-12-nexttrack-round-robin-reuse" style="padding-left:1rem">  Task 1.2 — `next_track` (round-robin, reuse)</a><a href="#task-13-topic-keyed-prompts" style="padding-left:1rem">  Task 1.3 — topic-keyed prompts</a><a href="#task-14-prices-for-the-new-models" style="padding-left:1rem">  Task 1.4 — prices for the new models</a><a href="#phase-2-per-track-context-single-model-decide" style="padding-left:0.5rem">Phase 2 — Per-track context + single-model `decide`</a><a href="#task-21-track-context-gathering-scoped-read-only" style="padding-left:1rem">  Task 2.1 — track context gathering (scoped, read-only)</a><a href="#task-22-single-model-two-stage-decide" style="padding-left:1rem">  Task 2.2 — single-model two-stage decide</a><a href="#task-23-decide---track---next-track-per-track-logs" style="padding-left:1rem">  Task 2.3 — `decide --track` / `--next-track` + per-track logs</a><a href="#task-24-supervisor-over-tracks" style="padding-left:1rem">  Task 2.4 — supervisor over tracks</a><a href="#phase-3-ci-cron-host" style="padding-left:0.5rem">Phase 3 — CI-cron host</a><a href="#task-31-pyprojecttoml-uv-skeleton" style="padding-left:1rem">  Task 3.1 — `pyproject.toml` (uv) skeleton</a><a href="#task-32-workflow" style="padding-left:1rem">  Task 3.2 — workflow</a><a href="#phase-4-langfuse-optional-import-uv-managed" style="padding-left:0.5rem">Phase 4 — Langfuse (optional import, uv-managed)</a><a href="#task-41-span-wrapper" style="padding-left:1rem">  Task 4.1 — span wrapper</a><a href="#task-42-live-price-refresh" style="padding-left:1rem">  Task 4.2 — live price refresh</a><a href="#phase-5-ratify-workflow" style="padding-left:0.5rem">Phase 5 — Ratify workflow</a><a href="#task-51-ratify-line-parse-pure" style="padding-left:1rem">  Task 5.1 — ratify-line parse (pure)</a><a href="#task-52-ratifymd-contributor-guide" style="padding-left:1rem">  Task 5.2 — RATIFY.md (contributor guide)</a><a href="#task-53-feedback-loop" style="padding-left:1rem">  Task 5.3 — feedback loop</a><a href="#definition-of-done" style="padding-left:0.5rem">Definition of done</a><a href="#notes-for-the-implementer" style="padding-left:0.5rem">Notes for the implementer</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-12-ralph-tracks</div>
+<h1>Ralph Tracks — Implementation Plan</h1>
+<h1 id="ralph-tracks-implementation-plan">Ralph Tracks — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> implement task-by-task; each task is TDD<br />
+(failing test → code → green → commit). Checkbox (<code>- [ ]</code>) syntax tracks<br />
+progress. <strong>Spec:</strong> <code>docs/superpowers/specs/2026-06-12-ralph-tracks-design.md</code>.<br />
+<strong>Tracking:</strong> issue #34. <strong>Branch:</strong> <code>claude/autonomous-raw-loops-j93ilb</code>.</p>
+</blockquote>
+<p><strong>Goal:</strong> evolve <code>tools/ralph/</code> from a repo round-robin into <strong>per-model<br />
+concept tracks</strong> — <code>tracks.json</code> replaces <code>repos.json</code> as the primary axis, one<br />
+OpenRouter model pinned per track (both stages), CI-cron host that commits the<br />
+hash-chained <code>events.jsonl</code>, optional <code>uv</code>-managed Langfuse tracing, and an<br />
+append-only human ratify workflow.</p>
+<p><strong>Invariants preserved:</strong> <code>ralphcore.py</code> stays <strong>pure stdlib</strong> (Langfuse lives<br />
+only in <code>ralph.py</code>, optional-import). Read-only on all inputs except appends to<br />
+<code>docs/decisions/*</code> and <code>state/events.jsonl</code>. Budget/iteration caps remain<br />
+non-bypassable. <code>--repo</code>/<code>repos.json</code> kept working but <strong>deprecated</strong>.</p>
+<hr />
+<h2 id="phase-1-config-pure-core-no-behaviour-change-to-live-calls">Phase 1 — Config + pure core (no behaviour change to live calls)</h2>
+<h3 id="task-11-tracksjson-track-load_tracks">Task 1.1 — <code>tracks.json</code> + <code>Track</code> + <code>load_tracks</code></h3>
+<p><strong>Files:</strong> create <code>tools/ralph/tracks.json</code>; modify <code>ralphcore.py</code>; test<br />
+<code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] <strong>Write <code>tracks.json</code></strong> — the four tracks from the spec<br />
+      (<code>base-language-spec</code>, <code>graph-concept</code>, <code>mlir-topology</code>, <code>hcp-litany</code>),<br />
+      each <code>{name, topic, model, label, context:{docs:[...], paths:[...]}}</code>.</li>
+<li>[ ] <strong>Failing test:</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_load_tracks_parses_fields</span><span class="p">():</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;tracks&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;topic&quot;</span><span class="p">:</span> <span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;x/y&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;track:t&quot;</span><span class="p">,</span> <span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;docs&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;a/**&quot;</span><span class="p">],</span> <span class="s2">&quot;paths&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;a/&quot;</span><span class="p">]}}]}</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.json&quot;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">fh</span><span class="p">);</span> <span class="n">p</span> <span class="o">=</span> <span class="n">fh</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">tracks</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">load_tracks</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tracks</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="n">t</span> <span class="o">=</span> <span class="n">tracks</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">t</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;t&quot;</span> <span class="ow">and</span> <span class="n">t</span><span class="o">.</span><span class="n">model</span> <span class="o">==</span> <span class="s2">&quot;x/y&quot;</span> <span class="ow">and</span> <span class="n">t</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="s2">&quot;track:t&quot;</span>
+    <span class="k">assert</span> <span class="n">t</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">docs</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;a/**&quot;</span><span class="p">]</span> <span class="ow">and</span> <span class="n">t</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">paths</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;a/&quot;</span><span class="p">]</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Implement</strong> in <code>ralphcore.py</code> (additive — keep <code>Repo</code>/<code>load_repos</code>):</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TrackContext</span><span class="p">:</span>
+    <span class="n">docs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Track</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">model</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">context</span><span class="p">:</span> <span class="n">TrackContext</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_tracks</span><span class="p">(</span><span class="n">config_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Track</span><span class="p">]:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">config_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;tracks&quot;</span><span class="p">]:</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;context&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Track</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">t</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span> <span class="n">topic</span><span class="o">=</span><span class="n">t</span><span class="p">[</span><span class="s2">&quot;topic&quot;</span><span class="p">],</span> <span class="n">model</span><span class="o">=</span><span class="n">t</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">],</span>
+                         <span class="n">label</span><span class="o">=</span><span class="n">t</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;label&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                         <span class="n">context</span><span class="o">=</span><span class="n">TrackContext</span><span class="p">(</span><span class="n">docs</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;docs&quot;</span><span class="p">,</span> <span class="p">[])),</span>
+                                              <span class="n">paths</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;paths&quot;</span><span class="p">,</span> <span class="p">[])))))</span>
+    <span class="k">return</span> <span class="n">out</span>
+</pre></div>
+
+<ul>
+<li>[ ] Green; commit <code>feat(ralph): tracks.json + Track + load_tracks</code>.</li>
+</ul>
+<h3 id="task-12-next_track-round-robin-reuse">Task 1.2 — <code>next_track</code> (round-robin, reuse)</h3>
+<p><strong>Files:</strong> <code>ralphcore.py</code>, <code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] <strong>Failing test</strong> — same semantics as <code>next_repo</code> (advance, wrap,<br />
+      skip-unavailable, first-run, all-unavailable→None):</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_next_track_advances_wraps_skips</span><span class="p">():</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_track</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span> <span class="o">==</span> <span class="s2">&quot;b&quot;</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_track</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_track</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_track</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;b&quot;</span><span class="p">})</span> <span class="o">==</span> <span class="s2">&quot;c&quot;</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_track</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;a&quot;</span><span class="p">,</span><span class="s2">&quot;b&quot;</span><span class="p">,</span><span class="s2">&quot;c&quot;</span><span class="p">})</span> <span class="ow">is</span> <span class="kc">None</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Implement</strong> — <code>next_track = next_repo</code>'s algorithm. Make <code>next_repo</code><br />
+      delegate to a shared <code>_next_in_ring(names, current, unavailable)</code> and<br />
+      define both <code>next_repo</code>/<code>next_track</code> as thin aliases (keeps the existing<br />
+<code>test_next_repo_*</code> tests green, no duplication).</li>
+<li>[ ] Green; commit <code>feat(ralph): next_track round-robin (shared ring)</code>.</li>
+</ul>
+<h3 id="task-13-topic-keyed-prompts">Task 1.3 — topic-keyed prompts</h3>
+<p><strong>Files:</strong> <code>ralphcore.py</code>, <code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] <strong>Failing test:</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_stage1_topic_keyed</span><span class="p">():</span>
+    <span class="n">msgs</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">build_stage1_messages</span><span class="p">(</span><span class="s2">&quot;the Vaked grammar&quot;</span><span class="p">,</span> <span class="s2">&quot;STATE&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Prior X&quot;</span><span class="p">])</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">msgs</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s2">&quot;the Vaked grammar&quot;</span> <span class="ow">in</span> <span class="n">blob</span> <span class="ow">and</span> <span class="s2">&quot;Prior X&quot;</span> <span class="ow">in</span> <span class="n">blob</span> <span class="ow">and</span> <span class="s2">&quot;candidates&quot;</span> <span class="ow">in</span> <span class="n">blob</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Implement</strong> — generalise the system strings from <code>{repo} repository</code><br />
+      to <code>{subject}</code>; <code>build_stage1_messages</code>/<code>build_stage2_messages</code> take a<br />
+<code>subject</code> string (the repo name OR the track topic). Callers pass<br />
+<code>track.topic</code> (tracks) or <code>repo.name</code> (deprecated repo path). Keep the<br />
+<code>mission=</code> preamble param. Update the two existing prompt tests to the new<br />
+      signature (subject-positional).</li>
+<li>[ ] Green; commit <code>feat(ralph): subject-keyed stage prompts (repo|topic)</code>.</li>
+</ul>
+<h3 id="task-14-prices-for-the-new-models">Task 1.4 — prices for the new models</h3>
+<p><strong>Files:</strong> <code>ralphcore.py</code>, <code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] Add <code>tencent/hy3-preview</code> and <code>xiaomi/mimo-v2.5</code> to <code>FALLBACK_PRICES</code><br />
+      (placeholder rates + a <code># refresh from /models</code> note); test that every<br />
+      track model resolves to a <code>Price</code> (no silent <code>KeyError</code>/guess):</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_every_track_model_has_price</span><span class="p">():</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">C</span><span class="o">.</span><span class="n">load_tracks</span><span class="p">(</span><span class="n">TRACKS_JSON</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">t</span><span class="o">.</span><span class="n">model</span> <span class="ow">in</span> <span class="n">C</span><span class="o">.</span><span class="n">FALLBACK_PRICES</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;add price for </span><span class="si">{</span><span class="n">t</span><span class="o">.</span><span class="n">model</span><span class="si">}</span><span class="s2">&quot;</span>
+</pre></div>
+
+<ul>
+<li>[ ] Green; commit <code>feat(ralph): fallback prices for hy3-preview + mimo-v2.5</code>.</li>
+</ul>
+<hr />
+<h2 id="phase-2-per-track-context-single-model-decide">Phase 2 — Per-track context + single-model <code>decide</code></h2>
+<h3 id="task-21-track-context-gathering-scoped-read-only">Task 2.1 — track context gathering (scoped, read-only)</h3>
+<p><strong>Files:</strong> <code>ralph.py</code>, <code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] <strong>Implement <code>gather_track_context(track, git_log_window, compact)</code></strong> in<br />
+<code>ralph.py</code>, reading <strong>inside <code>REPO_HOME</code> (vaked-base)</strong> only:</li>
+<li><strong>Issues:</strong> <code>gh issue list --repo peterlodri-sec/vaked-base --state open
+    --label &lt;track.label&gt; --json number,title,body</code>; if the label yields zero<br />
+    and isn't a known repo label, fall back to all-open with a noted header.</li>
+<li><strong>Docs:</strong> expand each <code>track.context.docs</code> glob against <code>REPO_HOME</code> with<br />
+<code>glob.glob(os.path.join(REPO_HOME, pat), recursive=True)</code> — <strong><code>recursive=True</code><br />
+    is required</strong> or <code>**</code> only matches the top level and the nested<br />
+<code>protocol/**</code> RFCs + <code>vaked/examples/**</code> files silently drop out. Filter to<br />
+<code>os.path.isfile</code> (skip the directory entries <code>**</code> also yields), de-dupe, and<br />
+    sort for deterministic order; concatenate (compact = <code>[:1500]</code> head per<br />
+    file; full = whole text).</li>
+<li><strong>Git log:</strong> <code>git log --oneline -n&lt;window&gt; -- &lt;track.context.paths&gt;</code><br />
+    (empty <code>paths</code> → repo-wide).</li>
+<li>[ ] <strong>Test (pure-ish, temp tree)</strong> — point <code>REPO_HOME</code> at a temp dir with a<br />
+      couple of docs; assert glob scoping selects the right files and that an<br />
+      empty <code>paths</code> doesn't crash. (Issue/git reads are stubbed/skipped.)</li>
+<li>[ ] Commit <code>feat(ralph): per-track scoped context gathering</code>.</li>
+</ul>
+<h3 id="task-22-single-model-two-stage-decide">Task 2.2 — single-model two-stage decide</h3>
+<p><strong>Files:</strong> <code>ralph.py</code>, <code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] <strong>Refactor <code>_decide_live</code></strong> to take an explicit <code>model</code> (used for <strong>both</strong><br />
+      stages) and a <code>subject</code> (track topic) + <code>log_key</code> (track name), instead of<br />
+<code>args.stage1_model</code>/<code>args.stage2_model</code>. The repo path passes<br />
+<code>model=DEFAULT_S2</code>/<code>stage1=DEFAULT_S1</code> via a thin shim so the deprecated<br />
+      two-model behaviour is unchanged.</li>
+<li>[ ] <strong>Test</strong> — stub <code>openrouter_call</code> to record the <code>model</code> arg; assert a<br />
+      track decide calls it with <code>track.model</code> on <strong>both</strong> stages:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_track_decide_uses_track_model_both_stages</span><span class="p">(</span><span class="n">monkeypatch</span><span class="p">):</span>
+    <span class="n">seen</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">monkeypatch</span><span class="o">.</span><span class="n">setattr</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="s2">&quot;openrouter_call&quot;</span><span class="p">,</span>
+        <span class="k">lambda</span> <span class="n">model</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">,</span> <span class="o">**</span><span class="n">k</span><span class="p">:</span> <span class="p">(</span><span class="n">seen</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">),</span> <span class="n">STUB_RESP</span><span class="p">)[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">R</span><span class="o">.</span><span class="n">_decide_track</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">track_with_model</span><span class="p">(</span><span class="s2">&quot;x/y&quot;</span><span class="p">),</span> <span class="n">api_key</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">seen</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;x/y&quot;</span><span class="p">,</span> <span class="s2">&quot;x/y&quot;</span><span class="p">]</span>
+</pre></div>
+
+<ul>
+<li>[ ] Keep the <code>_message_content</code> guard (thinking-only / empty responses).</li>
+<li>[ ] Commit <code>feat(ralph): single-model two-stage track decide</code>.</li>
+</ul>
+<h3 id="task-23-decide-track-next-track-per-track-logs">Task 2.3 — <code>decide --track</code> / <code>--next-track</code> + per-track logs</h3>
+<p><strong>Files:</strong> <code>ralph.py</code>, <code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] <strong>CLI:</strong> add <code>--track &lt;name&gt;</code> and <code>--next-track</code> to the <code>decide</code> parser<br />
+      (and <code>--tracks tracks.json</code>, default alongside <code>--repos</code>). <code>--repo</code> stays,<br />
+      marked deprecated in help text. Exactly one of <code>--track</code>/<code>--repo</code>/<br />
+<code>--next-track</code> required.</li>
+<li>[ ] <strong><code>--next-track</code></strong> resolves the next track from the <strong>event log</strong>:<br />
+<code>last_decided_track()</code> reads the last <code>decide</code> event's <code>track</code> field;<br />
+<code>next_track(names, last, unavailable)</code> picks the next. (New helper in<br />
+<code>ralph.py</code>; pure selection covered by Task 1.2.)</li>
+<li>[ ] <strong>Per-track logs:</strong> <code>docs/decisions/&lt;track&gt;.ralph-log.md</code><br />
+      (<code>_log_path</code>/<code>_prior_titles</code> already key by name — pass <code>track.name</code>).<br />
+      Entry <code>**Models:**</code> line shows the single track model for both stages.</li>
+<li>[ ] <strong><code>--dry-run</code></strong> (no key, no network) prints the stage-1 prompt + estimate<br />
+      for a track — extend the existing dry-run smoke test to <code>--track</code>.</li>
+<li>[ ] Commit <code>feat(ralph): decide --track/--next-track + per-track logs</code>.</li>
+</ul>
+<h3 id="task-24-supervisor-over-tracks">Task 2.4 — supervisor over tracks</h3>
+<p><strong>Files:</strong> <code>ralph.py</code>, <code>test_ralph.py</code>.</p>
+<ul>
+<li>[ ] <strong><code>cmd_run</code></strong> round-robins <strong>tracks</strong> by default (<code>--tracks</code>), <code>--repos</code><br />
+      selects the deprecated repo mode. <code>_supervised_decide</code> folds per-track<br />
+      cost/last-title into <code>status</code> (keys become track names). <code>decide</code> events<br />
+      carry <code>{"event":"decide","track":&lt;name&gt;,...}</code>.</li>
+<li>[ ] <strong>Dashboard:</strong> <code>render_dashboard</code> column header <code>repo</code>→<code>track</code>, add a<br />
+<code>model</code> column (read from <code>status["tracks"][name]["model"]</code>). Update the<br />
+      render unit test.</li>
+<li>[ ] <strong>Budget-0 backstop</strong> test carries over (zero calls, clean exit).</li>
+<li>[ ] Commit <code>feat(ralph): supervisor + dashboard over tracks</code>.</li>
+</ul>
+<hr />
+<h2 id="phase-3-ci-cron-host">Phase 3 — CI-cron host</h2>
+<h3 id="task-31-pyprojecttoml-uv-skeleton">Task 3.1 — <code>pyproject.toml</code> (uv) skeleton</h3>
+<ul>
+<li>[ ] <code>tools/ralph/pyproject.toml</code> declaring <code>langfuse</code> as the sole dep, Python<br />
+<code>&gt;=3.12</code>. <code>uv run --project tools/ralph …</code> syncs it. Core stays importable<br />
+      with zero deps. Commit <code>chore(ralph): uv pyproject (langfuse dep)</code>.</li>
+</ul>
+<h3 id="task-32-workflow">Task 3.2 — workflow</h3>
+<ul>
+<li>[ ] <code>.github/workflows/ralph-tracks.yml</code> per the spec sketch (verbatim<br />
+      decisions): <code>schedule: 0 */3 * * *</code> + <code>workflow_dispatch</code>;<br />
+<code>concurrency: ralph-tracks</code>; <code>checkout@v4</code> with <code>fetch-depth: 0</code>;<br />
+<code>uv run --project tools/ralph tools/ralph/ralph.py decide --next-track</code>;<br />
+      commit <code>docs/decisions/</code> + <code>tools/ralph/state/events.jsonl</code> (the real<br />
+<code>EVENTS_PATH</code>, under <code>STATE_DIR = tools/ralph/state</code>) and push. Secrets:<br />
+<code>OPENROUTER_API_KEY</code> + <code>GH_TOKEN: ${{ github.token }}</code> (+ <code>LANGFUSE_*</code><br />
+      when Phase 4 lands).</li>
+<li>[ ] Confirm <code>tools/ralph/state/events.jsonl</code> is <strong>not</strong> gitignored (only<br />
+<code>tools/ralph/state/status.json</code> is) so the chain is committed;<br />
+<code>ralph events --replay</code> verifies on any checkout.</li>
+<li>[ ] Commit <code>feat(ci): scheduled ralph-tracks decide + commit</code>.</li>
+</ul>
+<blockquote>
+<p>Manual verification: <code>workflow_dispatch</code> one run; confirm a <code>&lt;track&gt;.ralph-log.md</code><br />
+entry + an <code>events.jsonl</code> line are committed and the chain verifies.</p>
+</blockquote>
+<hr />
+<h2 id="phase-4-langfuse-optional-import-uv-managed">Phase 4 — Langfuse (optional import, uv-managed)</h2>
+<h3 id="task-41-span-wrapper">Task 4.1 — span wrapper</h3>
+<ul>
+<li>[ ] In <code>ralph.py</code>: <code>try: from langfuse import Langfuse / except ImportError:
+      Langfuse = None</code>. A <code>_trace(model, track, kind)</code> context manager that is a<br />
+      no-op when <code>Langfuse is None</code>. Wrap each <code>openrouter_call</code>; record input<br />
+      (model, track, messages digest), output (usage, <code>cost_usd</code>, latency,<br />
+      finish reason). Trace id = <code>&lt;track&gt;#&lt;N&gt;</code>.</li>
+<li>[ ] <strong>Test:</strong> with <code>Langfuse=None</code>, <code>decide --dry-run</code> still passes (zero-dep<br />
+      invariant). Commit <code>feat(ralph): optional Langfuse spans</code>.</li>
+</ul>
+<h3 id="task-42-live-price-refresh">Task 4.2 — live price refresh</h3>
+<ul>
+<li>[ ] At supervisor start, fetch OpenRouter <code>/models</code>, override <code>FALLBACK_PRICES</code><br />
+      for known ids (hardcoded fallback on failure). Commit<br />
+<code>feat(ralph): live /models price refresh</code>.</li>
+</ul>
+<hr />
+<h2 id="phase-5-ratify-workflow">Phase 5 — Ratify workflow</h2>
+<h3 id="task-51-ratify-line-parse-pure">Task 5.1 — ratify-line parse (pure)</h3>
+<ul>
+<li>[ ] <strong>Failing test → implement</strong> <code>parse_ratify_line</code> in <code>ralphcore.py</code>:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_parse_ratify_line</span><span class="p">():</span>
+    <span class="n">line</span> <span class="o">=</span> <span class="s2">&quot;- graph-concept#3 — **override** — wrong layering — @pl 2026-06-12&quot;</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">parse_ratify_line</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">r</span> <span class="o">==</span> <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;graph-concept#3&quot;</span><span class="p">,</span> <span class="s2">&quot;verdict&quot;</span><span class="p">:</span> <span class="s2">&quot;override&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="s2">&quot;wrong layering&quot;</span><span class="p">,</span> <span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">parse_ratify_line</span><span class="p">(</span><span class="s2">&quot;not a ratify line&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span>
+</pre></div>
+
+<pre><code>  (`ratify`→score 1, `override`/`defer`→0; malformed→None.)
+</code></pre>
+<ul>
+<li>[ ] Commit <code>feat(ralph): ratify-line parser</code>.</li>
+</ul>
+<h3 id="task-52-ratifymd-contributor-guide">Task 5.2 — RATIFY.md (contributor guide)</h3>
+<ul>
+<li>[ ] <code>docs/decisions/RATIFY.md</code>: what the loop is, how to read an entry, the<br />
+      three verdicts (ratify/override/defer), how to record one (append a line<br />
+      to <code>&lt;track&gt;.ratify-log.md</code>), and "what's next" (ratified → open a GitHub<br />
+      issue; the pass is triage, not implementation). No insider context assumed.</li>
+<li>[ ] Commit <code>docs(ralph): RATIFY.md contributor guide</code>.</li>
+</ul>
+<h3 id="task-53-feedback-loop">Task 5.3 — feedback loop</h3>
+<ul>
+<li>[ ] Stage-1 context includes recent <strong>override reasons</strong> (from<br />
+<code>&lt;track&gt;.ratify-log.md</code>) alongside prior titles, so the loop learns what<br />
+      the human rejects. When Langfuse is present, post the 0/1 ratify score on<br />
+<code>&lt;track&gt;#&lt;N&gt;</code>. Commit <code>feat(ralph): override-reason feedback + ratify scores</code>.</li>
+</ul>
+<hr />
+<h2 id="definition-of-done">Definition of done</h2>
+<ul>
+<li><code>python3 tools/ralph/test_ralph.py</code> all-green (new + carried-over tests).</li>
+<li><code>ralph decide --track base-language-spec --dry-run</code> prints a topic-scoped<br />
+  stage-1 prompt with no key/network.</li>
+<li>One real <code>--next-track</code> tick (with key) appends a grounded entry to the right<br />
+<code>docs/decisions/&lt;track&gt;.ralph-log.md</code>, writes an <code>events.jsonl</code> line, chain<br />
+  verifies.</li>
+<li>The workflow runs on <code>workflow_dispatch</code> and commits the result.</li>
+<li><code>--repo</code>/<code>repos.json</code> still runs (deprecated notice printed).</li>
+</ul>
+<h2 id="notes-for-the-implementer">Notes for the implementer</h2>
+<ul>
+<li><strong>Additive, not destructive:</strong> <code>Repo</code>/<code>load_repos</code>/<code>next_repo</code> and the<br />
+  two-model path stay; tracks are layered on. Removal of the repo path is a<br />
+  later, separate change after one release.</li>
+<li><strong><code>ralphcore</code> purity:</strong> no <code>datetime</code>, no network, no Langfuse. <code>ralph.py</code><br />
+  owns all I/O.</li>
+<li><strong>Rotation has one source of truth:</strong> the committed <code>events.jsonl</code>. Don't add a<br />
+  second pointer file.</li>
+<li><strong>Prices:</strong> the two new models ship with placeholder rates — Task 4.2's live<br />
+  refresh is the real fix; flag if OpenRouter ids differ from the slugs here.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-12-ralph-tracks.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Runbook — NATS HA cluster bring-up — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#order-of-operations" style="padding-left:0.5rem">Order of operations</a><a href="#migration-cutover-from-single-node-crabcc-nats" style="padding-left:0.5rem">Migration / cutover (from single-node crabcc-nats)</a><a href="#cross-account-share-open-item" style="padding-left:0.5rem">Cross-account share (open item)</a><a href="#recorded-baselines-fill-after-validatesh" style="padding-left:0.5rem">Recorded baselines (fill after validate.sh)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/runbooks/">runbooks</a> / nats-ha</div>
+<h1>Runbook — NATS HA cluster bring-up</h1>
+<h1 id="runbook-nats-ha-cluster-bring-up">Runbook — NATS HA cluster bring-up</h1>
+<p>Ties together the artifacts under <code>scripts/nats/</code> and <code>nix/nats/</code>. Plan:<br />
+<code>docs/superpowers/plans/2026-06-14-nats-ha-cluster.md</code>. Spec:<br />
+<code>docs/superpowers/specs/2026-06-14-nats-ha-cluster-design.md</code>.</p>
+<h2 id="order-of-operations">Order of operations</h2>
+<ol>
+<li><strong>[OPERATOR] Provision</strong> — <code>HCLOUD_TOKEN=… scripts/nats/provision.sh</code>. Record<br />
+   the 3 public IPs into <code>nix/nats/hosts/nats-{1,2,3}.nix</code> (<code>REPLACE_IP_*</code>).</li>
+<li><strong>PKI</strong> — <code>scripts/nats/mtls-ca.sh ./nats-pki nats-1=&lt;ip1&gt; nats-2=&lt;ip2&gt; nats-3=&lt;ip3&gt;</code>.</li>
+<li><strong>JWT</strong> — <code>scripts/nats/nsc-bootstrap.sh</code> → <code>nsc/</code>, <code>creds/*.creds</code>,<br />
+<code>nats-resolver.conf</code>. Assemble each node's <code>auth.conf</code> =<br />
+   operator JWT + <code>system_account: &lt;SYS id&gt;</code> + the resolver block. Keep the<br />
+   operator key OFFLINE.</li>
+<li><strong>[OPERATOR] Deploy</strong> — for each node: ship <code>nats-pki/*</code> → <code>certDir</code><br />
+   (<code>/var/lib/nats/pki</code>) and <code>auth.conf</code> as a deploy secret (age/sops or<br />
+   systemd <code>LoadCredential</code>), then<br />
+<code>nixos-anywhere --flake .#nats-N root@&lt;ipN&gt;</code>. Verify <code>systemctl status nats</code>,<br />
+<code>curl localhost:8222/healthz</code>.</li>
+<li><strong>[OPERATOR] Tailnet</strong> — on each node <code>tailscale up --advertise-tags=tag:server</code>;<br />
+   approve. Confirm clients reach <code>:4222</code> over the tailnet.</li>
+<li><strong>Cluster check</strong> — <code>nats --server nats://&lt;ip1&gt;:4222 --creds creds/SWE_AF-orchestrator.creds server list</code> → 3 nodes.</li>
+<li><strong>Streams</strong> — <code>NATS_URL=… scripts/nats/streams.sh</code> (SWE_AF_TASKS work-queue R3, EVENTS).</li>
+<li><strong>Monitoring/backup</strong> — deploy prometheus-nats-exporter scrape → cx53 telemetry;<br />
+   one NUI instance (tailnet); install <code>scripts/nats/backup.sh</code> on a timer.</li>
+<li><strong>Validate</strong> — <code>NATS_URL=… CREDS=… scripts/nats/validate.sh nats-1.vaked.internal nats-2.vaked.internal nats-3.vaked.internal</code>.<br />
+   Record RTT, throughput, failover recovery time below.</li>
+</ol>
+<h2 id="migration-cutover-from-single-node-crabcc-nats">Migration / cutover (from single-node crabcc-nats)</h2>
+<ul>
+<li>Recreate the 3 existing stream definitions on the cluster (msg count 0 → no data move).</li>
+<li>Repoint clients one at a time (<code>NATS_URL</code> = 3-node list + the right <code>.creds</code>):</li>
+<li>Sentinel Console → <code>creds/EVENTS-console.creds</code></li>
+<li>swe-af orchestrator (PR #188) → <code>NATS_URL</code>/<code>NATS_CREDS</code> = <code>creds/SWE_AF-orchestrator.creds</code></li>
+<li>telemetry exporter → <code>creds/TELEMETRY-exporter.creds</code></li>
+<li>Retire <code>crabcc-nats</code> (or convert to a 4th leaf via <code>nix/nats/nats-leaf.nix</code>).</li>
+</ul>
+<h2 id="cross-account-share-open-item">Cross-account share (open item)</h2>
+<p><code>swe.af.status.&gt;</code> lives in SWE_AF but the console reads via EVENTS. Add the export<br />
+on SWE_AF and the import on EVENTS with <code>nsc add export</code> / <code>nsc add import</code><br />
+(verify flags for your nsc version), then <code>nsc push</code> to the resolver.</p>
+<h2 id="recorded-baselines-fill-after-validatesh">Recorded baselines (fill after validate.sh)</h2>
+<ul>
+<li>Inter-node RTT: …</li>
+<li>JetStream R3 publish throughput / p99: …</li>
+<li>Failover recovery time (1 node down → writable): …</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/runbooks/nats-ha.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

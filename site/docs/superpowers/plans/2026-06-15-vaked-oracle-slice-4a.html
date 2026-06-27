@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle slice 4a — reverser debate-panel team (core) — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#task-1-panelpy-clients-panel-judge-adaptive-effort-debate" style="padding-left:0.5rem">Task 1: `panel.py` — clients, panel, judge, adaptive effort, debate</a><a href="#task-2-memorypy-the-dossier-team-memory" style="padding-left:0.5rem">Task 2: `memory.py` — the-dossier (team memory)</a><a href="#task-3-investigatepy-serenaclangd-c-provider" style="padding-left:0.5rem">Task 3: `investigate.py` — Serena/clangd C++ provider</a><a href="#task-4-teampy-the-coordinator-brett-shaw" style="padding-left:0.5rem">Task 4: `team.py` — the coordinator (brett-shaw)</a><a href="#task-5-cli-oracle-team-roster" style="padding-left:0.5rem">Task 5: CLI `oracle team` + roster</a><a href="#task-6-docs-mcp-fleet-scaffold" style="padding-left:0.5rem">Task 6: docs + MCP fleet scaffold</a><a href="#on-box-acceptance-deferredkeyed" style="padding-left:0.5rem">On-box acceptance (deferred/keyed)</a><a href="#verification" style="padding-left:0.5rem">Verification</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-15-vaked-oracle-slice-4a</div>
+<h1>vaked-oracle slice 4a — reverser debate-panel team (core) — Implementation Plan</h1>
+<h1 id="vaked-oracle-slice-4a-reverser-debate-panel-team-core-implementation-plan">vaked-oracle slice 4a — reverser debate-panel team (core) — Implementation Plan</h1>
+<blockquote>
+<p>REQUIRED SUB-SKILL: subagent-driven-development / executing-plans. Checkbox steps.</p>
+</blockquote>
+<p><strong>Goal:</strong> the core reverser team — a debate panel of diverse models per function, a judge<br />
+that picks/merges (adaptive reasoning effort), a deterministic coordinator over the ledger,<br />
+team memory (the-dossier), and a Serena C++ investigate provider. Defer 4b (dogfeed:<br />
+team-in-vaked / RE-vakedz / ARP emission).</p>
+<p><strong>Architecture:</strong> see <code>docs/superpowers/specs/2026-06-15-vaked-oracle-slice-4-design.md</code><br />
+(§§1,1b,2,3,4,5,6,7). Codenames: <code>docs/oracle/CODENAMES.md</code>.</p>
+<p><strong>Tech:</strong> pure-Python stdlib (<code>concurrent.futures</code> for parallel panel, <code>urllib</code> HTTP,<br />
+<code>subprocess</code> for crabcc/serena/nm). Reuses slice-1 <code>decompile</code>/<code>fidelity</code>/<code>schema</code>,<br />
+slice-2 <code>dogfood_bridge.ground_finding</code>, slice-3 <code>agent</code>/<code>investigate</code>/<code>ledger</code>. M3-safe<br />
+(fakes); on-box keyless-local first, OpenRouter when <code>OPENROUTER_API_KEY</code> provided.</p>
+<p><strong>Branch:</strong> <code>feat/oracle-reverser-team</code> (stacked on #276 → rebase to main after it merges).</p>
+<hr />
+<h2 id="task-1-panelpy-clients-panel-judge-adaptive-effort-debate">Task 1: <code>panel.py</code> — clients, panel, judge, adaptive effort, debate</h2>
+<p><strong>Files:</strong> Create <code>tools/oracle/panel.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<p><code>OpenAIChatClient(endpoint, model, key="", *, temperature=0, reasoning_effort=None, extra_headers=None)</code><br />
+— <code>__call__(prompt)-&gt;str</code> POSTs OpenAI chat (<code>temperature</code>; if <code>reasoning_effort</code> set, add<br />
+<code>"reasoning": {"effort": reasoning_effort}</code>; merge <code>extra_headers</code>). (Generalizes<br />
+<code>agent.LiteLLMClient</code>; keep <code>LiteLLMClient</code> as a temp=0 alias.)</p>
+<div class="highlight"><pre><span></span><span class="n">ROSTER</span> <span class="n">constants</span><span class="p">:</span> <span class="n">OPENROUTER_ENDPOINT</span><span class="o">=</span><span class="s2">&quot;https://openrouter.ai/api/v1/chat/completions&quot;</span>
+<span class="n">DEFAULT_OUTSIDE_MODEL</span><span class="o">=</span><span class="s2">&quot;deepseek/deepseek-v4-flash&quot;</span><span class="p">;</span> <span class="n">REASONING_OUTSIDE_MODEL</span><span class="o">=</span><span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span>
+<span class="n">FIDELITY_THRESHOLD</span><span class="o">=</span><span class="mf">0.75</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Panelist</span><span class="p">:</span> <span class="n">name</span><span class="p">:</span><span class="nb">str</span><span class="p">;</span> <span class="n">client</span><span class="p">:</span><span class="nb">callable</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">candidate_prompt</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">pseudo_c</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">str</span>   <span class="c1"># &quot;refine this pseudo-C to clean C; reply C only&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">run_panel</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">pseudo_c</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">panelists</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>
+    <span class="c1"># ThreadPoolExecutor; per panelist: {&quot;panelist&quot;,&quot;model&quot;?,&quot;refined_c&quot;|None,&quot;error&quot;|None}; sorted by name; never raises</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">select_effort</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="n">fidelities</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">str</span>   <span class="c1"># &quot;none&quot;|&quot;high&quot;|&quot;max&quot; (see spec §1b)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">judge_prompt</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">context</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">str</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">judge_candidates</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">judge_client</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">fidelities</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">dict</span>
+    <span class="c1"># parse {&quot;mode&quot;,&quot;index&quot;|None,&quot;refined_c&quot;,&quot;rationale&quot;,&quot;drew_from&quot;}; effort via judge_client; fallback: best-fidelity/first; never raises</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">debate_function</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">pseudo_c</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">panelists</span><span class="p">,</span> <span class="n">judge_client</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">score</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ground_truth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">dict</span>
+    <span class="c1"># {&quot;candidates&quot;,&quot;verdict&quot;,&quot;chosen&quot;,&quot;fidelity&quot;,&quot;effort&quot;}</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_roster</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Panelist</span><span class="p">],</span> <span class="nb">callable</span><span class="p">]</span>
+    <span class="c1"># build OpenAIChatClient per entry; key_env -&gt; os.environ (drop+log if set-but-absent or unreachable)</span>
+</pre></div>
+
+<p><strong>Tests (fakes; no live calls):</strong><br />
+- <code>test_panel_runs_all_candidates_order_stable</code> — fake clients per name → one entry each, sorted.<br />
+- <code>test_panel_panelist_error_degrades</code> — one client raises → that entry <code>refined_c=None,error</code>; others ok; no raise.<br />
+- <code>test_select_effort_none_when_agree_or_high_fidelity</code> / <code>..._max_when_all_low</code>.<br />
+- <code>test_judge_pick_parses</code> / <code>test_judge_merge_parses</code> / <code>test_judge_fallback_on_garbage</code>.<br />
+- <code>test_debate_function_end_to_end</code> — fake panelists+judge+score → chosen/fidelity/verdict/effort present.<br />
+- <code>test_load_roster_keyenv_degrade</code> — OPENROUTER panelist, key absent → dropped; locals kept; no literal key.<br />
+- <code>test_openai_client_reasoning_and_temp</code> — body includes <code>reasoning.effort</code> + temperature (no live call; monkeypatch the POST).</p>
+<p>Commit: <code>feat(oracle): panel.py — debate panel + judge + adaptive effort + multi-model client</code>.</p>
+<hr />
+<h2 id="task-2-memorypy-the-dossier-team-memory">Task 2: <code>memory.py</code> — the-dossier (team memory)</h2>
+<p><strong>Files:</strong> Create <code>tools/oracle/memory.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TeamMemory</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span> <span class="o">...</span>                       <span class="c1"># memory.jsonl</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remember</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">text</span><span class="p">,</span> <span class="n">tags</span><span class="o">=</span><span class="p">()):</span> <span class="o">...</span>   <span class="c1"># sync append {ts?,run_id,fn,kind,text,tags}</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">recall</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span> <span class="o">...</span>        <span class="c1"># stdlib keyword/tag score over entries; top-k</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">inject</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">,</span> <span class="n">query</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">str</span><span class="p">:</span> <span class="o">...</span>           <span class="c1"># render recalled notes into a context block</span>
+</pre></div>
+
+<p>(<code>ts</code> passed in by caller — no <code>Date.now()</code> determinism worry; coordinator stamps or omits.)<br />
+Optional <code>distill(...)</code> left as a documented stub (off by default; detached worker is 4a-out-of-scope, only the deterministic core ships).</p>
+<p><strong>Tests:</strong><br />
+- <code>test_memory_remember_recall_roundtrip</code> — remember 3 → recall by keyword returns the matching note(s) top-ranked.<br />
+- <code>test_memory_recall_empty_safe</code> — recall on empty store → <code>[]</code>; <code>inject</code> → "".<br />
+- <code>test_memory_tags_boost</code> — tag match ranks above body-only match.</p>
+<p>Commit: <code>feat(oracle): memory.py — the-dossier team memory (deterministic remember/recall)</code>.</p>
+<hr />
+<h2 id="task-3-investigatepy-serenaclangd-c-provider">Task 3: <code>investigate.py</code> — Serena/clangd C++ provider</h2>
+<p><strong>Files:</strong> Modify <code>tools/oracle/investigate.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<p>Add <code>serena_query(query, *, source_root, serena="serena", runner=_run)</code> (invoke Serena's<br />
+symbol lookup over <code>source_root</code>; parse to the same observation shape <code>{query,provider:"serena",result}</code>).<br />
+Insert into <code>make_investigator</code> chain <strong>between crabcc and binutils</strong>: crabcc → serena → binutils → none.<br />
+Same graceful per-provider try/except (a serena failure falls through to binutils).</p>
+<p><strong>Tests:</strong><br />
+- <code>test_investigate_serena_provider_parses</code> — fake runner returns serena JSON → <code>provider:"serena"</code>.<br />
+- <code>test_investigate_crabcc_then_serena_then_binutils_order</code> — crabcc miss + serena hit → serena; crabcc+serena miss + binary → binutils.</p>
+<p>Commit: <code>feat(oracle): investigate.py — Serena/clangd C++ provider in the chain</code>.</p>
+<hr />
+<h2 id="task-4-teampy-the-coordinator-brett-shaw">Task 4: <code>team.py</code> — the coordinator (brett-shaw)</h2>
+<p><strong>Files:</strong> Create <code>tools/oracle/team.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">run_team</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">functions</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">decompiler_meta</span><span class="p">,</span> <span class="n">ledger_</span><span class="p">,</span> <span class="n">decompile</span><span class="p">,</span> <span class="n">panelists</span><span class="p">,</span> <span class="n">judge_client</span><span class="p">,</span>
+             <span class="n">score</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ground_truth</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">investigate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;run&quot;</span><span class="p">,</span>
+             <span class="n">budget_calls</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span> <span class="n">control_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span><span class="o">-&gt;</span><span class="nb">dict</span><span class="p">:</span>
+</pre></div>
+
+<p>Per fn: <code>decompile(fn)</code> → <code>ctx = (memory.inject(fn,fn) if memory else "")</code> + <code>investigate</code> →<br />
+<code>debate_function(...)</code> → ledger appends <code>{"kind":"candidate",fn,panelist,model,refined_sha,fidelity?}</code><br />
+per candidate + <code>{"kind":"verdict",fn,mode,effort,drew_from,rationale}</code> → <code>memory.remember(...)</code><br />
+(deterministic facts) → build <code>function_entry</code>. Budget = total model calls (panelists+judge);<br />
+exhaustion finalizes (remaining fns recorded skipped). <code>control_path {"stop":true}</code> halts.<br />
+Assemble + <code>schema.validate_finding</code> → finding (slice-2 ground unchanged).</p>
+<p><strong>Tests:</strong><br />
+- <code>test_run_team_drives_and_records</code> — fake decompile + 2 panelists + judge + memory over 2 fns →<br />
+  finding <code>oracle_finding</code>; ledger has candidate×N + verdict×2 + finding; <code>ledger.verify()</code>; memory non-empty.<br />
+- <code>test_run_team_budget_calls_stops</code> — tiny <code>budget_calls</code> → finalize early; bounded.<br />
+- <code>test_run_team_uses_recall_context</code> — pre-seed memory; assert the recalled note reaches the panelist prompt (capture via fake client).</p>
+<p>Commit: <code>feat(oracle): team.py — debate-panel coordinator (brett-shaw) + the-dossier wiring</code>.</p>
+<hr />
+<h2 id="task-5-cli-oracle-team-roster">Task 5: CLI <code>oracle team</code> + roster</h2>
+<p><strong>Files:</strong> Modify <code>tools/oracle/oracle.py</code>; Create <code>tools/oracle/panel.example.json</code>; Test.</p>
+<p><code>team</code> subcommand: <code>--target --funcs --panel &lt;roster.json&gt; [--source-dir] [--crabcc-root]
+[--serena-root] [--budget-calls 60] [--max-workers 4] [--memory &lt;memory.jsonl&gt;] [--judge-effort auto|fixed:high]</code>.<br />
+<code>cmd_team</code> loads roster, wires decompile (slice-1) + investigate (crabcc/serena/binutils) +<br />
+ground_truth + <code>TeamMemory</code>, runs <code>run_team</code>, persists + prints per-fn chosen-model+confidence.<br />
+<code>panel.example.json</code> = the codename roster (spec §3).</p>
+<p><strong>Test:</strong> <code>test_parse_args_team_flags</code> — <code>team</code> parses <code>--panel</code>/<code>--budget-calls</code>/<code>--memory</code>.</p>
+<p>Commit: <code>feat(oracle): CLI 'oracle team' + panel.example.json roster</code>.</p>
+<hr />
+<h2 id="task-6-docs-mcp-fleet-scaffold">Task 6: docs + MCP fleet scaffold</h2>
+<ul>
+<li><code>docs/oracle/README.md</code> + <code>v0.md</code>: team mode (the debate panel, the-dossier, codenames).</li>
+<li><code>.mcp.json</code>: add <strong>Langfuse</strong> (<code>langfuse.crabcc.app</code>) + <strong>Serena</strong> entries (env-var keys, documented prereqs); <code>docs/oracle/MCP-FLEET.md</code> notes reload + keys + Serena's canonical uvx install. (GhidraMCP not now; Frida-MCP → slice 5.)</li>
+</ul>
+<p>Commit: <code>docs(oracle): team mode + MCP fleet scaffold (langfuse + serena)</code>.</p>
+<hr />
+<h2 id="on-box-acceptance-deferredkeyed">On-box acceptance (deferred/keyed)</h2>
+<p>Keyless-local panel first (infra-light qwen + static-armor llm4decompile + qwen judge on<br />
+<code>:8091</code>/<code>:8090</code>) — no secret. Full diverse panel (feketecs flash + anstetten pro) when<br />
+<code>OPENROUTER_API_KEY</code> provided. <code>oracle team --panel panel.json --target libllama.so.0 ...</code>.</p>
+<h2 id="verification">Verification</h2>
+<p>M3: <code>python3 tools/oracle/test_oracle.py</code> all green (52 + ~17 new ≈ 69). No <code>tools/ralph</code>/<code>eventd</code> edits.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-15-vaked-oracle-slice-4a.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

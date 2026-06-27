@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>1M Worker Scalability Test — Hardware Specification — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#executive-summary" style="padding-left:0.5rem">Executive Summary</a><a href="#workload-characteristics" style="padding-left:0.5rem">Workload Characteristics</a><a href="#memory-usage-estimated" style="padding-left:1rem">  Memory Usage (Estimated)</a><a href="#cpu-usage" style="padding-left:1rem">  CPU Usage</a><a href="#hardware-options" style="padding-left:0.5rem">Hardware Options</a><a href="#option-1-bare-metal-epyc-7002-recommended-for-research" style="padding-left:1rem">  Option 1: Bare-Metal EPYC 7002 (Recommended for Research)</a><a href="#option-2-threadripper-pro-diy-lab" style="padding-left:1rem">  Option 2: Threadripper PRO (DIY / Lab)</a><a href="#option-3-cloud-gpu-instance-not-recommended" style="padding-left:1rem">  Option 3: Cloud GPU Instance (Not Recommended)</a><a href="#recommended-path-vultr-epyc-rental" style="padding-left:0.5rem">Recommended Path: Vultr EPYC Rental</a><a href="#performance-projections" style="padding-left:0.5rem">Performance Projections</a><a href="#scenario-a-linear-scaling-best-case" style="padding-left:1rem">  Scenario A: Linear Scaling (Best Case)</a><a href="#scenario-b-sublinear-scaling-realistic" style="padding-left:1rem">  Scenario B: Sublinear Scaling (Realistic)</a><a href="#scenario-c-catastrophic-degradation-worst-case-unlikely" style="padding-left:1rem">  Scenario C: Catastrophic Degradation (Worst Case, Unlikely)</a><a href="#performance-expectations" style="padding-left:0.5rem">Performance Expectations</a><a href="#stage-by-stage-breakdown" style="padding-left:1rem">  Stage-by-Stage Breakdown</a><a href="#baremetal-host-setup-if-buying-threadripper-pro" style="padding-left:0.5rem">Baremetal Host Setup (if buying Threadripper PRO)</a><a href="#system-configuration" style="padding-left:1rem">  System Configuration</a><a href="#hardware-details" style="padding-left:1rem">  Hardware Details</a><a href="#timeline-milestones" style="padding-left:0.5rem">Timeline & Milestones</a><a href="#cost-estimate-summary" style="padding-left:0.5rem">Cost Estimate Summary</a><a href="#future-10m-worker-test" style="padding-left:0.5rem">Future: 10M Worker Test</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/infrastructure/">infrastructure</a> / 1M-SCALABILITY-HARDWARE-SPEC</div>
+<h1>1M Worker Scalability Test — Hardware Specification</h1>
+<h1 id="1m-worker-scalability-test-hardware-specification">1M Worker Scalability Test — Hardware Specification</h1>
+<p><strong>Document:</strong> Infrastructure planning for extreme-scale compiler benchmarking<br />
+<strong>Status:</strong> Planning (2026-06-13)<br />
+<strong>Target:</strong> 1,000,000 parallel agents + 2,000,000 delegation edges</p>
+<hr />
+<h2 id="executive-summary">Executive Summary</h2>
+<p>Benchmarking the Vaked compiler on a 1M-agent system requires a <strong>compute-optimized bare-metal host</strong> with significant memory and CPU resources. This document specifies hardware, estimated costs, and procurement timeline.</p>
+<p><strong>Bottom line:</strong> $50K–$150K hardware investment (one-time); ~2–3 weeks procurement lead time.</p>
+<hr />
+<h2 id="workload-characteristics">Workload Characteristics</h2>
+<h3 id="memory-usage-estimated">Memory Usage (Estimated)</h3>
+<p>Based on 100k worker test extrapolation:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Per-Agent</th>
+<th>Total (1M)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Graph nodes</td>
+<td>~2–4 KB</td>
+<td>2–4 GB</td>
+<td>AST nodes, type constraints</td>
+</tr>
+<tr>
+<td>Delegation edges</td>
+<td>~0.5–1 KB</td>
+<td>500MB–1GB</td>
+<td>Edge metadata (source, dest, capabilities)</td>
+</tr>
+<tr>
+<td>Type annotations</td>
+<td>~0.5 KB</td>
+<td>500MB</td>
+<td>POLA capability sets</td>
+</tr>
+<tr>
+<td>Parse tables</td>
+<td>~10 KB</td>
+<td>10 GB</td>
+<td>Lexer/parser intern tables (fixed cost)</td>
+</tr>
+<tr>
+<td><strong>Total working set</strong></td>
+<td>—</td>
+<td><strong>13–16 GB</strong></td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Peak heap (with GC)</strong></td>
+<td>—</td>
+<td><strong>40–64 GB</strong></td>
+<td>2.5–4× working set (Python GC fragmentation)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Conservative estimate:</strong> 64 GB RAM minimum; 128 GB recommended.</p>
+<h3 id="cpu-usage">CPU Usage</h3>
+<ul>
+<li><strong>Parse stage:</strong> CPU-bound (tokenization, tree building)</li>
+<li><strong>Check stage:</strong> CPU-bound (constraint solving, POLA verification)</li>
+<li><strong>Lower stage:</strong> I/O-heavy (artifact writing) + CPU (code gen)</li>
+</ul>
+<p><strong>Parallelism opportunity:</strong> All three stages are CPU-intensive and could benefit from parallelization (future optimization).</p>
+<hr />
+<h2 id="hardware-options">Hardware Options</h2>
+<h3 id="option-1-bare-metal-epyc-7002-recommended-for-research">Option 1: Bare-Metal EPYC 7002 (Recommended for Research)</h3>
+<p><strong>Vendor:</strong> Vultr, Hetzner, OVH<br />
+<strong>CPU:</strong> AMD EPYC 7002 (Rome) — 192 cores (2× 96-core CPUs)<br />
+<strong>Memory:</strong> 512 GB DDR4 ECC<br />
+<strong>Storage:</strong> 2× 1.92 TB NVMe (RAID 1)<br />
+<strong>Network:</strong> 10 Gbps  </p>
+<p><strong>Cost:</strong> $3,500–$4,500/month (Vultr); ~$42K–$54K/year<br />
+<strong>Setup time:</strong> 24 hours (Vultr dedicated server)  </p>
+<p><strong>Pros:</strong><br />
+- ✅ Extreme headroom (192 cores, 512 GB RAM)<br />
+- ✅ RAID for reliability<br />
+- ✅ ECC RAM for stability<br />
+- ✅ Proven performance (Vaked already runs on EPYC; vakedos uses EPYC 4345P)</p>
+<p><strong>Cons:</strong><br />
+- ❌ Expensive for one-time benchmark<br />
+- ❌ Overkill (100k test only needs 8 cores, 64 GB)</p>
+<p><strong>Recommendation:</strong> Use existing vakedos EPYC 4345P host if available; otherwise lease short-term (1 month).</p>
+<hr />
+<h3 id="option-2-threadripper-pro-diy-lab">Option 2: Threadripper PRO (DIY / Lab)</h3>
+<p><strong>Vendor:</strong> AMD direct or system integrators (StarTech, etc.)<br />
+<strong>CPU:</strong> AMD Threadripper PRO 5995WX — 64 cores<br />
+<strong>Memory:</strong> 256 GB DDR4 ECC<br />
+<strong>Storage:</strong> 2× 2 TB NVMe (RAID 1)<br />
+<strong>Network:</strong> 10 Gbps Ethernet card  </p>
+<p><strong>Cost (full system):</strong> ~$80K–$120K (one-time)<br />
+<strong>Setup time:</strong> 1–2 weeks (procurement + assembly)  </p>
+<p><strong>Pros:</strong><br />
+- ✅ Massive core count (64 cores)<br />
+- ✅ One-time cost (own the hardware)<br />
+- ✅ Suitable for lab / research environment</p>
+<p><strong>Cons:</strong><br />
+- ❌ Requires physical space + power/cooling<br />
+- ❌ No SLA (if hardware fails, you fix it)<br />
+- ❌ 64 cores &lt; 192 cores (limits future parallelization)</p>
+<p><strong>Recommendation:</strong> Good for universities / labs with infrastructure; less suitable for quick cloud benchmark.</p>
+<hr />
+<h3 id="option-3-cloud-gpu-instance-not-recommended">Option 3: Cloud GPU Instance (Not Recommended)</h3>
+<p><strong>Why not:</strong> GPU-accelerated compilers are not in scope; vakedc is CPU-bound (no CUDA/ROCm).</p>
+<hr />
+<h2 id="recommended-path-vultr-epyc-rental">Recommended Path: Vultr EPYC Rental</h2>
+<p><strong>Rationale:</strong><br />
+1. <strong>Vaked already deployed on similar EPYC.</strong> Minimal friction.<br />
+2. <strong>Short-term lease.</strong> Pay for 1 month (~$3.5K), run 1M benchmark, cancel.<br />
+3. <strong>Known performance.</strong> vakedos EPYC 4345P provides confidence.</p>
+<p><strong>Procurement checklist:</strong></p>
+<ul>
+<li>[ ] Identify budget holder + approval ($3.5K cloud cost)</li>
+<li>[ ] Reserve Vultr EPYC 7002 for Nov 2026 (2–4 week lead time)</li>
+<li>[ ] Prepare benchmark scripts (Oct 2026)</li>
+<li>[ ] Deploy NixOS + vakedc to rental host (Nov 1)</li>
+<li>[ ] Run 1M benchmark (Nov 5–15)</li>
+<li>[ ] Publish results (Nov 20)</li>
+<li>[ ] Cancel rental (Nov 30)</li>
+</ul>
+<hr />
+<h2 id="performance-projections">Performance Projections</h2>
+<p>Based on 100k test (273ms for 1M worker system):</p>
+<h3 id="scenario-a-linear-scaling-best-case">Scenario A: Linear Scaling (Best Case)</h3>
+<div class="highlight"><pre><span></span><span class="mf">100</span><span class="n">k</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="p">:</span><span class="w">     </span><span class="err">~</span><span class="mf">273</span><span class="n">ms</span><span class="w"> </span><span class="p">(</span><span class="mf">100</span><span class="w"> </span><span class="n">iterations</span><span class="p">)</span>
+<span class="mf">1</span><span class="n">M</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="p">:</span><span class="w">       </span><span class="err">~</span><span class="mf">2.73</span><span class="n">s</span><span class="w"> </span><span class="p">(</span><span class="mf">273</span><span class="n">ms</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="mf">10</span><span class="w"> </span><span class="n">workers</span><span class="p">)</span>
+<span class="mf">10</span><span class="n">M</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="p">:</span><span class="w">      </span><span class="err">~</span><span class="mf">27.3</span><span class="n">s</span><span class="w"> </span><span class="p">(</span><span class="kr">if</span><span class="w"> </span><span class="n">we</span><span class="w"> </span><span class="n">ever</span><span class="w"> </span><span class="n">needed</span><span class="w"> </span><span class="n">it</span><span class="p">)</span>
+</pre></div>
+
+<p><strong>Assumption:</strong> Graph solver is O(n log n) or better; no pathological cases.</p>
+<p><strong>Likely outcome:</strong> Parse + check are close to linear; lower might be sublinear (artifact batching).</p>
+<h3 id="scenario-b-sublinear-scaling-realistic">Scenario B: Sublinear Scaling (Realistic)</h3>
+<div class="highlight"><pre><span></span><span class="mf">100</span><span class="n">k</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="p">:</span><span class="w">     </span><span class="err">~</span><span class="mf">273</span><span class="n">ms</span>
+<span class="mf">1</span><span class="n">M</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="p">:</span><span class="w">       </span><span class="err">~</span><span class="mf">5</span><span class="err">–</span><span class="mf">10</span><span class="n">s</span><span class="w"> </span><span class="p">(</span><span class="mf">1.8</span><span class="err">–</span><span class="mf">3.7</span><span class="err">×</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">linear</span><span class="w"> </span><span class="n">estimate</span><span class="p">)</span>
+<span class="n">Reason</span><span class="p">:</span><span class="w">          </span><span class="o">-</span><span class="w"> </span><span class="n">GC</span><span class="w"> </span><span class="n">pressure</span><span class="w"> </span><span class="n">increases</span><span class="w"> </span><span class="p">(</span><span class="n">more</span><span class="w"> </span><span class="n">allocations</span><span class="p">)</span>
+<span class="w">                 </span><span class="o">-</span><span class="w"> </span><span class="n">Hash</span><span class="w"> </span><span class="nb">tab</span><span class="n">le</span><span class="w"> </span><span class="n">collisions</span><span class="w"> </span><span class="p">(</span><span class="n">larger</span><span class="w"> </span><span class="n">working</span><span class="w"> </span><span class="n">set</span><span class="p">)</span>
+<span class="w">                 </span><span class="o">-</span><span class="w"> </span><span class="n">Cache</span><span class="w"> </span><span class="n">misses</span><span class="w"> </span><span class="p">(</span><span class="n">working</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">longer</span><span class="w"> </span><span class="n">fits</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">L3</span><span class="p">)</span>
+</pre></div>
+
+<h3 id="scenario-c-catastrophic-degradation-worst-case-unlikely">Scenario C: Catastrophic Degradation (Worst Case, Unlikely)</h3>
+<div class="highlight"><pre><span></span><span class="mf">100</span><span class="n">k</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="p">:</span><span class="w">     </span><span class="err">~</span><span class="mf">273</span><span class="n">ms</span>
+<span class="mf">1</span><span class="n">M</span><span class="w"> </span><span class="kr">sys</span><span class="n">tem</span><span class="p">:</span><span class="w">       </span><span class="o">&gt;</span><span class="mf">60</span><span class="n">s</span><span class="w"> </span><span class="p">(</span><span class="n">something</span><span class="w"> </span><span class="kr">go</span><span class="n">es</span><span class="w"> </span><span class="n">wrong</span><span class="p">)</span>
+<span class="n">Reason</span><span class="p">:</span><span class="w">          </span><span class="o">-</span><span class="w"> </span><span class="n">O</span><span class="p">(</span><span class="n">n²</span><span class="p">)</span><span class="w"> </span><span class="n">algorithm</span><span class="w"> </span><span class="n">somewhere</span><span class="w"> </span><span class="p">(</span><span class="n">shouldn</span><span class="err">&#39;</span><span class="n">t</span><span class="w"> </span><span class="n">exist</span><span class="p">)</span>
+<span class="w">                 </span><span class="o">-</span><span class="w"> </span><span class="n">Memory</span><span class="w"> </span><span class="n">swapping</span><span class="w"> </span><span class="p">(</span><span class="n">insufficient</span><span class="w"> </span><span class="n">RAM</span><span class="p">)</span>
+<span class="w">                 </span><span class="o">-</span><span class="w"> </span><span class="n">Parser</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="nb">exp</span><span class="n">losion</span><span class="w"> </span><span class="p">(</span><span class="n">grammar</span><span class="w"> </span><span class="n">issue</span><span class="p">)</span>
+</pre></div>
+
+<p><strong>Mitigation:</strong> Run test on 512 GB EPYC; if slowdown detected, profile + fix.</p>
+<hr />
+<h2 id="performance-expectations">Performance Expectations</h2>
+<h3 id="stage-by-stage-breakdown">Stage-by-Stage Breakdown</h3>
+<p>Assuming 1M system follows ~5–7s total (realistic):</p>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Time</th>
+<th>Cores Used</th>
+<th>Bottleneck</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Parse</strong></td>
+<td>~1.5s</td>
+<td>1 (sequential)</td>
+<td>Lexer tokenization, tree building</td>
+</tr>
+<tr>
+<td><strong>Check</strong></td>
+<td>~2s</td>
+<td>1–4 (graph traversal)</td>
+<td>POLA constraint solving</td>
+</tr>
+<tr>
+<td><strong>Lower</strong></td>
+<td>~2–4s</td>
+<td>1–8 (I/O + codegen)</td>
+<td>Artifact writing to disk</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>~5.5–7.5s</strong></td>
+<td>—</td>
+<td>I/O (lower stage dominates)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Opportunity:</strong> Parallelize check stage (different parts of constraint graph can be solved independently).</p>
+<hr />
+<h2 id="baremetal-host-setup-if-buying-threadripper-pro">Baremetal Host Setup (if buying Threadripper PRO)</h2>
+<h3 id="system-configuration">System Configuration</h3>
+<div class="highlight"><pre><span></span><span class="c1"># flake.nix (part of vakedos config)</span>
+nixosConfigurations<span class="o">.</span><span class="ss">vaked-1m-benchmark</span> <span class="o">=</span> nixos<span class="o">.</span>lib<span class="o">.</span>nixosSystem <span class="p">{</span>
+  <span class="ss">system</span> <span class="o">=</span> <span class="s2">&quot;x86_64-linux&quot;</span><span class="p">;</span>
+  <span class="ss">modules</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="l">./hosts/1m-benchmark-threadripper.nix</span>
+    <span class="c1"># Threadripper PRO 5995WX variant</span>
+  <span class="p">];</span>
+<span class="p">};</span>
+</pre></div>
+
+<h3 id="hardware-details">Hardware Details</h3>
+<div class="highlight"><pre><span></span><span class="nv">CPU</span>:<span class="w">        </span><span class="nv">AMD</span><span class="w"> </span><span class="nv">Threadripper</span><span class="w"> </span><span class="nv">PRO</span><span class="w"> </span><span class="mi">5995</span><span class="nv">WX</span><span class="w"> </span><span class="ss">(</span><span class="mi">64</span><span class="w"> </span><span class="nv">cores</span>,<span class="w"> </span><span class="mi">128</span><span class="w"> </span><span class="nv">threads</span>,<span class="w"> </span><span class="mi">4</span>.<span class="mi">5</span><span class="w"> </span><span class="nv">GHz</span><span class="w"> </span><span class="nv">boost</span><span class="ss">)</span>
+<span class="nv">Motherboard</span>:<span class="w"> </span><span class="nv">ASUS</span><span class="w"> </span><span class="nv">Pro</span><span class="w"> </span><span class="nv">WS</span><span class="w"> </span><span class="nv">TRX50</span><span class="o">-</span><span class="nv">SAGE</span><span class="w"> </span><span class="nv">WIFI</span>
+<span class="nv">Memory</span>:<span class="w">     </span><span class="mi">8</span>×<span class="w"> </span><span class="mi">32</span><span class="w"> </span><span class="nv">GB</span><span class="w"> </span><span class="nv">DDR4</span><span class="o">-</span><span class="mi">3200</span><span class="w"> </span><span class="nv">ECC</span><span class="w"> </span><span class="ss">(</span><span class="mi">256</span><span class="w"> </span><span class="nv">GB</span><span class="w"> </span><span class="nv">total</span><span class="ss">)</span>
+<span class="nv">Storage</span>:<span class="w">    </span><span class="mi">2</span>×<span class="w"> </span><span class="nv">Samsung</span><span class="w"> </span><span class="mi">980</span><span class="w"> </span><span class="nv">Pro</span><span class="w"> </span><span class="mi">2</span><span class="nv">TB</span><span class="w"> </span><span class="ss">(</span><span class="nv">RAID</span><span class="w"> </span><span class="mi">1</span>,<span class="w"> </span><span class="nv">NVMe</span><span class="ss">)</span>
+<span class="nv">PSU</span>:<span class="w">        </span><span class="mi">1600</span><span class="nv">W</span><span class="w"> </span><span class="mi">80</span><span class="o">+</span><span class="w"> </span><span class="nv">Platinum</span>
+<span class="nv">Cooling</span>:<span class="w">    </span><span class="nv">Noctua</span><span class="w"> </span><span class="nv">NH</span><span class="o">-</span><span class="nv">U14S</span><span class="w"> </span><span class="nv">TR4</span><span class="o">-</span><span class="nv">SP3</span><span class="w"> </span><span class="ss">(</span><span class="nv">premium</span><span class="w"> </span><span class="nv">tower</span><span class="w"> </span><span class="nv">cooler</span><span class="ss">)</span>
+<span class="nv">Case</span>:<span class="w">       </span><span class="nv">Fractal</span><span class="w"> </span><span class="nv">Design</span><span class="w"> </span><span class="nv">Define</span><span class="w"> </span><span class="mi">7</span><span class="w"> </span><span class="nv">XL</span>
+<span class="nv">Network</span>:<span class="w">    </span><span class="nv">Mellanox</span><span class="w"> </span><span class="nv">ConnectX</span><span class="o">-</span><span class="mi">5</span><span class="w"> </span><span class="mi">100</span><span class="w"> </span><span class="nv">Gbps</span><span class="w"> </span><span class="ss">(</span><span class="k">if</span><span class="w"> </span><span class="nv">needed</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="nv">future</span><span class="w"> </span><span class="nv">distributed</span><span class="w"> </span><span class="nv">testing</span><span class="ss">)</span>
+</pre></div>
+
+<p><strong>Estimated cost:</strong> $85K–$120K (parts + assembly)</p>
+<hr />
+<h2 id="timeline-milestones">Timeline &amp; Milestones</h2>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Milestone</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Jun 2026</td>
+<td>100k test proven</td>
+<td>✅ Completed (273ms avg, 100 iterations)</td>
+</tr>
+<tr>
+<td>Jul–Aug 2026</td>
+<td>WP3/WP4 start</td>
+<td>Hire engineers, parallel wire protocol + daemon work</td>
+</tr>
+<tr>
+<td>Sep 2026</td>
+<td>WP4 MVP complete</td>
+<td>eventd, sandboxd, eBPF skeleton done</td>
+</tr>
+<tr>
+<td>Oct 2026</td>
+<td>Reserve hardware</td>
+<td>Lease Vultr EPYC or purchase Threadripper (3–4 week lead)</td>
+</tr>
+<tr>
+<td>Nov 2026</td>
+<td>Run 1M benchmark</td>
+<td>Deploy, execute test, capture results</td>
+</tr>
+<tr>
+<td>Dec 2026</td>
+<td>Analyze results</td>
+<td>Profile, optimize if needed</td>
+</tr>
+<tr>
+<td>Apr 2027</td>
+<td>Paper 3 published</td>
+<td>Include 1M scalability results in WP5 arxiv paper</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="cost-estimate-summary">Cost Estimate Summary</h2>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Hardware</th>
+<th>Rental/Owner</th>
+<th>Setup</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Vultr EPYC</strong></td>
+<td>$3.5K/month</td>
+<td>Rental</td>
+<td>Minimal</td>
+<td><strong>$3.5K</strong> (1-time)</td>
+</tr>
+<tr>
+<td><strong>Threadripper DIY</strong></td>
+<td>$85K–$120K</td>
+<td>Owner</td>
+<td>1–2 weeks</td>
+<td><strong>$85K–$120K</strong> (one-time)</td>
+</tr>
+<tr>
+<td><strong>Existing vakedos</strong></td>
+<td>Already owned</td>
+<td>Owner</td>
+<td>Next available slot</td>
+<td><strong>$0</strong> (use current)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation:</strong> Try existing vakedos first (free); if not available, rent Vultr EPYC for 1 month ($3.5K).</p>
+<hr />
+<h2 id="future-10m-worker-test">Future: 10M Worker Test</h2>
+<p>If 1M test succeeds and scales linearly to ~70s, a <strong>10M test</strong> would require:</p>
+<ul>
+<li><strong>Memory:</strong> 400–640 GB (16× the 100k baseline)</li>
+<li><strong>CPU:</strong> 256+ cores</li>
+<li><strong>Hardware:</strong> Google Cloud TPU Pod (extreme scale) or custom supercomputer (overkill)</li>
+</ul>
+<p><strong>Realistic:</strong> 10M is probably the practical limit for a single-machine vakedc benchmark. Beyond that, distributed compilation (WP5+) would be needed.</p>
+<hr />
+<p><strong>References:</strong></p>
+<ul>
+<li><code>vaked/examples/swe-swarm-1m-workers-scalability.vaked</code> — Test case</li>
+<li><code>docs/language/0014-verification-scaffold.md</code> — Verification methodology</li>
+<li><code>ROADMAP_2026-2027.md</code> — Project timeline</li>
+<li><code>hosts/vakedos/</code> — Existing EPYC configuration (reference)</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/infrastructure/1M-SCALABILITY-HARDWARE-SPEC.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

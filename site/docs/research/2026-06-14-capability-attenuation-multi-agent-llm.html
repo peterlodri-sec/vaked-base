@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Deep-research report A — Capability attenuation & least-privilege for heterogeneous multi-agent LLM systems — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#question" style="padding-left:0.5rem">Question</a><a href="#method" style="padding-left:0.5rem">Method</a><a href="#findings" style="padding-left:0.5rem">Findings</a><a href="#1-attenuation-only-delegation-is-the-convergent-model" style="padding-left:1rem">  1. Attenuation-only delegation is the convergent model</a><a href="#2-static-graph-level-verification-of-attenuation-is-the-live-frontier" style="padding-left:1rem">  2. Static, graph-level verification of attenuation is the live frontier</a><a href="#3-mcp-authorization-is-a-hardened-oauth-21-design-on-paper" style="padding-left:1rem">  3. MCP authorization is a hardened OAuth 2.1 design — on paper</a><a href="#4-the-sole-publisher-single-writer-broker-is-the-literatures-backbone-defense" style="padding-left:1rem">  4. The sole-publisher / single-writer broker is the literature's backbone defense</a><a href="#5-the-failure-modes-the-design-must-answer" style="padding-left:1rem">  5. The failure modes the design must answer</a><a href="#disagreements-caveats" style="padding-left:0.5rem">Disagreements / caveats</a><a href="#bottom-line-for-the-dogfood" style="padding-left:0.5rem">Bottom line for the dogfood</a><a href="#sources" style="padding-left:0.5rem">Sources</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/research/">research</a> / 2026-06-14-capability-attenuation-multi-agent-llm</div>
+<h1>Deep-research report A — Capability attenuation & least-privilege for heterogeneous multi-agent LLM systems</h1>
+<h1 id="deep-research-report-a-capability-attenuation-least-privilege-for-heterogeneous-multi-agent-llm-systems">Deep-research report A — Capability attenuation &amp; least-privilege for heterogeneous multi-agent LLM systems</h1>
+<p>Date: 2026-06-14 · Harness: <code>deep-research</code> (fan-out → fetch → adversarial verify → synthesize)<br />
+· Batch: PR-pipeline dogfood (<code>claude/vaked-pr-pipeline-dogfood-pdl4sk</code>)</p>
+<blockquote>
+<p><strong>Why this question.</strong> The dogfood example's <strong>mesh field</strong> is the <em>authority<br />
+graph</em>: an operator delegates <strong>attenuated</strong> capabilities to an author<br />
+(<code>fs.repo_rw</code>, no publish), a reviewer (<code>fs.repo_ro</code> only), and a <strong>sole<br />
+publisher</strong> broker (<code>mcp.github_write</code>). This report asks whether that design<br />
+reflects the state of the art for least-privilege delegation across LLM agents<br />
+running different models, and where the known failure modes are.</p>
+</blockquote>
+<h2 id="question">Question</h2>
+<blockquote>
+<p>Least-privilege capability attenuation in heterogeneous multi-agent LLM<br />
+systems (2025–2026): the state of the art for delegating attenuated/scoped<br />
+capabilities from an operator to LLM agents on different models — object-<br />
+capability (ocap) models, POLA, MCP authorization and tool-scoping, the<br />
+sole-publisher / single-writer broker pattern, and static verification of<br />
+delegation. Including failure modes: confused-deputy, capability widening,<br />
+prompt-injection-driven privilege escalation.</p>
+</blockquote>
+<h2 id="method">Method</h2>
+<p>Three search angles (ocap/POLA for agents · MCP authorization &amp; tool-scoping ·<br />
+broker pattern &amp; injection defense), each a parallel fan-out of WebSearch +<br />
+WebFetch over 4–6 authoritative sources, claims extracted as falsifiable<br />
+statements, then ranked by source quality and cross-corroboration. Confidence<br />
+tags: <strong>HIGH</strong> (authoritative + corroborated), <strong>MED</strong> (single credible source<br />
+or contested), <strong>LOW</strong> (adjacent / weak source). Disagreements are surfaced, not<br />
+smoothed.</p>
+<h2 id="findings">Findings</h2>
+<h3 id="1-attenuation-only-delegation-is-the-convergent-model">1. Attenuation-only delegation is the convergent model</h3>
+<ul>
+<li><strong>[HIGH]</strong> Authority can only <em>narrow</em> down a delegation chain — at each hop,<br />
+  scope narrows or stays equal, never widens; verifiers must check attenuation at<br />
+<em>every hop</em> across tools, budget, domains, and time.<br />
+<em>IETF draft-prakash-aip-00 (2026-03-27), corroborated by arXiv:2603.24775.</em></li>
+<li><strong>[HIGH]</strong> A child's effective authority is the <strong>subset/intersection</strong> of the<br />
+  parent's grant and the child's own policy; re-delegation can only restrict<br />
+  further. This is textbook object-capability semantics now applied to agents.<br />
+<em>arXiv:2603.21354 (concept), arXiv:2603.00195, arXiv:2603.24775.</em></li>
+<li><strong>[HIGH]</strong> Concrete credential primitives implement this: <strong>macaroons</strong> /<br />
+<strong>Biscuit</strong> tokens attenuate by appending narrowing caveats and verify offline,<br />
+  vs. amplifiable identity-based API keys; AIP's Invocation-Bound Capability<br />
+  Tokens fuse identity + attenuated authorization + provenance (compact JWT for<br />
+  single-hop, chained Biscuit for multi-hop).<br />
+<em>arXiv:2603.24775; CSA blog 2026-03-25; dev.to/mattdeangit.</em></li>
+</ul>
+<blockquote>
+<p><strong>Maps to Vaked.</strong> The mesh field's attenuation check<br />
+(<code>E-CAP-ATTENUATION</code>, design 0011 §4.4) <em>is</em> the "narrow-only at every hop"<br />
+rule, enforced statically at compile time rather than per-token at runtime.</p>
+</blockquote>
+<h3 id="2-static-graph-level-verification-of-attenuation-is-the-live-frontier">2. Static, graph-level verification of attenuation is the live frontier</h3>
+<ul>
+<li><strong>[MED]</strong> "Formal Analysis and Supply Chain Security for Agentic AI Skills"<br />
+  claims a <em>compile-time</em> guarantee via abstract interpretation over a Dolev–Yao<br />
+  model: if static analysis on the skill manifest reports no violation, no<br />
+  operation exceeds its declared capability level, with non-amplification-under-<br />
+  composition theorems. <em>arXiv:2603.00195 — single-author preprint, proofs in<br />
+  unrendered appendices; treat theorems as unverified.</em></li>
+<li><strong>[HIGH]</strong> Agentproof statically verifies agent <strong>workflow graphs</strong> before<br />
+  execution: a graph × DFA product proves temporal/topology properties for all<br />
+  paths, sub-second up to ~5,000 nodes across LangGraph/CrewAI/AutoGen/ADK.<br />
+<em>arXiv:2603.20356.</em></li>
+<li><strong>[MED]</strong> Agentproof operationalizes POLA at the <em>topology</em> level via a<br />
+  "human-gate coverage" check (every path to a sensitive tool passes a human<br />
+  gate) — but does not frame this as capability attenuation. <em>arXiv:2603.20356;<br />
+  the POLA connection is the analyst's, mechanism evaluated on 18 author-built<br />
+  workflows.</em></li>
+</ul>
+<blockquote>
+<p><strong>Maps to Vaked.</strong> This is exactly Vaked's bet: do the check at <em>compile time</em><br />
+over the declared graph, emit artifacts only if it passes. The literature is<br />
+moving from runtime token checks toward the static, graph-level posture the<br />
+compiler already takes.</p>
+</blockquote>
+<h3 id="3-mcp-authorization-is-a-hardened-oauth-21-design-on-paper">3. MCP authorization is a hardened OAuth 2.1 design — on paper</h3>
+<ul>
+<li><strong>[HIGH]</strong> MCP servers are OAuth 2.1 <strong>resource servers</strong>; the 2025-06-18 spec<br />
+  revision (carried into 2025-11-25) <strong>mandates audience-bound tokens</strong> and<br />
+<strong>forbids token passthrough</strong> (a server MUST reject tokens not issued for it<br />
+  and MUST NOT forward client tokens upstream). <em>modelcontextprotocol.io<br />
+  authorization spec; auth0.com/blog.</em></li>
+<li><strong>[HIGH]</strong> Clients MUST send <strong>RFC 8707 Resource Indicators</strong>, PKCE (S256) is<br />
+  mandatory, implicit grant dropped, redirect URIs exact-matched, auth-server<br />
+  location advertised via RFC 9728. <em>modelcontextprotocol.io authorization spec.</em></li>
+<li><strong>[HIGH]</strong> The spec endorses <strong>least-privilege / step-up scoping</strong> (request<br />
+  scopes incrementally via <code>WWW-Authenticate</code> 403 challenges) and names the<br />
+  anti-pattern: wildcard/omnibus scopes (<code>*</code>, <code>full-access</code>). <em>Caveat: default<br />
+  client fallback when no challenge scope is given is to request ALL supported<br />
+  scopes — least-privilege depends on servers emitting narrow challenges.</em><br />
+<em>modelcontextprotocol.io authorization + security best practices.</em></li>
+</ul>
+<blockquote>
+<p><strong>Maps to Vaked.</strong> The broker (<code>mcp.github_write</code>) is the single MCP-scoped<br />
+writer. The spec's "narrow, audience-bound, no passthrough" lines up with the<br />
+graph giving exactly one node that grant and no other.</p>
+</blockquote>
+<h3 id="4-the-sole-publisher-single-writer-broker-is-the-literatures-backbone-defense">4. The sole-publisher / single-writer broker is the literature's backbone defense</h3>
+<ul>
+<li><strong>[HIGH]</strong> The unifying principle: once an agent ingests untrusted input, it<br />
+  must be impossible for that input to trigger consequential actions — a hard<br />
+  architectural split between <em>read-untrusted</em> and <em>write/act</em>. <em>arXiv:2506.08837<br />
+  "Design Patterns for Securing LLM Agents"; Willison 2025-06-13.</em></li>
+<li><strong>[HIGH]</strong> Across the six named patterns (Action-Selector, Plan-Then-Execute,<br />
+  Dual-LLM, Code-Then-Execute, Map-Reduce, Context-Minimization), <strong>exactly one<br />
+  component holds side-effect authority</strong> and untrusted tokens never reach it —<br />
+  this is why a single-writer broker shrinks attack surface. <em>arXiv:2506.08837.</em></li>
+<li><strong>[HIGH]</strong> Gating the <strong>egress/publish</strong> leg defeats data theft: remove one leg<br />
+  of the "lethal trifecta" (private data + untrusted content + external comms) and<br />
+  injection becomes harmless because there is no exfiltration channel. <em>Willison<br />
+  2025-06-16, "The lethal trifecta".</em></li>
+<li><strong>[HIGH]</strong> CaMeL is the most rigorous instance: a privileged planner + a<br />
+  quarantined LLM, with a restricted interpreter tracking per-value capabilities<br />
+  so tainted data cannot flow into a sensitive sink without policy approval —<br />
+  ~77% AgentDojo utility <em>with provable security</em> vs 84% undefended (~7-pt cost).<br />
+<em>arXiv:2503.18813; Willison 2025-04-11.</em></li>
+</ul>
+<blockquote>
+<p><strong>Maps to Vaked.</strong> The dogfood broker is precisely the "single component with<br />
+side-effect authority"; the author/reviewer hold <code>fs.*</code> but never the publish<br />
+grant. Pairing this with <code>agent_guardd</code>'s deny-by-default egress membrane gates<br />
+the trifecta's third leg at the network layer.</p>
+</blockquote>
+<h3 id="5-the-failure-modes-the-design-must-answer">5. The failure modes the design must answer</h3>
+<ul>
+<li><strong>[HIGH]</strong> <strong>Excessive Agency (OWASP LLM06:2025):</strong> today's default is a single<br />
+  principal with full access to all tools — a compromised agent can invoke<br />
+  anything. This is the gap POLA closes. <em>OWASP LLM06; arXiv:2503547.</em></li>
+<li><strong>[HIGH]</strong> <strong>Confused deputy (MCP):</strong> a proxy server with a static upstream<br />
+<code>client_id</code> + dynamic registration + a consent cookie lets an attacker skip<br />
+  consent and redirect a victim's auth code. Fix: per-client consent before<br />
+  forwarding, exact redirect matching, single-use state. <em>modelcontextprotocol.io<br />
+  security best practices; flowhunt.io.</em></li>
+<li><strong>[HIGH]</strong> <strong>Tool poisoning</strong> (malicious instructions in tool metadata injected<br />
+  into context) is independently ranked the top client-side MCP vulnerability.<br />
+<em>arXiv:2603.22489; descope.com 2026-01-26; OWASP.</em></li>
+<li><strong>[HIGH]</strong> <strong>Privilege escalation via prompt injection — real incident:</strong><br />
+  June 2025, a Cursor agent with privileged service-role DB access processed<br />
+  attacker-controlled support tickets and was induced via embedded SQL to<br />
+  exfiltrate tokens to a public thread — the recurring triad of privileged<br />
+  access + untrusted input + an external channel. <em>securityboulevard.com.</em></li>
+<li><strong>[MED-HIGH]</strong> <strong>Scope creep (OWASP MCP02:2025):</strong> narrow grants drift into<br />
+  admin privilege over time; controls = fine-grained scopes, policy-as-code,<br />
+  JIT/time-limited access, separating grant-authority from deploy-authority.<br />
+<em>owasp.org/www-project-mcp-top-10.</em></li>
+</ul>
+<h2 id="disagreements-caveats">Disagreements / caveats</h2>
+<ul>
+<li><strong>Where attenuation is enforced</strong> splits three ways: cryptographic tokens<br />
+  (AIP/macaroons), static code/graph analysis (skills paper, Agentproof), and<br />
+  dynamic context-aware reasoning (Agent Access Control, arXiv:2510.11108) — AAC<br />
+  explicitly rejects the binary/static model and <em>omits delegation entirely</em>. A<br />
+  genuine architectural disagreement. Vaked sits firmly in the static-graph camp.</li>
+<li><strong>Spec vs. practice:</strong> the MCP MUSTs (audience validation, resource indicators,<br />
+  per-client consent) are widely reported as <strong>under-implemented</strong> in shipping<br />
+  servers, so real-world posture depends on enforcement (gateways, policy-as-code,<br />
+  per-agent identity), not spec text. <em>flowhunt.io; arXiv:2603.22489 — MED, a<br />
+  vendor-blog prevalence assertion, not a measured study.</em></li>
+<li><strong>Single-source / preprint risk:</strong> claims 1–2 lean on two single-author 2026<br />
+  preprints (Prakash, Bhardwaj). The <em>properties</em> (subset/intersection, monotone<br />
+  narrowing) are mutually corroborating textbook ocap; the specific theorems and<br />
+  "100% rejection / 2.35ms overhead" benchmarks are unreplicated.</li>
+</ul>
+<h2 id="bottom-line-for-the-dogfood">Bottom line for the dogfood</h2>
+<p>The PR's authority graph is <strong>well-aligned with 2025–2026 best practice and, on<br />
+the static-verification axis, slightly ahead of it.</strong> Attenuation-only delegation<br />
+(narrow at every hop), a single side-effect-bearing broker, and gating the egress<br />
+leg are the three load-bearing recommendations across the strongest sources —<br />
+and they are exactly what the <code>mesh</code> field + <code>E-CAP-ATTENUATION</code> + the sole<br />
+<code>mcp.github_write</code> broker encode. The honest gaps the design should keep in view:<br />
+(a) the static check assumes the broker node itself is sound — defense-in-depth<br />
+still wants <code>agent_guardd</code>'s egress membrane; (b) prompt-injection / tool-<br />
+poisoning live at the model-context layer that capability graphs do not address,<br />
+so the graph confines <em>consequences</em>, not <em>compliance</em>.</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>IETF draft-prakash-aip-00 — https://www.ietf.org/archive/id/draft-prakash-aip-00.html</li>
+<li>AIP: Agent Identity Protocol — https://arxiv.org/abs/2603.24775</li>
+<li>Formal Analysis &amp; Supply Chain Security for Agentic AI Skills — https://arxiv.org/pdf/2603.00195</li>
+<li>Agentproof: Static Verification of Agent Workflow Graphs — https://arxiv.org/html/2603.20356v1</li>
+<li>Workload-Router-Pool / vLLM Semantic Router — https://arxiv.org/pdf/2603.21354</li>
+<li>A Vision for Access Control in LLM-based Agent Systems — https://arxiv.org/abs/2510.11108</li>
+<li>MCP authorization spec — https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization</li>
+<li>MCP security best practices — https://modelcontextprotocol.io/specification/draft/basic/security_best_practices</li>
+<li>Auth0 — MCP specs update — https://auth0.com/blog/mcp-specs-update-all-about-auth/</li>
+<li>OWASP MCP Top 10 — MCP02 Privilege Escalation — https://owasp.org/www-project-mcp-top-10/2025/MCP02-2025%E2%80%93Privilege-Escalation-via-Scope-Creep</li>
+<li>MCP threat model (STRIDE/DREAD) — https://arxiv.org/abs/2603.22489</li>
+<li>Descope — MCP tool poisoning — https://www.descope.com/learn/post/mcp-tool-poisoning</li>
+<li>Defeating Prompt Injections by Design (CaMeL) — https://arxiv.org/pdf/2503.18813</li>
+<li>Design Patterns for Securing LLM Agents — https://arxiv.org/pdf/2506.08837</li>
+<li>Simon Willison — CaMeL — https://simonwillison.net/2025/Apr/11/camel/</li>
+<li>Simon Willison — design patterns — https://simonwillison.net/2025/Jun/13/prompt-injection-design-patterns/</li>
+<li>Simon Willison — the lethal trifecta — https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/</li>
+<li>OWASP LLM06:2025 Excessive Agency — https://www.a10networks.com/glossary/llm-excessive-agency/</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/research/2026-06-14-capability-attenuation-multi-agent-llm.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

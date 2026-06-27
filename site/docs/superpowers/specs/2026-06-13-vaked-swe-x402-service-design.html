@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked SWE-as-a-service over x402 on Base (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#spark" style="padding-left:0.5rem">Spark</a><a href="#the-request" style="padding-left:0.5rem">The request</a><a href="#why-vaked-fits-the-mapping" style="padding-left:0.5rem">Why Vaked fits (the mapping)</a><a href="#flow" style="padding-left:0.5rem">Flow</a><a href="#new-the-pay-chain-capability-domain" style="padding-left:0.5rem">New: the `pay` / `chain` capability domain</a><a href="#the-receipt-tamper-evident-commitment-not-yet-trust-minimization" style="padding-left:0.5rem">The receipt: tamper-evident commitment, not (yet) trust-minimization</a><a href="#settlement-sla" style="padding-left:0.5rem">Settlement & SLA</a><a href="#identity" style="padding-left:0.5rem">Identity</a><a href="#phases" style="padding-left:0.5rem">Phases</a><a href="#security-threat-model-from-the-adversarial-review" style="padding-left:0.5rem">Security / threat model (from the adversarial review)</a><a href="#non-goals-honest-caveats" style="padding-left:0.5rem">Non-goals / honest caveats</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a><a href="#economics-pessimistic-projection" style="padding-left:0.5rem">Economics (pessimistic projection)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-vaked-swe-x402-service-design</div>
+<h1>Vaked SWE-as-a-service over x402 on Base (design)</h1>
+<h1 id="vaked-swe-as-a-service-over-x402-on-base-design">Vaked SWE-as-a-service over x402 on Base (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design / exploration (2026-06-13), <strong>hardened by an adversarial web3 review</strong><br />
+(facts verified against live x402/EIP-3009/ERC-8004/UCAN/Base docs; trust claim<br />
+corrected). A <strong>service layer</strong> that sits <em>on top of</em> the runtime, not a core<br />
+primitive — it exposes a Vaked agent field as a paid, onchain, auditable SWE service:<br />
+<code>swe &lt;prompt&gt; &lt;scale&gt;</code>. Builds entirely on primitives that already exist; the web3<br />
+parts are thin adapters at the edges. Convention: design → plan → impl; this is the<br />
+design + the honest case for/against.</p>
+<h2 id="spark">Spark</h2>
+<blockquote>
+<p>integrating with 'base' and running vaked as a web3 <code>swe &lt;prompt&gt; &lt;scale&gt;</code> service</p>
+</blockquote>
+<p>The calibration example <a href="../../../vaked/examples/agentfield-swe.vaked"><code>agentfield-swe.vaked</code></a><br />
+is <em>already</em> the service: a <code>planner → coder → reviewer → publish</code> workflow DAG over<br />
+a capability-attenuated mesh, bounded by a <code>budget</code> block, grounded by an <code>index</code>,<br />
+remembering via <code>memory</code>. This note swaps its ingress (a GitHub issue label) for an<br />
+<strong>onchain paid request</strong>, and its trust model (trust-the-operator) for a<br />
+<strong>verifiable receipt</strong>.</p>
+<h2 id="the-request">The request</h2>
+<div class="highlight"><pre><span></span>swe &lt;prompt&gt; &lt;scale&gt;
+</pre></div>
+
+<ul>
+<li><strong><code>&lt;prompt&gt;</code></strong> — the task. Becomes the <code>workflow swe_af</code> input (replacing<br />
+<code>on = "github.issue.labeled:agent"</code>).</li>
+<li><strong><code>&lt;scale&gt;</code></strong> — how much compute to spend. Maps <strong>directly</strong> to the existing<br />
+<code>budget swe { tokens, wallClock, toolCalls, fuel }</code> block (agentfield-swe lines<br />
+  80–86). Scale is a budget tier; <strong>price = f(budget)</strong> in USDC. Paying <em>is</em> buying<br />
+  a budget; <code>mcp-brokerd</code> already enforces it, so spend can't exceed the paid tier.</li>
+</ul>
+<h2 id="why-vaked-fits-the-mapping">Why Vaked fits (the mapping)</h2>
+<p>Every hard part already exists; web3 is a rim.</p>
+<table>
+<thead>
+<tr>
+<th>Service need</th>
+<th>Vaked primitive (today)</th>
+<th>Base / web3 edge (adapter)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;scale&gt;</code> = metered compute</td>
+<td><code>budget swe { tokens, wallClock, toolCalls, fuel }</code></td>
+<td>x402 price tiers in USDC; payment = budget purchase</td>
+</tr>
+<tr>
+<td><code>&lt;prompt&gt;</code> = the task</td>
+<td><code>workflow swe_af</code> ingress</td>
+<td>x402 request body replaces the issue-label trigger</td>
+</tr>
+<tr>
+<td>enforce the paid tier</td>
+<td><code>mcp-brokerd</code> (budgets, approvals)</td>
+<td>bounded spend ⇒ no overrun past payment</td>
+</tr>
+<tr>
+<td>safe access for a stranger</td>
+<td>mesh <strong>capability delegation</strong> (operator → attenuated subset, POLA, <a href="../../language/0011-type-system.md">0011</a> §4)</td>
+<td>mint a <strong>UCAN</strong> on payment: time-boxed <code>fs.repo_rw</code> / <code>mem.recall</code>, no shared trust root</td>
+</tr>
+<tr>
+<td><strong>verifiable result</strong></td>
+<td><code>eventd</code> hash-chained log (<a href="./2026-06-12-eventd-design.md">design</a>) + <code>provenance.json</code></td>
+<td><strong>anchor the chain head on Base</strong> → onchain receipt of exactly what ran</td>
+</tr>
+<tr>
+<td>deliver output</td>
+<td>content-addressed artifacts (<code>patch</code>, catalog, palace)</td>
+<td>fetch-by-hash (CDN → IPFS/Arweave tier)</td>
+</tr>
+<tr>
+<td>agent pays for <em>its own</em> inputs</td>
+<td><code>mcp-brokerd</code> brokers tool calls</td>
+<td><strong>Base MCP / CDP AgentKit</strong> wallet — field pays x402 for model calls, premium indexes</td>
+</tr>
+<tr>
+<td>who the service/buyer is</td>
+<td>RFC 0006 identity (<a href="../../../protocol/rfcs/0006-transport-identity-distribution.md">SPIFFE</a>, internal)</td>
+<td>ERC‑8004 + Basename at the commerce boundary</td>
+</tr>
+</tbody>
+</table>
+<h2 id="flow">Flow</h2>
+<div class="highlight"><pre><span></span><span class="nt">buyer</span><span class="o">/</span><span class="nt">agent</span><span class="w"> </span><span class="err">──</span><span class="nt">HTTP</span><span class="err">──▶</span><span class="w"> </span><span class="nt">swe</span><span class="w"> </span><span class="nt">endpoint</span><span class="w"> </span><span class="o">(</span><span class="nt">x402-enabled</span><span class="o">)</span>
+<span class="w">                      </span><span class="err">◀──</span><span class="w"> </span><span class="nt">402</span><span class="w"> </span><span class="nt">Payment</span><span class="w"> </span><span class="nt">Required</span><span class="w">   </span><span class="o">(</span><span class="nt">PAYMENT-REQUIRED</span><span class="o">:</span><span class="w"> </span><span class="nt">amount</span><span class="o">=</span><span class="nt">f</span><span class="o">(</span><span class="nt">scale</span><span class="o">),</span><span class="w"> </span><span class="nt">token</span><span class="o">=</span><span class="nt">USDC</span><span class="o">,</span><span class="w"> </span><span class="nt">network</span><span class="o">=</span><span class="nt">base</span><span class="o">)</span>
+<span class="nt">buyer</span><span class="w"> </span><span class="nt">wallet</span><span class="w"> </span><span class="err">──</span><span class="nt">sign</span><span class="err">──▶</span><span class="w"> </span><span class="nt">retry</span><span class="w"> </span><span class="nt">with</span><span class="w"> </span><span class="nt">PAYMENT-SIGNATURE</span>
+<span class="nt">x402</span><span class="w"> </span><span class="nt">facilitator</span><span class="w"> </span><span class="err">──</span><span class="nt">verify</span><span class="o">+</span><span class="nt">settle</span><span class="w"> </span><span class="nt">USDC</span><span class="w"> </span><span class="nt">on</span><span class="w"> </span><span class="nt">Base</span><span class="err">──▶</span><span class="w"> </span><span class="nt">run</span><span class="w"> </span><span class="nt">authorized</span>
+<span class="w">                      </span><span class="err">│</span>
+<span class="w">                      </span><span class="err">▼</span><span class="w">  </span><span class="nt">workflow</span><span class="w"> </span><span class="nt">swe_af</span><span class="o">:</span><span class="w"> </span><span class="nt">plan</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nt">code</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nt">review</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nt">publish</span>
+<span class="w">                      </span><span class="err">│</span><span class="w">  </span><span class="nt">bounded</span><span class="w"> </span><span class="nt">by</span><span class="w"> </span><span class="nt">budget</span><span class="o">(</span><span class="nt">scale</span><span class="o">);</span><span class="w"> </span><span class="nt">mcp-brokerd</span><span class="w"> </span><span class="nt">enforces</span><span class="o">;</span><span class="w"> </span><span class="nt">sandboxd</span><span class="w"> </span><span class="nt">isolates</span>
+<span class="w">                      </span><span class="err">▼</span>
+<span class="w">  </span><span class="nt">anchor</span><span class="o">(</span><span class="nt">eventd</span><span class="w"> </span><span class="nt">head</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">provenance</span><span class="w"> </span><span class="nt">hash</span><span class="o">)</span><span class="w"> </span><span class="err">──</span><span class="nt">tx</span><span class="err">──▶</span><span class="w"> </span><span class="nt">Base</span><span class="w">   </span><span class="err">←</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">receipt</span>
+<span class="w">  </span><span class="nt">deliver</span><span class="w"> </span><span class="nt">artifacts</span><span class="w"> </span><span class="nt">by</span><span class="w"> </span><span class="nt">hash</span><span class="w"> </span><span class="o">(</span><span class="nt">CDN</span><span class="err">→</span><span class="nt">IPFS</span><span class="o">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">mint</span><span class="w"> </span><span class="nt">UCAN</span><span class="o">(</span><span class="nt">scope</span><span class="o">,</span><span class="w"> </span><span class="nt">ttl</span><span class="o">)</span><span class="w"> </span><span class="nt">for</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">buyer</span>
+</pre></div>
+
+<p>Payment is an <strong>EIP-3009 <code>transferWithAuthorization</code></strong> USDC payload (random 32-byte<br />
+nonce → onchain replay protection). The <strong>payer</strong> needs no account and no API key —<br />
+any funded wallet, human <em>or another agent</em>, pays per request — which makes <code>swe</code><br />
+<strong>composable</strong> (other agents buy it with no prior relationship). Nuance the review<br />
+flagged: the <strong>operator</strong> still needs a CDP account for the hosted x402 facilitator<br />
+(free tier ~1,000 tx/mo) or must self-host one.</p>
+<h2 id="new-the-pay-chain-capability-domain">New: the <code>pay</code> / <code>chain</code> capability domain</h2>
+<p>Onchain actions are authority and must be POLA-bound exactly like <code>mem</code>/<code>fs</code>. Add a<br />
+capability domain (named <code>pay</code> to avoid the <code>chain</code>↔naming collisions, cf. the<br />
+<code>mem</code>-vs-<code>memory</code> rule in <a href="../../language/0014-memory-primitive.md">0014</a>):</p>
+<div class="highlight"><pre><span></span>capability pay {
+  grant none quote settle spend admin
+  order none &lt; quote &lt; settle &lt; spend &lt; admin
+}
+</pre></div>
+
+<ul>
+<li><code>pay.quote</code> — read prices / construct a <code>402</code> quote (no funds move).</li>
+<li><code>pay.settle</code> — accept an inbound x402 payment (the service side).</li>
+<li><code>pay.spend</code> — sign an <em>outbound</em> payment from the agent wallet, <strong>hard-capped by<br />
+  the run <code>budget</code></strong> (the agent buys its own model calls / data).</li>
+<li><code>pay.admin</code> — wallet/key administration; control plane only.</li>
+</ul>
+<p>A funded autonomous agent is the scariest thing in web3; gating outbound spend<br />
+behind <code>pay.spend</code> + the <code>budget</code> ceiling + <code>sandboxd</code> isolation + the existing<br />
+<code>approvals = "destructive"</code> is the box Vaked is shaped to provide — <strong>but the review<br />
+caught a hole:</strong> <code>budget</code> bounds <em>compute units</em> (tokens/fuel), not <em>dollars</em>. A<br />
+min-tier buyer can prompt-inject the coder into burning the whole budget on<br />
+attacker-controlled x402 endpoints (the agent "buys data" from the attacker; the<br />
+operator funds it). So <code>pay.spend</code> additionally needs:</p>
+<ol>
+<li>a <strong>separate outbound dollar ceiling</strong> — a concrete dollar-denominated <code>budget</code><br />
+   field, e.g. <code>budget swe { tokens = …, fuel = …, spendUsd = 5.00 }</code>, bounding <em>total<br />
+   outbound USDC</em> across the run and enforced by <code>mcp-brokerd</code> at the <code>pay.spend</code><br />
+   boundary. Compute units (<code>tokens</code>/<code>fuel</code>) do <strong>not</strong> bound dollars, so this is a new<br />
+   field, not a reinterpretation of the existing ones,</li>
+<li>a <strong>destination allowlist</strong> — no arbitrary x402 URLs,</li>
+<li>the <strong>wallet key isolated in the control plane, unreachable from any node holding<br />
+<code>process.spawn*</code></strong> — treat the buyer <code>&lt;prompt&gt;</code> as fully adversarial all the way to<br />
+   the payment signer.</li>
+</ol>
+<p>(Caveat: CDP AgentKit custodies keys server-side, itself a trust-the-platform<br />
+assumption to reconcile with <code>pay.admin</code>.)</p>
+<h2 id="the-receipt-tamper-evident-commitment-not-yet-trust-minimization">The receipt: tamper-evident commitment, not (yet) trust-minimization</h2>
+<blockquote>
+<p>Corrected after an adversarial web3 review (2026-06-13): the original "verify<br />
+without trusting the operator" framing was <strong>overstated</strong>.</p>
+</blockquote>
+<p>On <code>publish</code>, write <strong>one Base tx</strong> anchoring<br />
+<code>{ requestId, buyer, eventdHead, provenanceHash, artifactCID, budgetSpent }</code> (the<br />
+eventd chain head is a sha256 over the hash-chained log). Anchor cost on Base is<br />
+~$0.002–0.10, so one tx per run is affordable.</p>
+<p><strong>What this proves:</strong> the operator <em>committed</em> to a specific log + artifact at block<br />
+time — <strong>tamper-evidence, timestamping, ordering, non-repudiation</strong> (useful for<br />
+dispute resolution). <strong>What it does NOT prove:</strong> that the workflow ran at all. eventd<br />
+is single-writer, owned by the operator's <code>agent-supervisord</code><br />
+(<a href="./2026-06-12-eventd-design.md">eventd daemon shape</a>); the hash chain is tamper-<br />
+<em>evident</em> against post-hoc edits but gives <strong>zero</strong> protection against the writer<br />
+fabricating a valid chain over fictional events in the first place. <code>budgetSpent</code> is<br />
+likewise operator-asserted (read from the operator's own fold), so a discretionary<br />
+refund is not incentive-compatible.</p>
+<p><strong>Real verifiability requires TEE remote attestation:</strong> run the field inside<br />
+SGX/TDX/Nitro and co-sign <code>eventdHead</code> with a hardware-rooted attestation quote the<br />
+buyer verifies. (Independent re-execution is out — LLM SWE is non-deterministic;<br />
+zkML isn't viable for agentic workloads in 2026.) So split the phase:</p>
+<ul>
+<li><strong>Phase 2a</strong> — the commitment anchor: dispute/non-repudiation, <strong>no operator trust<br />
+  removed</strong>. Do not market as "trust-minimized."</li>
+<li>
+<p><strong>Phase 2b</strong> — TEE attestation: the only path that removes operator trust while the<br />
+  operator still runs the compute.</p>
+</li>
+<li>
+<p><strong>Anchor hashes only</strong> — never prompt/code/log payloads (public + permanent).</p>
+</li>
+</ul>
+<p>Honest scope: even with 2b, this proves the <strong>process ran as attested</strong>, not that the<br />
+patch is <em>correct</em> — correctness is the <code>reviewer</code> node + tests; price by<br />
+<code>budget(scale)</code>, not outcome. (ERC-8004's Reputation/Validation registries are the<br />
+right home for an operator reputation/stake signal — see Identity.)</p>
+<h2 id="settlement-sla">Settlement &amp; SLA</h2>
+<ul>
+<li><strong>Up-front settle is NOT trust-minimized.</strong> If x402 settles to the operator before<br />
+  any work, the operator holds 100% of funds and controls the refund; a buyer who pays<br />
+  and gets nothing has no recourse (the operator simply never anchors). Operator-<br />
+  asserted <code>budgetSpent</code> makes the refund discretionary.</li>
+<li><strong>Required for any trust claim:</strong> an <strong>onchain escrow / streaming-settlement<br />
+  contract</strong> where release + refund are constrained onchain, not operator-<br />
+  discretionary. Up-front settle + a bounded <code>budget</code> is acceptable only for a<br />
+  trusted-operator v0; a public service must promote escrow to v1.</li>
+</ul>
+<h2 id="identity">Identity</h2>
+<ul>
+<li><strong>Internal:</strong> unchanged — SPIFFE/SPIRE per RFC 0006.</li>
+<li><strong>Commerce boundary:</strong> the service registers onchain (ERC‑8004 agent registry +<br />
+  a Basename, e.g. <code>swe.vaked.base.eth</code>); buyers are identified by wallet / Basename.<br />
+  The two are bridged at the x402 ingress, not fused (fusing a 1-hour-rotating SVID<br />
+  with a persistent onchain identity would be a category error).</li>
+<li><strong>ERC‑8004 status:</strong> recent (EIP published Aug 2025; mainnet reference ~Jan 2026;<br />
+  Base port TBD). It ships <strong>Identity + Reputation + Validation</strong> registries — adopt<br />
+  Reputation/Validation for an operator stake/reputation signal rather than<br />
+  reinventing one. Treat it as moving, not settled, infrastructure.</li>
+<li><strong>Bridge must be forgery-proof:</strong> bind the minted internal SVID/UCAN <strong>1:1 to the<br />
+  settled EIP-3009 nonce</strong> and expire it on run completion, so paying once cannot mint<br />
+  excess internal authority (RFC 0006's model rests on SVID = verified principal).</li>
+</ul>
+<h2 id="phases">Phases</h2>
+<ol>
+<li><strong>x402 ingress + budget pricing</strong> — an x402-gated endpoint in front of the<br />
+<code>swe_af</code> workflow; <code>&lt;scale&gt;</code> → <code>budget</code> tier → USDC price; settle, then run.<br />
+   (Off-the-shelf x402 facilitator; no contract yet.)<br />
+2a. <strong>Commitment anchor</strong> — Base anchor contract + <code>pay.settle</code> + onchain escrow;<br />
+   publish <code>{eventdHead, provenanceHash, artifactCID, budgetSpent}</code>; a verifier CLI.<br />
+   Dispute/non-repudiation only — no operator-trust removed.<br />
+2b. <strong>TEE attestation</strong> — co-sign <code>eventdHead</code> with an SGX/TDX/Nitro quote; only then<br />
+   is "trust-minimized" earned.</li>
+<li><strong><code>pay</code> capability + agent wallet</strong> — <code>pay.spend</code> bounded by <code>budget</code>; broker<br />
+   Base MCP through <code>mcp-brokerd</code>; the field buys its own inputs.</li>
+<li><strong>UCAN delegation + decentralized delivery</strong> — mint attenuated UCANs on payment;<br />
+   IPFS/Arweave artifact tier.</li>
+</ol>
+<h2 id="security-threat-model-from-the-adversarial-review">Security / threat model (from the adversarial review)</h2>
+<p>A public agent that writes code, holds a funded wallet, and acts onchain is a large<br />
+surface. Ranked:</p>
+<ol>
+<li><strong>Prompt-injection → wallet drain (critical).</strong> Outbound dollar ceiling +<br />
+   destination allowlist + key isolation from <code>process.spawn*</code> nodes (see <code>pay</code>).</li>
+<li><strong>Escrow/custody gap (high).</strong> No funds held in trust between pay and publish →<br />
+   onchain escrow (see Settlement).</li>
+<li><strong>Facilitator chokepoint + double-settle race (high).</strong> The hosted x402 facilitator<br />
+   can censor / go down (single trust point), and an authorization can race at<br />
+<code>/settle</code>/deliver. Mitigate with <strong>service-layer idempotency keyed on the EIP-3009<br />
+   nonce</strong> (dedup <em>before</em> running the workflow); treat self-hosted-vs-hosted as a<br />
+   security decision, not an open question, if censorship-resistance is claimed.</li>
+<li><strong>Buyer-IP leakage (medium).</strong> The <code>artifactCID</code> is <strong>public onchain</strong> → encrypt<br />
+   artifacts, deliver the key via the minted UCAN; minimize onchain metadata (commit<br />
+   to <code>buyer</code> rather than the raw wallet + <code>budgetSpent</code>). The operator also sees<br />
+   plaintext prompt/code — unavoidable without TEE (loops back to the receipt).</li>
+<li><strong>Identity-bridge forgery (medium).</strong> Bind the minted credential 1:1 to the settled<br />
+   nonce; expire on completion (see Identity).</li>
+<li><strong>Pricing griefing (medium).</strong> <code>f(budget)</code> on non-deterministic work: a min-tier<br />
+   buyer can force max budget consumption (DoS the operator's margin). Price for<br />
+   variance; the compute budget alone doesn't bound the dollar outcome.</li>
+</ol>
+<h2 id="non-goals-honest-caveats">Non-goals / honest caveats</h2>
+<ul>
+<li><strong>No native token, no tokenomics.</strong> USDC only; the chain is rails + a notary.</li>
+<li><strong>Anchor, don't migrate.</strong> The eventd log stays local; only its head goes onchain.</li>
+<li>If the verifiable-receipt + agentic-composability angles aren't used, this isn't<br />
+  worth a chain — use a normal payment processor.</li>
+<li>SWE output is non-deterministic: "verifiable" = provable provenance/effort, not<br />
+  guaranteed correctness.</li>
+<li>Regulatory/abuse surface (a public agent that writes code, spends money, acts<br />
+  onchain) — gate hard via <code>pay</code>/<code>approvals</code>/<code>sandboxd</code>; KYC/limits are an operator<br />
+  policy, out of scope here.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ol>
+<li><strong>Escrow model:</strong> up-front budget settle + refund-unspent (v1) vs per-step<br />
+   streaming settlement.</li>
+<li><strong>Anchor cadence/cost:</strong> one tx per run vs batched Merkle root per epoch (cheaper,<br />
+   delayed finality) — reuse the eventd→chain anchoring pattern either way.</li>
+<li><strong>UCAN vs SPIFFE bridge:</strong> does the buyer's UCAN map onto an internal SVID for the<br />
+   duration, or stay a parallel external proof?</li>
+<li><strong>Pricing function</strong> <code>f(budget)</code>: linear in tokens/fuel, or tier-stepped; how to<br />
+   price <code>approvals</code>/human-in-the-loop steps.</li>
+<li><strong>Which x402 facilitator / wallet</strong> (CDP AgentKit, Bankr, Sponge) — and self-hosted<br />
+   facilitator vs hosted.</li>
+</ol>
+<h2 id="economics-pessimistic-projection">Economics (pessimistic projection)</h2>
+<p>Back-of-envelope, <strong>not</strong> a forecast — a floor under explicit assumptions: <strong>no<br />
+marketing, pure word-of-mouth in a niche</strong> (web3 devs + the crabcc/Vaked circle).<br />
+Grounded in this design's unit costs + Devin's public <strong>$2.25/ACU</strong> (~15 min of agent<br />
+work) as the willingness-to-pay comparable.</p>
+<p><strong>Unit economics per job (not the constraint):</strong></p>
+<ul>
+<li><strong>COGS/job:</strong> DeepSeek inference (the <code>budget swe</code> ceiling of 2M tokens × ~$0.30/Mtok<br />
+  = <strong>$0.60 max</strong>; a typical run $0.10–$1.50) + Base anchor ~$0.01–0.10 + x402<br />
+  facilitator (free ≤1k tx/mo) ⇒ variable cost <strong>$0.30–$1.50/job → ~85–95% gross<br />
+  margin</strong>.</li>
+<li><strong>Fixed:</strong> one VPS to host the agent field + domain/CDP ≈ <strong>$100–150/mo</strong>.</li>
+<li><strong>Price/job</strong> (undercut Devin, scale-tiered by <code>budget</code>): S-fix ~$3–5 · M-PR ~$10–20<br />
+  · L ~$40–60. Pessimistic <strong>blended ~$8–12/job</strong> (word-of-mouth skews to small jobs).</li>
+</ul>
+<p><strong>Volume is the only real lever</strong>, and the assumptions make it low:</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>jobs/mo</th>
+<th>blended $/job</th>
+<th>gross</th>
+<th>− COGS+fixed</th>
+<th><strong>net/mo</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Early (m1–3)</td>
+<td>~8</td>
+<td>$8</td>
+<td>~$64</td>
+<td>~$130</td>
+<td><strong>~−$65</strong> (under fixed cost)</td>
+</tr>
+<tr>
+<td>Mid (m4–8)</td>
+<td>~30</td>
+<td>$10</td>
+<td>~$300</td>
+<td>~$150</td>
+<td><strong>~$150</strong></td>
+</tr>
+<tr>
+<td>Late (m9–12)</td>
+<td>~70</td>
+<td>$11</td>
+<td>~$770</td>
+<td>~$190</td>
+<td><strong>~$580</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Headline (pessimistic):</strong> run-rate ~break-even early → <strong>~$100–$800/mo net by month<br />
+12</strong>; <strong>year-1 cumulative net ~$1.5k–$3k</strong> (back-half-loaded; a real chance of hovering<br />
+near $0 if word-of-mouth barely catches). Hobby/ramen income, not a salary, under these<br />
+assumptions.</p>
+<p><strong>Framing:</strong></p>
+<ul>
+<li><strong>Demand is the whole game.</strong> Margin is ~90%, so income ≈ volume × price; pessimistic<br />
+  word-of-mouth ⇒ low volume ⇒ modest income.</li>
+<li><strong>Near-zero downside:</strong> ~$100–150/mo fixed, no ad spend, no inventory — cheap to run<br />
+  and let word-of-mouth compound; worst case ~$1–2k/yr out of pocket.</li>
+<li><strong>Asymmetric upside (excluded by "pessimistic"):</strong> because <code>swe</code> is <strong>agent-to-agent<br />
+  composable</strong> (any funded wallet/agent calls it via x402, no relationship), one<br />
+  programmatic caller that loops <code>swe</code> can 10–100× volume overnight at the same ~90%<br />
+  margin. The floor is low; the ceiling is not.</li>
+</ul>
+<p><strong>The two knobs to challenge:</strong> the blended price/job ($8–12) and the 8→70 jobs/mo<br />
+ramp. Halve the volume ⇒ break-even all year; target pros over tire-kickers (double the<br />
+price) ⇒ ~$1.5k/mo by m12.</p>
+<blockquote>
+<p>These are guesses. The <a href="./2026-06-13-swe-economic-research-design.md">economic-research deployment</a><br />
+replaces them with measured data — a dedicated cheap VM + a per-job economics ledger,<br />
+with hardware staged only after demand is proven (marginal fixed ≈ 0 there, since the<br />
+box is the experiment's own).</p>
+</blockquote>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-vaked-swe-x402-service-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

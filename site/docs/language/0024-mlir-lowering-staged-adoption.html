@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MLIR lowering contract + staged adoption + reference semantics — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#1-the-lowering-contract" style="padding-left:0.5rem">1. The lowering contract</a><a href="#2-stage-0-vs-stage-1" style="padding-left:0.5rem">2. Stage 0 vs Stage 1</a><a href="#3-what-never-enters-mlir" style="padding-left:0.5rem">3. What never enters MLIR</a><a href="#4-the-reference-semantics-contract-normative" style="padding-left:0.5rem">4. The reference-semantics contract (normative)</a><a href="#security-considerations" style="padding-left:0.5rem">Security considerations</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0024-mlir-lowering-staged-adoption</div>
+<h1>MLIR lowering contract + staged adoption + reference semantics</h1>
+<h1 id="0024-lowering-staged-adoption-and-the-reference-semantics-contract">0024 — Lowering, staged adoption, and the reference-semantics contract</h1>
+<p>Status: <strong>Review</strong> (2026-06-14) · Series: language design notes · Track:<br />
+<strong>Language / MLIR</strong> · Issue<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/23">#23</a> · Epic<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<p>Part of the MLIR set; umbrella in<br />
+<a href="./0013-mlir-topology-compilation.md">0013</a>. <strong>Stage-0 reference semantics:</strong><br />
+<code>vakedc/check.py</code> and <code>vakedc/lower.py</code>.</p>
+<h2 id="abstract">Abstract</h2>
+<p>This part closes the set. It specifies the <strong>progressive lowering contract</strong><br />
+(<code>vaked → hcp → LLVM</code>), draws the <strong>Stage 0 / Stage 1</strong> line and what gates the<br />
+transition, fixes <strong>what never enters MLIR</strong>, and states the <strong>reference-semantics<br />
+contract</strong>: the shipped Stage-0 passes are the authoritative definition of the<br />
+pipeline's behavior, and the Stage-1 dialects + passes are correct iff they<br />
+agree with them on every graph.</p>
+<h2 id="1-the-lowering-contract">1. The lowering contract</h2>
+<div class="highlight"><pre><span></span>vaked dialect ──Pass 1 (analyze)──▶ vaked (annotated: depth, acyclic)
+       │
+       └──Pass 2 (vaked→hcp)──▶ hcp dialect (WAL sequences, rewind scopes)
+                                     │
+                                     ├──Pass 3──▶ AOT supervisor index (0023)
+                                     │
+                                     └──hcp→LLVM──▶ compiled agent binaries
+</pre></div>
+
+<p>Progressive lowering, MLIR-idiomatic: each stage is a dialect whose verifier<br />
+holds before the next pass runs. Pass 1 (<a href="./0021-mlir-pass-topology-analysis.md">0021</a>)<br />
+analyzes and annotates <code>vaked</code>; Pass 2 (<a href="./0022-mlir-pass-wal-injection.md">0022</a>)<br />
+rewrites <code>vaked → hcp</code>; Pass 3 (<a href="./0023-mlir-pass-aot-supervisor-index.md">0023</a>)<br />
+reads the <code>hcp</code> module to emit the index; the final <code>hcp → LLVM</code> lowering is the<br />
+agent-binary codegen that <em>only Stage 1 performs</em> (§2).</p>
+<h2 id="2-stage-0-vs-stage-1">2. Stage 0 vs Stage 1</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Stage 0 — <strong>now</strong></th>
+<th>Stage 1 — <strong>deferred</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Substrate</td>
+<td>the typed graph (LPG) in <code>vakedc</code></td>
+<td>the real <code>vaked</code>/<code>hcp</code> MLIR dialects</td>
+</tr>
+<tr>
+<td>Pass 1</td>
+<td><code>vakedc/check.py</code> <code>_check_workflow</code> (<code>E-WORKFLOW-CYCLE/DEPTH</code>)</td>
+<td>MLIR analysis pass (<a href="./0021-mlir-pass-topology-analysis.md">0021</a>)</td>
+</tr>
+<tr>
+<td>Pass 2</td>
+<td>edge + eventd-log wiring in <code>gen/workflow/&lt;name&gt;.json</code> (runtime does WAL)</td>
+<td>explicit <code>hcp</code> WAL sequence (<a href="./0022-mlir-pass-wal-injection.md">0022</a>)</td>
+</tr>
+<tr>
+<td>Pass 3</td>
+<td><code>vakedc/lower.py</code> <code>emit_workflow_spec</code> JSON</td>
+<td>packed binary index (<a href="./0023-mlir-pass-aot-supervisor-index.md">0023</a>)</td>
+</tr>
+<tr>
+<td><code>hcp → LLVM</code></td>
+<td>— (no compiled agent binaries yet)</td>
+<td>agent-binary codegen</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What gates Stage 1.</strong> MLIR is a heavyweight C++ dependency; <code>vakedc</code> is a<br />
+small, deterministic front-end (soon a Zig port, #15). Stage 1 is justified only<br />
+when <strong>agent binaries are compiled ahead-of-time</strong> — that is the point where<br />
+MLIR's pass infrastructure, verification, and codegen pay for their weight.<br />
+Until then the dialects are specified (this set) but unbuilt, and the Stage-0<br />
+passes run the pipeline.</p>
+<h2 id="3-what-never-enters-mlir">3. What never enters MLIR</h2>
+<p>MLIR compiles the <strong>topology</strong>, not the runtime that runs on it. These stay<br />
+dynamic, supervised I/O — outside every dialect and pass in this set:</p>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Why not MLIR</th>
+<th>Design</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>eventd</code></td>
+<td>append-only, hash-chained runtime log — dynamic I/O</td>
+<td><a href="../superpowers/specs/2026-06-12-eventd-design.md">eventd design</a></td>
+</tr>
+<tr>
+<td><code>memory</code> store</td>
+<td>runtime-accumulated, mined, replayable</td>
+<td><a href="./0014-memory-primitive.md">0014</a></td>
+</tr>
+<tr>
+<td>Zig enforcement daemons</td>
+<td>runtime membranes (eBPF/network)</td>
+<td><code>daemons/</code> roster</td>
+</tr>
+<tr>
+<td>OTP control plane</td>
+<td>live supervision / lifecycle transitions</td>
+<td>RFC 0004 §6 (<code>agent-supervisord</code>)</td>
+</tr>
+<tr>
+<td><code>ConsumerCheckpoint</code> / GC floor</td>
+<td>runtime checkpoint + compaction state</td>
+<td>RFC 0004 §4 (see <a href="./0020-mlir-hcp-dialect.md">0020</a> §1)</td>
+</tr>
+</tbody>
+</table>
+<p>The compiler <strong>guarantees the topology</strong> these systems run on; it does not<br />
+become them. This is the original Spark's caveat, made normative: use MLIR to<br />
+build the DSL + compiler pipeline that sits <em>above</em> the architecture, not the<br />
+real-time runtime engine.</p>
+<h2 id="4-the-reference-semantics-contract-normative">4. The reference-semantics contract (normative)</h2>
+<p>Until Stage 1 ships and is proven equivalent, <strong>the Stage-0 passes are the<br />
+definition of the pipeline's behavior.</strong> The Stage-1 dialects + passes are<br />
+<em>correct</em> iff, for every input graph, they produce the verdict and artifacts the<br />
+Stage-0 functions produce. The obligations, gathered from each part's "Stage-0<br />
+fidelity" section:</p>
+<table>
+<thead>
+<tr>
+<th>Obligation</th>
+<th>Stage-1 surface</th>
+<th>Stage-0 authority</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>O1 — edge set</strong></td>
+<td>the <code>state_dependency</code> edges Pass 1 builds from <code>vaked.consume</code></td>
+<td>the <code>workflow</code> <code>-&gt;</code> edges (<code>_check_workflow</code>); no edge added or dropped</td>
+</tr>
+<tr>
+<td><strong>O2 — cycle verdict</strong></td>
+<td>Pass 1 <code>E-WORKFLOW-CYCLE</code>, first back-edge, module order</td>
+<td><code>_check_workflow</code> coloured DFS</td>
+</tr>
+<tr>
+<td><strong>O3 — depth</strong></td>
+<td>Pass 1 critical path; <code>E-WORKFLOW-DEPTH</code> vs <code>maxDepth</code></td>
+<td><code>_workflow_depth</code> recurrence + the <code>maxDepth</code> check</td>
+</tr>
+<tr>
+<td><strong>O4 — WAL binding</strong></td>
+<td>per-consume <code>create→write_ahead→fetch</code> (V-WAL-ORDER)</td>
+<td>the <code>edges</code> + eventd <code>log</code> of <code>emit_workflow_spec</code></td>
+</tr>
+<tr>
+<td><strong>O5 — index contents</strong></td>
+<td>Pass 3 roster / subscription / depth / log</td>
+<td>the <code>steps</code> / <code>edges</code> / <code>depth</code> / <code>log</code> of <code>gen/workflow/&lt;name&gt;.json</code></td>
+</tr>
+<tr>
+<td><strong>O6 — determinism</strong></td>
+<td>byte-identical output per input module</td>
+<td>the <code>0012</code> purity contract (same graph ⇒ byte-identical artifacts)</td>
+</tr>
+</tbody>
+</table>
+<p>A Stage-1 result that diverges from O1–O6 is a <strong>bug in Stage 1</strong>, not a license<br />
+to change the contract. When Stage 1 lands, an equivalence test harness (run the<br />
+LPG passes and the MLIR passes over a corpus of <code>.vaked</code> graphs and diff the<br />
+verdicts + artifacts) is the acceptance gate; only after it is green does the<br />
+authority shift from <code>vakedc</code> to the dialect verifier.</p>
+<h2 id="security-considerations">Security considerations</h2>
+<ul>
+<li><strong>The contract is the anti-drift mechanism.</strong> Two implementations of one<br />
+  semantics drift unless one is authoritative. Pinning authority to the shipped,<br />
+  deterministic Stage-0 passes means a Stage-1 dialect can never <em>weaken</em> a<br />
+  guarantee (drop an edge, miss a cycle, skip a registration) without the<br />
+  equivalence harness going red.</li>
+<li><strong>Scope discipline is a security property.</strong> §3's exclusions keep the<br />
+  runtime's dynamic trust decisions (compaction, eviction, lifecycle) out of the<br />
+  compiler, which cannot observe live lease/heartbeat state (RFC 0004 §4) — the<br />
+  compiler must not appear to authorize what it cannot see.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>The equivalence harness (§4): does it live in <code>vakedc</code>'s test suite or as a<br />
+  standalone Stage-1 acceptance tool? Decide when Stage 1 starts (#15/#17).</li>
+<li>Whether any Stage-0 pass should be <em>frozen</em> (no further semantic change) once<br />
+  it becomes a reference, to stop the authority moving under Stage 1 mid-build.</li>
+<li>The <code>hcp → LLVM</code> agent-binary ABI is entirely open — it is Stage 1's first<br />
+  real design task and intentionally unspecified here (this set stops at the<br />
+  dialects + the three topology passes).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0024-mlir-lowering-staged-adoption.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP4-S7 — vakedos deploy test (#114) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-in-scope" style="padding-left:1rem">  1.1 In scope</a><a href="#12-out-of-scope-explicit-with-provenance-so-a-reader-does-not-think-they-were-mi" style="padding-left:1rem">  1.2 Out of scope (explicit, with provenance so a reader does not think they were missed)</a><a href="#2-inputs-and-oracles" style="padding-left:0.5rem">2. Inputs and oracles</a><a href="#21-operational-is-an-rfc-oracle-not-systemctl-is-active" style="padding-left:1rem">  2.1 "Operational" is an RFC oracle, not `systemctl is-active`</a><a href="#22-host-config-inputs-present-today-no-host-change-in-s7" style="padding-left:1rem">  2.2 Host-config inputs (present today, no host change in S7)</a><a href="#23-runtime-wiring-inputs-blocked-the-gap-made-concrete" style="padding-left:1rem">  2.3 Runtime-wiring inputs (blocked — the gap, made concrete)</a><a href="#3-file-layout-paths-to-create-modify" style="padding-left:0.5rem">3. File layout (paths to create / modify)</a><a href="#4-algorithm-design" style="padding-left:0.5rem">4. Algorithm / design</a><a href="#41-the-nixostest-nixtestsvakedos-deploynix-primary-deliverable" style="padding-left:1rem">  4.1 The nixosTest (`nix/tests/vakedos-deploy.nix`) — primary deliverable</a><a href="#42-systemd-unit-interface-contract-testmodulecontractpy" style="padding-left:1rem">  4.2 Systemd-unit interface contract (`test_module_contract.py`)</a><a href="#43-bare-metal-verify-checklist-testdeploychecklistpy-deploy-checklisttoml" style="padding-left:1rem">  4.3 Bare-metal verify checklist (`test_deploy_checklist.py` + `deploy-checklist.toml`)</a><a href="#44-reconciling-vakedz-lower-vs-vakedc-lower-named-not-silently-picked" style="padding-left:1rem">  4.4 Reconciling `vakedz lower` vs `vakedc lower` (named, not silently picked)</a><a href="#5-test-plan-m1-local-vs-linux-vm-vs-bare-metal" style="padding-left:0.5rem">5. Test plan — M1-local vs Linux-VM vs bare-metal</a><a href="#51-runs-fully-on-m1-aarch64-darwin-pure-evaluation-no-closure-realized" style="padding-left:1rem">  5.1 Runs fully on M1 (aarch64-darwin) — pure evaluation, no closure realized</a><a href="#52-requires-a-linux-x8664-host-dev-cx53-lane-kvm-closure-realize-vm-boot" style="padding-left:1rem">  5.2 Requires a Linux x86_64 host (dev-cx53 lane, KVM) — closure realize + VM boot</a><a href="#53-requires-the-bare-metal-box-vultr-epyc-4345p-114-spring-2027-horizon" style="padding-left:1rem">  5.3 Requires the bare-metal box (Vultr EPYC 4345P) — #114 / spring-2027 horizon</a><a href="#54-ci-wiring-githubworkflowswp4-s7-deployyml" style="padding-left:1rem">  5.4 CI wiring (`.github/workflows/wp4-s7-deploy.yml`)</a><a href="#6-algorithm-summary-deploy-test-control-flow" style="padding-left:0.5rem">6. Algorithm summary (deploy-test control flow)</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp4-s7</div>
+<h1>WP4-S7 — vakedos deploy test (#114)</h1>
+<h1 id="wp4-s7-vakedos-deploy-test-114">WP4-S7 — vakedos deploy test (#114)</h1>
+<h2 id="status">Status</h2>
+<p>Implementation spec (2026-06-14). Sprint <strong>WP4-S7</strong> of the WP4 daemon-MVP track<br />
+(<a href="../plans/2026-06-14-wp4-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md</code></a>,<br />
+table row "WP4-S7 | Sep 18–Sep 30 | vakedos deploy test (#114)"). It is the<br />
+last sprint of WP4: prove that the bare-metal host<br />
+(<a href="../../../hosts/vakedos/"><code>hosts/vakedos/</code></a>, <code>nixosConfigurations.vakedos</code> in<br />
+<a href="../../../flake.nix"><code>flake.nix</code></a>) with the WP4 daemon roster layered on top<br />
+<strong>deploys and comes up operational</strong>.</p>
+<p>This is a <strong>planning artifact</strong>. The end-to-end deploy it specifies is <em>multiply<br />
+blocked</em> (see §7) — most of what it tests does not exist yet (the<br />
+<code>nixosModules.&lt;runtime&gt;</code> wiring layer, the emitted systemd units, two of the<br />
+three daemons). S7 therefore specifies the <strong>harness, oracles, and gates</strong><br />
+completely and concretely, and marks the end-to-end run blocked-on those<br />
+dependencies, exactly the way<br />
+<a href="2026-06-14-wp4-s2.md"><code>2026-06-14-wp4-s2.md</code></a> gated its config-driven path on<br />
+design step 0 (see its §1.2 and criterion 7). Over-claiming a deploy that cannot<br />
+run is the failure mode this spec is written to prevent.</p>
+<p><strong>Build / verification environment.</strong> dev-cx53 (Linux x86_64, Nix 2.34.7, kernel<br />
+6.x) is the WP4 build target (kickoff lines 21–22) and is <strong>OFF-LIMITS for the<br />
+current 6h autoresearch window</strong>. Note dev-cx53 is a <em>build host</em>, <strong>not</strong> the<br />
+deploy target — the deploy target is the Vultr bare-metal EPYC 4345P with a ZFS<br />
+mirror and Legacy/BIOS boot (<a href="../../../DEPLOY.md"><code>DEPLOY.md</code></a> §"Target<br />
+hardware"), which no CI host reproduces. Everything below marked <strong>M1-local</strong><br />
+must pass on aarch64-darwin (<code>zig 0.16.0</code>, <code>cargo 1.95.0</code>, arch arm64, verified<br />
+2026-06-14) without dev-cx53; everything marked <strong>Linux-VM</strong> needs an x86_64<br />
+KVM-capable Linux host; everything marked <strong>bare-metal</strong> needs the box itself<br />
+(#114 / spring-2027 horizon).</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Produce a <strong>deploy test</strong> that answers, with mechanical oracles rather than<br />
+eyeballing, two questions for <code>nixosConfigurations.vakedos</code> + the WP4 daemon<br />
+roster:</p>
+<ol>
+<li><strong>Does it build/switch?</strong> — the config evaluates, the x86_64-linux toplevel<br />
+   realizes, and <code>nixos-rebuild switch</code> (or its VM equivalent) succeeds. This is<br />
+   the kickoff success line "<code>nixos-rebuild switch</code> succeeds on bare metal"<br />
+   (<a href="../../../ROADMAP_2026-2027.md"><code>ROADMAP_2026-2027.md</code></a> WP4-7 row).</li>
+<li><strong>Are the daemons operational?</strong> — <code>agent-supervisord</code>, <code>sandboxd</code>, and<br />
+<code>eventd</code> come up under systemd and reach a <em>protocol-defined</em> operational<br />
+   state, <strong>not merely <code>systemctl is-active</code></strong>. The oracle for "operational" is<br />
+   RFC 0004 §6 (cold-start verifies dependency freshness before RUNNING) and<br />
+   RFC 0001 §5 (write-ahead-before-effect; only canonical frames on the eventd<br />
+   chain), §2.1 below.</li>
+</ol>
+<p>The primary deliverable is a <strong><code>nixosTest</code></strong> (<code>pkgs.testers.runNixOSTest</code>,<br />
+exposed as <code>checks.&lt;system&gt;.vakedos-deploy</code>) that boots the config in a VM and<br />
+asserts (1) and the VM-observable subset of (2). The nixosTest is what bridges<br />
+"dev-cx53 off-limits / the box does not exist yet" and "still mechanically<br />
+verifiable." The bare-metal-only properties (ZFS mirror, BIOS/GRUB, ECC) stay a<br />
+<strong>checklist test</strong> against <a href="../../../DEPLOY.md"><code>DEPLOY.md</code></a> §"5. Verify" for the<br />
+day the hardware is provisioned.</p>
+<h3 id="11-in-scope">1.1 In scope</h3>
+<ul>
+<li>A <code>nixosTest</code> (<code>checks.&lt;system&gt;.vakedos-deploy</code>) that boots vakedos-in-a-VM,<br />
+  asserts the system reaches <code>multi-user.target</code>, and asserts daemon<br />
+  operational state via the RFC oracles (§2.1, §4).</li>
+<li>A <strong>pure-eval gate</strong> (<code>nix flake check</code> + module-option assertions) that runs<br />
+  on M1 without realizing the closure (§5.1).</li>
+<li>A <strong>bare-metal verify checklist</strong> test: a structured, machine-checkable<br />
+  encoding of the <a href="../../../DEPLOY.md"><code>DEPLOY.md</code></a> §5 steps, tagged<br />
+  VM-coverable vs box-only (§4.3, §5.3).</li>
+<li>A <strong>systemd-unit interface contract</strong> test: assert that the units the daemons<br />
+  need are declared with the dependency order RFC 0001 §5 / RFC 0004 require —<br />
+  written <em>against the contract</em> so it fails loudly the moment the deferred<br />
+  emitter (lowering §7) lands wrong (§4.2).</li>
+<li>The M1-vs-Linux-VM-vs-bare-metal split, named per check (§5).</li>
+</ul>
+<h3 id="12-out-of-scope-explicit-with-provenance-so-a-reader-does-not-think-they-were-missed">1.2 Out of scope (explicit, with provenance so a reader does not think they were missed)</h3>
+<ul>
+<li><strong><code>nixosModules.&lt;runtime&gt;</code> itself.</strong> S7 <em>consumes</em> the runtime wiring module<br />
+  (the layer that installs <code>gen/</code> artifacts and points daemons at them, lowering<br />
+<a href="../../language/0012-lowering.md"><code>docs/language/0012-lowering.md</code></a> §4.3); it<br />
+  does not author it. Today <code>flake.nix</code> defines only<br />
+<code>nixosModules.vaked-telebot</code> — the runtime module <strong>does not exist</strong>. This is<br />
+  S7's primary blocker (§7).</li>
+<li><strong>Emitting the systemd units.</strong> The <code>systemd.units</code> lowering target is<br />
+<strong>interface-stubbed / deferred</strong> (lowering §7 table: "unit details depend on<br />
+  the daemon packaging, deferred with the daemons … The OTP supervision <em>tree</em><br />
+  itself is no longer deferred: <code>otp.supervision</code> (§3.4) emits it"). S7 does not<br />
+  write the emitter; it writes the <strong>contract test</strong> the emitter must satisfy.</li>
+<li><strong>Building the daemons.</strong> <code>agent-supervisord</code> and <code>eventd</code> daemon dirs are<br />
+<strong>MISSING</strong> (<code>daemons/agent-supervisord/</code>, <code>daemons/eventd/</code> do not exist);<br />
+<code>daemons/sandboxd/</code> is a WP4-S1 stub. S1–S6 are hard prerequisites (§7); S7<br />
+  assumes their artifacts and tests them in situ.</li>
+<li><strong>WP4-S6 integration test.</strong> No S6 spec exists in this dir (only s2/s3). S7<br />
+  does <strong>not</strong> re-specify "3 daemons running together" — that is the S6<br />
+  deliverable (kickoff row "WP4-S6 | … | integration test (3 daemons running on<br />
+  vakedos)"). S7 layers the <em>deploy/boot</em> dimension on top of whatever S6<br />
+  produces and consumes its integration harness as a building block (§7).</li>
+<li><strong>eventd byte-format / hash-chain encoding.</strong> The canonical frame encoding and<br />
+  the SHA-256 chain are owned by eventd (WP4-S4) and the hcpbin spec (WP3 /<br />
+  RFC 0002 §6, worked examples §6.1.1 etc.) — <strong>not</strong> S7. S7 asserts only<br />
+<em>"eventd is up and a write-ahead append advances the chain"</em> via the RFC 0001<br />
+  §5 / RFC 0004 §6 behavioural oracles, never the byte layout. (For the record,<br />
+  the kickoff/issue phrasing "RFC 0002 §4 / Appendix A" is stale: the encoding<br />
+  is RFC 0002 <strong>§6</strong> with no Appendix A, and frame headers are RFC 0003 — S7<br />
+  cites neither because it stays out of the encoding.)</li>
+<li><strong>eBPF policy manifest, OTel collector config, surface launcher</strong> — the other<br />
+  three deferred lowering §7 targets. The vakedos <em>substrate</em> exposes their<br />
+  kernel/system facilities (bpftool, nft, etc. — <code>DEPLOY.md</code> §5), but wiring the<br />
+  daemon configs onto them is downstream of the runtime module (§4.3 note: "the<br />
+  artifacts themselves are no-ops today").</li>
+</ul>
+<h2 id="2-inputs-and-oracles">2. Inputs and oracles</h2>
+<h3 id="21-operational-is-an-rfc-oracle-not-systemctl-is-active">2.1 "Operational" is an RFC oracle, not <code>systemctl is-active</code></h3>
+<p>A deploy test must define <em>operational</em> mechanically. For the WP4 roster the<br />
+definition comes from the protocol, not from systemd liveness:</p>
+<table>
+<thead>
+<tr>
+<th>Oracle</th>
+<th>Where</th>
+<th>What S7 asserts from it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cold-start verifies before RUNNING</strong></td>
+<td><a href="../../../protocol/rfcs/0004-multi-agent-state-dependency.md"><code>RFC 0004 §6</code></a> "Invariant III — cold start verifies before RUNNING"; algorithm §6.1 (<code>provisional</code>)</td>
+<td>After boot, <code>agent-supervisord</code> runs cold-start verification for each direct producer dependency <em>before</em> a consumer enters <code>RUNNING</code>; a stale/absent anchor leaves the consumer in <code>stale_dependency</code> (paused), <strong>not</strong> RUNNING (RFC 0004 §6, lines 570–618; <code>stale_dependency</code> defined line 51). "Operational" = the supervisor performed cold-start and the no-dependency daemons reached RUNNING.</td>
+</tr>
+<tr>
+<td><strong>Write-ahead before effect</strong></td>
+<td><a href="../../../protocol/rfcs/0001-hcp.md"><code>RFC 0001 §5</code></a> "Supervision and state dependencies: <code>agent-supervisord</code>" (lines ~425–467)</td>
+<td>Every applied control action is logged to eventd <em>before</em> it takes effect (<code>agent → … → agent-supervisord → eventd → effect</code>). S7's smoke asserts a control verb produces an eventd append <em>that precedes</em> the observable effect.</td>
+</tr>
+<tr>
+<td><strong>Only canonical frames on the chain</strong></td>
+<td>RFC 0001 §5 "Event log and tamper-evidence: <code>eventd</code>" (lines ~444–462)</td>
+<td>eventd is up and an append advances the hash chain (S7 asserts <em>advancement + tamper-evidence behaviour</em>, never the byte encoding — §1.2).</td>
+</tr>
+<tr>
+<td><strong>Roster + membrane mapping</strong></td>
+<td><a href="../../runtime/README.md"><code>docs/runtime/README.md</code></a> "Daemons" / "Membrane mapping"</td>
+<td>The three WP4 daemons map to the expected membranes (process → sandboxd; control plane → agent-supervisord; audit spine → eventd) and the systemd dependency order reflects it.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-host-config-inputs-present-today-no-host-change-in-s7">2.2 Host-config inputs (present today, no host change in S7)</h3>
+<ul>
+<li><a href="../../../flake.nix"><code>flake.nix</code></a> <code>nixosConfigurations.vakedos</code> (modules:<br />
+<code>disko.nixosModules.disko</code>, <code>./hosts/vakedos/configuration.nix</code>).</li>
+<li><a href="../../../hosts/vakedos/configuration.nix"><code>hosts/vakedos/configuration.nix</code></a> —<br />
+<code>nixpkgs.hostPlatform.system = "x86_64-linux"</code>, <code>gcc.arch = "znver4"</code>, Legacy<br />
+  GRUB (<code>boot.loader.grub.efiSupport = false</code>), cgroup-v2, sysctls.</li>
+<li><a href="../../../hosts/vakedos/disko.nix"><code>hosts/vakedos/disko.nix</code></a> — ZFS mirror,<br />
+  1 MiB <code>EF02</code> BIOS-boot partition, datasets (<code>/nix /var /home /build
+  /var/lib/vaked /var/lib/vaked</code> per <code>DEPLOY.md</code> §5).</li>
+<li><a href="../../../DEPLOY.md"><code>DEPLOY.md</code></a> §5 "Verify" — the <strong>bare-metal oracle</strong>: the<br />
+  exact post-install checklist (<code>zpool status rpool</code>, <code>zfs list</code>, <code>free -g</code>,<br />
+<code>nproc</code>, <code>lscpu</code>, <code>ras-mc-ctl --status</code>, <code>systemctl status sshd irqbalance</code>,<br />
+<code>bpftool/wasmtime/nft</code>, SIGILL check, <code>nix build nixpkgs#hello</code>, survives<br />
+  reboot).</li>
+</ul>
+<h3 id="23-runtime-wiring-inputs-blocked-the-gap-made-concrete">2.3 Runtime-wiring inputs (blocked — the gap, made concrete)</h3>
+<p>S7's end-to-end leg needs three artifacts that <strong>do not exist yet</strong>:</p>
+<ol>
+<li><code>nixosModules.&lt;runtime&gt;</code> — the wiring module (lowering §4.3). Today only<br />
+<code>nixosModules.vaked-telebot</code> exists in <code>flake.nix</code>.</li>
+<li>Emitted <code>systemd.units</code> for the three daemons (lowering §7, deferred). The<br />
+   Taskfile <code>deploy</code> target itself documents this: <em>"aspirational: needs<br />
+<code>nixosModules.&lt;runtime&gt;</code> materialized — interface-only in the spine today"</em><br />
+   (<a href="../../../Taskfile.yml"><code>Taskfile.yml</code></a> <code>deploy:</code>).</li>
+<li>The daemon binaries packaged as flake <code>packages.&lt;system&gt;.&lt;daemon&gt;</code> so the<br />
+   module can reference them. Two of three daemon dirs are MISSING.</li>
+</ol>
+<p>Until these land, S7 runs against a <strong>fixture runtime module</strong><br />
+(<code>tests/spec/fixtures/vakedos-deploy/runtime.nix</code>, §3) that hand-wires the three<br />
+daemons with placeholder <code>ExecStart</code>s — the <em>proposed shape</em> of what §4.3 / §7<br />
+must emit, captured so the gap is concrete (mirrors S2 §2.2's fixture<br />
+discipline). When the real emitters land, the fixture is replaced by the<br />
+generated <code>gen/</code> module with no change to the test assertions.</p>
+<h2 id="3-file-layout-paths-to-create-modify">3. File layout (paths to create / modify)</h2>
+<div class="highlight"><pre><span></span><span class="n">docs</span><span class="o">/</span><span class="n">superpowers</span><span class="o">/</span><span class="n">specs</span><span class="o">/</span>
+  <span class="mi">2026</span><span class="o">-</span><span class="mi">06</span><span class="o">-</span><span class="mi">14</span><span class="o">-</span><span class="n">wp4</span><span class="o">-</span><span class="n">s7</span><span class="o">.</span><span class="n">md</span>             <span class="c1"># THIS spec</span>
+
+<span class="n">nix</span><span class="o">/</span>
+  <span class="n">tests</span><span class="o">/</span>
+    <span class="n">vakedos</span><span class="o">-</span><span class="n">deploy</span><span class="o">.</span><span class="n">nix</span>             <span class="c1"># NEW: the nixosTest (runNixOSTest) — the primary deliverable (§4)</span>
+<span class="n">flake</span><span class="o">.</span><span class="n">nix</span>                          <span class="c1"># MODIFY: add checks.&lt;system&gt;.vakedos-deploy → import nix/tests/vakedos-deploy.nix</span>
+                                   <span class="c1">#         (Linux-only check; gated by `lib.optionalAttrs (isLinux system)`)</span>
+
+<span class="n">tests</span><span class="o">/</span><span class="n">spec</span><span class="o">/</span>
+  <span class="n">vakedos_deploy</span><span class="o">/</span>                  <span class="c1"># NEW: M1-local pure-eval + checklist tests (pytest, matches `task test`)</span>
+    <span class="n">test_eval</span><span class="o">.</span><span class="n">py</span>                   <span class="c1"># NEW: nix eval assertions — config evaluates, toplevel drvPath resolves (§5.1)</span>
+    <span class="n">test_module_contract</span><span class="o">.</span><span class="n">py</span>        <span class="c1"># NEW: systemd-unit interface contract over the (fixture) runtime module (§4.2)</span>
+    <span class="n">test_deploy_checklist</span><span class="o">.</span><span class="n">py</span>       <span class="c1"># NEW: DEPLOY.md §5 checklist encoded + tagged VM/box-only (§4.3, §5.3)</span>
+    <span class="n">fixtures</span><span class="o">/</span>
+      <span class="n">vakedos</span><span class="o">-</span><span class="n">deploy</span><span class="o">/</span>
+        <span class="n">runtime</span><span class="o">.</span><span class="n">nix</span>                <span class="c1"># NEW: fixture runtime module (the §2.3 gap, hand-wired) — replaced by gen/ when §4.3/§7 land</span>
+        <span class="n">expected</span><span class="o">-</span><span class="n">units</span><span class="o">.</span><span class="n">json</span>        <span class="c1"># NEW: the unit set + After=/Requires= order the contract test asserts (§4.2)</span>
+        <span class="n">deploy</span><span class="o">-</span><span class="n">checklist</span><span class="o">.</span><span class="n">toml</span>      <span class="c1"># NEW: DEPLOY.md §5 items, each {cmd, expect, tier: vm|box}</span>
+
+<span class="o">.</span><span class="n">github</span><span class="o">/</span><span class="n">workflows</span><span class="o">/</span>
+  <span class="n">wp4</span><span class="o">-</span><span class="n">s7</span><span class="o">-</span><span class="n">deploy</span><span class="o">.</span><span class="n">yml</span>                <span class="c1"># NEW: CI lane — M1-eval job (any runner) + Linux-VM nixosTest job (x86_64 KVM)</span>
+</pre></div>
+
+<p>Rationale for <code>nix/tests/</code> + <code>tests/spec/</code>: the nixosTest is Nix-native and<br />
+belongs with the flake (<code>checks</code>); the eval/contract/checklist tests are Python<br />
+and slot into the existing <code>task test</code> (<code>python3 -m pytest tests -q</code>,<br />
+<a href="../../../Taskfile.yml"><code>Taskfile.yml</code></a> <code>test:</code>) which already runs on M1.</p>
+<h2 id="4-algorithm-design">4. Algorithm / design</h2>
+<h3 id="41-the-nixostest-nixtestsvakedos-deploynix-primary-deliverable">4.1 The nixosTest (<code>nix/tests/vakedos-deploy.nix</code>) — primary deliverable</h3>
+<p><code>pkgs.testers.runNixOSTest { nodes.machine = …; testScript = …; }</code> boots a single<br />
+VM that imports <code>hosts/vakedos/configuration.nix</code> <strong>plus</strong> the runtime module<br />
+(fixture today, generated later). Because the nixosTest VM uses its own<br />
+qemu-friendly disk/boot, the test <strong>overrides the bare-metal-only pieces</strong> that a<br />
+VM cannot honour and records each override (so they are visibly <em>not</em> tested<br />
+here, only in §4.3 / bare-metal):</p>
+<ul>
+<li>replace <code>./disko.nix</code> (ZFS mirror + BIOS partitions) with the default<br />
+<code>virtualisation</code> disk — <strong>ZFS-mirror / BIOS-GRUB / by-id disks are NOT covered<br />
+  by the VM</strong> (box-only, §4.3);</li>
+<li>drop <code>nixpkgs.hostPlatform.gcc.arch = "znver4"</code> for the VM run (the VM CPU is<br />
+  not guaranteed Zen 5; the global-<code>-march</code> from-source rebuild is a build<br />
+  concern, asserted separately in §5.2) — <strong>SIGILL/<code>-march</code> correctness is<br />
+  box-only</strong>;</li>
+<li>keep cgroup-v2, sysctls, sshd, and the <strong>daemon units</strong> intact — these <em>are</em><br />
+  what the VM exists to test.</li>
+</ul>
+<p><code>testScript</code> (Python) asserts, in order:</p>
+<div class="highlight"><pre><span></span><span class="nt">machine</span><span class="p">.</span><span class="nc">wait_for_unit</span><span class="o">(</span><span class="s2">&quot;multi-user.target&quot;</span><span class="o">)</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">system</span><span class="w"> </span><span class="nt">switched</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">booted</span>
+<span class="nt">machine</span><span class="p">.</span><span class="nc">wait_for_unit</span><span class="o">(</span><span class="s2">&quot;eventd.service&quot;</span><span class="o">)</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nt">audit</span><span class="w"> </span><span class="nt">spine</span><span class="w"> </span><span class="nt">up</span><span class="w"> </span><span class="nt">first</span><span class="w"> </span><span class="o">(</span><span class="nt">roster</span><span class="w"> </span><span class="nt">order</span><span class="o">)</span>
+<span class="nt">machine</span><span class="p">.</span><span class="nc">wait_for_unit</span><span class="o">(</span><span class="s2">&quot;agent-supervisord.service&quot;</span><span class="o">)</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="nt">control</span><span class="w"> </span><span class="nt">plane</span><span class="w"> </span><span class="nt">up</span>
+<span class="nt">machine</span><span class="p">.</span><span class="nc">wait_for_unit</span><span class="o">(</span><span class="s2">&quot;sandboxd.service&quot;</span><span class="o">)</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="nt">isolation</span><span class="w"> </span><span class="nt">daemon</span><span class="w"> </span><span class="nt">up</span>
+<span class="err">#</span><span class="w"> </span><span class="nt">operational</span><span class="o">,</span><span class="w"> </span><span class="nt">per</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">oracle</span><span class="w"> </span><span class="o">(</span><span class="err">§</span><span class="nt">2</span><span class="p">.</span><span class="nc">1</span><span class="o">)</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">NOT</span><span class="w"> </span><span class="nt">mere</span><span class="w"> </span><span class="nt">is-active</span><span class="o">:</span>
+<span class="nt">machine</span><span class="p">.</span><span class="nc">succeed</span><span class="o">(</span><span class="s2">&quot;vaked-supervisorctl status&quot;</span><span class="o">)</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nt">supervisor</span><span class="w"> </span><span class="nt">reports</span><span class="w"> </span><span class="nt">its</span><span class="w"> </span><span class="nt">tree</span>
+<span class="err">#</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0004</span><span class="w"> </span><span class="err">§</span><span class="nt">6</span><span class="o">:</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="nt">no-dependency</span><span class="w"> </span><span class="nt">daemon</span><span class="w"> </span><span class="nt">reaches</span><span class="w"> </span><span class="nt">RUNNING</span><span class="o">;</span><span class="w"> </span><span class="nt">cold-start</span><span class="w"> </span><span class="nt">ran</span>
+<span class="nt">assert</span><span class="w"> </span><span class="s2">&quot;RUNNING&quot;</span><span class="w"> </span><span class="nt">in</span><span class="w"> </span><span class="nt">machine</span><span class="p">.</span><span class="nc">succeed</span><span class="o">(</span><span class="s2">&quot;vaked-supervisorctl state eventd&quot;</span><span class="o">)</span>
+<span class="err">#</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0001</span><span class="w"> </span><span class="err">§</span><span class="nt">5</span><span class="o">:</span><span class="w"> </span><span class="nt">write-ahead</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="nt">control</span><span class="w"> </span><span class="nt">verb</span><span class="w"> </span><span class="nt">appends</span><span class="w"> </span><span class="nt">to</span><span class="w"> </span><span class="nt">eventd</span><span class="w"> </span><span class="nt">BEFORE</span><span class="w"> </span><span class="nt">effect</span>
+<span class="nt">chain0</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">machine</span><span class="p">.</span><span class="nc">succeed</span><span class="o">(</span><span class="s2">&quot;vaked-eventctl head&quot;</span><span class="o">)</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="nt">chain</span><span class="w"> </span><span class="nt">head</span><span class="w"> </span><span class="nt">pre-action</span>
+<span class="nt">machine</span><span class="p">.</span><span class="nc">succeed</span><span class="o">(</span><span class="s2">&quot;vaked-supervisorctl pause sandboxd&quot;</span><span class="o">)</span>
+<span class="nt">chain1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">machine</span><span class="p">.</span><span class="nc">succeed</span><span class="o">(</span><span class="s2">&quot;vaked-eventctl head&quot;</span><span class="o">)</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="nt">chain</span><span class="w"> </span><span class="nt">advanced</span><span class="w"> </span><span class="o">(</span><span class="nt">append</span><span class="w"> </span><span class="nt">happened</span><span class="o">)</span>
+<span class="nt">assert</span><span class="w"> </span><span class="nt">chain0</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nt">chain1</span>
+<span class="nt">assert</span><span class="w"> </span><span class="s2">&quot;paused&quot;</span><span class="w"> </span><span class="nt">in</span><span class="w"> </span><span class="nt">machine</span><span class="p">.</span><span class="nc">succeed</span><span class="o">(</span><span class="s2">&quot;vaked-supervisorctl state sandboxd&quot;</span><span class="o">)</span><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nt">effect</span><span class="w"> </span><span class="nt">followed</span>
+</pre></div>
+
+<p>The exact <code>vaked-supervisorctl</code> / <code>vaked-eventctl</code> surface is whatever S3/S6 ship<br />
+(S7 consumes it); the assertions above are the <em>contract</em> those tools must make<br />
+observable. Where S6's integration harness already exposes equivalent<br />
+introspection, S7 calls it rather than reinventing.</p>
+<p><strong>Why a nixosTest and not a script:</strong> it is the only way, without the box, to<br />
+exercise "switch succeeds + daemons operational" against the <em>real</em> unit<br />
+graph — it boots the actual config, starts the actual systemd units, and runs<br />
+assertions inside the guest. It needs <strong>x86_64 KVM</strong> (Linux / dev-cx53 lane),<br />
+<strong>not</strong> M1.</p>
+<h3 id="42-systemd-unit-interface-contract-test_module_contractpy">4.2 Systemd-unit interface contract (<code>test_module_contract.py</code>)</h3>
+<p>Independent of booting anything, assert the runtime module <em>declares</em> the units<br />
+and dependency order the protocol requires. Source of truth:<br />
+<code>fixtures/vakedos-deploy/expected-units.json</code>. Assertions (each cites its<br />
+oracle):</p>
+<ul>
+<li><code>eventd.service</code>, <code>agent-supervisord.service</code>, <code>sandboxd.service</code> all declared.</li>
+<li><code>agent-supervisord.service</code> has <code>After=eventd.service</code> <strong>and</strong><br />
+<code>Requires=eventd.service</code> — RFC 0001 §5 write-ahead: the supervisor logs to<br />
+  eventd <em>before</em> effect, so eventd must be up first.</li>
+<li><code>sandboxd.service</code> <code>After=agent-supervisord.service</code> — sandboxd is the exec<br />
+  mechanism the supervisor drives (runtime README membrane map: process →<br />
+  sandboxd; supervisor orchestrates the Zig daemons).</li>
+<li>supervisor unit type/<code>Type=notify</code> (or equivalent) so systemd's notion of<br />
+  "started" aligns with the cold-start-complete moment (RFC 0004 §6).</li>
+</ul>
+<p>Implementation: <code>nix eval --json</code> the module's<br />
+<code>config.systemd.services.&lt;name&gt;.{after,requires,…}</code> and diff against<br />
+<code>expected-units.json</code>. <strong>Pure eval ⇒ M1-local</strong> (§5.1). Written <em>against the<br />
+contract</em>, so it fails the instant the deferred §7 emitter wires the order wrong.</p>
+<h3 id="43-bare-metal-verify-checklist-test_deploy_checklistpy-deploy-checklisttoml">4.3 Bare-metal verify checklist (<code>test_deploy_checklist.py</code> + <code>deploy-checklist.toml</code>)</h3>
+<p>Encode <a href="../../../DEPLOY.md"><code>DEPLOY.md</code></a> §5 as <code>{cmd, expect, tier}</code> rows. <code>tier</code><br />
+∈ <code>{vm, box}</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Item (DEPLOY.md §5)</th>
+<th>tier</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>systemctl status sshd irqbalance</code> up</td>
+<td>vm</td>
+<td>systemd services boot in the VM</td>
+</tr>
+<tr>
+<td>daemon units active + operational (§4.1)</td>
+<td>vm</td>
+<td>the nixosTest covers this</td>
+</tr>
+<tr>
+<td><code>bpftool version</code>, <code>nft list ruleset</code></td>
+<td>vm</td>
+<td>substrate tools install in the VM</td>
+</tr>
+<tr>
+<td><code>zpool status rpool</code> ONLINE 0 errors</td>
+<td><strong>box</strong></td>
+<td>ZFS mirror is real-disk only</td>
+</tr>
+<tr>
+<td><code>zfs list</code> datasets present</td>
+<td><strong>box</strong></td>
+<td>disko ZFS layout is box-only</td>
+</tr>
+<tr>
+<td><code>free -g</code> ~128 GB + zram</td>
+<td><strong>box</strong></td>
+<td>hardware RAM</td>
+</tr>
+<tr>
+<td><code>nproc</code> = 16, <code>lscpu</code> EPYC + amd-pstate</td>
+<td><strong>box</strong></td>
+<td>hardware CPU</td>
+</tr>
+<tr>
+<td><code>ras-mc-ctl --status</code> ECC live</td>
+<td><strong>box</strong></td>
+<td>ECC DIMMs are hardware</td>
+</tr>
+<tr>
+<td>SIGILL / <code>-march</code> check (<code>dmesg</code>)</td>
+<td><strong>box</strong></td>
+<td>needs the real Zen 5 CPU running the <code>znver4</code> closure</td>
+</tr>
+<tr>
+<td>survives <code>reboot</code> (BIOS/GRUB + mirror boot)</td>
+<td><strong>box</strong></td>
+<td>BIOS boot + mirror is box-only</td>
+</tr>
+</tbody>
+</table>
+<p>On M1/CI the <code>box</code>-tier rows are <strong>collected and reported as <code>skipped (box-only)</code></strong>,<br />
+not silently dropped — so the checklist stays an honest record of what is <em>not</em><br />
+yet verified. They become live assertions only when run on the provisioned host.</p>
+<h3 id="44-reconciling-vakedz-lower-vs-vakedc-lower-named-not-silently-picked">4.4 Reconciling <code>vakedz lower</code> vs <code>vakedc lower</code> (named, not silently picked)</h3>
+<p>The kickoff success criterion says daemons start "from systemd units generated by<br />
+<strong><code>vakedz lower</code></strong>" (kickoff line 73); the <code>Taskfile.yml</code> <code>deploy:</code> target uses<br />
+<strong><code>vakedc lower</code></strong>. These are the Zig and Python front-ends of the same compiler;<br />
+their reconciler is the <strong><code>vakedz-verify</code> byte-parity gate</strong> (<code>Taskfile.yml</code><br />
+<code>vakedz-verify:</code> — "assert byte-parity with vakedc on the goldens"). S7 does not<br />
+need to pick: whichever front-end emits the units, the bytes are gate-equal, so<br />
+the contract test (§4.2) is front-end-agnostic. <strong>Crucially, both emit nothing<br />
+for <code>systemd.units</code> today</strong> — that target is deferred (lowering §7) — so S7's<br />
+unit source is the §2.3 fixture until the emitter lands.</p>
+<h2 id="5-test-plan-m1-local-vs-linux-vm-vs-bare-metal">5. Test plan — M1-local vs Linux-VM vs bare-metal</h2>
+<p>Three tiers, because a <em>deploy</em> test does not split cleanly into two. The trap is<br />
+the build: <strong>evaluating</strong> the config is pure and M1-local; <strong>realizing</strong> the<br />
+x86_64-linux closure is not.</p>
+<h3 id="51-runs-fully-on-m1-aarch64-darwin-pure-evaluation-no-closure-realized">5.1 Runs fully on M1 (aarch64-darwin) — pure evaluation, no closure realized</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Why M1 is sufficient</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Config evaluates</td>
+<td><code>nix flake check</code> (eval leg)</td>
+<td>pure Nix eval; arch-independent</td>
+</tr>
+<tr>
+<td>Toplevel resolves</td>
+<td><code>nix eval .#nixosConfigurations.vakedos.config.system.build.toplevel.drvPath</code></td>
+<td>resolves the derivation <strong>path</strong> without building it</td>
+</tr>
+<tr>
+<td>Unit interface contract (§4.2)</td>
+<td><code>pytest tests/spec/vakedos_deploy/test_module_contract.py</code> → <code>nix eval --json …systemd.services</code></td>
+<td>pure eval of module options</td>
+</tr>
+<tr>
+<td>Deploy checklist parse + vm-tier dry rows (§4.3)</td>
+<td><code>pytest …/test_deploy_checklist.py</code></td>
+<td>box-tier rows reported <code>skipped</code>; parse/shape checked</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Boundary the build-step makes explicit:</strong> <code>nix build
+.#nixosConfigurations.vakedos.config.system.build.toplevel</code> (DEPLOY.md §3<br />
+"Dry-build") <strong>does not plainly run on M1</strong> — realizing an x86_64-linux closure<br />
+needs a Linux builder (nix-darwin <code>linux-builder</code> VM or a remote builder). Do<br />
+<strong>not</strong> treat DEPLOY.md §3 as M1-local: it assumes a Linux laptop. On M1 the<br />
+dry-build is <em>eval-only</em> (drvPath), and realization moves to the Linux-VM tier.</p>
+</blockquote>
+<h3 id="52-requires-a-linux-x86_64-host-dev-cx53-lane-kvm-closure-realize-vm-boot">5.2 Requires a Linux x86_64 host (dev-cx53 lane, KVM) — closure realize + VM boot</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Why it cannot gate on M1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Realize the toplevel</strong> (<code>nix build …toplevel</code>)</td>
+<td>builds an x86_64-linux closure; the global <code>znver4</code> <code>-march</code> rebuilds from source (no cache) — needs a Linux builder</td>
+</tr>
+<tr>
+<td><strong><code>nixosTest</code> boot + daemon operational</strong> (§4.1)</td>
+<td><code>runNixOSTest</code> boots a qemu guest and runs assertions inside it; needs <strong>x86_64 KVM</strong></td>
+</tr>
+<tr>
+<td><strong><code>--vm-test</code></strong> (DEPLOY.md §3, <code>nixos-anywhere --vm-test</code>)</td>
+<td>boots the install in a VM; Linux/KVM only</td>
+</tr>
+<tr>
+<td>daemon units reach RUNNING + write-ahead chain advance (§2.1)</td>
+<td>exercises real systemd + the running daemons</td>
+</tr>
+</tbody>
+</table>
+<p>dev-cx53 is the host for this lane <strong>but is off-limits for the current window</strong> —<br />
+so during the window S7's Linux-VM checks are <em>authored and self-reviewed</em> but<br />
+run only when dev-cx53 frees up (or on any other x86_64 KVM Linux host). dev-cx53<br />
+also <strong>cannot</strong> stand in for the bare-metal tier (§5.3): it is a build host, not<br />
+the Vultr EPYC with the mirror/BIOS/ECC layout.</p>
+<h3 id="53-requires-the-bare-metal-box-vultr-epyc-4345p-114-spring-2027-horizon">5.3 Requires the bare-metal box (Vultr EPYC 4345P) — #114 / spring-2027 horizon</h3>
+<p>The <code>box</code>-tier checklist rows (§4.3): ZFS mirror health, disko datasets, BIOS/GRUB<br />
+boot survival, real RAM/CPU/core counts, ECC via <code>ras-mc-ctl</code>, and the SIGILL /<br />
+<code>-march</code> correctness check that only the real Zen 5 CPU running the from-source<br />
+<code>znver4</code> closure can confirm. A nixosTest VM <strong>cannot</strong> cover these. They are the<br />
+DEPLOY.md §5 checklist, run once on the provisioned host.</p>
+<h3 id="54-ci-wiring-githubworkflowswp4-s7-deployyml">5.4 CI wiring (<code>.github/workflows/wp4-s7-deploy.yml</code>)</h3>
+<ul>
+<li><strong>Job <code>eval</code> (any runner, incl. M1):</strong> §5.1 checks. Gates every PR.</li>
+<li><strong>Job <code>vm</code> (x86_64 KVM Linux):</strong> realize toplevel + <code>nixosTest</code>. Runs on the<br />
+  WP4 Linux lane (<code>nix develop</code> on the build host); skipped where KVM absent.</li>
+<li>Every new test file cites the RFC § / DEPLOY.md § / lowering § it enforces (the<br />
+  WP3-S7 adversarial-independence convention,<br />
+<a href="2026-06-14-wp3-s7.md"><code>2026-06-14-wp3-s7.md</code></a> criterion 8; carried by S2 §6.3).</li>
+</ul>
+<h2 id="6-algorithm-summary-deploy-test-control-flow">6. Algorithm summary (deploy-test control flow)</h2>
+<div class="highlight"><pre><span></span><span class="nt">vakedos-deploy</span><span class="o">:</span>
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nt">tier</span><span class="w"> </span><span class="nt">1</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">M1</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">any</span><span class="w"> </span><span class="nt">runner</span><span class="w"> </span><span class="o">(</span><span class="nt">pure</span><span class="w"> </span><span class="nt">eval</span><span class="o">)</span>
+<span class="w">  </span><span class="nt">flake_check</span><span class="o">()</span><span class="w">                            </span><span class="err">#</span><span class="w"> </span><span class="nt">evaluates</span>
+<span class="w">  </span><span class="nt">drv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">eval</span><span class="o">(</span><span class="nt">toplevel</span><span class="p">.</span><span class="nc">drvPath</span><span class="o">)</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="nt">resolves</span><span class="o">,</span><span class="w"> </span><span class="nt">does</span><span class="w"> </span><span class="nt">NOT</span><span class="w"> </span><span class="nt">build</span>
+<span class="w">  </span><span class="nt">assert_unit_contract</span><span class="o">(</span><span class="nt">runtime_module</span><span class="o">)</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0001</span><span class="w"> </span><span class="err">§</span><span class="nt">5</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0004</span><span class="w"> </span><span class="err">§</span><span class="nt">6</span><span class="w"> </span><span class="nt">order</span>
+<span class="w">  </span><span class="nt">parse_checklist</span><span class="o">();</span><span class="w"> </span><span class="nt">report</span><span class="w"> </span><span class="nt">box-rows</span><span class="w"> </span><span class="nt">skipped</span>
+
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nt">tier</span><span class="w"> </span><span class="nt">2</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">Linux</span><span class="w"> </span><span class="nt">x86_64</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">KVM</span><span class="w"> </span><span class="o">(</span><span class="nt">dev-cx53</span><span class="w"> </span><span class="nt">lane</span><span class="o">;</span><span class="w"> </span><span class="nt">off-limits</span><span class="w"> </span><span class="nt">now</span><span class="o">)</span>
+<span class="w">  </span><span class="nt">build</span><span class="o">(</span><span class="nt">drv</span><span class="o">)</span><span class="w">                               </span><span class="err">#</span><span class="w"> </span><span class="nt">realize</span><span class="w"> </span><span class="nt">x86_64-linux</span><span class="w"> </span><span class="nt">closure</span>
+<span class="w">  </span><span class="nt">nixosTest</span><span class="o">:</span><span class="w">                               </span><span class="err">#</span><span class="w"> </span><span class="nt">runNixOSTest</span><span class="o">,</span><span class="w"> </span><span class="nt">VM</span><span class="w"> </span><span class="nt">boot</span>
+<span class="w">    </span><span class="nt">wait_for</span><span class="w"> </span><span class="nt">multi-user</span><span class="p">.</span><span class="nc">target</span>
+<span class="w">    </span><span class="nt">wait_for</span><span class="w"> </span><span class="nt">eventd</span><span class="o">,</span><span class="w"> </span><span class="nt">agent-supervisord</span><span class="o">,</span><span class="w"> </span><span class="nt">sandboxd</span>
+<span class="w">    </span><span class="nt">assert</span><span class="w"> </span><span class="nt">cold-start</span><span class="w"> </span><span class="nt">ran</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">no-dep</span><span class="w"> </span><span class="nt">daemon</span><span class="w"> </span><span class="nt">RUNNING</span><span class="w">       </span><span class="err">#</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0004</span><span class="w"> </span><span class="err">§</span><span class="nt">6</span>
+<span class="w">    </span><span class="nt">assert</span><span class="w"> </span><span class="nt">control</span><span class="w"> </span><span class="nt">verb</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="nt">eventd</span><span class="w"> </span><span class="nt">append</span><span class="w"> </span><span class="nt">BEFORE</span><span class="w"> </span><span class="nt">effect</span><span class="w">    </span><span class="err">#</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0001</span><span class="w"> </span><span class="err">§</span><span class="nt">5</span>
+<span class="w">    </span><span class="o">(</span><span class="nt">override</span><span class="w"> </span><span class="nt">ZFS</span><span class="o">/</span><span class="nt">BIOS</span><span class="o">/</span><span class="nt">-march</span><span class="w"> </span><span class="nt">for</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">VM</span><span class="o">;</span><span class="w"> </span><span class="nt">record</span><span class="w"> </span><span class="nt">as</span><span class="w"> </span><span class="nt">box-only</span><span class="o">)</span>
+
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="nt">tier</span><span class="w"> </span><span class="nt">3</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nt">bare-metal</span><span class="w"> </span><span class="nt">box</span><span class="w"> </span><span class="o">(</span><span class="p">#</span><span class="nn">114</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">spring</span><span class="w"> </span><span class="nt">2027</span><span class="o">)</span>
+<span class="w">  </span><span class="nt">run</span><span class="w"> </span><span class="nt">DEPLOY</span><span class="p">.</span><span class="nc">md</span><span class="w"> </span><span class="err">§</span><span class="nt">5</span><span class="w"> </span><span class="nt">checklist</span><span class="w"> </span><span class="nt">box-rows</span><span class="w"> </span><span class="nt">on</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">provisioned</span><span class="w"> </span><span class="nt">EPYC</span>
+</pre></div>
+
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>What S7 needs</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP4-S1…S5</strong> (the three daemons)</td>
+<td>built, packaged daemon binaries + their introspection surface (<code>supervisorctl</code>/<code>eventctl</code> or S6 equivalents)</td>
+<td><strong>Prereq.</strong> <code>daemons/agent-supervisord/</code> and <code>daemons/eventd/</code> are MISSING; <code>daemons/sandboxd/</code> is a WP4-S1 stub. S7 cannot run tier-2 until these exist.</td>
+</tr>
+<tr>
+<td><strong>WP4-S6</strong> (integration test: 3 daemons on vakedos)</td>
+<td>the harness that brings the three daemons up together + its introspection commands</td>
+<td><strong>Prereq for tier-2.</strong> No S6 spec exists yet; S7 consumes S6's harness, does not re-author it.</td>
+</tr>
+<tr>
+<td><strong><code>nixosModules.&lt;runtime&gt;</code></strong> (lowering §4.3)</td>
+<td>the wiring module that installs <code>gen/</code> artifacts and points daemons at them</td>
+<td><strong>BLOCKER for the real deploy.</strong> Only <code>nixosModules.vaked-telebot</code> exists today. S7 runs against the §2.3 fixture module until §4.3 lands; the fixture is then replaced by the generated module with no test change.</td>
+</tr>
+<tr>
+<td><strong><code>systemd.units</code> emitter</strong> (lowering §7, deferred)</td>
+<td>generated unit files with RFC-correct dependency order</td>
+<td><strong>BLOCKER.</strong> Deferred target — emits nothing today (lowering §7 table; Taskfile <code>deploy:</code> "interface-only in the spine today"). S7's §4.2 contract test is written <em>against the contract</em> so it gates the emitter when it lands.</td>
+</tr>
+<tr>
+<td><strong><code>vakedz</code>/<code>vakedc lower</code></strong> (front-ends)</td>
+<td>whichever emits the units; byte-parity guaranteed by <code>vakedz-verify</code></td>
+<td>Available as front-ends; <strong>but the unit target itself is deferred</strong> (above), so neither emits units yet (§4.4).</td>
+</tr>
+<tr>
+<td><strong>vakedos host config</strong></td>
+<td><code>nixosConfigurations.vakedos</code>, disko, BIOS/cgroup-v2/sysctls</td>
+<td><strong>Present</strong> (<code>flake.nix</code>, <code>hosts/vakedos/</code>). No host change in S7.</td>
+</tr>
+<tr>
+<td><strong>eventd byte-format / hcpbin</strong> (WP4-S4 / WP3, RFC 0002 §6)</td>
+<td>nothing — S7 stays out of the encoding (§1.2)</td>
+<td>Out of scope; S7 asserts chain <em>advancement</em>, not bytes.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>S7 is done when <strong>all</strong> hold:</p>
+<ol>
+<li><strong>Pure-eval gate (M1-local).</strong> <code>nix flake check</code> passes and<br />
+<code>nix eval .#nixosConfigurations.vakedos.config.system.build.toplevel.drvPath</code><br />
+   resolves on aarch64-darwin <strong>without realizing the closure</strong> (§5.1).</li>
+<li><strong>Unit interface contract (M1-local).</strong> <code>test_module_contract.py</code> asserts the<br />
+   three daemon units exist with RFC-correct ordering<br />
+   (<code>agent-supervisord After/Requires eventd</code> per RFC 0001 §5; <code>sandboxd After
+   agent-supervisord</code>) against <code>expected-units.json</code>; it is written so it<br />
+<strong>fails</strong> if the deferred §7 emitter (or the fixture) gets the order wrong<br />
+   (§4.2).</li>
+<li><strong>nixosTest exists and is correct-by-construction (authored M1, runs<br />
+   Linux-VM).</strong> <code>nix/tests/vakedos-deploy.nix</code> is a <code>runNixOSTest</code> exposed as<br />
+<code>checks.&lt;linux&gt;.vakedos-deploy</code>; its <code>testScript</code> asserts <code>multi-user.target</code>,<br />
+   the three units up, cold-start-ran + no-dependency daemon <code>RUNNING</code> (RFC 0004<br />
+   §6), and a control verb appending to eventd <strong>before</strong> its effect (RFC 0001<br />
+   §5). The VM overrides (ZFS/BIOS/<code>-march</code>) are recorded as box-only (§4.1).</li>
+<li><strong>Operational is RFC-defined, not <code>is-active</code>.</strong> Every "operational"<br />
+   assertion cites RFC 0004 §6 or RFC 0001 §5; <strong>no</strong> assertion is mere<br />
+<code>systemctl is-active</code> standing in for operational (§2.1).</li>
+<li><strong>3-tier split is explicit and honest.</strong> Each check is tagged<br />
+<code>M1 | linux-vm | box</code>; the <code>box</code>-tier DEPLOY.md §5 rows are <strong>reported<br />
+<code>skipped (box-only)</code></strong> off-hardware, never silently dropped (§4.3, §5.3). The<br />
+<code>nix build …toplevel</code> realize step is correctly placed in the <strong>linux-vm</strong><br />
+   tier, not M1 (§5.1 boundary note).</li>
+<li><strong>Blockers named with provenance (anti-over-claim).</strong> The spec, the test<br />
+   docstrings, and the PR description state that the end-to-end deploy is blocked<br />
+   on (a) <code>nixosModules.&lt;runtime&gt;</code> not existing, (b) the deferred <code>systemd.units</code><br />
+   emitter (lowering §7), and (c) the missing daemons (S1–S6). S7 <strong>does not<br />
+   claim</strong> a working <code>nixos-rebuild switch</code> against generated units until those<br />
+   land — it ships the harness + fixture + gates (the S2 criterion-7 discipline).</li>
+<li><strong>Front-end reconciliation stated.</strong> The <code>vakedz lower</code> vs <code>vakedc lower</code><br />
+   discrepancy (kickoff line 73 vs Taskfile <code>deploy:</code>) is named, with<br />
+<code>vakedz-verify</code> cited as the byte-parity reconciler, and the note that neither<br />
+   emits units yet (§4.4).</li>
+<li><strong>Convention.</strong> Every new test file cites the RFC §, DEPLOY.md §, or lowering<br />
+   § it enforces; the nixosTest VM overrides are each annotated with the<br />
+   box-only property they sidestep; no eventd byte-encoding assertion appears<br />
+   anywhere in S7.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp4-s7.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

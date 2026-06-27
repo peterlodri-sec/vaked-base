@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>cargo-workspace — Root Cargo workspace + nix devShell wiring — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-citation-correction-read-first" style="padding-left:0.5rem">0. Citation correction (read first)</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-what-this-gate-is-not-scope-boundary" style="padding-left:1rem">  1.1 What this gate is NOT (scope boundary)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-inputs-existing-repo-state-all-verified-by-reading" style="padding-left:1rem">  2.1 Inputs (existing repo state, all verified by reading)</a><a href="#22-oracles-how-correctness-is-judged" style="padding-left:1rem">  2.2 Oracles (how correctness is judged)</a><a href="#3-file-layout-paths-to-create-modify-delete" style="padding-left:0.5rem">3. File layout (paths to create / modify / delete)</a><a href="#4-design" style="padding-left:0.5rem">4. Design</a><a href="#41-root-cargotoml" style="padding-left:1rem">  4.1 Root `/Cargo.toml`</a><a href="#42-lockfile-relocation" style="padding-left:1rem">  4.2 Lockfile relocation</a><a href="#43-decision-d3-no-rust-toolchaintoml" style="padding-left:1rem">  4.3 Decision D3 — no `rust-toolchain.toml`</a><a href="#44-decision-d2-swe-af-stays-out-the-toolchain-floor-is-swe-afs" style="padding-left:1rem">  4.4 Decision D2 — `swe-af` stays out; the toolchain floor is `swe-af`'s</a><a href="#45-hcpbincargotoml-unchanged-surgical" style="padding-left:1rem">  4.5 `hcpbin/Cargo.toml` — unchanged (surgical)</a><a href="#46-flakenix-devshell-edit" style="padding-left:1rem">  4.6 `flake.nix` devShell edit</a><a href="#47-taskfileyml-task" style="padding-left:1rem">  4.7 `Taskfile.yml` task</a><a href="#5-algorithm-step-sequence-implementation-order" style="padding-left:0.5rem">5. Algorithm / step sequence (implementation order)</a><a href="#6-test-plan-local-m1-vs-dev-cx53linux" style="padding-left:0.5rem">6. Test plan — local (M1) vs dev-cx53/Linux</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-cargo-workspace</div>
+<h1>cargo-workspace — Root Cargo workspace + nix devShell wiring</h1>
+<h1 id="cargo-workspace-root-cargo-workspace-nix-devshell-wiring">cargo-workspace — Root Cargo workspace + nix devShell wiring</h1>
+<ul>
+<li><strong>Status:</strong> Draft (planning artifact; the consuming work — WP3-S1 — is future/dependency-blocked, see §7)</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Track:</strong> WP3 (HCP wire protocol — <code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code>)</li>
+<li><strong>Gate:</strong> WP3 pre-start gate, due <strong>Jun 21 2026</strong> (kickoff plan, "Pre-start gates" section, line 41: <code>[ ] Cargo.toml workspace wired into dev shell (nix develop)</code>)</li>
+<li><strong>Owner:</strong> WP3 engineer (Engineer A, Rust/async networking) or scaffold maintainer</li>
+<li><strong>Code home:</strong> repo root (<code>/Cargo.toml</code>, <code>/flake.nix</code>, <code>/Taskfile.yml</code>)</li>
+</ul>
+<h2 id="0-citation-correction-read-first">0. Citation correction (read first)</h2>
+<p>The WP3 kickoff (<code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code>, "First task"<br />
+section, line ~43) and the issue text say golden vectors come from<br />
+"<strong>RFC 0002 §4 / Appendix A</strong>". <strong>That wording is stale and wrong</strong> and is carried<br />
+verbatim into several WP3 docs; it does not affect this gate's <em>deliverable</em> (a<br />
+workspace + dev-shell wiring) but is corrected here so this spec is internally<br />
+consistent with the crate it scaffolds:</p>
+<ul>
+<li>The byte encoding lives in <strong>RFC 0002 §6</strong> ("<code>hcpbin</code> encoding rules",<br />
+<code>protocol/rfcs/0002-hcplang.md</code> line 439), <strong>not §4</strong>.</li>
+<li>The frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) is declared in <strong>RFC 0002<br />
+  §4.2</strong> (line 226) but is <strong>part of the WIRE layer</strong>, with its byte encoding<br />
+  normative in <strong>RFC 0003</strong> — RFC 0002 §4.2 and the §6 scope note (line ~446)<br />
+  explicitly place it <strong>outside <code>hcpbin</code>'s payload scope</strong>.</li>
+<li>There is <strong>no Appendix A</strong> in RFC 0002. The golden vectors are the worked<br />
+  examples in RFC 0002 <strong>§6.1.1</strong> (primitives, line 473), <strong>§6.3.1</strong> (default<br />
+  omission, line 622), <strong>§6.6.1</strong> (lists/maps, line 825), <strong>§6.7.1</strong> (unions/enums,<br />
+  line 774), and <strong>§10</strong> (line 1009).</li>
+</ul>
+<p>The crate this gate scaffolds (<code>protocol/hcp/hcpbin/</code>) already cites the correct<br />
+sections: <code>src/lib.rs</code> header reads "canonical binary codec for HCP values<br />
+(RFC 0002 §6)", and <code>tests/golden.rs</code> derives expectations from §6.1.1 and §6.5.</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Stand up a <strong>root Cargo workspace</strong> at the repo root and <strong>wire it into the nix<br />
+devShell</strong> so that <code>protocol/hcp/*</code> crates (today <code>hcpbin</code>; tomorrow <code>litany</code>)<br />
+build and test under <code>nix develop</code> on the WP3 build target <code>dev-cx53</code>.</p>
+<p>Concretely, after this gate closes:</p>
+<ol>
+<li>A <code>/Cargo.toml</code> <code>[workspace]</code> exists, with <code>hcpbin</code> as a member and a single<br />
+   root <code>Cargo.lock</code>.</li>
+<li>The nix devShell (<code>flake.nix</code>) provides a Rust toolchain that satisfies the<br />
+<strong>highest</strong> Rust floor of any crate built inside that shell (set by <code>swe-af</code>,<br />
+   not <code>hcpbin</code> — see §4.4), plus <code>rustfmt</code> and <code>clippy</code>.</li>
+<li>A <code>Taskfile.yml</code> task runs <code>cargo</code> against the workspace through<br />
+<code>nix develop --command</code>, mirroring the existing <code>swe-af</code> precedent.</li>
+<li>The future <code>litany</code> crate (WP3-S2) is auto-absorbed by the workspace glob with<br />
+<strong>no further edit to <code>/Cargo.toml</code></strong>.</li>
+</ol>
+<p>This is a <strong>scaffolding</strong> gate. It does <strong>not</strong> implement the codec (WP3-S1) and<br />
+its acceptance criterion is <strong>structural resolution</strong>, not test-pass (§8).</p>
+<h3 id="11-what-this-gate-is-not-scope-boundary">1.1 What this gate is NOT (scope boundary)</h3>
+<table>
+<thead>
+<tr>
+<th>Out of scope</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Implementing <code>encode</code>/<code>decode</code> per RFC 0002 §6</td>
+<td>WP3-S1 (<code>protocol/hcp/hcpbin/src/lib.rs</code>)</td>
+</tr>
+<tr>
+<td>Creating the <code>litany</code> crate</td>
+<td>WP3-S2 (<code>protocol/hcp/litany/</code>)</td>
+</tr>
+<tr>
+<td>Pulling <code>swe-af</code> into the workspace</td>
+<td>never — it is a deliberately standalone crate (§4.4)</td>
+</tr>
+<tr>
+<td>Adding a <code>rust-toolchain.toml</code> / rustup pin</td>
+<td>rejected by decision D3 (§4.3)</td>
+</tr>
+<tr>
+<td>Binary-cache / attic substituter setup</td>
+<td>pre-existing infra (Taskfile header, lines 4–8)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-inputs-existing-repo-state-all-verified-by-reading">2.1 Inputs (existing repo state, all verified by reading)</h3>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Relevant fact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>protocol/hcp/hcpbin/Cargo.toml</code></td>
+<td><code>name = "hcpbin"</code>, <code>version = "0.1.0"</code>, <code>edition = "2021"</code>, <code>[lib] name = "hcpbin"</code>, <strong>zero dependencies</strong>. The workspace member.</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/hcpbin/Cargo.lock</code></td>
+<td>Member-local lockfile (single package <code>hcpbin</code>). <strong>Must be deleted</strong> — the workspace lockfile lives at root.</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/hcpbin/src/lib.rs</code></td>
+<td>Compiling stub exposing the full <code>encode_*</code>/<code>decode_*</code> API surface (verified: <code>cargo check</code> clean).</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/hcpbin/tests/golden.rs</code></td>
+<td>Independent golden + round-trip suite, RFC-derived. Verified: currently <strong>compiles and runs</strong> under the host toolchain.</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/README.md</code></td>
+<td>Declares the intended layout: <code>hcpbin/</code> (RFC 0002, WP3-S1) and <code>litany/</code> (frame+routing, WP3-S2+); "Build target: <code>dev-cx53</code> via <code>nix develop</code>."</td>
+</tr>
+<tr>
+<td><code>vaked-agents/ci/swe-af/Cargo.toml</code></td>
+<td>Standalone crate: <code>edition = "2024"</code>, <code>rust-version = "1.94"</code>, <strong>empty <code>[workspace]</code> table</strong> + comment "do not join a parent Cargo workspace (there is none at repo root)." Built inside the same nix shell (Taskfile line 143). <strong>Sets the toolchain floor.</strong></td>
+</tr>
+<tr>
+<td><code>flake.nix</code></td>
+<td><code>devShells.default</code> provides <code>rustc</code> + <code>cargo</code> (nixpkgs), no <code>rustfmt</code>/<code>clippy</code>, no rust-overlay, no toolchain pin.</td>
+</tr>
+<tr>
+<td><code>flake.lock</code></td>
+<td><code>nixpkgs</code> pinned to rev <code>9ae611a455b90cf061d8f332b977e387bda8e1ca</code> (ref <code>nixos-unstable</code>, <code>lastModified 1781074563</code>).</td>
+</tr>
+<tr>
+<td><code>Taskfile.yml</code></td>
+<td>All tasks run via <code>RUN: nix develop {{.DEVSHELL}} --command</code>. The <code>swe-af</code> task (lines 141–144) is the cargo precedent: <code>cargo test</code>/<code>cargo build --release --manifest-path …</code>, flagged <code>REMOTE-ONLY</code>.</td>
+</tr>
+<tr>
+<td>repo root</td>
+<td><strong>No <code>/Cargo.toml</code> exists</strong> (verified: <code>find . -name Cargo.toml</code> returns only the two crate manifests).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-oracles-how-correctness-is-judged">2.2 Oracles (how correctness is judged)</h3>
+<table>
+<thead>
+<tr>
+<th>Oracle</th>
+<th>Command</th>
+<th>Expected</th>
+<th>Where it runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>O1 Workspace resolves, correct members</td>
+<td><code>cargo metadata --format-version 1 --no-deps</code></td>
+<td>packages list contains <code>hcpbin</code>, <strong>not</strong> <code>vaked-swe-af</code>; <code>workspace_root</code> = repo root</td>
+<td>M1 (host cargo) + dev-cx53</td>
+</tr>
+<tr>
+<td>O2 Workspace compiles</td>
+<td><code>cargo check --workspace</code></td>
+<td>exit 0, "Checking hcpbin"</td>
+<td>M1 (host) + <code>nix develop</code></td>
+</tr>
+<tr>
+<td>O3 Single root lockfile</td>
+<td><code>ls Cargo.lock protocol/hcp/hcpbin/Cargo.lock</code></td>
+<td>root present; member absent</td>
+<td>M1</td>
+</tr>
+<tr>
+<td>O4 Glob auto-absorbs <code>litany</code></td>
+<td>add stub <code>protocol/hcp/litany/Cargo.toml</code>, re-run O1</td>
+<td>members become <code>[hcpbin, litany]</code> with <strong>no <code>/Cargo.toml</code> edit</strong></td>
+<td>M1 (simulated)</td>
+</tr>
+<tr>
+<td>O5 <strong>Gate toolchain floor</strong></td>
+<td><code>nix develop . --command rustc --version</code></td>
+<td><code>rustc</code> ≥ <strong>1.94</strong>, supports edition 2024</td>
+<td><code>nix develop</code> (gate-relevant)</td>
+</tr>
+<tr>
+<td>O6 Lint tools present in shell</td>
+<td><code>nix develop . --command bash -c 'cargo fmt --version &amp;&amp; cargo clippy --version'</code></td>
+<td>both resolve</td>
+<td><code>nix develop</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Verified during authoring (host toolchain, <code>/Users/lodripeter/.cargo/bin</code>):</strong> O1–O4<br />
+all pass; <code>cargo check --manifest-path …/hcpbin/Cargo.toml</code> is clean;<br />
+<code>cargo test --no-run</code> builds both the lib and <code>golden.rs</code> test executables. Host<br />
+<code>cargo</code>/<code>rustc</code> = <strong>1.95.0</strong>.</p>
+<p><strong>Verified during authoring (nix devShell — gate-relevant):</strong><br />
+<code>nix develop /tmp/vaked-base --command</code> resolves <code>rustc</code> to<br />
+<code>/nix/store/…-rustc-wrapper-1.95.0/bin/rustc</code> → <strong>rustc 1.95.0 / cargo 1.95.0</strong>.<br />
+So the pinned nixpkgs (<code>9ae611a4…</code>) <strong>already satisfies O5</strong> (≥1.94, edition 2024).<br />
+The crabcc 6.2.0 banner also confirms the shell is the expected one. This converts<br />
+the toolchain-floor claim from assumption to fact. (Note the two toolchains are<br />
+distinct: host 1.95.0 was used for structural O1–O4; the nix 1.95.0 is the gate<br />
+oracle. They coincide today but the spec keeps them separate so the test plan is<br />
+honest about which environment produced which result.)</p>
+<h2 id="3-file-layout-paths-to-create-modify-delete">3. File layout (paths to create / modify / delete)</h2>
+<div class="highlight"><pre><span></span><span class="o">/</span><span class="n">Cargo</span><span class="p">.</span><span class="n">toml</span><span class="w">                              </span><span class="k">CREATE</span><span class="w">  </span><span class="n">—</span><span class="w"> </span><span class="n">workspace</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.1</span><span class="p">)</span>
+<span class="o">/</span><span class="n">Cargo</span><span class="p">.</span><span class="k">lock</span><span class="w">                              </span><span class="k">CREATE</span><span class="w">  </span><span class="n">—</span><span class="w"> </span><span class="k">generated</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="k">first</span><span class="w"> </span><span class="n n-Quoted">`cargo`</span><span class="w"> </span><span class="n">invocation</span><span class="w"> </span><span class="p">(</span><span class="k">commit</span><span class="w"> </span><span class="n">it</span><span class="p">;</span><span class="w"> </span><span class="n">bin</span><span class="o">/</span><span class="n">lib</span><span class="w"> </span><span class="n">workspace</span><span class="p">)</span>
+<span class="o">/</span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">hcpbin</span><span class="o">/</span><span class="n">Cargo</span><span class="p">.</span><span class="k">lock</span><span class="w">          </span><span class="k">DELETE</span><span class="w">  </span><span class="n">—</span><span class="w"> </span><span class="k">member</span><span class="o">-</span><span class="k">local</span><span class="w"> </span><span class="k">lock</span><span class="p">;</span><span class="w"> </span><span class="n">superseded</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="k">lock</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.2</span><span class="p">)</span>
+<span class="o">/</span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">hcpbin</span><span class="o">/</span><span class="n">Cargo</span><span class="p">.</span><span class="n">toml</span><span class="w">          </span><span class="n">UNCHANGED</span><span class="w"> </span><span class="n">—</span><span class="w"> </span><span class="k">member</span><span class="p">;</span><span class="w"> </span><span class="k">no</span><span class="w"> </span><span class="n">edit</span><span class="w"> </span><span class="n">required</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.5</span><span class="p">)</span>
+<span class="o">/</span><span class="n">flake</span><span class="p">.</span><span class="n">nix</span><span class="w">                               </span><span class="n">EDIT</span><span class="w">    </span><span class="n">—</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">rustfmt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clippy</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">devShells</span><span class="p">.</span><span class="k">default</span><span class="p">.</span><span class="n">packages</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.6</span><span class="p">)</span>
+<span class="o">/</span><span class="n">Taskfile</span><span class="p">.</span><span class="n">yml</span><span class="w">                            </span><span class="n">EDIT</span><span class="w">    </span><span class="n">—</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n n-Quoted">`hcp`</span><span class="w"> </span><span class="n">task</span><span class="o">:</span><span class="w"> </span><span class="n">cargo</span><span class="w"> </span><span class="k">against</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">workspace</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="err">{{</span><span class="p">.</span><span class="n">RUN</span><span class="err">}}</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.7</span><span class="p">)</span>
+<span class="o">/</span><span class="p">.</span><span class="n">gitignore</span><span class="w">                              </span><span class="n">VERIFY</span><span class="w">  </span><span class="n">—</span><span class="w"> </span><span class="n">ensure</span><span class="w"> </span><span class="n n-Quoted">`target/`</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">ignored</span><span class="w"> </span><span class="p">(</span><span class="n">it</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="n">repo</span><span class="o">-</span><span class="n">wide</span><span class="p">;</span><span class="w"> </span><span class="n">confirm</span><span class="p">,</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">duplicate</span><span class="p">)</span>
+</pre></div>
+
+<p>No new directories. <code>litany/</code> is created later by WP3-S2, not by this gate.</p>
+<h2 id="4-design">4. Design</h2>
+<h3 id="41-root-cargotoml">4.1 Root <code>/Cargo.toml</code></h3>
+<div class="highlight"><pre><span></span><span class="c1"># Root Cargo workspace for vaked-base.</span>
+<span class="c1"># Members: the protocol/hcp/* Rust crates (RFC 0002+ wire stack).</span>
+<span class="c1"># Built inside `nix develop` on dev-cx53 (protocol/hcp/README.md).</span>
+<span class="k">[workspace]</span>
+<span class="n">resolver</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2&quot;</span>
+<span class="n">members</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;protocol/hcp/*&quot;</span><span class="p">]</span>
+<span class="n">exclude</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;vaked-agents/ci/swe-af&quot;</span><span class="p">]</span>
+</pre></div>
+
+<p>Design points, each with rationale:</p>
+<ul>
+<li><strong><code>resolver = "2"</code> is stated explicitly.</strong> A freshly created workspace defaults<br />
+  to resolver <strong>1</strong> even when its members declare <code>edition = "2021"</code> (the<br />
+  edition→resolver inference applies only to a <em>package</em> manifest's own edition,<br />
+  not to a virtual workspace root). Resolver 2 is what every member's own<br />
+  edition-2021/2024 expectations assume, so we pin it rather than inherit a<br />
+  surprising default.</li>
+<li><strong><code>members = ["protocol/hcp/*"]</code> (glob).</strong> Includes <code>hcpbin</code> today and<br />
+<strong>auto-absorbs <code>litany</code></strong> the moment WP3-S2 adds <code>protocol/hcp/litany/Cargo.toml</code><br />
+  — verified in O4: members went <code>[hcpbin]</code> → <code>[hcpbin, litany]</code> with no edit to<br />
+  this file. This is the explicit hand-off to WP3-S2 (§7).</li>
+<li><strong><code>exclude = ["vaked-agents/ci/swe-af"]</code> (defensive).</strong> <code>swe-af</code> already<br />
+  self-isolates via its own empty <code>[workspace]</code> table, so the glob would not reach<br />
+  it regardless (it is not under <code>protocol/hcp/</code>). The <code>exclude</code> is <strong>belt-and-suspenders<br />
+  documentation of intent</strong> and guards against a future member glob being widened.<br />
+  Decision D2 (§4.4) records the rationale; either keeping or dropping this line is<br />
+  defensible, but it is cheap and self-documenting.</li>
+<li>This is a <strong>virtual manifest</strong> (no <code>[package]</code> at root) — the root is not itself a<br />
+  crate, only an aggregation point.</li>
+<li><code>[workspace.package]</code> / <code>[workspace.dependencies]</code> inheritance is <strong>intentionally<br />
+  omitted</strong>. <code>hcpbin</code> has zero dependencies and the only other current member-to-be<br />
+  (<code>litany</code>) will depend on <code>hcpbin</code> by path. Adding shared-table inheritance now is<br />
+  speculative (CLAUDE.md §2 "Simplicity First"); it can be introduced when ≥2 members<br />
+  share a real dependency.</li>
+</ul>
+<h3 id="42-lockfile-relocation">4.2 Lockfile relocation</h3>
+<p>A Cargo workspace has exactly <strong>one</strong> <code>Cargo.lock</code>, at the workspace root. The<br />
+existing <code>protocol/hcp/hcpbin/Cargo.lock</code> becomes dead once the root exists and<br />
+<strong>must be deleted</strong> (O3). The root <code>Cargo.lock</code> is produced by the first <code>cargo</code><br />
+invocation after <code>/Cargo.toml</code> is created and <strong>must be committed</strong> (the workspace<br />
+contains buildable lib/bin crates; per Cargo convention applications/workspaces<br />
+commit their lockfile — and <code>eventd</code>'s hash-chain reproducibility story, RFC 0002<br />
+§6 scope note, benefits from a pinned dependency graph).</p>
+<h3 id="43-decision-d3-no-rust-toolchaintoml">4.3 Decision D3 — no <code>rust-toolchain.toml</code></h3>
+<p>We deliberately <strong>do not</strong> add a <code>rust-toolchain.toml</code>. The devShell provides<br />
+<code>rustc</code>/<code>cargo</code> from the pinned nixpkgs; there is <strong>no rustup</strong> in the shell, so a<br />
+<code>rust-toolchain.toml</code> would either be ignored or fight the nix-provided toolchain.<br />
+<strong>Reproducibility comes from the <code>flake.lock</code> nixpkgs pin</strong> (rev <code>9ae611a4…</code>), which<br />
+is the single source of truth for the toolchain version (O5). This keeps one pinning<br />
+mechanism, not two.</p>
+<h3 id="44-decision-d2-swe-af-stays-out-the-toolchain-floor-is-swe-afs">4.4 Decision D2 — <code>swe-af</code> stays out; the toolchain floor is <code>swe-af</code>'s</h3>
+<p>Two related facts:</p>
+<ol>
+<li><strong><code>swe-af</code> is NOT a workspace member.</strong> Its <code>Cargo.toml</code> declares an empty<br />
+<code>[workspace]</code> table (making it its own workspace root) and comments that there is<br />
+   no parent workspace. We honour that: the root glob does not reach it, and<br />
+<code>exclude</code> reinforces it (§4.1). Verified in O1 (<code>vaked-swe-af</code> absent from<br />
+<code>cargo metadata</code>).</li>
+<li><strong>But <code>swe-af</code> still sets the devShell's Rust floor.</strong> Taskfile line 143 builds<br />
+<code>swe-af</code> <em>inside the same <code>nix develop</code> shell</em> (<code>cargo … --manifest-path
+   vaked-agents/ci/swe-af/Cargo.toml</code>). <code>swe-af</code> is <code>edition = "2024"</code>,<br />
+<code>rust-version = "1.94"</code>. <code>hcpbin</code> is only edition 2021. <strong>Therefore the devShell<br />
+   rustc must satisfy 1.94 / edition 2024</strong>, even though our workspace member needs<br />
+   less. The gate must <strong>not</strong> spec a lower floor. O5 confirms the pinned nixpkgs<br />
+   already delivers rustc 1.95.0 → floor satisfied.</li>
+</ol>
+<h3 id="45-hcpbincargotoml-unchanged-surgical">4.5 <code>hcpbin/Cargo.toml</code> — unchanged (surgical)</h3>
+<p>No edit. It is already a valid member (<code>[package]</code> + <code>[lib]</code>, no conflicting<br />
+<code>[workspace]</code> table). Per CLAUDE.md §3 "Surgical Changes", we do not retrofit<br />
+<code>edition.workspace = true</code> or other inheritance.</p>
+<h3 id="46-flakenix-devshell-edit">4.6 <code>flake.nix</code> devShell edit</h3>
+<p>Add <code>rustfmt</code> and <code>clippy</code> to <code>devShells.default.packages</code> (they are not present<br />
+today; O6 would fail without them). Surgical addition next to the existing <code>rustc</code><br />
+/ <code>cargo</code> lines:</p>
+<div class="highlight"><pre><span></span>rustc                 <span class="c1"># CrabCC indexes — toolchain to build crabcc-labs/crabcc</span>
+            cargo
+            rustfmt               <span class="c1"># workspace fmt — protocol/hcp/* (WP3 cargo-workspace gate)</span>
+            clippy                <span class="c1"># workspace lint — protocol/hcp/* (WP3 cargo-workspace gate)</span>
+</pre></div>
+
+<p>No change to <code>inputs</code>, <code>systems</code>, <code>shellHook</code>, packages, or the NixOS bits.<br />
+nixpkgs ships <code>rustfmt</code>/<code>clippy</code> as separate top-level attrs matching the pinned<br />
+<code>rustc</code>, so no rust-overlay is needed (consistent with D3). The <code>nix develop</code><br />
+build for the pinned shell was exercised during authoring (O5/O6 environment).</p>
+<h3 id="47-taskfileyml-task">4.7 <code>Taskfile.yml</code> task</h3>
+<p>Add a workspace-aware task mirroring the <code>swe-af</code> precedent, <strong>REMOTE-ONLY</strong> for<br />
+the heavy <code>build --release</code> per the NEVER-BUILD-ON-DEV-MACHINE rule (CLAUDE.md,<br />
+Taskfile comment lines 138–140), while exposing cheap structural/check targets<br />
+that are M1-safe:</p>
+<div class="highlight"><pre><span></span><span class="c1"># --- HCP wire stack: the protocol/hcp/* cargo workspace -----------------------</span>
+<span class="w">  </span><span class="nt">hcp</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">desc</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;Check</span><span class="nv"> </span><span class="s">+</span><span class="nv"> </span><span class="s">test</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">protocol/hcp/*</span><span class="nv"> </span><span class="s">cargo</span><span class="nv"> </span><span class="s">workspace</span><span class="nv"> </span><span class="s">(hcpbin;</span><span class="nv"> </span><span class="s">litany</span><span class="nv"> </span><span class="s">once</span><span class="nv"> </span><span class="s">WP3-S2</span><span class="nv"> </span><span class="s">lands).&#39;</span>
+<span class="w">    </span><span class="nt">cmds</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;{{.RUN}}</span><span class="nv"> </span><span class="s">cargo</span><span class="nv"> </span><span class="s">metadata</span><span class="nv"> </span><span class="s">--format-version</span><span class="nv"> </span><span class="s">1</span><span class="nv"> </span><span class="s">--no-deps&#39;</span><span class="w">   </span><span class="c1"># O1: structure resolves (M1-safe)</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;{{.RUN}}</span><span class="nv"> </span><span class="s">cargo</span><span class="nv"> </span><span class="s">check</span><span class="nv"> </span><span class="s">--workspace&#39;</span><span class="w">                       </span><span class="c1"># O2: compiles</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&#39;{{.RUN}}</span><span class="nv"> </span><span class="s">cargo</span><span class="nv"> </span><span class="s">test</span><span class="nv">  </span><span class="s">--workspace&#39;</span><span class="w">                       </span><span class="c1"># WP3-S1+: golden vectors (test-pass is later work)</span>
+</pre></div>
+
+<p>Notes:<br />
+- Once the root workspace exists, cargo commands use <code>--workspace</code>, <strong>not</strong><br />
+<code>--manifest-path</code> (the <code>--manifest-path</code> form in the <code>swe-af</code> task is required<br />
+  only because <code>swe-af</code> is a separate root).<br />
+- <code>cargo metadata</code> and <code>cargo check</code> are seconds-long and <strong>M1-safe</strong> (verified);<br />
+<code>cargo test --workspace</code> is included for WP3-S1+ but is <em>not</em> this gate's<br />
+  acceptance criterion (§8).</p>
+<h2 id="5-algorithm-step-sequence-implementation-order">5. Algorithm / step sequence (implementation order)</h2>
+<div class="highlight"><pre><span></span><span class="mf">1.</span><span class="w"> </span><span class="k">Create</span><span class="w"> </span><span class="o">/</span><span class="n">Cargo</span><span class="p">.</span><span class="n">toml</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.1</span><span class="p">)</span><span class="w">                    </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n">O1</span><span class="w"> </span><span class="n">lists</span><span class="w"> </span><span class="n">hcpbin</span><span class="p">,</span><span class="w"> </span><span class="n">excludes</span><span class="w"> </span><span class="n">swe</span><span class="o">-</span><span class="n">af</span>
+<span class="mf">2.</span><span class="w"> </span><span class="k">Delete</span><span class="w"> </span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">hcpbin</span><span class="o">/</span><span class="n">Cargo</span><span class="p">.</span><span class="k">lock</span><span class="w">        </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n">O3</span><span class="w"> </span><span class="p">(</span><span class="k">member</span><span class="w"> </span><span class="k">lock</span><span class="w"> </span><span class="n">gone</span><span class="p">)</span>
+<span class="mf">3.</span><span class="w"> </span><span class="n">Run</span><span class="w"> </span><span class="n n-Quoted">`cargo metadata`</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n n-Quoted">`cargo check`</span><span class="w">         </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n">O2</span><span class="w"> </span><span class="n">green</span><span class="p">;</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="n">Cargo</span><span class="p">.</span><span class="k">lock</span><span class="w"> </span><span class="k">generated</span>
+<span class="mf">4.</span><span class="w"> </span><span class="k">Commit</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="n">Cargo</span><span class="p">.</span><span class="k">lock</span><span class="w">                        </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n">git</span><span class="w"> </span><span class="k">status</span><span class="w"> </span><span class="n">shows</span><span class="w"> </span><span class="o">/</span><span class="n">Cargo</span><span class="p">.</span><span class="k">lock</span><span class="w"> </span><span class="n">tracked</span>
+<span class="mf">5.</span><span class="w"> </span><span class="n">Edit</span><span class="w"> </span><span class="n">flake</span><span class="p">.</span><span class="n">nix</span><span class="o">:</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n">rustfmt</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">clippy</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.6</span><span class="p">)</span><span class="w">  </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n">O6</span><span class="w"> </span><span class="n">under</span><span class="w"> </span><span class="n n-Quoted">`nix develop`</span>
+<span class="mf">6.</span><span class="w"> </span><span class="n">Edit</span><span class="w"> </span><span class="n">Taskfile</span><span class="p">.</span><span class="n">yml</span><span class="o">:</span><span class="w"> </span><span class="k">add</span><span class="w"> </span><span class="n n-Quoted">`hcp`</span><span class="w"> </span><span class="n">task</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.7</span><span class="p">)</span><span class="w">     </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n n-Quoted">`task hcp`</span><span class="w"> </span><span class="n">runs</span><span class="w"> </span><span class="n">O1</span><span class="o">+</span><span class="n">O2</span><span class="w"> </span><span class="n">green</span>
+<span class="mf">7.</span><span class="w"> </span><span class="n">Confirm</span><span class="w"> </span><span class="n">gate</span><span class="w"> </span><span class="n">toolchain</span><span class="w"> </span><span class="p">(</span><span class="n">§4</span><span class="mf">.4</span><span class="p">)</span><span class="w">                 </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n">O5</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`nix develop -c rustc --version`</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">1.94</span><span class="p">)</span>
+<span class="mf">8.</span><span class="w"> </span><span class="n">Simulate</span><span class="w"> </span><span class="n">litany</span><span class="w"> </span><span class="k">member</span><span class="p">,</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">run</span><span class="w"> </span><span class="n">O1</span><span class="p">,</span><span class="w"> </span><span class="n">revert</span><span class="w">    </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">verify</span><span class="o">:</span><span class="w"> </span><span class="n">O4</span><span class="w"> </span><span class="p">(</span><span class="n">glob</span><span class="w"> </span><span class="k">auto</span><span class="o">-</span><span class="n">absorb</span><span class="p">)</span>
+</pre></div>
+
+<p>Each step's verify is independently runnable; steps 1–4 and 8 are M1-local.</p>
+<h2 id="6-test-plan-local-m1-vs-dev-cx53linux">6. Test plan — local (M1) vs dev-cx53/Linux</h2>
+<p><strong>Build-policy note:</strong> dev-cx53 is OFF-LIMITS for 6h during authoring (autoresearcher).<br />
+This gate's local checks are deliberately structural and cheap so the gate can be<br />
+<em>authored and self-verified entirely on M1</em>; only the full release build and the<br />
+canonical "gate green in CI" run belong on dev-cx53.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>M1 (local)</th>
+<th>dev-cx53 / <code>nix develop</code></th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>O1 members/exclude</td>
+<td><code>cargo metadata --format-version 1 --no-deps</code></td>
+<td>YES (verified)</td>
+<td>YES</td>
+<td>host cargo 1.95.0 used locally; resolution is toolchain-agnostic</td>
+</tr>
+<tr>
+<td>O2 workspace compiles</td>
+<td><code>cargo check --workspace</code></td>
+<td>YES (verified)</td>
+<td>YES</td>
+<td>seconds; M1-safe</td>
+</tr>
+<tr>
+<td>O3 single root lock</td>
+<td><code>ls Cargo.lock protocol/hcp/hcpbin/Cargo.lock</code></td>
+<td>YES (verified)</td>
+<td>n/a</td>
+<td>pure FS check</td>
+</tr>
+<tr>
+<td>O4 litany auto-absorb</td>
+<td>add stub manifest, re-run O1, revert</td>
+<td>YES (verified, simulated)</td>
+<td>YES</td>
+<td>proves WP3-S2 hand-off</td>
+</tr>
+<tr>
+<td>hcpbin tests compile+run</td>
+<td><code>cargo test --workspace</code></td>
+<td>YES (compiles+runs today; verified <code>--no-run</code>)</td>
+<td>YES</td>
+<td><strong>bonus signal, not gate</strong> (§8)</td>
+</tr>
+<tr>
+<td>O5 gate toolchain floor</td>
+<td><code>nix develop . --command rustc --version</code></td>
+<td>YES (verified: rustc 1.95.0 ≥ 1.94)</td>
+<td>YES (same flake; authoritative there)</td>
+<td>the gate-relevant toolchain</td>
+</tr>
+<tr>
+<td>O6 fmt/clippy in shell</td>
+<td><code>nix develop . -c 'cargo fmt --version &amp;&amp; cargo clippy --version'</code></td>
+<td>YES (after §4.6 edit; nix available on M1)</td>
+<td>YES</td>
+<td>requires the flake edit</td>
+</tr>
+<tr>
+<td><code>swe-af</code> still builds in shell</td>
+<td><code>cargo build --manifest-path vaked-agents/ci/swe-af/Cargo.toml</code></td>
+<td>NO — REMOTE-ONLY (heavy, network deps)</td>
+<td><strong>dev-cx53 only</strong></td>
+<td>confirms the floor decision didn't break the other in-shell crate</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Local vs remote split, summarized:</strong><br />
+- <strong>Local on M1 (now):</strong> the entire structural acceptance set (O1–O4, O6) plus the<br />
+  gate toolchain oracle O5 — all verified during authoring. <code>nix</code> is present on M1,<br />
+  so even the dev-shell oracles run locally.<br />
+- <strong>dev-cx53 / Linux only:</strong> the heavy <code>swe-af</code> release build (REMOTE-ONLY policy),<br />
+  and the canonical CI run that records the gate as closed. Nothing in this gate<br />
+<em>requires</em> Linux syscalls (unlike the Zig daemons), so dev-cx53 is needed for<br />
+  policy/heaviness reasons, not capability.</p>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Sprint / component</th>
+<th>Relationship</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>This gate blocks</strong></td>
+<td><strong>WP3-S1</strong> (Jun 24, <code>hcpbin</code> codec)</td>
+<td>WP3-S1's "First task" is to fill in <code>protocol/hcp/hcpbin/src/lib.rs</code> and have golden tests pass <em>on dev-cx53 via <code>nix develop</code></em>. That requires a workspace wired into the shell — this gate. Listed as a pre-start gate due <strong>Jun 21</strong>, 3 days before WP3-S1 starts.</td>
+</tr>
+<tr>
+<td><strong>This gate enables (no later edit)</strong></td>
+<td><strong>WP3-S2</strong> (Jul 9, <code>litany</code> crate)</td>
+<td>When WP3-S2 creates <code>protocol/hcp/litany/Cargo.toml</code>, the <code>protocol/hcp/*</code> glob absorbs it automatically (O4). WP3-S2 must <strong>not</strong> add a <code>[workspace]</code> table to <code>litany</code> (that would self-isolate it, like <code>swe-af</code>).</td>
+</tr>
+<tr>
+<td><strong>Sibling pre-start gates</strong> (kickoff)</td>
+<td>RFC 0002 format freeze (Jun 21); WP3 engineer nominated</td>
+<td>Independent of this gate; all three must close before Jun 24. RFC 0002 freeze is a <em>content</em> precondition for WP3-S1, not for this structural gate.</td>
+</tr>
+<tr>
+<td><strong>Unaffected</strong></td>
+<td><code>vaked-agents/ci/swe-af</code></td>
+<td>Stays a standalone crate (D2). This gate must not regress its in-shell build (test row 8).</td>
+</tr>
+<tr>
+<td><strong>Downstream consumers</strong></td>
+<td><code>eventd</code> (WP3-S5), daemon fleet</td>
+<td>Consume the eventual <code>litany</code> crate; no dependency on the workspace scaffolding itself.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>The gate is <strong>structural</strong>: it closes when the workspace <em>resolves and compiles</em><br />
+in the dev shell — <strong>not</strong> when <code>hcpbin</code>'s codec tests pass. Test-pass is WP3-S1's<br />
+deliverable; importing it into a pre-start gate would couple a Jun-21 gate to<br />
+Jun-24+ work.</p>
+<p><strong>MUST (gate-closing):</strong></p>
+<ol>
+<li><code>/Cargo.toml</code> exists; <code>cargo metadata --format-version 1 --no-deps</code> lists<br />
+<code>hcpbin</code> as a member and does <strong>not</strong> list <code>vaked-swe-af</code> (O1).</li>
+<li><code>nix develop . --command cargo check --workspace</code> exits 0 (O2 under the gate<br />
+   toolchain).</li>
+<li>Exactly one <code>Cargo.lock</code>, at the repo root; <code>protocol/hcp/hcpbin/Cargo.lock</code><br />
+   removed; root lock committed (O3).</li>
+<li><code>nix develop . --command rustc --version</code> reports ≥ <strong>1.94</strong> with edition-2024<br />
+   support (O5) — satisfies the <code>swe-af</code> floor (D2).</li>
+<li><code>nix develop . -c 'cargo fmt --version &amp;&amp; cargo clippy --version'</code> both resolve<br />
+   (O6) — devShell carries the lint toolchain.</li>
+<li><code>task hcp</code> (Taskfile) runs steps O1+O2 green.</li>
+<li>Adding a stub <code>protocol/hcp/litany/Cargo.toml</code> makes it a member with <strong>no edit</strong><br />
+   to <code>/Cargo.toml</code> (O4) — WP3-S2 hand-off proven.</li>
+<li><code>swe-af</code> still builds inside the shell on dev-cx53 (no regression from the<br />
+   floor/exclude decisions) — test plan row 8, run on dev-cx53.</li>
+</ol>
+<p><strong>SHOULD (bonus signal, explicitly NOT gate-closing):</strong></p>
+<ul>
+<li><code>nix develop . --command cargo test --workspace</code> compiles and runs the <code>hcpbin</code><br />
+  lib + <code>golden.rs</code> executables. As of authoring these <strong>already compile and run</strong><br />
+  on the host toolchain; whether every golden vector <em>passes</em> is WP3-S1's<br />
+  responsibility, so a red <code>cargo test</code> does <strong>not</strong> fail this gate.</li>
+</ul>
+<p><strong>MUST NOT:</strong></p>
+<ul>
+<li>Add a <code>rust-toolchain.toml</code> (D3).</li>
+<li>Add <code>swe-af</code> to the workspace (D2).</li>
+<li>Edit <code>hcpbin/Cargo.toml</code> (surgical; §4.5).</li>
+<li>Make <code>cargo test --workspace</code> green a gate criterion (§8 rationale).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-cargo-workspace.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

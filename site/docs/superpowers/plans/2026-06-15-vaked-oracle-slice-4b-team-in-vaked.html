@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle slice 4b · thread 1 — team-in-vaked — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#task-1-oracle-teamvaked-the-team-capability-graph-two-egress-cordons" style="padding-left:1rem">  Task 1: `oracle-team.vaked` — the team capability graph + two egress cordons</a><a href="#task-2-rosterfromvakedpy-graph-panelists-judge-budget" style="padding-left:1rem">  Task 2: `roster_from_vaked.py` — graph → (panelists, judge, budget)</a><a href="#task-3-checkrosteregress-the-egress-drift-check-pola" style="padding-left:1rem">  Task 3: `check_roster_egress` — the egress drift check (POLA)</a><a href="#task-4-wire-oracle-team---from-vaked-with-egress-reject" style="padding-left:1rem">  Task 4: wire `oracle team --from-vaked` (with egress reject)</a><a href="#task-5-manifest-interop-the-lowered-policy-loads-in-agentguardd-attests-the-dns-" style="padding-left:1rem">  Task 5: manifest interop — the lowered policy loads in agent_guardd + attests the DNS gap</a><a href="#task-6-teamvaked-taskfile-target" style="padding-left:1rem">  Task 6: `team:vaked` Taskfile target</a><a href="#task-7-docs-v0md-team-in-vaked-section-devtodo" style="padding-left:1rem">  Task 7: docs — v0.md team-in-vaked section + .DEV.TODO</a><a href="#team-in-vaked-slice-4b-thread-1" style="padding-left:0.5rem">Team-in-vaked (slice 4b · thread 1)</a><a href="#slice-4b-thread-1-team-in-vaked-in-progress-branch-featoracle-team-in-vaked" style="padding-left:1rem">  Slice 4b — thread 1 (team-in-vaked) — IN PROGRESS (branch feat/oracle-team-in-vaked)</a><a href="#final-verification-after-all-tasks" style="padding-left:0.5rem">Final verification (after all tasks)</a><a href="#on-box-acceptance-dev-cx53-separate-not-on-the-m3" style="padding-left:0.5rem">On-box acceptance (dev-cx53 — separate, not on the M3)</a><a href="#out-of-scope-own-cycles" style="padding-left:0.5rem">Out of scope (own cycles)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-15-vaked-oracle-slice-4b-team-in-vaked</div>
+<h1>vaked-oracle slice 4b · thread 1 — team-in-vaked — Implementation Plan</h1>
+<h1 id="vaked-oracle-slice-4b-thread-1-team-in-vaked-implementation-plan">vaked-oracle slice 4b · thread 1 — team-in-vaked — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</p>
+</blockquote>
+<p><strong>Goal:</strong> Lower the slice-4a reverser team (roster + budget + OpenRouter egress membrane) from a Vaked capability graph, so declaration and enforcement cannot drift.</p>
+<p><strong>Architecture:</strong> A new <code>vaked/examples/oracle-team.vaked</code> declares the team mesh + two <code>networkMembrane</code> egress cordons. <code>tools/oracle/roster_from_vaked.py</code> reads the lowered <code>graph.json</code> artifact (engine-agnostic) into <code>(panelists, judge, budget)</code> and runs a tool-local egress drift-check; <code>oracle team --from-vaked</code> uses it instead of a hand-written <code>panel.example.json</code>. The same graph lowers (existing vakedc 0012) to <code>gen/ebpf.policy.json</code>, the manifest <code>agent_guardd.policy</code> consumes.</p>
+<p><strong>Tech Stack:</strong> Python 3 stdlib only (urllib, json, argparse, unittest). vakedc (Python, M3-safe parse/check/lower — no compile). Reuses <code>tools/oracle/panel.py</code> + <code>team.py</code> (slice 4a) and <code>agent_guardd/policy.py</code> read/call-only.</p>
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-06-15-vaked-oracle-slice-4b-team-in-vaked-design.md</code></p>
+<p><strong>Ground-truth LPG shapes (verified by running vakedc on canonical examples):</strong><br />
+- mesh node: <code>{"kind":"node","name":N,"props":{"capabilities":[{"ref":"network.egress"}],"model":{"lit":"string","value":"..."},"role":{"lit":"string","value":"..."}, ...}}</code> — open scalars are <code>{"lit":...,"value":...}</code>; <strong>numbers arrive as strings</strong> (<code>{"lit":"number","value":"443"}</code>).<br />
+- networkMembrane: a top-level <code>{"kind":"network","name":N,"props":{"principal":{"lit":"string","value":"feketecs"},"default":{"value":"deny"},"allow":[{"ref":"egress","args":[{"value":"openrouter.ai"},{"value":"443"}]}]}}</code>.<br />
+- lowered manifest <code>.vaked/lower/gen/ebpf.policy.json</code>: <code>{"runtime":..., "version":1, "membranes":[{"membrane":..,"principal":..,"grant":..,"default":"deny","allow":[{"proto":"tcp","host":"127.0.0.1","cidr":"127.0.0.1/32","port":9}]}]}</code> — exactly what <code>agent_guardd.policy.load_policy</code> parses. An IP host gets <code>/32</code>; a DNS host (<code>openrouter.ai</code>) is un-attestable at <code>decide()</code> (non-IP → deny) — the documented gap.</p>
+<p><strong>Constraints:</strong> never build/compile on the M3 (vakedc parse/check/lower is pure Python = allowed) · revdev unprivileged · Snyk OFF · reuse <code>panel.py</code>/<code>team.py</code>/<code>agent_guardd</code> read-call-only · never print the OpenRouter key · codenames ASCII-only.</p>
+<hr />
+<h3 id="task-1-oracle-teamvaked-the-team-capability-graph-two-egress-cordons">Task 1: <code>oracle-team.vaked</code> — the team capability graph + two egress cordons</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>vaked/examples/oracle-team.vaked</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the declaration</strong></li>
+</ul>
+<p>Create <code>vaked/examples/oracle-team.vaked</code>:</p>
+<div class="highlight"><pre><span></span><span class="c1"># oracle-team.vaked — the slice-4a reverser TEAM&#39;s OWN capability graph</span>
+<span class="c1"># (tools/oracle/{panel,team,memory}.py, docs/oracle/v0.md), declared in Vaked so the</span>
+<span class="c1"># team&#39;s roster + budget + egress are LOWERED from this declaration instead of a</span>
+<span class="c1"># hand-written panel.example.json (tools/oracle/roster_from_vaked.py). Declaration</span>
+<span class="c1"># and enforcement cannot drift — dogfood symmetry with oracle-re-loop.vaked, now for</span>
+<span class="c1"># an agent that LEAVES the box (OpenRouter egress).</span>
+<span class="c1">#</span>
+<span class="c1"># POLA: local panelists reach their model on loopback only; the two OpenRouter nodes</span>
+<span class="c1"># (feketecs, anstetten) hold network.egress refined by a deny-by-default</span>
+<span class="c1"># networkMembrane allowing ONLY openrouter.ai:443. The operator holds the attenuated</span>
+<span class="c1"># superset every node delegates from.</span>
+<span class="c1">#</span>
+<span class="c1"># NOTE on roster open fields (`endpoint`, `keyEnv`, `temperature`, `reasoningEffort`,</span>
+<span class="c1"># `budgetCalls`): these ride the OPEN `meshNode` schema as descriptive fields — the</span>
+<span class="c1"># same stopgap as `writeScope` in dogfood-kernel.vaked. Follow-up: a roster-field</span>
+<span class="c1"># schema. The EGRESS, by contrast, is modelled properly via `networkMembrane`.</span>
+<span class="c1">#</span>
+<span class="c1"># NOTE on the cordon: agent_guardd.decide() attests IP literals only, so the</span>
+<span class="c1"># openrouter.ai (DNS) rule lowers descriptively but is un-attestable at the packet</span>
+<span class="c1"># layer; roster_from_vaked.check_roster_egress enforces it at the tool layer. A local</span>
+<span class="c1"># egress proxy (pinned loopback IP) is the path to full packet attestation — follow-up.</span>
+
+<span class="n">runtime</span><span class="w"> </span><span class="s2">&quot;oracle-team&quot;</span><span class="w"> </span><span class="err">{</span>
+<span class="w">  </span><span class="n">systems</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="s2">&quot;aarch64-darwin&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;x86_64-linux&quot;</span><span class="err">]</span><span class="w">   </span><span class="c1"># M3 orchestrates; dev-cx53 runs the heavy work</span>
+
+<span class="w">  </span><span class="n">mesh</span><span class="w"> </span><span class="n">oracleTeam</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">operator</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="k">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;control-plane&quot;</span>
+<span class="w">      </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="k">admin</span><span class="err">]</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">coordinator</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="c1"># holds network.egress because it SUB-DELEGATES egress to feketecs/anstetten;</span>
+<span class="w">      </span><span class="c1"># the checker refuses an edge whose child grant exceeds the parent&#39;s (lattice</span>
+<span class="w">      </span><span class="c1"># none &lt; loopback &lt; lan &lt; egress), so coordinator must dominate its children.</span>
+<span class="w">      </span><span class="k">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;coordinate&quot;</span>
+<span class="w">      </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="k">admin</span><span class="err">]</span>
+<span class="w">      </span><span class="n">budgetCalls</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">infralight</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="k">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;panelist&quot;</span>
+<span class="w">      </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;qwen2.5-coder-3b-instruct&quot;</span>
+<span class="w">      </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="n">network</span><span class="p">.</span><span class="n">loopback</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">recall</span><span class="err">]</span>
+<span class="w">      </span><span class="n">endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;http://127.0.0.1:8091/v1/chat/completions&quot;</span>
+<span class="w">      </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">staticarmor</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="k">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;panelist&quot;</span>
+<span class="w">      </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;llm4decompile&quot;</span>
+<span class="w">      </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="n">network</span><span class="p">.</span><span class="n">loopback</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">recall</span><span class="err">]</span>
+<span class="w">      </span><span class="n">endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;http://127.0.0.1:8090/v1/chat/completions&quot;</span>
+<span class="w">      </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">feketecs</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="k">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;panelist&quot;</span>
+<span class="w">      </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deepseek/deepseek-v4-flash&quot;</span>
+<span class="w">      </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">recall</span><span class="err">]</span>
+<span class="w">      </span><span class="n">endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://openrouter.ai/api/v1/chat/completions&quot;</span>
+<span class="w">      </span><span class="n">keyEnv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span>
+<span class="w">      </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">    </span><span class="err">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">anstetten</span><span class="w"> </span><span class="err">{</span>
+<span class="w">      </span><span class="k">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;judge&quot;</span>
+<span class="w">      </span><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span>
+<span class="w">      </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">recall</span><span class="err">]</span>
+<span class="w">      </span><span class="n">endpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;https://openrouter.ai/api/v1/chat/completions&quot;</span>
+<span class="w">      </span><span class="n">keyEnv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span>
+<span class="w">      </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">      </span><span class="n">reasoningEffort</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;high&quot;</span>
+<span class="w">    </span><span class="err">}</span>
+
+<span class="w">    </span><span class="n">operator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">coordinator</span>
+<span class="w">    </span><span class="n">coordinator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">infralight</span>
+<span class="w">    </span><span class="n">coordinator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">staticarmor</span>
+<span class="w">    </span><span class="n">coordinator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">feketecs</span>
+<span class="w">    </span><span class="n">coordinator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">anstetten</span>
+<span class="w">  </span><span class="err">}</span>
+
+<span class="w">  </span><span class="c1"># Loopback cordons: deny-by-default, allow ONLY each local model&#39;s port. These</span>
+<span class="w">  </span><span class="c1"># lower to real IP rules (127.0.0.1/32:port) — fully eBPF-attestable.</span>
+<span class="w">  </span><span class="n">network</span><span class="w"> </span><span class="n">infralightCordon</span><span class="w">  </span><span class="err">{</span><span class="w"> </span><span class="n">principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;infralight&quot;</span><span class="w">  </span><span class="k">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="n">egress</span><span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">8091</span><span class="p">)</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="err">}</span>
+<span class="w">  </span><span class="n">network</span><span class="w"> </span><span class="n">staticarmorCordon</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;staticarmor&quot;</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="n">egress</span><span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">8090</span><span class="p">)</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="err">}</span>
+<span class="w">  </span><span class="c1"># OpenRouter cordons: the egress() DNS host is DROPPED at lower (the 0012 emitter</span>
+<span class="w">  </span><span class="c1"># can&#39;t compute a CIDR for a non-IP host) → these lower to deny-all (allow []).</span>
+<span class="w">  </span><span class="c1"># So OpenRouter egress is un-attestable at the packet layer and is enforced ONLY by</span>
+<span class="w">  </span><span class="c1"># roster_from_vaked.check_roster_egress at the tool layer (the documented gap).</span>
+<span class="w">  </span><span class="n">network</span><span class="w"> </span><span class="n">feketecsCordon</span><span class="w">  </span><span class="err">{</span><span class="w"> </span><span class="n">principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;feketecs&quot;</span><span class="w">  </span><span class="k">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="n">egress</span><span class="p">(</span><span class="s2">&quot;openrouter.ai&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">443</span><span class="p">)</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="err">}</span>
+<span class="w">  </span><span class="n">network</span><span class="w"> </span><span class="n">anstettenCordon</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;anstetten&quot;</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;deny&quot;</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="n">egress</span><span class="p">(</span><span class="s2">&quot;openrouter.ai&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">443</span><span class="p">)</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="err">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><strong>Verified empirically (during planning):</strong> this <code>check</code>s clean and <code>lower</code> emits an<br />
+<code>infralightCordon</code>/<code>staticarmorCordon</code> with real <code>127.0.0.1/32</code> IP rules + <code>feketecs</code>/<br />
+<code>anstetten</code> cordons with <code>allow: []</code> (DNS dropped). The egress edges do not escalate<br />
+because <code>coordinator</code> holds <code>network.egress</code>.</p>
+<ul>
+<li>[ ] <strong>Step 2: Verify it parses + type-checks + lowers</strong></li>
+</ul>
+<p>Run (from worktree root — vakedc is pure Python, M3-safe):</p>
+<div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w"> </span>vaked/examples/oracle-team.vaked<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>lower<span class="w"> </span>vaked/examples/oracle-team.vaked
+</pre></div>
+
+<p>Expected: <code>check</code> exits 0 (no escalation errors); <code>lower</code> writes <code>.vaked/lower/...</code> including <code>gen/ebpf.policy.json</code>. If <code>check</code> reports an unknown-field or escalation error, fix the declaration (open fields are allowed on <code>meshNode</code>; an edge must not grant more than the parent — <code>operator</code> is the superset). If <code>lower</code> rejects the DNS host in <code>egress("openrouter.ai", 443)</code>, keep the rule and note it (descriptive); it must at least parse+check.</p>
+<ul>
+<li>[ ] <strong>Step 3: Verify the graph shape the reader depends on</strong></li>
+</ul>
+<p>Run:</p>
+<div class="highlight"><pre><span></span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>parse<span class="w"> </span>vaked/examples/oracle-team.vaked<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+python3<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;</span>
+<span class="s1">import json; g=json.load(open(&quot;.vaked/graph.json&quot;))</span>
+<span class="s1">nodes={n[&quot;name&quot;]:n for n in g[&quot;nodes&quot;] if n.get(&quot;kind&quot;)==&quot;node&quot;}</span>
+<span class="s1">nets=[n for n in g[&quot;nodes&quot;] if n.get(&quot;kind&quot;)==&quot;network&quot;]</span>
+<span class="s1">assert &quot;feketecs&quot; in nodes and &quot;anstetten&quot; in nodes, &quot;missing roster nodes&quot;</span>
+<span class="s1">assert nodes[&quot;feketecs&quot;][&quot;props&quot;][&quot;endpoint&quot;][&quot;value&quot;].startswith(&quot;https://openrouter.ai&quot;)</span>
+<span class="s1">principals = {n[&quot;props&quot;][&quot;principal&quot;][&quot;value&quot;] for n in nets}</span>
+<span class="s1">assert {&quot;feketecs&quot;, &quot;anstetten&quot;, &quot;infralight&quot;} &lt;= principals, &quot;missing cordons&quot;</span>
+<span class="s1">print(&quot;graph shape OK:&quot;, sorted(nodes), &quot;membranes:&quot;, sorted(principals))</span>
+<span class="s1">&#39;</span>
+rm<span class="w"> </span>-rf<span class="w"> </span>.vaked
+</pre></div>
+
+<p>Expected: <code>graph shape OK: [...] membranes: ['anstetten', 'feketecs', 'infralight', 'staticarmor']</code>.</p>
+<ul>
+<li>[ ] <strong>Step 4: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>vaked/examples/oracle-team.vaked
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): oracle-team.vaked — the reverser team&#39;s capability graph + egress cordons&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-2-roster_from_vakedpy-graph-panelists-judge-budget">Task 2: <code>roster_from_vaked.py</code> — graph → (panelists, judge, budget)</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>tools/oracle/roster_from_vaked.py</code><br />
+- Test: <code>tools/oracle/test_oracle.py</code> (append to the existing stdlib suite)</p>
+<p>This task adds the module skeleton + roster extraction. The egress check is Task 3.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p>Append to <code>tools/oracle/test_oracle.py</code> (inside the existing test class / module — it uses plain <code>unittest</code>). Add a fixture helper + tests:</p>
+<div class="highlight"><pre><span></span><span class="c1"># ---- slice 4b thread 1: team-in-vaked ----</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_team_graph</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A minimal lowered-LPG fixture mirroring oracle-team.vaked (numbers are strings).&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">s</span><span class="p">(</span><span class="n">v</span><span class="p">):</span> <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;lit&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">v</span><span class="p">}</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">num</span><span class="p">(</span><span class="n">v</span><span class="p">):</span> <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;lit&quot;</span><span class="p">:</span> <span class="s2">&quot;number&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">v</span><span class="p">}</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">cap</span><span class="p">(</span><span class="n">ref</span><span class="p">):</span> <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;ref&quot;</span><span class="p">:</span> <span class="n">ref</span><span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;nodes&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;node&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;operator&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;control-plane&quot;</span><span class="p">),</span> <span class="s2">&quot;capabilities&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">cap</span><span class="p">(</span><span class="s2">&quot;fs.repo_rw&quot;</span><span class="p">),</span> <span class="n">cap</span><span class="p">(</span><span class="s2">&quot;network.egress&quot;</span><span class="p">),</span> <span class="n">cap</span><span class="p">(</span><span class="s2">&quot;mem.admin&quot;</span><span class="p">)]}},</span>
+        <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;node&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;coordinator&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;coordinate&quot;</span><span class="p">),</span> <span class="s2">&quot;capabilities&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">cap</span><span class="p">(</span><span class="s2">&quot;fs.repo_rw&quot;</span><span class="p">),</span> <span class="n">cap</span><span class="p">(</span><span class="s2">&quot;network.loopback&quot;</span><span class="p">)],</span> <span class="s2">&quot;budgetCalls&quot;</span><span class="p">:</span> <span class="n">num</span><span class="p">(</span><span class="s2">&quot;30&quot;</span><span class="p">)}},</span>
+        <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;node&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;infralight&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;panelist&quot;</span><span class="p">),</span> <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;qwen2.5-coder-3b-instruct&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;capabilities&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">cap</span><span class="p">(</span><span class="s2">&quot;network.loopback&quot;</span><span class="p">)],</span>
+            <span class="s2">&quot;endpoint&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:8091/v1/chat/completions&quot;</span><span class="p">),</span> <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="n">num</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">)}},</span>
+        <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;node&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;feketecs&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;panelist&quot;</span><span class="p">),</span> <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;deepseek/deepseek-v4-flash&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;capabilities&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">cap</span><span class="p">(</span><span class="s2">&quot;network.egress&quot;</span><span class="p">)],</span>
+            <span class="s2">&quot;endpoint&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;https://openrouter.ai/api/v1/chat/completions&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;keyEnv&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">),</span> <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="n">num</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">)}},</span>
+        <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;node&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;anstetten&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;judge&quot;</span><span class="p">),</span> <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;capabilities&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">cap</span><span class="p">(</span><span class="s2">&quot;network.egress&quot;</span><span class="p">)],</span>
+            <span class="s2">&quot;endpoint&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;https://openrouter.ai/api/v1/chat/completions&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;keyEnv&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">),</span> <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="n">num</span><span class="p">(</span><span class="s2">&quot;1&quot;</span><span class="p">),</span> <span class="s2">&quot;reasoningEffort&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;high&quot;</span><span class="p">)}},</span>
+        <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;network&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;feketecsCordon&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;principal&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;feketecs&quot;</span><span class="p">),</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;deny&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;allow&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;ref&quot;</span><span class="p">:</span> <span class="s2">&quot;egress&quot;</span><span class="p">,</span> <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">s</span><span class="p">(</span><span class="s2">&quot;openrouter.ai&quot;</span><span class="p">),</span> <span class="n">num</span><span class="p">(</span><span class="s2">&quot;443&quot;</span><span class="p">)]}]}},</span>
+        <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;network&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;anstettenCordon&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;principal&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;anstetten&quot;</span><span class="p">),</span> <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="n">s</span><span class="p">(</span><span class="s2">&quot;deny&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;allow&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;ref&quot;</span><span class="p">:</span> <span class="s2">&quot;egress&quot;</span><span class="p">,</span> <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">s</span><span class="p">(</span><span class="s2">&quot;openrouter.ai&quot;</span><span class="p">),</span> <span class="n">num</span><span class="p">(</span><span class="s2">&quot;443&quot;</span><span class="p">)]}]}},</span>
+    <span class="p">]}</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">TestRosterFromVaked</span><span class="p">(</span><span class="n">unittest</span><span class="o">.</span><span class="n">TestCase</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_load_roster_extracts_panelists_judge_budget</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">roster_from_vaked</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rfv</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;test-key-not-real&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">panelists</span><span class="p">,</span> <span class="n">judge</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="n">rfv</span><span class="o">.</span><span class="n">load_roster_from_graph</span><span class="p">(</span><span class="n">_team_graph</span><span class="p">())</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">panelists</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;feketecs&quot;</span><span class="p">,</span> <span class="s2">&quot;infralight&quot;</span><span class="p">])</span>      <span class="c1"># judge excluded</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">judge</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">budget</span><span class="p">,</span> <span class="mi">30</span><span class="p">)</span>
+        <span class="n">feke</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">panelists</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;feketecs&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">feke</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">temperature</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>            <span class="c1"># number-string coerced</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">judge</span><span class="o">.</span><span class="n">reasoning_effort</span><span class="p">,</span> <span class="s2">&quot;high&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_load_roster_drops_node_with_absent_key_env</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">roster_from_vaked</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rfv</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>               <span class="c1"># ensure absent</span>
+        <span class="n">panelists</span><span class="p">,</span> <span class="n">judge</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="n">rfv</span><span class="o">.</span><span class="n">load_roster_from_graph</span><span class="p">(</span><span class="n">_team_graph</span><span class="p">())</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">panelists</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertEqual</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;infralight&quot;</span><span class="p">])</span>                   <span class="c1"># feketecs dropped (no key)</span>
+        <span class="c1"># anstetten (judge) also dropped -&gt; keyless fallback to first panelist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">assertIs</span><span class="p">(</span><span class="n">judge</span><span class="p">,</span> <span class="n">panelists</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run to verify it fails</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -5</code><br />
+Expected: FAIL — <code>ModuleNotFoundError: No module named 'roster_from_vaked'</code>.</p>
+<ul>
+<li>[ ] <strong>Step 3: Write the implementation</strong></li>
+</ul>
+<p>Create <code>tools/oracle/roster_from_vaked.py</code>:</p>
+<div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;roster_from_vaked — derive the slice-4a reverser team from a Vaked graph.</span>
+
+<span class="sd">Engine-agnostic: reads the lowered LPG artifact (graph.json from `vakedc`/`vakedz`</span>
+<span class="sd">parse), so it survives the vakedc-&gt;vakedz cutover. Closes roster/budget/egress drift:</span>
+<span class="sd">the team&#39;s panelists, judge, budget, and egress allow-set come from</span>
+<span class="sd">vaked/examples/oracle-team.vaked instead of a hand-written panel.example.json.</span>
+
+<span class="sd">POLA egress check (check_roster_egress, see below): every node that carries an</span>
+<span class="sd">`endpoint` must reach loopback OR a (host, port) inside its networkMembrane</span>
+<span class="sd">allow-set; a roster reaching an undeclared host is rejected. Tool-local analog of</span>
+<span class="sd">the language&#39;s E-CAP-USE check; promote to a vakedc E-EGRESS-USE pass later.</span>
+
+<span class="sd">Pure stdlib.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urlsplit</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">panel</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">P</span>
+
+<span class="n">LOOPBACK_HOSTS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="s2">&quot;::1&quot;</span><span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_graph</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_val</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Unwrap a graph scalar ({&quot;lit&quot;:..,&quot;value&quot;:..} or bare) to its python value.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;value&quot;</span> <span class="ow">in</span> <span class="n">v</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">v</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_mesh_nodes</span><span class="p">(</span><span class="n">graph</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;name -&gt; props for every mesh node (kind &#39;node&#39;).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">n</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]:</span> <span class="n">n</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;props&quot;</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nodes&quot;</span><span class="p">,</span> <span class="p">[])</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kind&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;node&quot;</span><span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_roster_nodes</span><span class="p">(</span><span class="n">nodes</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The panelist/judge nodes: those carrying an `endpoint` (operator/coordinator have none).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="n">props</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">props</span> <span class="ow">in</span> <span class="n">nodes</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;endpoint&quot;</span><span class="p">)}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_roster_from_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(panelists, judge, budget). Builds panel.OpenAIChatClient per endpoint node;</span>
+<span class="sd">    role==&#39;judge&#39; -&gt; judge; coordinator (role &#39;coordinate&#39;) budgetCalls -&gt; budget.</span>
+<span class="sd">    A node whose keyEnv is set-but-absent is dropped (stderr), mirroring</span>
+<span class="sd">    panel.load_roster; a keyless judge falls back to the first panelist.&quot;&quot;&quot;</span>
+    <span class="n">nodes</span> <span class="o">=</span> <span class="n">_mesh_nodes</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">panelists</span><span class="p">,</span> <span class="n">judge</span> <span class="o">=</span> <span class="p">[],</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">props</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">_roster_nodes</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="n">key_env</span> <span class="o">=</span> <span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;keyEnv&quot;</span><span class="p">))</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">key_env</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key_env</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">key</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;roster_from_vaked: dropping </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> — env </span><span class="si">{</span><span class="n">key_env</span><span class="si">}</span><span class="s2"> not set&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+                <span class="k">continue</span>
+        <span class="n">client</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">OpenAIChatClient</span><span class="p">(</span>
+            <span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;endpoint&quot;</span><span class="p">)),</span> <span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model&quot;</span><span class="p">)),</span> <span class="n">key</span><span class="p">,</span>
+            <span class="n">temperature</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;temperature&quot;</span><span class="p">))</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">),</span>
+            <span class="n">reasoning_effort</span><span class="o">=</span><span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;reasoningEffort&quot;</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;role&quot;</span><span class="p">))</span> <span class="o">==</span> <span class="s2">&quot;judge&quot;</span><span class="p">:</span>
+            <span class="n">judge</span> <span class="o">=</span> <span class="n">client</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">panelists</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">Panelist</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">client</span><span class="o">=</span><span class="n">client</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">judge</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">panelists</span><span class="p">:</span>
+        <span class="n">judge</span> <span class="o">=</span> <span class="n">panelists</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">client</span>
+    <span class="n">budget</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="k">for</span> <span class="n">props</span> <span class="ow">in</span> <span class="n">nodes</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;role&quot;</span><span class="p">))</span> <span class="o">==</span> <span class="s2">&quot;coordinate&quot;</span> <span class="ow">and</span> <span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;budgetCalls&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">budget</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;budgetCalls&quot;</span><span class="p">)))</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">panelists</span><span class="p">,</span> <span class="n">judge</span><span class="p">,</span> <span class="n">budget</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run to verify it passes</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3</code><br />
+Expected: PASS (the two new tests + the existing 72 all green).</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/roster_from_vaked.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): roster_from_vaked — derive panelists/judge/budget from the Vaked graph&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-3-check_roster_egress-the-egress-drift-check-pola">Task 3: <code>check_roster_egress</code> — the egress drift check (POLA)</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/oracle/roster_from_vaked.py</code><br />
+- Test: <code>tools/oracle/test_oracle.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p>Append to <code>tools/oracle/test_oracle.py</code>:</p>
+<p>Module-level <code>test_*</code> functions with plain <code>assert</code> (the file's convention — NO <code>unittest</code>/<code>TestCase</code>, or the custom runner silently skips them):</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_egress_check_clean_graph_has_no_violations</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">roster_from_vaked</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rfv</span>
+    <span class="k">assert</span> <span class="n">rfv</span><span class="o">.</span><span class="n">check_roster_egress</span><span class="p">(</span><span class="n">_team_graph</span><span class="p">())</span> <span class="o">==</span> <span class="p">[]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_egress_check_loopback_endpoint_needs_no_membrane</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">roster_from_vaked</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rfv</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">_team_graph</span><span class="p">()</span>
+    <span class="c1"># drop both cordons; loopback nodes still clean, egress nodes now violate</span>
+    <span class="n">g</span><span class="p">[</span><span class="s2">&quot;nodes&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">g</span><span class="p">[</span><span class="s2">&quot;nodes&quot;</span><span class="p">]</span> <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kind&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;network&quot;</span><span class="p">]</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;node&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">rfv</span><span class="o">.</span><span class="n">check_roster_egress</span><span class="p">(</span><span class="n">g</span><span class="p">))</span>
+    <span class="k">assert</span> <span class="n">names</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;anstetten&quot;</span><span class="p">,</span> <span class="s2">&quot;feketecs&quot;</span><span class="p">]</span>            <span class="c1"># loopback infralight is clean</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_egress_check_endpoint_outside_allow_set_is_a_violation</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">roster_from_vaked</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rfv</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">_team_graph</span><span class="p">()</span>
+    <span class="c1"># point feketecs at an undeclared host</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">g</span><span class="p">[</span><span class="s2">&quot;nodes&quot;</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;feketecs&quot;</span><span class="p">:</span>
+            <span class="n">n</span><span class="p">[</span><span class="s2">&quot;props&quot;</span><span class="p">][</span><span class="s2">&quot;endpoint&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lit&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="s2">&quot;https://evil.example/v1/chat/completions&quot;</span><span class="p">}</span>
+    <span class="n">viol</span> <span class="o">=</span> <span class="n">rfv</span><span class="o">.</span><span class="n">check_roster_egress</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="p">[</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;node&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">viol</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;feketecs&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">viol</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;host&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;evil.example&quot;</span>
+    <span class="k">assert</span> <span class="n">viol</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;port&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">443</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run to verify it fails</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -5</code><br />
+Expected: FAIL — <code>AttributeError: module 'roster_from_vaked' has no attribute 'check_roster_egress'</code>.</p>
+<ul>
+<li>[ ] <strong>Step 3: Write the implementation</strong></li>
+</ul>
+<p>Append to <code>tools/oracle/roster_from_vaked.py</code>:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">membrane_allow</span><span class="p">(</span><span class="n">graph</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;principal -&gt; set of (host, port) allow rules from networkMembrane (kind &#39;network&#39;) nodes.&quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nodes&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+        <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kind&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;network&quot;</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">props</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;props&quot;</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="n">principal</span> <span class="o">=</span> <span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;principal&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">principal</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">rules</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;allow&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+            <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ref&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;egress&quot;</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;args&quot;</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">rules</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="nb">str</span><span class="p">(</span><span class="n">_val</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])),</span> <span class="nb">int</span><span class="p">(</span><span class="n">_val</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]))))</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">principal</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">rules</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_endpoint_host_port</span><span class="p">(</span><span class="n">endpoint</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;(host, port) from an endpoint URL; default port by scheme.&quot;&quot;&quot;</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">endpoint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">host</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">hostname</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">port</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">port</span> <span class="ow">or</span> <span class="p">(</span><span class="mi">443</span> <span class="k">if</span> <span class="n">u</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="s2">&quot;https&quot;</span> <span class="k">else</span> <span class="mi">80</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">check_roster_egress</span><span class="p">(</span><span class="n">graph</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Drift check: each endpoint node must reach loopback OR a (host, port) in its</span>
+<span class="sd">    own networkMembrane allow-set. Returns [] when clean (deny-by-default). The</span>
+<span class="sd">    tool-local E-EGRESS-USE analog; non-empty -&gt; the caller must reject the run.&quot;&quot;&quot;</span>
+    <span class="n">nodes</span> <span class="o">=</span> <span class="n">_mesh_nodes</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">allow</span> <span class="o">=</span> <span class="n">membrane_allow</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+    <span class="n">violations</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">props</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">_roster_nodes</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">_endpoint_host_port</span><span class="p">(</span><span class="n">_val</span><span class="p">(</span><span class="n">props</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;endpoint&quot;</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="n">host</span> <span class="ow">in</span> <span class="n">LOOPBACK_HOSTS</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span> <span class="ow">in</span> <span class="n">allow</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">set</span><span class="p">()):</span>
+            <span class="k">continue</span>
+        <span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;node&quot;</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">&quot;host&quot;</span><span class="p">:</span> <span class="n">host</span><span class="p">,</span> <span class="s2">&quot;port&quot;</span><span class="p">:</span> <span class="n">port</span><span class="p">,</span>
+                           <span class="s2">&quot;reason&quot;</span><span class="p">:</span> <span class="s2">&quot;host:port not in node&#39;s networkMembrane allow-set (deny-by-default)&quot;</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">violations</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run to verify it passes</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3</code><br />
+Expected: PASS (3 new + all prior green).</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/roster_from_vaked.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): check_roster_egress — reject a roster reaching an undeclared host (POLA)&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-4-wire-oracle-team-from-vaked-with-egress-reject">Task 4: wire <code>oracle team --from-vaked</code> (with egress reject)</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/oracle/oracle.py</code> (team subparser lines 74-83; <code>cmd_team</code> 216-240)<br />
+- Test: <code>tools/oracle/test_oracle.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p>Append to <code>tools/oracle/test_oracle.py</code>:</p>
+<p>Module-level <code>test_*</code> functions (file convention); <code>assertRaises(SystemExit)</code> becomes a <code>try/except</code>:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_team_from_vaked_parses</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">oracle</span>
+    <span class="n">ns</span> <span class="o">=</span> <span class="n">oracle</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([</span><span class="s2">&quot;team&quot;</span><span class="p">,</span> <span class="s2">&quot;--target&quot;</span><span class="p">,</span> <span class="s2">&quot;/bin/true&quot;</span><span class="p">,</span> <span class="s2">&quot;--funcs&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;--from-vaked&quot;</span><span class="p">,</span> <span class="s2">&quot;graph.json&quot;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">ns</span><span class="o">.</span><span class="n">from_vaked</span> <span class="o">==</span> <span class="s2">&quot;graph.json&quot;</span>
+    <span class="k">assert</span> <span class="n">ns</span><span class="o">.</span><span class="n">panel</span> <span class="ow">is</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_team_panel_and_from_vaked_mutually_exclusive</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">oracle</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">oracle</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([</span><span class="s2">&quot;team&quot;</span><span class="p">,</span> <span class="s2">&quot;--target&quot;</span><span class="p">,</span> <span class="s2">&quot;/bin/true&quot;</span><span class="p">,</span> <span class="s2">&quot;--funcs&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">,</span>
+                           <span class="s2">&quot;--panel&quot;</span><span class="p">,</span> <span class="s2">&quot;p.json&quot;</span><span class="p">,</span> <span class="s2">&quot;--from-vaked&quot;</span><span class="p">,</span> <span class="s2">&quot;graph.json&quot;</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;expected SystemExit (mutually exclusive)&quot;</span>
+    <span class="k">except</span> <span class="ne">SystemExit</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_team_requires_one_roster_source</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">oracle</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">oracle</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([</span><span class="s2">&quot;team&quot;</span><span class="p">,</span> <span class="s2">&quot;--target&quot;</span><span class="p">,</span> <span class="s2">&quot;/bin/true&quot;</span><span class="p">,</span> <span class="s2">&quot;--funcs&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;expected SystemExit (one of --panel/--from-vaked required)&quot;</span>
+    <span class="k">except</span> <span class="ne">SystemExit</span><span class="p">:</span>
+        <span class="k">pass</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run to verify it fails</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -5</code><br />
+Expected: FAIL — <code>--from-vaked</code> unrecognized / <code>ns</code> has no <code>from_vaked</code> (and currently <code>--panel</code> is required so the third test would pass for the wrong reason).</p>
+<ul>
+<li>[ ] <strong>Step 3: Edit the team subparser</strong></li>
+</ul>
+<p>In <code>tools/oracle/oracle.py</code>, replace the current <code>--panel</code> line (74-83 block) so <code>--panel</code> and <code>--from-vaked</code> form a required mutually-exclusive group, and <code>--budget-calls</code> defaults to <code>None</code> (so the graph budget can fill in):</p>
+<div class="highlight"><pre><span></span><span class="n">t</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;team&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;reverser debate-panel team (slice 4a/4b)&quot;</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--target&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--funcs&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">s</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span><span class="p">])</span>
+    <span class="n">src</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">add_mutually_exclusive_group</span><span class="p">(</span><span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">src</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--panel&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;roster JSON (see panel.example.json)&quot;</span><span class="p">)</span>
+    <span class="n">src</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--from-vaked&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;from_vaked&quot;</span><span class="p">,</span>
+                     <span class="n">help</span><span class="o">=</span><span class="s2">&quot;lowered graph.json — derive roster+budget+egress, with the POLA egress check&quot;</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--pyghidra-python&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ORACLE_PYGHIDRA_PYTHON&quot;</span><span class="p">,</span> <span class="s2">&quot;python3&quot;</span><span class="p">))</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--source-dir&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;ground-truth source (fidelity + crabcc/ctags investigate)&quot;</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--crabcc-root&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;crabcc/ctags index root (defaults to --source-dir)&quot;</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--budget-calls&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--max-workers&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <span class="n">t</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--memory&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ORACLE_DIR</span><span class="p">,</span> <span class="s2">&quot;dossier.jsonl&quot;</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">p</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run to verify the arg tests pass</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3</code><br />
+Expected: the 3 <code>TestTeamFromVakedArgs</code> tests PASS. (Existing tests that called <code>team</code> with <code>--budget-calls</code> still work; any that relied on the old default <code>60</code> now get <code>None</code> — handled in Step 5.)</p>
+<ul>
+<li>[ ] <strong>Step 5: Edit <code>cmd_team</code> to branch on <code>--from-vaked</code> + reject on egress violation</strong></li>
+</ul>
+<p>Replace the head of <code>cmd_team</code> (lines 216-221) with the branch below, and update the <code>run_team(...)</code> call's <code>budget_calls=</code> argument (line 236) to use the effective budget:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">cmd_team</span><span class="p">(</span><span class="n">ns</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">investigate</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">inv</span>
+    <span class="k">if</span> <span class="n">ns</span><span class="o">.</span><span class="n">from_vaked</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">roster_from_vaked</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">rfv</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">rfv</span><span class="o">.</span><span class="n">load_graph</span><span class="p">(</span><span class="n">ns</span><span class="o">.</span><span class="n">from_vaked</span><span class="p">)</span>
+        <span class="n">violations</span> <span class="o">=</span> <span class="n">rfv</span><span class="o">.</span><span class="n">check_roster_egress</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">violations</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">violations</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;team: EGRESS VIOLATION node=</span><span class="si">{</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;node&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> reaches &quot;</span>
+                      <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;host&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> — </span><span class="si">{</span><span class="n">v</span><span class="p">[</span><span class="s1">&#39;reason&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="n">panelists</span><span class="p">,</span> <span class="n">judge</span><span class="p">,</span> <span class="n">graph_budget</span> <span class="o">=</span> <span class="n">rfv</span><span class="o">.</span><span class="n">load_roster_from_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">panelists</span><span class="p">,</span> <span class="n">judge</span><span class="p">,</span> <span class="n">graph_budget</span> <span class="o">=</span> <span class="p">(</span><span class="o">*</span><span class="n">panel_mod</span><span class="o">.</span><span class="n">load_roster</span><span class="p">(</span><span class="n">ns</span><span class="o">.</span><span class="n">panel</span><span class="p">),</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">panelists</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;team: no usable panelists (check roster / keys)&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">1</span>
+    <span class="n">budget_calls</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">budget_calls</span> <span class="k">if</span> <span class="n">ns</span><span class="o">.</span><span class="n">budget_calls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">graph_budget</span>
+</pre></div>
+
+<p>Then in the <code>run_team(...)</code> call change <code>budget_calls=ns.budget_calls</code> to <code>budget_calls=budget_calls</code>.</p>
+<ul>
+<li>[ ] <strong>Step 6: Run the full suite</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3</code><br />
+Expected: PASS (all tests green).</p>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/oracle.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): team --from-vaked — graph-derived roster + reject on egress drift&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-5-manifest-interop-the-lowered-policy-loads-in-agent_guardd-attests-the-dns-gap">Task 5: manifest interop — the lowered policy loads in agent_guardd + attests the DNS gap</h3>
+<p><strong>Files:</strong><br />
+- Test: <code>tools/oracle/test_oracle.py</code> (test-only; proves the lowered <code>ebpf.policy.json</code> is consumable and the DNS host is un-attestable)</p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p>Append to <code>tools/oracle/test_oracle.py</code>:</p>
+<p>Module-level functions (file convention; <code>sys</code> is already imported at the top of <code>test_oracle.py</code>):</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">_ebpf_policy_doc</span><span class="p">():</span>
+    <span class="c1"># the exact shape vakedc lower emits for oracle-team: loopback cordon gets a real</span>
+    <span class="c1"># IP rule; the OpenRouter cordon&#39;s DNS host is DROPPED at lower -&gt; allow [].</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;runtime&quot;</span><span class="p">:</span> <span class="s2">&quot;oracle-team&quot;</span><span class="p">,</span> <span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;membranes&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;membrane&quot;</span><span class="p">:</span> <span class="s2">&quot;infralightCordon&quot;</span><span class="p">,</span> <span class="s2">&quot;principal&quot;</span><span class="p">:</span> <span class="s2">&quot;infralight&quot;</span><span class="p">,</span> <span class="s2">&quot;grant&quot;</span><span class="p">:</span> <span class="s2">&quot;network.loopback&quot;</span><span class="p">,</span>
+         <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;deny&quot;</span><span class="p">,</span> <span class="s2">&quot;allow&quot;</span><span class="p">:</span> <span class="p">[</span>
+             <span class="p">{</span><span class="s2">&quot;proto&quot;</span><span class="p">:</span> <span class="s2">&quot;tcp&quot;</span><span class="p">,</span> <span class="s2">&quot;host&quot;</span><span class="p">:</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;cidr&quot;</span><span class="p">:</span> <span class="s2">&quot;127.0.0.1/32&quot;</span><span class="p">,</span> <span class="s2">&quot;port&quot;</span><span class="p">:</span> <span class="mi">8091</span><span class="p">}]},</span>
+        <span class="p">{</span><span class="s2">&quot;membrane&quot;</span><span class="p">:</span> <span class="s2">&quot;feketecsCordon&quot;</span><span class="p">,</span> <span class="s2">&quot;principal&quot;</span><span class="p">:</span> <span class="s2">&quot;feketecs&quot;</span><span class="p">,</span> <span class="s2">&quot;grant&quot;</span><span class="p">:</span> <span class="s2">&quot;network.egress&quot;</span><span class="p">,</span>
+         <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;deny&quot;</span><span class="p">,</span> <span class="s2">&quot;allow&quot;</span><span class="p">:</span> <span class="p">[]},</span>      <span class="c1"># DNS host dropped at lower -&gt; deny-all</span>
+    <span class="p">]}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_ebpf_manifest_loads_and_decides</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">))</span>  <span class="c1"># repo root for agent_guardd</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">agent_guardd</span><span class="w"> </span><span class="kn">import</span> <span class="n">policy</span> <span class="k">as</span> <span class="n">agp</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.json&quot;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">_ebpf_policy_doc</span><span class="p">(),</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">pol</span> <span class="o">=</span> <span class="n">agp</span><span class="o">.</span><span class="n">load_policy</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">loop</span> <span class="o">=</span> <span class="n">pol</span><span class="o">.</span><span class="n">membrane_for</span><span class="p">(</span><span class="s2">&quot;infralight&quot;</span><span class="p">)</span>
+    <span class="n">feke</span> <span class="o">=</span> <span class="n">pol</span><span class="o">.</span><span class="n">membrane_for</span><span class="p">(</span><span class="s2">&quot;feketecs&quot;</span><span class="p">)</span>
+    <span class="c1"># loopback IP rule -&gt; enforceable (fully eBPF-attestable)</span>
+    <span class="k">assert</span> <span class="n">agp</span><span class="o">.</span><span class="n">decide</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">8091</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;allow&quot;</span>
+    <span class="k">assert</span> <span class="n">agp</span><span class="o">.</span><span class="n">decide</span><span class="p">(</span><span class="n">loop</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="mi">9999</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;deny&quot;</span>
+    <span class="c1"># OpenRouter cordon -&gt; deny-all (DNS dropped at lower; also non-IP at decide). The</span>
+    <span class="c1"># documented gap: packet-layer egress to OpenRouter is un-attestable; the tool-layer</span>
+    <span class="c1"># check_roster_egress is the only enforcement.</span>
+    <span class="k">assert</span> <span class="n">agp</span><span class="o">.</span><span class="n">decide</span><span class="p">(</span><span class="n">feke</span><span class="p">,</span> <span class="s2">&quot;openrouter.ai&quot;</span><span class="p">,</span> <span class="mi">443</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;deny&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run to verify it fails first, then passes</strong></li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -5</code><br />
+Expected: PASS immediately (no new product code — this is a characterization/interop test). If <code>ImportError: agent_guardd</code> → the repo-root <code>sys.path.insert</code> is wrong; fix the relative path so <code>agent_guardd</code> (a top-level package) imports. The test must end green, proving (a) the manifest the graph lowers to is consumable by the real daemon and (b) the DNS cordon is denied at <code>decide()</code> — exactly the gap the spec flags.</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;test(oracle): lowered ebpf.policy loads in agent_guardd; DNS cordon un-attestable (gap attested)&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-6-teamvaked-taskfile-target">Task 6: <code>team:vaked</code> Taskfile target</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/oracle/Taskfile.yml</code> (add a task after the existing <code>team:</code> task, ~line 99)</p>
+<ul>
+<li>[ ] <strong>Step 1: Add the task</strong></li>
+</ul>
+<p>Append to <code>tools/oracle/Taskfile.yml</code>:</p>
+<div class="highlight"><pre><span></span><span class="nt">team:vaked</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">desc</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;team-in-vaked</span><span class="nv"> </span><span class="s">(slice</span><span class="nv"> </span><span class="s">4b):</span><span class="nv"> </span><span class="s">lower</span><span class="nv"> </span><span class="s">oracle-team.vaked</span><span class="nv"> </span><span class="s">-&gt;</span><span class="nv"> </span><span class="s">graph.json</span><span class="nv"> </span><span class="s">+</span><span class="nv"> </span><span class="s">ebpf.policy.json,</span><span class="nv"> </span><span class="s">then</span><span class="nv"> </span><span class="s">run</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">graph-derived</span><span class="nv"> </span><span class="s">team</span><span class="nv"> </span><span class="s">(dev-cx53).</span><span class="nv"> </span><span class="s">Auto-sources</span><span class="nv"> </span><span class="s">~/.config/oracle/openrouter.env&quot;</span>
+<span class="w">    </span><span class="nt">vars</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">VAKED</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;{{.VAKED</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default</span><span class="nv"> </span><span class="s">&quot;vaked/examples/oracle-team.vaked&quot;}}&#39;</span>
+<span class="w">    </span><span class="nt">cmds</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">        </span><span class="no">[ -f ~/.config/oracle/openrouter.env ] &amp;&amp; . ~/.config/oracle/openrouter.env || true   # diverse-panel key (no-op if absent)</span>
+<span class="w">        </span><span class="no">python3 -m vakedc parse {{.VAKED}}</span>
+<span class="w">        </span><span class="no">python3 -m vakedc lower {{.VAKED}}     # emits .vaked/lower/gen/ebpf.policy.json (agent_guardd manifest)</span>
+<span class="w">        </span><span class="no">export GHIDRA_INSTALL_DIR=$(for d in /nix/store/*ghidra*/lib/ghidra; do [ -d &quot;$d/Ghidra&quot; ] &amp;&amp; echo &quot;$d&quot; &amp;&amp; break; done)</span>
+<span class="w">        </span><span class="no">export JAVA_HOME=$(for d in /nix/store/*openjdk*; do [ -x &quot;$d/bin/java&quot; ] &amp;&amp; echo &quot;$d&quot; &amp;&amp; break; done)</span>
+<span class="w">        </span><span class="no">export ORACLE_LIBSTDCXX_DIR=$(dirname $(find /nix/store/*gcc*lib*/lib -name libstdc++.so.6 2&gt;/dev/null | head -1))</span>
+<span class="w">        </span><span class="no">export ORACLE_PYGHIDRA_PYTHON=$HOME/oracle/pgvenv/bin/python</span>
+<span class="w">        </span><span class="no">ORACLE_DIR=&quot;${ORACLE_DIR:-$HOME/oracle/team-vaked-run}&quot; python3 tools/oracle/oracle.py team \</span>
+<span class="w">          </span><span class="no">--target {{.TARGET}} --funcs {{.FUNCS}} --from-vaked .vaked/graph.json \</span>
+<span class="w">          </span><span class="no">--pyghidra-python &quot;$ORACLE_PYGHIDRA_PYTHON&quot; \</span>
+<span class="w">          </span><span class="no">--source-dir &quot;${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}&quot; \</span>
+<span class="w">          </span><span class="no">--crabcc-root &quot;${LLAMA_CPP_SRC:-$HOME/oracle/llama.cpp-src}&quot; \</span>
+<span class="w">          </span><span class="no">--memory &quot;$HOME/oracle/dossier.jsonl&quot;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Verify the Taskfile is valid YAML and the task is listed</strong></li>
+</ul>
+<p>Run: <code>cd tools/oracle &amp;&amp; task --list 2&gt;&amp;1 | grep -E "team:vaked"</code> (or <code>python3 -c 'import yaml,sys; yaml.safe_load(open("tools/oracle/Taskfile.yml"))'</code> if <code>task</code>/PyYAML unavailable on the M3 — at minimum confirm the file parses).<br />
+Expected: the <code>team:vaked</code> task appears / the YAML parses without error. (No team run on the M3 — that is the on-box acceptance.)</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/Taskfile.yml
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore(oracle): team:vaked task — lower oracle-team.vaked then run the graph-derived team&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-7-docs-v0md-team-in-vaked-section-devtodo">Task 7: docs — v0.md team-in-vaked section + .DEV.TODO</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>docs/oracle/v0.md</code> (add a "team-in-vaked (slice 4b · thread 1)" subsection near the team-mode section ~line 129)<br />
+- Modify: <code>.DEV.TODO</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Add the v0.md section</strong></li>
+</ul>
+<p>Add after the team-mode acceptance blocks in <code>docs/oracle/v0.md</code>:</p>
+<div class="highlight"><pre><span></span><span class="gu">## Team-in-vaked (slice 4b · thread 1)</span>
+
+The slice-4a team is now declared in Vaked (<span class="sb">`vaked/examples/oracle-team.vaked`</span>) and its
+roster + budget + egress are <span class="gs">**lowered from the graph**</span> — no drift. `oracle team
+--from-vaked &lt;graph.json&gt;` (via <span class="sb">`tools/oracle/roster_from_vaked.py`</span>) replaces the
+hand-written <span class="sb">`panel.example.json`</span>: panelists/judge/budget come from the mesh nodes, and
+<span class="sb">`check_roster_egress`</span> rejects any roster reaching a host outside its <span class="sb">`networkMembrane`</span>
+allow-set (the tool-local POLA / E-EGRESS-USE analog). The same graph lowers (vakedc
+0012) to <span class="sb">`gen/ebpf.policy.json`</span>, the manifest <span class="sb">`agent_guardd.policy`</span> consumes.
+
+<span class="gs">**The DNS/IP attestation gap (deliberate, documented).**</span> <span class="sb">`agent_guardd.decide()`</span> attests
+IP literals only; <span class="sb">`openrouter.ai`</span> is reached by hostname (Cloudflare, rotating IPs), so
+the cordon is enforced at the <span class="gs">**tool layer**</span> (<span class="sb">`check_roster_egress`</span>, hostname-aware) and
+carried into the manifest as a <span class="gs">**non-attestable**</span> DNS rule (denied at <span class="sb">`decide()`</span>).
+Loopback panelists are fully eBPF-attestable. Full packet attestation needs a local
+egress proxy with a pinned loopback IP — a follow-up, with the vakedc <span class="sb">`E-EGRESS-USE`</span> pass.
+
+Reproduce: <span class="sb">`task -d tools/oracle team:vaked`</span> (auto-sources the staged OpenRouter key).
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Update .DEV.TODO</strong></li>
+</ul>
+<p>In <code>.DEV.TODO</code>, add under the slice-4b area:</p>
+<div class="highlight"><pre><span></span><span class="gu">### Slice 4b — thread 1 (team-in-vaked) — IN PROGRESS (branch feat/oracle-team-in-vaked)</span>
+oracle-team.vaked + roster_from_vaked (graph -&gt; roster/judge/budget + egress drift check)
++ <span class="sb">`team --from-vaked`</span> + agent_guardd manifest interop. Follow-ups: vakedc E-EGRESS-USE
+pass (RFC like 0027); local egress proxy for full OpenRouter packet attestation.
+Next threads: 2 (RE-vakedz), 3 (ARP-emission, deferred — other dev&#39;s lane).
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>docs/oracle/v0.md<span class="w"> </span>.DEV.TODO
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;docs(oracle): team-in-vaked section + .DEV.TODO slice-4b thread 1&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="final-verification-after-all-tasks">Final verification (after all tasks)</h2>
+<ul>
+<li>[ ] Full suite green on the M3: <code>python3 tools/oracle/test_oracle.py</code> → all tests pass (72 baseline + ~9 new).</li>
+<li>[ ] <code>python3 -m vakedc check vaked/examples/oracle-team.vaked</code> exits 0; <code>lower</code> emits <code>gen/ebpf.policy.json</code>.</li>
+<li>[ ] Dispatch a final code review over the whole branch diff (subagent-driven-development final reviewer).</li>
+</ul>
+<h2 id="on-box-acceptance-dev-cx53-separate-not-on-the-m3">On-box acceptance (dev-cx53 — separate, not on the M3)</h2>
+<p>The diverse-panel run is the acceptance, now graph-driven (mirrors the slice-4a diverse acceptance):<br />
+- <code>ssh dev@100.105.72.88</code> (servers up: qwen :8091, llm4decompile :8090; OpenRouter key staged at <code>~revdev/.config/oracle/openrouter.env</code>, 600 — never print it).<br />
+- Deploy the branch (<code>git archive feat/oracle-team-in-vaked tools vaked eventd agent_guardd | ssh … tar -x -C ~revdev/oracle-code</code>).<br />
+- On the box: <code>python3 -m vakedc parse+lower vaked/examples/oracle-team.vaked</code> → <code>graph.json</code> + <code>ebpf.policy.json</code>; <code>oracle team --from-vaked graph.json --target … --funcs llama_decode</code>.<br />
+- Expect: <code>check_roster_egress</code> clean → roster built (feketecs + locals + anstetten judge) → the pro judge adjudicates ≥2 divergent candidates (same evidence shape as slice 4a) → ledger <code>chain_ok</code>, the-dossier note, real OpenRouter cost; <code>agent_guardd.policy.load_policy(gen/ebpf.policy.json)</code> loads + <code>decide()</code> allows loopback / denies the DNS host. Record in <code>docs/oracle/v0.md</code>.</p>
+<h2 id="out-of-scope-own-cycles">Out of scope (own cycles)</h2>
+<p>vakedc <code>E-EGRESS-USE</code> checker pass · local egress proxy (full OpenRouter attestation) · live eBPF on the box (revdev unprivileged) · Thread 2 (RE-vakedz) · Thread 3 (ARP-emission, deferred — other dev's lane).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-15-vaked-oracle-slice-4b-team-in-vaked.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

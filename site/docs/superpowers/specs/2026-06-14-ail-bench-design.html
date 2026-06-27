@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AIL-0 bench — design spec (metrics / modes / corpus / model matrix) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#hypothesis-to-confirm-or-refute" style="padding-left:0.5rem">Hypothesis to confirm or refute</a><a href="#execution-environment" style="padding-left:0.5rem">Execution environment</a><a href="#corpus-shape" style="padding-left:0.5rem">Corpus shape</a><a href="#purpose" style="padding-left:1rem">  Purpose</a><a href="#corpus-dimensions" style="padding-left:1rem">  Corpus dimensions</a><a href="#task-categories-detail" style="padding-left:1rem">  Task categories (detail)</a><a href="#what-is-compressed-and-measured" style="padding-left:1rem">  What is compressed and measured</a><a href="#the-four-modes" style="padding-left:0.5rem">The four modes</a><a href="#metric-definitions" style="padding-left:0.5rem">Metric definitions</a><a href="#m1----net-token-savings-prompt-response-tag-inclusive" style="padding-left:1rem">  M1 -- net token savings (prompt + response, tag-inclusive)</a><a href="#m2----character-reduction-prompt-response" style="padding-left:1rem">  M2 -- character reduction (prompt + response)</a><a href="#m3----parse-success-rate" style="padding-left:1rem">  M3 -- parse-success rate</a><a href="#m4----literal-preservation-rate" style="padding-left:1rem">  M4 -- literal-preservation rate</a><a href="#m5----register-compliance-rate" style="padding-left:1rem">  M5 -- register-compliance rate</a><a href="#m6----repair-cost-extra-tokens-to-recover-malformed-output" style="padding-left:1rem">  M6 -- repair cost (extra tokens to recover malformed output)</a><a href="#m7----artifact-cjk-leakage-rate" style="padding-left:1rem">  M7 -- artifact-CJK-leakage rate</a><a href="#metric-summary-table" style="padding-left:0.5rem">Metric summary table</a><a href="#model-matrix" style="padding-left:0.5rem">Model matrix</a><a href="#research-evidence-gaps-the-bench-must-close" style="padding-left:0.5rem">Research-evidence gaps the bench must close</a><a href="#output-format-requirements" style="padding-left:0.5rem">Output format requirements</a><a href="#acceptance-criteria-inspection" style="padding-left:0.5rem">Acceptance criteria (inspection)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-ail-bench-design</div>
+<h1>AIL-0 bench — design spec (metrics / modes / corpus / model matrix)</h1>
+<h1 id="ail-0-bench-design-spec-metrics-modes-corpus-model-matrix">AIL-0 bench — design spec (metrics / modes / corpus / model matrix)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-14). Author-only; no runnable code. Bench implementation and<br />
+model-call execution are deferred to a separate dev-cx53/GHA plan (see<br />
+Execution Environment below). This doc is the contract that the implementation<br />
+plan must satisfy.</p>
+<p>Related artefacts: issue #202 (ARP / AIL-0 control plane), PR #203 (CUC rename<br />
++ five-model bench), <code>docs/superpowers/research/2026-06-14-ail-0-single-agent-research.md</code><br />
+(evidence base, hereafter "research doc" with section references §N.N).</p>
+<hr />
+<h2 id="hypothesis-to-confirm-or-refute">Hypothesis to confirm or refute</h2>
+<p>Issue #202 claims 49-62% savings for ARP/AIL-0 mode compression.<br />
+<strong>This is a hypothesis about TOKEN savings, not character savings.</strong> The<br />
+research doc finds no direct token-savings evidence for register-tagged<br />
+compression: every stylistic-compression source that reports percentages either<br />
+counts characters (the wenyan 28% reduction is character-counted, research doc<br />
+§3.2) or asserts the figure without a named tokenizer or before/after token<br />
+counts (the telegraphic/caveman 40-60% claim is asserted, not measured, §3.2).<br />
+Register tags (<code>[R:plan]</code>, <code>[R:tool]</code>, <code>[R:artifact]</code>, etc.) are added tokens<br />
+with no measured payback in the evidence base (§2 honest accounting, §3.6). The<br />
+bench exists to confirm or refute 49-62% token savings, against a plain-NL<br />
+baseline, under honest tag-inclusive accounting.</p>
+<hr />
+<h2 id="execution-environment">Execution environment</h2>
+<p><strong>All model calls and bench runs execute on dev-cx53 (Linux, Nix, Tailscale,<br />
+SSH: <code>ssh dev-cx53</code>) or on GitHub Actions. They never run on the developer<br />
+machine (M1 MacBook).</strong></p>
+<p>The 3-gate verify-confirm protocol (CLAUDE.md) applies to every build or<br />
+model-invocation command:</p>
+<ul>
+<li>Gate 1 -- target verification: confirm dev-cx53 or GHA is the target, is<br />
+  reachable, and has the required toolchain and disk.</li>
+<li>Gate 2 -- intent confirmation: present the exact command(s) to the user with<br />
+  target host, estimated duration, and risk; require explicit approval.</li>
+<li>Gate 3 -- pre-flight check: on the target, verify repo sync, no dirty working<br />
+  tree, and toolchain version.</li>
+</ul>
+<p>All three gates must pass in sequence before any model-call or bench run is<br />
+issued.</p>
+<hr />
+<h2 id="corpus-shape">Corpus shape</h2>
+<h3 id="purpose">Purpose</h3>
+<p>The corpus provides a stable, reproducible set of prompts whose compression and<br />
+output can be measured under each mode. Tasks are chosen to exercise the<br />
+distinct registers of AIL-0 (planning, tool intent, artifact production,<br />
+causality, risk) and to stress the boundaries the design cares about: literal<br />
+preservation, CJK leakage into artifacts, and reasoning-channel fidelity.</p>
+<h3 id="corpus-dimensions">Corpus dimensions</h3>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total prompt-response pairs</td>
+<td>200 (minimum); 400 target</td>
+</tr>
+<tr>
+<td>Prompt length distribution</td>
+<td>short (&lt; 200 tokens), medium (200-800 tokens), long (800-2 000 tokens) -- roughly 1/3 each</td>
+</tr>
+<tr>
+<td>Task categories</td>
+<td>planning / tool-intent / artifact / multi-step causality / risk annotation</td>
+</tr>
+<tr>
+<td>Language of prompt</td>
+<td>English only (v0 bench); no multilingual prompts in the initial corpus</td>
+</tr>
+<tr>
+<td>Ground-truth control</td>
+<td>each pair has an expected literal set (paths, symbols, API names, error strings, commit subjects) that must survive compression unchanged</td>
+</tr>
+</tbody>
+</table>
+<h3 id="task-categories-detail">Task categories (detail)</h3>
+<p><strong>Planning prompts</strong> -- single-step or multi-step plans expressed in natural<br />
+language. These exercise <code>R:plan</code> and <code>R:think</code> registers. The baseline<br />
+(normal mode) is the full NL prompt; AIL modes must produce the same plan<br />
+content in compressed form.</p>
+<p><strong>Tool-intent prompts</strong> -- prompts that describe one or more tool invocations<br />
+(file read, git command, API call) with exact paths and argument literals.<br />
+These exercise <code>R:tool</code>. The ground-truth literal set for each such prompt<br />
+includes every file path, command flag, and API name that appears in the<br />
+prompt.</p>
+<p><strong>Artifact prompts</strong> -- prompts that ask the model to produce a final artifact:<br />
+a commit subject, an RFC section, a code snippet, a diff. These exercise<br />
+<code>R:artifact</code> and <code>R:commit</code>. The artifact-gate rule (reason free-form, gate<br />
+only the final output) is what the bench validates here.</p>
+<p><strong>Multi-step causality prompts</strong> -- prompts that ask the model to reason about a<br />
+sequence of steps and explain causality between them. These are the highest-risk<br />
+category for CJK leakage and for reasoning-quality loss under strict modes.</p>
+<p><strong>Risk-annotation prompts</strong> -- prompts that ask the model to identify and<br />
+annotate failure modes or risks. These exercise <code>R:risk</code>.</p>
+<h3 id="what-is-compressed-and-measured">What is compressed and measured</h3>
+<p>For each prompt-response pair, the bench records:</p>
+<ol>
+<li>The baseline prompt (used as-is, <code>normal</code> mode).</li>
+<li>For each non-normal mode: the mode-transformed prompt and the model response.</li>
+</ol>
+<p>Token and character counts are recorded at three points: (a) prompt-in, (b)<br />
+model response out, (c) net total (prompt + response). All savings figures are<br />
+reported as deltas against the <code>normal</code> control for the same pair.</p>
+<hr />
+<h2 id="the-four-modes">The four modes</h2>
+<p><code>normal</code> is the explicit control baseline against which all token and character<br />
+deltas are measured. Every other mode is measured as a signed delta from <code>normal</code><br />
+for the same prompt-response pair.</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>normal</code></td>
+<td>Full natural-language prompt; no compression; no register tags. The control baseline.</td>
+</tr>
+<tr>
+<td><code>cuc-wenyan-ultra</code></td>
+<td>Classical Chinese (wenyan-style) compression as defined by PR #203's CUC bench. Keep-exact items (paths, symbols, API names, error strings, commit subjects, tool arguments) remain in ASCII. No AIL register tags.</td>
+</tr>
+<tr>
+<td><code>ailish-pidgin</code></td>
+<td>AIL-0 register tags applied; reasoning channel (<code>R:think</code>, <code>R:plan</code>) is telegraphic / function-word-dropped English; artifact and tool channels (<code>R:artifact</code>, <code>R:tool</code>, <code>R:commit</code>) are English-only, no CJK, full syntax for keep-exact items. Lossy compression of the reasoning scaffold only.</td>
+</tr>
+<tr>
+<td><code>ailish-strict</code></td>
+<td>AIL-0 register tags applied; reasoning channel is AIL-grammar-valid compressed form; artifact and tool channels are schema-constrained and grammar-enforced at decode time. This mode has the highest tag overhead and the strictest artifact gate.</td>
+</tr>
+</tbody>
+</table>
+<p>The mode names are kept-exact strings: <code>normal</code>, <code>cuc-wenyan-ultra</code>,<br />
+<code>ailish-pidgin</code>, <code>ailish-strict</code>.</p>
+<p><code>ailish-strict</code> differs from <code>ailish-pidgin</code> in that it activates grammar-<br />
+constrained decoding for the <code>R:artifact</code> and <code>R:tool</code> outputs (research doc<br />
+§3.5, §3.7). The grammar enforcement overhead (compile time, per-token latency,<br />
+empirical coverage) must be measured separately for each mode and reported<br />
+alongside token/char savings (see Metrics).</p>
+<hr />
+<h2 id="metric-definitions">Metric definitions</h2>
+<p>All metrics are per-mode and per-model. Aggregate across the corpus is the<br />
+mean; the bench also reports p25/p75.</p>
+<p>Token counts use the target model's tokenizer. Where models differ in tokenizer,<br />
+the bench reports each model separately -- never aggregates across tokenizer<br />
+families. The minimum tokenizer axis is cl100k_base (OpenAI GPT family) and<br />
+o200k_base (GPT-4o family); local GGUF models use their SentencePiece/BPE<br />
+vocabulary. Token figures and character figures are always reported in separate<br />
+columns and are never merged or used as proxies for each other.</p>
+<h3 id="m1-net-token-savings-prompt-response-tag-inclusive">M1 -- net token savings (prompt + response, tag-inclusive)</h3>
+<p>One-line definition: <code>1 − (compressed_prompt_tokens + compressed_response_tokens + tag_tokens) / (baseline_prompt_tokens + baseline_response_tokens)</code>, where <code>baseline_*</code> is <code>normal</code> mode for the same pair and <code>tag_tokens</code> is the token cost of all AIL register tags added in the AIL modes (zero for <code>cuc-wenyan-ultra</code> and <code>normal</code>).</p>
+<p>Accounting rule: register tags (<code>[R:plan]</code>, <code>[R:tool]</code>, <code>[R:artifact]</code>,<br />
+<code>[R:commit]</code>, <code>[R:risk]</code>, <code>[R:think]</code>, <code>[R:review]</code>, <code>[R:bench]</code>) are counted<br />
+as tokens in the compressed total. They are a net token tax. The formula above<br />
+already embeds them in the numerator. A negative M1 value means the mode costs<br />
+more tokens than <code>normal</code>.</p>
+<p>Research anchor: §2 (honest accounting), §3.6 (CodeAgents is the only direct<br />
+DSL token-savings result; single-source, self-reported, no independent<br />
+replication -- M1 is the bench's answer to open-Q#1).</p>
+<p>Note: M1 is independent of M2 (char reduction). They can diverge in sign.<br />
+See the wenyan case: −13.2% token savings on o200k_base vs +6.4% token <em>cost</em><br />
+on cl100k_base for the same text (research doc §3.2). Report M1 per tokenizer.</p>
+<h3 id="m2-character-reduction-prompt-response">M2 -- character reduction (prompt + response)</h3>
+<p>One-line definition: <code>1 − (compressed_prompt_chars + compressed_response_chars) / (baseline_prompt_chars + baseline_response_chars)</code>, where <code>baseline_*</code> is <code>normal</code> mode for the same pair.</p>
+<p>M2 is strictly character-based (Unicode code-point count). It is reported<br />
+separately from M1 and must never be cited as evidence of token savings.</p>
+<p>Research anchor: §3.2 (wenyan 28% is character-counted, not token-counted;<br />
+all primary sources that report per-character figures report no corresponding<br />
+token figure, making M1 and M2 independently necessary, research doc §3.1 "no<br />
+primary source reports any character ratio").</p>
+<h3 id="m3-parse-success-rate">M3 -- parse-success rate</h3>
+<p>One-line definition: fraction of responses for which the AIL-0 parser produces a<br />
+well-formed parse tree (no syntax error, all declared registers present and<br />
+non-empty), evaluated on the response string alone.</p>
+<p>Applicable modes: <code>ailish-pidgin</code>, <code>ailish-strict</code>. (Normal and wenyan have no<br />
+AIL register structure to parse.)</p>
+<p>Research anchor: §3.5/§3.8 (JSONSchemaBench declared-vs-empirical coverage;<br />
+Guidance 41%, XGrammar 28%, Outlines 3% on GitHub-Hard schema complexity --<br />
+demonstrates that coverage is a load-bearing measurement for grammar-enforced<br />
+modes). M3 is the AIL-0-grammar analogue.</p>
+<h3 id="m4-literal-preservation-rate">M4 -- literal-preservation rate</h3>
+<p>One-line definition: fraction of keep-exact items (file paths, CLI flags,<br />
+API names, error strings, command arguments, commit subjects) from the ground-<br />
+truth literal set that appear byte-for-byte unchanged in the model response.</p>
+<p>Research anchor: repo-ctx core design rule ("keep EXACT: file paths, symbols,<br />
+commands, API names, error strings, literals, commit subjects, tool arguments");<br />
+§3.7 (<code>[R:tool]</code> must preserve exact paths and symbols).</p>
+<p>Note: this metric applies to all four modes, including <code>normal</code>. <code>normal</code> sets<br />
+the ceiling; AIL modes should not fall below it.</p>
+<h3 id="m5-register-compliance-rate">M5 -- register-compliance rate</h3>
+<p>One-line definition: for <code>ailish-pidgin</code> and <code>ailish-strict</code>, fraction of<br />
+responses where every <code>[R:artifact]</code> and <code>[R:commit]</code> body is English-only (no<br />
+CJK codepoints) and every <code>[R:tool]</code> body contains no CJK codepoints and no<br />
+non-ASCII characters other than those present in the literal inputs.</p>
+<p>Research anchor: §3.8 (IFEval strict/loose adherence to format instructions as<br />
+the evaluation model for instruction-following; open-Q#7 "frontier models follow<br />
+AIL-0 syntax: measure IFEval-style strict/loose adherence"). M5 is the per-<br />
+register analogue of strict instruction compliance.</p>
+<p>The strict/loose distinction from IFEval applies here: strict requires exact<br />
+zero CJK codepoints in gated registers; loose applies minor normalization<br />
+(whitespace folding only) before checking.</p>
+<h3 id="m6-repair-cost-extra-tokens-to-recover-malformed-output">M6 -- repair cost (extra tokens to recover malformed output)</h3>
+<p>One-line definition: mean additional tokens consumed by a repair prompt issued<br />
+after a failed parse (M3 = 0 for a response), measured as the token count of<br />
+the repair prompt plus the corrected response, summed over all failed-parse<br />
+responses.</p>
+<p>Applicable modes: <code>ailish-pidgin</code>, <code>ailish-strict</code>. Reported separately for<br />
+each.</p>
+<p>Research anchor: §3.5/§3.8 (coverage collapse on complex schemas forces<br />
+re-generation; for the hard GitHub schema set, Outlines achieves only 3%<br />
+empirical coverage, meaning the majority of responses require re-try or repair).<br />
+M6 has no direct primary-source anchor in the research dossier for AIL-0<br />
+specifically -- it is a bench-novel extension of the coverage-collapse result.</p>
+<h3 id="m7-artifact-cjk-leakage-rate">M7 -- artifact-CJK-leakage rate</h3>
+<p>One-line definition: fraction of responses where any CJK codepoint (Unicode<br />
+blocks CJK Unified Ideographs U+4E00-U+9FFF, CJK Extension A/B, Katakana,<br />
+Hiragana, Hangul) appears inside a <code>[R:artifact]</code>, <code>[R:commit]</code>, or <code>[R:tool]</code><br />
+register body.</p>
+<p>This metric applies to all modes, including <code>normal</code>. In <code>normal</code>, leakage can<br />
+occur on thinking models that mix languages in their CoT and let CJK drift into<br />
+the final output. In AIL modes, it measures gate effectiveness.</p>
+<p>Research anchor: §3.4 (QwQ-32B-Preview officially documents CJK leakage into<br />
+final outputs; users report Chinese characters in Russian and Vietnamese<br />
+responses -- HF model card and discussion #16; note: QwQ-32B-Preview, NOT<br />
+DeepSeek-R1). Repo-ctx key invention: "<code>[R:artifact]</code> and <code>[R:commit]</code> bodies<br />
+must be English-only, no CJK" -- M7 is the operational measurement of that<br />
+invariant.</p>
+<hr />
+<h2 id="metric-summary-table">Metric summary table</h2>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Unit</th>
+<th>Modes</th>
+<th>Token/Char/Both</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1</td>
+<td>Net token savings (tag-inclusive)</td>
+<td>signed ratio (−1 to 1)</td>
+<td>all</td>
+<td>Token</td>
+</tr>
+<tr>
+<td>M2</td>
+<td>Character reduction</td>
+<td>signed ratio (−1 to 1)</td>
+<td>all</td>
+<td>Char</td>
+</tr>
+<tr>
+<td>M3</td>
+<td>Parse-success rate</td>
+<td>[0, 1]</td>
+<td>ailish-pidgin, ailish-strict</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>M4</td>
+<td>Literal-preservation rate</td>
+<td>[0, 1]</td>
+<td>all</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>M5</td>
+<td>Register-compliance rate (strict/loose)</td>
+<td>[0, 1] x 2</td>
+<td>ailish-pidgin, ailish-strict</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>M6</td>
+<td>Repair cost</td>
+<td>tokens</td>
+<td>ailish-pidgin, ailish-strict</td>
+<td>Token</td>
+</tr>
+<tr>
+<td>M7</td>
+<td>Artifact-CJK-leakage rate</td>
+<td>[0, 1]</td>
+<td>all</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<p>M1 and M2 are always reported in separate columns. A table that shows only one<br />
+of them is incomplete. For M1, the cl100k_base and o200k_base columns are<br />
+required minimum; omitting either tokenizer is a measurement gap.</p>
+<hr />
+<h2 id="model-matrix">Model matrix</h2>
+<p>The bench runs each (corpus item, mode) pair through every model in the matrix.<br />
+Models are grouped by category; a result without its model-and-tokenizer label<br />
+is not interpretable.</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Model(s)</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>General chat</td>
+<td>GPT-4o (o200k_base tokenizer); Claude 3.5 Sonnet (cl100k_base proxy)</td>
+<td>Two tokenizer families; enables direct M1 per-tokenizer comparison</td>
+</tr>
+<tr>
+<td>Thinking / extended reasoning</td>
+<td>QwQ-32B-Preview; DeepSeek-R1</td>
+<td><strong>QwQ and DeepSeek-R1 are distinct models with distinct behaviors.</strong> The −5.6pp MATH500 monolingual-Chinese-reasoning result (research doc §3.4, §3.7) is from QwQ-32B-Preview, not from R1. R1 has its own language-consistency reward and is excluded from the QwQ finding. Report their M7 values separately; do not attribute QwQ results to R1.</td>
+</tr>
+<tr>
+<td>Single-turn diff / code</td>
+<td>GPT-4o in structured-output mode; CodeAct-capable model if available</td>
+<td>Tests M4 (literal preservation) and M3 (parse in strict mode) under high-precision output demands</td>
+</tr>
+<tr>
+<td>Local GGUF</td>
+<td>Llama-3.1-8B or equivalent, run via llama.cpp on dev-cx53</td>
+<td>Tests grammar-constrained decoding overhead (M6 repair cost, M3 empirical coverage) against a known low-cost baseline; uses SentencePiece/BPE tokenizer -- report M1 separately from OpenAI-family runs</td>
+</tr>
+</tbody>
+</table>
+<p>For <code>ailish-strict</code>, the bench records the grammar-constrained-decoding<br />
+framework in use (Guidance/llguidance, XGrammar, Outlines, or llama.cpp GBNF),<br />
+the grammar compile time, and the per-token latency (TPOT), alongside M1-M7.<br />
+Framework selection is a load-bearing decision (research doc §3.5: Guidance<br />
+~0.00s vs Outlines ~3.48s compile; TPOT Guidance 6.37ms vs Outlines 30.33ms vs<br />
+unconstrained 15.40ms for Llama-3.1-8B). The AIL-0 EBNF should stay simple<br />
+enough to avoid the coverage cliff documented for complex schemas (Outlines 3%<br />
+on GitHub-Hard, §3.5).</p>
+<hr />
+<h2 id="research-evidence-gaps-the-bench-must-close">Research-evidence gaps the bench must close</h2>
+<p>The following are open questions from the research dossier (§5) that this bench<br />
+is specifically designed to answer. No prior source provides the answer; the<br />
+bench is the primary measurement.</p>
+<ol>
+<li>Does AIL-0 register-tagged format net-save tokens vs plain NL on the target<br />
+   tokenizer? (§5 open-Q#1 -- the bench answers this as M1.)</li>
+<li>Does stylistic function-word dropping in <code>ailish-pidgin</code> cut tokens<br />
+   measurably? (§5 open-Q#2 -- answered as M1 delta for <code>ailish-pidgin</code> vs<br />
+<code>normal</code>.)</li>
+<li>Does the artifact gate (<code>R:artifact</code>/<code>R:commit</code> English-only, <code>R:plan</code> free)<br />
+   preserve downstream accuracy? (§5 open-Q#3 -- answered as M5, M7, and task<br />
+   accuracy per pair.)</li>
+<li>Does reserving a free reasoning span in AIL-0 help vs hurt? (§5 open-Q#4 --<br />
+   ablation: <code>ailish-strict</code> with and without free <code>[R:think]</code> block.)</li>
+<li>Is per-char savings a reliable proxy for per-token savings in AIL modes?<br />
+   (§5 open-Q#5 -- answered by comparing M1 and M2 columns; the wenyan case<br />
+   shows they can diverge in sign.)</li>
+<li>What is the empirical coverage and TPOT for the actual AIL-0 EBNF under the<br />
+   chosen constrained-decoding framework? (§5 open-Q#6 -- answered as M3 and<br />
+   the grammar-overhead measurements.)</li>
+<li>Do frontier models follow AIL-0 syntax reliably? (§5 open-Q#7 -- answered as<br />
+   M5 strict/loose, M3, and IFEval-style adherence counts.)</li>
+</ol>
+<hr />
+<h2 id="output-format-requirements">Output format requirements</h2>
+<p>The bench produces a results table in comma-separated or JSON Lines format with<br />
+the following required fields per row:</p>
+<div class="highlight"><pre><span></span><span class="n">corpus_id</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span><span class="p">,</span><span class="w"> </span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">tokenizer</span><span class="p">,</span><span class="w"> </span><span class="n">prompt_tokens_baseline</span><span class="p">,</span>
+<span class="n">prompt_tokens_compressed</span><span class="p">,</span><span class="w"> </span><span class="n">response_tokens_baseline</span><span class="p">,</span>
+<span class="n">response_tokens_compressed</span><span class="p">,</span><span class="w"> </span><span class="n">tag_tokens</span><span class="p">,</span><span class="w"> </span><span class="n">m1_net_token_savings</span><span class="p">,</span>
+<span class="n">prompt_chars_baseline</span><span class="p">,</span><span class="w"> </span><span class="n">prompt_chars_compressed</span><span class="p">,</span><span class="w"> </span><span class="n">response_chars_baseline</span><span class="p">,</span>
+<span class="n">response_chars_compressed</span><span class="p">,</span><span class="w"> </span><span class="n">m2_char_reduction</span><span class="p">,</span><span class="w"> </span><span class="n">m3_parse_success</span><span class="p">,</span>
+<span class="n">m4_literal_preservation</span><span class="p">,</span><span class="w"> </span><span class="n">m5_register_compliance_strict</span><span class="p">,</span>
+<span class="n">m5_register_compliance_loose</span><span class="p">,</span><span class="w"> </span><span class="n">m6_repair_tokens</span><span class="p">,</span><span class="w"> </span><span class="n">m7_cjk_leakage</span><span class="p">,</span>
+<span class="n">grammar_framework</span><span class="p">,</span><span class="w"> </span><span class="n">grammar_compile_s</span><span class="p">,</span><span class="w"> </span><span class="n">tpot_ms</span>
+</pre></div>
+
+<p>Fields that do not apply to a (mode, model) combination are recorded as <code>null</code>,<br />
+not omitted. Every row must carry <code>tokenizer</code> explicitly because M1 values<br />
+from different tokenizer families are not comparable and must not be aggregated<br />
+across families.</p>
+<hr />
+<h2 id="acceptance-criteria-inspection">Acceptance criteria (inspection)</h2>
+<ol>
+<li>Every metric (M1-M7) has exactly one one-line operational definition above.</li>
+<li>M1 and M2 are in separate sections with separate formulas; nowhere are they<br />
+   conflated or used as mutual proxies.</li>
+<li>The tag-tax (register-tag tokens) is included in the M1 numerator formula<br />
+   explicitly; a sentence states that the formula already embeds them.</li>
+<li>The AIL-0 register sigils (<code>R:think</code>, <code>R:plan</code>, <code>R:tool</code>, <code>R:risk</code>,<br />
+<code>R:artifact</code>, <code>R:commit</code>, <code>R:review</code>, <code>R:bench</code>) appear verbatim wherever<br />
+   referenced; none are paraphrased or abbreviated.</li>
+<li>The model matrix explicitly states that QwQ-32B-Preview and DeepSeek-R1 are<br />
+   distinct models, and that the −5.6pp MATH500 result is attributable to QwQ,<br />
+   not R1.</li>
+<li>The 49-62% savings figure is identified as a hypothesis from issue #202 to<br />
+   confirm or refute on tokens (not chars), with a statement that the research<br />
+   dossier found no direct token-savings evidence for register-tagged<br />
+   compression.</li>
+<li>The execution environment section states "never on the developer machine" and<br />
+   names dev-cx53 and GHA as the only permitted targets with the 3-gate<br />
+   protocol.</li>
+<li>No Python, no runnable code, no language-tagged executable code fence appears<br />
+   anywhere in this document.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-ail-bench-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

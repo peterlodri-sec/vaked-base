@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Spec — WP3-S5: eventd integration (Litany ↔ append-only hash-chained log) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#non-goals" style="padding-left:1rem">  Non-goals</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#3-the-central-design-decision-surface-do-not-silently-pick" style="padding-left:0.5rem">3. The central design decision (surface, do not silently pick)</a><a href="#4-design-algorithm" style="padding-left:0.5rem">4. Design / algorithm</a><a href="#41-where-the-code-lives-paths-to-create" style="padding-left:1rem">  4.1 Where the code lives (paths to create)</a><a href="#42-the-projection-litany-frame-eventd-logged-form" style="padding-left:1rem">  4.2 The projection: Litany frame → eventd logged form</a><a href="#43-redaction-redact-rfc-0002-44-normative" style="padding-left:1rem">  4.3 Redaction (`@redact`, RFC 0002 §4.4, normative)</a><a href="#44-connection-lifecycle-entries-rfc-0003-10" style="padding-left:1rem">  4.4 Connection-lifecycle entries (RFC 0003 §10)</a><a href="#45-write-path-single-writer-discipline-mirror-eventdlogpy" style="padding-left:1rem">  4.5 Write path (single-writer discipline, mirror `eventd/log.py`)</a><a href="#46-fold-integration-no-new-fold" style="padding-left:1rem">  4.6 Fold integration (no new fold)</a><a href="#5-worked-projection-example-grounding" style="padding-left:0.5rem">5. Worked projection example (grounding)</a><a href="#6-test-plan" style="padding-left:0.5rem">6. Test plan</a><a href="#61-m1-local-primary-gate-everything-below-runs-on-macos-m1" style="padding-left:1rem">  6.1 M1-local (primary gate — everything below runs on macOS M1)</a><a href="#62-needs-dev-cx53-linux-deferred-not-required-for-s5-acceptance" style="padding-left:1rem">  6.2 Needs dev-cx53 / Linux (deferred — NOT required for S5 acceptance)</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-open-reconciliation-items-must-be-filed-as-issues-before-implementation" style="padding-left:0.5rem">8. Open reconciliation items (must be filed as issues before implementation)</a><a href="#9-acceptance-criteria" style="padding-left:0.5rem">9. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp3-s5</div>
+<h1>Spec — WP3-S5: eventd integration (Litany ↔ append-only hash-chained log)</h1>
+<h1 id="spec-wp3-s5-eventd-integration-litany-append-only-hash-chained-log">Spec — WP3-S5: eventd integration (Litany ↔ append-only hash-chained log)</h1>
+<p><strong>Date:</strong> 2026-06-14 · <strong>Status:</strong> spec (planning artifact; dependency-blocked, not codeable now) · <strong>Sprint:</strong> WP3-S5 (Aug 21–Sep 3, <a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a> line 28) · <strong>Owner:</strong> WP3 Engineer A (Rust)</p>
+<blockquote>
+<p><strong>Stale-reference correction (read first).</strong> The WP3 kickoff and issue #167 cite "RFC 0002 §4 / Appendix A" for the byte encoding and golden vectors. That wording is wrong. In the frozen RFC 0002 (<a href="../../../protocol/rfcs/0002-hcplang.md"><code>protocol/rfcs/0002-hcplang.md</code></a>):<br />
+- the byte encoding (<code>hcpbin</code>) is <strong>§6</strong> ("<code>hcpbin</code> encoding rules"), not §4;<br />
+- the frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) is <strong>reserved and implicit</strong> (§4.2) and is encoded by the <strong>WIRE</strong> layer — its normative byte layout is <strong>RFC 0003 §4.4 / §4.4.1</strong>, <em>explicitly NOT</em> in <code>hcpbin</code> (RFC 0002 §4.2 and the §6 scope note at lines 446–449);<br />
+- golden vectors live in the worked-examples subsections <strong>§6.1.1, §6.3.1, §6.6.1, §6.7.1, and §10</strong> — there is no encoding "Appendix A" (Appendix A of RFC 0002 is <em>generated-code examples</em>, §A.1/§A.2, not byte vectors).</p>
+<p>Implement against §6 + RFC 0003 §4, derive vectors from §6.1.1/§6.3.1/§6.6.1/§6.7.1/§10. The existing <code>hcpbin</code> crate already encodes this correctly (<code>protocol/hcp/hcpbin/src/lib.rs</code> docstring lines 22–23 make exactly this point).</p>
+</blockquote>
+<hr />
+<h2 id="1-objective">1. Objective</h2>
+<p>Make the Litany wire (RFC 0003) feed the <strong>eventd</strong> append-only, hash-chained audit log (the immutable leg of the 1.0 epic, <a href="2026-06-12-eventd-design.md"><code>docs/superpowers/specs/2026-06-12-eventd-design.md</code></a>) so that:</p>
+<ol>
+<li>Every admitted Litany frame, plus every connection-lifecycle moment, becomes a durable, tamper-evident eventd entry (RFC 0003 §10, §11 item 9).</li>
+<li>The state-dependency control frames of RFC 0004 §2 (<code>DependencyRegistration</code>, <code>ConsumerCheckpoint</code>, <code>RewindEvent</code>) — which <strong>MUST</strong> be durably logged before consumption (RFC 0004 §3.1) — are written through this same path and fold into the existing <code>DependencyIndex</code> / GC-floor / cold-start machinery (<a href="../../../eventd/statedep.py"><code>eventd/statedep.py</code></a>).</li>
+<li>The bridge is <strong>byte-faithful to the Python eventd oracle</strong>: the entry/chain bytes a Rust writer produces are accepted by <code>python3 -m eventd verify</code> and are byte-identical to a committed golden, exactly as <code>vakedz</code> is pinned to <code>vakedc</code> (<a href="../../../vakedz/test/crossverify.sh"><code>vakedz/test/crossverify.sh</code></a>).</li>
+</ol>
+<p>This sprint is the <strong>integration glue between two already-specified layers</strong>, not a new encoding. It is dependency-blocked (see §7) and is delivered as a planning artifact now.</p>
+<h3 id="non-goals">Non-goals</h3>
+<ul>
+<li>Not a new chain format. <code>eventd/core.py</code> is <strong>FROZEN</strong> (its module docstring, lines 17–37) and cross-verified against <code>tools/ralph/ralphcore.py</code> and <code>vakedz/cache.zig</code>. S5 must not alter it.</li>
+<li>Not the Zig eventd daemon. That is the #15-pattern port, scheduled WP4-S4 ("Zig port (WP4-S4) replaces by Sep", kickoff line 47); the Python eventd is its oracle and ours.</li>
+<li>Not RFC 0004's compiler passes (DAG validation = order 5, lives in <code>vakedc</code>) nor the zero-copy scan path (order 8). RFC 0004 §8.</li>
+<li>Not perf tuning (WP3-S6) nor stress hardening (WP3-S7).</li>
+</ul>
+<hr />
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Path / location</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>eventd byte oracle (primary)</strong></td>
+<td><a href="../../../eventd/core.py"><code>eventd/core.py</code></a>, <a href="../../../eventd/log.py"><code>eventd/log.py</code></a></td>
+<td>FROZEN chain: <code>hash = sha256(prev_hex ‖ canonical_json(payload))</code>, JSONL, LF-terminated. The canonical-JSON dialect (sorted keys, <code>(",",":")</code>, <code>ensure_ascii=False</code>, <code>allow_nan=False</code>, no Unicode normalization) is the cross-language hash contract (<code>core.py</code> docstring lines 17–37).</td>
+</tr>
+<tr>
+<td><strong>eventd CLI / exit-code contract</strong></td>
+<td><a href="../../../eventd/__main__.py"><code>eventd/__main__.py</code></a> lines 20–28</td>
+<td><code>verify</code>/<code>append</code>/<code>replay</code>/<code>state</code>/<code>floor</code>/<code>coldstart</code>/<code>runs</code>/<code>repair</code>. Exit codes are a STABLE ORACLE CONTRACT: 0 ok, 2 usage, 3 PAUSED(stale_dependency), 4 tampered/malformed, 5 writer-locked.</td>
+</tr>
+<tr>
+<td><strong>statedep logged-form constructors</strong></td>
+<td><a href="../../../eventd/statedep.py"><code>eventd/statedep.py</code></a> lines 64–107</td>
+<td>The exact JSON shape of the RFC 0004 §2 frames <em>as logged</em> (<code>kind</code>+<code>v</code> discriminator; field names match the RFC structs; step/epoch are ints only). This is the projection target.</td>
+</tr>
+<tr>
+<td><strong>runtime logged-form constructors</strong></td>
+<td><a href="../../../eventd/runtime.py"><code>eventd/runtime.py</code></a> lines 74–99</td>
+<td><code>run_started</code>/<code>step_*</code>/<code>run_finished</code> logged form (<code>kind</code>+<code>v</code>; opaque string ids; 1-based int <code>attempt</code>).</td>
+</tr>
+<tr>
+<td><strong>hcpbin codec (Rust)</strong></td>
+<td><a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a>, <code>tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>)</td>
+<td>The frame-body / header byte oracle for the <em>wire</em> layer (RFC 0002 §6). Today implements varints/bool/bytes/hash only (see §7 dependency note).</td>
+</tr>
+<tr>
+<td><strong>Frame-bytes / header layout</strong></td>
+<td>RFC 0003 §4.1 (frame record), §4.2 (length prefix), §4.4 / §4.4.1 (header on the wire), §4.6 (worked example)</td>
+<td>Defines <code>frame-bytes := header-bytes ‖ body-bytes</code> and the canonical header encoding (<code>kind</code>@0, <code>corr</code>@1, <code>stream</code>@2?, <code>seq</code>@3?, <code>end</code>@4).</td>
+</tr>
+<tr>
+<td><strong>eventd-admission rule</strong></td>
+<td>RFC 0003 §10, §11 item 9 (lines 1161–1175, 1220–1225)</td>
+<td>A frame is admitted to eventd <strong>only if its full <code>frame-bytes</code> is strictly canonical</strong> (RFC 0002 §6.8). Lifecycle events (<code>open</code>/<code>close</code>/<code>bye</code>/<code>goaway</code>/transport faults, §9.1) are also recorded.</td>
+</tr>
+<tr>
+<td><strong>state-dependency semantics</strong></td>
+<td>RFC 0004 §2 (frames), §3 (write-ahead), §4 (GC floor), §6 (cold start), §7 (epochs), §8 (impl order)</td>
+<td>The control-frame meanings and fold rules already mirrored in <code>statedep.py</code>.</td>
+</tr>
+<tr>
+<td><strong>redaction</strong></td>
+<td>RFC 0002 §4.4 (<code>@redact</code>, line 293)</td>
+<td>A <code>@redact</code> field's value is redacted in <code>litanydump</code> output <strong>and in eventd projections</strong>. Normative for the projection (see §4.3).</td>
+</tr>
+<tr>
+<td><strong>parity-gate pattern</strong></td>
+<td><a href="../../../vakedz/test/crossverify.sh"><code>vakedz/test/crossverify.sh</code></a></td>
+<td>The repo's established Rust/Zig ↔ Python byte-parity gate. Mirror it.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-the-central-design-decision-surface-do-not-silently-pick">3. The central design decision (surface, do not silently pick)</h2>
+<p>There is a <strong>documented contradiction in the repo</strong> about <em>what bytes eventd hashes</em>:</p>
+<ul>
+<li><strong>RFC 0003 §10 + §4.6 + §11 item 9</strong> state eventd chains <code>H(prev ‖ frame-bytes)</code> — over the <em>raw hcpbin header+body</em> the wire delimited ("the chain covers header and body together", line 1164; "<code>eventd</code> chains <code>H(prev ‖ frame-bytes)</code>", line 403).</li>
+<li><strong><code>eventd/core.py</code> (FROZEN) + <code>eventd/statedep.py</code> note</strong> state eventd chains <code>sha256(prev_hex ‖ canonical_json(payload))</code> over a <strong>JSON payload</strong>, and that "eventd payload bodies are JSON; the <code>.hcplang</code> frames in RFC 0004 §2 are the wire form, this is the logged form" (<code>statedep.py</code> lines 19–24).</li>
+</ul>
+<p><strong>Working decision for S5 (oracle-faithful):</strong> eventd's chain stays exactly <code>sha256(prev_hex ‖ canonical_json(payload))</code> over a JSON <strong>logged form</strong>. The integration <em>projects</em> each admitted Litany frame into a JSON payload dict (<code>{"kind": …, "v": …, …}</code>), precisely as <code>statedep.py</code>/<code>runtime.py</code> already do. We do <strong>not</strong> redefine eventd to hash raw <code>frame-bytes</code>.</p>
+<p>Rationale: the task names "Python eventd is the byte oracle"; <code>core.py</code> is FROZEN and triple-cross-verified (<code>ralphcore</code>, <code>vakedz/cache.zig</code>); and the statedep/runtime modules already commit to the JSON-logged-form model. Changing the chain to hash frame-bytes would (a) break the frozen oracle, (b) invalidate every existing eventd entry/test, and (c) make the chain unverifiable by <code>python3 -m eventd verify</code>. The litany→JSON projection is the bridge; the wire's <code>frame-bytes</code> is what is <em>transmitted</em>, the JSON logged form is what is <em>chained</em>.</p>
+<p><strong>Open reconciliation item OR-1 (must be filed, see §8):</strong> RFC 0003 §10 / §4.6 / §11.9 (chain over <code>frame-bytes</code>) vs <code>eventd/core.py</code> + <code>statedep.py</code> (chain over <code>canonical_json(payload)</code>). These are mutually exclusive byte contracts. One must be amended. S5 implements the oracle (JSON); the RFC text needs a corrective erratum or a deliberate decision to bump the eventd format (a breaking change that re-digests all chained frames — explicitly out of S5 scope). Until reconciled, S5 carries an optional <code>frame_bytes_sha256</code> <em>field inside the JSON payload</em> (see §4.2) so the raw frame digest is still auditable without changing the chain function.</p>
+<hr />
+<h2 id="4-design-algorithm">4. Design / algorithm</h2>
+<h3 id="41-where-the-code-lives-paths-to-create">4.1 Where the code lives (paths to create)</h3>
+<p>Following the kickoff's code home (<code>protocol/hcp/litany/</code> is the "frame + routing layer (WP3-S3+)", kickoff line 14):</p>
+<div class="highlight"><pre><span></span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">litany</span><span class="o">/</span><span class="w">                         </span><span class="c1"># the litany crate (created S3)</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span><span class="n">eventd</span><span class="o">.</span><span class="n">rs</span><span class="w">            </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="n">the</span><span class="w"> </span><span class="n">bridge</span><span class="p">:</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">JSON</span><span class="w"> </span><span class="n">logged</span><span class="w"> </span><span class="n">form</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">chain</span><span class="w"> </span><span class="n">entry</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span><span class="n">eventd_chain</span><span class="o">.</span><span class="n">rs</span><span class="w">      </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="n">the</span><span class="w"> </span><span class="n">FROZEN</span><span class="w"> </span><span class="n">chain</span><span class="w"> </span><span class="n">primitive</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">Rust</span><span class="p">:</span>
+<span class="w">                                   </span><span class="n">GENESIS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0&quot;</span><span class="o">*</span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="n">canonical_json</span><span class="p">,</span><span class="w"> </span><span class="n">chain_hash</span><span class="p">,</span>
+<span class="w">                                   </span><span class="n">make_entry</span><span class="p">,</span><span class="w"> </span><span class="n">entry_line</span><span class="w">  </span><span class="p">(</span><span class="n">port</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">eventd</span><span class="o">/</span><span class="n">core</span><span class="o">.</span><span class="n">py</span><span class="p">,</span>
+<span class="w">                                   </span><span class="n">byte</span><span class="o">-</span><span class="n">identical</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="c1">#15 oracle-port pattern)</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span><span class="n">eventd_writer</span><span class="o">.</span><span class="n">rs</span><span class="w">     </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="n">single</span><span class="o">-</span><span class="n">writer</span><span class="w"> </span><span class="n">append</span><span class="p">:</span><span class="w"> </span><span class="n">flock</span><span class="p">(</span><span class="n">LOCK_EX</span><span class="o">|</span><span class="n">LOCK_NB</span><span class="p">),</span>
+<span class="w">                                   </span><span class="n">fsync</span><span class="o">-</span><span class="n">on</span><span class="o">-</span><span class="n">append</span><span class="p">,</span><span class="w"> </span><span class="n">boot</span><span class="o">-</span><span class="n">time</span><span class="w"> </span><span class="n">verify_chain</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span><span class="n">eventd_golden</span><span class="o">.</span><span class="n">rs</span><span class="w">   </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="ow">in</span><span class="o">-</span><span class="n">crate</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="n">vectors</span><span class="w"> </span><span class="n">vs</span><span class="w"> </span><span class="n">committed</span><span class="w"> </span><span class="n">bytes</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span><span class="n">eventd_parity</span><span class="o">.</span><span class="n">rs</span><span class="w">   </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="n">shells</span><span class="w"> </span><span class="n">out</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="o">-</span><span class="n">m</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">verify</span><span class="err">`</span>
+<span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">litany</span><span class="o">/</span><span class="n">test</span><span class="o">/</span>
+<span class="w">  </span><span class="n">crossverify</span><span class="o">-</span><span class="n">eventd</span><span class="o">.</span><span class="n">sh</span><span class="w">    </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="n">mirror</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">vakedz</span><span class="o">/</span><span class="n">test</span><span class="o">/</span><span class="n">crossverify</span><span class="o">.</span><span class="n">sh</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">eventd</span>
+<span class="w">  </span><span class="n">golden</span><span class="o">/</span><span class="w">                   </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="n">committed</span><span class="w"> </span><span class="o">.</span><span class="n">jsonl</span><span class="w"> </span><span class="n">chains</span><span class="w"> </span><span class="p">(</span><span class="n">the</span><span class="w"> </span><span class="n">oracle</span><span class="w"> </span><span class="n">goldens</span><span class="p">)</span>
+<span class="n">tests</span><span class="o">/</span><span class="n">spec</span><span class="o">/</span>
+<span class="w">  </span><span class="n">test_litany_eventd</span><span class="o">.</span><span class="n">py</span><span class="w">    </span><span class="p">(</span><span class="n">NEW</span><span class="p">)</span><span class="w">  </span><span class="n">Python</span><span class="w"> </span><span class="n">side</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">parity</span><span class="w"> </span><span class="n">gate</span><span class="p">:</span><span class="w"> </span><span class="n">generate</span><span class="w"> </span><span class="n">goldens</span>
+<span class="w">                                   </span><span class="n">from</span><span class="w"> </span><span class="n">eventd</span><span class="o">/*</span><span class="w"> </span><span class="n">constructors</span><span class="p">;</span><span class="w"> </span><span class="nb">assert</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">Rust</span><span class="w"> </span><span class="n">crate</span>
+<span class="w">                                   </span><span class="n">reproduces</span><span class="w"> </span><span class="n">them</span><span class="w"> </span><span class="n">byte</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">byte</span>
+<span class="n">Taskfile</span><span class="o">.</span><span class="n">yml</span><span class="w">                </span><span class="p">(</span><span class="n">EDIT</span><span class="p">)</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="err">`</span><span class="n">litany</span><span class="o">-</span><span class="n">eventd</span><span class="o">-</span><span class="n">verify</span><span class="err">`</span><span class="w"> </span><span class="n">task</span>
+<span class="o">.</span><span class="n">github</span><span class="o">/</span><span class="n">workflows</span><span class="o">/</span><span class="w">          </span><span class="p">(</span><span class="n">EDIT</span><span class="p">)</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">parity</span><span class="w"> </span><span class="n">gate</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">CI</span><span class="w"> </span><span class="p">(</span><span class="n">M1</span><span class="w"> </span><span class="n">runner</span><span class="p">)</span>
+</pre></div>
+
+<p>The Rust <code>eventd_chain.rs</code> is a faithful re-implementation of the FROZEN <code>eventd/core.py</code> (it is not allowed to drift; the parity gate enforces this). It exists so the wire crate can chain entries without a Python dependency at runtime, exactly as <code>vakedz/src/cache.zig</code> re-implements the same chain in Zig.</p>
+<h3 id="42-the-projection-litany-frame-eventd-logged-form">4.2 The projection: Litany frame → eventd logged form</h3>
+<p>A frame admitted by the wire (RFC 0003 §10 admission rule: full <code>frame-bytes</code> strictly canonical per RFC 0002 §6.8) is projected to a JSON payload dict that the eventd chain then hashes. The projection is <strong>total and deterministic</strong> (same frame ⇒ same payload ⇒ same chain bytes).</p>
+<p><strong>Header fields</strong> (RFC 0003 §4.4.1): the wire-layer header <code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code> map into payload keys:</p>
+<table>
+<thead>
+<tr>
+<th>Header field (§4.4.1)</th>
+<th>hcpbin wire form</th>
+<th>Logged-form JSON key</th>
+<th>JSON value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kind</code> @0</td>
+<td>LEB128 u8 0–4</td>
+<td><code>"kind_class"</code></td>
+<td>one of <code>"request"</code>,<code>"response"</code>,<code>"event"</code>,<code>"control"</code>,<code>"error"</code> (the §4.4.1 enum 0–4 decoded to its name; kept distinct from the payload's own <code>"kind"</code> discriminator)</td>
+</tr>
+<tr>
+<td><code>corr</code> @1</td>
+<td>16 raw UUID bytes (RFC 4122 big-endian)</td>
+<td><code>"corr"</code></td>
+<td>canonical lower-case hyphenated UUID string</td>
+</tr>
+<tr>
+<td><code>stream</code> @2?</td>
+<td>LEB128 u64 if present</td>
+<td><code>"stream"</code></td>
+<td>integer, <strong>omitted if absent</strong></td>
+</tr>
+<tr>
+<td><code>seq</code> @3?</td>
+<td>LEB128 u64 if present</td>
+<td><code>"seq"</code></td>
+<td>integer, <strong>omitted if absent</strong> (note: this is the <em>frame header</em> seq, distinct from the eventd entry <code>seq</code> which <code>make_entry</code> assigns)</td>
+</tr>
+<tr>
+<td><code>end</code> @4</td>
+<td><code>0x01</code> if true, omitted if false</td>
+<td><code>"end"</code></td>
+<td>boolean, <strong>omitted if false</strong> (mirrors the §4.4.1 / RFC 0002 §6.2 default-omission rule)</td>
+</tr>
+</tbody>
+</table>
+<p>Omission must mirror hcpbin default-omission so that the JSON logged form carries exactly the information the canonical header did — no <code>null</code>/<code>0</code> placeholders (RFC 0003 §4.4.1 "Optional fields are omitted, not encoded with null/zero markers").</p>
+<p><strong>Body fields:</strong> decoded from the negotiated schema (RFC 0003 §4.4 / §5.4 schema-digest negotiation) into their natural JSON scalars. The mapping is the RFC 0002 §7.1 codegen table read in reverse:<br />
+- <code>u8…u64</code>, <code>i8…i64</code>, <code>enum</code> → JSON integer (statedep/runtime already ban floats in these payloads, <code>statedep.py</code> <code>_require_int</code>).<br />
+- <code>bool</code> → JSON boolean.<br />
+- <code>string</code> → JSON string (NFC per RFC 0002 §6.4 was already applied at encode time; the logged form preserves it as written — eventd does <strong>no</strong> further normalization, <code>core.py</code> line 32).<br />
+- <code>bytes</code>, <code>hash</code>, <code>uuid</code> → JSON string in a fixed textual form (base64-std-no-pad for <code>bytes</code>; <code>"&lt;algo-hex&gt;:&lt;digest-hex&gt;"</code> for <code>hash</code> per RFC 0002 §6.5 registry; canonical UUID string for <code>uuid</code>). The textual form is part of OR-2 (see §8) and MUST be fixed before implementation so the bytes are deterministic.<br />
+- <code>timestamp</code> → JSON string (RFC 3339, UTC, fixed sub-second precision) — fixed under OR-2.<br />
+- <code>list</code> → JSON array (order preserved, RFC 0002 §6.6); <code>map</code> → JSON object (keys already sorted by canonical key bytes on the wire; the JSON encoder re-sorts by code point per <code>core.py</code>, so the two sorts must be reconciled — captured in OR-2).<br />
+- nested <code>record</code>/<code>union</code> → nested JSON object (<code>union</code> carries an arm-tag field).</p>
+<p><strong>Schema versioning:</strong> every projected payload carries <code>"v": &lt;schema version int&gt;</code> (the <code>@since</code>/version discipline, RFC 0002 §8) exactly as <code>statedep.py</code>/<code>runtime.py</code> set <code>"v": STATEDEP_V</code> / <code>RUNTIME_V</code>. The wire's negotiated schema digest (RFC 0003 §5.4) is recorded once per connection in the <code>connection_open</code> lifecycle entry (below), not per frame.</p>
+<p><strong>OR-1 bridge field:</strong> the projected payload MAY include <code>"frame_bytes_sha256": "&lt;hex&gt;"</code> — <code>sha256</code> of the exact canonical <code>frame-bytes</code> the wire delimited (§4.1). This keeps the raw-frame digest auditable inside the JSON-hashed chain without changing the chain function. It is part of the logged form (so it <em>is</em> covered by the entry hash); whether it is required is gated on OR-1.</p>
+<h3 id="43-redaction-redact-rfc-0002-44-normative">4.3 Redaction (<code>@redact</code>, RFC 0002 §4.4, normative)</h3>
+<p>A body field declared <code>@redact</code> MUST NOT have its plaintext value placed in the logged form. The projection replaces it with a fixed sentinel object <code>{"redacted": true, "len": &lt;n&gt;}</code> (length of the redacted value's canonical bytes, so size is auditable without content). This is applied <strong>before</strong> <code>canonical_json</code>, so the redaction is part of the hashed bytes — a downstream <code>litanydump</code>/<code>eventd state</code> never sees the plaintext, matching the §4.4 requirement that <code>@redact</code> fields are redacted "in <code>eventd</code> projections." A regression test (see §6) must prove plaintext never appears in the on-disk <code>.jsonl</code>.</p>
+<h3 id="44-connection-lifecycle-entries-rfc-0003-10">4.4 Connection-lifecycle entries (RFC 0003 §10)</h3>
+<p>Beyond frames, the bridge logs the connection shape. These are eventd payloads with their own <code>kind</code> discriminator (new <code>KIND_*</code> in a <code>litany_wire</code> logged-form module mirroring statedep/runtime):</p>
+<div class="highlight"><pre><span></span><span class="n">connection_open</span><span class="w">   </span><span class="p">{</span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">conn</span><span class="p">,</span><span class="w"> </span><span class="n">peer</span><span class="p">,</span><span class="w"> </span><span class="n">wire_version</span><span class="p">,</span><span class="w"> </span><span class="n">max_frame</span><span class="p">,</span><span class="w"> </span><span class="nl">schema_digests:</span><span class="p">[...]}</span>
+<span class="n">connection_close</span><span class="w">  </span><span class="p">{</span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">conn</span><span class="p">,</span><span class="w"> </span><span class="nl">reason:</span><span class="w"> </span><span class="s">&quot;bye&quot;</span><span class="o">|</span><span class="s">&quot;goaway&quot;</span><span class="o">|</span><span class="s">&quot;half_close&quot;</span><span class="p">}</span>
+<span class="n">transport_fault</span><span class="w">   </span><span class="p">{</span><span class="n">kind</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">,</span><span class="w"> </span><span class="n">conn</span><span class="p">,</span><span class="w"> </span><span class="n">fault</span><span class="p">,</span><span class="w"> </span><span class="n">detail</span><span class="p">}</span><span class="w">     </span><span class="p">#</span><span class="w"> </span><span class="err">§</span><span class="mf">9.1</span><span class="w"> </span><span class="n">abortive</span><span class="w"> </span><span class="n">close</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">framing</span><span class="w"> </span><span class="n">violation</span>
+</pre></div>
+
+<p>A <strong>framing violation</strong> (RFC 0003 §4.5: non-minimal/overlong <code>length</code>, <code>length</code> &gt; <code>max_frame</code>, <code>length</code>==0, un-parseable header, mid-frame EOF) is recorded <em>only</em> as a <code>transport_fault</code> connection-end entry and the connection is aborted — the offending bytes are never admitted as a frame (RFC 0003 §10, lines 1166–1169). A header-clean-but-non-canonical <em>body</em> is a frame-level <code>error</code> (§9.2): its <code>frame-bytes</code> are excluded from the chain, and the bridge logs a <code>frame_rejected {kind, v, conn, corr, reason}</code> entry rather than the frame itself.</p>
+<h3 id="45-write-path-single-writer-discipline-mirror-eventdlogpy">4.5 Write path (single-writer discipline, mirror <code>eventd/log.py</code>)</h3>
+<p>The Rust <code>eventd_writer.rs</code> reproduces the <code>EventLog</code> discipline exactly (<code>eventd/log.py</code> lines 149–214):<br />
+1. <strong>Open as writer:</strong> take the exclusive <code>flock(LOCK_EX | LOCK_NB)</code> <strong>first</strong>, then load+verify the existing chain under the lock (the Codex P1 ordering fix, <code>log.py</code> lines 161–173). A second writer ⇒ refuse with the WriterLockError-equivalent (exit-code 5 contract).<br />
+2. <strong>Boot verify:</strong> <code>verify_chain</code> the loaded entries; a broken chain is a hard error (TamperError-equivalent, exit-code 4) — the writer is closed without ever holding the lock on a refused log (<code>log.py</code> lines 182–184).<br />
+3. <strong>Append:</strong> <code>entry = make_entry(tail_hash, len, payload)</code>; write <code>entry_line(entry)</code> (<code>json.dumps(entry, separators=(",",":"), sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n"</code>); <code>flush</code>; <code>fsync</code> before returning (<code>log.py</code> lines 205–214). The <code>flush+fsync</code> per append is the durability contract (eventd design "Daemon shape", spec lines 52–62).<br />
+4. <strong>Readers</strong> map the log read-only and fold (<code>DependencyIndex.from_entries</code>, <code>RuntimeState.fold</code>) — no change; the existing Python readers consume the Rust-written log unchanged, which is the whole point of byte parity.</p>
+<p>The single-writer owner in the real runtime is <code>agent-supervisord</code> (eventd design line 55); in S5 the litany crate is the writer when it is the process appending. Multi-writer (per-fiber sub-logs) stays the eventd design's open question.</p>
+<h3 id="46-fold-integration-no-new-fold">4.6 Fold integration (no new fold)</h3>
+<p>Because projected <code>DependencyRegistration</code>/<code>ConsumerCheckpoint</code>/<code>RewindEvent</code>/<code>consumer_evicted</code> payloads are byte-identical to what <code>statedep.py</code> constructors emit, they fold into the existing <code>DependencyIndex</code> with <strong>zero changes</strong>: GC floor (§4), cold-start verify (§6), eviction liveness (§4.2) all work as-is. S5's job is to make the <em>wire</em> the producer of those payloads (replacing hand-written <code>python3 -m eventd append</code>), and to enforce RFC 0004 §3.1 (registration logged before consumption) structurally at the wire boundary.</p>
+<hr />
+<h2 id="5-worked-projection-example-grounding">5. Worked projection example (grounding)</h2>
+<p>A RFC 0004 §2 <code>DependencyRegistration</code> control frame on the wire:</p>
+<ul>
+<li>Header (RFC 0003 §4.4.1), single-shot control, no stream: <code>kind=3 (control)</code>, <code>corr=&lt;uuid&gt;</code>. Frame-bytes = <code>03 01 &lt;16 uuid bytes&gt; &lt;body...&gt;</code>.</li>
+<li>Body (RFC 0002 §6.2, ascending tags): <code>consumer</code> uuid @1, <code>producer</code> uuid @2, <code>consumer_step</code> u64 @3, <code>producer_step</code> u64 @4, <code>producer_step_hash</code> hash @5, <code>topology_epoch</code> u64 @6.</li>
+</ul>
+<p>Projects to the eventd logged form (identical to <code>statedep.dependency_registration(...)</code>, <code>statedep.py</code> lines 64–73, with the header keys added):</p>
+<div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;consumer&quot;</span><span class="p">:</span><span class="s2">&quot;&lt;uuid&gt;&quot;</span><span class="p">,</span><span class="nt">&quot;consumer_step&quot;</span><span class="p">:</span><span class="mi">4</span><span class="p">,</span><span class="nt">&quot;corr&quot;</span><span class="p">:</span><span class="s2">&quot;&lt;uuid&gt;&quot;</span><span class="p">,</span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="s2">&quot;dependency_registration&quot;</span><span class="p">,</span><span class="nt">&quot;kind_class&quot;</span><span class="p">:</span><span class="s2">&quot;control&quot;</span><span class="p">,</span><span class="nt">&quot;producer&quot;</span><span class="p">:</span><span class="s2">&quot;&lt;uuid&gt;&quot;</span><span class="p">,</span><span class="nt">&quot;producer_step&quot;</span><span class="p">:</span><span class="mi">7</span><span class="p">,</span><span class="nt">&quot;producer_step_hash&quot;</span><span class="p">:</span><span class="s2">&quot;01:&lt;64hex&gt;&quot;</span><span class="p">,</span><span class="nt">&quot;topology_epoch&quot;</span><span class="p">:</span><span class="mi">2</span><span class="p">,</span><span class="nt">&quot;v&quot;</span><span class="p">:</span><span class="mi">1</span><span class="p">}</span>
+</pre></div>
+
+<p>(keys shown unsorted for readability; <code>canonical_json</code> sorts them by code point before hashing). The chain entry is then <code>{"seq":N,"prev":"&lt;64hex&gt;","payload":&lt;above&gt;,"hash":sha256("&lt;prev&gt;"+canonical_json(payload))}</code>, one LF-terminated line. <code>python3 -m eventd verify</code> over the resulting file MUST exit 0, and <code>python3 -m eventd coldstart &lt;consumer&gt;</code> MUST behave identically to a log written by the Python constructor.</p>
+<hr />
+<h2 id="6-test-plan">6. Test plan</h2>
+<p>Success criterion: <strong>the Rust bridge's on-disk chain is byte-identical to, and verifiable by, the Python eventd oracle, fully on M1.</strong> The kickoff's "All tests pass on <code>dev-cx53</code>" line (kickoff line 43) is corrected below — dev-cx53 is off-limits and not required for the verifiable core.</p>
+<h3 id="61-m1-local-primary-gate-everything-below-runs-on-macos-m1">6.1 M1-local (primary gate — everything below runs on macOS M1)</h3>
+<p>Verified available in this environment: <code>cargo 1.95.0</code> (<code>cargo test</code> → 50 hcpbin tests pass), <code>python3 -m eventd</code> imports and runs. eventd uses <code>fcntl.flock</code> + <code>os.fsync</code>, both functional on macOS, so the <strong>entire eventd parity surface is M1-verifiable</strong>.</p>
+<ol>
+<li><strong>Rust unit / golden (<code>cargo test</code>)</strong> — <code>tests/eventd_golden.rs</code>:</li>
+<li>chain primitive parity: <code>GENESIS</code>, <code>canonical_json</code>, <code>chain_hash</code>, <code>make_entry</code>, <code>entry_line</code> reproduce the FROZEN <code>eventd/core.py</code> bytes on shared vectors (the same vectors <code>tests/spec/test_eventd.py</code> group 1 uses against <code>ralphcore</code>).</li>
+<li>projection golden: each RFC 0004 §2 frame and each lifecycle event projects to the exact JSON logged form committed under <code>protocol/hcp/litany/test/golden/</code>.</li>
+<li>canonical-JSON edge cases: non-ASCII passthrough (<code>ensure_ascii=False</code>), code-point key sort, integer-only step fields, NaN/Inf rejection (<code>allow_nan=False</code>), no-Unicode-normalization (<code>"é"</code> vs <code>"é"</code> distinct — <code>core.py</code> line 32).</li>
+<li><strong>Python spec test (<code>python3 -m pytest tests</code>)</strong> — <code>tests/spec/test_litany_eventd.py</code>: generate the golden chains from the <code>eventd/*</code> constructors (the oracle), assert the committed goldens equal them (drift guard), and assert structural fold equivalence (<code>DependencyIndex</code>/<code>RuntimeState</code> over Rust-written vs Python-written logs are equal).</li>
+<li><strong>Cross-verify parity gate</strong> — <code>protocol/hcp/litany/test/crossverify-eventd.sh</code> (mirror of <code>vakedz/test/crossverify.sh</code>):</li>
+<li>Rust bridge writes a chain → <code>python3 -m eventd verify</code> exits 0; <code>diff</code> against the committed golden is empty.</li>
+<li>tamper test: flip one byte in a Rust-written log → <code>python3 -m eventd verify</code> exits <strong>4</strong> (TAMPERED) — the boot-time hard-error contract (<code>eventd/__main__.py</code> line 43, <code>log.py</code> lines 177–184).</li>
+<li>single-writer test: two Rust writers on one path → second refuses (exit <strong>5</strong> contract).</li>
+<li>stale-dependency test: Rust writes a registration then a rewind that voids it → <code>python3 -m eventd coldstart &lt;consumer&gt;</code> exits <strong>3</strong> (PAUSED) — RFC 0004 §3.3/§6.</li>
+<li>redaction regression (§4.3): a <code>@redact</code> body field's plaintext MUST NOT appear anywhere in the on-disk <code>.jsonl</code> (grep the file). This test must <strong>fail without the redaction code and pass with it</strong> (CLAUDE.md §5).</li>
+<li>determinism: write the same frame sequence twice → byte-identical files (<code>entry_line</code> determinism, <code>core.py</code> lines 83–89).</li>
+<li><code>repair --truncate-tail</code>: append a torn tail to a Rust-written log → <code>python3 -m eventd repair --truncate-tail</code> drops the unverifiable suffix and logs <code>log_repair</code> (<code>log.py</code> lines 96–146).</li>
+<li><strong>Task / CI wiring:</strong> <code>task litany-eventd-verify</code> runs (3); add it to a CI workflow on the M1 runner alongside <code>task spec</code> (<code>Taskfile.yml</code> line 111: <code>python3 -m pytest tests -q</code>) and <code>task vakedz-verify</code>.</li>
+</ol>
+<h3 id="62-needs-dev-cx53-linux-deferred-not-required-for-s5-acceptance">6.2 Needs dev-cx53 / Linux (deferred — NOT required for S5 acceptance)</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Why it needs the Linux target</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Zig eventd daemon parity</td>
+<td>namespace syscalls / production daemon shape run only on Linux (per env constraints; <code>zig build -Dtarget=x86_64-linux</code> compiles on M1 but cannot exercise the syscalls)</td>
+<td>WP4-S4 (#15 port), not S5</td>
+</tr>
+<tr>
+<td>≤10µs/frame encode+decode perf number</td>
+<td>the kickoff perf budget is specified on the 8-core <code>dev-cx53</code> (kickoff line 54; ROADMAP WP3 perf line)</td>
+<td>WP3-S6 (perf baseline)</td>
+</tr>
+<tr>
+<td>Multi-process flock under contention at scale, group-commit fsync cadence</td>
+<td>OS-level concurrency behavior under the production runtime</td>
+<td>eventd design "Open" (spec lines 126–132); WP3-S7</td>
+</tr>
+</tbody>
+</table>
+<p>Everything in §6.1 is the gate S5 is judged on; §6.2 is explicitly out of S5's acceptance and must not block it.</p>
+<hr />
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<p>S5 is <strong>dependency-blocked</strong> today; this is why it is a planning artifact.</p>
+<ol>
+<li><strong>WP3-S3 (litany crate exists).</strong> <code>protocol/hcp/litany/</code> is created in S3 (kickoff line 14). S5 adds modules to it. <strong>Blocking.</strong></li>
+<li><strong>hcpbin type coverage (WP3-S1/S2/S3).</strong> The RFC 0004 §2 frames use <code>uuid</code>, <code>timestamp</code>, <code>u64?</code>, <code>hash</code>, <code>string</code>, records, optionals. The <code>hcpbin</code> crate <strong>today implements only varints / <code>bool</code> / <code>bytes</code> / <code>hash</code></strong> — its own TODOs defer <code>string</code>/NFC (WP3-S2), <code>f32</code>/<code>f64</code>, records/frames/unions/maps/enums, and the frame header (<code>src/lib.rs</code> lines 18–23, 488–498); <code>uuid</code> and <code>timestamp</code> are not present at all. A full frame→logged-form projection is <strong>blocked on S1/S2/S3 landing those types and the RFC 0003 §4.4 header codec.</strong> Until then S5 can only project the subset already encodable. <strong>Blocking (partial).</strong></li>
+<li><strong>WP3-S2 (frame layer / round-trip suite)</strong> and <strong>WP3-S4 (control frames, RFC 0005)</strong> establish the frame model and control-frame admission S5 hooks into. <strong>Blocking for the full set.</strong></li>
+<li><strong>eventd reference (DONE).</strong> <code>eventd/{core,log,statedep,runtime}.py</code> + CLI + <code>tests/spec/test_eventd.py</code> already exist and are the oracle. <strong>Satisfied.</strong></li>
+<li><strong>RFC 0002 frozen (gate, by Jun 21).</strong> Precondition for all hcpbin work (kickoff line 48). <strong>Assumed satisfied.</strong></li>
+<li><strong>Provides → WP4-S4 (Zig eventd daemon).</strong> S5's committed goldens and parity gate become the oracle the Zig port is held to (the #15 pattern, kickoff line 47).</li>
+</ol>
+<hr />
+<h2 id="8-open-reconciliation-items-must-be-filed-as-issues-before-implementation">8. Open reconciliation items (must be filed as issues before implementation)</h2>
+<ul>
+<li><strong>OR-1 — chain-byte contradiction.</strong> RFC 0003 §10 / §4.6 / §11 item 9 (chain over <code>frame-bytes</code>) vs <code>eventd/core.py</code> FROZEN + <code>statedep.py</code> note (chain over <code>canonical_json(payload)</code>). S5 implements the oracle (JSON logged form, §3). RFC 0003 needs a corrective erratum, or a deliberate format bump (breaking; re-digests all chained frames; out of S5 scope). Until resolved, the optional <code>frame_bytes_sha256</code> payload field (§4.2) preserves the raw-frame digest inside the JSON chain.</li>
+<li><strong>OR-2 — non-scalar textual encodings.</strong> The deterministic JSON text form of <code>bytes</code> (base64 variant), <code>hash</code> (<code>algo:digest</code> hex), <code>uuid</code> (canonical string), <code>timestamp</code> (RFC 3339 precision), and <code>map</code> (key-sort reconciliation: hcpbin sorts by canonical <em>key bytes</em> per RFC 0002 §6.6, eventd's <code>canonical_json</code> sorts JSON object keys by <em>code point</em> — for string-keyed maps these can differ) MUST be pinned before coding, because they enter the hashed bytes. File and freeze.</li>
+<li><strong>OR-3 — <code>kind_class</code> vs <code>kind</code> collision.</strong> The projection adds a header-derived <code>kind_class</code> key alongside the payload's existing <code>kind</code> discriminator. Confirm no existing logged-form payload uses <code>kind_class</code>/<code>corr</code>/<code>stream</code>/<code>end</code>/<code>seq</code> as a body field name (none in statedep/runtime today); reserve these header-projection keys.</li>
+<li><strong>OR-4 — RFC 0004 epoch-sync provisional sections</strong> (§7.1, §4.2.1, §4.2.2, §3.3.x are marked "provisional"). S5 logs what the wire emits; the epoch-assignment authority (supervision plane, §7 / Security considerations) is a <code>preceptord</code>/supervisord concern, not S5's. Confirm the logged <code>topology_epoch</code> is supplied, never self-reported by S5.</li>
+</ul>
+<hr />
+<h2 id="9-acceptance-criteria">9. Acceptance criteria</h2>
+<p>S5 is complete when, <strong>all verified on M1</strong>:</p>
+<ol>
+<li><code>cargo test</code> in <code>protocol/hcp/litany/</code> passes, including the eventd chain-parity, projection-golden, and canonical-JSON edge-case tests (§6.1 item 1).</li>
+<li><code>python3 -m pytest tests</code> passes, including <code>tests/spec/test_litany_eventd.py</code> (§6.1 item 2).</li>
+<li><code>protocol/hcp/litany/test/crossverify-eventd.sh</code> (and <code>task litany-eventd-verify</code>) passes: a Rust-written chain is accepted by <code>python3 -m eventd verify</code> (exit 0) <strong>and</strong> is byte-identical to the committed golden; tamper→exit 4; double-writer→exit 5; voided anchor→<code>coldstart</code> exit 3 (§6.1 item 3).</li>
+<li>A <code>@redact</code> field's plaintext never appears in the on-disk <code>.jsonl</code> (regression test fails without the redaction code, passes with it).</li>
+<li>The same frame sequence written twice yields byte-identical logs (determinism).</li>
+<li>The eventd chain function is <strong>unchanged</strong> from <code>eventd/core.py</code> (FROZEN): <code>git diff</code> shows no edit to <code>eventd/core.py</code>; the Rust <code>eventd_chain.rs</code> is proven byte-identical to it, not a re-spec.</li>
+<li>OR-1…OR-4 are filed as issues with the working decisions of §3/§8 recorded.</li>
+</ol>
+<p>These are strong, looping criteria (CLAUDE.md §4): each is a runnable command with a defined pass/fail, so the implementer can iterate without re-clarification.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp3-s5.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>economy.md — fleet cost model — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-nats-ha-cluster-3-node-jetstream" style="padding-left:0.5rem">1. NATS HA cluster (3-node JetStream)</a><a href="#candidate-node-specs-price-hetzner-eurmo-ex-vat" style="padding-left:1rem">  Candidate node specs + price (Hetzner, EUR/mo, ex-VAT)</a><a href="#3-node-cluster-totals" style="padding-left:1rem">  3-node cluster totals</a><a href="#additional-cost-vs-today" style="padding-left:1rem">  Additional cost (vs today)</a><a href="#alternative-managed-synadia-cloud" style="padding-left:1rem">  Alternative: managed (Synadia Cloud)</a><a href="#cost-vs-benefit" style="padding-left:1rem">  Cost vs benefit</a><a href="#open-cost-items-to-confirm-before-purchase" style="padding-left:1rem">  Open cost items to confirm before purchase</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / economy</div>
+<h1>economy.md — fleet cost model</h1>
+<h1 id="economymd-fleet-cost-model">economy.md — fleet cost model</h1>
+<p>Living cost ledger for vaked fleet infrastructure decisions. Each section: the<br />
+spend, the alternatives, and the cost-vs-benefit. Prices are <strong>ex-VAT</strong>, captured<br />
+2026-06-14 (Hetzner post-April-2026 pricing; verify at the source before<br />
+purchase). Sources: <a href="https://www.hetzner.com/cloud/">Hetzner Cloud pricing</a>,<br />
+<a href="https://www.bitdoze.com/hetzner-cloud-cost-optimized-plans/">bitdoze Hetzner 2026</a>,<br />
+<a href="https://docs.synadia.com/cloud/pricing">Synadia Cloud pricing</a>.</p>
+<hr />
+<h2 id="1-nats-ha-cluster-3-node-jetstream">1. NATS HA cluster (3-node JetStream)</h2>
+<p>Design: <a href="superpowers/specs/2026-06-14-nats-ha-cluster-design.md"><code>docs/superpowers/specs/2026-06-14-nats-ha-cluster-design.md</code></a>.<br />
+Decision: move the core vaked bus from a single node (<code>crabcc-nats</code>, a SPOF) to a<br />
+3-node co-located JetStream cluster (R3, RAFT quorum 2/3).</p>
+<h3 id="candidate-node-specs-price-hetzner-eurmo-ex-vat">Candidate node specs + price (Hetzner, EUR/mo, ex-VAT)</h3>
+<table>
+<thead>
+<tr>
+<th>Plan</th>
+<th>vCPU</th>
+<th>RAM</th>
+<th>NVMe</th>
+<th>Traffic</th>
+<th>€/mo/node</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CCX13</strong> (dedicated)</td>
+<td>2</td>
+<td>8 GB</td>
+<td>80 GB</td>
+<td>20 TB</td>
+<td><strong>12.49</strong></td>
+</tr>
+<tr>
+<td>CAX21 (ARM)</td>
+<td>4</td>
+<td>8 GB</td>
+<td>80 GB</td>
+<td>20 TB</td>
+<td>7.99</td>
+</tr>
+<tr>
+<td>CCX23 (dedicated)</td>
+<td>4</td>
+<td>16 GB</td>
+<td>160 GB</td>
+<td>20 TB</td>
+<td>24.49</td>
+</tr>
+<tr>
+<td>CAX31 (ARM)</td>
+<td>8</td>
+<td>16 GB</td>
+<td>160 GB</td>
+<td>20 TB</td>
+<td>15.99</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>IPv4 ≈ €0.50/mo/node (or run IPv6-only + tailnet to avoid; verify).</li>
+</ul>
+<h3 id="3-node-cluster-totals">3-node cluster totals</h3>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Nodes</th>
+<th>Compute €/mo</th>
+<th>+IPv4</th>
+<th><strong>Total €/mo</strong></th>
+<th>€/yr</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Recommended — CCX13 ×3</strong></td>
+<td>2c/8GB ded</td>
+<td>37.47</td>
+<td>1.50</td>
+<td><strong>≈ 39</strong></td>
+<td>≈ 468</td>
+</tr>
+<tr>
+<td>Budget — CAX21 ×3 (ARM)</td>
+<td>4c/8GB</td>
+<td>23.97</td>
+<td>1.50</td>
+<td>≈ 25</td>
+<td>≈ 306</td>
+</tr>
+<tr>
+<td>Headroom — CCX23 ×3</td>
+<td>4c/16GB ded</td>
+<td>73.47</td>
+<td>1.50</td>
+<td>≈ 75</td>
+<td>≈ 900</td>
+</tr>
+</tbody>
+</table>
+<p>No load balancer needed (NATS clients fail over across the node list) -&gt; €0.<br />
+Backups reuse the fleet's existing rustfs/minio -&gt; €0 extra. Inter-node + client<br />
+traffic is tiny vs the 20 TB/node included -&gt; €0 overage expected.</p>
+<h3 id="additional-cost-vs-today">Additional cost (vs today)</h3>
+<p>Today <code>crabcc-nats</code> is one small node (already paid; ~€6-8/mo class).</p>
+<ul>
+<li><strong>If the 3 fresh nodes replace crabcc-nats:</strong> net additional ≈ <strong>€33/mo</strong><br />
+  (€39 − ~€6) ≈ €400/yr.</li>
+<li><strong>If crabcc-nats is kept</strong> (e.g. as a 4th leaf): additional = <strong>€39/mo</strong>.</li>
+</ul>
+<p>Hetzner bills <strong>hourly (capped monthly)</strong>, so the spike can stand up all 3 nodes,<br />
+run the validation plan over a few days, and destroy them — <strong>validation cost ≈<br />
+€1.3/day for the trio</strong>. Commit to the monthly spend only after the failover +<br />
+throughput drills pass.</p>
+<h3 id="alternative-managed-synadia-cloud">Alternative: managed (Synadia Cloud)</h3>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>$/mo</th>
+<th>HA streams</th>
+<th>Storage</th>
+<th>Transfer</th>
+<th>Fit</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Personal</td>
+<td>0</td>
+<td>0</td>
+<td>5 GiB</td>
+<td>10 GiB</td>
+<td>too small</td>
+</tr>
+<tr>
+<td>Starter</td>
+<td>49</td>
+<td>2</td>
+<td>1 GiB</td>
+<td>100 GiB</td>
+<td><strong>inadequate</strong> (vaked needs &gt;2 HA streams)</td>
+</tr>
+<tr>
+<td>Pro</td>
+<td>199</td>
+<td>10</td>
+<td>10 GiB</td>
+<td>1 TiB</td>
+<td>works, pricey</td>
+</tr>
+</tbody>
+</table>
+<p>Self-hosted CCX13 ×3 (<strong>€39/mo ≈ $42</strong>) gives <strong>unlimited streams, 240 GB NVMe,<br />
+60 TB traffic, full control</strong> — roughly the Pro tier's capability at ~1/5 the<br />
+price, and ~the same price as the <em>inadequate</em> Starter tier. The team already<br />
+runs Hetzner + NixOS, so operational marginal cost is low. <strong>Self-host wins.</strong></p>
+<h3 id="cost-vs-benefit">Cost vs benefit</h3>
+<ul>
+<li><strong>Spend:</strong> ~€33-39/mo (~€400-470/yr) to go from 1 node to 3-node R3 HA.</li>
+<li><strong>What it removes:</strong> the <strong>single point of failure for the entire vaked bus.</strong><br />
+  Every agent, the <code>swe_af</code> work-queue, the paid Sentinel Console's live feed,<br />
+  and telemetry ride this bus. Today a single disk/host failure on <code>crabcc-nats</code><br />
+  = <strong>full fleet bus outage + potential JetStream data loss</strong> (the 25 GB store<br />
+  lives on one disk).</li>
+<li><strong>What it buys:</strong> survive any one node loss with <strong>zero data loss</strong> (R3 +<br />
+  quorum), <strong>zero-downtime rolling deploys</strong> (lame-duck drain), account-isolated<br />
+  multi-tenancy, and headroom.</li>
+<li><strong>Verdict:</strong> for a component explicitly designated "core of vaked," ~€39/mo to<br />
+  eliminate a fleet-wide SPOF is trivial against the blast radius (a bus outage<br />
+  cascades to every agent and the paid product). <strong>Proceed — recommended CCX13<br />
+  ×3</strong>, drop to CAX21 ×3 only if the ~€14/mo saving matters more than dedicated<br />
+  -vCPU RAFT-latency stability.</li>
+</ul>
+<h3 id="open-cost-items-to-confirm-before-purchase">Open cost items to confirm before purchase</h3>
+<ul>
+<li>Exact IPv4 surcharge (or go IPv6-only + tailnet -&gt; €0).</li>
+<li>Whether <code>crabcc-nats</code> is retired (−its cost) or kept as a leaf.</li>
+<li>Chosen location (all 3 in ONE location for RAFT latency).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/economy.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

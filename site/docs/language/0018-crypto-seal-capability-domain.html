@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>crypto/seal — the cryptographic capability domain — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#motivation" style="padding-left:0.5rem">Motivation</a><a href="#the-crypto-kind" style="padding-left:0.5rem">The `crypto` kind</a><a href="#proposed-syntax" style="padding-left:1rem">  Proposed syntax</a><a href="#known-suite-tokens-initial-closed-set" style="padding-left:1rem">  Known suite tokens (initial closed set)</a><a href="#known-seal-tokens-initial-closed-set" style="padding-left:1rem">  Known seal tokens (initial closed set)</a><a href="#attenuation-grants" style="padding-left:1rem">  Attenuation grants</a><a href="#referencing-a-crypto-declaration" style="padding-left:1rem">  Referencing a `crypto` declaration</a><a href="#example-a-sealed-network-membrane" style="padding-left:0.5rem">Example: a sealed network membrane</a><a href="#checker-integration-0011" style="padding-left:0.5rem">Checker integration (0011)</a><a href="#e-crypto-suite-unknown" style="padding-left:1rem">  `E-CRYPTO-SUITE-UNKNOWN`</a><a href="#e-crypto-seal-unknown" style="padding-left:1rem">  `E-CRYPTO-SEAL-UNKNOWN`</a><a href="#e-crypto-none-cross-host" style="padding-left:1rem">  `E-CRYPTO-NONE-CROSS-HOST`</a><a href="#attenuation" style="padding-left:1rem">  Attenuation</a><a href="#lowering-0012" style="padding-left:0.5rem">Lowering (0012)</a><a href="#relationship-to-0012-5-nix-spine" style="padding-left:1rem">  Relationship to 0012 §5 (Nix spine)</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a><a href="#q1-suite-negotiation-and-refusepq-required-rfc-0007-3" style="padding-left:1rem">  Q1: Suite negotiation and `REFUSE{pq-required}` (RFC 0007 §3)</a><a href="#q2-suite-bump-ceremony" style="padding-left:1rem">  Q2: Suite-bump ceremony</a><a href="#q3-per-membrane-vs-per-runtime-posture" style="padding-left:1rem">  Q3: Per-membrane vs. per-runtime posture</a><a href="#q4-spire-pqc-support-shim" style="padding-left:1rem">  Q4: SPIRE PQC support shim</a><a href="#next-step" style="padding-left:0.5rem">Next step</a><a href="#cross-references" style="padding-left:0.5rem">Cross-references</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0018-crypto-seal-capability-domain</div>
+<h1>crypto/seal — the cryptographic capability domain</h1>
+<h1 id="0018-cryptoseal-the-cryptographic-capability-domain">0018 — <code>crypto</code>/<code>seal</code>: the cryptographic capability domain</h1>
+<p>Status: <strong>Draft</strong> · Series: language design notes · Track: Language</p>
+<h2 id="abstract">Abstract</h2>
+<p>RFC 0007 §"Open questions" Q4 asks whether suite selection and votive-seal<br />
+authority should be a first-class Vaked capability domain, declared in the graph<br />
+and lowered into the spine, rather than being a protocol property alone. This note<br />
+proposes exactly that: a new <code>crypto</code> kind that pairs a named algorithm suite with<br />
+a signing-authority grant, attenuated by the same POLA ordering as <code>mem</code>/<code>fs</code>.<br />
+Making cryptographic posture a <em>language</em> property — not just a protocol property —<br />
+means the checker can enforce "encryption baked in" before any artifact is emitted,<br />
+and the lowering pass can wire suite selection and votive-seal authority into the<br />
+runtime spine automatically.</p>
+<h2 id="motivation">Motivation</h2>
+<p>RFC 0007 establishes three disciplines: a post-quantum wire layer (§3), PQC identity<br />
+and votive seals (§4), and image-as-code attestation (§5). All three are currently<br />
+<strong>protocol</strong> properties: they are described in the wire protocol and the identity<br />
+distribution RFC, and they emerge from runtime behavior. Nothing in the Vaked<br />
+language enforces them at declaration time.</p>
+<p>The cost of this gap is real. A <code>network</code> membrane can today be declared and<br />
+lowered without any statement about its cryptographic posture. The lowering pass<br />
+emits a <code>provenance.json</code> (0012 §6), but there is no checker rule that rejects a<br />
+membrane with no votive-seal authority, or one that names a classical-only suite<br />
+in a cross-host context. The "encryption baked in" principle (RFC 0007 §"Design<br />
+principles", #1) is aspirational at the language level; it is only enforced at<br />
+the protocol level.</p>
+<p>The <strong>image-as-code</strong> principle (RFC 0007 §5) sharpens this further. The only<br />
+mutation path to a running system is a code change that re-derives and re-signs<br />
+the image. If the signing authority and algorithm suite are not declared in the<br />
+graph, there is no way for the checker to verify that a membrane's provenance chain<br />
+is complete, or that the suite it will be signed with meets the deployment's<br />
+post-quantum requirements.</p>
+<p>Q4 from RFC 0007 §"Open questions" states this directly:</p>
+<blockquote>
+<p>"Should suite selection and votive-seal authority be a first-class Vaked<br />
+capability domain (POLA-attenuated like <code>mem</code>/<code>fs</code>), declared in the graph and<br />
+lowered into the spine? This would make 'encryption baked in' a <em>language</em><br />
+property, not just a protocol one — worth a separate language-track note before<br />
+any grammar change."</p>
+</blockquote>
+<p>This is that note.</p>
+<h2 id="the-crypto-kind">The <code>crypto</code> kind</h2>
+<p>A <code>crypto</code> declaration binds a named algorithm suite to a votive-seal signing<br />
+authority, and grants those capabilities to membranes that reference it. Like<br />
+<code>capability fs</code> and <code>capability mem</code>, a <code>capability crypto</code> domain declares an<br />
+attenuation partial order over grants (<code>none &lt; sign &lt; seal &lt; admin</code>). Unlike those,<br />
+a <code>crypto</code> <em>kind</em> declaration also carries two new fields: <code>suite</code> (the named<br />
+algorithm suite) and <code>seal</code> (the signing authority identity that will issue votive<br />
+seals for artifacts materialized under this declaration).</p>
+<h3 id="proposed-syntax">Proposed syntax</h3>
+<div class="highlight"><pre><span></span><span class="err">#</span><span class="w"> </span><span class="nx">Declare</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">crypto</span><span class="w"> </span><span class="nx">capability</span><span class="w"> </span><span class="nx">domain</span><span class="w"> </span><span class="p">(</span><span class="nx">mirrors</span><span class="w"> </span><span class="nx">fs</span><span class="p">,</span><span class="w"> </span><span class="nx">mem</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="nx">parallel</span><span class="o">-</span><span class="nx">types</span><span class="p">.</span><span class="nx">md</span><span class="p">).</span>
+<span class="err">#</span><span class="w"> </span><span class="nx">This</span><span class="w"> </span><span class="nx">lives</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">built</span><span class="o">-</span><span class="k">in</span><span class="w"> </span><span class="nx">catalog</span><span class="p">;</span><span class="w"> </span><span class="nx">users</span><span class="w"> </span><span class="nx">extend</span><span class="w"> </span><span class="nx">it</span><span class="w"> </span><span class="nx">with</span><span class="w"> </span><span class="nx">new</span><span class="w"> </span><span class="nx">suite</span><span class="w"> </span><span class="nx">names</span><span class="p">,</span>
+<span class="err">#</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="nx">with</span><span class="w"> </span><span class="nx">new</span><span class="w"> </span><span class="nx">grants</span><span class="p">.</span>
+<span class="nx">capability</span><span class="w"> </span><span class="nx">crypto</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">grant</span><span class="w"> </span><span class="nx">none</span><span class="w"> </span><span class="nx">sign</span><span class="w"> </span><span class="nx">seal</span><span class="w"> </span><span class="nx">admin</span>
+<span class="w">  </span><span class="nx">order</span><span class="w"> </span><span class="nx">none</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">sign</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">seal</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">admin</span>
+<span class="p">}</span>
+
+<span class="err">#</span><span class="w"> </span><span class="nx">A</span><span class="w"> </span><span class="nx">crypto</span><span class="w"> </span><span class="nx">kind</span><span class="w"> </span><span class="nx">declaration</span><span class="w"> </span><span class="nx">names</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">suite</span><span class="w"> </span><span class="k">and</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">seal</span><span class="w"> </span><span class="nx">authority</span><span class="p">.</span>
+<span class="err">#</span><span class="w"> </span><span class="nx">It</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">unit</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="nx">cryptographic</span><span class="w"> </span><span class="nx">posture</span><span class="p">:</span><span class="w"> </span><span class="nx">one</span><span class="w"> </span><span class="nx">declaration</span><span class="w"> </span><span class="nx">per</span><span class="w"> </span><span class="nx">membrane</span>
+<span class="err">#</span><span class="w"> </span><span class="p">(</span><span class="k">or</span><span class="w"> </span><span class="nx">shared</span><span class="w"> </span><span class="nx">across</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">mesh</span><span class="w"> </span><span class="nx">when</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">posture</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="nx">uniform</span><span class="p">).</span>
+<span class="nx">crypto</span><span class="w"> </span><span class="nx">pq</span><span class="o">-</span><span class="k">default</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">suite</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;hybrid-ml-kem-768&quot;</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nx">KEM</span><span class="p">:</span><span class="w"> </span><span class="nx">X25519</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">ML</span><span class="o">-</span><span class="nx">KEM</span><span class="o">-</span><span class="mi">768</span><span class="w"> </span><span class="p">(</span><span class="nx">RFC</span><span class="w"> </span><span class="mi">0007</span><span class="w"> </span><span class="err">§</span><span class="mi">3</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">seal</span><span class="w">  </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;ml-dsa-65&quot;</span><span class="w">                </span><span class="err">#</span><span class="w"> </span><span class="nx">votive</span><span class="o">-</span><span class="nx">seal</span><span class="w"> </span><span class="nx">signer</span><span class="p">:</span><span class="w"> </span><span class="nx">ML</span><span class="o">-</span><span class="nx">DSA</span><span class="o">-</span><span class="mi">65</span><span class="w"> </span><span class="p">(</span><span class="nx">RFC</span><span class="w"> </span><span class="mi">0007</span><span class="w"> </span><span class="err">§</span><span class="mi">4</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Field semantics:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Semantics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>suite</code></td>
+<td><code>String</code></td>
+<td>yes</td>
+<td>Named algorithm suite, as a versioned token. Determines KEM, AEAD, and transcript-signature algorithm for the wire layer. The checker validates against a closed <code>oneof</code> of known suite tokens (§ Checker integration).</td>
+</tr>
+<tr>
+<td><code>seal</code></td>
+<td><code>String</code></td>
+<td>yes</td>
+<td>Named signing algorithm for votive seals. Independently versioned from the KEM suite. The checker validates against a closed <code>oneof</code> of known seal tokens.</td>
+</tr>
+<tr>
+<td><code>hybrid</code></td>
+<td><code>Bool</code></td>
+<td>optional, default <code>true</code></td>
+<td>If <code>true</code>, the suite is a hybrid (classical + PQC) construction; if <code>false</code>, the deployment is PQC-only. Checked against the <code>pq-required</code> negotiation posture (§ Open questions).</td>
+</tr>
+<tr>
+<td><code>root-algorithm</code></td>
+<td><code>String</code></td>
+<td>optional</td>
+<td>Override for the trust-domain root signature algorithm. Defaults to <code>"slh-dsa"</code> (RFC 0007 §4 — hash-based, for long-lived roots).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="known-suite-tokens-initial-closed-set">Known suite tokens (initial closed set)</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>KEM</th>
+<th>AEAD</th>
+<th>Transcript signature</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"hybrid-ml-kem-768"</code></td>
+<td>X25519 + ML-KEM-768</td>
+<td>ChaCha20-Poly1305</td>
+<td>hybrid Ed25519 + ML-DSA-65</td>
+<td>Default (RFC 0007 §3)</td>
+</tr>
+<tr>
+<td><code>"ml-kem-768"</code></td>
+<td>ML-KEM-768 only</td>
+<td>AES-256-GCM</td>
+<td>ML-DSA-65 only</td>
+<td>PQC-only deployments</td>
+</tr>
+<tr>
+<td><code>"classical-x25519"</code></td>
+<td>X25519 only</td>
+<td>ChaCha20-Poly1305</td>
+<td>Ed25519 only</td>
+<td>Migration / local-only; refused cross-host</td>
+</tr>
+</tbody>
+</table>
+<h3 id="known-seal-tokens-initial-closed-set">Known seal tokens (initial closed set)</h3>
+<table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Algorithm</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"ml-dsa-65"</code></td>
+<td>ML-DSA-65 (FIPS 204)</td>
+<td>Default votive-seal signer</td>
+</tr>
+<tr>
+<td><code>"hybrid-ed25519-ml-dsa-65"</code></td>
+<td>Ed25519 + ML-DSA-65</td>
+<td>Migration hybrid</td>
+</tr>
+<tr>
+<td><code>"slh-dsa"</code></td>
+<td>SLH-DSA (FIPS 205, SPHINCS+)</td>
+<td>Long-lived roots only</td>
+</tr>
+</tbody>
+</table>
+<h3 id="attenuation-grants">Attenuation grants</h3>
+<div class="highlight"><pre><span></span>none &lt; sign &lt; seal &lt; admin
+</pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Grant</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>none</code></td>
+<td>No cryptographic authority — cannot sign anything. A membrane declared without any <code>crypto</code> grant implicitly holds <code>crypto.none</code> (checked).</td>
+</tr>
+<tr>
+<td><code>sign</code></td>
+<td>May sign artifacts it produced (e.g. a fiber signing its own output streams). Cannot issue votive seals over other agents' images.</td>
+</tr>
+<tr>
+<td><code>seal</code></td>
+<td>May issue votive seals — the primary grant for the deployment plane (<code>agent-supervisord</code>). Holds <code>sign</code> by attenuation.</td>
+</tr>
+<tr>
+<td><code>admin</code></td>
+<td>May retire suite tokens and record a <code>crypto_suite</code> bump to <code>eventd</code>. Only the control plane holds <code>admin</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="referencing-a-crypto-declaration">Referencing a <code>crypto</code> declaration</h3>
+<p>A <code>network</code> membrane (or any membrane) references a <code>crypto</code> declaration by name,<br />
+and the mesh delegates the appropriate grant:</p>
+<div class="highlight"><pre><span></span><span class="n">network</span><span class="w"> </span><span class="n">edge</span><span class="o">-</span><span class="n">membrane</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">crypto</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">crypto</span><span class="p">.</span><span class="n">pq</span><span class="o">-</span><span class="n">default</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="n">bind</span><span class="w"> </span><span class="n">this</span><span class="w"> </span><span class="n">membrane</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">pq</span><span class="o">-</span><span class="n">default</span><span class="w"> </span><span class="n">posture</span>
+<span class="w">  </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">crypto</span><span class="p">.</span><span class="n">seal</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">]</span>
+<span class="p">}</span>
+
+<span class="n">mesh</span><span class="w"> </span><span class="n">field</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">spine</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">crypto</span><span class="p">.</span><span class="n">admin</span><span class="p">,</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">host_rw</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">edge</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">crypto</span><span class="p">.</span><span class="n">seal</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="n">spine</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">edge</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s">&quot;delegate&quot;</span>
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="n">Checker</span><span class="o">:</span><span class="w"> </span><span class="n">crypto</span><span class="p">.</span><span class="n">seal</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">crypto</span><span class="p">.</span><span class="n">admin</span><span class="w"> </span><span class="p">(</span><span class="n">attenuation</span><span class="w"> </span><span class="n">holds</span><span class="p">)</span>
+<span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="n">Checker</span><span class="o">:</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="w"> </span><span class="p">(</span><span class="n">same</span><span class="w"> </span><span class="n">grant</span><span class="p">,</span><span class="w"> </span><span class="n">trivially</span><span class="w"> </span><span class="n">ok</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="example-a-sealed-network-membrane">Example: a sealed network membrane</h2>
+<p>The following is the minimal complete example. The <code>crypto.pq-default</code> declaration<br />
+supplies the suite and seal authority; the <code>network edge</code> membrane references it;<br />
+the mesh delegates <code>crypto.seal</code> with attenuation from the spine.</p>
+<p>A worked example file will be added alongside the grammar extension PR.<br />
+This design note is step 0; the example follows with the grammar change.</p>
+<h2 id="checker-integration-0011">Checker integration (0011)</h2>
+<p>Two new checker rules:</p>
+<h3 id="e-crypto-suite-unknown"><code>E-CRYPTO-SUITE-UNKNOWN</code></h3>
+<p>A <code>crypto</code> declaration whose <code>suite</code> field value is not in the known suite token<br />
+set raises <code>E-CRYPTO-SUITE-UNKNOWN</code>. This is a closed constraint — like <code>oneof</code> on<br />
+a schema field — enforced at elaborate-time (0011 §5 elaboration pass). New suite<br />
+tokens require a grammar-track note and a parallel-types.md update.</p>
+<h3 id="e-crypto-seal-unknown"><code>E-CRYPTO-SEAL-UNKNOWN</code></h3>
+<p>Symmetric: <code>seal</code> not in the known seal token set raises <code>E-CRYPTO-SEAL-UNKNOWN</code>.</p>
+<h3 id="e-crypto-none-cross-host"><code>E-CRYPTO-NONE-CROSS-HOST</code></h3>
+<p>A <code>network</code> membrane whose declared crypto grant is <code>crypto.none</code> and whose network<br />
+grant is <code>network.egress</code> (cross-host) raises <code>E-CRYPTO-NONE-CROSS-HOST</code>. This is<br />
+the checker encoding of "encryption baked in": a membrane that can reach egress<br />
+<strong>must</strong> declare at least <code>crypto.sign</code>. This rule is checked during the capability<br />
+flow pass (0011 §4.3).</p>
+<h3 id="attenuation">Attenuation</h3>
+<p>Attenuation over <code>crypto</code> follows the same <code>E-CAP-ATTENUATION</code> rule as all other<br />
+capability domains (0011 §4.4). A mesh node delegating <code>crypto.seal</code> to a<br />
+subordinate that holds only <code>crypto.sign</code> is valid; the reverse is rejected.</p>
+<h2 id="lowering-0012">Lowering (0012)</h2>
+<p>The <code>crypto</code> kind gets its own emitter slot in the 0012 §3.4 registry:<br />
+<code>crypto.spine</code>. The emitter is output-first: what does it produce?</p>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Path</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Crypto spine config</strong></td>
+<td><code>gen/crypto/&lt;name&gt;.json</code></td>
+<td>Suite token, seal algorithm, hybrid flag, root-algorithm override, and the per-runtime eventd log path (so suite-bump events are recorded). Consumed by the runtime plane at image-admit time.</td>
+</tr>
+<tr>
+<td><strong>Votive-seal authority record</strong></td>
+<td><code>gen/crypto/&lt;name&gt;.seal.json</code></td>
+<td>The seal grant holder's SPIFFE ID (resolved from the mesh node holding <code>crypto.seal</code>), the suite token, and the topology epoch — the inputs to the votive-seal signature described in RFC 0007 §4.</td>
+</tr>
+<tr>
+<td><strong>eventd suite-bump contract</strong></td>
+<td><code>gen/eventd.json</code> (extended)</td>
+<td>A <code>crypto_suite_bump</code> contract entry: the event shape that a <code>crypto.admin</code> holder must record when retiring a suite token. Shape: <code>{ old_suite, new_suite, topology_epoch, signed_by: crypto.admin-holder }</code>. This is the <code>eventd</code> side of RFC 0007 §6's "retirement is a recorded parameter change."</td>
+</tr>
+<tr>
+<td><strong>provenance annotation</strong></td>
+<td><code>.vaked/provenance.json</code> (extended)</td>
+<td>The <code>crypto</code> decl name and suite token are added to the provenance record emitted by 0012 §6, so every artifact's provenance carries its cryptographic posture.</td>
+</tr>
+</tbody>
+</table>
+<p>The emitter does <strong>not</strong> perform key generation, signing, or network operations.<br />
+Those are runtime effects. The emitter produces the <em>configuration</em> that tells the<br />
+runtime plane which suite to use and which identity to authorize for votive-seal<br />
+issuance.</p>
+<h3 id="relationship-to-0012-5-nix-spine">Relationship to 0012 §5 (Nix spine)</h3>
+<p>The <code>gen/crypto/&lt;name&gt;.json</code> artifact is added to the Nix spine as a<br />
+<code>config.&lt;name&gt;-crypto</code> overlay — a NixOS module that sets the suite parameter for<br />
+the relevant runtime service. The Nix build is hermetic; the suite token is a pure<br />
+string, so the same source yields the same module output on any machine.</p>
+<h2 id="open-questions">Open questions</h2>
+<h3 id="q1-suite-negotiation-and-refusepq-required-rfc-0007-3">Q1: Suite negotiation and <code>REFUSE{pq-required}</code> (RFC 0007 §3)</h3>
+<p>RFC 0007 §3 defines a <code>crypto_suite</code> negotiation field in the wire preamble.<br />
+An initiator offering only classical suites is refused with <code>REFUSE{pq-required}</code><br />
+on cross-host connections. How does the checker's <code>E-CRYPTO-NONE-CROSS-HOST</code> rule<br />
+interact with this?</p>
+<p><strong>Option A (current lean):</strong> The checker rule is conservative — it flags<br />
+<code>crypto.none</code> on egress membranes at declaration time, regardless of the wire's<br />
+runtime negotiation. This gives the earliest possible signal (check-time, not<br />
+runtime) and means the checker's refusal <em>precedes</em> the wire's <code>REFUSE</code>. The<br />
+runtime <code>REFUSE{pq-required}</code> becomes defense-in-depth, not the primary gate.</p>
+<p><strong>Option B:</strong> The checker only warns (not errors) when <code>crypto.none</code> is used with<br />
+egress, and defers to the wire's <code>REFUSE{pq-required}</code> as the enforcement point.<br />
+This is more flexible but pushes enforcement later — against the spirit of<br />
+"Validate before generating."</p>
+<p><strong>Option C:</strong> The <code>hybrid = false</code> flag on a <code>crypto</code> decl triggers<br />
+<code>E-CRYPTO-CLASSICAL-CROSS-HOST</code> (a stricter variant of the rule) for classical-only<br />
+suites used with egress, while <code>hybrid = true</code> is always acceptable because the<br />
+hybrid construction is secure if either half holds.</p>
+<p>Resolution requires input from the protocol track (RFC 0007 §3 negotiation<br />
+semantics vs. the checker's posture). Lean: Option A, with Option C as the<br />
+migration path.</p>
+<h3 id="q2-suite-bump-ceremony">Q2: Suite-bump ceremony</h3>
+<p>When <code>crypto.admin</code> retires a suite token (recording a <code>crypto_suite_bump</code> to<br />
+<code>eventd</code>), how does the deployed runtime gate the transition? Does<br />
+<code>agent-supervisord</code> refuse images sealed with the old suite before the bump is<br />
+recorded, or after? This is a runtime sequencing question (eventd ordering) that<br />
+the emitter does not need to resolve, but the <code>eventd</code> contract shape must not<br />
+foreclose it.</p>
+<h3 id="q3-per-membrane-vs-per-runtime-posture">Q3: Per-membrane vs. per-runtime posture</h3>
+<p>Should a runtime declare a single <code>crypto</code> posture (shared by all its membranes)<br />
+or per-membrane postures? The current proposal allows both: a <code>crypto</code> decl<br />
+referenced from a single <code>network</code> membrane is per-membrane; a <code>crypto</code> decl<br />
+referenced from a <code>runtime</code> block is the default for all membranes that do not<br />
+override it. The checking rule for "no override = inherit runtime default" is not<br />
+yet specified.</p>
+<h3 id="q4-spire-pqc-support-shim">Q4: SPIRE PQC support shim</h3>
+<p>RFC 0007 §"Open questions" Q3 asks whether the SPIRE deployment issues ML-DSA<br />
+SVIDs natively or needs a hybrid-cert shim. The answer affects whether the<br />
+<code>seal = "ml-dsa-65"</code> token maps directly to a SPIRE-issued credential or requires<br />
+a shim layer in the runtime plane. This is an implementation question; the language<br />
+declaration is agnostic to the shim.</p>
+<h2 id="next-step">Next step</h2>
+<p>This note is step 0 of the <code>crypto</code>/<code>seal</code> capability domain: the design, the<br />
+syntax proposal, and the checker/lowering contracts. The follow-up cycle:</p>
+<ol>
+<li><strong>Grammar change</strong> — add <code>"crypto"</code> to the <code>kind</code> production in<br />
+<code>vaked/grammar/vaked-v0-plus.ebnf</code> and file a GitHub issue for the versioned<br />
+   language change (per CLAUDE.md convention: grammar before code).</li>
+<li><strong>parallel-types.md update</strong> — add the <code>capability crypto</code> domain and the<br />
+<code>schema crypto</code> record to the built-in catalog.</li>
+<li><strong>Checker</strong> — implement <code>E-CRYPTO-SUITE-UNKNOWN</code>, <code>E-CRYPTO-SEAL-UNKNOWN</code>, and<br />
+<code>E-CRYPTO-NONE-CROSS-HOST</code> in <code>vakedc/check.py</code>.</li>
+<li><strong>Lowering</strong> — add the <code>crypto.spine</code> emitter slot to 0012 §3.4 and implement<br />
+<code>gen/crypto/&lt;name&gt;.json</code>.</li>
+<li><strong>Spike</strong> — per RFC 0007 Q5: lower one <code>network</code> membrane with <code>crypto.pq-default</code>,<br />
+   PQC-sign its provenance, and verify a measured admit/refuse.</li>
+</ol>
+<h2 id="cross-references">Cross-references</h2>
+<ul>
+<li><a href="../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md">RFC 0007</a> — PQ<br />
+  wire layer (§3), votive seals (§4), image-as-code attestation (§5), Open Q4 (§"Open questions")</li>
+<li><a href="./0011-type-system.md">0011 — Type system</a> — capability attenuation rules (§4),<br />
+  checking pipeline (§6); new checker codes (<code>E-CRYPTO-*</code>) extend §4.4</li>
+<li><a href="./0012-lowering.md">0012 — Lowering</a> — emitter registry (§3.4), provenance<br />
+  record (§6); <code>crypto.spine</code> is a new emitter slot</li>
+<li><a href="./0014-memory-primitive.md">0014 — memory primitive</a> — the <code>mem</code> domain is the<br />
+  closest design precedent: a capability domain (<code>capability mem</code>) paired with a<br />
+  new kind (<code>memory</code>) and its own emitter slot</li>
+<li><a href="./0016-substrate-candidates.md">0016 — Substrate candidates</a> — PQC listed as a<br />
+<code>reference</code> candidate; this note is the trigger for promotion to default</li>
+<li><a href="../../protocol/rfcs/0006-transport-identity-distribution.md">RFC 0006</a> —<br />
+  SPIFFE/SPIRE identity; PQC SVIDs are the credential type that <code>seal = "ml-dsa-65"</code><br />
+  maps to</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0018-crypto-seal-capability-domain.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

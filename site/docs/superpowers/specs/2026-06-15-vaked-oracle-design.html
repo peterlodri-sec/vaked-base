@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle — design (slice 1) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-context" style="padding-left:0.5rem">1. Context</a><a href="#2-goal-non-goals" style="padding-left:0.5rem">2. Goal & non-goals</a><a href="#3-decisions-resolved-in-brainstorm" style="padding-left:0.5rem">3. Decisions (resolved in brainstorm)</a><a href="#4-architecture-components" style="padding-left:0.5rem">4. Architecture & components</a><a href="#5-data-flow" style="padding-left:0.5rem">5. Data flow</a><a href="#6-finding-record-schema-schemapy" style="padding-left:0.5rem">6. Finding record schema (`schema.py`)</a><a href="#7-orchestration-ralph-decision-loop" style="padding-left:0.5rem">7. Orchestration — ralph decision loop</a><a href="#8-ebpf-watcher-the-privileged-piece" style="padding-left:0.5rem">8. eBPF watcher (the privileged piece)</a><a href="#9-error-handling-degrade-never-crash" style="padding-left:0.5rem">9. Error handling — degrade, never crash</a><a href="#10-testing-acceptance" style="padding-left:0.5rem">10. Testing & acceptance</a><a href="#11-boundaries-safety" style="padding-left:0.5rem">11. Boundaries & safety</a><a href="#12-open-items-resolve-in-the-implementation-plan" style="padding-left:0.5rem">12. Open items (resolve in the implementation plan)</a><a href="#13-roadmap-later-cycles" style="padding-left:0.5rem">13. Roadmap (later cycles)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-15-vaked-oracle-design</div>
+<h1>vaked-oracle — design (slice 1)</h1>
+<h1 id="vaked-oracle-design-slice-1">vaked-oracle — design (slice 1)</h1>
+<p><strong>Date:</strong> 2026-06-15<br />
+<strong>Status:</strong> approved (brainstorm) → ready for implementation plan<br />
+<strong>Branch:</strong> <code>feat/vaked-oracle</code> (off <code>origin/main</code>)<br />
+<strong>Substrate:</strong> the <code>revdev</code> cell on <code>dev-cx53</code> (NixOS, tailnet <code>100.105.72.88</code>)</p>
+<blockquote>
+<p><em>The oracle reads what the binary will not say.</em></p>
+</blockquote>
+<h2 id="1-context">1. Context</h2>
+<p><strong>vaked-oracle</strong> is the reverse-engineering research subsystem of the Vaked<br />
+ecosystem — the side-research line whose north stars are LLM4Decompile, OGhidra,<br />
+and reverser_ai: <strong>LLM-assisted reverse engineering</strong> combining static<br />
+decompilation, dynamic instrumentation evidence (Frida / eBPF), and a<br />
+self-hosted LLM.</p>
+<p>It is a sibling to <strong>vaked-aegis</strong> (the proposer/judge verification kernel,<br />
+<code>tools/dogfood/</code>) and reuses three of its proven assets: the <code>eventd</code>/ralph<br />
+<strong>hash-chained ledger</strong> pattern, the <code>tools/ralph</code> <strong>decision loop</strong>, and the<br />
+kernel's <strong>transition record</strong> as an integration seam. It runs on the <code>revdev</code><br />
+analyst cell — least-authority by design (no sudo/docker), with untrusted<br />
+binaries sandboxed via <code>sample-run</code> (bubblewrap).</p>
+<p><strong>Slice-1 target — the LLM runtime itself.</strong> The first cycle reverse-engineers<br />
+the self-hosted inference runtime (<code>llama-cli</code>, FOSS llama.cpp) on <code>dev-cx53</code>.<br />
+This is deliberately recursive: a <strong>decompiler-LLM</strong> (llm4decompile-6.7B)<br />
+reverse-engineers the runtime of the <strong>inference-LLM</strong> — the "monitored / reversed<br />
+LLM" thread, and the deeper half of the "double-dogfood" (one normal LLM, one<br />
+monitored/reversed). Because llama.cpp is FOSS (MIT), we have <strong>ground-truth<br />
+source</strong> to score decompilation fidelity against — a built-in, objective<br />
+acceptance metric that an arbitrary stripped binary would not give us.</p>
+<h2 id="2-goal-non-goals">2. Goal &amp; non-goals</h2>
+<p><strong>Slice-1 goal.</strong> Given the <code>llama-cli</code> binary and a small set of target<br />
+functions, produce — through a budget-bounded <strong>ralph decision loop</strong> — a single<br />
+structured <strong>RE finding record</strong> containing, per function: Ghidra pseudo-C, an<br />
+llm4decompile-refined C rendering, a <strong>fidelity score vs llama.cpp ground-truth<br />
+source</strong>, and dynamic evidence (Frida userspace call traces + eBPF syscall/mmap<br />
+profile from a real inference run). The finding bridges to the kernel's evidence<br />
+seam (<code>observed_effects</code> + a transition cross-reference slot).</p>
+<p><strong>Acceptance.</strong> A full run on <code>llama-cli</code> over ~3 target functions (e.g. a<br />
+sampler, a <code>ggml</code> compute op, the model-mmap/load path) yields a complete finding<br />
+with non-null fidelity scores and dynamic evidence; the loop's ledger<br />
+replay-verifies (<code>verify_chain</code>); the bridge emits a valid <code>observed_effects</code><br />
+shape. A CI-able smoke run on a trivial binary covers the plumbing<br />
+deterministically.</p>
+<p><strong>Non-goals (later cycles).</strong><br />
+- Arbitrary-binary RE and the kernel double-dogfood as <em>primary</em> targets (slice 1<br />
+  fixes the target to the LLM runtime; the pipeline is target-agnostic by design).<br />
+- A <code>reverser_ai</code>-style <strong>autonomous agent</strong> driving the tools (architecture C) —<br />
+  rides on top of slice-1's deterministic primitives in a later cycle.<br />
+- A real <code>filesystem</code>/eBPF <strong>enforcement</strong> boundary (that is L2, another dev's<br />
+  lane). Oracle's evidence is advisory, like the kernel's L1.<br />
+- The execution <strong>ARP IR</strong> (Pipeline-DSL IR types) — another dev's lane; oracle<br />
+  integrates only via the kernel transition record, leaving an ARP-IR seam.</p>
+<h2 id="3-decisions-resolved-in-brainstorm">3. Decisions (resolved in brainstorm)</h2>
+<table>
+<thead>
+<tr>
+<th>Axis</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scope</td>
+<td>Thin vertical slice (end-to-end, shallow)</td>
+</tr>
+<tr>
+<td>Decompile input</td>
+<td>Ghidra-headless pseudo-C → <strong>llm4decompile-6.7B</strong> (OGhidra style)</td>
+</tr>
+<tr>
+<td>Dynamic evidence</td>
+<td><strong>Frida</strong> (userspace, unprivileged) <strong>+ eBPF</strong> via a <strong>privileged root watcher</strong></td>
+</tr>
+<tr>
+<td>eBPF cap model</td>
+<td>Root watcher service; <code>revdev</code> stays unprivileged (watcher watches the analyst)</td>
+</tr>
+<tr>
+<td>Analysis target</td>
+<td>The <strong>LLM runtime</strong> (<code>llama-cli</code>, FOSS llama.cpp)</td>
+</tr>
+<tr>
+<td>Architecture</td>
+<td><strong>Standalone <code>tools/oracle/</code> + kernel bridge</strong></td>
+</tr>
+<tr>
+<td>Orchestration</td>
+<td><strong>ralph decision loop</strong> (reuse <code>tools/ralph/ralphcore.py</code>, never modify it)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Grounding (verified on dev-cx53, 2026-06-15):</strong> 30 GiB RAM / 24 GiB free, 16<br />
+cores → 6.7B GGUF (~5–8 GB) + Ghidra + runtime all fit. <code>/sys/kernel/btf/vmlinux</code><br />
+present → eBPF CO-RE works. <code>llama-cli</code> is a nix-store FOSS binary. <code>revdev</code><br />
+cannot run <code>bpftrace</code> directly (<code>Missing CAP_DAC_READ_SEARCH</code>) — hence the root<br />
+watcher.</p>
+<h2 id="4-architecture-components">4. Architecture &amp; components</h2>
+<p>Standalone subsystem under <code>tools/oracle/</code>, mirroring the <code>tools/dogfood/</code> layout;<br />
+pure-Python stdlib where possible. The privileged eBPF piece is a NixOS module.</p>
+<div class="highlight"><pre><span></span><span class="n">tools</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span>
+<span class="w">  </span><span class="n">oracle</span><span class="p">.</span><span class="n">py</span><span class="w">            </span><span class="n">ralph</span><span class="o">-</span><span class="k">loop</span><span class="w"> </span><span class="n">orchestrator</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">CLI</span><span class="w"> </span><span class="p">(</span><span class="n n-Quoted">`oracle run --target … --funcs …`</span><span class="p">)</span>
+<span class="w">  </span><span class="n">ghidra_frontend</span><span class="p">.</span><span class="n">py</span><span class="w">   </span><span class="n">analyzeHeadless</span><span class="w"> </span><span class="n">→</span><span class="w"> </span><span class="k">export</span><span class="w"> </span><span class="n">decompiler</span><span class="w"> </span><span class="n">pseudo</span><span class="o">-</span><span class="n">C</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">named</span><span class="w"> </span><span class="n">funcs</span>
+<span class="w">  </span><span class="n">llm_refine</span><span class="p">.</span><span class="n">py</span><span class="w">        </span><span class="n">pseudo</span><span class="o">-</span><span class="n">C</span><span class="w"> </span><span class="n">→</span><span class="w"> </span><span class="n">llm4decompile</span><span class="o">-</span><span class="mf">6.7</span><span class="n">B</span><span class="w"> </span><span class="p">(</span><span class="n">llama</span><span class="o">-</span><span class="k">server</span><span class="p">,</span><span class="w"> </span><span class="n">temp</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="n">→</span><span class="w"> </span><span class="n">refined</span><span class="w"> </span><span class="n">C</span>
+<span class="w">  </span><span class="n">dynamic_frida</span><span class="p">.</span><span class="n">py</span><span class="w">     </span><span class="n">hook</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="n">funcs</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">live</span><span class="w"> </span><span class="n">llama</span><span class="o">-</span><span class="n">cli</span><span class="w"> </span><span class="n">inference</span><span class="w"> </span><span class="p">(</span><span class="n">userspace</span><span class="w"> </span><span class="n">ptrace</span><span class="p">)</span>
+<span class="w">  </span><span class="n">watcher_ebpf</span><span class="p">.</span><span class="n">py</span><span class="w">      </span><span class="k">CLIENT</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">root</span><span class="w"> </span><span class="n">watcher</span><span class="w"> </span><span class="k">socket</span><span class="w"> </span><span class="p">(</span><span class="n">request</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">PID</span><span class="o">-</span><span class="n">scoped</span><span class="w"> </span><span class="n">trace</span><span class="p">)</span>
+<span class="w">  </span><span class="n">fidelity</span><span class="p">.</span><span class="n">py</span><span class="w">          </span><span class="n">score</span><span class="w"> </span><span class="n">refined</span><span class="o">-</span><span class="n">C</span><span class="w"> </span><span class="n">vs</span><span class="w"> </span><span class="n">ground</span><span class="o">-</span><span class="n">truth</span><span class="w"> </span><span class="n">llama</span><span class="p">.</span><span class="n">cpp</span><span class="w"> </span><span class="k">source</span>
+<span class="w">  </span><span class="n">finding</span><span class="p">.</span><span class="n">py</span><span class="w">           </span><span class="n">assemble</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">persist</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">finding</span><span class="w"> </span><span class="p">(</span><span class="n">own</span><span class="w"> </span><span class="k">hash</span><span class="o">-</span><span class="n">chained</span><span class="w"> </span><span class="k">log</span><span class="p">)</span>
+<span class="w">  </span><span class="n">bridge</span><span class="p">.</span><span class="n">py</span><span class="w">            </span><span class="n">emit</span><span class="w"> </span><span class="n">observed_effects</span><span class="w"> </span><span class="err">{</span><span class="n">writes</span><span class="p">,</span><span class="n">deletes</span><span class="err">}</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">transition</span><span class="w"> </span><span class="k">cross</span><span class="o">-</span><span class="n">ref</span>
+<span class="w">  </span><span class="k">schema</span><span class="p">.</span><span class="n">py</span><span class="w">            </span><span class="n">finding</span><span class="w"> </span><span class="n">record</span><span class="w"> </span><span class="k">schema</span><span class="w"> </span><span class="p">(</span><span class="o">+</span><span class="w"> </span><span class="k">optional</span><span class="w"> </span><span class="n">vaked</span><span class="w"> </span><span class="n n-Quoted">`oracle_finding`</span><span class="w"> </span><span class="k">schema</span><span class="w"> </span><span class="n">kind</span><span class="p">)</span>
+<span class="w">  </span><span class="k">loop</span><span class="p">.</span><span class="n">py</span><span class="w">              </span><span class="n">ralph</span><span class="o">-</span><span class="k">loop</span><span class="w"> </span><span class="n">glue</span><span class="w"> </span><span class="k">over</span><span class="w"> </span><span class="n">ralphcore</span><span class="w"> </span><span class="p">(</span><span class="n">ledger</span><span class="o">/</span><span class="n">budget</span><span class="o">/</span><span class="n">control</span><span class="p">);</span><span class="w"> </span><span class="n">decision</span><span class="w"> </span><span class="n">policy</span>
+<span class="w">  </span><span class="n">test_oracle</span><span class="p">.</span><span class="n">py</span><span class="w">       </span><span class="n">stdlib</span><span class="w"> </span><span class="n">tests</span><span class="w"> </span><span class="p">(</span><span class="k">no</span><span class="w"> </span><span class="n">pytest</span><span class="p">),</span><span class="w"> </span><span class="n">incl</span><span class="p">.</span><span class="w"> </span><span class="n">negative</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">graceful</span><span class="o">-</span><span class="n">degrade</span>
+<span class="w">  </span><span class="n">Taskfile</span><span class="p">.</span><span class="n">yml</span><span class="w">         </span><span class="n">dev</span><span class="o">-</span><span class="n">cx53</span><span class="w"> </span><span class="n">ops</span><span class="w"> </span><span class="p">(</span><span class="n">model</span><span class="w"> </span><span class="k">fetch</span><span class="p">,</span><span class="w"> </span><span class="n">ghidra</span><span class="p">,</span><span class="w"> </span><span class="n">run</span><span class="p">,</span><span class="w"> </span><span class="n">watcher</span><span class="p">)</span>
+<span class="w">  </span><span class="n">findings</span><span class="o">/</span><span class="w">            </span><span class="n">persisted</span><span class="w"> </span><span class="n">finding</span><span class="w"> </span><span class="n">artifacts</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ledger</span><span class="w"> </span><span class="p">(</span><span class="n">gitignored</span><span class="p">)</span>
+
+<span class="k">hosts</span><span class="o">/</span><span class="n">dev</span><span class="o">-</span><span class="n">cx53</span><span class="o">/</span><span class="n">oracle</span><span class="o">-</span><span class="n">ebpf</span><span class="o">-</span><span class="n">watcher</span><span class="p">.</span><span class="n">nix</span><span class="w">   </span><span class="n">root</span><span class="w"> </span><span class="n">systemd</span><span class="w"> </span><span class="n">service</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">unix</span><span class="o">-</span><span class="k">socket</span><span class="w"> </span><span class="n">request</span><span class="w"> </span><span class="n">API</span>
+<span class="n">docs</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span>
+<span class="w">  </span><span class="n">README</span><span class="p">.</span><span class="n">md</span><span class="w">            </span><span class="n">onboarding</span><span class="w"> </span><span class="p">(</span><span class="n">mental</span><span class="w"> </span><span class="n">model</span><span class="p">,</span><span class="w"> </span><span class="n">quickstart</span><span class="p">,</span><span class="w"> </span><span class="n">lanes</span><span class="p">)</span>
+<span class="w">  </span><span class="n">v0</span><span class="p">.</span><span class="n">md</span><span class="w">                </span><span class="n">this</span><span class="w"> </span><span class="n">slice</span><span class="s1">&#39;s architecture, schema, recursion framing</span>
+<span class="s1">  integration.md       how oracle plugs into the kernel evidence seam</span>
+<span class="s1">vaked/examples/</span>
+<span class="s1">  oracle-re-loop.vaked the RE loop as a checked Vaked capability graph (POLA source)</span>
+</pre></div>
+
+<p>Each unit has one job and a typed boundary:<br />
+- <strong>ghidra_frontend</strong> — in: binary path + function names; out: <code>{func: pseudo_c}</code>.<br />
+  Runs as <code>revdev</code>. No root.<br />
+- <strong>llm_refine</strong> — in: <code>{func: pseudo_c}</code>; out: <code>{func: refined_c}</code>. Calls<br />
+  llm4decompile-6.7B with <code>temperature=0</code>; records the model GGUF sha256.<br />
+- <strong>dynamic_frida</strong> — in: a runnable inference command + target function names;<br />
+  out: <code>{func: {calls, args_sample, timing}}</code>. Runs the target via <code>sample-run</code><br />
+  (bubblewrap, no-net — llama.cpp inference is local), Frida attaches in userspace<br />
+  (ptrace on <code>revdev</code>'s own process — no caps needed).<br />
+- <strong>watcher_ebpf</strong> (client) + <strong>oracle-ebpf-watcher</strong> (root) — client sends<br />
+<code>{pid | cmd}</code>; the root service runs a PID-scoped eBPF/bpftrace program and<br />
+  returns <code>{syscalls, mmaps, files}</code> (notably the GGUF model mmap + weight reads).<br />
+<code>revdev</code> never gains capabilities.<br />
+- <strong>fidelity</strong> — in: refined-C + ground-truth source for the function; out:<br />
+<code>{score, method}</code>. Slice-1 method: normalized-token similarity (tree-sitter C<br />
+  AST diff is a later upgrade).<br />
+- <strong>finding</strong> / <strong>bridge</strong> — assemble + persist the record; emit the<br />
+  kernel-compatible <code>observed_effects</code> and a <code>transition_xref</code> slot.<br />
+- <strong>loop</strong> — the ralph decision policy (§7).</p>
+<h2 id="5-data-flow">5. Data flow</h2>
+<div class="highlight"><pre><span></span><span class="n">llama</span><span class="o">-</span><span class="n">cli</span><span class="w"> </span><span class="err">─┬─</span><span class="w"> </span><span class="n">ghidra_frontend</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">pseudo_c</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">llm_refine</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">refined_c</span><span class="w"> </span><span class="err">─┐</span>
+<span class="w">           </span><span class="err">│</span><span class="w">                                                       </span><span class="err">├→</span><span class="w"> </span><span class="n">finding</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">findings</span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">persisted</span><span class="p">)</span>
+<span class="w"> </span><span class="n">live</span><span class="w">      </span><span class="err">├─</span><span class="w"> </span><span class="n">dynamic_frida</span><span class="w"> </span><span class="p">(</span><span class="n">sample</span><span class="o">-</span><span class="n">run</span><span class="p">,</span><span class="w"> </span><span class="n">no</span><span class="o">-</span><span class="n">net</span><span class="p">)</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="p">{</span><span class="n">calls</span><span class="p">,</span><span class="n">timing</span><span class="p">}</span><span class="w"> </span><span class="err">─┤</span><span class="w">   </span><span class="err">│</span>
+<span class="w"> </span><span class="n">inference</span><span class="w"> </span><span class="err">└─</span><span class="w"> </span><span class="n">watcher_ebpf</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="p">[</span><span class="n">ROOT</span><span class="w"> </span><span class="n">watcher</span><span class="p">]</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="p">{</span><span class="n">syscalls</span><span class="p">,</span><span class="n">mmaps</span><span class="p">}</span><span class="w"> </span><span class="err">─────┘</span><span class="w">   </span><span class="err">├→</span><span class="w"> </span><span class="n">fidelity</span><span class="w"> </span><span class="p">(</span><span class="n">vs</span><span class="w"> </span><span class="n">source</span><span class="p">)</span>
+<span class="w">                                                                       </span><span class="err">└→</span><span class="w"> </span><span class="n">bridge</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">observed_effects</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">xref</span>
+<span class="w">       </span><span class="p">(</span><span class="n">all</span><span class="w"> </span><span class="n">three</span><span class="w"> </span><span class="n">evidence</span><span class="w"> </span><span class="n">producers</span><span class="w"> </span><span class="n">are</span><span class="w"> </span><span class="n">best</span><span class="o">-</span><span class="n">effort</span><span class="w"> </span><span class="n">and</span><span class="w"> </span><span class="n">independently</span><span class="w"> </span><span class="n">nullable</span><span class="p">)</span>
+</pre></div>
+
+<p>Orchestrated by the ralph loop (§7): the data flow above is one tick's worth of<br />
+work; the loop runs ticks until a stop condition, accumulating into the finding.</p>
+<h2 id="6-finding-record-schema-schemapy">6. Finding record schema (<code>schema.py</code>)</h2>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="s">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;oracle_finding&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;v&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="s">&quot;target&quot;</span><span class="p">:</span><span class="w">     </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;sha256&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;source_ref&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;llama.cpp commit/version&gt;&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="s">&quot;decompiler&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;llm4decompile-6.7b-v2&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;model_sha256&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;temperature&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="s">&quot;functions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;addr&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0x...&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s">&quot;pseudo_c_sha&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;refined_c&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s">&quot;fidelity&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="m m-Double">0.0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;method&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;normalized-token-similarity&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="s">&quot;dynamic&quot;</span><span class="p">:</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;frida&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;calls&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;args_sample&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="s">&quot;timing_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="m m-Double">0.0</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">null</span><span class="p">,</span>
+<span class="w">                    </span><span class="s">&quot;ebpf&quot;</span><span class="p">:</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;syscalls&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w"> </span><span class="s">&quot;mmaps&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="s">&quot;files&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">null</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="s">&quot;observed_effects&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;writes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="s">&quot;deletes&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="p">},</span><span class="w">   </span><span class="c1">// kernel-bridge compatibility</span>
+<span class="w">  </span><span class="s">&quot;transition_xref&quot;</span><span class="p">:</span><span class="w"> </span><span class="nx">null</span><span class="p">,</span><span class="w">                                </span><span class="c1">// double-dogfood link (null in slice 1)</span>
+<span class="w">  </span><span class="s">&quot;confidence&quot;</span><span class="p">:</span><span class="w"> </span><span class="m m-Double">0.0</span><span class="p">,</span>
+<span class="w">  </span><span class="s">&quot;chain&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;prev_hash&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;this_hash&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;...&quot;</span><span class="w"> </span><span class="p">}</span><span class="w">     </span><span class="c1">// own append-only log (eventd/ralph pattern)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The optional Vaked <code>oracle_finding</code> schema kind (declared like <code>arp_event</code> — a<br />
+<strong>schema</strong>, not a new grammar kind, per the language lane) lets a finding be a<br />
+checked Vaked declaration. Deferred in slice 1; noted as a seam.</p>
+<h2 id="7-orchestration-ralph-decision-loop">7. Orchestration — ralph decision loop</h2>
+<p><code>oracle.py</code>/<code>loop.py</code> run as a ralph-style loop, <strong>reusing</strong><br />
+<code>tools/ralph/ralphcore.py</code> (import only — never modify the shipping loop, exactly<br />
+as <code>tools/dogfood/</code> does):</p>
+<ul>
+<li><strong>Ledger</strong> — <code>chain_hash</code> / <code>make_entry</code> / <code>verify_chain</code> /<br />
+<code>longest_valid_prefix</code>: an immutable, replay-verifiable decision trail.</li>
+<li><strong>Budget</strong> — <code>budget_total</code> / <code>cost_usd</code>: bounds the run. Local <code>llama-server</code><br />
+  is $0, so the budget unit is <strong>iterations + recorded token usage</strong>, not dollars.</li>
+<li><strong>Control</strong> — a live control file read each tick: pause / step / stop.</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="nx">tick</span><span class="p">:</span>
+<span class="w">  </span><span class="nx">read</span><span class="w"> </span><span class="nx">control</span><span class="w"> </span><span class="p">(</span><span class="nx">pause</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">step</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">stop</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">choose</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="nx">action</span><span class="w"> </span><span class="nx">by</span><span class="w"> </span><span class="nx">policy</span><span class="p">:</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">decompile</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="kd">fn</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">refine</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">low</span><span class="o">-</span><span class="nx">fidelity</span><span class="w"> </span><span class="kd">fn</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="k">observe</span><span class="w"> </span><span class="p">(</span><span class="nx">frida</span><span class="o">/</span><span class="nx">ebpf</span><span class="p">)</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="nx">finalize</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">run</span><span class="w"> </span><span class="nx">it</span>
+<span class="w">  </span><span class="nx">append</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">hash</span><span class="o">-</span><span class="nx">chained</span><span class="w"> </span><span class="nx">ledger</span><span class="w"> </span><span class="nx">entry</span><span class="w"> </span><span class="p">(</span><span class="nx">action</span><span class="p">,</span><span class="w"> </span><span class="kd">fn</span><span class="p">,</span><span class="w"> </span><span class="nx">fidelity</span><span class="p">,</span><span class="w"> </span><span class="nx">cost</span><span class="p">)</span>
+<span class="w">  </span><span class="nx">stop</span><span class="w"> </span><span class="nx">when</span><span class="p">:</span><span class="w">  </span><span class="nx">budget</span><span class="w"> </span><span class="nx">spent</span><span class="w">  </span><span class="nx">OR</span><span class="w">  </span><span class="nx">all</span><span class="w"> </span><span class="nx">fns</span><span class="w"> </span><span class="err">≥</span><span class="w"> </span><span class="nx">confidence</span><span class="w"> </span><span class="nx">threshold</span><span class="w">  </span><span class="nx">OR</span><span class="w">  </span><span class="nx">control</span><span class="w"> </span><span class="nx">stop</span>
+</pre></div>
+
+<p><strong>Decision policy (slice 1, deterministic).</strong> Round-robin the target functions;<br />
+for each, decompile then observe; if <code>fidelity &lt; threshold</code>, schedule one refine<br />
+pass (re-prompt with the dynamic evidence as a hint); finalize when every function<br />
+is at/above threshold or the iteration budget is exhausted. The <strong>ledger</strong> is the<br />
+session's decision trail (replay-verifies); the <strong>finding</strong> is the accumulated<br />
+artifact — the two share the <code>eventd</code>/ralph hash-chain so the whole RE session is<br />
+tamper-evident and replayable.</p>
+<p><strong><code>vaked/examples/oracle-re-loop.vaked</code></strong> declares the loop as a checked Vaked<br />
+capability graph (mirroring <code>ralph-dogfood-loop.vaked</code>). Oracle's POLA — <code>revdev</code><br />
+write-scope, watcher-socket access, model access — is <strong>lowered from it</strong> via<br />
+<code>scope_from_vaked.py</code>, so the RE loop is itself a Vaked declaration: full dogfood<br />
+symmetry with the aegis kernel.</p>
+<h2 id="8-ebpf-watcher-the-privileged-piece">8. eBPF watcher (the privileged piece)</h2>
+<p><code>hosts/dev-cx53/oracle-ebpf-watcher.nix</code> defines a <strong>root</strong> systemd service that<br />
+exposes a narrow <strong>unix-socket</strong> request API. The unprivileged <code>revdev</code> client<br />
+(<code>watcher_ebpf.py</code>) sends <code>{pid | cmd}</code>; the service runs a <strong>PID-scoped</strong><br />
+eBPF/bpftrace program — syscall histogram, <code>mmap</code> regions (the GGUF model map),<br />
+and file reads — and returns the events as JSON. The socket API is the entire<br />
+attenuation surface: <code>revdev</code> gets evidence, never <code>CAP_BPF</code>/<code>CAP_PERFMON</code>. This<br />
+is the concrete "the watcher watches the analyst" arrangement and the only path by<br />
+which the least-authority cell obtains kernel-level evidence.</p>
+<h2 id="9-error-handling-degrade-never-crash">9. Error handling — degrade, never crash</h2>
+<p>Every evidence producer is best-effort and independently nullable; a finding is<br />
+valid with any subset of evidence present.</p>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ghidra headless timeout/error</td>
+<td>record exported funcs; mark the rest failed; continue</td>
+</tr>
+<tr>
+<td>llm4decompile unavailable</td>
+<td><code>refined_c = null</code> (keep pseudo-C); flag; continue</td>
+</tr>
+<tr>
+<td>Frida attach fails (run too short)</td>
+<td><code>dynamic.frida = null</code>; continue</td>
+</tr>
+<tr>
+<td>Watcher unreachable / denied</td>
+<td><code>dynamic.ebpf = null</code>; continue</td>
+</tr>
+<tr>
+<td>Ground-truth source unavailable</td>
+<td><code>fidelity.score = null</code></td>
+</tr>
+<tr>
+<td>Ledger tamper detected</td>
+<td>replay to <code>longest_valid_prefix</code>; refuse to extend a broken chain</td>
+</tr>
+</tbody>
+</table>
+<h2 id="10-testing-acceptance">10. Testing &amp; acceptance</h2>
+<p><code>tools/oracle/test_oracle.py</code> (stdlib, no pytest):<br />
+- finding schema round-trip + <code>chain</code> verify;<br />
+- fidelity scorer on a known pair (identical source → high; unrelated → low);<br />
+- bridge emits a valid <code>observed_effects</code> shape;<br />
+- graceful-degrade: missing frida / ebpf / source still assembles a finding;<br />
+- <strong>CI smoke</strong>: full pipeline on a trivial 3-line C binary compiled on dev-cx53<br />
+  (deterministic plumbing check — not the heavy <code>llama-cli</code> run).</p>
+<p><strong>Manual acceptance demo:</strong> a full ralph-loop run on <code>llama-cli</code> over ~3 target<br />
+functions, on dev-cx53, producing a finding with non-null fidelity + dynamic<br />
+evidence, and a replay-verifiable ledger.</p>
+<h2 id="11-boundaries-safety">11. Boundaries &amp; safety</h2>
+<ul>
+<li><code>revdev</code> stays unprivileged; eBPF only via the root watcher's narrow socket.</li>
+<li>llama.cpp is MIT — reverse-engineering it is fully legitimate and yields the<br />
+  ground-truth needed for fidelity scoring.</li>
+<li>The M3 orchestrates; all heavy work (Ghidra, LLM, Frida, eBPF) runs on dev-cx53.</li>
+<li>Untrusted runs go through <code>sample-run</code> (bubblewrap, no-net).</li>
+<li><strong>Lanes:</strong> do not modify <code>tools/ralph/</code> (import <code>ralphcore</code> only); do not touch<br />
+  the execution <strong>ARP IR</strong> or L2 eBPF-LSM (other dev's lanes); integrate only via<br />
+  the kernel transition record + an own finding artifact.</li>
+<li>No secrets. If the litellm gateway is used instead of a local <code>llama-server</code>,<br />
+<code>LITELLM_KEY</code> is read from the environment, never stored.</li>
+</ul>
+<h2 id="12-open-items-resolve-in-the-implementation-plan">12. Open items (resolve in the implementation plan)</h2>
+<ul>
+<li><strong>Model + serving:</strong> exact 6.7B variant (<code>llm4decompile-6.7b-v2</code> vs <code>-ref</code>) and<br />
+  GGUF source; serving via a new <code>llama-server</code> user service for <code>revdev</code> vs the<br />
+  existing litellm gateway (<code>:4000</code>).</li>
+<li><strong>Ghidra:</strong> <code>analyzeHeadless</code> invocation + which decompiler export format; how to<br />
+  resolve function names/addresses on the nix-store <code>llama-cli</code>.</li>
+<li><strong>Fidelity:</strong> confirm slice-1 normalized-token similarity; map the GGUF/runtime<br />
+  build to the exact llama.cpp source commit for ground truth.</li>
+<li><strong>Watcher protocol:</strong> the unix-socket request/response schema and the PID-scoped<br />
+  eBPF/bpftrace program.</li>
+</ul>
+<h2 id="13-roadmap-later-cycles">13. Roadmap (later cycles)</h2>
+<ol>
+<li><strong>Arbitrary-binary RE</strong> — the same pipeline on unknown/stripped ELFs (the pure<br />
+   llm4decompile/OGhidra demo).</li>
+<li><strong>Double-dogfood</strong> — oracle reverse-engineers a kernel proposer transition;<br />
+   populate <code>transition_xref</code>.</li>
+<li><strong>reverser_ai agent loop</strong> — an installed agent (pi/claude/nullclaw) drives the<br />
+   deterministic primitives autonomously.</li>
+<li><strong>eBPF depth + L2 seam</strong> — richer behavioral models; hand off to the enforcement<br />
+   lane.</li>
+<li><strong>tree-sitter fidelity</strong> — AST-level decompilation scoring.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-15-vaked-oracle-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

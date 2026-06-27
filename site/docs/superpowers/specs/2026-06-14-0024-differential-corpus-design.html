@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0024 Differential Test Corpus - Design — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-purpose" style="padding-left:0.5rem">1. Purpose</a><a href="#2-topology-classes" style="padding-left:0.5rem">2. Topology classes</a><a href="#3-stage-0-now-vs-stage-1-later" style="padding-left:0.5rem">3. Stage-0-now vs Stage-1-later</a><a href="#4-canonicalization-note" style="padding-left:0.5rem">4. Canonicalization note</a><a href="#5-passfail-contract-per-fixture" style="padding-left:0.5rem">5. Pass/fail contract per fixture</a><a href="#6-what-this-discharges-for-11" style="padding-left:0.5rem">6. What this discharges for §11</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-0024-differential-corpus-design</div>
+<h1>0024 Differential Test Corpus - Design</h1>
+<h1 id="0024-differential-test-corpus-design">0024 Differential Test Corpus - Design</h1>
+<p>Date: 2026-06-14<br />
+Status: Stage-0 leg implemented and green; Stage-1 leg deferred until Stage-1 exists.<br />
+Owner artifact: <code>tests/corpus/0024-differential/</code></p>
+<h2 id="1-purpose">1. Purpose</h2>
+<p><code>docs/language/0024-mlir-lowering-staged-adoption.md</code> §11 ("Verification<br />
+checklist") gates declaring the Stage-1 MLIR lowering complete. Several of its<br />
+boxes are <em>comparative</em> - they assert Stage-1 behaves <em>identically to Stage-0</em>.<br />
+Claim <strong>C14</strong> flagged that no runnable evidence exists for those boxes: there is<br />
+no test corpus that (a) pins the Stage-0 baseline and (b) is structured so the<br />
+Stage-0↔Stage-1 equality check drops in when Stage-1 lands.</p>
+<p>This corpus closes that gap. Today it proves the Stage-0 leg: lowering<br />
+determinism and correct rejection of the two illegal topologies. It is wired so<br />
+the cross-stage comparison is a small, well-defined addition rather than a<br />
+rewrite.</p>
+<h2 id="2-topology-classes">2. Topology classes</h2>
+<p>Five topology classes, each exercising a distinct lowering invariant. (The<br />
+depth-bound class is exercised by <em>two</em> fixtures - accepting and rejecting -<br />
+which is why there are six fixture files for five classes.)</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Fixture(s)</th>
+<th>Shape</th>
+<th>Invariant exercised</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single node</td>
+<td><code>single-agent.vaked</code></td>
+<td>one node, no edges</td>
+<td>degenerate base case; depth = 1; supervisor index for an agent with no deps</td>
+</tr>
+<tr>
+<td>Linear chain</td>
+<td><code>linear-chain.vaked</code></td>
+<td><code>A -&gt; B -&gt; C</code></td>
+<td>strict ordering; Pass 1 depth = 3 (counted in steps); source-order subscriptions</td>
+</tr>
+<tr>
+<td>Diamond / fan-in</td>
+<td><code>diamond.vaked</code></td>
+<td><code>A-&gt;B, A-&gt;C, B-&gt;D, C-&gt;D</code></td>
+<td>converging DAG; Pass 1 must de-dup the two equal paths to one depth (3); D records two upstream subscriptions deterministically</td>
+</tr>
+<tr>
+<td>Depth-bound</td>
+<td><code>depth-bound-ok.vaked</code>, <code>depth-bound-exceeded.vaked</code></td>
+<td>3-step chain, depth = 3</td>
+<td>the <code>depth &gt; bound</code> boundary. OK fixture sets <code>maxDepth = 3</code> (== depth, must pass); exceeded sets <code>maxDepth = 2</code> (&lt; depth, must be rejected)</td>
+</tr>
+<tr>
+<td>Cycle</td>
+<td><code>cyclic.vaked</code></td>
+<td><code>A-&gt;B-&gt;C-&gt;A</code></td>
+<td>step edges must form a DAG; back-edge must be rejected</td>
+</tr>
+</tbody>
+</table>
+<p>The depth-bound-ok fixture deliberately sets <code>maxDepth</code> <strong>exactly equal</strong> to the<br />
+actual critical-path depth. The Stage-0 check is <code>depth &gt; bound</code>, so<br />
+<code>depth == bound</code> is the accepting boundary - more informative than a comfortable<br />
+margin.</p>
+<h2 id="3-stage-0-now-vs-stage-1-later">3. Stage-0-now vs Stage-1-later</h2>
+<p>Stage-1 (the C++/MLIR <code>vaked</code>/<code>hcp</code> dialects and their passes) does not exist<br />
+yet. So the corpus is staged:</p>
+<ul>
+<li><strong>Stage-0 (now, this harness).</strong> Pure-Python <code>vakedc</code> (<code>parse -&gt; check -&gt;
+  lower</code>). For each should-lower fixture, lower the <em>same source file</em> into two<br />
+  separate temp dirs and assert the trees are byte-identical (round-trip<br />
+  determinism). For each should-reject fixture, run <code>check --json</code> and assert<br />
+  exit 1 plus the expected diagnostic code. This pins the Stage-0 oracle.</li>
+<li><strong>Stage-1 (later, drop-in).</strong> When a Stage-1 lowering binary exists, add a<br />
+<code>lower_stage1()</code> invocation (it is C++/MLIR - it builds and runs on<br />
+<strong>dev-cx53</strong>, not the dev MacBook). For each should-lower fixture, run both<br />
+  stages and compare with a cross-stage comparator (§4). For each should-reject<br />
+  fixture, assert Stage-1's verifier/Pass-1 rejects the same input (§13.1<br />
+  soundness). The harness already documents this extension point in its module<br />
+  docstring and isolates the within-stage comparator so the cross-stage one<br />
+  slots beside it.</li>
+</ul>
+<p>The Stage-0 leg is environment-independent stdlib Python and runs anywhere. The<br />
+future Stage-1 leg MUST run on dev-cx53 (per the project no-build-on-laptop<br />
+rule); the harness's Stage-0 assertions remain valid on either host.</p>
+<h2 id="4-canonicalization-note">4. Canonicalization note</h2>
+<p>Lowering is fully deterministic by construction: no timestamps, no randomness,<br />
+no UUIDs; dict keys are sorted and list order follows source order. Therefore<br />
+<em>within a stage</em> canonicalization is trivial - a direct recursive byte-compare<br />
+of the two emitted trees. No normalization layer is needed or built.</p>
+<p>There is exactly <strong>one</strong> environment-dependent field, and it matters only for<br />
+the future cross-stage comparison. <code>gen</code>'s sibling <code>provenance.json</code> embeds the<br />
+<strong>absolute source path</strong> (<code>source</code>, and per-artifact <code>sourceFile</code>/<code>span.file</code>)<br />
+and a derived <code>inputsHash</code> (sha256 over inputs including that path). Two<br />
+lowerings of the <em>same</em> file from the <em>same</em> path produce identical<br />
+provenance - which is why the within-stage byte-compare is valid as written.</p>
+<p>For Stage-1, the absolute path differs by host (local Stage-0 vs dev-cx53<br />
+Stage-1), so <code>provenance.json</code>'s source-path fields and <code>inputsHash</code> will differ<br />
+<em>even when the semantic artifacts are byte-identical</em>. The cross-stage<br />
+comparator therefore must <strong>not</strong> be a naive whole-tree byte-compare. It must<br />
+either:</p>
+<ul>
+<li>normalize/exclude the provenance source-path + <code>inputsHash</code> fields, or</li>
+<li>compare only the semantic artifacts: <code>gen/workflow/*.json</code>,<br />
+<code>gen/eventd.json</code>, <code>flake.nix</code>, <code>gen/RUNTIME.md</code>.</li>
+</ul>
+<p>This is the only caveat to "the equality check drops in cleanly", and it is<br />
+called out here and in the harness docstring so it is not a future surprise.</p>
+<h2 id="5-passfail-contract-per-fixture">5. Pass/fail contract per fixture</h2>
+<table>
+<thead>
+<tr>
+<th>Fixture</th>
+<th>Contract (Stage-0, today)</th>
+<th>Contract (Stage-1, when it lands)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>single-agent</code></td>
+<td><code>lower</code> exit 0; 2 runs byte-identical</td>
+<td>+ Stage-0/Stage-1 semantic artifacts equivalent</td>
+</tr>
+<tr>
+<td><code>linear-chain</code></td>
+<td><code>lower</code> exit 0; 2 runs byte-identical</td>
+<td>+ cross-stage equivalent</td>
+</tr>
+<tr>
+<td><code>diamond</code></td>
+<td><code>lower</code> exit 0; 2 runs byte-identical</td>
+<td>+ cross-stage equivalent</td>
+</tr>
+<tr>
+<td><code>depth-bound-ok</code></td>
+<td><code>lower</code> exit 0; 2 runs byte-identical</td>
+<td>+ cross-stage equivalent</td>
+</tr>
+<tr>
+<td><code>depth-bound-exceeded</code></td>
+<td><code>check</code> exit 1; diagnostics include <code>E-WORKFLOW-DEPTH</code>; no artifacts</td>
+<td>+ Stage-1 Pass 1 rejects the same input</td>
+</tr>
+<tr>
+<td><code>cyclic</code></td>
+<td><code>check</code> exit 1; diagnostics include <code>E-WORKFLOW-CYCLE</code>; no artifacts</td>
+<td>+ Stage-1 Pass 1 cycle detector rejects the same input</td>
+</tr>
+</tbody>
+</table>
+<p>Diagnostic codes are asserted via <code>vakedc check --json</code> (the <code>code</code> field), not<br />
+by matching human-readable message text, so the contract is stable across<br />
+message wording changes.</p>
+<h2 id="6-what-this-discharges-for-11">6. What this discharges for §11</h2>
+<p>Tickable now (Stage-0 leg):</p>
+<ul>
+<li><strong>Determinism</strong> - byte-identical artifacts across two runs, proven for all<br />
+  four should-lower topologies.</li>
+<li>The Stage-0 <strong>rejection oracle</strong> for cycle and depth (the baseline §13.1<br />
+  soundness checks compare against).</li>
+</ul>
+<p>Not tickable until Stage-1 exists (these are comparative, Stage-0↔Stage-1):</p>
+<ul>
+<li>Dialect verifiers reject the same invalid inputs as Stage-0.</li>
+<li>Pass 1 detects cycles / computes depths <em>identically to</em> Stage-0.</li>
+<li>Pass 2 / Pass 3 produce the same WAL / supervisor structures as Stage-0.</li>
+<li>Round-trip equivalence between Stage-0 and Stage-1.</li>
+</ul>
+<p>C14 evidence gap is closed in the sense that a runnable oracle now exists, the<br />
+Stage-0 leg is green, Determinism is tickable, and the cross-stage boxes flip<br />
+when Stage-1 lands by adding the comparator described in §4.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-0024-differential-corpus-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

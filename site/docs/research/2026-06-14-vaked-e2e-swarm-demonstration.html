@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked end-to-end demonstration — language → compiler → runtime, across swarms — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#what-end-to-end-means-here" style="padding-left:0.5rem">What "end-to-end" means here</a><a href="#stage-1-check-across-nine-swarms-all-clean" style="padding-left:0.5rem">Stage 1 — `check` across nine swarms (all clean)</a><a href="#stage-2-lower-to-artifacts-deterministic" style="padding-left:0.5rem">Stage 2 — `lower` to artifacts (deterministic)</a><a href="#stage-3-the-runtime-layers-materialized" style="padding-left:0.5rem">Stage 3 — the runtime layers, materialized</a><a href="#stage-4-the-workflow-dag-is-real-and-bounded" style="padding-left:0.5rem">Stage 4 — the workflow DAG is real and bounded</a><a href="#why-this-demonstrates-the-thesis" style="padding-left:0.5rem">Why this demonstrates the thesis</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/research/">research</a> / 2026-06-14-vaked-e2e-swarm-demonstration</div>
+<h1>Vaked end-to-end demonstration — language → compiler → runtime, across swarms</h1>
+<h1 id="vaked-end-to-end-demonstration-language-compiler-runtime-across-swarms">Vaked end-to-end demonstration — language → compiler → runtime, across swarms</h1>
+<p>Date: 2026-06-14 · Goal: <em>demonstrate the agentic-workflow language, compiler, and<br />
+runtime (Vaked) end-to-end on different swarms.</em></p>
+<p>This is the executable counterpart to the research batch: instead of arguing the<br />
+design is sound, it runs the full <code>vakedc</code> pipeline (<code>parse → check → lower</code>)<br />
+against nine existing swarm declarations and records what each produces. Every run<br />
+below is reproducible with the stdlib-only Python front-end — no external<br />
+toolchain.</p>
+<h2 id="what-end-to-end-means-here">What "end-to-end" means here</h2>
+<div class="highlight"><pre><span></span><span class="na">.vaked</span><span class="w"> </span><span class="no">source</span><span class="w"> </span><span class="err">──</span><span class="no">parse</span><span class="err">──▶</span><span class="w"> </span><span class="no">LPG</span><span class="w"> </span><span class="err">──</span><span class="no">check</span><span class="w"> </span><span class="p">(</span><span class="mi">0011</span><span class="p">)</span><span class="err">──▶</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="no">diagnostics</span><span class="w"> </span><span class="err">──</span><span class="no">lower</span><span class="w"> </span><span class="p">(</span><span class="mi">0012</span><span class="p">)</span><span class="err">──▶</span><span class="w"> </span><span class="no">artifact</span><span class="w"> </span><span class="no">tree</span>
+</pre></div>
+
+<p><code>lower</code> refuses to emit on any diagnostic, so a passing <code>lower</code> is itself the<br />
+proof that the graph type-checked. The artifacts are the runtime stack: a Nix<br />
+spine, an OTP supervision tree, per-fiber Zig daemon config, a workflow DAG, an<br />
+eventd replay contract, a CrabCC catalog, and a provenance manifest.</p>
+<h2 id="stage-1-check-across-nine-swarms-all-clean">Stage 1 — <code>check</code> across nine swarms (all clean)</h2>
+<div class="highlight"><pre><span></span><span class="n">swe</span><span class="o">-</span><span class="n">swarm</span><span class="o">-</span><span class="mi">100</span><span class="n">k</span><span class="o">-</span><span class="n">workers</span><span class="o">-</span><span class="n">scalability</span><span class="w">       </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">swe</span><span class="o">-</span><span class="n">swarm</span><span class="o">-</span><span class="mi">1</span><span class="n">m</span><span class="o">-</span><span class="n">workers</span><span class="o">-</span><span class="n">scalability</span><span class="w">         </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">swe</span><span class="o">-</span><span class="n">swarm</span><span class="o">-</span><span class="n">loadtest</span><span class="w">                       </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">redteam</span><span class="o">-</span><span class="n">swarm</span><span class="w">                            </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">supply</span><span class="o">-</span><span class="n">chain</span><span class="o">-</span><span class="n">pipeline</span><span class="w">                    </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">agentfield</span><span class="o">-</span><span class="n">swe</span><span class="w">                           </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">editorial</span><span class="o">-</span><span class="n">pipeline</span><span class="w">                       </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">operator</span><span class="o">-</span><span class="n">field</span><span class="w">                           </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+<span class="n">crabcc</span><span class="o">-</span><span class="n">umami</span><span class="w">                             </span><span class="n">rc</span><span class="o">=</span><span class="mi">0</span><span class="w">  </span><span class="n">no</span><span class="w"> </span><span class="n">diagnostics</span>
+</pre></div>
+
+<p>Command: <code>python3 -m vakedc check vaked/examples/&lt;name&gt;.vaked</code></p>
+<p>Nine distinct agentic topologies — a 100k-worker SWE swarm, a 1M-worker swarm, a<br />
+red-team kill-chain, a supply-chain ceremony, the agentfield SWE loop, an<br />
+editorial pipeline, an operator field, and a CrabCC indexing pipeline — all type-<br />
+check against the same built-in capability catalog.</p>
+<h2 id="stage-2-lower-to-artifacts-deterministic">Stage 2 — <code>lower</code> to artifacts (deterministic)</h2>
+<p>Command: <code>python3 -m vakedc lower vaked/examples/&lt;name&gt;.vaked --out &lt;dir&gt;</code></p>
+<table>
+<thead>
+<tr>
+<th>Swarm</th>
+<th style="text-align: right;">Files</th>
+<th>Notable artifacts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>swe-swarm-100k</td>
+<td style="text-align: right;">9</td>
+<td><code>gen/otp/swe_swarm_100k_sup.erl</code>, <code>gen/workflow/swarmPipeline.json</code>, <code>gen/zig/miner.json</code></td>
+</tr>
+<tr>
+<td>swe-swarm-1m</td>
+<td style="text-align: right;">9</td>
+<td><code>gen/otp/swe_swarm_1m_sup.erl</code>, <code>gen/workflow/swarmPipeline.json</code>, <code>gen/zig/miner.json</code></td>
+</tr>
+<tr>
+<td>redteam-swarm</td>
+<td style="text-align: right;">9</td>
+<td><code>gen/otp/redteam_swarm_sup.erl</code>, <code>gen/workflow/killchain.json</code>, <code>gen/catalog/targetIntel.jsonl</code>, <code>gen/zig/evidenceMiner.json</code></td>
+</tr>
+<tr>
+<td>supply-chain-pipeline</td>
+<td style="text-align: right;">9</td>
+<td><code>gen/otp/supply_chain_sup.erl</code>, <code>gen/workflow/ceremony.json</code>, <code>gen/zig/provenanceMiner.json</code></td>
+</tr>
+<tr>
+<td>agentfield-swe</td>
+<td style="text-align: right;">11</td>
+<td><code>gen/otp/agent_field_sup.erl</code>, <code>gen/workflow/swe_af.json</code>, <code>gen/colmena/hive.nix</code>, <code>gen/memory/palace.json</code></td>
+</tr>
+</tbody>
+</table>
+<p>Every tree carries the same spine — <code>flake.nix</code>, <code>gen/RUNTIME.md</code>,<br />
+<code>gen/eventd.json</code>, <code>gen/otp/vaked_fiber_worker.erl</code>, and <code>provenance.json</code> — plus<br />
+the per-swarm projections. The artifact count varies with the declaration<br />
+(agentfield-swe additionally lowers a Colmena hive and a memory-palace contract),<br />
+which is the point: artifacts are projections of the graph, not a fixed template.</p>
+<h2 id="stage-3-the-runtime-layers-materialized">Stage 3 — the runtime layers, materialized</h2>
+<p>The tagline mapped to files emitted by the runs above:</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Mechanism</th>
+<th>Artifact (example)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vaked declares</td>
+<td>typed capability graph</td>
+<td>the <code>.vaked</code> source / LPG</td>
+</tr>
+<tr>
+<td>Nix materializes</td>
+<td>flake + NixOS modules</td>
+<td><code>flake.nix</code>, <code>gen/colmena/hive.nix</code></td>
+</tr>
+<tr>
+<td>OTP supervises</td>
+<td>supervision tree</td>
+<td><code>gen/otp/&lt;name&gt;_sup.erl</code>, <code>vaked_fiber_worker.erl</code></td>
+</tr>
+<tr>
+<td>Zig enforces</td>
+<td>per-fiber daemon config</td>
+<td><code>gen/zig/&lt;miner&gt;.json</code></td>
+</tr>
+<tr>
+<td>eBPF testifies</td>
+<td>replay / evidence contract</td>
+<td><code>gen/eventd.json</code></td>
+</tr>
+<tr>
+<td>CrabCC indexes</td>
+<td>source/intel catalog</td>
+<td><code>gen/catalog/*.jsonl</code></td>
+</tr>
+<tr>
+<td>Surfaces reveal</td>
+<td>operator-facing notes</td>
+<td><code>gen/RUNTIME.md</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="stage-4-the-workflow-dag-is-real-and-bounded">Stage 4 — the workflow DAG is real and bounded</h2>
+<p>The lowered <code>gen/workflow/*.json</code> carries the <strong>precomputed critical-path depth</strong><br />
+alongside the steps and edges — e.g. the swarm pipeline lowers to a 3-step DAG<br />
+with <code>depth = 3</code>, and the workflow record keeps <code>maxDepth</code> as the declared bound.<br />
+This is the <code>E-WORKFLOW-DEPTH</code> check made into a durable artifact: the runtime<br />
+receives the depth the compiler proved, not a number it must recompute.</p>
+<div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;on&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;budget&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;maxDepth&quot;</span><span class="p">:</span><span class="w"> </span><span class="err">&lt;bou</span><span class="kc">n</span><span class="err">d&gt;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;steps&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;edges&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;depth&quot;</span><span class="p">:</span><span class="w"> </span><span class="err">&lt;prove</span><span class="kc">n</span><span class="w"> </span><span class="err">cri</span><span class="kc">t</span><span class="err">ical</span><span class="w"> </span><span class="err">pa</span><span class="kc">t</span><span class="err">h&gt;</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+
+<h2 id="why-this-demonstrates-the-thesis">Why this demonstrates the thesis</h2>
+<ol>
+<li><strong>Language</strong> — nine structurally different agentic swarms are expressible in<br />
+   the same v0.3 grammar (29 kinds) with no per-example grammar changes.</li>
+<li><strong>Compiler</strong> — the same 0011 type system checks all nine; the same 0012<br />
+   lowering emits deterministic artifact trees; a single diagnostic anywhere<br />
+   blocks emission.</li>
+<li><strong>Runtime</strong> — the emitted artifacts are the concrete stack (Nix/OTP/Zig/eBPF/<br />
+   CrabCC), so "compiles" ends at a runnable host description, not at an AST.</li>
+</ol>
+<p>The PR-pipeline dogfood (<code>pr-multimodel-pipeline.vaked</code>) is the tenth swarm — the<br />
+one that models the very loop that produced this PR — and it lowers the same way<br />
+(9 artifacts), closing the self-referential loop the batch set out to prove.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/research/2026-06-14-vaked-e2e-swarm-demonstration.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>02 — Frida dynamic-evidence producer — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#recipe" style="padding-left:0.5rem">Recipe</a><a href="#key-findings-from-dev-cx53-validation" style="padding-left:0.5rem">Key findings from dev-cx53 validation</a><a href="#1-modulefindexportbynamenull-removed-in-frida-17" style="padding-left:1rem">  1. `Module.findExportByName(null, …)` removed in frida 17</a><a href="#2-processenv-does-not-exist-in-frida-js" style="padding-left:1rem">  2. `Process.env` does not exist in frida JS</a><a href="#3-stdiopipe-keeps-event-json-clean" style="padding-left:1rem">  3. `stdio="pipe"` keeps event JSON clean</a><a href="#4-llama-completion-not-llama-cli" style="padding-left:1rem">  4. `llama-completion`, not `llama-cli`</a><a href="#5-detach-wait-not-fixed-sleep" style="padding-left:1rem">  5. Detach-wait, not fixed sleep</a><a href="#6-ptracescope1-is-compatible" style="padding-left:1rem">  6. `ptrace_scope=1` is compatible</a><a href="#7-validated-capture" style="padding-left:1rem">  7. Validated capture</a><a href="#second-producer-ebpf-watcher" style="padding-left:0.5rem">Second producer: eBPF watcher</a><a href="#validated-in-a-finding-2026-06-15-run3-caa53b79" style="padding-left:0.5rem">validated in a finding (2026-06-15, run3 `caa53b79…`)</a><a href="#double-dogfood-grounding-slice-2" style="padding-left:0.5rem">Double-dogfood grounding (slice 2)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/recon/">recon</a> / 02-dynamic-evidence</div>
+<h1>02 — Frida dynamic-evidence producer</h1>
+<h1 id="02-frida-dynamic-evidence-producer">02 — Frida dynamic-evidence producer</h1>
+<p><strong>Date:</strong> 2026-06-15<br />
+<strong>Status:</strong> validated on dev-cx53 (frida 17.5.1)</p>
+<hr />
+<h2 id="recipe">Recipe</h2>
+<p>The dynamic-evidence producer hooks named exported functions in a live process using<br />
+<strong>frida-python</strong> (not the <code>frida</code> CLI). The driver lives at <code>tools/oracle/frida_driver.py</code>.</p>
+<div class="highlight"><pre><span></span><span class="c1"># Install frida-python in the oracle venv (dev-cx53 only)</span>
+~/oracle/pgvenv/bin/pip<span class="w"> </span>install<span class="w"> </span>frida
+
+<span class="c1"># Invoke directly (for manual testing):</span>
+<span class="nv">FRIDA_MAX_WAIT</span><span class="o">=</span><span class="m">90</span><span class="w"> </span>~/oracle/pgvenv/bin/python<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>tools/oracle/frida_driver.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>llama_decode,llama_model_load_from_file<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>llama-completion<span class="w"> </span>-m<span class="w"> </span>/path/to/model.gguf<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;hello&quot;</span><span class="w"> </span>-n<span class="w"> </span><span class="m">8</span>
+</pre></div>
+
+<p>Or via oracle.py:</p>
+<div class="highlight"><pre><span></span>oracle<span class="w"> </span>run<span class="w"> </span>...<span class="w"> </span>--frida-python<span class="w"> </span>~/oracle/pgvenv/bin/python<span class="w"> </span><span class="se">\</span>
+<span class="w">               </span>--infer-cmd<span class="w"> </span><span class="s2">&quot;llama-completion -m model.gguf -p hello -n 8&quot;</span>
+</pre></div>
+
+<p>The env var <code>ORACLE_FRIDA_PYTHON</code> can substitute for <code>--frida-python</code> to avoid<br />
+repeating the venv path.</p>
+<hr />
+<h2 id="key-findings-from-dev-cx53-validation">Key findings from dev-cx53 validation</h2>
+<h3 id="1-modulefindexportbynamenull-removed-in-frida-17">1. <code>Module.findExportByName(null, …)</code> removed in frida 17</h3>
+<p>Frida 17 removed the two-argument form <code>Module.findExportByName(null, name)</code> that<br />
+searched across all loaded modules. The correct frida-17 API is:</p>
+<div class="highlight"><pre><span></span><span class="nx">Module</span><span class="p">.</span><span class="nx">findGlobalExportByName</span><span class="p">(</span><span class="s1">&#39;llama_decode&#39;</span><span class="p">)</span>
+</pre></div>
+
+<p><code>frida_driver.py</code> uses <code>findGlobalExportByName</code> exclusively; <code>hook.js</code> used the<br />
+removed form and is deleted.</p>
+<h3 id="2-processenv-does-not-exist-in-frida-js">2. <code>Process.env</code> does not exist in frida JS</h3>
+<p><code>hook.js</code> read function names from <code>Process.env.ORACLE_HOOK_FUNCS</code>. <code>Process.env</code> is<br />
+not part of the frida JavaScript runtime. The driver inlines the function list<br />
+directly into the generated JavaScript, avoiding any env-var injection into the<br />
+script.</p>
+<h3 id="3-stdiopipe-keeps-event-json-clean">3. <code>stdio="pipe"</code> keeps event JSON clean</h3>
+<p>When frida spawns a process with <code>stdio</code> unset, child stdout/stderr can intermix with<br />
+frida <code>send()</code> output. Setting <code>stdio="pipe"</code> on <code>dev.spawn()</code> and discarding child<br />
+output via <code>dev.on("output", lambda …: None)</code> ensures only event JSON reaches the<br />
+driver's stdout, which is consumed by <code>parse_frida_trace()</code>.</p>
+<h3 id="4-llama-completion-not-llama-cli">4. <code>llama-completion</code>, not <code>llama-cli</code></h3>
+<p><code>llama-cli</code> is now interactive by default (the <code>-no-cnv</code> flag was removed in recent<br />
+llama.cpp). Using it as a target without a controlling TTY hangs. The correct<br />
+non-interactive inference binary is <code>llama-completion</code> (available in the same nix<br />
+derivation on dev-cx53).</p>
+<h3 id="5-detach-wait-not-fixed-sleep">5. Detach-wait, not fixed sleep</h3>
+<p>The driver calls <code>done.wait(max_wait)</code> on a <code>threading.Event</code> set by the<br />
+<code>session.on("detached", …)</code> callback. This exits as soon as the process exits rather<br />
+than sleeping for a fixed duration, so short inferences don't waste wall time.</p>
+<h3 id="6-ptrace_scope1-is-compatible">6. <code>ptrace_scope=1</code> is compatible</h3>
+<p><code>dev-cx53</code> has <code>ptrace_scope=1</code> (restricted). Frida's <code>-f</code> / <code>dev.spawn()</code> uses a<br />
+different ptrace flow (parent-child) that is allowed under scope 1, so no kernel<br />
+override is needed.</p>
+<h3 id="7-validated-capture">7. Validated capture</h3>
+<p>On a real <code>llama-completion</code> inference:</p>
+<table>
+<thead>
+<tr>
+<th>Function</th>
+<th>Calls</th>
+<th>Approx duration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>llama_model_load_from_file</code></td>
+<td>1</td>
+<td>1.45 s</td>
+</tr>
+<tr>
+<td><code>llama_decode</code></td>
+<td>9</td>
+<td>varies (~30 ms/call)</td>
+</tr>
+</tbody>
+</table>
+<p><code>parse_frida_trace</code> aggregated both correctly from the driver's stdout.</p>
+<hr />
+<h2 id="second-producer-ebpf-watcher">Second producer: eBPF watcher</h2>
+<p>The root eBPF watcher is the second dynamic-evidence producer. It runs as a systemd<br />
+service (<code>oracle-ebpf-watcher.nix</code>), listens on <code>/run/oracle-watcher.sock</code>, and<br />
+accepts requests from the unprivileged <code>watcher_client.py</code>:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Manual test (watcher must be running):</span>
+python3<span class="w"> </span>tools/oracle/watcher_client.py<span class="w"> </span>--pid<span class="w"> </span>&lt;pid&gt;<span class="w"> </span>--duration<span class="w"> </span><span class="m">5</span>
+</pre></div>
+
+<p>The <code>--pid</code> CLI was added alongside the frida_driver migration.</p>
+<h2 id="validated-in-a-finding-2026-06-15-run3-caa53b79">validated in a finding (2026-06-15, run3 <code>caa53b79…</code>)</h2>
+<p><code>oracle.py run --funcs llama_decode --infer-cmd "llama-completion -m &lt;gguf&gt; -p hi -n 4"</code><br />
+— both producers landed in one finding (chain_ok=True):</p>
+<div class="highlight"><pre><span></span>frida: {calls: 1, timing_ms: 788.0}                       # llama_decode hooked live
+ebpf : syscalls{futex:885, write:15, openat:8, read:5, close:4}, files:8
+</pre></div>
+
+<p>Notes: watcher socket was ad-hoc <code>chmod 666</code> (production = <code>oracle-watcher</code> group via the nix module).<br />
+<code>futex</code>-heavy = inference threading. <code>mmaps:[]</code> — the GGUF mmap happens during the <em>load</em> phase;<br />
+the 5s PID-scoped trace + <code>sys_enter_*</code> attach latency can miss it (widen <code>duration_s</code> / trace the<br />
+load window to catch the weight mmap). One <code>llama-completion</code> run threw <code>std::runtime_error: this
+custom template is not supported, try using --jinja</code> — add <code>--jinja</code> for chat-template models;<br />
+oracle degraded gracefully and still recorded both blobs.</p>
+<hr />
+<h2 id="double-dogfood-grounding-slice-2">Double-dogfood grounding (slice 2)</h2>
+<p>A finding produced here can be <strong>grounded</strong> into the vaked-aegis kernel: <code>oracle
+ground</code> records it as an eventd-WAL transition, <code>oracle verify-xref</code> proves the<br />
+bidirectional <code>transition_xref</code> link + both hash chains. On-box acceptance<br />
+(2026-06-15, dev-cx53/revdev, python 3.13) on the static finding <code>81ff9c4f…</code>:<br />
+<code>transition_xref=c15ef2f2…cfda</code> (WAL seq 0), <code>actual_effects.writes ==
+observed_effects.writes == ["findings/f.json"]</code>, <code>capability_ok=True</code>,<br />
+<code>verify-xref OK</code>. See <code>docs/oracle/v0.md</code> + <code>docs/oracle/integration.md</code> §2.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/recon/02-dynamic-evidence.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

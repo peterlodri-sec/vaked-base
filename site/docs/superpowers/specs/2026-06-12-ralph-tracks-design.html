@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ralph tracks — per-model concept loops, CI-cron host, Langfuse, ratify workflow (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#what-changes-the-deltas-nothing-more" style="padding-left:0.5rem">What changes (the deltas, nothing more)</a><a href="#tracks-config-toolsralphtracksjson" style="padding-left:0.5rem">Tracks (config) — `tools/ralph/tracks.json`</a><a href="#iteration-per-track-track-model-does-both-stages" style="padding-left:0.5rem">Iteration (per track) — track model does both stages</a><a href="#context-per-track-gathercontext-generalized" style="padding-left:0.5rem">Context per track (`gather_context` generalized)</a><a href="#state-rotation-the-ci-cron-host" style="padding-left:0.5rem">State, rotation & the CI-cron host</a><a href="#langfuse-optional-import-uv-managed" style="padding-left:0.5rem">Langfuse (optional import, `uv`-managed)</a><a href="#ratify-workflow-the-part-that-decides-7-vs-8" style="padding-left:0.5rem">Ratify workflow (the part that decides 7 vs 8)</a><a href="#cli-changes" style="padding-left:0.5rem">CLI changes</a><a href="#safety-unchanged-invariants" style="padding-left:0.5rem">Safety (unchanged invariants)</a><a href="#testing-extends-testralphpy-stdlib-runner" style="padding-left:0.5rem">Testing (extends `test_ralph.py`, stdlib runner)</a><a href="#files" style="padding-left:0.5rem">Files</a><a href="#build-order-phases" style="padding-left:0.5rem">Build order (phases)</a><a href="#resolved-decisions-owner-2026-06-12" style="padding-left:0.5rem">Resolved decisions (owner, 2026-06-12)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-12-ralph-tracks-design</div>
+<h1>ralph tracks — per-model concept loops, CI-cron host, Langfuse, ratify workflow (design)</h1>
+<h1 id="ralph-tracks-per-model-concept-loops-ci-cron-host-langfuse-ratify-workflow-design">ralph tracks — per-model concept loops, CI-cron host, Langfuse, ratify workflow (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (brainstorm, 2026-06-12). <strong>Tooling</strong>, not the Vaked language — no<br />
+grammar gate. Owner-approved scope. Evolves the approved ralph design<br />
+(<code>2026-06-11-ralph-decide-design.md</code>) and reuses its implementation<br />
+(<code>tools/ralph/</code>) almost entirely; this doc records only the deltas.</p>
+<h2 id="why">Why</h2>
+<p>The shipped ralph round-robins <strong>repos</strong> (<code>vaked-base</code>, <code>crabcc</code>,<br />
+<code>agentfield-stack</code>) through one supervisor, with a fixed two-model pipeline<br />
+(qwen-thinking ranks → deepseek deep-dives). The new goal flips the axis to<br />
+<strong>concept tracks</strong> — continuous strategic pressure on the design areas that<br />
+are under-attended precisely because they're hard — with <strong>one model pinned<br />
+per track</strong>, so model becomes the experiment variable. This sharpens the<br />
+research bet already in <code>PURPOSE.md</code> (can a budget loop produce a stream a<br />
+human mostly <em>ratifies</em>?) into a per-model, per-topic question: <em>which model<br />
+advances which class of design problem well enough to ratify?</em></p>
+<h2 id="what-changes-the-deltas-nothing-more">What changes (the deltas, nothing more)</h2>
+<ol>
+<li><strong><code>tracks.json</code> replaces <code>repos.json</code></strong> as the round-robin target list. A<br />
+   track is a concept area inside <code>vaked-base</code>, not a whole repo.</li>
+<li><strong>One model per track</strong>, running <strong>both</strong> stages (rank → deep-dive). The<br />
+   track's model <em>is</em> the track's identity. <code>--stage1-model/--stage2-model</code><br />
+   become per-track config, not global flags.</li>
+<li><strong>Context is scoped to the track</strong> (doc globs + label-filtered issues +<br />
+   path-scoped git log), not a whole-repo dump.</li>
+<li><strong>CI cron is the host.</strong> A scheduled workflow runs one <code>decide</code> per tick and<br />
+   commits the appended decision log + the new <code>events.jsonl</code> entry. No<br />
+   long-lived daemon; the committed, hash-chained event log <em>is</em> the rotation<br />
+   pointer and the audit trail.</li>
+<li><strong>Langfuse</strong> (self-hosted) wraps each model call as a span — <strong>optional<br />
+   import</strong>, so the stdlib-only core still runs with zero deps; under <code>uv</code> with<br />
+   the dep present it emits traces. Managed via <code>uv</code> (<code>pyproject.toml</code>).</li>
+<li><strong>A ratify workflow</strong> (<code>docs/decisions/RATIFY.md</code> + an append-only<br />
+   ratification convention) so a daily ~1h human pass is contributor-friendly,<br />
+   and ratify-rate feeds back to Langfuse as a score.</li>
+</ol>
+<p>Non-goals unchanged: read-only on all inputs except <em>appending</em> to the<br />
+decision/ratify/event logs; not a code-writing agent; no tool-calling; network<br />
+only to the configured endpoint.</p>
+<h2 id="tracks-config-toolsralphtracksjson">Tracks (config) — <code>tools/ralph/tracks.json</code></h2>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;tracks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;base-language-spec&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;topic&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;the Vaked base language specification (grammar, schema, examples, core design)&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;qwen/qwen3-235b-a22b-thinking-2507&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;track:language&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;context&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;docs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;vaked/grammar/**&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;vaked/schema/**&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;vaked/examples/**&quot;</span><span class="p">,</span>
+<span class="w">                  </span><span class="s2">&quot;docs/language/0001-*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;docs/language/0003-*.md&quot;</span><span class="p">,</span>
+<span class="w">                  </span><span class="s2">&quot;docs/language/0008-*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;docs/language/0011-*.md&quot;</span><span class="p">,</span>
+<span class="w">                  </span><span class="s2">&quot;docs/language/0012-*.md&quot;</span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;paths&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;vaked/&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;vakedc/&quot;</span><span class="p">]</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;graph-concept&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;topic&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Vaked&#39;s typed semantic graph — the Labeled Property Graph, type system, and lowering to artifacts&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deepseek/deepseek-v4-flash&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;track:graph&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;context&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;docs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;docs/language/0011-*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;docs/language/0012-*.md&quot;</span><span class="p">,</span>
+<span class="w">                  </span><span class="s2">&quot;docs/language/0013-*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;docs/language/0014-*.md&quot;</span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;paths&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;vakedc/&quot;</span><span class="p">]</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;mlir-topology&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;topic&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;the MLIR topology-compilation dialects (0013) and the memory primitive (0014)&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;xiaomi/mimo-v2.5&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;track:mlir&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;context&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;docs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;docs/language/0013-*.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;docs/language/0014-*.md&quot;</span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;paths&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;hcp-litany&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;topic&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;the HCP / Litany wire protocol — Litany Wire, Votive Frames, .hcplang, hcpbin (RFCs)&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;tencent/hy3-preview&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;track:protocol&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;context&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;docs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;protocol/**&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;docs/protocol/**&quot;</span><span class="p">],</span>
+<span class="w">        </span><span class="nt">&quot;paths&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;protocol/&quot;</span><span class="p">]</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><strong>Model→track assignment</strong> (the experiment variable — swappable in one JSON<br />
+field; nothing in code depends on it):</p>
+<table>
+<thead>
+<tr>
+<th>track</th>
+<th>model</th>
+<th>why this pairing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>base-language-spec</code></td>
+<td><code>qwen/qwen3-235b-a22b-thinking-2507</code></td>
+<td>the <strong>anchor/control</strong> — already trusted for ranking; thinking + reliable JSON on the language core</td>
+</tr>
+<tr>
+<td><code>graph-concept</code></td>
+<td><code>deepseek/deepseek-v4-flash</code></td>
+<td>1M context holds the whole type-system + lowering + dialect doc set at once</td>
+</tr>
+<tr>
+<td><code>mlir-topology</code></td>
+<td><code>xiaomi/mimo-v2.5</code></td>
+<td>reasoning-focused; compiler-dialect work is reasoning-heavy</td>
+</tr>
+<tr>
+<td><code>hcp-litany</code></td>
+<td><code>tencent/hy3-preview</code></td>
+<td>long-context across the RFC set</td>
+</tr>
+</tbody>
+</table>
+<p>Keeping qwen3-thinking as one track makes the other three legible — it's a<br />
+known-good baseline rather than four exotic models with no reference point.</p>
+<h2 id="iteration-per-track-track-model-does-both-stages">Iteration (per track) — track model does both stages</h2>
+<p><code>ralph decide --track &lt;name&gt;</code> (was <code>--repo</code>):</p>
+<ul>
+<li><strong>Stage 1 — rank</strong> (track model, <code>reasoning</code> enabled, JSON schema): the<br />
+  track's compact state + prior-decision titles → ranked candidates.<br />
+  Deterministic in-script <code>select_candidate</code> is unchanged.</li>
+<li><strong>Stage 2 — deep-dive</strong> (same track model, no reasoning/schema): chosen<br />
+  candidate + the track's full context + its full prior log → the entry.</li>
+</ul>
+<p>Same two-stage shape as today; the only change is both stages read<br />
+<code>track.model</code> instead of two separate <code>--stage*-model</code> flags. Models without a<br />
+usable <code>reasoning</code> field degrade gracefully (the existing <code>_message_content</code><br />
+guard already handles thinking-only / empty responses).</p>
+<h2 id="context-per-track-gather_context-generalized">Context per track (<code>gather_context</code> generalized)</h2>
+<p>Today <code>gather_context</code> reads whole-repo issues + git log + README/CLAUDE/AGENTS.<br />
+For tracks it reads <strong>scoped</strong> state, all inside <code>vaked-base</code>:</p>
+<ul>
+<li><strong>Issues:</strong> <code>gh issue list --label &lt;track.label&gt;</code> (falls back to all open<br />
+  issues if the label is absent, with a note — so it works before the labels<br />
+  exist).</li>
+<li><strong>Docs:</strong> concatenate the files matched by <code>track.context.docs</code> globs<br />
+  (compact = head-truncated; full = whole text). The 1M-context tracks can take<br />
+  the full set.</li>
+<li><strong>Git log:</strong> <code>git log --oneline -n&lt;window&gt; -- &lt;track.context.paths&gt;</code> (scoped<br />
+  to the track's subtree; empty <code>paths</code> → repo-wide log).</li>
+</ul>
+<p><code>Repo</code> → <code>Track</code> is a near-mechanical dataclass rename in <code>ralphcore</code><br />
+(<code>name</code>, <code>model</code>, <code>topic</code>, <code>label</code>, <code>context</code>). The repo-keyed prompt strings<br />
+("strategy advisor for the {repo} repository") become topic-keyed ("…for<br />
+{topic}"). <code>next_repo</code> stays as-is (it round-robins names; rename to<br />
+<code>next_track</code> for clarity, keep the algorithm + tests).</p>
+<h2 id="state-rotation-the-ci-cron-host">State, rotation &amp; the CI-cron host</h2>
+<p>The committed, hash-chained <code>state/events.jsonl</code> is the <strong>state-of-record</strong>.<br />
+<code>status.json</code> stays a derived cache (gitignored). The rotation pointer is<br />
+<strong>derived from the event log</strong> — <code>next_track(names, last_decided_track, …)</code><br />
+where <code>last_decided_track</code> is the <code>track</code> of the last <code>decide</code> event — so a<br />
+stateless CI run resumes the round-robin with zero extra state.</p>
+<p><strong>Workflow</strong> (<code>.github/workflows/ralph-tracks.yml</code>), sketch:</p>
+<div class="highlight"><pre><span></span><span class="nt">on</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">schedule</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="nt"> cron</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0</span><span class="nv"> </span><span class="s">*/3</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*</span><span class="nv"> </span><span class="s">*&quot;</span><span class="w"> </span><span class="p p-Indicator">}]</span><span class="w">    </span><span class="c1"># ~8 decisions/day (2/track) — fits the 1h ratify budget</span>
+<span class="w">  </span><span class="nt">workflow_dispatch</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<span class="nt">concurrency</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> group</span><span class="p">:</span><span class="w"> </span><span class="nv">ralph-tracks</span><span class="p p-Indicator">,</span><span class="nt"> cancel-in-progress</span><span class="p">:</span><span class="w"> </span><span class="nv">false</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="nt">permissions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> contents</span><span class="p">:</span><span class="w"> </span><span class="nv">write</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w">         </span><span class="c1"># the tick commit pushes the appended log + events.jsonl</span>
+<span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">decide</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> fetch-depth</span><span class="p">:</span><span class="w"> </span><span class="nv">0</span><span class="w"> </span><span class="p p-Indicator">}</span><span class="w">             </span><span class="c1"># full history: events.jsonl chain + path-scoped git log</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pipx install uv</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">uv run --project tools/ralph tools/ralph/ralph.py decide --next-track</span>
+<span class="w">        </span><span class="c1"># --project selects tools/ralph/pyproject.toml so langfuse is synced</span>
+<span class="w">        </span><span class="c1"># (without it, uv runs dep-less and silently takes the no-traces path)</span>
+<span class="w">        </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">GH_TOKEN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ github.token }}</span><span class="w">      </span><span class="c1"># gh issue list needs a token in CI</span>
+<span class="w">          </span><span class="nt">OPENROUTER_API_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.OPENROUTER_API_KEY }}</span>
+<span class="w">          </span><span class="nt">LANGFUSE_HOST</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.LANGFUSE_HOST }}</span>
+<span class="w">          </span><span class="nt">LANGFUSE_PUBLIC_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.LANGFUSE_PUBLIC_KEY }}</span>
+<span class="w">          </span><span class="nt">LANGFUSE_SECRET_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.LANGFUSE_SECRET_KEY }}</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span><span class="w">                                </span><span class="c1"># commit log + event entry</span>
+<span class="w">          </span><span class="no">git config user.name  &quot;ralph-loop&quot;</span>
+<span class="w">          </span><span class="no">git config user.email &quot;ralph@vaked.local&quot;</span>
+<span class="w">          </span><span class="no">git add docs/decisions/ tools/ralph/state/events.jsonl</span>
+<span class="w">          </span><span class="no">git diff --cached --quiet || git commit -m &quot;ralph(tracks): decision tick&quot;</span>
+<span class="w">          </span><span class="no">git push</span>
+</pre></div>
+
+<p>New <code>--next-track</code> flag on <code>decide</code>: resolve the next track from the event log<br />
+and run it (one tick). <code>concurrency</code> serializes ticks so two cron runs never<br />
+race the log. The append-only <code>events.jsonl</code> in git history is the immutable<br />
+ledger — <code>ralph events --replay</code> verifies the chain on any checkout.</p>
+<blockquote>
+<p>Privacy note carries over: <code>vaked-base</code> content (issues, docs) goes to<br />
+OpenRouter by default. <code>--base-url</code>/<code>RALPH_BASE_URL</code> still points at a<br />
+self-hosted endpoint to keep it in-boundary; in CI that means a secret URL.</p>
+</blockquote>
+<h2 id="langfuse-optional-import-uv-managed">Langfuse (optional import, <code>uv</code>-managed)</h2>
+<ul>
+<li><code>tools/ralph/pyproject.toml</code> declares <code>langfuse</code> as the one dependency; CI and<br />
+  local use <code>uv run</code>. <strong><code>ralphcore.py</code> stays pure stdlib.</strong> <code>ralph.py</code> does<br />
+<code>try: import langfuse / except ImportError: langfuse = None</code> so the loop runs<br />
+  identically with zero deps (just no traces).</li>
+<li>Wrap each <code>openrouter_call</code> in a span: input = model + track + messages digest;<br />
+  output = usage, computed <code>cost_usd</code>, latency, finish reason. Trace id =<br />
+<code>&lt;track&gt;#&lt;N&gt;</code> (the decision id), so traces ↔ log entries ↔ ratifications<br />
+  correlate.</li>
+<li>Ratify-rate lands as a Langfuse <strong>score</strong> keyed by that same id (below), giving<br />
+  you the <code>PURPOSE.md</code> metrics — ratify-rate, cost/decision, drift — as<br />
+  dashboards instead of hand-rolled <code>status.json</code> math.</li>
+<li><strong>Prices:</strong> <code>FALLBACK_PRICES</code> only knows qwen + deepseek. Add the two new<br />
+  models, or (recommended now that there are four) implement the deferred live<br />
+<code>/models</code> price refresh at startup so unknown-model cost isn't a guess.</li>
+</ul>
+<h2 id="ratify-workflow-the-part-that-decides-7-vs-8">Ratify workflow (the part that decides 7 vs 8)</h2>
+<p>Daily ~1h human pass. Decision entries are <strong>append-only, never edited</strong>; a<br />
+ratification is therefore a <em>separate append</em>, preserving immutability.</p>
+<ul>
+<li><strong><code>docs/decisions/RATIFY.md</code></strong> — the contributor guide. Plain-language, no<br />
+  insider context assumed (contributor-friendly though not yet OSS): what the<br />
+  loop is, how to read an entry, the three verdicts, how to record one, and<br />
+  "what's next" after ratifying.</li>
+<li><strong>Verdict convention</strong> — append one line to<br />
+<code>docs/decisions/&lt;track&gt;.ratify-log.md</code>:<br />
+<code>- &lt;track&gt;#&lt;N&gt; — **ratify** | **override** | **defer** — &lt;one-line reason&gt; — @handle YYYY-MM-DD</code></li>
+<li><strong>ratify</strong>: sound, adopt the recommendation / open the follow-up issue.</li>
+<li><strong>override</strong>: wrong; the reason line is the correction (feeds future prompts).</li>
+<li><strong>defer</strong>: not now; re-surfaces later.</li>
+<li><strong>Feedback loop</strong>: ratify verdicts post to Langfuse as a 0/1 score on<br />
+<code>&lt;track&gt;#&lt;N&gt;</code>, and the <em>override reasons</em> get folded into Stage-1 context<br />
+  (alongside prior titles) so the loop learns what the human rejects.</li>
+<li><strong>"What's next" guidance</strong> in RATIFY.md: ratified decisions become GitHub<br />
+  issues (the loop advises; humans commit work); the daily pass is <em>triage</em>,<br />
+  not implementation.</li>
+</ul>
+<p><strong>Cadence sizing (do not skip):</strong> four always-on tracks can out-produce a 1h/day<br />
+reviewer. Tune the cron so daily output fits the budget — at <code>*/30</code> with four<br />
+tracks that's ~48 entries/day, <strong>too many</strong>. Recommend pacing to <strong>~1–2<br />
+decisions/track/day</strong> (cron <code>0 */3 * * *</code> → 8/day, ~7 min each to ratify). The<br />
+spec ships with a conservative schedule and a note to only tighten it once the<br />
+ratify pass demonstrably keeps up. If it can't, drop to 2 tracks — the config<br />
+makes that a one-line change.</p>
+<h2 id="cli-changes">CLI changes</h2>
+<div class="highlight"><pre><span></span><span class="nv">ralph</span><span class="w"> </span><span class="nv">decide</span><span class="w"> </span><span class="o">--</span><span class="nv">track</span><span class="w"> </span><span class="o">&lt;</span><span class="nv">name</span><span class="o">&gt;</span><span class="w"> </span>[<span class="o">--</span><span class="k">next</span><span class="o">-</span><span class="nv">track</span>]<span class="w"> </span>[<span class="o">--</span><span class="nv">seed</span><span class="w"> </span><span class="mi">42</span>]<span class="w"> </span>[<span class="o">--</span><span class="nv">dry</span><span class="o">-</span><span class="nv">run</span>]
+<span class="nv">ralph</span><span class="w"> </span><span class="nv">run</span><span class="w">    </span>[<span class="o">--</span><span class="nv">interval</span><span class="w"> </span><span class="nv">N</span>]<span class="w"> </span>[<span class="o">--</span><span class="nv">budget</span><span class="o">-</span><span class="nv">total</span><span class="w"> </span>$]<span class="w"> </span>[<span class="o">--</span><span class="nv">tracks</span><span class="w"> </span><span class="nv">tracks</span>.<span class="nv">json</span>]<span class="w"> </span>[<span class="o">--</span><span class="nv">max</span><span class="o">-</span><span class="nv">iters</span><span class="w"> </span><span class="nv">N</span>]
+<span class="nv">ralph</span><span class="w"> </span><span class="nv">watch</span><span class="w">  </span>[<span class="o">--</span><span class="nv">refresh</span><span class="w"> </span><span class="mi">3</span>]<span class="w">      </span>#<span class="w"> </span><span class="nv">dashboard</span><span class="w"> </span><span class="nv">columns</span>:<span class="w"> </span><span class="nv">track</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">model</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">n</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">last</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nv">cost</span>
+<span class="nv">ralph</span><span class="w"> </span><span class="nv">events</span><span class="w"> </span>[<span class="o">--</span><span class="nv">replay</span>]<span class="w">         </span>#<span class="w"> </span><span class="nv">unchanged</span><span class="w"> </span><span class="ss">(</span><span class="nv">chain</span><span class="w"> </span><span class="nv">verify</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">replay</span><span class="ss">)</span>
+</pre></div>
+
+<p><code>--repo</code>/<code>--repos</code> retained as <strong>deprecated aliases</strong> (owner decision<br />
+2026-06-12): the track path is primary, the repo round-robin keeps working with<br />
+a deprecation note for one release before removal.</p>
+<h2 id="safety-unchanged-invariants">Safety (unchanged invariants)</h2>
+<ul>
+<li>Read-only on all inputs; only writes are appends to <code>docs/decisions/*.md</code> and<br />
+<code>state/events.jsonl</code> (now committed by CI), plus the gitignored <code>status.json</code>.</li>
+<li>Keys from env/secrets only, never logged.</li>
+<li>Budget + iteration caps remain non-bypassable backstops.</li>
+<li>Langfuse failures are swallowed (optional import; observability must never<br />
+  break the loop).</li>
+</ul>
+<h2 id="testing-extends-test_ralphpy-stdlib-runner">Testing (extends <code>test_ralph.py</code>, stdlib runner)</h2>
+<ul>
+<li><strong><code>load_tracks</code></strong> — parses <code>tracks.json</code>, exposes model/topic/label/context.</li>
+<li><strong>Rotation-from-events</strong> — given an events list, <code>--next-track</code> resolves the<br />
+  correct next track (advance + wrap + skip-on-missing-doc-set).</li>
+<li><strong>Context scoping</strong> — glob/label/path scoping selects the right files (pure;<br />
+  fed a temp tree).</li>
+<li><strong>Per-track single-model</strong> — <code>decide</code> uses <code>track.model</code> for both stages<br />
+  (assert on the model passed to a stubbed <code>openrouter_call</code>).</li>
+<li><strong>Ratify parse</strong> — a <code>*.ratify-log.md</code> line → <code>{id, verdict, reason}</code> and<br />
+  maps to a 0/1 score; malformed lines ignored.</li>
+<li><strong>Langfuse-absent</strong> — with <code>langfuse=None</code>, <code>decide --dry-run</code> still passes<br />
+  (the zero-dep invariant).</li>
+<li>Existing pure tests (cost, select, round-robin, format, dashboard, chain<br />
+  verify) carry over with the <code>Repo</code>→<code>Track</code> rename.</li>
+</ul>
+<h2 id="files">Files</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tools/ralph/tracks.json</code></td>
+<td><strong>new</strong> — track list (replaces <code>repos.json</code>)</td>
+</tr>
+<tr>
+<td><code>tools/ralph/ralphcore.py</code></td>
+<td><code>Repo</code>→<code>Track</code>, <code>load_tracks</code>, topic-keyed prompts, <code>next_track</code>, ratify-line parse</td>
+</tr>
+<tr>
+<td><code>tools/ralph/ralph.py</code></td>
+<td>per-track context scoping, single-model two-stage, <code>--track</code>/<code>--next-track</code>, optional Langfuse spans</td>
+</tr>
+<tr>
+<td><code>tools/ralph/pyproject.toml</code></td>
+<td><strong>new</strong> — <code>uv</code>/<code>langfuse</code> dep (core stays stdlib)</td>
+</tr>
+<tr>
+<td><code>tools/ralph/PURPOSE.md</code></td>
+<td>update preamble: track axis + model-as-variable</td>
+</tr>
+<tr>
+<td><code>docs/decisions/RATIFY.md</code></td>
+<td><strong>new</strong> — contributor ratify guide</td>
+</tr>
+<tr>
+<td><code>docs/decisions/&lt;track&gt;.ralph-log.md</code></td>
+<td>per-track decision logs (runtime)</td>
+</tr>
+<tr>
+<td><code>docs/decisions/&lt;track&gt;.ratify-log.md</code></td>
+<td>per-track ratification logs (human)</td>
+</tr>
+<tr>
+<td><code>.github/workflows/ralph-tracks.yml</code></td>
+<td><strong>new</strong> — scheduled decide + commit</td>
+</tr>
+<tr>
+<td><code>tools/ralph/test_ralph.py</code></td>
+<td>new tests above</td>
+</tr>
+</tbody>
+</table>
+<h2 id="build-order-phases">Build order (phases)</h2>
+<ol>
+<li><strong>Config + core rename</strong> — <code>tracks.json</code>, <code>Track</code>, <code>load_tracks</code>,<br />
+<code>next_track</code>, topic-keyed prompts. Pure; fully tested. (No behaviour change<br />
+   to live calls yet.)</li>
+<li><strong>Per-track context + single-model decide</strong> — scope <code>gather_context</code>; both<br />
+   stages use <code>track.model</code>; <code>--track</code>/<code>--next-track</code>. Dry-run + unit tests.</li>
+<li><strong>CI workflow</strong> — <code>ralph-tracks.yml</code>, commit of log + <code>events.jsonl</code>,<br />
+   rotation-from-events. Conservative cron.</li>
+<li><strong>Langfuse (optional)</strong> — <code>pyproject.toml</code>, span wrapping, price refresh.</li>
+<li><strong>Ratify workflow</strong> — <code>RATIFY.md</code>, ratify-line parse, override-reason<br />
+   feedback into Stage-1, Langfuse scores.</li>
+</ol>
+<p>Phases 1–3 deliver the core loop; 4–5 are independently shippable.</p>
+<h2 id="resolved-decisions-owner-2026-06-12">Resolved decisions (owner, 2026-06-12)</h2>
+<ul>
+<li><strong><code>--repo</code> kept deprecated.</strong> Track path is primary; repo round-robin keeps<br />
+  working with a deprecation note for one release, then removed.</li>
+<li><strong>All 4 tracks live day one.</strong> Cadence is the guard, not track count: pace the<br />
+  cron to ~8 total decisions/day (<code>0 */3 * * *</code> → 2/track/day), which fits the<br />
+  ~1h daily ratify budget (~7 min/entry). Only tighten the schedule once the<br />
+  ratify pass demonstrably keeps up; drop tracks if it can't (one-line config).</li>
+<li><strong><code>track:*</code> labels created now</strong> — <code>track:language</code>, <code>track:graph</code>,<br />
+<code>track:mlir</code>, <code>track:protocol</code> (sharper issue scoping; <code>gather_context</code><br />
+  filters issues by them, falling back to all-open until issues accrue).</li>
+<li><strong>Self-hosted CI endpoint: pending.</strong> No trust-boundary inference host exists<br />
+  yet (<code>agentfield-inference-host</code> is a placeholder in the <code>agentfield-stack</code><br />
+  stub). The <code>RALPH_BASE_URL</code>/<code>RALPH_API_KEY</code> hook is in place; until a real<br />
+  host lands, CI uses OpenRouter for this (owner-authored) design content. Wire<br />
+  the secret URL when the host is real.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-12-ralph-tracks-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>
