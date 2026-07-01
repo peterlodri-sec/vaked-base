@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Spec — Tightened vaked→ARP dogfeeding hook — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#context" style="padding-left:0.5rem">Context</a><a href="#key-enabling-fact" style="padding-left:1rem">  Key enabling fact</a><a href="#components" style="padding-left:0.5rem">Components</a><a href="#1-arpevent-schema-vakedschemabuiltinsvaked" style="padding-left:1rem">  1. `arp_event` schema — `vaked/schema/builtins.vaked`</a><a href="#2-deterministic-capture-hook-claudehooksarplogpy" style="padding-left:1rem">  2. Deterministic capture hook — `.claude/hooks/arp_log.py`</a><a href="#3-register-retire-claudesettingsjson" style="padding-left:1rem">  3. Register + retire — `.claude/settings.json`</a><a href="#4-dogfood-verifier-toolsarpverifylogpy" style="padding-left:1rem">  4. Dogfood verifier — `tools/arp/verify_log.py`</a><a href="#5-tests-toolsarptestarplogpy" style="padding-left:1rem">  5. Tests — `tools/arp/test_arp_log.py`</a><a href="#6-portable-bootstrap-docsarp-logmeta-hookmd" style="padding-left:1rem">  6. Portable bootstrap — `docs/arp-log.meta-hook.md`</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#out-of-scope" style="padding-left:0.5rem">Out of scope</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-15-vaked-arp-dogfeed-hook-design</div>
+<h1>Spec — Tightened vaked→ARP dogfeeding hook</h1>
+<h1 id="spec-tightened-vakedarp-dogfeeding-hook">Spec — Tightened vaked→ARP dogfeeding hook</h1>
+<p><strong>Date:</strong> 2026-06-15<br />
+<strong>Status:</strong> approved (brainstorm), pending implementation plan</p>
+<h2 id="context">Context</h2>
+<p>Vaked dogfeeds its own dev sessions by recording substantial shell operations as<br />
+typed <code>arp_event</code> Vaked declarations in <code>docs/arp-log.md</code>. The current mechanism is<br />
+an <strong>advisory hookify nag rule</strong> (<code>.claude/hookify.vaked-arp-log.local.md</code>,<br />
+PostToolUse <code>bash</code>) that asks the model to <em>manually</em> write each entry. It is<br />
+model-dependent and unreliable: the log has been empty since it was created<br />
+(<code>ad60b26</code>, 2026-06-14). Three further gaps: <code>arp_event</code> is not a validatable<br />
+Vaked construct, captured fields would be mechanical guesses, and the<br />
+"substantial" filter is prose only.</p>
+<p>This change makes capture <strong>deterministic, validatable (real Vaked), accurate, and<br />
+low-noise</strong>, and ships a portable bootstrap block so other skills/workflows can<br />
+install the same hook.</p>
+<h3 id="key-enabling-fact">Key enabling fact</h3>
+<p>The vakedc <strong>parser accepts any identifier as a <code>kind</code></strong> — the <code>KINDS</code> tuple<br />
+(<code>vakedc/parser.py:34-42</code>) is reference-only, not enforced at parse time. The<br />
+checker binds an instance to a schema purely by kind-name<br />
+(<code>vakedc/check.py:1172</code>, <code>registry.schemas.get(kind)</code>); a kind with no matching<br />
+schema simply passes. Therefore defining <code>schema arp_event {…}</code> in<br />
+<code>builtins.vaked</code> makes <code>arp_event "x" {…}</code> instances <strong>both parse and<br />
+check-validate with zero grammar/parser change</strong>.</p>
+<h2 id="components">Components</h2>
+<h3 id="1-arp_event-schema-vakedschemabuiltinsvaked">1. <code>arp_event</code> schema — <code>vaked/schema/builtins.vaked</code></h3>
+<p>Append:</p>
+<div class="highlight"><pre><span></span>schema arp_event {
+  field command : String { required nonempty }
+  field inputs  : List&lt;String&gt; { optional }
+  field outputs : List&lt;String&gt; { optional }
+  field status  : String { required }
+  field notes   : String { optional }
+}
+</pre></div>
+
+<p><code>status</code> is <code>String</code> ("ok" or "err: <msg>"). Field types (<code>String</code>, <code>List&lt;String&gt;</code>)<br />
+match existing builtins usage.</p>
+<h3 id="2-deterministic-capture-hook-claudehooksarp_logpy">2. Deterministic capture hook — <code>.claude/hooks/arp_log.py</code></h3>
+<p>PostToolUse, matcher <code>Bash</code>. Replaces the advisory rule. Reads stdin JSON.</p>
+<ul>
+<li><strong>Input fields:</strong> <code>tool_input.command</code>; status derived best-effort from<br />
+<code>tool_response</code> (exact field nailed during impl).</li>
+<li><strong>Noise filter:</strong> skip trivial reads (<code>ls cat echo which pwd head tail</code>,<br />
+<code>git status/log/diff</code>) and mirror existing <code>not_contains</code> excludes (<code>.vaked</code>,<br />
+<code>vakedc</code>, <code>run_all.py</code>). Substantial = file-mutating / pipeline / build / test.</li>
+<li><strong>outputs (fidelity):</strong> reuse the <code>_git_status_map</code> pattern<br />
+  (<code>tools/dogfood/kernel.py:63</code>). Hook runs <em>after</em> the command, so it persists a<br />
+<code>$TMPDIR/arp-gitmap.json</code> stamp; delta of current map vs stamp = files this<br />
+  command touched → <code>outputs</code>. Rewrite stamp each run.</li>
+<li><strong>inputs:</strong> file-path-looking tokens extracted from the command string.</li>
+<li><strong>emit:</strong> <code>## YYYY-MM-DD HH:MM — &lt;label&gt;</code> header + a <code>```vaked</code> fenced<br />
+<code>arp_event</code> block; append to <code>docs/arp-log.md</code>. Label derived from command.</li>
+<li><strong>self-validate:</strong> validate the generated block (extract → temp <code>.vaked</code> →<br />
+<code>vakedc check</code>) before append; reject malformed.</li>
+</ul>
+<h3 id="3-register-retire-claudesettingsjson">3. Register + retire — <code>.claude/settings.json</code></h3>
+<p>Add PostToolUse <code>Bash</code> hook: <code>python3 $CLAUDE_PROJECT_DIR/.claude/hooks/arp_log.py</code>.<br />
+Delete <code>.claude/hookify.vaked-arp-log.local.md</code> (superseded; gitignored per-machine,<br />
+so no commit needed).</p>
+<h3 id="4-dogfood-verifier-toolsarpverify_logpy">4. Dogfood verifier — <code>tools/arp/verify_log.py</code></h3>
+<p>vakedc reads <code>.vaked</code> only, not <code>.md</code> fences. Extract all <code>```vaked</code> blocks from<br />
+<code>docs/arp-log.md</code> → temp <code>.vaked</code> → <code>python3 -m vakedc check</code> (exit 0 = log is<br />
+provably valid Vaked). This is the dogfooding: Vaked checks its own session log.</p>
+<h3 id="5-tests-toolsarptest_arp_logpy">5. Tests — <code>tools/arp/test_arp_log.py</code></h3>
+<ul>
+<li>substantial cmd → appends <code>arp_event</code> with correct fields.</li>
+<li>trivial cmd → no append (noise control).</li>
+<li>generated block → <code>vakedc check</code> exit 0 (validity).</li>
+<li>pure-python, tiny fixtures, no build (dev-machine constraint).</li>
+</ul>
+<h3 id="6-portable-bootstrap-docsarp-logmeta-hookmd">6. Portable bootstrap — <code>docs/arp-log.meta-hook.md</code></h3>
+<p>Self-contained copy-pasteable <code>[&lt;&gt;]</code> directive block another skill/workflow can read<br />
+to <strong>create the schema + hook + register + verify</strong> from scratch. Concise; embeds<br />
+the schema, the hook contract (stdin fields, filter, emit format), the settings.json<br />
+entry, and the verify command. Goal: any agent reading it can reproduce the whole<br />
+pipeline without this spec.</p>
+<h2 id="verification">Verification</h2>
+<ol>
+<li><code>python3 -m vakedc check</code> on <code>vaked/schema/builtins.vaked</code> — exit 0 (schema valid).</li>
+<li>Run <code>python3 tools/arp/test_arp_log.py</code> (or pytest) — all green.</li>
+<li>Feed a sample substantial-command stdin JSON to <code>.claude/hooks/arp_log.py</code>;<br />
+   confirm <code>docs/arp-log.md</code> gets a valid fenced <code>arp_event</code> entry; feed <code>ls</code>,<br />
+   confirm no append.</li>
+<li><code>python3 tools/arp/verify_log.py</code> on a populated log — exit 0.</li>
+<li>Hand <code>docs/arp-log.meta-hook.md</code> to a fresh agent (or re-read it) and confirm the<br />
+   steps reproduce the pipeline standalone.</li>
+</ol>
+<h2 id="out-of-scope">Out of scope</h2>
+<ul>
+<li>Adding <code>arp_event</code> to the grammar <code>kind</code> enum (unnecessary — parser is open).</li>
+<li>Making vakedc natively parse markdown fences (verifier extracts instead).</li>
+<li>Retroactively logging past sessions.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-15-vaked-arp-dogfeed-hook-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

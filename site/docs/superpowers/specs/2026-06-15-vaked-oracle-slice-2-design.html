@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle slice 2 — double-dogfood wire (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#goal" style="padding-left:0.5rem">Goal</a><a href="#background-what-exists-slice-1-on-originmain" style="padding-left:0.5rem">Background — what exists (slice 1, on `origin/main`)</a><a href="#the-hash-cycle-resolved" style="padding-left:0.5rem">The hash cycle, resolved</a><a href="#architecture-the-wire" style="padding-left:0.5rem">Architecture — the wire</a><a href="#new-module-toolsoracledogfoodbridgepy" style="padding-left:1rem">  New module: `tools/oracle/dogfood_bridge.py`</a><a href="#cli-toolsoracleoraclepy" style="padding-left:1rem">  CLI: `tools/oracle/oracle.py`</a><a href="#reused-unchanged" style="padding-left:1rem">  Reused unchanged</a><a href="#testing-toolsoracletestoraclepy-extend-pure-python-m3-safe" style="padding-left:0.5rem">Testing — `tools/oracle/test_oracle.py` (extend; pure-Python, M3-safe)</a><a href="#docs" style="padding-left:0.5rem">Docs</a><a href="#on-box-acceptance-final-task-dev-cx53-box-gated" style="padding-left:0.5rem">On-box acceptance (final task — dev-cx53, box-gated)</a><a href="#out-of-scope-slice-3-in-devtodo" style="padding-left:0.5rem">Out of scope (→ slice 3, in `.DEV.TODO`)</a><a href="#constraints" style="padding-left:0.5rem">Constraints</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-15-vaked-oracle-slice-2-design</div>
+<h1>vaked-oracle slice 2 — double-dogfood wire (design)</h1>
+<h1 id="vaked-oracle-slice-2-double-dogfood-wire-design">vaked-oracle slice 2 — double-dogfood wire (design)</h1>
+<p><strong>Date:</strong> 2026-06-15<br />
+<strong>Branch:</strong> <code>feat/oracle-double-dogfood</code> (worktree <code>.worktrees/oracle-slice2</code>, off <code>origin/main</code>)<br />
+<strong>Status:</strong> approved design → implementation plan next</p>
+<h2 id="goal">Goal</h2>
+<p>Flip the <code>transition_xref</code> seam from always-<code>null</code> (slice 1) to a <strong>verified<br />
+bidirectional link</strong> between an oracle finding and a real vaked-aegis kernel WAL<br />
+transition. Agent-free, deterministic, replay-stable. One sentence: <em>oracle<br />
+reverse-engineers the LLM runtime; recording that RE finding is itself judged and<br />
+logged as an aegis kernel transition, and the two hash-chained ledgers cross-<br />
+reference each other.</em></p>
+<h2 id="background-what-exists-slice-1-on-originmain">Background — what exists (slice 1, on <code>origin/main</code>)</h2>
+<p>The seam is built and unit-tested but <strong>never called in a production flow</strong>:</p>
+<ul>
+<li><code>tools/oracle/schema.py</code> — <code>build_finding(..., transition_xref=None)</code>; finding<br />
+  carries <code>transition_xref: str | None</code>, <code>observed_effects: {writes, deletes}</code>.</li>
+<li><code>tools/oracle/bridge.py</code> — two functions, tested, <strong>uncalled</strong>:</li>
+<li><code>to_observed_effects(finding, *, files_written, files_deleted) -&gt; {"writes": [...], "deletes": [...]}</code></li>
+<li><code>attach_transition(finding, transition_hash) -&gt; finding'</code> (deep-copy with <code>transition_xref</code> set)</li>
+<li><code>tools/oracle/ledger.py</code> — <code>class Ledger</code>: <code>.append(payload) -&gt; entry</code>, <code>.verify() -&gt; bool</code> (hash-chained, eventd dialect).</li>
+<li><code>tools/dogfood/kernel.py</code> — <code>judge(root, scope, intent, proposer, *, wal_path, blobs_dir, observed=None, record=True) -&gt; verdict</code>. The production transition gate: PROPOSE → DETECT actual → CAPABILITY gate → DECLARED-vs-ACTUAL gate → OBSERVED gate → REPLAY gate; on accept appends to the eventd WAL and returns <code>verdict["hash"]</code>/<code>["seq"]</code>/<code>["payload"]</code>. <code>proposer(root, scope, intent) -&gt; declared|None</code> mutates the tree in place.</li>
+<li><code>tools/dogfood/wal.py</code> — <code>append_transition(log, payload)</code>, <code>EventLog</code> (re-export). WAL = the real <code>eventd</code> daemon.</li>
+<li><code>eventd</code> — entry shape <code>{seq, prev, payload, hash}</code>, <code>hash = sha256(prev_hex || canonical_json(payload))</code>. <code>EventLog(path, *, writer=False, verify=True)</code> verifies the chain on open (raises <code>TamperError</code>).</li>
+<li><code>tools/dogfood/capability.py</code> — <code>check(paths, scope) -&gt; {"ok": bool, "violations": [...]}</code>, <code>in_scope(rel, scope) -&gt; bool</code>.</li>
+<li><code>docs/oracle/integration.md</code> §2 — documents the seam, states it is "null in slice 1".</li>
+</ul>
+<h2 id="the-hash-cycle-resolved">The hash cycle, resolved</h2>
+<p>The xref is the WAL entry's content hash. The WAL hashes the transition payload,<br />
+whose <code>postimages</code> include the finding artifact. So the artifact <strong>cannot</strong><br />
+contain the xref (it would change the hash that defines the xref). Resolution:</p>
+<ul>
+<li><strong>WAL transition</strong> records the finding <strong>without</strong> <code>transition_xref</code> (the post-image written into the scoped workspace).</li>
+<li><strong>Oracle ledger</strong> records the finding <strong>with</strong> <code>transition_xref</code> = that WAL entry's hash.</li>
+</ul>
+<p>Bidirectional, acyclic:<br />
+- ledger → WAL: <code>finding.transition_xref</code> is the WAL entry hash.<br />
+- WAL → ledger: the WAL transition's <code>actual_effects.writes</code> contains the finding path.</p>
+<div class="highlight"><pre><span></span><span class="n">oracle</span><span class="w"> </span><span class="n">ledger</span><span class="w"> </span><span class="n">entry</span><span class="w">                         </span><span class="n">eventd</span><span class="w"> </span><span class="n">WAL</span><span class="w"> </span><span class="n">entry</span>
+<span class="w">  </span><span class="n">finding</span><span class="w"> </span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">fns</span><span class="p">,</span><span class="w"> </span><span class="n">fidelity</span><span class="p">,</span><span class="w"> </span><span class="err">…</span><span class="p">)</span><span class="w">          </span><span class="n">payload</span><span class="o">.</span><span class="n">kind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">dogfood_transition</span>
+<span class="w">  </span><span class="n">transition_xref</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="n">wal</span><span class="w"> </span><span class="nb">hash</span><span class="o">&gt;</span><span class="w"> </span><span class="err">───────────►</span><span class="w">   </span><span class="nb">hash</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&lt;</span><span class="n">wal</span><span class="w"> </span><span class="nb">hash</span><span class="o">&gt;</span>
+<span class="w">                          </span><span class="err">◄─────────────────</span><span class="w"> </span><span class="n">actual_effects</span><span class="o">.</span><span class="n">writes</span><span class="w"> </span><span class="err">∋</span><span class="w"> </span><span class="o">&lt;</span><span class="n">finding</span><span class="w"> </span><span class="n">path</span><span class="o">&gt;</span>
+<span class="w">  </span><span class="n">Ledger</span><span class="o">.</span><span class="n">verify</span><span class="p">()</span><span class="w">                             </span><span class="n">EventLog</span><span class="p">(</span><span class="n">verify</span><span class="o">=</span><span class="n">True</span><span class="p">)</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">open</span>
+<span class="w">  </span><span class="p">(</span><span class="n">independent</span><span class="w"> </span><span class="n">chain</span><span class="p">)</span><span class="w">                         </span><span class="p">(</span><span class="n">independent</span><span class="w"> </span><span class="n">chain</span><span class="p">)</span>
+</pre></div>
+
+<h2 id="architecture-the-wire">Architecture — the wire</h2>
+<p>Reuse <code>kernel.judge()</code> verbatim. The "proposer" materializes the finding artifact<br />
+into the capability-scoped oracle workspace; <code>judge</code> captures that write as a<br />
+transition, runs every gate, appends to the WAL, returns the verdict. Then attach<br />
+the WAL hash to the finding and append the linked finding to the oracle ledger.</p>
+<h3 id="new-module-toolsoracledogfood_bridgepy">New module: <code>tools/oracle/dogfood_bridge.py</code></h3>
+<p>Imports the dogfood kernel + eventd. Import plumbing: insert <code>&lt;repo&gt;/tools/dogfood</code><br />
+on <code>sys.path</code> (kernel does bare <code>import capability</code>), and <code>&lt;repo&gt;</code> (eventd). Top-<br />
+level <code>import kernel</code> is safe — <code>kernel</code> only imports <code>proposer</code> (opencode) lazily<br />
+inside <code>_proposer_from_args</code>, never at module load.</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">ground_finding</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">finding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">finding_rel</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+                   <span class="n">wal_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">blobs_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">oracle_ledger</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Record `finding` as an aegis kernel transition and cross-link both chains.</span>
+
+<span class="sd">    `finding_rel` is the workspace-relative path the finding artifact is written</span>
+<span class="sd">    to (must be inside `scope`). Returns</span>
+<span class="sd">    {&quot;verdict&quot;, &quot;transition_xref&quot;, &quot;ledger_entry&quot;, &quot;linked_finding&quot;}.</span>
+<span class="sd">    Raises RuntimeError if the kernel rejects the transition (e.g. out-of-scope).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># normalize the finding&#39;s OWN observed_effects to the artifact path — this is</span>
+    <span class="c1"># the shared key verify_xref uses for the WAL→finding direction. Identical in</span>
+    <span class="c1"># the hashed artifact and the linked ledger copy.</span>
+    <span class="n">finding</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">finding</span><span class="p">)</span>
+    <span class="n">finding</span><span class="p">[</span><span class="s2">&quot;observed_effects&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">to_observed_effects</span><span class="p">(</span><span class="n">finding</span><span class="p">,</span> <span class="n">files_written</span><span class="o">=</span><span class="p">[</span><span class="n">finding_rel</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_proposer</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">scope</span><span class="p">,</span> <span class="n">intent</span><span class="p">):</span>
+        <span class="n">dest</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">finding_rel</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">dest</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dest</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">finding</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>   <span class="c1"># finding WITHOUT xref</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;writes&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">finding_rel</span><span class="p">],</span> <span class="s2">&quot;deletes&quot;</span><span class="p">:</span> <span class="p">[]}</span>      <span class="c1"># declared effects</span>
+
+    <span class="n">observed</span> <span class="o">=</span> <span class="n">finding</span><span class="p">[</span><span class="s2">&quot;observed_effects&quot;</span><span class="p">]</span>                   <span class="c1"># == {&quot;writes&quot;: [finding_rel], &quot;deletes&quot;: []}</span>
+    <span class="n">tgt</span> <span class="o">=</span> <span class="n">finding</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;target&quot;</span><span class="p">,</span> <span class="p">{})</span>
+    <span class="n">intent</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;RE evidence: </span><span class="si">{</span><span class="n">tgt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;binary&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;?&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> fns=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">finding</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;functions&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">[]))</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">verdict</span> <span class="o">=</span> <span class="n">kernel</span><span class="o">.</span><span class="n">judge</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">scope</span><span class="p">,</span> <span class="n">intent</span><span class="p">,</span> <span class="n">_proposer</span><span class="p">,</span>
+                           <span class="n">wal_path</span><span class="o">=</span><span class="n">wal_path</span><span class="p">,</span> <span class="n">blobs_dir</span><span class="o">=</span><span class="n">blobs_dir</span><span class="p">,</span> <span class="n">observed</span><span class="o">=</span><span class="n">observed</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">verdict</span><span class="p">[</span><span class="s2">&quot;accepted&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;kernel rejected grounding: </span><span class="si">{</span><span class="n">verdict</span><span class="p">[</span><span class="s1">&#39;reasons&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">wal_hash</span> <span class="o">=</span> <span class="n">verdict</span><span class="p">[</span><span class="s2">&quot;hash&quot;</span><span class="p">]</span>
+    <span class="n">linked</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">attach_transition</span><span class="p">(</span><span class="n">finding</span><span class="p">,</span> <span class="n">wal_hash</span><span class="p">)</span>     <span class="c1"># finding WITH xref</span>
+    <span class="n">led_entry</span> <span class="o">=</span> <span class="n">oracle_ledger</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">linked</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;verdict&quot;</span><span class="p">:</span> <span class="n">verdict</span><span class="p">,</span> <span class="s2">&quot;transition_xref&quot;</span><span class="p">:</span> <span class="n">wal_hash</span><span class="p">,</span>
+            <span class="s2">&quot;ledger_entry&quot;</span><span class="p">:</span> <span class="n">led_entry</span><span class="p">,</span> <span class="s2">&quot;linked_finding&quot;</span><span class="p">:</span> <span class="n">linked</span><span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">verify_xref</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">finding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">wal_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">oracle_ledger</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Prove the bidirectional link + both chains. Raises ValueError on any break.</span>
+
+<span class="sd">    1. oracle_ledger.verify() — oracle chain intact (else raise).</span>
+<span class="sd">    2. open EventLog(wal_path) — verifies the WAL chain on open (TamperError else).</span>
+<span class="sd">    3. locate the WAL entry whose hash == finding[&#39;transition_xref&#39;] (else raise).</span>
+<span class="sd">    4. set(finding[&#39;observed_effects&#39;][&#39;writes&#39;]) must be a non-empty subset of</span>
+<span class="sd">       that entry&#39;s payload.actual_effects.writes (else raise — a forged xref</span>
+<span class="sd">       pointing at a transition that did not record this finding).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+</pre></div>
+
+<p>Step 4 uses the finding's own <code>observed_effects.writes</code> (normalized to the<br />
+artifact path by <code>ground_finding</code>) as the shared key against the located<br />
+transition's <code>actual_effects.writes</code>. <code>verify_xref</code> needs only the linked finding<br />
++ the WAL path + the ledger — no <code>finding_rel</code> argument.</p>
+<h3 id="cli-toolsoracleoraclepy">CLI: <code>tools/oracle/oracle.py</code></h3>
+<p>Add two argparse subcommands beside <code>run</code> (<code>sub.add_parser(...)</code>, dispatch in<br />
+<code>main</code> via <code>elif ns.cmd == ...</code>):</p>
+<ul>
+<li><code>ground --finding &lt;path&gt; --root &lt;dir&gt; --scope &lt;prefix&gt;... --wal-path &lt;p&gt; --blobs &lt;p&gt;</code><br />
+  Loads the finding JSON, computes <code>finding_rel</code> relative to <code>root</code>, calls<br />
+<code>ground_finding</code>, prints <code>transition_xref</code> + accepted/seq.</li>
+<li><code>verify-xref --finding &lt;path&gt; --wal-path &lt;p&gt; --ledger &lt;p&gt;</code><br />
+  Loads the (linked) finding + opens the ledger, calls <code>verify_xref</code>, prints OK/FAIL.</li>
+</ul>
+<h3 id="reused-unchanged">Reused unchanged</h3>
+<p><code>oracle/bridge.py</code>, <code>oracle/ledger.py</code>, <code>oracle/schema.py</code>, <code>dogfood/kernel.py</code>,<br />
+<code>dogfood/wal.py</code>, <code>dogfood/transition.py</code>, <code>dogfood/capability.py</code>, <code>eventd/</code>.<br />
+<strong>No edits to <code>tools/ralph/</code> or <code>eventd/</code></strong> (read/call only).</p>
+<h2 id="testing-toolsoracletest_oraclepy-extend-pure-python-m3-safe">Testing — <code>tools/oracle/test_oracle.py</code> (extend; pure-Python, M3-safe)</h2>
+<p>All run via <code>python3 tools/oracle/test_oracle.py</code> (stdlib, no compile). Fixtures<br />
+use a <code>tempfile.TemporaryDirectory()</code> non-git workspace + a tmp WAL/ledger.</p>
+<ol>
+<li><code>test_ground_attaches_real_wal_hash</code> — build a fixture finding; <code>ground_finding</code><br />
+   into a tmp scope → <code>result["transition_xref"]</code> is a 64-hex string (not None);<br />
+   the linked finding's <code>transition_xref</code> == that hash; the WAL has exactly one<br />
+<code>dogfood_transition</code> entry; its <code>actual_effects.writes</code> == <code>[finding_rel]</code>.</li>
+<li><code>test_verify_xref_resolves_bidirectionally</code> — after <code>ground_finding</code>,<br />
+<code>verify_xref(finding=linked, ...)</code> returns True.</li>
+<li><code>test_verify_xref_rejects_missing_wal_entry</code> — linked finding whose<br />
+<code>transition_xref</code> = <code>"00"*32</code> (absent) → <code>verify_xref</code> raises <code>ValueError</code>.</li>
+<li><code>test_verify_xref_rejects_finding_not_in_writes</code> — point <code>transition_xref</code> at a<br />
+   real WAL entry recorded for a <em>different</em> path → raises <code>ValueError</code>.</li>
+<li><code>test_ground_respects_capability_scope</code> — <code>finding_rel</code> outside <code>scope</code> → kernel<br />
+   rejects (<code>capability</code> gate) → <code>ground_finding</code> raises <code>RuntimeError</code>; the WAL<br />
+   gains no entry and the workspace is rolled back (no stray file).</li>
+<li><code>test_chains_verify_independently</code> — tamper the oracle ledger file → <code>verify_xref</code><br />
+   raises at step 1 while the WAL still opens clean; tamper the WAL file →<br />
+<code>EventLog</code> open raises <code>TamperError</code> while <code>oracle_ledger.verify()</code> is True.</li>
+</ol>
+<p>Target: existing 33 stay green + 6 new = 39 passing.</p>
+<h2 id="docs">Docs</h2>
+<ul>
+<li><code>docs/oracle/integration.md</code> §2 — replace "null in slice 1 … not called in<br />
+  production flows yet" with the wired flow: the <code>ground</code>/<code>verify-xref</code> commands,<br />
+  the acyclic hash resolution, and the bidirectional integrity check.</li>
+<li><code>docs/oracle/v0.md</code> — the example finding's <code>"transition_xref": null</code> annotated<br />
+  as "null until grounded; slice 2 <code>ground</code> populates it"; add a one-line<br />
+  double-dogfood acceptance entry once the on-box run lands.</li>
+</ul>
+<h2 id="on-box-acceptance-final-task-dev-cx53-box-gated">On-box acceptance (final task — dev-cx53, box-gated)</h2>
+<p>Mirrors slice 1 task 17. On dev-cx53 (revdev cell): a real <code>task -d tools/oracle run</code><br />
+produces a finding → <code>oracle ground</code> it into <code>~revdev/oracle/findings</code> (scope) with<br />
+the WAL under <code>~revdev/oracle/.aegis-wal</code> → <code>oracle verify-xref</code> passes → record the<br />
+<code>transition_xref</code> + WAL seq in <code>docs/oracle/v0.md</code> and <code>docs/recon/02-dynamic-evidence.md</code>.<br />
+Uses the golden SSH patterns (<code>docs/recon/golden-ssh-patterns.md</code>). No compile.</p>
+<h2 id="out-of-scope-slice-3-in-devtodo">Out of scope (→ slice 3, in <code>.DEV.TODO</code>)</h2>
+<p>The agentic proposer and finding-driven <em>code</em> patches (an LLM agent writing a real<br />
+source edit grounded in the finding). Slice 2 keeps the proposer a deterministic<br />
+artifact-materializer; slice 3's agent reuses this exact <code>ground_finding</code>/WAL plumbing.</p>
+<h2 id="constraints">Constraints</h2>
+<p>Never compile on the M3 (the wire + all tests are pure-Python; only the on-box<br />
+acceptance touches dev-cx53). revdev unprivileged. Snyk OFF. <code>tools/ralph</code> + <code>eventd</code><br />
+read/call-only. Don't touch the execution ARP IR or L2 eBPF-LSM.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-15-vaked-oracle-slice-2-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

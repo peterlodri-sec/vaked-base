@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Ralph decision log — mlir-topology — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#2026-06-13-decision-1-decision-question-epic-17-sequencing-land-memory-primitive" style="padding-left:0.5rem">2026-06-13 — Decision #1: Decision / question: **Epic #17 sequencing: land memory primitive (0014) or MLIR</a><a href="#2026-06-13-decision-2-decision-question-should-memoryd-from-0014-and-the-trackd-" style="padding-left:0.5rem">2026-06-13 — Decision #2: Decision / question: Should memoryd (from 0014) and the Track‑D control plane (#</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/decisions/">decisions</a> / mlir-topology.ralph-log</div>
+<h1>Ralph decision log — mlir-topology</h1>
+<h1 id="ralph-decision-log-mlir-topology">Ralph decision log — mlir-topology</h1>
+<blockquote>
+<p>Machine-generated, ADVISORY. Each entry is one strategic decision surfaced by the ralph loop (qwen3-235b-thinking → deepseek-v4-flash). A human ratifies; entries are appended, never rewritten.</p>
+</blockquote>
+<h2 id="2026-06-13-decision-1-decision-question-epic-17-sequencing-land-memory-primitive-0014-or-mlir">2026-06-13 — Decision #1: Decision / question: **Epic #17 sequencing: land memory primitive (0014) or MLIR</h2>
+<ul>
+<li><strong>Track:</strong> mlir-topology · <strong>Models:</strong> stage1 mimo-v2.5 · stage2 mimo-v2.5</li>
+<li><strong>Context snapshot:</strong> HEAD 460ae1e, 0 open issues</li>
+</ul>
+<p>Decision / question: <strong>Epic #17 sequencing: land memory primitive (0014) or MLIR topology compilation (0013) first?</strong></p>
+<p>Options:<br />
+1. <strong>Land 0014 (memory primitive) first.</strong> Prioritize runtime memory foundation for agent sessions and recall, using the landed grammar and emitter. Defer topology compiler (0013) to after runtime memory is functional.<br />
+2. <strong>Land 0013 (MLIR topology compilation) first.</strong> Implement Stage 0 semantic passes in <code>vakedc</code> (depth/cycle analysis, auto WAL injection, AOT supervisor index) to establish static safety and build-time optimization before runtime memory.</p>
+<p>Recommendation: <strong>Land 0014 first.</strong> The memory primitive is a direct runtime dependency for agent operation and recall, with grammar and emitter already landed. 0014's runtime contract (<code>memoryd</code>) is needed for the runtime to function. 0013's Stage 0 passes (LPG-based topology diagnostics and optimization) can proceed in parallel or afterward, as they are compiler tooling that doesn't block runtime execution. The risk of delaying 0013 is lower because its immediate value is developer-facing (build-time checks), whereas 0014 is runtime-facing and required for agents to have persistent memory.</p>
+<p>Risks:<br />
+- <strong>Delayed static guarantees:</strong> Postponing 0013 Stage 0 means cycle/depth checks and automatic WAL injection are not enforced at build time, increasing risk of runtime topology errors.<br />
+- <strong>Runtime memory design drift:</strong> Without the <code>memoryd</code> runtime implementation, 0014's design may need adjustment when integrating with <code>eventd</code> and the arena (#16/#18).<br />
+- <strong>Parallelism strain:</strong> Attempting both in parallel may split limited engineering resources, slowing both efforts.</p>
+<p>Next actions:<br />
+1. <strong>Design and implement <code>memoryd</code> runtime service</strong> per 0014's contract: mining daemon, recall server, capability enforcement (<code>mem</code> domain), and integration with <code>eventd</code> log (#18) and arena (#16).<br />
+2. <strong>Land 0013 Stage 0 passes</strong> in parallel as LPG passes within <code>vakedc</code>: topological depth/cycle bound diagnostic (e.g., <code>E-TOPO-DEPTH</code>), automatic <code>hcp.registration</code> frame injection, and AOT supervisor index generation (0012 artifacts).<br />
+3. <strong>Define integration points:</strong> Ensure <code>memoryd</code> respects topology constraints (e.g., memory scope aligns with agent dependency graph) and that 0013 passes account for memory declarations in the typed graph.</p>
+<p>Confidence: high</p>
+<h2 id="2026-06-13-decision-2-decision-question-should-memoryd-from-0014-and-the-trackd-control-plane">2026-06-13 — Decision #2: Decision / question: Should memoryd (from 0014) and the Track‑D control plane (</h2>
+<ul>
+<li><strong>Track:</strong> mlir-topology · <strong>Models:</strong> stage1 mimo-v2.5 · stage2 deepseek-v4-pro</li>
+<li><strong>Context snapshot:</strong> HEAD 74e3092, 8 open issues</li>
+</ul>
+<p><strong>Decision / question:</strong> Should <code>memoryd</code> (from 0014) and the Track‑D control plane (#20) formally block on the <code>eventd</code> arena snapshot API (#16, #18)?<br />
+<strong>Options:</strong><br />
+1. <strong>Block.</strong> Require <code>eventd</code>’s arena snapshot API (content‑addressed, refcount‑GC snapshots from <code>zig/substrate/arena.zig</code> – #16) to be implemented and validated before <code>memoryd</code> and the control plane begin runtime‑level work.<br />
+2. <strong>Proceed with a provisional backing store.</strong> Implement <code>memoryd</code> against a temporary, non‑arena store (e.g., a plain append‑only file) and later swap in the arena.</p>
+<p><strong>Recommendation:</strong> <strong>Block.</strong> Both designs are fundamentally anchored in the arena‑snapshot contract.<br />
+- <code>docs/language/0014-memory-primitive.md</code> states: “Memory entries are events on the per‑runtime hash‑chained <code>eventd</code> log … memory state is the fold over those events, resolving content <strong>against the arena (#16)</strong>.” A provisional store breaks the fold‑verifiability and rewind‑to‑byte‑exact‑state guarantees.<br />
+- Issue #20 (control plane replay/rewind/jump/step) explicitly lists the eventd log + arena snapshots as its substrate; without arena‑anchored snapshots the “rewind preserves concurrent siblings (#16 structural sharing)” property cannot hold.<br />
+- The <code>eventd</code> hardening backlog (#35) identifies snapshot/compaction as critical for boot‑time chain verification; delivering it now unblocks both dependents and removes a known design risk.</p>
+<p><strong>Risks:</strong><br />
+- Delays <code>memoryd</code> and the control plane until the arena snapshot API is complete. The 0014 grammar and emitter are already landed (see 0014 §Lowering), so the agent‑side declaration surface is defined and the implementation gap is purely runtime.<br />
+- Unforeseen complexity in <code>eventd</code>’s snapshot representation (checkpoint entry format, interaction with GC floor) may push the timeline. This is mitigated by explicit design guidance in #16 and #35, and the fact that <code>eventd</code>’s core append‑only log is implemented.</p>
+<p><strong>Next actions:</strong><br />
+1. Open a focused tracking issue: “Implement arena snapshot/checkpoint API for eventd (→ unblocks 0014 memoryd and #20 control plane).” Scope the representation (checkpoint‑entry folding a prefix, arena content‑hash, GC‑floor integration) per the snapshot/compaction item in #35, and tie it to the eventd design’s open question “rotation without breaking the chain” noted there.<br />
+2. Update epic #17 to reflect that 0014 (<em>runtime</em> phase) and #20 are gated on eventd arena snapshots.<br />
+3. After the snapshot API lands, proceed with <code>memoryd</code> as described in 0014’s runtime contract (mining daemon, recall server, <code>mem</code> capability enforcement), folding events directly against the arena.</p>
+<p><strong>Confidence:</strong> high</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/decisions/mlir-topology.ralph-log.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

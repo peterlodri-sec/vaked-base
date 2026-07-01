@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>protocol.vaked.dev Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#file-map" style="padding-left:0.5rem">File Map</a><a href="#task-1-scaffold-directory-bare-html-shell" style="padding-left:1rem">  Task 1: Scaffold — directory + bare HTML shell</a><a href="#task-2-css-design-tokens-base-styles" style="padding-left:1rem">  Task 2: CSS — design tokens + base styles</a><a href="#task-3-header-logo-title-authorship-links" style="padding-left:1rem">  Task 3: Header — logo, title, authorship, links</a><a href="#task-4-ag-ui-wire-protocol-spec-section" style="padding-left:1rem">  Task 4: AG-UI Wire Protocol spec section</a><a href="#task-5-connected-work-section" style="padding-left:1rem">  Task 5: Connected Work section</a><a href="#task-6-mastodon-proposals-feed" style="padding-left:1rem">  Task 6: Mastodon proposals feed</a><a href="#task-7-footer" style="padding-left:1rem">  Task 7: Footer</a><a href="#task-8-readme-deploy-config" style="padding-left:1rem">  Task 8: README + deploy config</a><a href="#deploy-cloudflare-pages" style="padding-left:0.5rem">Deploy — Cloudflare Pages</a><a href="#local-preview" style="padding-left:0.5rem">Local preview</a><a href="#proposals" style="padding-left:0.5rem">Proposals</a><a href="#self-review" style="padding-left:0.5rem">Self-Review</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-23-protocol-vaked-dev</div>
+<h1>protocol.vaked.dev Implementation Plan</h1>
+<h1 id="protocolvakeddev-implementation-plan">protocol.vaked.dev Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</p>
+</blockquote>
+<p><strong>Goal:</strong> Build <code>vaked-base/sites/protocol-vaked-dev/index.html</code> — the canonical single-page public reference for the AG-UI open protocol, Vaked DYAD, GLOSSOPETRAE, Anastigate/VICE, and a live Mastodon <code>#openagui</code> proposals feed.</p>
+<p><strong>Architecture:</strong> Single self-contained <code>index.html</code> — all CSS and JS inline, no build step, no external dependencies. Mastodon public API fetched at page load via <code>fetch()</code>. Collapsible spec cards use native <code>&lt;details&gt;/&lt;summary&gt;</code>. Deploy via Cloudflare Pages pointing at <code>sites/protocol-vaked-dev/</code>.</p>
+<p><strong>Tech Stack:</strong> Vanilla HTML5 · CSS custom properties · ES6 fetch · Mastodon v1 public API (<code>social.crabcc.app</code>)</p>
+<p><strong>Note on TDD:</strong> No JS framework = no unit tests. Each task has a browser-verify step in place of a test run. Treat "open in browser and check" as the test pass/fail gate.</p>
+<hr />
+<h2 id="file-map">File Map</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sites/protocol-vaked-dev/index.html</code></td>
+<td>Entire site — HTML + CSS + JS</td>
+</tr>
+<tr>
+<td><code>sites/protocol-vaked-dev/README.md</code></td>
+<td>Deploy instructions (Cloudflare Pages)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h3 id="task-1-scaffold-directory-bare-html-shell">Task 1: Scaffold — directory + bare HTML shell</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>sites/protocol-vaked-dev/index.html</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Create the directory and bare HTML file</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>vaked-base/sites/protocol-vaked-dev
+</pre></div>
+
+<p>Create <code>sites/protocol-vaked-dev/index.html</code> with this exact content:</p>
+<div class="highlight"><pre><span></span><span class="cp">&lt;!DOCTYPE html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">&quot;UTF-8&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">&quot;viewport&quot;</span> <span class="na">content</span><span class="o">=</span><span class="s">&quot;width=device-width, initial-scale=1.0&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">&quot;description&quot;</span> <span class="na">content</span><span class="o">=</span><span class="s">&quot;AG-UI Open Protocol — the canonical reference for the UI↔AI surface standard&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>AG-UI Open Protocol · protocol.vaked.dev<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">style</span><span class="p">&gt;</span>
+<span class="c">/* STYLES PLACEHOLDER */</span>
+<span class="p">&lt;/</span><span class="nt">style</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">main</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>scaffold ok<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">main</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Verify scaffold loads</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>open<span class="w"> </span>sites/protocol-vaked-dev/index.html
+</pre></div>
+
+<p>Expected: browser opens, shows "scaffold ok" on dark background (no styles yet — just confirm no parse error).</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/index.html
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(protocol-vaked-dev): scaffold bare HTML shell&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-2-css-design-tokens-base-styles">Task 2: CSS — design tokens + base styles</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>sites/protocol-vaked-dev/index.html</code> (replace <code>/* STYLES PLACEHOLDER */</code>)</p>
+<ul>
+<li>[ ] <strong>Step 1: Replace the style block with full CSS</strong></li>
+</ul>
+<p>Replace <code>/* STYLES PLACEHOLDER */</code> with:</p>
+<div class="highlight"><pre><span></span><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--bg</span><span class="p">:</span><span class="w">      </span><span class="mh">#070b16</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--surface</span><span class="p">:</span><span class="w"> </span><span class="mh">#0a0a14</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--card</span><span class="p">:</span><span class="w">    </span><span class="mh">#14141f</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--fg</span><span class="p">:</span><span class="w">      </span><span class="mh">#e0e8f5</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--accent</span><span class="p">:</span><span class="w">  </span><span class="mh">#00d4ff</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--green</span><span class="p">:</span><span class="w">   </span><span class="mh">#00e660</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--dim</span><span class="p">:</span><span class="w">     </span><span class="mh">#6878a0</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--warn</span><span class="p">:</span><span class="w">    </span><span class="mh">#ffb020</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--border</span><span class="p">:</span><span class="w">  </span><span class="mh">#26304a</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--err</span><span class="p">:</span><span class="w">     </span><span class="mh">#ff3b6b</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="o">*</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">margin</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="k">box-sizing</span><span class="p">:</span><span class="w"> </span><span class="kc">border-box</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">body</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--bg</span><span class="p">);</span>
+<span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--fg</span><span class="p">);</span>
+<span class="w">  </span><span class="k">font-family</span><span class="p">:</span><span class="w"> </span><span class="n">ui-monospace</span><span class="p">,</span><span class="w"> </span><span class="n">SFMono-Regular</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;SF Mono&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">Consolas</span><span class="p">,</span><span class="w"> </span><span class="kc">monospace</span><span class="p">;</span>
+<span class="w">  </span><span class="k">line-height</span><span class="p">:</span><span class="w"> </span><span class="mf">1.6</span><span class="p">;</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="kt">rem</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">max-width</span><span class="p">:</span><span class="w"> </span><span class="mi">860</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">margin</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="kc">auto</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="nt">a</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span><span class="w"> </span><span class="k">text-decoration</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">a</span><span class="p">:</span><span class="nd">hover</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">text-decoration</span><span class="p">:</span><span class="w"> </span><span class="kc">underline</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">h1</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mf">0.25</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">h2</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--green</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">1.2</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin</span><span class="p">:</span><span class="w"> </span><span class="mf">2.5</span><span class="kt">rem</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">text-transform</span><span class="p">:</span><span class="w"> </span><span class="kc">uppercase</span><span class="p">;</span><span class="w"> </span><span class="k">letter-spacing</span><span class="p">:</span><span class="w"> </span><span class="mf">0.1</span><span class="kt">em</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">h3</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">p</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mf">0.75</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--fg</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">tagline</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">author</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--warn</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.9</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">letter-spacing</span><span class="p">:</span><span class="w"> </span><span class="mf">0.02</span><span class="kt">em</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">badge</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">inline-block</span><span class="p">;</span>
+<span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="mi">8</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.75</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">margin-right</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">vertical-align</span><span class="p">:</span><span class="w"> </span><span class="kc">middle</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="c">/* Section dividers */</span>
+<span class="p">.</span><span class="nc">section</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">margin</span><span class="p">:</span><span class="w"> </span><span class="mf">2.5</span><span class="kt">rem</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="k">padding-top</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">border-top</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--border</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="c">/* Spec cards — two-column grid */</span>
+<span class="p">.</span><span class="nc">spec-grid</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="k">grid</span><span class="p">;</span><span class="w"> </span><span class="k">grid-template-columns</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="n">fr</span><span class="w"> </span><span class="mi">1</span><span class="n">fr</span><span class="p">;</span><span class="w"> </span><span class="k">gap</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">@</span><span class="k">media</span><span class="w"> </span><span class="o">(</span><span class="nt">max-width</span><span class="o">:</span><span class="w"> </span><span class="nt">640px</span><span class="o">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="nc">spec-grid</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">grid-template-columns</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="n">fr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<span class="c">/* Collapsible details */</span>
+<span class="nt">details</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--card</span><span class="p">);</span>
+<span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--border</span><span class="p">);</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="nt">details</span><span class="o">[</span><span class="nt">open</span><span class="o">]</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">border-color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">summary</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6</span><span class="kt">rem</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">cursor</span><span class="p">:</span><span class="w"> </span><span class="kc">pointer</span><span class="p">;</span>
+<span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<span class="w">  </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.9</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">list-style</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
+<span class="w">  </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">flex</span><span class="p">;</span>
+<span class="w">  </span><span class="k">align-items</span><span class="p">:</span><span class="w"> </span><span class="kc">center</span><span class="p">;</span>
+<span class="w">  </span><span class="k">gap</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="nt">summary</span><span class="p">::</span><span class="nd">before</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">content</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;▶&#39;</span><span class="p">;</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="nt">details</span><span class="o">[</span><span class="nt">open</span><span class="o">]</span><span class="w"> </span><span class="nt">summary</span><span class="p">::</span><span class="nd">before</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">content</span><span class="p">:</span><span class="w"> </span><span class="s1">&#39;▼&#39;</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">detail-body</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mf">0.75</span><span class="kt">rem</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.85</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--fg</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">detail-body</span><span class="w"> </span><span class="nt">code</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--green</span><span class="p">);</span><span class="w"> </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--surface</span><span class="p">);</span><span class="w"> </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="mi">5</span><span class="kt">px</span><span class="p">;</span><span class="w"> </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="kt">px</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">detail-body</span><span class="w"> </span><span class="p">.</span><span class="nc">dir</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="c">/* Connected work cards */</span>
+<span class="p">.</span><span class="nc">work-grid</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="k">grid</span><span class="p">;</span><span class="w"> </span><span class="k">grid-template-columns</span><span class="p">:</span><span class="w"> </span><span class="nf">repeat</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="n">fr</span><span class="p">);</span><span class="w"> </span><span class="k">gap</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">@</span><span class="k">media</span><span class="w"> </span><span class="o">(</span><span class="nt">max-width</span><span class="o">:</span><span class="w"> </span><span class="nt">700px</span><span class="o">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="p">.</span><span class="nc">work-grid</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">grid-template-columns</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="n">fr</span><span class="p">;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">work-card</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--card</span><span class="p">);</span>
+<span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--border</span><span class="p">);</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="p">.</span><span class="nc">work-card</span><span class="w"> </span><span class="nt">h3</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mf">0.4</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">work-card</span><span class="w"> </span><span class="nt">p</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.85</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="k">margin</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="c">/* Proposals feed */</span>
+<span class="p">.</span><span class="nc">feed-log</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--surface</span><span class="p">);</span>
+<span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--border</span><span class="p">);</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">min-height</span><span class="p">:</span><span class="w"> </span><span class="mi">120</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">max-height</span><span class="p">:</span><span class="w"> </span><span class="mi">480</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">overflow-y</span><span class="p">:</span><span class="w"> </span><span class="kc">auto</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="p">.</span><span class="nc">feed-empty</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.9</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">text-align</span><span class="p">:</span><span class="w"> </span><span class="kc">center</span><span class="p">;</span><span class="w"> </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="kt">rem</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">proposal</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">border-bottom</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--border</span><span class="p">);</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mf">0.75</span><span class="kt">rem</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">  </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.85</span><span class="kt">rem</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="p">.</span><span class="nc">proposal</span><span class="p">:</span><span class="nd">last-child</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">border-bottom</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">proposal-meta</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.75</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-bottom</span><span class="p">:</span><span class="w"> </span><span class="mf">0.25</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">proposal-meta</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">proposal-content</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--fg</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">proposal-content</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="c">/* Submit */</span>
+<span class="p">.</span><span class="nc">submit-area</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mf">1.5</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">btn-submit</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">inline-block</span><span class="p">;</span>
+<span class="w">  </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--accent</span><span class="p">);</span>
+<span class="w">  </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--bg</span><span class="p">);</span>
+<span class="w">  </span><span class="k">font-family</span><span class="p">:</span><span class="w"> </span><span class="kc">inherit</span><span class="p">;</span>
+<span class="w">  </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.9</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">font-weight</span><span class="p">:</span><span class="w"> </span><span class="kc">bold</span><span class="p">;</span>
+<span class="w">  </span><span class="k">padding</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="w"> </span><span class="mf">1.5</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">  </span><span class="k">border-radius</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="kt">px</span><span class="p">;</span>
+<span class="w">  </span><span class="k">border</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
+<span class="w">  </span><span class="k">cursor</span><span class="p">:</span><span class="w"> </span><span class="kc">pointer</span><span class="p">;</span>
+<span class="w">  </span><span class="k">text-decoration</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
+<span class="p">}</span>
+<span class="p">.</span><span class="nc">btn-submit</span><span class="p">:</span><span class="nd">hover</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">background</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--green</span><span class="p">);</span><span class="w"> </span><span class="k">text-decoration</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--bg</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">submit-hint</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">.</span><span class="nc">submit-hint</span><span class="w"> </span><span class="nt">code</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--green</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="c">/* Footer */</span>
+<span class="nt">footer</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">margin-top</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">padding-top</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">border-top</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="kt">px</span><span class="w"> </span><span class="kc">solid</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--border</span><span class="p">);</span><span class="w"> </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--dim</span><span class="p">);</span><span class="w"> </span><span class="k">font-size</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8</span><span class="kt">rem</span><span class="p">;</span><span class="w"> </span><span class="k">text-align</span><span class="p">:</span><span class="w"> </span><span class="kc">center</span><span class="p">;</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Verify styles load</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>open<span class="w"> </span>sites/protocol-vaked-dev/index.html
+</pre></div>
+
+<p>Expected: dark <code>#070b16</code> background, "scaffold ok" text in <code>#e0e8f5</code> monospace font.</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/index.html
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(protocol-vaked-dev): add CSS design tokens and base styles&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-3-header-logo-title-authorship-links">Task 3: Header — logo, title, authorship, links</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>sites/protocol-vaked-dev/index.html</code> (replace <code>&lt;p&gt;scaffold ok&lt;/p&gt;</code>)</p>
+<ul>
+<li>[ ] <strong>Step 1: Replace scaffold content with header HTML</strong></li>
+</ul>
+<p>Replace <code>&lt;p&gt;scaffold ok&lt;/p&gt;</code> with:</p>
+<div class="highlight"><pre><span></span><span class="cm">&lt;!-- HEADER --&gt;</span>
+<span class="p">&lt;</span><span class="nt">header</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;text-align:center; padding: 2rem 0 1rem;&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;https://vaked.dev/ultrawhale/logo.svg&quot;</span> <span class="na">width</span><span class="o">=</span><span class="s">&quot;80&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;vaked&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-bottom:1rem;&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h1</span><span class="p">&gt;</span>AG-UI Open Protocol<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;tagline&quot;</span><span class="p">&gt;</span>The open standard for the UI↔AI surface<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;author&quot;</span><span class="p">&gt;</span>⊰•-•⦑ The Architect of Structural Honesty ⦒•-•⊱<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;badge&quot;</span><span class="p">&gt;</span>OPEN STANDARD<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;badge&quot;</span><span class="p">&gt;</span>protocol.vaked.dev<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:1rem; font-size:0.85rem; color:var(--dim);&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/peterlodri-sec/vaked-base&quot;</span><span class="p">&gt;</span>vaked-base<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> ·
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/peterlodri-sec/ultrawhale&quot;</span><span class="p">&gt;</span>ultrawhale<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> ·
+    <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/elder-plinius/GLOSSOPETRAE&quot;</span><span class="p">&gt;</span>GLOSSOPETRAE<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">header</span><span class="p">&gt;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Verify header renders</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>open<span class="w"> </span>sites/protocol-vaked-dev/index.html
+</pre></div>
+
+<p>Expected: centered logo SVG loads from vaked.dev, title in <code>#00d4ff</code>, author line in <code>#ffb020</code>, two OPEN STANDARD badges, three links below.</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/index.html
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(protocol-vaked-dev): add header with logo and authorship&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-4-ag-ui-wire-protocol-spec-section">Task 4: AG-UI Wire Protocol spec section</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>sites/protocol-vaked-dev/index.html</code> (add after <code>&lt;/header&gt;</code>)</p>
+<ul>
+<li>[ ] <strong>Step 1: Add wire protocol section</strong></li>
+</ul>
+<p>Append after <code>&lt;/header&gt;</code>:</p>
+<div class="highlight"><pre><span></span><span class="cm">&lt;!-- AG-UI SPEC --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;section&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h2</span><span class="p">&gt;</span>AG-UI Protocol Spec<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:var(--dim);font-size:0.85rem;margin-bottom:1.5rem;&quot;</span><span class="p">&gt;</span>
+    Two aspects of one standard: the wire protocol (event stream) and the surface (visual implementation).
+    Upstream-compatible · Vaked extensions marked <span class="p">&lt;</span><span class="nt">span</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:var(--warn)&quot;</span><span class="p">&gt;</span>⊕<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;spec-grid&quot;</span><span class="p">&gt;</span>
+
+    <span class="cm">&lt;!-- Wire Protocol --&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h3</span><span class="p">&gt;</span>AG-UI Wire Protocol<span class="p">&lt;/</span><span class="nt">h3</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;font-size:0.8rem;color:var(--dim);margin-bottom:0.75rem;&quot;</span><span class="p">&gt;</span>Streaming events between agent and UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>RUN_STARTED<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ run_id: string, model: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Session opens. First event in every run.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>TEXT_MESSAGE_START<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ message_id: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Token stream begins. UI should open a new message bubble.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>TEXT_MESSAGE_CONTENT<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ message_id: string, delta: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>One token delta. Append to current message bubble.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>TEXT_MESSAGE_END<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ message_id: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Token stream closes. Finalize the message bubble.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>TOOL_CALL_START<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ tool_id: string, name: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Tool intent declared. UI should render a pending tool card.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>TOOL_CALL_ARGS<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ tool_id: string, delta: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Streaming args delta. Append to tool card args display.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>TOOL_CALL_END<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ tool_id: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Args complete. HITL gate: UI may pause here for human approval before returning result.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>TOOL_CALL_RESULT<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>UI → agent<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ tool_id: string, result: any }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Execution result returned to agent. Sent after HITL approval (or immediately if no gate).<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>RUN_FINISHED<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ run_id: string }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Session closes. Last event in every run.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:var(--warn)&quot;</span><span class="p">&gt;</span>⊕ ARP_STRIDE (Vaked extension)<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI · Vaked-only<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ from: string, to: string, tension: number }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Behavioral signal: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>[STRIDE: a → b]<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> progress arc. Tension 0–100 (goal-distance).<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:var(--warn)&quot;</span><span class="p">&gt;</span>⊕ VICE_FIELDSTOP (Vaked extension)<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;dir&quot;</span><span class="p">&gt;</span>agent → UI · Vaked-only<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Payload: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>{ reason: string, expansion_level: number }<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Anastigate primitive. Context-defense detonation on jailbreak attempt.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">div</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:1rem;padding:0.75rem;background:var(--surface);border-radius:4px;font-size:0.8rem;border-left:3px solid var(--warn);&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">strong</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:var(--warn)&quot;</span><span class="p">&gt;</span>HITL Gate<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;&lt;</span><span class="nt">br</span><span class="p">&gt;</span>
+        Between <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>TOOL_CALL_END<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> → <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>TOOL_CALL_RESULT<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span>.<span class="p">&lt;</span><span class="nt">br</span><span class="p">&gt;</span>
+        Human approval can pause or reject execution before the result is returned.
+      <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+    <span class="cm">&lt;!-- AG-UI Surface --&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h3</span><span class="p">&gt;</span>AG-UI Surface<span class="p">&lt;/</span><span class="nt">h3</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;font-size:0.8rem;color:var(--dim);margin-bottom:0.75rem;&quot;</span><span class="p">&gt;</span>Visual implementation — TUI theme engine<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span> <span class="na">open</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>Themes<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">strong</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:#00e660&quot;</span><span class="p">&gt;</span>Dense Matrix Green<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;&lt;</span><span class="nt">br</span><span class="p">&gt;</span>bg <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#040804<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> · accent <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#00e660<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> · neon terminal<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.5rem&quot;</span><span class="p">&gt;&lt;</span><span class="nt">strong</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:#00d4ff&quot;</span><span class="p">&gt;</span>Clean Graph Cyberpunk<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;&lt;</span><span class="nt">br</span><span class="p">&gt;</span>bg <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#0a0a14<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> · accent <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#00d4ff<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> · cyberpunk<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.5rem&quot;</span><span class="p">&gt;&lt;</span><span class="nt">strong</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:#b0b0b0&quot;</span><span class="p">&gt;</span>Tactical Graveyard<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;&lt;</span><span class="nt">br</span><span class="p">&gt;</span>bg <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#141414<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> · accent <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#b0b0b0<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> · minimal grayscale<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.5rem;color:var(--dim)&quot;</span><span class="p">&gt;</span>Cycle: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>Ctrl+Shift+T<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>ChatBlock API<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>NewChatBlock(type, title, content, width)<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.5rem&quot;</span><span class="p">&gt;</span>Block types:<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>BlockThinking<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — chain-of-thought<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>BlockToolCall<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — tool execution<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>BlockToolResult<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — tool output<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>BlockCodeDiff<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — diff rendering<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>BlockPlanCard<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — plan display<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>BlockFileTree<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — file listing<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>Perlin Shader<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Animated Perlin-noise background using Unicode block chars <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>░▒▓█<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Zero allocations after init. FPS-limited at 60fps.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Toggle: <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>Ctrl+Shift+B<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>Keybindings<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>Ctrl+Shift+T<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — cycle themes<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>Ctrl+Shift+B<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — shader toggle<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>Ctrl+Shift+Z<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — zen mode<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>Ctrl+Shift+S<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — sidebar toggle<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">code</span><span class="p">&gt;</span>/reload theme dense<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> — direct switch<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+
+      <span class="p">&lt;</span><span class="nt">details</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">summary</span><span class="p">&gt;</span>Source<span class="p">&lt;/</span><span class="nt">summary</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;detail-body&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/peterlodri-sec/vaked-base&quot;</span><span class="p">&gt;</span>vaked-base<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> · <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>agui/<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/peterlodri-sec/ultrawhale&quot;</span><span class="p">&gt;</span>ultrawhale<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> · <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>internal/tui/agui/<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">details</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span><span class="cm">&lt;!-- /spec-grid --&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span><span class="cm">&lt;!-- /section --&gt;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Verify spec section renders</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>open<span class="w"> </span>sites/protocol-vaked-dev/index.html
+</pre></div>
+
+<p>Expected: two-column grid (wire protocol left, surface right). Wire protocol cards collapsed by default except none. Click any <code>&lt;details&gt;</code> — it expands. Vaked extensions show in <code>#ffb020</code> (warn color). HITL box shows with left orange border.</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/index.html
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(protocol-vaked-dev): add AG-UI wire protocol and surface spec&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-5-connected-work-section">Task 5: Connected Work section</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>sites/protocol-vaked-dev/index.html</code> (append after spec section)</p>
+<ul>
+<li>[ ] <strong>Step 1: Append connected work section</strong></li>
+</ul>
+<p>Append after the closing <code>&lt;/div&gt;&lt;!-- /section --&gt;</code> of the spec:</p>
+<div class="highlight"><pre><span></span><span class="cm">&lt;!-- CONNECTED WORK --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;section&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h2</span><span class="p">&gt;</span>Connected Work<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;work-grid&quot;</span><span class="p">&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;work-card&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h3</span><span class="p">&gt;</span>Vaked — The Open DYAD<span class="p">&lt;/</span><span class="nt">h3</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Human + AI, honestly together. The capability graph that declares what a system does, what it may touch, and who supervises it.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.5rem;font-size:0.75rem;color:var(--dim);font-style:italic;&quot;</span><span class="p">&gt;</span>
+        Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies. CrabCC indexes. Surfaces reveal.
+      <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.75rem;font-size:0.8rem;&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/peterlodri-sec/vaked-base&quot;</span><span class="p">&gt;</span>vaked-base →<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;work-card&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h3</span><span class="p">&gt;</span>GLOSSOPETRAE<span class="p">&lt;/</span><span class="nt">h3</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Prompt steganography toolkit by Elder Plinius. A network stamp — a signature embedded in the output itself.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.5rem;font-size:0.75rem;color:var(--dim);&quot;</span><span class="p">&gt;</span>Every AI-generated artifact can carry a verifiable authorship mark invisible to casual readers.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.75rem;font-size:0.8rem;&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/elder-plinius/GLOSSOPETRAE&quot;</span><span class="p">&gt;</span>elder-plinius/GLOSSOPETRAE →<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;work-card&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">h3</span><span class="p">&gt;</span>Anastigate / VICE<span class="p">&lt;/</span><span class="nt">h3</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Fieldstop Primitives. Self-defense through recursive disclosure.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.5rem;font-size:0.75rem;color:var(--dim);&quot;</span><span class="p">&gt;</span>Jailbreak attempt → VICE reveals everything, expanding context until the session collapses under its own weight. The attacker is blinded by truth.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.75rem;font-size:0.8rem;&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/peterlodri-sec/ultrawhale&quot;</span><span class="p">&gt;</span>ultrawhale/blocks/vice.go →<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Verify connected work renders</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>open<span class="w"> </span>sites/protocol-vaked-dev/index.html
+</pre></div>
+
+<p>Expected: three-column card grid. Cards have dark background, accent headings, dim body text. On mobile (&lt; 700px) should stack to one column.</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/index.html
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(protocol-vaked-dev): add connected work section (Vaked/GLOSSOPETRAE/VICE)&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-6-mastodon-proposals-feed">Task 6: Mastodon proposals feed</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>sites/protocol-vaked-dev/index.html</code> (append section + add JS before <code>&lt;/body&gt;</code>)</p>
+<ul>
+<li>[ ] <strong>Step 1: Verify Mastodon API returns expected shape</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">&quot;https://social.crabcc.app/api/v1/timelines/tag/openagui?limit=2&quot;</span>
+</pre></div>
+
+<p>Expected: JSON array <code>[]</code> (empty for now) or array of status objects with fields <code>id</code>, <code>created_at</code>, <code>content</code>, <code>account.acct</code>, <code>url</code>. Confirm the endpoint responds with HTTP 200.</p>
+<ul>
+<li>[ ] <strong>Step 2: Append proposals feed HTML section</strong></li>
+</ul>
+<p>Append after the connected work <code>&lt;/div&gt;</code>:</p>
+<div class="highlight"><pre><span></span><span class="cm">&lt;!-- PROPOSALS FEED --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;section&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">h2</span><span class="p">&gt;</span>#openagui Proposals<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;color:var(--dim);font-size:0.85rem;margin-bottom:1rem;&quot;</span><span class="p">&gt;</span>
+    Append-only public feed from <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://social.crabcc.app&quot;</span><span class="p">&gt;</span>social.crabcc.app<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>.
+    Post using <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#openagui<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> on any Mastodon instance.
+  <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;feed-log&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;feed-log&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;feed-empty&quot;</span><span class="p">&gt;</span>Loading proposals…<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;submit-area&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">a</span>
+      <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://social.crabcc.app&quot;</span>
+      <span class="na">target</span><span class="o">=</span><span class="s">&quot;_blank&quot;</span>
+      <span class="na">rel</span><span class="o">=</span><span class="s">&quot;noopener noreferrer&quot;</span>
+      <span class="na">class</span><span class="o">=</span><span class="s">&quot;btn-submit&quot;</span>
+    <span class="p">&gt;</span>Post a Proposal<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">p</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;submit-hint&quot;</span><span class="p">&gt;</span>
+      Any Mastodon account works. Include <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#openagui<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> in your post.
+      <span class="p">&lt;</span><span class="nt">br</span><span class="p">&gt;</span>Future: DYAD auth.
+    <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 3: Add JS feed loader before <code>&lt;/body&gt;</code></strong></li>
+</ul>
+<p>Add immediately before <code>&lt;/body&gt;</code>:</p>
+<div class="highlight"><pre><span></span><span class="p">&lt;</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">loadFeed</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">el</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;feed-log&#39;</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">API</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;https://social.crabcc.app/api/v1/timelines/tag/openagui?limit=40&#39;</span><span class="p">;</span>
+
+<span class="w">  </span><span class="kd">let</span><span class="w"> </span><span class="nx">statuses</span><span class="p">;</span>
+<span class="w">  </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">API</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">res</span><span class="p">.</span><span class="nx">ok</span><span class="p">)</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="s1">&#39;HTTP &#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">res</span><span class="p">.</span><span class="nx">status</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">statuses</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">el</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;feed-empty&quot;&gt;Could not load proposals. &lt;a href=&quot;https://social.crabcc.app/tags/openagui&quot;&gt;View on Mastodon →&lt;/a&gt;&lt;/div&gt;&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">statuses</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">el</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&lt;div class=&quot;feed-empty&quot;&gt;No proposals yet. Be the first — post &lt;code&gt;#openagui&lt;/code&gt; on any Mastodon instance.&lt;/div&gt;&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c1">// Mastodon returns newest first — reverse to oldest→newest (log order)</span>
+<span class="w">  </span><span class="nx">statuses</span><span class="p">.</span><span class="nx">reverse</span><span class="p">();</span>
+
+<span class="w">  </span><span class="nx">el</span><span class="p">.</span><span class="nx">innerHTML</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">statuses</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">s</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">date</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(</span><span class="nx">s</span><span class="p">.</span><span class="nx">created_at</span><span class="p">).</span><span class="nx">toISOString</span><span class="p">().</span><span class="nx">slice</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">16</span><span class="p">).</span><span class="nx">replace</span><span class="p">(</span><span class="s1">&#39;T&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39; &#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">account</span><span class="p">.</span><span class="nx">acct</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s1">&#39;@&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;@&#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">account</span><span class="p">.</span><span class="nx">acct</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;@&#39;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">account</span><span class="p">.</span><span class="nx">acct</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s1">&#39;@social.crabcc.app&#39;</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="sb">`&lt;div class=&quot;proposal&quot;&gt;</span>
+<span class="sb">      &lt;div class=&quot;proposal-meta&quot;&gt;</span>
+<span class="sb">        &lt;a href=&quot;</span><span class="si">${</span><span class="nx">s</span><span class="p">.</span><span class="nx">url</span><span class="si">}</span><span class="sb">&quot; target=&quot;_blank&quot; rel=&quot;noopener&quot;&gt;</span><span class="si">${</span><span class="nx">handle</span><span class="si">}</span><span class="sb">&lt;/a&gt;</span>
+<span class="sb">        · </span><span class="si">${</span><span class="nx">date</span><span class="si">}</span>
+<span class="sb">      &lt;/div&gt;</span>
+<span class="sb">      &lt;div class=&quot;proposal-content&quot;&gt;</span><span class="si">${</span><span class="nx">s</span><span class="p">.</span><span class="nx">content</span><span class="si">}</span><span class="sb">&lt;/div&gt;</span>
+<span class="sb">    &lt;/div&gt;`</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}).</span><span class="nx">join</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="p">);</span>
+<span class="p">})();</span>
+<span class="p">&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Verify feed renders</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>open<span class="w"> </span>sites/protocol-vaked-dev/index.html
+</pre></div>
+
+<p>Expected: feed section shows "No proposals yet. Be the first…" (API is currently empty). The "Post a Proposal" button is visible. No JS console errors (open browser devtools → Console tab to check).</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/index.html
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(protocol-vaked-dev): add Mastodon #openagui proposals feed&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-7-footer">Task 7: Footer</h3>
+<p><strong>Files:</strong><br />
+- Modify: <code>sites/protocol-vaked-dev/index.html</code> (append before <code>&lt;/main&gt;</code>)</p>
+<ul>
+<li>[ ] <strong>Step 1: Append footer</strong></li>
+</ul>
+<p>Append before <code>&lt;/main&gt;</code>:</p>
+<div class="highlight"><pre><span></span><span class="cm">&lt;!-- FOOTER --&gt;</span>
+<span class="p">&lt;</span><span class="nt">footer</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>
+    ⊰•-•⦑ The Architect of Structural Honesty ⦒•-•⊱
+    · <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://vaked.dev&quot;</span><span class="p">&gt;</span>vaked.dev<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+    · <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://github.com/peterlodri-sec/vaked-base&quot;</span><span class="p">&gt;</span>source<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;margin-top:0.4rem;&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;badge&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;border-color:var(--dim);color:var(--dim);&quot;</span><span class="p">&gt;</span>OPEN STANDARD<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+    Proposals via <span class="p">&lt;</span><span class="nt">code</span><span class="p">&gt;</span>#openagui<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> on <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://social.crabcc.app&quot;</span><span class="p">&gt;</span>social.crabcc.app<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">footer</span><span class="p">&gt;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Full page verify</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>open<span class="w"> </span>sites/protocol-vaked-dev/index.html
+</pre></div>
+
+<p>Walk through the full page:<br />
+1. Header: logo loads, title, author line, badges, links<br />
+2. Spec section: two-column grid, expand one wire protocol card, expand one surface card<br />
+3. Connected work: three cards<br />
+4. Proposals: "No proposals yet" message, "Post a Proposal" button<br />
+5. Footer: authorship + links</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/index.html
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(protocol-vaked-dev): add footer&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-8-readme-deploy-config">Task 8: README + deploy config</h3>
+<p><strong>Files:</strong><br />
+- Create: <code>sites/protocol-vaked-dev/README.md</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Create README</strong></li>
+</ul>
+<p>Create <code>sites/protocol-vaked-dev/README.md</code>:</p>
+<div class="highlight"><pre><span></span><span class="gh"># protocol.vaked.dev</span>
+
+Single-page public reference for the AG-UI open protocol standard.
+
+<span class="gu">## Deploy — Cloudflare Pages</span>
+
+<span class="k">1.</span> Connect <span class="sb">`peterlodri-sec/vaked-base`</span> repo to Cloudflare Pages
+<span class="k">2.</span> Set <span class="gs">**Root directory**</span> to <span class="sb">`sites/protocol-vaked-dev`</span>
+<span class="k">3.</span> <span class="gs">**Build command:**</span> <span class="ge">*(leave blank — static HTML, no build step)*</span>
+<span class="k">4.</span> <span class="gs">**Output directory:**</span> <span class="sb">`/`</span> (or <span class="sb">`.`</span>)
+<span class="k">5.</span> Add custom domain: <span class="sb">`protocol.vaked.dev`</span>
+
+<span class="gu">## Local preview</span>
+</pre></div>
+<p>bash<br />
+open sites/protocol-vaked-dev/index.html</p>
+<h1 id="or">or:</h1>
+<p>python3 -m http.server 8080 --directory sites/protocol-vaked-dev</p>
+<h1 id="then-open-httplocalhost8080">then open http://localhost:8080</h1>
+<div class="highlight"><pre><span></span><span class="c1">## Proposals</span>
+
+<span class="n">Post</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="p">[</span><span class="n">social</span><span class="o">.</span><span class="n">crabcc</span><span class="o">.</span><span class="n">app</span><span class="p">](</span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">social</span><span class="o">.</span><span class="n">crabcc</span><span class="o">.</span><span class="n">app</span><span class="p">)</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="err">`</span><span class="c1">#openagui`.  </span>
+<span class="n">Feed</span><span class="w"> </span><span class="n">fetched</span><span class="w"> </span><span class="n">client</span><span class="o">-</span><span class="n">side</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">Mastodon</span><span class="w"> </span><span class="n">public</span><span class="w"> </span><span class="n">API</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">page</span><span class="w"> </span><span class="nb">load</span><span class="o">.</span><span class="w">  </span>
+<span class="n">Future</span><span class="p">:</span><span class="w"> </span><span class="n">dedicated</span><span class="w"> </span><span class="err">`@</span><span class="n">proposals</span><span class="err">@</span><span class="n">social</span><span class="o">.</span><span class="n">crabcc</span><span class="o">.</span><span class="n">app</span><span class="err">`</span><span class="w"> </span><span class="n">account</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">DYAD</span><span class="w"> </span><span class="n">auth</span><span class="o">.</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>sites/protocol-vaked-dev/README.md
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;docs(protocol-vaked-dev): add deploy README&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="self-review">Self-Review</h2>
+<p><strong>Spec coverage check:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Spec requirement</th>
+<th>Task</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Logo at top</td>
+<td>Task 3</td>
+</tr>
+<tr>
+<td>Header: title, tagline, authorship</td>
+<td>Task 3</td>
+</tr>
+<tr>
+<td>AG-UI Wire Protocol events (all 9 + 2 Vaked ext)</td>
+<td>Task 4</td>
+</tr>
+<tr>
+<td>HITL gate noted</td>
+<td>Task 4</td>
+</tr>
+<tr>
+<td>AG-UI Surface: themes, ChatBlock, shader, keybindings</td>
+<td>Task 4</td>
+</tr>
+<tr>
+<td>Vaked DYAD card</td>
+<td>Task 5</td>
+</tr>
+<tr>
+<td>GLOSSOPETRAE card</td>
+<td>Task 5</td>
+</tr>
+<tr>
+<td>Anastigate/VICE card</td>
+<td>Task 5</td>
+</tr>
+<tr>
+<td>Mastodon #openagui feed, oldest→newest</td>
+<td>Task 6</td>
+</tr>
+<tr>
+<td>Empty state</td>
+<td>Task 6</td>
+</tr>
+<tr>
+<td>Error state</td>
+<td>Task 6</td>
+</tr>
+<tr>
+<td>Submit button → social.crabcc.app</td>
+<td>Task 6</td>
+</tr>
+<tr>
+<td>Future DYAD auth note</td>
+<td>Task 6</td>
+</tr>
+<tr>
+<td>Footer + authorship</td>
+<td>Task 7</td>
+</tr>
+<tr>
+<td>Cloudflare Pages deploy instructions</td>
+<td>Task 8</td>
+</tr>
+<tr>
+<td>Style: #070b16 bg, #00d4ff accent, monospace</td>
+<td>Task 2</td>
+</tr>
+</tbody>
+</table>
+<p>All spec requirements covered. No gaps.</p>
+<p><strong>Placeholder scan:</strong> No TBD/TODO in any task. All code blocks are complete.</p>
+<p><strong>Type consistency:</strong> No shared types across tasks — pure HTML/JS, no interfaces. <code>statuses</code> array shape matches Mastodon v1 API (<code>id</code>, <code>created_at</code>, <code>content</code>, <code>account.acct</code>, <code>url</code>). All element IDs (<code>feed-log</code>) match between HTML task (Task 6 step 2) and JS task (Task 6 step 3).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-23-protocol-vaked-dev.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

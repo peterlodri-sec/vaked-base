@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0017 — Namespace & daemon-channel roster (closing branch-B) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#decisions" style="padding-left:0.5rem">Decisions</a><a href="#spark" style="padding-left:0.5rem">Spark</a><a href="#what-branch-b-refs-actually-are-the-raw-material" style="padding-left:0.5rem">What branch-B refs actually are (the raw material)</a><a href="#design" style="padding-left:0.5rem">Design</a><a href="#the-construct-a-built-in-namespace-catalog" style="padding-left:1rem">  The construct: a built-in `namespace` catalog</a><a href="#checker-integration" style="padding-left:1rem">  Checker integration</a><a href="#strictness-posture" style="padding-left:1rem">  Strictness posture</a><a href="#relationship-to-the-rest" style="padding-left:1rem">  Relationship to the rest</a><a href="#open-questions-owner-decisions-at-review" style="padding-left:0.5rem">Open questions (owner decisions at review)</a><a href="#plan-after-this-design-is-accepted" style="padding-left:0.5rem">Plan (after this design is accepted)</a><a href="#verification-of-the-eventual-implementation" style="padding-left:0.5rem">Verification (of the eventual implementation)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0017-namespace-roster</div>
+<h1>0017 — Namespace & daemon-channel roster (closing branch-B)</h1>
+<h1 id="0017-namespace-daemon-channel-roster-closing-branch-b">0017 — Namespace &amp; daemon-channel roster (closing branch-B)</h1>
+<p>Status: <strong>implemented</strong> (2026-06-13) · Series: language design notes ·<br />
+Issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/8">#8</a> · closes the<br />
+checker half of <a href="https://github.com/peterlodri-sec/vaked-base/issues/7">#7</a></p>
+<h2 id="decisions">Decisions</h2>
+<p>Owner decisions recorded 2026-06-13 (closes the open questions from the design):</p>
+<ol>
+<li>
+<p><strong><code>artifacts.*</code> / <code>graph.*</code> resolution → closed-world.</strong> These resolve to<br />
+   declared producers only (a fiber/step output, a sub-graph); unknown heads<br />
+   (<code>artifacts.x</code> without a matching in-runtime producer) are a hard error. They<br />
+   do NOT go into the external namespace roster — they belong in the<br />
+   closed-world arm of <code>_check_ref_resolution</code>.</p>
+</li>
+<li>
+<p><strong>Strictness v1 → hard error immediately.</strong> Unknown namespace heads and unknown<br />
+   members of closed namespaces are errors on first use. No warn-then-error<br />
+   transition phase. The <code>severity: "warning"</code> alternative described in the design<br />
+   is not used.</p>
+</li>
+<li>
+<p><strong>Daemon-channel authority → runtime-scoped.</strong> A runtime only sees daemon<br />
+   channels for daemons it has explicitly declared in its namespace block (POLA<br />
+   alignment). There is no global roster that all runtimes implicitly inherit.<br />
+   The builtins catalog defines the canonical channel sets per daemon; a runtime<br />
+   must declare a <code>namespace &lt;daemon&gt; { ... }</code> block to bring those channels into<br />
+   scope.</p>
+</li>
+<li>
+<p><strong>Member types → deferred entirely.</strong> No <code>member &lt;name&gt; : &lt;Type&gt;</code> syntax in<br />
+   v1. The <code>member_decl</code> form is <code>member ident</code> only; the <code>0015</code> type-link is a<br />
+   post-v1 follow-up. Reserving the syntax now is explicitly rejected — the<br />
+   grammar remains minimal.</p>
+</li>
+</ol>
+<h2 id="spark">Spark</h2>
+<p>The Goal-2 checker resolves references inside a <code>runtime {}</code> as a closed world<br />
+(<a href="./0011-type-system.md">0011</a> §6.1; <code>vakedc/check.py:_check_ref_resolution</code>):<br />
+a <code>&lt;kind&gt;.&lt;name&gt;</code> ref (<code>input = stream.transcripts</code>) must name an in-runtime<br />
+declaration of that kind, and a bare ref (<code>engine = zigDaemon</code>, a <code>parallel</code>'s<br />
+<code>fibers = [f]</code>) must be in scope. Two reference shapes are <strong>deliberately left<br />
+unenforced</strong> — the comment in <code>check.py</code> calls them <em>branch B</em>:</p>
+<div class="highlight"><pre><span></span><span class="c1"># len(parts) &gt;= 2 with a non-kind head (`pkgs.x`, `&lt;daemon&gt;.&lt;channel&gt;`,</span>
+<span class="c1"># `artifacts.x`) is the deferred &quot;branch B&quot; — left unenforced (no roster).</span>
+</pre></div>
+
+<p>Because branch-B refs are never checked, a typo in a package name, an artifact<br />
+name, or a daemon channel sails through <code>check</code> and only fails (or silently<br />
+misbehaves) far downstream. That is the <strong>checker half of #7</strong>: #7's lowering<br />
+half — dotted names spliced into Nix attrpath keys — is already fixed<br />
+(<code>lower._nix_attr_key</code>), but the checker still greenlights a dangling<br />
+<code>engine = pkgs.doesNotExist</code>.</p>
+<p>The blocker named in <code>check.py</code> is precise: <em>"no roster"</em>. There is no built-in<br />
+catalog of the legitimate non-kind namespaces, so the checker cannot tell a real<br />
+<code>pkgs.umami</code> from a fat-fingered <code>pkgs.umani</code>. This note designs that roster.</p>
+<h2 id="what-branch-b-refs-actually-are-the-raw-material">What branch-B refs actually are (the raw material)</h2>
+<p>Every non-kind dotted head used across <code>vaked/examples/**</code> and <code>builtins.vaked</code>,<br />
+grouped by what kind of thing it names:</p>
+<table>
+<thead>
+<tr>
+<th>Class</th>
+<th>Heads (members seen)</th>
+<th>How it should resolve</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Capability domain</strong></td>
+<td><code>fs</code> (repo_rw…), <code>mem</code>, <code>process</code>, <code>mcp</code>, <code>bus</code>, <code>storage</code></td>
+<td><strong>Already checked</strong> — these are <code>capability</code> decls in the registry; <code>requires_capability</code> edges and mesh attenuation validate them (<code>E-CAP-*</code>). Not branch-B; out of scope here.</td>
+</tr>
+<tr>
+<td><strong>Open value-namespace</strong></td>
+<td><code>pkgs</code> (umami…), <code>nix</code> (derivation)</td>
+<td>Head is a known external namespace; the member set is <strong>unbounded</strong> (you cannot enumerate nixpkgs). Validate the <em>head</em>, accept any member.</td>
+</tr>
+<tr>
+<td><strong>Daemon channel</strong></td>
+<td><code>agentGuardd</code> (ringbuf), <code>agentpipe</code> (transcripts, screenrec), <code>eventd</code> (log)</td>
+<td>Head is a daemon in the runtime roster; the member is a <strong>channel it exposes</strong> — an <em>enumerable, closed</em> set sourced from <a href="../runtime/README.md"><code>docs/runtime/README.md</code></a> + the daemon designs.</td>
+</tr>
+<tr>
+<td><strong>External service / tool</strong></td>
+<td><code>crabcc</code> (markdown, semantic), <code>github</code> (issue), <code>mempalace</code> (convos)</td>
+<td>Known external producers; members are a closed, rosterable set.</td>
+</tr>
+<tr>
+<td><strong>In-runtime production (open question)</strong></td>
+<td><code>artifacts</code> (plan, patch, verdict…), <code>graph</code> (swe_af, field…)</td>
+<td>In <code>agentfield-swe.vaked</code> these name things <em>produced inside the runtime</em> (a fiber/step output, a sub-graph). They may belong in closed-world resolution (resolve to a declared producer), <strong>not</strong> the external roster. See <em>Open questions</em>.</td>
+</tr>
+</tbody>
+</table>
+<p>The takeaway: branch-B is not one bucket. The roster only needs to cover the<br />
+<strong>open value-namespaces</strong>, <strong>daemon channels</strong>, and <strong>external services</strong>; the<br />
+capability heads are done, and <code>artifacts</code>/<code>graph</code> may be a closed-world matter.</p>
+<h2 id="design">Design</h2>
+<h3 id="the-construct-a-built-in-namespace-catalog">The construct: a built-in <code>namespace</code> catalog</h3>
+<p>Add one built-in kind, <code>namespace</code>, declared (like <code>schema</code> / <code>capability</code>) in<br />
+<code>vaked/schema/builtins.vaked</code> and loaded through the <strong>existing</strong> registry path<br />
+(<code>check.load_builtins</code> → <code>_load_decls_into</code> → <code>_Registry</code>). A namespace is a head<br />
+plus either an <code>open</code> marker (any member accepted) or an enumerated, closed<br />
+<code>member</code> set:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Open value-namespaces — head approved, members unbounded.</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">pkgs</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">open</span><span class="w"> </span><span class="p">}</span><span class="w">            </span><span class="c1"># nixpkgs attrset</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">nix</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="n">open</span><span class="w"> </span><span class="p">}</span><span class="w">            </span><span class="c1"># nix builtins / stdlib</span>
+
+<span class="c1"># Daemon channels — head = a roster daemon, members = the channels it exposes</span>
+<span class="c1"># (closed; sourced from docs/runtime/README.md + the daemon designs).</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">agentGuardd</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="n">ringbuf</span><span class="w"> </span><span class="p">}</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">agentpipe</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="n">transcripts</span><span class="w">  </span><span class="n">member</span><span class="w"> </span><span class="n">screenrec</span><span class="w"> </span><span class="p">}</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">eventd</span><span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="nb">log</span><span class="w"> </span><span class="p">}</span>
+
+<span class="c1"># External services/tools — closed member sets.</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">crabcc</span><span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="n">markdown</span><span class="w">  </span><span class="n">member</span><span class="w"> </span><span class="n">semantic</span><span class="w"> </span><span class="p">}</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">github</span><span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="n">issue</span><span class="w"> </span><span class="p">}</span>
+<span class="n">namespace</span><span class="w"> </span><span class="n">mempalace</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="n">member</span><span class="w"> </span><span class="n">convos</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+
+<p>Why a dedicated kind rather than overloading <code>capability</code>: a capability domain is<br />
+<em>authority with an attenuation order</em> (<code>grant</code> + <code>order</code>, POLA-checked); a<br />
+namespace is <em>a reference target with a member set</em>. Same registry mechanism,<br />
+different semantics — conflating them would muddy both. <code>open</code> already exists in<br />
+the grammar (schemas use it), so the only new surface is the <code>namespace</code> keyword<br />
+and a <code>member &lt;name&gt;</code> body statement.</p>
+<p>Proposed grammar delta (EBNF sketch, for the implementation step — not yet<br />
+landed; <code>vaked/grammar/vaked-v0-plus.ebnf</code> is the normative source):</p>
+<div class="highlight"><pre><span></span><span class="k">kind        </span><span class="o">=</span> <span class="s2">&quot;runtime&quot;</span> <span class="p">|</span> <span class="err">…</span> <span class="p">|</span> <span class="s2">&quot;memory&quot;</span> <span class="p">|</span> <span class="s2">&quot;namespace&quot;</span> <span class="p">;</span>   <span class="cm">(* +1: 28 → 29 *)</span>
+
+<span class="cm">(* a namespace block is either `open` (any member) or a set of `member`s;</span>
+<span class="cm">   reuses the existing open_decl, adds one line-terminated member_decl *)</span>
+<span class="k">member_decl </span><span class="o">=</span> <span class="s2">&quot;member&quot;</span> <span class="k">ident </span><span class="p">;</span>
+</pre></div>
+
+<p><code>member_decl</code> joins the ordered <code>stmt</code> alternatives next to <code>grant_decl</code> /<br />
+<code>order_decl</code> (it begins with the reserved leading keyword <code>member</code>, so it is a<br />
+non-breaking soft-keyword addition, same discipline as the v0.3 type-layer<br />
+statements). A <code>namespace</code> body is <code>open_decl</code> <strong>xor</strong> <code>{ member_decl }</code>; mixing<br />
+them (an <code>open</code> namespace that also enumerates members) is a load-time error.</p>
+<p>This keeps the language "small enough to implement and remember" (CLAUDE.md):<br />
+<strong>one</strong> new kind, reusing <code>open</code> and the builtins-loading path.</p>
+<h3 id="checker-integration">Checker integration</h3>
+<p>Extend <code>_Registry</code> with <code>namespaces: dict[str, NamespaceSpec]</code> (head → <code>{open,
+members}</code>), populate it in <code>_load_decls_into</code>, and replace the branch-B no-op in<br />
+<code>_check_ref_resolution</code> (the <code>len(parts) &gt;= 2</code>, non-kind-head arm) with:</p>
+<div class="highlight"><pre><span></span>head = parts[0]
+if head in registry.namespaces:
+    ns = registry.namespaces[head]
+    if not ns.open and parts[1] not in ns.members:
+        emit E-REF-UNRESOLVED  # known namespace, unknown member  → typo
+    # open namespace, or member present → accept
+elif head is a known capability domain:
+    # already handled elsewhere; leave to the capability checker
+else:
+    emit E-REF-UNRESOLVED      # unknown head → typo / un-rostered namespace
+</pre></div>
+
+<p>Reuse the existing <code>E-REF-UNRESOLVED</code> code (it already carries the closed-world<br />
+"this ref names nothing" meaning) with a message that distinguishes <em>unknown<br />
+namespace head</em> from <em>unknown member of a known namespace</em>.</p>
+<h3 id="strictness-posture">Strictness posture</h3>
+<p>The point of #8 is to <strong>catch typos</strong>, so the recommended v1 is <strong>strict</strong>: an<br />
+unknown head, and an unknown member of a <em>closed</em> namespace, are both errors.<br />
+That fully closes branch-B. The cost is that every external head a real file uses<br />
+must be in the roster — which is exactly the inventory above (already enumerated<br />
+from the examples), so the migration is "seed the roster, then green." Open<br />
+namespaces (<code>pkgs</code>, <code>nix</code>) keep their typo-blind spot by necessity — documented,<br />
+not a regression.</p>
+<p>Alternative (if a hard cutover feels risky): land the roster emitting<br />
+<code>severity: "warning"</code> for unknown heads first, watch a release, then flip to<br />
+error. The grammar + roster are identical either way, so this is a one-line<br />
+posture choice, deferred to the owner at review.</p>
+<h3 id="relationship-to-the-rest">Relationship to the rest</h3>
+<ul>
+<li><strong>#7</strong> — this is its checker half; together with the shipped <code>_nix_attr_key</code><br />
+  lowering fix, #7 is fully closed once this lands.</li>
+<li><strong>Lowering</strong> — unchanged. A rostered <code>pkgs.umami</code> still lowers through<br />
+<code>_nix_attr_key</code> (quoted single attr key); the roster only gates <code>check</code>.</li>
+<li><strong>0015 trigger vocabulary</strong> — a <em>future</em> extension: if <code>namespace</code> members<br />
+  carry a type (<code>member issue : Event</code>), a workflow <code>on = "github.issue.labeled"</code><br />
+  could resolve against the roster instead of being a bare string<br />
+  (<a href="./0015-workflow.md">0015</a> open item). Out of scope for v1 — v1 rosters<br />
+  names, not types.</li>
+</ul>
+<h2 id="open-questions-owner-decisions-at-review">Open questions (owner decisions at review)</h2>
+<ol>
+<li><strong><code>artifacts.*</code> / <code>graph.*</code>: roster or closed-world?</strong> In <code>agentfield-swe</code><br />
+   these name in-runtime productions. If they should resolve to a declared<br />
+   producer (a fiber/step output, a sub-graph), they belong in<br />
+<code>_check_ref_resolution</code>'s closed-world arm, not the external roster — a<br />
+   stronger check. Needs a ruling before seeding the roster.</li>
+<li><strong>Strictness v1</strong>: hard error on unknown heads immediately, or warn-then-error<br />
+   over one release? (See <em>Strictness posture</em>.)</li>
+<li><strong>Daemon-channel authority</strong>: is the channel set per-daemon <strong>global</strong><br />
+   (every runtime sees <code>eventd.log</code>), or does a runtime only get the channels of<br />
+   the daemons its declarations actually instantiate? v1 proposes global (the<br />
+   roster is built-in and version-pinned, like the schema catalog); a<br />
+   runtime-scoped roster is a larger change tied to the daemon designs.</li>
+<li><strong>Member types (0015 link)</strong>: defer entirely to a follow-up, or reserve the<br />
+<code>member &lt;name&gt; : &lt;Type&gt;</code> syntax now even if v1 ignores the type?</li>
+</ol>
+<h2 id="plan-after-this-design-is-accepted">Plan (after this design is accepted)</h2>
+<p>Per the repo convention (grammar-first, design → plan → implement; #8 is the<br />
+issue of record):</p>
+<ol>
+<li><em>(this note)</em> design + owner rulings on the open questions.</li>
+<li><em>(grammar-first)</em> add <code>namespace</code> + <code>member</code> to<br />
+<code>vaked/grammar/vaked-v0-plus.ebnf</code> (kind list 28 → 29; one body statement) and<br />
+   a worked example; document the kind in <code>parallel-types.md</code> /<br />
+<code>docs/language/README.md</code>.</li>
+<li><em>(catalog)</em> seed <code>vaked/schema/builtins.vaked</code> with the rostered namespaces<br />
+   from the inventory above.</li>
+<li><em>(checker)</em> extend <code>_Registry</code> + <code>_load_decls_into</code> + the branch-B arm of<br />
+<code>_check_ref_resolution</code>; add <code>tests/spec/test_vakedc_check.py</code> probes<br />
+   (known-open accept, known-closed bad-member reject, unknown-head reject) and<br />
+   confirm every existing example still checks clean against the seeded roster.</li>
+</ol>
+<h2 id="verification-of-the-eventual-implementation">Verification (of the eventual implementation)</h2>
+<ul>
+<li><code>tests/spec/run_all.py</code> stays green; the seeded roster makes every current<br />
+  example resolve with <strong>no</strong> new diagnostics (the migration baseline).</li>
+<li>A fixture <code>engine = pkgs.doesNotExist</code> (open ns) still passes (member-unbounded,<br />
+  documented), but <code>input = agentGuardd.ringbufff</code> (closed ns, bad member) and<br />
+<code>output = nope.thing</code> (unknown head) each yield exactly one <code>E-REF-UNRESOLVED</code>.</li>
+<li>The #7 reproducer (<code>crabcc-umami.vaked</code>-style dotted dangling engine) now fails<br />
+<code>check</code> instead of reaching <code>lower</code>.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0017-namespace-roster.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

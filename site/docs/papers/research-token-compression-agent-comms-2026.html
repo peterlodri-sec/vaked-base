@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Token optimization and compression protocols for LLM agent communication (2024-2026) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#executive-summary" style="padding-left:0.5rem">Executive summary</a><a href="#area-1---grammar-enforced-structured-intermediate-languages" style="padding-left:0.5rem">Area 1 - Grammar-enforced / structured intermediate languages</a><a href="#area-2---tokenizer-fragmentation-across-model-families" style="padding-left:0.5rem">Area 2 - Tokenizer fragmentation across model families</a><a href="#area-3---syntactic-hallucination-repair-token-cost" style="padding-left:0.5rem">Area 3 - Syntactic hallucination + repair-token cost</a><a href="#claim-audit-corrections" style="padding-left:0.5rem">Claim audit / corrections</a><a href="#evidence-quality" style="padding-left:0.5rem">Evidence quality</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a><a href="#recommended-next-steps" style="padding-left:0.5rem">Recommended next steps</a><a href="#appendix---sources-abstain-safe-all-probes-returned-none-rate-limited-arxiv-ids-" style="padding-left:0.5rem">Appendix - sources (abstain-safe: all probes returned; none rate-limited; arXiv IDs cited for traceability, not all deep-fetched)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/papers/">papers</a> / research-token-compression-agent-comms-2026</div>
+<h1>Token optimization and compression protocols for LLM agent communication (2024-2026)</h1>
+<h1 id="token-optimization-and-compression-protocols-for-llm-agent-communication-2024-2026">Token optimization and compression protocols for LLM agent communication (2024-2026)</h1>
+<p>Status: <strong>Research synthesis</strong> | Created: 2026-06-14 | Method: web, primary-leaning, abstain-safe<br />
+Scope: three areas - (1) grammar/structured-IL compression, (2) tokenizer fragmentation across model families, (3) syntactic-hallucination mitigation + repair-token cost. Relevance to Vaked: the EBNF-first language, the caveman compression mode, and the multi-model swe_af fleet (OpenRouter across Llama/Qwen/DeepSeek).</p>
+<h2 id="executive-summary">Executive summary</h2>
+<p>Grammar-constrained decoding (EBNF/GBNF/JSON-Schema enforced at the logit level) is now the industry-standard way to guarantee <em>syntactic</em> validity of agent output, shipped in every major inference engine and provider. But it buys validity at a measured cost: 10-30% reasoning-quality degradation under hard constraints, driven by distributional shift, token-grammar mismatch, and field-ordering effects. Compressed symbolic formats (TOON and kin) cut tokens ~40% in the favorable (uniform-tabular) case - not the ~90-98% sometimes advertised - and their parse-success depends on the tokenizer: the same compressed string fragments differently across Llama/Qwen/DeepSeek, so a format tuned for one can lose its edge or mis-parse on another. The robust pattern emerging is "draft then constrain" (generate reasoning unconstrained, enforce structure second) plus a validation gate, which preserves reasoning while eliminating the format-failure class.</p>
+<h2 id="area-1-grammar-enforced-structured-intermediate-languages">Area 1 - Grammar-enforced / structured intermediate languages</h2>
+<p>Findings (evidence grade in brackets):</p>
+<ul>
+<li><strong>Constrained decoding is mainstream and engine-default.</strong> [HIGH] XGrammar (persistent parse stack + context-independent pre-checks, reported ~100x faster than prior grammar libs) is the default structured-generation backend in SGLang, vLLM, and TensorRT-LLM; Outlines uses FSM/regex+CFG; GBNF (from llama.cpp) is the lightweight CPU/single-GPU path used by Ollama. OpenAI shipped Structured Outputs "Strict Mode" (constrained decoding) Aug 2024; by 2025-2026 every major provider adopted the same logit-mask approach.</li>
+<li><strong>It works at the token level: schema-valid by construction.</strong> [HIGH] JSONSchemaBench (Jan 2025) tested 6 frameworks over ~10,000 real-world JSON schemas; constrained decoding guarantees schema-valid output at the token level.</li>
+<li><strong>Type/grammar guidance helps semantic, not just syntactic, validity - to a point.</strong> [MEDIUM] Mundler et al. (PLDI 2025) report type-constrained decoding cuts compilation errors 74.8% vs 9.0% for syntax-only constraints. But "syntactically valid" is not "functionally correct."</li>
+<li><strong>Structured IL compresses agent payloads.</strong> [MEDIUM] Reported tool-schema slimming (keep name/description/parameters, drop OpenAPI verbosity + whitespace) ~40% tokens/tool; action-chain bundling (ELHPlan) ~24% of prior token usage; structured action encoding ("[Action: Move North, Reason: ...]") reduces output tokens vs prose.</li>
+</ul>
+<p>Vaked implication: Vaked's grammar-first stance (EBNF before code) is exactly the substrate constrained decoding consumes. A <code>.vaked</code>/HCP EBNF can be compiled to a GBNF/XGrammar grammar and used to <em>enforce</em> agent output, not merely document it. The 0019/0020 dialect verifiers (ODS) are the static analogue; constrained decoding is the generation-time analogue.</p>
+<h2 id="area-2-tokenizer-fragmentation-across-model-families">Area 2 - Tokenizer fragmentation across model families</h2>
+<p>Findings:</p>
+<ul>
+<li><strong>Same text, different token counts - material, not marginal.</strong> [HIGH] A 10k-character prompt can cost ~30% more on one model than another purely from tokenizer-vocabulary differences. Online counters approximate within ~+/-3% of reference tokenizers for Llama/Mistral/DeepSeek/Qwen.</li>
+<li><strong>Per-family compression differs sharply, esp. on non-ASCII / symbols / CJK.</strong> [MEDIUM] Reported special-character token shares on one corpus: Llama 14.6%, Qwen2.5 12.1%, DeepSeek-V3 5.1%; DeepSeek-V3 and Qwen3 have stronger CJK compression than peers. A symbol-dense compressed format is therefore <em>not</em> tokenizer-neutral.</li>
+<li><strong>Consequence for compressed symbolic formats.</strong> [MEDIUM, inferred] A format optimized to minimize tokens under one tokenizer can fragment badly under another (heavy punctuation/symbols split into many tokens), eroding the savings and raising mis-parse risk. Compression ratios must be measured per target model, not assumed.</li>
+</ul>
+<p>Vaked implication: the caveman wenyan-ultra mode and any HCP wire-shorthand should be token-benchmarked per swe_af target model (Llama/Qwen/DeepSeek on OpenRouter). A symbol-heavy "ultra" form that wins on one tokenizer may lose on another; CJK (wenyan) compresses well on DeepSeek/Qwen but may fragment on Llama. This is a measurable gate, not a guess - mirrors 0024's "measure, do not assume" discipline.</p>
+<h2 id="area-3-syntactic-hallucination-repair-token-cost">Area 3 - Syntactic hallucination + repair-token cost</h2>
+<p>Findings:</p>
+<ul>
+<li><strong>Constrained decoding eliminates the format-failure class - removing repair cost at the source.</strong> [HIGH] Narrowing the output space to grammar/schema-admissible tokens makes malformed output impossible by construction; this removes the regex/JSON.parse-and-retry repair loop entirely (the repair tokens are never spent because the failure never happens). Pair with a validation gate on everything returned.</li>
+<li><strong>But hard constraints degrade reasoning 10-30%.</strong> [HIGH] Documented causes: (a) <strong>field ordering</strong> - if the answer field precedes the reasoning field, the model commits before its chain-of-thought, degrading quality; (b) <strong>token-grammar mismatch</strong> - grammars constrain at character level while models emit multi-char tokens, forcing rare/non-canonical tokenizations; (c) <strong>distributional shift</strong> - masking+renormalizing alters the distribution at every token. "Structured outputs create false confidence": syntactically valid != correct.</li>
+<li><strong>Mitigation = decouple planning from enforcement.</strong> [MEDIUM] Draft-Conditioned Constrained Decoding (DCCD) and CRANE generate an unconstrained reasoning draft first, then apply constraints conditioned on it - preserving reasoning while guaranteeing validity. Earley-driven dynamic pruning and XGrammar-2 attack the throughput cost.</li>
+</ul>
+<p>Vaked implication: two concrete rules. (1) In any Vaked/HCP structured frame, put reasoning/rationale fields <em>before</em> the decision field (field-ordering effect) - this also matches the caveman "reason then answer" pattern and argues against ultra-compression that strips the reasoning slot. (2) Prefer draft-then-constrain over hard one-pass constraint for reasoning-heavy agent steps; reserve strict constrained decoding for the final structured emission.</p>
+<h2 id="claim-audit-corrections">Claim audit / corrections</h2>
+<ul>
+<li><strong>"Compression up to 98%"</strong> [REFRAME] - traced to marketing/edge-case copy. The peer benchmark (arXiv 2603.03306, TOON vs JSON, plain + constrained decoding) reports ~40% token reduction with 76.4% vs JSON 75.0% accuracy on uniform-tabular data; savings shrink or invert for non-uniform/nested/wide-row data (YAML better when nested, CSV best when flat, JSON better when non-uniform). Treat TOON-class formats as specialized, not universal. Use ~40% (favorable case), not 90-98%, as the planning figure.</li>
+<li><strong>"Constrained decoding is strictly better"</strong> [REFRAME] - false. JSONSchemaBench / the TOON benchmark find plain JSON generation often has the best one-shot and final accuracy; constrained decoding's only consistent win is lowest token usage, traded against slight-to-significant accuracy degradation per model.</li>
+</ul>
+<h2 id="evidence-quality">Evidence quality</h2>
+<ul>
+<li>HIGH: industry adoption of constrained decoding; tokenizer count disparity; constrained decoding removes format-failure class; reasoning degradation is real and measured.</li>
+<li>MEDIUM: specific percentage figures (40% tool slimming, 24% action chains, special-char shares, 10-30% degradation) - drawn from individual papers/benchmarks, directionally consistent but corpus-dependent; would firm up with multi-source replication.</li>
+<li>LOW / not independently verified this session: exact arXiv claims not deep-fetched (IDs cited for traceability, not quoted verbatim beyond the search abstracts).</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>Does compiling the Vaked/HCP EBNF to GBNF/XGrammar and enforcing it on swe_af agents net-save tokens <em>after</em> the reasoning-degradation tax, per target model?</li>
+<li>What is the measured per-tokenizer (Llama/Qwen/DeepSeek) compression of caveman full vs ultra vs wenyan-ultra on representative agent traffic?</li>
+<li>For Vaked frames, does draft-then-constrain beat one-pass constraint on the swe_af task suite, and by how much repair-token saving?</li>
+</ul>
+<h2 id="recommended-next-steps">Recommended next steps</h2>
+<ol>
+<li>Token-benchmark caveman {full, ultra, wenyan-ultra} across Llama/Qwen/DeepSeek tokenizers on a real swe_af transcript sample; record per-model ratios (gate, not assumption).</li>
+<li>Prototype: compile a small HCP frame EBNF to GBNF, A/B enforce-vs-prompt on one model, measure validity + accuracy + tokens.</li>
+<li>Adopt the field-ordering rule (reason-before-decision) in any structured Vaked/HCP frame spec.</li>
+</ol>
+<h2 id="appendix-sources-abstain-safe-all-probes-returned-none-rate-limited-arxiv-ids-cited-for-traceability-not-all-deep-fetched">Appendix - sources (abstain-safe: all probes returned; none rate-limited; arXiv IDs cited for traceability, not all deep-fetched)</h2>
+<ul>
+<li>XGrammar-2 (efficient dynamic structured generation) - arXiv 2601.04426; SynCode - arXiv 2403.01632; Lookahead-then-Verify CFG decoding - arXiv 2602.00612</li>
+<li><a href="https://arxiv.org/pdf/2501.10868">JSONSchemaBench</a> (rigorous structured-output benchmark, Jan 2025)</li>
+<li>Mundler et al., type-constrained decoding (PLDI 2025) - via <a href="https://tianpan.co/blog/2026-04-16-grammar-constrained-generation-output-reliability">grammar-constrained generation overview</a></li>
+<li><a href="https://deepwiki.com/sihyeong/Awesome-LLM-Inference-Engine/4.7-structured-outputs">Structured Outputs | Awesome-LLM-Inference-Engine (DeepWiki)</a></li>
+<li>TOON vs JSON benchmark - <a href="https://arxiv.org/abs/2603.03306">arXiv 2603.03306</a>; critical analysis - <a href="https://dev.to/ikaganacar/toon-benchmarks-a-critical-analysis-of-different-results-5h66">dev.to</a>; <a href="https://www.infoq.com/news/2025/11/toon-reduce-llm-cost-tokens/">InfoQ</a>; <a href="https://github.com/toon-format/toon">toon-format/toon</a></li>
+<li>TOON token reduction / MCP optimization - <a href="https://www.mindstudio.ai/blog/reduce-token-usage-ai-agents-mcp-optimization">MindStudio</a></li>
+<li>Tokenizer comparison (Llama/Qwen/DeepSeek special-char + CJK) - <a href="https://atul4u.medium.com/tokenizer-comparison-part2-comprehensive-tokenizer-performance-analysis-a8e0613bed0d">TechEon, Medium</a>; <a href="https://www.spheron.network/blog/deepseek-vs-llama-4-vs-qwen3/">DeepSeek vs Llama 4 vs Qwen3, Spheron</a></li>
+<li>Draft-Conditioned Constrained Decoding - <a href="https://arxiv.org/pdf/2603.03305">arXiv 2603.03305</a>; CRANE (reasoning + constrained generation) - <a href="https://arxiv.org/html/2502.09061v3">arXiv 2502.09061</a>; Earley-driven dynamic pruning - <a href="https://arxiv.org/pdf/2506.01151">arXiv 2506.01151</a></li>
+<li>"Structured Outputs Create False Confidence" - <a href="https://boundaryml.com/blog/structured-outputs-create-false-confidence">BAML blog</a></li>
+</ul>
+<p>Method note: abstain-safe applied - no probe was rate-limited or 403'd this session, so nothing was marked refuted-by-abstention; uncertain figures are graded MEDIUM/LOW rather than dropped.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/papers/research-token-compression-agent-comms-2026.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

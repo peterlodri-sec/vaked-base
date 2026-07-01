@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RFC 0002 → tasks traceability matrix (hcpbin codec) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-why-three-status-buckets-not-two" style="padding-left:1rem">  1.1 Why three status buckets (not two)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#3-file-layout-paths-to-create-touch" style="padding-left:0.5rem">3. File layout (paths to create / touch)</a><a href="#4-the-matrix" style="padding-left:0.5rem">4. The matrix</a><a href="#41-scalars-primitives-51-61-64" style="padding-left:1rem">  4.1 Scalars & primitives (§5.1, §6.1, §6.4)</a><a href="#42-hash-65-651" style="padding-left:1rem">  4.2 `hash` (§6.5, §6.5.1)</a><a href="#43-aggregates-records-defaults-62-63-66" style="padding-left:1rem">  4.3 Aggregates, records, defaults (§6.2, §6.3, §6.6)</a><a href="#44-unions-enums-67-671-54" style="padding-left:1rem">  4.4 Unions & enums (§6.7, §6.7.1, §5.4)</a><a href="#45-canonicality-end-to-end-68-10-101" style="padding-left:1rem">  4.5 Canonicality + end-to-end (§6.8, §10, §10.1)</a><a href="#46-out-of-scope-for-the-payload-codec-frame-header-wire-layer" style="padding-left:1rem">  4.6 Out of scope for the payload codec (frame header — wire layer)</a><a href="#5-algorithm-design-how-a-deferred-row-is-taken" style="padding-left:0.5rem">5. Algorithm / design (how a deferred row is taken)</a><a href="#6-dependencies-on-other-sprints-external-artifacts" style="padding-left:0.5rem">6. Dependencies on other sprints / external artifacts</a><a href="#7-documentation-fix-action-stale-4-appendix-a-references" style="padding-left:0.5rem">7. Documentation-fix action (stale §4 / Appendix-A references)</a><a href="#8-open-flags-non-blocking" style="padding-left:0.5rem">8. Open flags (non-blocking)</a><a href="#9-test-plan-local-m1-vs-dev-cx53-linux" style="padding-left:0.5rem">9. Test plan — local M1 vs dev-cx53 / Linux</a><a href="#10-acceptance-criteria" style="padding-left:0.5rem">10. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-rfc0002-to-tasks-matrix</div>
+<h1>RFC 0002 → tasks traceability matrix (hcpbin codec)</h1>
+<h1 id="rfc-0002-tasks-traceability-matrix-hcpbin-codec">RFC 0002 → tasks traceability matrix (hcpbin codec)</h1>
+<ul>
+<li><strong>Status:</strong> Draft (planning artifact — the implementation work is future / dependency-blocked; this spec is the plan + traceability oracle, not code to merge now)</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Track:</strong> Protocol / WP3 (Litany wire)</li>
+<li><strong>Scope owner:</strong> WP3 (HCP wire protocol), per <a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a></li>
+<li><strong>Subject crate:</strong> <a href="../../../protocol/hcp/hcpbin"><code>protocol/hcp/hcpbin/</code></a></li>
+</ul>
+<h2 id="1-objective">1. Objective</h2>
+<p>Produce and maintain a <strong>traceability matrix</strong> that maps every <code>hcpbin</code><br />
+encoding rule and worked example in <strong>RFC 0002 §6</strong> (plus the §5.1 scalar table<br />
+and §10/§10.1 worked frames) to:</p>
+<ol>
+<li>a concrete codec function (existing or to-be-created) in<br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a>;</li>
+<li>a concrete test (existing or to-be-created), with the RFC-derived <strong>golden<br />
+   vector</strong> that anchors it; and</li>
+<li>a <strong>status</strong> in one of three buckets — done in WP3-S1, deferred (still<br />
+   hcpbin's job), or out-of-scope for the payload codec entirely.</li>
+</ol>
+<p>The matrix is the single artifact a WP3 engineer reads to know what is encoded,<br />
+what is verified, what remains, and <em>where in the RFC</em> each obligation lives. It<br />
+also drives a <strong>documentation-fix action</strong> (§7): the WP3 kickoff plan (and, per<br />
+the task, issue #167) point at "RFC 0002 §4 / Appendix A" for the byte encoding<br />
+and golden vectors. That is stale: the byte encoding is in <strong>§6</strong>, the golden<br />
+vectors are the worked-example hex blocks (§6.1.1, §6.3.1, §6.6.1, §6.7.1, §10,<br />
+§10.1), and Appendix A is <em>codegen</em> examples, not byte vectors.</p>
+<h3 id="11-why-three-status-buckets-not-two">1.1 Why three status buckets (not two)</h3>
+<p>The naive "done vs deferred" split reproduces the very error this matrix flags.<br />
+The <strong>frame header</strong> (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) is encoded <em>under</em><br />
+<code>hcpbin</code> canonicality but is <strong>not</strong> part of the <code>hcpbin</code> value codec: it<br />
+occupies the reserved <code>@0</code> space and is owned by the wire layer (RFC 0002 §4.2<br />
+and the §6 scope note: "the outer frame container … is the Litany Wire's<br />
+concern"; RFC 0003 §4.4 / §4.4.1 own the header's wire form). Folding the header<br />
+into "deferred hcpbin work" would repeat the §4-confusion. Hence:</p>
+<ul>
+<li><strong>DONE (WP3-S1)</strong> — implemented and verified on M1.</li>
+<li><strong>DEFERRED (still hcpbin's job)</strong> — belongs in this crate, not yet written.</li>
+<li><strong>OUT OF SCOPE (wire layer, RFC 0003)</strong> — the frame header; tracked here only<br />
+  so the boundary is explicit and the matrix is exhaustive.</li>
+</ul>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<table>
+<thead>
+<tr>
+<th>Oracle</th>
+<th>Path / locator</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RFC 0002 §5.1 scalar table</td>
+<td><a href="../../../protocol/rfcs/0002-hcplang.md"><code>protocol/rfcs/0002-hcplang.md</code></a> L317–331</td>
+<td>Canonical encoding per scalar type.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.1 primitives + strict varint decode</td>
+<td>§6.1 L451–471</td>
+<td>Varint (minimal encode / strict decode), float, length prefixes.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.1.1 worked examples (primitives)</td>
+<td>§6.1.1 L473–538</td>
+<td>Golden hex for u/i varints, bool, f32, string, bytes.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.2 records/frames</td>
+<td>§6.2 L540–569</td>
+<td>Ascending-tag-order field encoding, self-delimitation.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.3 defaults/optionals/omission</td>
+<td>§6.3 L571–620</td>
+<td>Canonical omission; implicit-default table; "no default → always emit".</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.3.1 worked examples (defaults)</td>
+<td>§6.3.1 L622–669</td>
+<td>Golden hex for nested-record omission + optional aggregates.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.4 scalar canonicalisation</td>
+<td>§6.4 L671–697</td>
+<td>Bool strictness, NaN/<code>-0.0</code>, NFC pinned to Unicode 15.1.0.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.5 hash + registry</td>
+<td>§6.5 / §6.5.1 L699–736</td>
+<td><code>varint(algo) varint(len) digest</code>; registry lengths; skip-unknown.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.6 lists/maps</td>
+<td>§6.6 L738–745</td>
+<td>Count-prefixed lists (order kept); maps sorted by encoded-key bytes.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.6.1 worked examples (lists/maps)</td>
+<td>§6.6.1 L825–866</td>
+<td>Golden hex for a list and a sorted map.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.7 unions</td>
+<td>§6.7 L747–772</td>
+<td><code>varint(arm-tag) varint(byte-len) value</code>; skip/preserve unknown arms.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.7.1 worked examples (unions/enums)</td>
+<td>§6.7.1 L774–823</td>
+<td>Golden hex for known/unknown union arms and enum cases.</td>
+</tr>
+<tr>
+<td>RFC 0002 §6.8 canonicality requirement</td>
+<td>§6.8 L868–893</td>
+<td>Fixed-point + cross-impl byte agreement.</td>
+</tr>
+<tr>
+<td>RFC 0002 §10 / §10.1 worked frames</td>
+<td>§10 L1009–1117; §10.1 L1119–1160</td>
+<td>End-to-end golden frames (ToolCallRequest/Response, ToolEvent, map frame).</td>
+</tr>
+<tr>
+<td>Example schema</td>
+<td><a href="../../../protocol/hcplang/examples/hcp-core.hcplang"><code>protocol/hcplang/examples/hcp-core.hcplang</code></a></td>
+<td>The concrete types the §10 vectors encode.</td>
+</tr>
+<tr>
+<td>Existing codec</td>
+<td><a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a></td>
+<td>What is already done (WP3-S1).</td>
+</tr>
+<tr>
+<td>Existing golden tests</td>
+<td><code>protocol/hcp/hcpbin/tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>)</td>
+<td>Blind, RFC-derived golden suite (verified: <code>cargo test</code> → 50 passed).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Boundary oracle (out-of-scope rows):</strong> RFC 0002 §4.2 (header reserved,<br />
+implicit), §6 scope note (L446–450), and RFC 0003 §4.4 / §4.4.1 (header wire<br />
+form: <code>kind</code> varint enum, <code>corr</code> 16-byte UUID, <code>stream</code>/<code>seq</code> optional varints,<br />
+<code>end</code> one byte).</p>
+<h2 id="3-file-layout-paths-to-create-touch">3. File layout (paths to create / touch)</h2>
+<p>Create:</p>
+<ul>
+<li><code>docs/superpowers/specs/2026-06-14-rfc0002-to-tasks-matrix.md</code> — <strong>this file</strong><br />
+  (the matrix + plan).</li>
+</ul>
+<p>Touch under WP3 execution (each is a deferred row's target, not created now):</p>
+<ul>
+<li><code>protocol/hcp/hcpbin/src/lib.rs</code> — add the deferred encode/decode functions<br />
+  (string, f32/f64, uuid, timestamp, records, defaults, lists/maps, unions,<br />
+  enums). Removes the <code>TODO(WP3-S2)</code> block at L488–498.</li>
+<li><code>protocol/hcp/hcpbin/tests/golden.rs</code> — extend with the §6.3.1 / §6.6.1 /<br />
+  §6.7.1 / §10 / §10.1 golden vectors.</li>
+<li><code>protocol/hcp/hcpbin/Cargo.toml</code> — add the NFC normalisation dependency when<br />
+  the <code>string</code> row is taken (see §6, dependency D3 — crate not chosen here).</li>
+</ul>
+<p>Cross-impl rows (§6.8) and the frame-header out-of-scope rows do <strong>not</strong> touch<br />
+this crate; they are pointers to the wire crate<br />
+(<code>protocol/hcp/litany/</code>, WP3-S3+) and to a future Zig codec, neither of which<br />
+exists yet.</p>
+<h2 id="4-the-matrix">4. The matrix</h2>
+<p>Status legend: <strong>D</strong> = done in WP3-S1 · <strong>F</strong> = deferred, still hcpbin's job ·<br />
+<strong>X</strong> = out of scope for the payload codec (wire layer).</p>
+<p>Sprint column: per kickoff "Code home" (hcpbin = WP3-S1 + S2) and the lib.rs<br />
+note ("string … WP3-S2"), deferred hcpbin rows land in <strong>S2</strong>. (See §8 flag F2:<br />
+the kickoff <em>sprint table</em> row for S2 says "RFC 0003 frame layer", which<br />
+conflicts with the Code-home line — treated as a possibly-stale table row.)</p>
+<h3 id="41-scalars-primitives-51-61-64">4.1 Scalars &amp; primitives (§5.1, §6.1, §6.4)</h3>
+<table>
+<thead>
+<tr>
+<th>RFC rule</th>
+<th>Oracle</th>
+<th>Codec fn (<code>hcpbin::</code>)</th>
+<th>Test</th>
+<th>Status</th>
+<th>Sprint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unsigned LEB128 varint, minimal</td>
+<td>§6.1, §6.1.1 (<code>0,127,128,255,16384</code>)</td>
+<td><code>encode_uvarint</code> / <code>decode_uvarint</code>, <code>Writer::put_uvarint</code> / <code>Reader::get_uvarint</code></td>
+<td><code>golden.rs::uvarint_encode_golden</code>, <code>uvarint_decode_golden</code>, <code>uvarint_round_trip_*</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td>Strict varint decode (reject non-minimal / overlong / width-overflow)</td>
+<td>§6.1 "Strict varint decode"</td>
+<td><code>Reader::get_uvarint</code> (+ <code>get_uvarint_width</code>)</td>
+<td><code>golden.rs::uvarint_strict_reject_overlong_minimal_violation</code>, <code>uvarint_strict_reject_truncated</code>, <code>uvarint_strict_reject_trailing</code>, <code>uvarint_strict_reject_overflow_64bit</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td>Width-bound unsigned (<code>u8</code>..<code>u64</code>)</td>
+<td>§5.1, §6.1</td>
+<td><code>decode_*</code>/<code>Reader::get_u8..get_u64</code></td>
+<td>lib <code>tests::unsigned_width_overflow</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td>Signed zig-zag varint, sign-fill bound to width <code>k</code> (<code>i8</code>..<code>i64</code>)</td>
+<td>§6.1, §6.1.1 (<code>i8(0,1,-1,127,-128)</code>, <code>i64(-1, MIN)</code>)</td>
+<td><code>encode_i8..i64</code> / <code>decode_i8..i64</code>, <code>Writer::put_ivarint_k</code></td>
+<td><code>golden.rs::i8_encode_golden</code>, <code>i8_decode_golden</code>, <code>i64_encode_golden</code>, <code>i64_decode_golden</code>, <code>signed_round_trip_all_widths</code>, <code>signed_strict_reject_*</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td><code>bool</code> = <code>0x00</code>/<code>0x01</code>, any other byte rejected</td>
+<td>§6.1.1, §6.4</td>
+<td><code>encode_bool</code> / <code>decode_bool</code>, <code>Writer::put_bool</code> / <code>Reader::get_bool</code></td>
+<td><code>golden.rs::bool_encode_golden</code>, <code>bool_decode_golden</code>, <code>bool_strict_reject_non_canonical_byte</code>, <code>bool_strict_reject_truncated_and_trailing</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td><code>bytes</code> length-prefixed (varint + raw)</td>
+<td>§6.1, §6.1.1 (<code>[]→0x00</code>, <code>key→03 6b 65 79</code>)</td>
+<td><code>encode_bytes</code> / <code>decode_bytes</code>, <code>Writer::put_bytes</code> / <code>Reader::get_bytes</code></td>
+<td><code>golden.rs::bytes_encode_golden</code>, <code>bytes_decode_golden</code>, <code>bytes_round_trip</code>, <code>bytes_strict_reject_*</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td><code>f32</code>/<code>f64</code> little-endian IEEE-754 + NaN/<code>-0.0</code> canonicalisation</td>
+<td>§5.1, §6.1, §6.4; oracle hex in §6.1.1 (<code>f32(0.0/1.0/NaN/-0.0)</code>)</td>
+<td><strong>create</strong> <code>encode_f32</code>/<code>decode_f32</code>, <code>encode_f64</code>/<code>decode_f64</code> (+ <code>Writer::put_f32</code>/<code>put_f64</code>, <code>Reader::get_f32</code>/<code>get_f64</code>)</td>
+<td><strong>create</strong> <code>f32_golden</code> (NaN→<code>00 00 c0 7f</code>, <code>-0.0</code>→<code>00 00 00 00</code>), <code>f64_golden</code>, <code>float_canonicalisation</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td><code>string</code> UTF-8, length-prefixed, <strong>NFC @ Unicode 15.1.0</strong></td>
+<td>§5.1, §6.1, §6.4; oracle hex in §6.1.1 (<code>""→00</code>, <code>hi→02 68 69</code>, <code>café→05 …</code>)</td>
+<td><strong>create</strong> <code>encode_string</code>/<code>decode_string</code> (+ <code>Writer::put_string</code>/<code>Reader::get_string</code>)</td>
+<td><strong>create</strong> <code>string_golden</code>, <code>string_nfc_precompose</code> (decomposed <code>café</code> → precomposed bytes), <code>string_reject_non_nfc</code> (per §6.4 / open-q 7: decoder MAY reject non-NFC)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td><code>timestamp</code> = <code>i64</code> ns, varint-encoded; <strong>no implicit default</strong></td>
+<td>§5.1, §6.3, §10.1 (ToolEvent <code>at</code>)</td>
+<td><strong>create</strong> <code>encode_timestamp</code>/<code>decode_timestamp</code> (thin over <code>i64</code> varint)</td>
+<td><strong>create</strong> <code>timestamp_golden</code> (<code>1718284800000000000</code> → its varint), <code>timestamp_always_emitted</code> (§6.3)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td><code>uuid</code> = 16 opaque bytes, field order, no endianness</td>
+<td>§5.1, §6.3, §10.1 (ToolEvent <code>id</code>, WatchControl <code>session</code>)</td>
+<td><strong>create</strong> <code>encode_uuid</code>/<code>decode_uuid</code> (16 raw bytes, no length prefix)</td>
+<td><strong>create</strong> <code>uuid_golden</code> (16 bytes verbatim), <code>uuid_always_emitted</code> (§6.3 no default)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-hash-65-651">4.2 <code>hash</code> (§6.5, §6.5.1)</h3>
+<table>
+<thead>
+<tr>
+<th>RFC rule</th>
+<th>Oracle</th>
+<th>Codec fn</th>
+<th>Test</th>
+<th>Status</th>
+<th>Sprint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hash</code> = <code>varint(algo) varint(len) digest</code>; known algo <code>len</code> MUST match registry</td>
+<td>§6.5 (SHA-256=0x01/32, BLAKE3-256=0x02/32)</td>
+<td><code>encode_hash</code> / <code>decode_hash</code>, <code>Writer::put_hash</code> / <code>Reader::get_hash</code>, <code>Hash</code>, <code>known_hash_digest_len</code></td>
+<td><code>golden.rs::hash_encode_golden_sha256</code>, <code>hash_decode_golden_sha256</code>, <code>hash_round_trip_known_algos</code>, <code>hash_strict_reject_known_algo_wrong_length</code>, <code>hash_strict_reject_truncated_digest</code>; lib <code>tests::hash_*</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td>Unknown algo-id self-delimiting via <code>len</code>, opaque round-trip</td>
+<td>§6.5.1 (<code>0x11</code>–<code>0xFF</code> user range)</td>
+<td><code>decode_hash</code> / <code>get_hash</code> (no registry check on unknown)</td>
+<td><code>golden.rs::hash_unknown_algo_round_trips</code>; lib <code>tests::hash_unknown_algo_roundtrips_opaque</code>, <code>hash_self_delimiting</code></td>
+<td><strong>D</strong></td>
+<td>S1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-aggregates-records-defaults-62-63-66">4.3 Aggregates, records, defaults (§6.2, §6.3, §6.6)</h3>
+<table>
+<thead>
+<tr>
+<th>RFC rule</th>
+<th>Oracle</th>
+<th>Codec fn</th>
+<th>Test</th>
+<th>Status</th>
+<th>Sprint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Record/frame: present fields in <strong>ascending tag order</strong>; reject out-of-order / duplicate tags</td>
+<td>§6.2 rule 1; §6.3.1</td>
+<td><strong>create</strong> <code>encode_record</code>/<code>decode_record</code> (tag-sorted emit; ordering/dup checks)</td>
+<td><strong>create</strong> <code>record_tag_order_golden</code> (§6.3.1 <code>Outer{...,z:1}</code>→<code>02 01</code>), <code>record_reject_out_of_order</code>, <code>record_reject_duplicate_tag</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Self-delimitation of nested record / string / bytes / hash / list / map / union (skip unknown nested)</td>
+<td>§6.2</td>
+<td>(part of <code>decode_record</code>; skip-unknown-field helper)</td>
+<td><strong>create</strong> <code>record_skip_unknown_field</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Canonical omission: absent <code>T?</code> omitted; default-valued non-optional omitted; nested all-default record omitted</td>
+<td>§6.3, §6.3.1</td>
+<td>(encode path of <code>encode_record</code> + per-type default test)</td>
+<td><strong>create</strong> <code>default_omission_golden</code> (§6.3.1 nested all-default → <code>02 01</code>; <code>x:1</code> case → <code>01 02 01 02 01</code>)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Implicit-default table (bool/int/float/str/bytes/list/map/enum/record)</td>
+<td>§6.3 table</td>
+<td>(default predicate per type used by <code>encode_record</code>)</td>
+<td><strong>create</strong> <code>implicit_default_table</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>No implicit default → <strong>always emit</strong>: <code>union</code>, <code>hash</code>, <code>uuid</code>, <code>timestamp</code></td>
+<td>§6.3; §10 (<code>result</code> union always emitted)</td>
+<td>(always-emit branch of <code>encode_record</code>)</td>
+<td><strong>create</strong> <code>always_emit_no_default_types</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Optional aggregate 3-state (<code>list&lt;T&gt;?</code> / <code>map&lt;K,V&gt;?</code>: absent vs present-empty vs non-empty)</td>
+<td>§5.3 table; §6.3.1</td>
+<td>(optional-aggregate encode/decode)</td>
+<td><strong>create</strong> <code>optional_aggregate_three_state</code> (§6.3.1: <code>optional_attrs:[]</code>→<code>02 00</code>; absent→empty)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td><code>list&lt;T&gt;</code> = <code>varint(count)</code> + elements in order</td>
+<td>§6.6, §6.6.1</td>
+<td><strong>create</strong> <code>encode_list</code>/<code>decode_list</code> (generic over element fn)</td>
+<td><strong>create</strong> <code>list_golden</code> (§6.6.1 <code>["a","bc"]</code>→<code>01 02 01 61 02 62 63</code>)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td><code>map&lt;K,V&gt;</code> = <code>varint(count)</code> + pairs <strong>sorted by encoded-key bytes</strong>; reject dup keys</td>
+<td>§6.6, §6.6.1</td>
+<td><strong>create</strong> <code>encode_map</code>/<code>decode_map</code> (sort by <code>hcpbin(key)</code>)</td>
+<td><strong>create</strong> <code>map_sorted_key_golden</code> (§6.6.1 zebra/apple/banana → sorted), <code>map_reject_duplicate_key</code>, <code>map_decode_reject_unsorted</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-unions-enums-67-671-54">4.4 Unions &amp; enums (§6.7, §6.7.1, §5.4)</h3>
+<table>
+<thead>
+<tr>
+<th>RFC rule</th>
+<th>Oracle</th>
+<th>Codec fn</th>
+<th>Test</th>
+<th>Status</th>
+<th>Sprint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Union = <code>varint(arm-tag) varint(byte-len) value</code>; length prefix on <strong>every</strong> arm</td>
+<td>§6.7, §6.7.1</td>
+<td><strong>create</strong> <code>encode_union</code>/<code>decode_union</code></td>
+<td><strong>create</strong> <code>union_known_arm_golden</code> (§6.7.1 <code>text("hi")</code>→<code>01 03 02 68 69</code>; <code>binary([00,ff])</code>→<code>02 03 02 00 ff</code>)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Unknown arm: skip by <code>byte-len</code>, preserve raw, re-emit verbatim</td>
+<td>§6.7, §6.7.1 (V2 arm @3)</td>
+<td>(unknown-arm variant holding raw bytes)</td>
+<td><strong>create</strong> <code>union_unknown_arm_roundtrip</code> (§6.7.1 <code>03 05 01 02 03 04 05</code> byte-for-byte)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Known-arm <code>byte-len</code> mismatch → <code>malformed_frame</code> error (not appended to eventd)</td>
+<td>§6.7 (refs RFC 0003 §9.2)</td>
+<td>(validation in <code>decode_union</code>)</td>
+<td><strong>create</strong> <code>union_known_arm_len_mismatch_rejected</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Enum = varint case value; case 0 default; unknown case preserved as <code>unknown(N)</code></td>
+<td>§5.4, §6.7.1</td>
+<td><strong>create</strong> <code>encode_enum</code>/<code>decode_enum</code></td>
+<td><strong>create</strong> <code>enum_golden</code> (§6.7.1 <code>info→00</code>, <code>warn→01</code>), <code>enum_unknown_case_roundtrip</code> (<code>unknown(5)</code>→<code>05</code>)</td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-canonicality-end-to-end-68-10-101">4.5 Canonicality + end-to-end (§6.8, §10, §10.1)</h3>
+<table>
+<thead>
+<tr>
+<th>RFC rule</th>
+<th>Oracle</th>
+<th>Codec fn</th>
+<th>Test</th>
+<th>Status</th>
+<th>Sprint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fixed-point: <code>encode(decode(encode(v)))==encode(v)</code>; whole-value consume-all (trailing bytes rejected)</td>
+<td>§6.8</td>
+<td><code>decode_all</code> wrapper (<code>TrailingBytes</code>) over implemented types</td>
+<td>covered for done types by every <code>*_round_trip*</code> + <code>*_reject_trailing</code> test in <code>golden.rs</code></td>
+<td><strong>D (for implemented types)</strong></td>
+<td>S1</td>
+</tr>
+<tr>
+<td>Fixed-point over <strong>all</strong> types (records/unions/maps/string/float/uuid/timestamp)</td>
+<td>§6.8</td>
+<td>(extend <code>decode_all</code> usage as rows above land)</td>
+<td><strong>create</strong> <code>fixed_point_all_types</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>Cross-impl byte agreement (two conforming impls produce identical bytes)</td>
+<td>§6.8</td>
+<td>n/a — needs a <strong>second</strong> implementation</td>
+<td><strong>create</strong> cross-impl vector check once a 2nd codec exists (e.g. Zig or BEAM)</td>
+<td><strong>F</strong></td>
+<td>S2+ (blocked, see §6 D4)</td>
+</tr>
+<tr>
+<td>§10 worked frame: <code>ToolCallRequest{tool="fs.read", args=0x6b6579}</code> → <code>01 07 66 73 2e 72 65 61 64 02 03 6b 65 79</code></td>
+<td>§10 L1045–1054; schema <code>hcp-core.hcplang</code></td>
+<td>(composition of <code>encode_record</code> + <code>string</code>/<code>bytes</code>)</td>
+<td><strong>create</strong> <code>frame_toolcallrequest_golden</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>§10 worked frame: <code>ToolCallResponse</code> relic-arm (<code>01 03 22 01 20 &lt;32B&gt;</code>) + default-severity omission</td>
+<td>§10 L1060–1077</td>
+<td>(<code>encode_record</code> + union + hash)</td>
+<td><strong>create</strong> <code>frame_toolcallresponse_relic_golden</code>, <code>frame_response_default_severity_omitted</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+<tr>
+<td>§10.1 frames: response non-default severity, default-severity-omitted, ToolEvent (uuid+timestamp+enum+absent list), map-containing WatchControl</td>
+<td>§10.1 L1081–1160</td>
+<td>(composition of the above)</td>
+<td><strong>create</strong> <code>frame_response_severity_err_golden</code>, <code>frame_toolevent_golden</code>, <code>frame_watchcontrol_map_golden</code></td>
+<td><strong>F</strong></td>
+<td>S2</td>
+</tr>
+</tbody>
+</table>
+<h3 id="46-out-of-scope-for-the-payload-codec-frame-header-wire-layer">4.6 Out of scope for the payload codec (frame header — wire layer)</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Why out of scope</th>
+<th>Real home</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frame header <code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code></td>
+<td>Reserved <code>@0</code> space, supplied/validated by the wire layer; NOT an <code>hcpbin</code> declared-value type (§4.2; §6 scope note L446–450)</td>
+<td>RFC 0003 §4.4 / §4.4.1; crate <code>protocol/hcp/litany/</code> (WP3-S3+)</td>
+</tr>
+<tr>
+<td>Outer frame container: magic, <strong>length-framing</strong>, version negotiation</td>
+<td>"the outer frame container … is the Litany Wire's concern" (§6 scope note)</td>
+<td>RFC 0003 §4.2 (length prefix), §4.3 (max-frame guard)</td>
+</tr>
+<tr>
+<td>Schema digest = <code>SHA-256(litanyfmt(schema))</code></td>
+<td>Schema-tooling concern, not a value-codec rule (it <em>uses</em> §6.5 hash encoding)</td>
+<td>RFC 0002 §8; <code>litanyfmt</code> tooling</td>
+</tr>
+<tr>
+<td><code>@redact</code> projection / <code>litanydump</code> rendering</td>
+<td>Presentation layer; value still encodes normally (§11)</td>
+<td>§7 codegen + tooling, not the codec</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-algorithm-design-how-a-deferred-row-is-taken">5. Algorithm / design (how a deferred row is taken)</h2>
+<p>Each deferred (<strong>F</strong>) row is a self-contained, TDD-shaped unit:</p>
+<ol>
+<li><strong>Derive the golden vector blind from the RFC oracle cell.</strong> Copy the exact<br />
+   hex from the cited worked-example block into a <code>tests/golden.rs</code> <code>const</code><br />
+   table (the existing suite's pattern — see its header comment on adversarial<br />
+   independence: expectations come <em>only</em> from RFC 0002).</li>
+<li><strong>Write the failing test first.</strong> It will not compile until the codec<br />
+   function exists — that is the intended red state (mirrors the note atop<br />
+<code>tests/golden.rs</code>).</li>
+<li><strong>Implement the codec function</strong> in <code>src/lib.rs</code>, matching the existing<br />
+<code>Writer::put_*</code> / <code>Reader::get_*</code> plus free-function <code>encode_*</code>/<code>decode_*</code><br />
+   (whole-value, consume-all via <code>decode_all</code>) shape. Reuse the primitive layer:<br />
+   records/lists/maps/unions are all compositions of varints + the existing<br />
+   length-prefix/<code>bytes</code> primitives.</li>
+<li><strong>Enforce canonicality on the decode side</strong> (§6.8): reject out-of-order /<br />
+   duplicate tags (§6.2), unsorted / duplicate map keys (§6.6), non-NFC strings<br />
+   (§6.4, per open-q 7), known-arm length mismatch (§6.7), and leftover bytes<br />
+   (<code>TrailingBytes</code>).</li>
+<li><strong>Order of attack</strong> (dependency-respecting): <code>string</code>, <code>f32/f64</code>, <code>uuid</code>,<br />
+<code>timestamp</code> (leaf scalars) → <code>enum</code>, <code>list</code>, <code>map</code>, <code>union</code> (containers) →<br />
+<code>record</code>/<code>frame</code> + defaults (§6.2/§6.3) → §10/§10.1 end-to-end frames →<br />
+   §6.8 all-types fixed-point. The §10 frames are the integration capstone; they<br />
+   pass only when every leaf below them is correct.</li>
+</ol>
+<p>This design adds <strong>no new abstractions</strong> beyond the established Reader/Writer +<br />
+free-function pair; every row is a composition of primitives already in the<br />
+crate.</p>
+<h2 id="6-dependencies-on-other-sprints-external-artifacts">6. Dependencies on other sprints / external artifacts</h2>
+<ul>
+<li><strong>D1 — RFC 0002 frozen.</strong> Precondition for any row (kickoff pre-start gate,<br />
+  Jun 21). The §6 worked-example hex is the frozen oracle; a spec edit to those<br />
+  blocks invalidates affected golden rows.</li>
+<li><strong>D2 — WP3-S1 primitive layer (done).</strong> All container rows compose over the<br />
+  varint / <code>bytes</code> / <code>bool</code> / <code>hash</code> primitives already in <code>src/lib.rs</code>.</li>
+<li><strong>D3 — NFC normalisation data, pinned to Unicode 15.1.0</strong> (§6.4). The<br />
+<code>string</code> row has a hard dependency on a normalisation source whose Unicode<br />
+  version is <strong>15.1.0</strong> — the version pin is part of the canonical encoding<br />
+  (a different table changes the bytes and breaks the <code>eventd</code> hash chain). A<br />
+  concrete crate is <strong>not chosen here</strong> (do not guess); selection must verify it<br />
+  exposes / can be pinned to Unicode 15.1.0 NFC data. Added to <code>Cargo.toml</code> when<br />
+  the row is taken.</li>
+<li><strong>D4 — second implementation</strong> for the cross-impl byte-agreement row (§6.8).<br />
+  Blocked until a Zig or BEAM codec exists; no Zig <code>hcpbin</code> codec exists in the<br />
+  repo today (<code>find … -name '*.zig'</code> → none under <code>protocol/</code>). This is the only<br />
+  genuinely <em>cross-component</em> row.</li>
+<li><strong>D5 — wire crate</strong> <code>protocol/hcp/litany/</code> (WP3-S3+) for the out-of-scope<br />
+  frame-header rows (RFC 0003). Not this crate's work; listed for boundary<br />
+  completeness only.</li>
+<li><strong>D6 — eventd</strong> integration (WP3-S5) consumes canonical bytes; it depends on<br />
+  this matrix's §6.8 row, not vice-versa.</li>
+</ul>
+<h2 id="7-documentation-fix-action-stale-4-appendix-a-references">7. Documentation-fix action (stale §4 / Appendix-A references)</h2>
+<p>The byte-encoding home moved to §6 during RFC 0002's drafting, but the WP3<br />
+kickoff plan still points at §4 / Appendix A. <strong>Fix<br />
+<a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a></strong><br />
+(exact lines, verified against the file):</p>
+<table>
+<thead>
+<tr>
+<th>Kickoff line</th>
+<th>Stale text</th>
+<th>Correct reference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L24 (sprint table, WP3-S1 deliverable)</td>
+<td>"hcpbin varint + frame header + payload (RFC 0002 §4)"</td>
+<td>Byte encoding is <strong>§6</strong>; "frame header" is <strong>not</strong> hcpbin's (RFC 0002 §4.2 → RFC 0003 §4.4); "payload" framing is the wire's outer container (RFC 0003 §4.2, §6 scope note).</td>
+</tr>
+<tr>
+<td>L41 (First task)</td>
+<td>"implement encode/decode per RFC 0002 §4: varint (LEB128), frame header (type, flags, length), payload framing"</td>
+<td>Per <strong>RFC 0002 §6</strong> (§6.1 varints, §6.4 scalars, §6.5 hash, §6.2/§6.3 records, §6.6 lists/maps, §6.7 unions). The "frame header (type, flags, length)" shape is a <strong>phantom</strong> — the real header is <code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>, owned by the wire layer (RFC 0003 §4.4). "payload framing" (outer container/length) is RFC 0003 §4.2.</td>
+</tr>
+<tr>
+<td>L43 (First task)</td>
+<td>"Golden vectors: derive from RFC 0002 Appendix A."</td>
+<td><strong>Appendix A is <em>codegen</em> examples (Zig structs / Erlang records), not byte vectors.</strong> Golden vectors are the worked-example hex blocks: <strong>§6.1.1, §6.3.1, §6.6.1, §6.7.1, §10, §10.1</strong>. (There is no "Appendix A" of byte vectors.)</td>
+</tr>
+<tr>
+<td>L43 (First task)</td>
+<td>"All tests pass on <code>dev-cx53</code>."</td>
+<td>The hcpbin codec is a <strong>pure, syscall-free</strong> library; <code>cargo test</code> on macOS M1 is the full oracle (verified: 50 pass). dev-cx53 is <strong>not</strong> required for the codec layer — only the <strong>≤10µs perf baseline</strong> (kickoff L54, WP3-S6) genuinely needs the 8-core Linux box.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Issue #167 (per task instruction):</strong> apply the same correction — repoint the<br />
+"RFC 0002 §4 / Appendix A" wording to "§6 + worked examples §6.1.1/§6.3.1/<br />
+§6.6.1/§6.7.1/§10". <em>Note on verifiability:</em> #167 could not be inspected from<br />
+this environment (<code>gh issue view 167</code> returned nothing; no <code>.github</code> match). The<br />
+verifiable artifact for the stale wording is the kickoff doc above; the #167 fix<br />
+mirrors it. Do not transcribe #167 text that cannot be read here.</p>
+<p>This docs-fix is a <strong>regression-style</strong> action: the §6/§4 boundary is exactly<br />
+the three-bucket split in §1.1, so the matrix and the docs-fix are the same<br />
+correction expressed twice.</p>
+<h2 id="8-open-flags-non-blocking">8. Open flags (non-blocking)</h2>
+<ul>
+<li><strong>F1 — deferred-row sprint assignment is itself ambiguous in the kickoff.</strong><br />
+  "Code home" (kickoff L13: <code>protocol/hcp/hcpbin/</code> = WP3-S1, S2) and <code>src/lib.rs</code><br />
+  ("string … WP3-S2") put hcpbin completion in <strong>S2</strong>; the kickoff <em>sprint table</em><br />
+  L25 labels S2 "Frame layer (RFC 0003)". This matrix follows the Code-home /<br />
+  lib.rs reading (hcpbin completion = S2) and flags the table row as<br />
+  possibly-stale; resolve when WP3 sprints are re-baselined.</li>
+<li><strong>F2 — <code>string</code> row carries a non-code dependency</strong> (D3: pinned Unicode 15.1.0<br />
+  NFC data). Without the version pin the determinism / eventd-chain property<br />
+  (§6.4, §9) breaks. Name the source explicitly at row time; do not assume the<br />
+  default Unicode version of whatever crate is chosen.</li>
+</ul>
+<h2 id="9-test-plan-local-m1-vs-dev-cx53-linux">9. Test plan — local M1 vs dev-cx53 / Linux</h2>
+<p><strong>On macOS M1 (full oracle for correctness):</strong></p>
+<ul>
+<li><code>cd protocol/hcp/hcpbin &amp;&amp; cargo test</code> runs the lib unit tests + the blind<br />
+  golden suite (<code>tests/golden.rs</code>) + the integration golden suite. <strong>Verified<br />
+  now: 50 passed, 3 suites.</strong> This is the complete oracle for <strong>every D row and<br />
+  every F row</strong> — the codec is pure (no syscalls, no I/O, no namespaces), so<br />
+  there is <em>nothing</em> in the value-codec layer that requires Linux.</li>
+<li>Each F row is "done" when its <code>cargo test</code> golden + round-trip + strict-reject<br />
+  assertions pass on M1, byte-for-byte against the cited RFC hex.</li>
+<li>Zig note: there is <strong>no</strong> Zig <code>hcpbin</code> codec in the repo. If/when one is added<br />
+  for the cross-impl row (§6.8, D4), it will likewise be a pure codec; the<br />
+<code>zig build -Dtarget=x86_64-linux</code> <em>compile-only</em> constraint in the environment<br />
+  applies to the <strong>namespace daemons</strong>, not to a pure codec — a Zig codec would<br />
+  build and unit-test on M1 directly. The cross-impl row's only real requirement<br />
+  is "a second conforming implementation exists", not "Linux".</li>
+</ul>
+<p><strong>Requires dev-cx53 / Linux (not correctness):</strong></p>
+<ul>
+<li><strong>Perf baseline only</strong> — kickoff success criterion ≤10µs/frame<br />
+  encode/decode on the 8-core box (kickoff L54), latency-vs-grpc/cbor (WP3-S6).<br />
+  This is a benchmark, not a conformance gate, and is the <em>sole</em> dev-cx53<br />
+  dependency for this work. (dev-cx53 is off-limits for 6h per the task; this<br />
+  does not block authoring or any correctness row.)</li>
+</ul>
+<h2 id="10-acceptance-criteria">10. Acceptance criteria</h2>
+<p>This <strong>planning artifact</strong> is accepted when:</p>
+<ol>
+<li><strong>Coverage.</strong> Every §6 subsection (§6.1–§6.8) and §5.1 scalar <strong>and</strong> every<br />
+   worked-example block (§6.1.1, §6.3.1, §6.6.1, §6.7.1, §10, §10.1) maps to a<br />
+   row in §4, with an oracle cell, a codec fn (existing or named-to-create), a<br />
+   test (existing or named-to-create), and a status bucket.</li>
+<li><strong>Three-bucket integrity.</strong> The frame header appears only under <strong>§4.6<br />
+   (out of scope)</strong> — never as a "deferred hcpbin" row — preserving the §4.2 / §6<br />
+   boundary (§1.1).</li>
+<li><strong>Done rows are verifiable now.</strong> Every <strong>D</strong> row cites an existing test<br />
+   function that passes under <code>cargo test</code> on M1 (<code>50 passed</code> reproduces).</li>
+<li><strong>Deferred rows are actionable.</strong> Every <strong>F</strong> row names the target codec fn,<br />
+   the golden hex source, the test to create, and a sprint, with no undecided<br />
+   dependency left unnamed (D3/D4 called out).</li>
+<li><strong>Docs-fix logged.</strong> §7 lists the exact stale kickoff lines (L24, L41, L43)<br />
+   with their §6 / worked-example replacements, and records the #167 correction<br />
+   plus its verifiability caveat.</li>
+</ol>
+<p>Downstream (WP3-S2 execution, out of this artifact's scope) is "done" when all<br />
+<strong>F</strong> correctness rows flip to <strong>D</strong> under M1 <code>cargo test</code>, and the perf row is<br />
+green on dev-cx53 (WP3-S6).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-rfc0002-to-tasks-matrix.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,51 @@
+name: social-post
+# Posts .github/social/toot.txt to the self-hosted Mastodon (social.crabcc.app)
+# whenever that file changes. Lets agents publish updates by committing toot text
+# (the CI secret never leaves the runner). workflow_dispatch can't fire from a
+# feature branch, so this is push+paths triggered instead.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - ".github/social/toot.txt"
+      - ".github/workflows/social-post.yml"
+permissions:
+  contents: read
+jobs:
+  toot:
+    runs-on: ubuntu-latest
+    environment: ci   # MASTODON_ACCESS_TOKEN lives in the `ci` GitHub Environment
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Read and validate toot
+        id: toot
+        env:
+          TOKEN: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+        run: |
+          [ -n "$TOKEN" ] || { echo "::error::MASTODON_ACCESS_TOKEN secret unset"; exit 1; }
+          f=.github/social/toot.txt
+          [ -s "$f" ] || { echo "::notice::toot.txt empty — nothing to post"; echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; }
+          {
+            echo "content<<TOOT_EOF"
+            cat "$f"
+            echo "TOOT_EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Post toot
+        if: steps.toot.outputs.skip != 'true'
+        uses: cbrgm/mastodon-github-action@v2.2.1
+        with:
+          access-token: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          url: https://social.crabcc.app
+          message: ${{ steps.toot.outputs.content }}
+          visibility: ${{ vars.MASTODON_VISIBILITY || 'unlisted' }}
+
+      - name: Notify Telegram on failure
+        if: failure()
+        uses: appleboy/telegram-action@v1.0.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: "❌ social-post (Mastodon) failed on ${{ github.ref_name }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RFC — AI-lish V1: a lowerable agent execution-graph protocol — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#1-architecture-three-layers" style="padding-left:0.5rem">1. Architecture (three layers)</a><a href="#2-grammar-v1-normative-ebnf" style="padding-left:0.5rem">2. Grammar (V1, normative EBNF)</a><a href="#21-what-changed-from-v0-and-why" style="padding-left:1rem">  2.1 What changed from V0 (and why)</a><a href="#3-register-monads-structural-rules" style="padding-left:0.5rem">3. Register monads (structural rules)</a><a href="#4-lowering-example-v0-v1" style="padding-left:0.5rem">4. Lowering example (V0 → V1)</a><a href="#v0-semantic-log" style="padding-left:1rem">  V0 (semantic log)</a><a href="#v1-ssa-graph" style="padding-left:1rem">  V1 (SSA graph)</a><a href="#5-token-compaction-the-bytecode" style="padding-left:0.5rem">5. Token compaction (the "bytecode")</a><a href="#6-roadmap-drives-this-rfc-to-production" style="padding-left:0.5rem">6. Roadmap (drives this RFC to production)</a><a href="#7-non-goals" style="padding-left:0.5rem">7. Non-goals</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/ailish/">ailish</a> / 2026-06-14-ailish-v1-rfc</div>
+<h1>RFC — AI-lish V1: a lowerable agent execution-graph protocol</h1>
+<h1 id="rfc-ai-lish-v1-a-lowerable-agent-execution-graph-protocol">RFC — AI-lish V1: a lowerable agent execution-graph protocol</h1>
+<ul>
+<li><strong>Status:</strong> Draft</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Track:</strong> Agent protocol / tooling</li>
+<li><strong>Supersedes:</strong> AI-lish V0 grammar sketch (semantic-log DSL)</li>
+</ul>
+<h2 id="abstract">Abstract</h2>
+<p>AI-lish is a compact notation an agent emits to make its reasoning, tool use, and<br />
+side effects <strong>machine-traceable</strong>. V0 was an expressive <em>log sketch</em> — readable,<br />
+but ambiguous: a relation operator (<code>→</code>) could mean "then", "produces", or<br />
+"because", and there were no variables, so no downstream step could reference a<br />
+prior result. V1 turns the sketch into a <strong>lowerable execution-graph format</strong>:<br />
+Static Single Assignment (SSA) registers, explicit dataflow edges, typed atoms,<br />
+per-register structural rules, and a token-compaction layer. The design mirrors a<br />
+compiler pipeline — High-Level (V0, prompt-space) → Low-Level (V1, SSA graph) →<br />
+Host Runtime (gh/cargo/zig) — so a V1 frame is parseable, validatable, and<br />
+replayable, not just legible.</p>
+<h2 id="1-architecture-three-layers">1. Architecture (three layers)</h2>
+<div class="highlight"><pre><span></span>  AI-lish V0  — semantic log / prompt-space        (humans + model author this)
+      │  lower / desugar
+      ▼
+  AI-lish V1  — strict SSA graph                    (parser + guardrail consume this)
+      │  compile / execute
+      ▼
+  Host runtime — gh, cargo, zig, fs                 (effects happen here)
+</pre></div>
+
+<p>V1 is the IR. It is the contract between the model (producer) and a host<br />
+interpreter (consumer): the model emits V1; a validator parses it; a guardrail<br />
+engine executes or freezes on <code>gate(*:fail)</code>.</p>
+<h2 id="2-grammar-v1-normative-ebnf">2. Grammar (V1, normative EBNF)</h2>
+<div class="highlight"><pre><span></span><span class="k">message        </span><span class="err">::</span><span class="o">=</span> <span class="k">frame</span><span class="err">+</span>
+<span class="k">frame          </span><span class="err">::=</span> <span class="s2">&quot;[&quot;</span> <span class="k">register </span><span class="s2">&quot;]&quot;</span> <span class="k">line </span><span class="p">(</span><span class="s2">&quot;;&quot;</span> <span class="k">line</span><span class="p">)</span><span class="err">*</span>
+<span class="k">line           </span><span class="err">::=</span> <span class="k">ssa_assignment </span><span class="p">|</span> <span class="k">stmt</span>
+
+<span class="k">register       </span><span class="err">::=</span> <span class="s2">&quot;R:think&quot;</span> <span class="p">|</span> <span class="s2">&quot;R:plan&quot;</span> <span class="p">|</span> <span class="s2">&quot;R:tool&quot;</span> <span class="p">|</span> <span class="s2">&quot;R:risk&quot;</span>
+                 <span class="p">|</span> <span class="s2">&quot;R:artifact&quot;</span> <span class="p">|</span> <span class="s2">&quot;R:commit&quot;</span> <span class="p">|</span> <span class="s2">&quot;R:review&quot;</span> <span class="p">|</span> <span class="s2">&quot;R:bench&quot;</span>
+
+<span class="k">ssa_assignment </span><span class="err">::=</span> <span class="k">variable </span><span class="s2">&quot;=&quot;</span> <span class="k">expression annotation</span><span class="ni">?</span>
+<span class="ni">expression     ::= action | evaluation</span>
+<span class="ni">action         ::= verb &quot;(&quot; args?</span> <span class="s2">&quot;)&quot;</span>
+<span class="k">evaluation     </span><span class="err">::=</span> <span class="k">func </span><span class="s2">&quot;(&quot;</span> <span class="k">args</span><span class="ni">? &quot;)&quot;            (* pure: combine/join/intersect/depend *)</span>
+
+<span class="ni">stmt           ::= relation | gate | schedule</span>
+<span class="ni">relation       ::= operand dataflow operand</span>
+<span class="ni">schedule       ::= &quot;→&quot; target                    (* R:plan only: schedule, never execute *)</span>
+<span class="ni">gate           ::= &quot;gate(&quot; gate_name &quot;:&quot; gate_state &quot;)&quot; (&quot;∵&quot; operand)?</span>
+
+<span class="k">operand        </span><span class="err">::=</span> <span class="k">variable </span><span class="p">|</span> <span class="k">atom</span>
+<span class="k">dataflow       </span><span class="err">::=</span> <span class="s2">&quot;→&quot;</span>                            <span class="cm">(* output(lhs) feeds input(rhs) *)</span>
+                 <span class="p">|</span> <span class="s2">&quot;∵&quot;</span>                            <span class="cm">(* rhs is the justification of lhs *)</span>
+
+<span class="k">args           </span><span class="err">::=</span> <span class="k">arg </span><span class="p">(</span><span class="s2">&quot;,&quot;</span> <span class="k">arg</span><span class="p">)</span><span class="err">*</span>
+<span class="k">arg            </span><span class="err">::=</span> <span class="k">key </span><span class="s2">&quot;=&quot;</span> <span class="k">value</span>
+<span class="k">value          </span><span class="err">::=</span> <span class="k">variable </span><span class="p">|</span> <span class="k">typed_atom</span>
+<span class="k">annotation     </span><span class="err">::=</span> <span class="s2">&quot;;&quot;</span> <span class="k">key </span><span class="s2">&quot;=&quot;</span> <span class="k">value </span><span class="p">(</span><span class="s2">&quot;,&quot;</span> <span class="k">key </span><span class="s2">&quot;=&quot;</span> <span class="k">value</span><span class="p">)</span><span class="err">*</span>
+
+<span class="k">variable       </span><span class="err">::=</span> <span class="s2">&quot;%&quot;</span> <span class="p">[</span><span class="err">0</span><span class="o">-</span><span class="err">9</span><span class="p">]</span><span class="err">+</span>
+<span class="k">typed_atom     </span><span class="err">::=</span> <span class="k">literal </span><span class="p">|</span> <span class="k">env </span><span class="p">|</span> <span class="k">path </span><span class="p">|</span> <span class="k">symbol</span>
+<span class="k">literal        </span><span class="err">::=</span> <span class="k">number </span><span class="p">|</span> <span class="k">quoted </span><span class="p">|</span> <span class="k">bool</span>
+<span class="k">env           </span><span class="err">::=</span> <span class="s2">&quot;$&quot;</span> <span class="k">ident                       </span><span class="cm">(* environment / secret reference *)</span>
+<span class="k">path           </span><span class="err">::=</span> <span class="err">/</span><span class="p">[</span><span class="k">A-Za-z0-9_</span><span class="p">.</span><span class="err">/:-]+/</span>
+<span class="k">symbol         </span><span class="err">::</span><span class="o">=</span> <span class="s2">&quot;`&quot;</span> <span class="err">/</span><span class="p">[</span><span class="err">^`</span><span class="p">]</span><span class="err">+/</span> <span class="s2">&quot;`&quot;</span>
+<span class="k">quoted         </span><span class="err">::=</span> <span class="s2">&quot;\&quot;&quot; /[^&quot;</span><span class="p">]</span><span class="err">*/</span> <span class="s2">&quot;\&quot;&quot;</span>
+<span class="s2">number         ::= /-?[0-9]+(\.[0-9]+)?/</span>
+<span class="s2">bool           ::= &quot;</span><span class="k">true</span><span class="s2">&quot; | &quot;</span><span class="k">false</span><span class="s2">&quot;</span>
+<span class="s2">ident          ::= /[a-zA-Z_][a-zA-Z0-9_-]*/</span>
+
+<span class="s2">verb           ::= &quot;</span><span class="k">fetch</span><span class="s2">&quot; | &quot;</span><span class="k">read</span><span class="s2">&quot; | &quot;</span><span class="k">edit</span><span class="s2">&quot; | &quot;</span><span class="k">write</span><span class="s2">&quot; | &quot;</span><span class="k">test</span><span class="s2">&quot; | &quot;</span><span class="k">build</span><span class="s2">&quot;</span>
+<span class="s2">                 | &quot;</span><span class="k">diff</span><span class="s2">&quot; | &quot;</span><span class="k">commit</span><span class="s2">&quot; | &quot;</span><span class="k">open</span><span class="s2">&quot; | &quot;</span><span class="k">merge</span><span class="s2">&quot; | &quot;</span><span class="k">launch_agent</span><span class="s2">&quot;</span>
+<span class="s2">                 | &quot;</span><span class="k">agent_write</span><span class="s2">&quot; | &quot;</span><span class="k">check_permission</span><span class="s2">&quot; | &quot;</span><span class="k">block</span><span class="s2">&quot;</span>
+<span class="s2">func           ::= &quot;</span><span class="k">combine</span><span class="s2">&quot; | &quot;</span><span class="k">join</span><span class="s2">&quot; | &quot;</span><span class="k">intersect</span><span class="s2">&quot; | &quot;</span><span class="k">depend</span><span class="s2">&quot;</span>
+<span class="s2">gate_name      ::= &quot;</span><span class="k">artifact</span><span class="s2">&quot; | &quot;</span><span class="k">english</span><span class="s2">&quot; | &quot;</span><span class="k">no_cjk</span><span class="s2">&quot; | &quot;</span><span class="k">ci</span><span class="s2">&quot; | &quot;</span><span class="k">bench</span><span class="s2">&quot; | &quot;</span><span class="k">parse</span><span class="s2">&quot; | &quot;</span><span class="k">commit</span><span class="s2">&quot;</span>
+<span class="s2">gate_state     ::= &quot;</span><span class="k">pass</span><span class="s2">&quot; | &quot;</span><span class="k">fail</span><span class="s2">&quot; | &quot;</span><span class="k">warn</span><span class="s2">&quot; | &quot;</span><span class="k">skip</span><span class="err">&quot;</span>
+</pre></div>
+
+<h3 id="21-what-changed-from-v0-and-why">2.1 What changed from V0 (and why)</h3>
+<table>
+<thead>
+<tr>
+<th>V0</th>
+<th>V1</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bare relations, no IDs</td>
+<td><code>%N = expr</code> SSA registers</td>
+<td>every result is addressable; downstream steps reference <code>%N</code>, eliminating "which state does <code>→</code> mean"</td>
+</tr>
+<tr>
+<td><code>→</code> overloaded (then/produces/because)</td>
+<td><code>→</code> = dataflow only; <code>∵</code> = justification</td>
+<td>one operator, one meaning — no parser ambiguity</td>
+</tr>
+<tr>
+<td><code>⊕</code>/<code>⊗</code> math symbols</td>
+<td><code>combine()</code>/<code>join()</code>/<code>intersect()</code> funcs</td>
+<td>LLMs hallucinate math context around <code>⊕</code>; named pure funcs don't</td>
+</tr>
+<tr>
+<td>untyped atoms</td>
+<td><code>literal</code> / <code>$env</code> / <code>path</code> / <code>`symbol`</code></td>
+<td>a secret (<code>$TELEGRAM_TOKEN</code>) is not a path is not a literal; the guardrail can treat them differently</td>
+</tr>
+<tr>
+<td>any register does anything</td>
+<td>per-register monad rules (§3)</td>
+<td><code>R:plan</code> can schedule but not execute; <code>R:risk</code> must emit a gate or mitigation</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-register-monads-structural-rules">3. Register monads (structural rules)</h2>
+<p>Each register constrains what its lines may contain. A validator rejects a frame<br />
+that violates its register's rule.</p>
+<table>
+<thead>
+<tr>
+<th>Register</th>
+<th>May contain</th>
+<th>MUST</th>
+<th>MUST NOT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>R:think</code></td>
+<td>evaluations, relations</td>
+<td>—</td>
+<td>side-effecting verbs</td>
+</tr>
+<tr>
+<td><code>R:plan</code></td>
+<td><code>schedule</code> (<code>→ target</code>), <code>depend()</code></td>
+<td>only schedule</td>
+<td>invoke a side-effecting verb directly</td>
+</tr>
+<tr>
+<td><code>R:tool</code></td>
+<td>actions (any verb)</td>
+<td>bind result to <code>%N</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>R:risk</code></td>
+<td>gate, <code>check_permission</code>, <code>block</code></td>
+<td>emit <code>gate(*:fail)</code> <strong>or</strong> a mitigation step</td>
+<td>pass silently</td>
+</tr>
+<tr>
+<td><code>R:artifact</code></td>
+<td>gate, key=value facts</td>
+<td>assert <code>no_cjk</code> / <code>english</code> posture</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>R:commit</code></td>
+<td><code>commit</code>/<code>merge</code>/<code>open</code> actions</td>
+<td>be preceded by <code>gate(ci:pass)</code> in dataflow</td>
+<td>run if any upstream <code>gate(*:fail)</code></td>
+</tr>
+<tr>
+<td><code>R:review</code></td>
+<td>evaluations, gate</td>
+<td>—</td>
+<td>mutate state</td>
+</tr>
+<tr>
+<td><code>R:bench</code></td>
+<td><code>test</code>/<code>build</code> actions, gate</td>
+<td>bind metrics in annotation</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Invariant (guardrail):</strong> if any <code>gate(*:fail)</code> is live, the interpreter MUST<br />
+freeze before executing any <code>R:commit</code> line and require human override. This is<br />
+exactly the merge-to-main classifier block this protocol was designed around.</p>
+<h2 id="4-lowering-example-v0-v1">4. Lowering example (V0 → V1)</h2>
+<h3 id="v0-semantic-log">V0 (semantic log)</h3>
+<div class="highlight"><pre><span></span>[R:bench] PR205 scalars → test(pass=61) ⊕ rust-build(22s) ⇒ gate(ci:pass)
+[R:plan]  PR205 → user merge; agent ⇒ write(lib.rs ⊕ tests/aggregates.rs)
+</pre></div>
+
+<h3 id="v1-ssa-graph">V1 (SSA graph)</h3>
+<div class="highlight"><pre><span></span>[R:bench]  %0 = fetch(pr=205, scope=&quot;scalars&quot;)
+           %1 = test(target=%0) ; pass=61
+           %2 = build(target=%0, kind=&quot;rust&quot;) ; duration_s=22
+           %3 = combine(%1, %2)
+           gate(ci:pass) ∵ %3
+[R:risk]   %4 = check_permission(verb=&quot;merge&quot;, tool=`gh`) ; state=&quot;classifier_blocked&quot;
+           gate(commit:fail) ∵ %4
+[R:plan]   depend(%3, %4) → target(user_action=&quot;paste_merge_cmd&quot;)
+           %5 = launch_agent(scope=&quot;aggregates&quot;, base=%0)
+[R:commit] %6 = merge(pr=205) ∵ %3        # frozen while gate(commit:fail) live
+</pre></div>
+
+<p>Every <code>%N</code> is independently validatable; a downstream failure can fall back on the<br />
+exact register that produced the bad input.</p>
+<h2 id="5-token-compaction-the-bytecode">5. Token compaction (the "bytecode")</h2>
+<p>Once the schema is stable, registers and operators map to single-token forms. The<br />
+long form stays canonical for humans; the compact form is what a model emits under<br />
+token pressure. A formatter (<code>ailishfmt</code>) is idempotent between them.</p>
+<table>
+<thead>
+<tr>
+<th>Long</th>
+<th>Compact</th>
+<th></th>
+<th>Long</th>
+<th>Compact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>[R:think]</code></td>
+<td><code>[!T]</code></td>
+<td></td>
+<td><code>[R:bench]</code></td>
+<td><code>[!B]</code></td>
+</tr>
+<tr>
+<td><code>[R:plan]</code></td>
+<td><code>[!P]</code></td>
+<td></td>
+<td><code>[R:risk]</code></td>
+<td><code>[!R]</code></td>
+</tr>
+<tr>
+<td><code>[R:tool]</code></td>
+<td><code>[!X]</code></td>
+<td></td>
+<td><code>[R:commit]</code></td>
+<td><code>[!C]</code></td>
+</tr>
+<tr>
+<td><code>[R:artifact]</code></td>
+<td><code>[!A]</code></td>
+<td></td>
+<td><code>[R:review]</code></td>
+<td><code>[!V]</code></td>
+</tr>
+<tr>
+<td><code>combine(</code></td>
+<td><code>&amp;(</code></td>
+<td></td>
+<td><code>intersect(</code></td>
+<td><code>^(</code></td>
+</tr>
+</tbody>
+</table>
+<p>Compact form is lexically distinct (<code>[!X]</code> can never collide with a path), so the<br />
+parser accepts both with one grammar.</p>
+<h2 id="6-roadmap-drives-this-rfc-to-production">6. Roadmap (drives this RFC to production)</h2>
+<ul>
+<li><strong>Phase A — codify (this doc) ✅:</strong> grammar §2, register monads §3, atom typing,<br />
+  operator→function lowering §2.1.</li>
+<li><strong>Phase B — runtime ✅ (<code>tools/ailish/</code>):</strong> a <code>nom</code>-based Rust parser/validator that<br />
+  reads V1 frames into a typed <code>Frame</code>/<code>Stmt</code> AST, plus a guardrail engine enforcing<br />
+  §3 (freeze on live <code>gate(*:fail)</code> before <code>R:commit</code>; <code>R:commit</code> requires an upstream<br />
+<code>gate(ci:pass)</code>).</li>
+<li><strong>Phase C — optimize ✅ (<code>tools/ailish/src/fmt.rs</code>):</strong> the §5 compaction map +<br />
+<code>ailishfmt</code> idempotent formatter; <code>token_estimate</code> measures tokens-per-frame long vs<br />
+  compact.</li>
+</ul>
+<p>The companion workflow <code>.claude/workflows/ailish-v1-drive.js</code> orchestrates A→B→C.</p>
+<h2 id="7-non-goals">7. Non-goals</h2>
+<p>Not a general programming language (no loops, no arithmetic — <code>combine</code>/<code>join</code> are<br />
+set ops, not math). Not a replacement for the host shell; it <em>describes</em> host<br />
+effects and gates them. Not a transport (it is text emitted inline in a model turn).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/ailish/2026-06-14-ailish-v1-rfc.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

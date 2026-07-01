@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>swe_af GHA runner — run the lowered workflow for real (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#design" style="padding-left:0.5rem">Design</a><a href="#safety" style="padding-left:0.5rem">Safety</a><a href="#components" style="padding-left:0.5rem">Components</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#out-of-scope" style="padding-left:0.5rem">Out of scope</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-swe-af-gha-runner-design</div>
+<h1>swe_af GHA runner — run the lowered workflow for real (design)</h1>
+<h1 id="swe_af-gha-runner-run-the-lowered-workflow-for-real-design">swe_af GHA runner — run the lowered workflow for real (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-13). Realizes the <code>workflow swe_af</code> declared in<br />
+<a href="../../../vaked/examples/agentfield-swe.vaked"><code>vaked/examples/agentfield-swe.vaked</code></a><br />
+and lowered to<br />
+<a href="../../../vaked/examples/lowering-agentfield/gen/workflow/swe_af.json"><code>gen/workflow/swe_af.json</code></a>.<br />
+Relates to <a href="https://github.com/peterlodri-sec/vaked-base/issues/27">#27</a> (define<br />
+<code>workflow</code>) and the agent fleet (<code>vaked-agents/</code>). Convention: subsystem =<br />
+design → plan → impl; this is the design.</p>
+<h2 id="why">Why</h2>
+<p><code>swe_af</code> lowers to a JSON DAG and stops — nothing runs it. The intended target,<br />
+<code>dev-cx53</code>'s agentfield control panel, is unreachable from the web-session sandbox<br />
+(no <code>ssh</code>/<code>tailscale</code>/key; egress allowlist blocks the tailnet-only host). The<br />
+<strong>reachable</strong> trigger is the one the spec already declares —<br />
+<code>on = "github.issue.labeled:agent"</code> — so we materialize <code>swe_af</code> as a GitHub-Actions<br />
+pipeline. This closes the declare → lower → <strong>run</strong> loop on infra we can drive, and<br />
+reuses the existing adk-rust/OpenRouter fleet. The colmena deploy to <code>dev-cx53</code> is a<br />
+documented follow-up, not this slice.</p>
+<h2 id="design">Design</h2>
+<p><strong>Single source of truth.</strong> <code>swe-af.yml</code> reads <code>gen/workflow/swe_af.json</code> for the<br />
+eventd log path and <code>maxDepth</code>, so the run is driven by what Vaked emitted, not a<br />
+hand-copied DAG.</p>
+<p><strong>Node → execution, preserving the mesh's POLA.</strong> In <code>agentfield-swe.vaked</code>, mesh<br />
+nodes hold attenuated capabilities; only <code>broker</code> holds <code>mcp.github_write</code>.</p>
+<table>
+<thead>
+<tr>
+<th>node</th>
+<th>mesh caps</th>
+<th>impl</th>
+<th>write boundary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plan</code></td>
+<td>planner · <code>fs.repo_ro</code></td>
+<td><code>vaked-swe-af MODE=plan</code> → JSON plan</td>
+<td>read-only</td>
+</tr>
+<tr>
+<td><code>code</code></td>
+<td>coder · <code>fs.repo_rw</code></td>
+<td><code>vaked-swe-af MODE=code</code> → full-file writes; <strong>shell</strong> writes+commits</td>
+<td>agent emits, shell applies</td>
+</tr>
+<tr>
+<td><code>review</code></td>
+<td>reviewer · <code>fs.repo_ro</code></td>
+<td>reuse the <strong>pr-review</strong> agent on the opened PR</td>
+<td>advisory comment</td>
+</tr>
+<tr>
+<td><code>publish</code></td>
+<td>broker · <code>mcp.github_write</code></td>
+<td>shell <code>gh pr create</code> + <code>gh pr ready</code></td>
+<td>the only GitHub write</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>vaked-swe-af</code> binary holds <strong>no <code>GH_TOKEN</code></strong> — it reads the issue (<code>gh issue
+view</code>) and repo (read-only tools) and prints JSON. The workflow shell is the<br />
+<code>fs.repo_rw</code>/<code>mcp.github_write</code> actor. The PR is opened <strong>draft</strong> as the substrate<br />
+for the review node, then the broker marks it <strong>ready</strong> as the publish step.</p>
+<p><strong>Full-file writes, not diffs.</strong> The <code>code</code> node returns <code>{path, content}</code> whole<br />
+files — far more robust to apply than LLM patches. The parser drops unsafe paths<br />
+(<code>..</code>, leading <code>/</code>), clamps content size, and caps file count (<code>budget</code> discipline).</p>
+<p><strong>Audit spine (eventd).</strong> Every node appends to the lowered log<br />
+(<code>var/lib/agent-field/eventd/log.jsonl</code>) via <code>python3 -m eventd append</code>; a final<br />
+<code>eventd verify</code> gates the run and the log is uploaded as an artifact. This is the<br />
+"testifies" leg for the SWE loop.</p>
+<p><strong>Budget.</strong> <code>budget swe</code> (tokens 2M / wallClock 2h / toolCalls 400) maps to job<br />
+<code>timeout-minutes</code>, per-mode <code>max_output_tokens</code>/reasoning effort, and the file cap.</p>
+<h2 id="safety">Safety</h2>
+<p>Autonomous code+PR is gated hard: only the <strong><code>agent</code> label</strong>, applied by the <strong>repo<br />
+owner</strong> (<code>github.event.sender.login == github.repository_owner</code>), with<br />
+<code>OPENROUTER_API_KEY</code> present, triggers a run (else graceful no-op). PRs are <strong>never<br />
+auto-merged</strong> — output is a normal PR for human + pr-review review. Untrusted issue<br />
+text passes the fleet's input guardrails (secret-redaction + injection-defense) and<br />
+is sanitized before being baked into prompts. Graceful degradation: no files → issue<br />
+comment with the plan; no net diff → stop; review failure is non-blocking.</p>
+<h2 id="components">Components</h2>
+<ul>
+<li><code>vaked-agents/ci/swe-af/</code> — the Rust agent (plan/code), sibling to <code>pr-review</code>.</li>
+<li><code>.github/workflows/swe-af.yml</code> — the DAG orchestration + eventd + safety gate.</li>
+<li><code>.github/workflows/swe-af-build.yml</code> — rolling prebuilt <code>swe-af-bin</code> release.</li>
+<li><code>.github/labels.yml</code> — the <code>agent</code> trigger label.</li>
+<li><code>Taskfile.yml: swe-af</code> — hermetic build + unit-test target.</li>
+</ul>
+<h2 id="verification">Verification</h2>
+<ul>
+<li>CI: <code>swe-af-build.yml</code> compiles the crate; <code>cargo test</code> (7 unit tests) green;<br />
+  existing <code>spec-tests</code> / <code>vakedz-ci</code> unaffected.</li>
+<li>POLA proof: <code>task swe-af</code> builds+tests with no network/model; the binary has no<br />
+  GitHub-write path.</li>
+<li>End-to-end: label a small, self-contained issue <code>agent</code> → a PR appears from<br />
+<code>swe-af/issue-&lt;n&gt;</code> with the plan as body and the pr-review verdict attached; the<br />
+  uploaded eventd log shows <code>plan → code → review → publish</code> and verifies clean.</li>
+</ul>
+<h2 id="out-of-scope">Out of scope</h2>
+<ul>
+<li>Deploying the agentfield runtime to <code>dev-cx53</code> via colmena (#51) and driving the<br />
+  real control panel — deferred to an on-box session (runbook).</li>
+<li>Standalone <code>coder</code>/<code>reviewer</code>/<code>broker</code> Rust agents — v0 reuses pr-review for review<br />
+  and the shell for publish.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-swe-af-gha-runner-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

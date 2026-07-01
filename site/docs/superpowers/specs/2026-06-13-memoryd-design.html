@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>memoryd — runtime memory plane + CDN-backed recall (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#the-one-read-plane-memory-index" style="padding-left:0.5rem">The one read plane (memory ⊥ index)</a><a href="#pipeline-crabcc-build-cdn-put-memoryd-serves-by-hash" style="padding-left:0.5rem">Pipeline: CrabCC build → CDN put → memoryd serves by hash</a><a href="#distribution-tiers-cdn-github-fallback-local" style="padding-left:1rem">  Distribution tiers (CDN → GitHub fallback → local)</a><a href="#edge-read-plane-reuse-extend-cf-second-brain" style="padding-left:0.5rem">Edge read plane — reuse + extend `cf-second-brain`</a><a href="#semantics-from-0014-made-operational" style="padding-left:0.5rem">Semantics (from 0014, made operational)</a><a href="#capability-enforcement" style="padding-left:0.5rem">Capability enforcement</a><a href="#lowering-inputs-already-landed" style="padding-left:0.5rem">Lowering inputs (already landed)</a><a href="#daemon-shape-runtime" style="padding-left:0.5rem">Daemon shape (runtime)</a><a href="#phases" style="padding-left:0.5rem">Phases</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-memoryd-design</div>
+<h1>memoryd — runtime memory plane + CDN-backed recall (design)</h1>
+<h1 id="memoryd-runtime-memory-plane-cdn-backed-recall-design">memoryd — runtime memory plane + CDN-backed recall (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-13). Track of the 1.0 epic (<a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a>),<br />
+issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/24">#24</a>. The runtime<br />
+home for the <code>memory</code> kind (<a href="../../language/0014-memory-primitive.md">0014</a>, grammar<br />
++ lowering landed). Convention: daemon = design → plan → impl; this is the design.<br />
+Builds directly on <strong>eventd</strong> (<a href="./2026-06-12-eventd-design.md">design</a>, #18) — memory<br />
+entries are eventd events; memory state is the fold. The proving ground is<br />
+<strong>MemPalace</strong> (the async transcript miner used on this repo daily; CLAUDE.md<br />
+patch-doctor), generalized from external tooling to a runtime daemon.</p>
+<h2 id="purpose">Purpose</h2>
+<p>One memory plane per runtime that turns the four-quadrant <code>memory</code> primitive into a<br />
+running daemon:</p>
+<ol>
+<li><strong>mine</strong> <code>source</code> streams into typed entries (the write path),</li>
+<li><strong>append</strong> entries to <code>eventd</code> and keep the recall view as the <strong>fold</strong> over the<br />
+   log (durable, replayable, rewind-for-free),</li>
+<li><strong>serve recall</strong> — capability-bound queries over the folded state (the read path),</li>
+<li><strong>publish</strong> the recall view to the edge CDN so recall is global and cheap.</li>
+</ol>
+<h2 id="the-one-read-plane-memory-index">The one read plane (memory ⊥ index)</h2>
+<p><code>memory</code>, <code>index</code>, and <code>catalog</code> are three corners of one space, and they <strong>share a<br />
+read substrate</strong> — a CrabCC-built catalog (sqlite + embedding shard):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>pinned / reproducible</th>
+<th>mined / runtime</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>build-time write</strong></td>
+<td><code>index</code> (sources + <code>trust.sha256</code>, CrabCC-chunked)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>runtime write</strong></td>
+<td><code>catalog</code> (materialized view of an index)</td>
+<td><strong><code>memory</code></strong> (eventd-folded, mined)</td>
+</tr>
+</tbody>
+</table>
+<p><code>index.emit</code> and <code>memory.emit</code> both produce <code>[catalog.jsonl, catalog.sqlite]</code><br />
+(<a href="../../language/0008-parallel-fibers-indexes-surfaces.md">0008</a>,<br />
+<a href="../../language/0014-memory-primitive.md">0014</a>). They differ only in the <strong>write<br />
+path</strong>: <code>index</code> is build-time + pinned (a Nix derivation), <code>memory</code> is<br />
+runtime-appended via eventd. <strong>Therefore there is no separate <code>indexd</code>.</strong> memoryd is<br />
+the <em>serving</em> plane for any catalog; <code>index</code>/<code>catalog</code> are read-only inputs to it,<br />
+materialized at build time. memoryd <code>memory</code> adds the <code>(mine, append, eventd)</code> write<br />
+path on top of the same read substrate. CrabCC is the engine on both ends.</p>
+<h2 id="pipeline-crabcc-build-cdn-put-memoryd-serves-by-hash">Pipeline: CrabCC build → CDN put → memoryd serves by hash</h2>
+<div class="highlight"><pre><span></span>            build-time (CI / Nix)                 runtime (vakedos)              edge (cdn.crabcc.app)
+index ──▶ CrabCC chunk/embed ──▶ catalog ──put──▶                         ──▶  by sha256 (immutable)
+                                  (sqlite +                                      D1 / R2 / KV
+                                   embed shard)                                   ▲
+memory: source stream ──▶ memoryd.mine ──▶ eventd append ──▶ fold ──▶ catalog ──publish──┘  (latest + history)
+                                                                       └──▶ local recall (host)
+recall ◀── cf-second-brain Worker (edge) ── or ── memoryd (host, by hash)
+</pre></div>
+
+<ul>
+<li><strong><code>index</code> / static <code>catalog</code></strong> publish <strong>content-addressed by <code>sha256</code></strong> — the hash<br />
+  in <code>index.trust { sha256 }</code> <em>is</em> the CDN key. Immutable, reproducible, fetch-by-hash.</li>
+<li><strong><code>memory</code></strong> is mined and non-reproducible, so memoryd publishes <strong>periodic folded<br />
+  snapshots</strong>: a mutable <code>latest</code> pointer + content-addressed history. The eventd log<br />
+  stays the source of truth; the CDN carries the materialized fold.</li>
+<li>"memoryd serves by hash" locally; globally the <strong>edge</strong> serves by hash.</li>
+</ul>
+<h3 id="distribution-tiers-cdn-github-fallback-local">Distribution tiers (CDN → GitHub fallback → local)</h3>
+<p>Distribution degrades gracefully, mirroring the fleet's prebuilt-release-then-build<br />
+convention (<a href="../../agents/ci.md"><code>docs/agents/ci.md</code></a>):</p>
+<ol>
+<li><strong>Edge CDN</strong> (<code>cdn.crabcc.app</code>) — primary: global, cheap, by hash.</li>
+<li><strong>GitHub fallback</strong> — when the CDN is unconfigured/unreachable, publish + fetch<br />
+   catalogs from GitHub: <strong>GHCR</strong> (an OCI registry — blobs are addressed by <code>sha256</code><br />
+<strong>digest</strong>, so content-addressing carries over with <em>zero glue</em> and matches<br />
+<code>index.trust.sha256</code> exactly), or <strong>Release assets / repository artifacts</strong> named by<br />
+   hash. GHCR is the preferred fallback precisely because OCI digests already are the<br />
+   addressing model.</li>
+<li><strong>Local</strong> — build from source (CrabCC) / fold from the local eventd log. Always<br />
+   available; the floor of the chain.</li>
+</ol>
+<p>The <code>cdn(...)</code> emit target therefore lowers to an ordered target list (CDN, then a<br />
+GitHub target), resolved at fetch time — the daemon tries each tier in order.</p>
+<h2 id="edge-read-plane-reuse-extend-cf-second-brain">Edge read plane — reuse + extend <code>cf-second-brain</code></h2>
+<p>A "second brain" already runs on Cloudflare: the <strong><code>cf-second-brain</code> Worker</strong> +<br />
+<strong><code>second-brain</code> KV</strong> + <strong><code>second-brain-db</code> D1</strong>. memoryd does <strong>not</strong> invent an edge<br />
+recall plane — it <strong>feeds and extends</strong> that one (<code>cdn.crabcc.app</code>, the <code>__cdn</code><br />
+Nix-defined edge infra):</p>
+<ul>
+<li><strong>D1 (edge SQLite)</strong> <em>is</em> the edge <code>catalog.sqlite</code> — small/hot catalogs and the<br />
+  structured recall side land here directly.</li>
+<li><strong>KV</strong> carries <code>hash → shard</code> (and the <code>latest</code> pointer for mutable memory snapshots).</li>
+<li><strong>R2</strong> carries large corpus blobs by <code>sha256</code> (catalogs too big for D1).</li>
+<li>The <strong><code>cf-second-brain</code> Worker is the edge recall API</strong> — extended to serve the<br />
+  Vaked catalog/recall query surface and resolve by hash.</li>
+</ul>
+<p>memoryd picks the publish target by <strong>catalog size at lower-time</strong>: small → D1, large<br />
+→ R2-by-hash + a D1/KV index. (Exact backend + addressing of <code>__cdn</code> is <strong>Open Q1</strong>.)</p>
+<h2 id="semantics-from-0014-made-operational">Semantics (from 0014, made operational)</h2>
+<ul>
+<li><strong>Mine (write path).</strong> memoryd subscribes to the <code>source</code> stream(s) and applies the<br />
+<code>mine</code> normalizer to distil raw events into entries of the <code>schema</code> type <code>T</code>. Lean:<br />
+  mining is <strong>model-driven and brokered</strong> — the distiller is a budgeted call through<br />
+<code>mcp-brokerd</code> (not a deterministic transform), mirroring MemPalace. Mined entries<br />
+  are therefore <strong>non-reproducible</strong> and carry provenance (miner id, model, budget,<br />
+  source event ids). Batched/debounced like the proven async-hook miner.</li>
+<li><strong>State = fold.</strong> Each mined entry is an eventd event<br />
+  (<a href="./2026-06-12-eventd-design.md#entry-format-frozen--matches-ralphcore-today">format</a>);<br />
+  recall state is the fold, partitioned by <code>scope</code> (<code>session</code>/<code>agent</code>/<code>runtime</code>).<br />
+  Rewind (Track D, #20) rewinds memory for free. The catalog is a <strong>materialized cache<br />
+  of the fold</strong>, updated incrementally on append and rebuildable from eventd on demand.</li>
+<li><strong>Recall (read path).</strong> Mediated by the <code>mem</code> capability domain (POLA, 0011 §4):<br />
+<code>none &lt; recall &lt; append &lt; admin</code>. Recall is <strong>hybrid</strong> — sqlite for structured<br />
+  filters (<code>scope</code>, schema fields, time), embeddings for semantic recall; both are<br />
+  catalog emits. Lean (0014 open): <strong>runtime API only</strong>, no <code>recall</code> language form.</li>
+<li><strong>Retention.</strong> <code>retention</code> (e.g. <code>90d</code>) via <strong>tombstone events on append</strong> (not<br />
+  fold-time filtering), so the cache stays cheap and rewind stays exact — decided with<br />
+  the eventd compaction question.</li>
+</ul>
+<h2 id="capability-enforcement">Capability enforcement</h2>
+<p>memoryd is the enforcement point for <code>mem</code>:</p>
+<ul>
+<li>A mesh node holding <code>mem.recall</code> may query but not write.</li>
+<li>Mining fibers hold <code>mem.append</code>; only the control plane holds <code>mem.admin</code>.</li>
+<li><strong>Edge caveat:</strong> a public CDN read makes <code>mem.recall</code> advisory off-host; a<br />
+  token-gated bucket/Worker route makes it enforceable. memoryd publishes per-<code>scope</code><br />
+  partitions so a recall token maps to a partition. (Tied to Open Q1.)</li>
+</ul>
+<h2 id="lowering-inputs-already-landed">Lowering inputs (already landed)</h2>
+<p><code>vakedc lower</code> already emits what memoryd consumes (0012 §3.4 <code>memory.store</code>):</p>
+<ul>
+<li><code>gen/memory/&lt;name&gt;.json</code> — <code>source</code>, <code>mine</code>, <code>scope</code>, <code>retention</code>, recall <code>emit</code><br />
+  targets, the per-runtime eventd log path.</li>
+<li><code>gen/eventd.json</code> — the log contract (presence-gated on memory/workflow decls).</li>
+</ul>
+<p>memoryd reads these as its config. <strong>New lowering work:</strong> a <code>cdn(...)</code> <code>ArtifactTarget</code><br />
+(publish step + addressing) added to the 0012 emitter registry beside <code>catalog.sqlite</code><br />
+/ <code>nix.derivation</code> — gated on Open Q1.</p>
+<h2 id="daemon-shape-runtime">Daemon shape (runtime)</h2>
+<ul>
+<li><strong>Language:</strong> Zig (roster: <a href="../../runtime/README.md"><code>docs/runtime/README.md</code></a>:17),<br />
+  with a <strong>Python reference/oracle first</strong> — the established daemon pattern (#15;<br />
+  eventd ships its oracle at <code>/eventd</code>). memoryd's oracle would live at <code>/memoryd</code>:<br />
+<code>mine</code> (stub/brokered distiller) → <code>eventd</code> append → fold → catalog emit → CDN put,<br />
+  plus a recall CLI, cross-checked in <code>tests/spec/test_memoryd.py</code>.</li>
+<li><strong>Writer discipline:</strong> appends go through eventd's single-writer<br />
+  (<code>agent-supervisord</code> owns it); memoryd is an eventd writer for <code>mem.append</code>.</li>
+<li><strong>Reader:</strong> folds the log read-only; serves recall; publishes snapshots.</li>
+</ul>
+<h2 id="phases">Phases</h2>
+<ol>
+<li><strong>Python reference/oracle</strong> (<code>/memoryd</code>): config from <code>gen/memory/*.json</code>; mine<br />
+   (deterministic stub + a brokered-distiller seam); append to the eventd reference;<br />
+   fold → catalog (sqlite + jsonl); local recall (structured + a pluggable embedder).<br />
+<code>tests/spec/test_memoryd.py</code> cross-verifies entries are valid eventd events and<br />
+   recall = fold.</li>
+<li><strong>CDN publish + edge recall</strong>: <code>cdn(...)</code> emit target; publish catalogs (by sha256)<br />
+   and memory snapshots (latest + history) to the edge; extend <code>cf-second-brain</code> to<br />
+   serve the recall API + resolve by hash. (Blocked on Open Q1.)</li>
+<li><strong>Brokered mining</strong>: real model-driven distiller via <code>mcp-brokerd</code> with budgets +<br />
+   provenance; MemPalace becomes <em>a</em> <code>memory</code> declaration rather than a special case.</li>
+<li><strong>Zig daemon port</strong> (Python as oracle), <code>mem</code> enforcement, rewind integration<br />
+   (Track D).</li>
+</ol>
+<h2 id="verification">Verification</h2>
+<ul>
+<li>Oracle: mined entries verify as eventd chain entries (reuse <code>test_eventd</code>);<br />
+  recall determinism (same log → byte-identical folded catalog); retention tombstone<br />
+  drops an entry from recall but not from the chain; rewind to N reproduces the<br />
+  catalog at N.</li>
+<li>Edge: a published catalog fetched by <code>sha256</code> byte-matches the local emit; a<br />
+<code>mem.recall</code> token reads only its <code>scope</code> partition.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ol>
+<li><strong><code>__cdn</code> backend + addressing (blocking phase 2).</strong> Is <code>cdn.crabcc.app</code> R2 / D1 /<br />
+   KV / Pages, and <strong>content-addressed or path-mutable</strong>? Content-addressed unifies<br />
+<code>index.trust.sha256</code> with the CDN key at zero glue; path-based needs a hash→path<br />
+   manifest. Needs <code>__cdn</code> read into scope to pin. (No <code>cdn</code> R2 bucket observed in the<br />
+   account; <code>cf-second-brain</code> D1/KV present.)</li>
+<li><strong>Mining determinism (final call).</strong> Model-driven+brokered (this design's lean,<br />
+   non-reproducible + provenance) vs a deterministic normalizer (reproducible, weaker<br />
+   distillation). Decides whether memoryd needs <code>mcp-brokerd</code> + budgets.</li>
+<li><strong>Recall query surface.</strong> Runtime API only (0014's lean) vs a <code>recall</code> expression<br />
+   form entering the language.</li>
+<li><strong>Cross-runtime / mesh-shared palaces</strong> (0014 open) — published snapshots are the<br />
+   carrier; interacts with the SHM arena graft (#16).</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-memoryd-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

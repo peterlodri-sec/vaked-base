@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>hcpbin aggregate-value codec — implementation plan (spec) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#3-file-layout-paths-to-create" style="padding-left:0.5rem">3. File layout (paths to create)</a><a href="#4-algorithm-design" style="padding-left:0.5rem">4. Algorithm / design</a><a href="#41-the-type-descriptor-is-the-spine-decode-is-schema-driven" style="padding-left:1rem">  4.1 The type descriptor is the spine (decode is schema-driven)</a><a href="#42-records-and-frames-62-encode" style="padding-left:1rem">  4.2 Records and frames (§6.2) — encode</a><a href="#43-default-omission-63-631-three-asymmetries-to-nail" style="padding-left:1rem">  4.3 Default omission (§6.3, §6.3.1) — three asymmetries to nail</a><a href="#44-lists-and-maps-66-and-the-map-ordering-contradiction-resolved" style="padding-left:1rem">  4.4 Lists and maps (§6.6) — and the map-ordering contradiction (RESOLVED)</a><a href="#45-length-prefix-helper-encode-to-measure-the-one-real-writer-extension" style="padding-left:1rem">  4.5 Length-prefix helper: encode-to-measure (the one real Writer extension)</a><a href="#46-unions-67-and-enums-54-unknown-preservation" style="padding-left:1rem">  4.6 Unions (§6.7) and enums (§5.4) — unknown preservation</a><a href="#47-unknown-record-tags-explicitly-out-of-scope-open-question" style="padding-left:1rem">  4.7 Unknown record tags — explicitly OUT of scope (open question)</a><a href="#5-test-plan-m1-local-vs-dev-cx53linux" style="padding-left:0.5rem">5. Test plan — M1-local vs `dev-cx53`/Linux</a><a href="#51-runs-fully-on-m1-aarch64-darwin-the-whole-layer" style="padding-left:1rem">  5.1 Runs fully on M1 (aarch64-darwin) — the whole layer</a><a href="#52-inherited-out-of-scope-items-that-touch-linux" style="padding-left:1rem">  5.2 Inherited / out-of-scope items that touch Linux</a><a href="#53-ci-wiring" style="padding-left:1rem">  5.3 CI wiring</a><a href="#6-acceptance-criteria" style="padding-left:0.5rem">6. Acceptance criteria</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#71-open-questions-to-track" style="padding-left:1rem">  7.1 Open questions to track</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-hcpbin-aggregate-plan</div>
+<h1>hcpbin aggregate-value codec — implementation plan (spec)</h1>
+<h1 id="hcpbin-aggregate-value-codec-implementation-plan-spec">hcpbin aggregate-value codec — implementation plan (spec)</h1>
+<h2 id="status">Status</h2>
+<p>Spec (2026-06-14). Planning artifact for the <strong>aggregate layer of the <code>hcpbin</code><br />
+codec</strong> (records/frames, unions, lists/maps, enums) in the WP3 HCP wire-protocol<br />
+epic (<a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a>).</p>
+<p>This is the layer the WP3-S1 <code>hcpbin</code> crate explicitly defers — see the in-code<br />
+TODOs at <a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a><br />
+lines 494-498 ("records/frames (§6.2), defaults/optionals (§6.3), lists/maps<br />
+(§6.6), unions/enums (§6.7)"). It sits <strong>above</strong> WP3-S1 (primitives: varint,<br />
+signed varint, bool, bytes, hash — landed) and <strong>below</strong> WP3-S2 (the RFC 0003<br />
+frame/wire layer, which carries an <code>hcpbin</code> body and prepends the frame header).<br />
+The work is dependency-blocked on a small scalar-completion gap (§7) and is not<br />
+codeable in full today; the deliverable here is the implementation-ready plan.</p>
+<blockquote>
+<p><strong>Correction to the kickoff / issue #167 wording.</strong> The kickoff (line 43) and<br />
+issue #167 cite "RFC 0002 §4 / Appendix A" for the byte encoding and golden<br />
+vectors. That is <strong>stale</strong>. The canonical sources this spec cites are:<br />
+- byte encoding of values → <strong>RFC 0002 §6</strong> (<a href="../../../protocol/rfcs/0002-hcplang.md"><code>protocol/rfcs/0002-hcplang.md</code></a>, "hcpbin encoding rules"), with the type system in <strong>§5</strong>;<br />
+- the frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) → the <strong>WIRE layer, RFC 0003</strong>, explicitly <strong>NOT</strong> <code>hcpbin</code> (RFC 0002 §4.2 + §6 scope note; mirrored in <a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a> lines 22-23, 497-498);<br />
+- golden vectors → RFC 0002 worked examples <strong>§6.1.1, §6.3.1, §6.6.1, §6.7.1, §10</strong> — there is <strong>no Appendix A in RFC 0002</strong> (the only <code>Appendix A</code> in the RFC set is RFC 0003 Appendix A, the <code>hcp.wire</code> control schema).</p>
+</blockquote>
+<h2 id="1-objective">1. Objective</h2>
+<p>Extend <code>hcpbin</code> from a primitive-scalar codec to a <strong>complete canonical<br />
+value codec</strong> for every <code>.hcplang</code> type that appears in a frame/record <em>body</em>:</p>
+<ol>
+<li><strong>Records and frames</strong> (RFC 0002 §6.2): present fields emitted in strictly<br />
+   ascending tag order; nested records framed by <code>varint(byte-len)</code>; out-of-order<br />
+   and duplicate tags rejected on decode.</li>
+<li><strong>Default omission</strong> (RFC 0002 §6.3, §6.3.1), including the subtle<br />
+<strong>all-default nested record</strong> rule (a non-optional record-typed field whose<br />
+   value equals "every field at its default" MUST be omitted) and the<br />
+   three-state <code>T?</code>/<code>list&lt;T&gt;?</code>/<code>map&lt;K,V&gt;?</code> distinction (§5.3 table).</li>
+<li><strong>Unions</strong> (RFC 0002 §6.7): <code>varint(arm-tag) varint(byte-len) value</code>, length<br />
+   prefix on <strong>every</strong> arm; <strong>unknown arms preserved</strong> byte-for-byte and re-emitted<br />
+   verbatim.</li>
+<li><strong>Lists and maps</strong> (RFC 0002 §6.6): lists in element order (significant); maps<br />
+   sorted by <strong>canonical key order</strong> with insertion-order independence and<br />
+   duplicate-key rejection.</li>
+<li><strong>Enums</strong> (RFC 0002 §5.4): integer-valued cases, case <code>0</code> is the default and<br />
+   participates in omission; <strong>unknown cases preserved</strong> and re-emitted verbatim.</li>
+</ol>
+<p>The single normative success property is RFC 0002 §6.8: <code>encode</code> is uniquely<br />
+determined by the value and the schema, and <code>encode(decode(encode(v))) ==
+encode(v)</code> is a fixed point. This is what <code>eventd</code>'s hash chain (§9) and<br />
+<code>litanyreplay</code> depend on.</p>
+<p><strong>Explicitly OUT of scope</strong> (do not implement here): the frame header<br />
+(RFC 0003); transport/framing/handshake/credit (RFC 0003); Zig/BEAM codegen<br />
+(RFC 0002 §7 — this layer is the <em>runtime value codec</em> that generated code will<br />
+call into, not the code generator); <code>service</code>/method binding (no wire encoding);<br />
+authority/<code>preceptord</code> (RFC 0002 §8-§9). Schema-language <strong>parsing</strong> (the<br />
+<code>.hcplang</code> front-end / <code>litanyfmt</code>) is also out of scope — this layer consumes a<br />
+type descriptor (§4.1), it does not parse <code>.hcplang</code> source.</p>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<p>No oracle invents bytes the RFC does not give. Every positive expectation is a<br />
+worked-example byte string from RFC 0002; every negative expectation is a<br />
+spec-cited rejection rule.</p>
+<table>
+<thead>
+<tr>
+<th>Oracle</th>
+<th>Source of truth</th>
+<th>What it proves</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Round-trip fixed point</strong></td>
+<td>RFC 0002 §6.8: <code>encode(decode(encode(v))) == encode(v)</code></td>
+<td>Canonicality of aggregate bodies</td>
+</tr>
+<tr>
+<td><strong>Records / default omission golden</strong></td>
+<td>RFC 0002 §6.3.1 (nested all-default omit; optional-present <code>02 00</code>; <code>tags:["a","b"]</code> → <code>01 02 01 61 01 62</code>)</td>
+<td>Field ordering + omit/emit exactly per §6.3</td>
+</tr>
+<tr>
+<td><strong>List golden</strong></td>
+<td>RFC 0002 §6.6.1 (<code>tags:["a","bc"]</code> → <code>01 02 01 61 02 62 63</code>)</td>
+<td>Element-count prefix + order preservation</td>
+</tr>
+<tr>
+<td><strong>Map golden</strong></td>
+<td>RFC 0002 §6.6.1 (<code>{zebra,apple,banana}</code> → <code>01 03 05 61 70 70 6c 65 01 32 06 62 61 6e 61 6e 61 01 33 05 7a 65 62 72 61 01 31</code>)</td>
+<td>Key sort + insertion-order independence (<strong>see §4.4 — this vector disambiguates the §6.6/§6.6.1 contradiction</strong>)</td>
+</tr>
+<tr>
+<td><strong>Union golden</strong></td>
+<td>RFC 0002 §6.7.1 (<code>Payload.text("hi")</code> → <code>01 03 02 68 69</code>; <code>Payload.binary([00,FF])</code> → <code>02 03 02 00 ff</code>; unknown arm @3 → <code>03 05 01 02 03 04 05</code> round-trips verbatim)</td>
+<td>Arm <code>tag/len/value</code> + unknown-arm preservation</td>
+</tr>
+<tr>
+<td><strong>Enum golden</strong></td>
+<td>RFC 0002 §6.7.1 (<code>info</code>→<code>00</code>, <code>warn</code>→<code>01</code>, unknown(5)→<code>05</code> round-trips)</td>
+<td>Case value + unknown-case preservation</td>
+</tr>
+<tr>
+<td><strong>Whole-frame golden</strong></td>
+<td>RFC 0002 §10 / §10.1 (<code>ToolCallRequest{tool="fs.read",args=0x6b6579}</code> → <code>01 07 66 73 2e 72 65 61 64 02 03 6b 65 79</code>; <code>ToolCallResponse</code> text/binary/relic variants)</td>
+<td>End-to-end record + union + hash composition</td>
+</tr>
+<tr>
+<td><strong>Rejection rules (negative)</strong></td>
+<td>RFC 0002 §6.2 rule 1 (out-of-order / duplicate tags), §6.6 (duplicate map keys), §6.1 (overlong/non-minimal length prefixes — inherited from S1)</td>
+<td>Every malformed aggregate fails as a typed <code>DecodeError</code></td>
+</tr>
+<tr>
+<td><strong>Existing adversarial-independence suite</strong></td>
+<td><code>protocol/hcp/hcpbin/tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>) — "written BLIND to the implementation"</td>
+<td>This spec extends that discipline to aggregates</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-file-layout-paths-to-create">3. File layout (paths to create)</h2>
+<p>The crate <code>protocol/hcp/hcpbin/</code> exists and is <strong>standalone</strong> (no Cargo<br />
+workspace; verified 2026-06-14). New modules are added under <code>src/</code>; new test<br />
+files mirror the <code>golden.rs</code> blind convention.</p>
+<div class="highlight"><pre><span></span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">hcpbin</span><span class="o">/</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span>
+<span class="w">    </span><span class="n">lib</span><span class="p">.</span><span class="n">rs</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="ow">EXISTS</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">primitives</span><span class="p">.</span><span class="w"> </span><span class="k">Add</span><span class="w"> </span><span class="err">`</span><span class="n">pub</span><span class="w"> </span><span class="k">mod</span><span class="err">`</span><span class="w"> </span><span class="n">lines</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">exports</span><span class="p">.</span><span class="w">   </span><span class="o">[</span><span class="n">EDIT</span><span class="o">]</span>
+<span class="w">    </span><span class="k">value</span><span class="p">.</span><span class="n">rs</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="k">dynamic</span><span class="w"> </span><span class="err">`</span><span class="k">Value</span><span class="err">`</span><span class="w"> </span><span class="n">model</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="err">`</span><span class="n">Type</span><span class="err">`</span><span class="w"> </span><span class="k">descriptor</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.1</span><span class="p">)</span><span class="w">         </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="k">schema</span><span class="p">.</span><span class="n">rs</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="n">RecordDesc</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">UnionDesc</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">EnumDesc</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">FieldDesc</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">4.1</span><span class="p">)</span><span class="w">     </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">record</span><span class="p">.</span><span class="n">rs</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">6.2</span><span class="w"> </span><span class="n">record</span><span class="o">/</span><span class="n">frame</span><span class="w"> </span><span class="n">encode</span><span class="o">+</span><span class="n">decode</span><span class="p">;</span><span class="w"> </span><span class="err">§</span><span class="mf">6.3</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="n">omission</span><span class="w">   </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="ow">union</span><span class="p">.</span><span class="n">rs</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">6.7</span><span class="w"> </span><span class="ow">union</span><span class="w"> </span><span class="n">encode</span><span class="o">+</span><span class="n">decode</span><span class="p">;</span><span class="w"> </span><span class="k">unknown</span><span class="o">-</span><span class="n">arm</span><span class="w"> </span><span class="n">preservation</span><span class="w">       </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">collection</span><span class="p">.</span><span class="n">rs</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">6.6</span><span class="w"> </span><span class="n">list</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="k">map</span><span class="w"> </span><span class="n">encode</span><span class="o">+</span><span class="n">decode</span><span class="p">;</span><span class="w"> </span><span class="k">key</span><span class="o">-</span><span class="n">sort</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">dedup</span><span class="w">          </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">enum_</span><span class="p">.</span><span class="n">rs</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">5.4</span><span class="w"> </span><span class="n">enum</span><span class="w"> </span><span class="n">encode</span><span class="o">+</span><span class="n">decode</span><span class="p">;</span><span class="w"> </span><span class="k">unknown</span><span class="o">-</span><span class="k">case</span><span class="w"> </span><span class="n">preservation</span><span class="w">       </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">scalar</span><span class="p">.</span><span class="n">rs</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="err">§</span><span class="mf">6.4</span><span class="w"> </span><span class="n">string</span><span class="p">(</span><span class="n">NFC</span><span class="p">)</span><span class="o">/</span><span class="n">f32</span><span class="o">/</span><span class="n">f64</span><span class="p">;</span><span class="w"> </span><span class="n">uuid</span><span class="o">/</span><span class="nc">timestamp</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mi">7</span><span class="w"> </span><span class="n">dep</span><span class="w"> </span><span class="n">gate</span><span class="p">)</span><span class="w">   </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">golden</span><span class="p">.</span><span class="n">rs</span><span class="w">         </span><span class="err">#</span><span class="w"> </span><span class="ow">EXISTS</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">primitives</span><span class="p">.</span><span class="w"> </span><span class="n">Untouched</span><span class="p">.</span>
+<span class="w">    </span><span class="n">golden_aggregate</span><span class="p">.</span><span class="n">rs</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">BLIND</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="nl">vectors</span><span class="p">:</span><span class="w"> </span><span class="err">§</span><span class="mf">6.3.1</span><span class="o">/</span><span class="err">§</span><span class="mf">6.6.1</span><span class="o">/</span><span class="err">§</span><span class="mf">6.7.1</span><span class="o">/</span><span class="err">§</span><span class="mi">10</span><span class="w">       </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">fixed_point</span><span class="p">.</span><span class="n">rs</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nl">proptest</span><span class="p">:</span><span class="w"> </span><span class="err">∀</span><span class="w"> </span><span class="n">typed</span><span class="w"> </span><span class="nl">v</span><span class="p">:</span><span class="w"> </span><span class="n">encode</span><span class="p">(</span><span class="n">decode</span><span class="p">(</span><span class="n">encode</span><span class="p">(</span><span class="n">v</span><span class="p">)))</span><span class="o">==</span><span class="n">enc</span><span class="w">  </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+<span class="w">    </span><span class="n">rejection_aggregate</span><span class="p">.</span><span class="n">rs</span><span class="w"> </span><span class="err">#</span><span class="w"> </span><span class="n">negative</span><span class="w"> </span><span class="nc">table</span><span class="err">:</span><span class="w"> </span><span class="n">dup</span><span class="o">/</span><span class="k">out</span><span class="o">-</span><span class="k">of</span><span class="o">-</span><span class="k">order</span><span class="w"> </span><span class="n">tag</span><span class="p">,</span><span class="w"> </span><span class="n">dup</span><span class="w"> </span><span class="k">map</span><span class="w"> </span><span class="k">key</span><span class="w">   </span><span class="o">[</span><span class="n">NEW</span><span class="o">]</span>
+</pre></div>
+
+<p>The aggregate golden vectors SHOULD also be emitted as language-agnostic<br />
+<code>.hex</code> data files under <code>tests/spec/golden/hcpbin_aggregate/</code> (mirroring the<br />
+WP3-S7 plan, <a href="2026-06-14-wp3-s7.md"><code>docs/superpowers/specs/2026-06-14-wp3-s7.md</code></a><br />
+§3) so the future Zig codegen target (RFC 0002 §7) and the Python spec harness<br />
+(<a href="../../../tests/spec/run_all.py"><code>tests/spec/run_all.py</code></a>) validate the same<br />
+corpus. That cross-impl <code>.hex</code> emission is a stretch goal here and the hard<br />
+deliverable of the differential test in WP3-S7.</p>
+<h2 id="4-algorithm-design">4. Algorithm / design</h2>
+<h3 id="41-the-type-descriptor-is-the-spine-decode-is-schema-driven">4.1 The type descriptor is the spine (decode is schema-driven)</h3>
+<p><strong>Bare scalars are NOT self-delimiting inside a record body.</strong> RFC 0002 §6.2<br />
+frames only <code>string</code>/<code>bytes</code>/<code>list</code>/<code>map</code>/<code>hash</code>/nested-record/union with a<br />
+length or count prefix; <code>u8..u64</code>/<code>i8..i64</code>/<code>bool</code>/<code>f32</code>/<code>f64</code>/<code>timestamp</code>/<code>uuid</code><br />
+carry no prefix. Therefore a decoder reading tag <code>@N</code> <strong>must already know the<br />
+declared type of <code>@N</code></strong> to know how many bytes to consume. The codec is<br />
+consequently <strong>schema-driven</strong>: it takes a type descriptor and a value, not just<br />
+bytes.</p>
+<p>Two cooperating models (<code>value.rs</code>, <code>schema.rs</code>):</p>
+<div class="highlight"><pre><span></span><span class="c1">// value.rs — the dynamic value the codec encodes/decodes.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Value</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Bool</span><span class="p">(</span><span class="kt">bool</span><span class="p">),</span>
+<span class="w">    </span><span class="n">U64</span><span class="p">(</span><span class="kt">u64</span><span class="p">),</span><span class="w"> </span><span class="n">I64</span><span class="p">(</span><span class="kt">i64</span><span class="p">),</span><span class="w">         </span><span class="c1">// width carried by the Type descriptor</span>
+<span class="w">    </span><span class="n">F32</span><span class="p">(</span><span class="kt">f32</span><span class="p">),</span><span class="w"> </span><span class="n">F64</span><span class="p">(</span><span class="kt">f64</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Str</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span><span class="w">               </span><span class="c1">// NFC-normalised on encode (§6.4) — see §7 dep</span>
+<span class="w">    </span><span class="n">Bytes</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Timestamp</span><span class="p">(</span><span class="kt">i64</span><span class="p">),</span><span class="w">            </span><span class="c1">// ns since epoch; no implicit default (§6.3)</span>
+<span class="w">    </span><span class="n">Hash</span><span class="p">(</span><span class="n">Hash</span><span class="p">),</span><span class="w">                </span><span class="c1">// reuse the existing S1 `Hash` (§6.5)</span>
+<span class="w">    </span><span class="n">Uuid</span><span class="p">([</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">16</span><span class="p">]),</span>
+<span class="w">    </span><span class="n">List</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">Value</span><span class="o">&gt;</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Map</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="n">Value</span><span class="p">,</span><span class="w"> </span><span class="n">Value</span><span class="p">)</span><span class="o">&gt;</span><span class="p">),</span><span class="w">  </span><span class="c1">// entries; sorted on encode (§4.4)</span>
+<span class="w">    </span><span class="n">Record</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">Value</span><span class="p">)</span><span class="o">&gt;</span><span class="p">),</span><span class="w"> </span><span class="c1">// (tag, value) present fields only</span>
+<span class="w">    </span><span class="n">Enum</span><span class="p">(</span><span class="kt">i64</span><span class="p">),</span><span class="w">                 </span><span class="c1">// raw case value; unknown preserved as-is (§5.4)</span>
+<span class="w">    </span><span class="n">Union</span><span class="p">(</span><span class="n">UnionValue</span><span class="p">),</span>
+<span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">UnionValue</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Known</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">tag</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Value</span><span class="o">&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="n">Unknown</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">tag</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">raw</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">u8</span><span class="o">&gt;</span><span class="w"> </span><span class="p">},</span><span class="w">  </span><span class="c1">// re-emitted verbatim (§6.7)</span>
+<span class="p">}</span>
+
+<span class="c1">// schema.rs — the descriptor that makes scalars self-delimiting on decode.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Type</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Bool</span><span class="p">,</span><span class="w"> </span><span class="n">U8</span><span class="p">,</span><span class="w"> </span><span class="n">U16</span><span class="p">,</span><span class="w"> </span><span class="n">U32</span><span class="p">,</span><span class="w"> </span><span class="n">U64</span><span class="p">,</span><span class="w"> </span><span class="n">I8</span><span class="p">,</span><span class="w"> </span><span class="n">I16</span><span class="p">,</span><span class="w"> </span><span class="n">I32</span><span class="p">,</span><span class="w"> </span><span class="n">I64</span><span class="p">,</span><span class="w"> </span><span class="n">F32</span><span class="p">,</span><span class="w"> </span><span class="n">F64</span><span class="p">,</span>
+<span class="w">    </span><span class="n">Str</span><span class="p">,</span><span class="w"> </span><span class="n">Bytes</span><span class="p">,</span><span class="w"> </span><span class="n">Timestamp</span><span class="p">,</span><span class="w"> </span><span class="n">Hash</span><span class="p">,</span><span class="w"> </span><span class="n">Uuid</span><span class="p">,</span>
+<span class="w">    </span><span class="n">List</span><span class="p">(</span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Type</span><span class="o">&gt;</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Map</span><span class="p">(</span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Type</span><span class="o">&gt;</span><span class="w"> </span><span class="cm">/*key*/</span><span class="p">,</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Type</span><span class="o">&gt;</span><span class="w"> </span><span class="cm">/*val*/</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Record</span><span class="p">(</span><span class="n">RecordDesc</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Enum</span><span class="p">(</span><span class="n">EnumDesc</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Union</span><span class="p">(</span><span class="n">UnionDesc</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Optional</span><span class="p">(</span><span class="nb">Box</span><span class="o">&lt;</span><span class="n">Type</span><span class="o">&gt;</span><span class="p">),</span><span class="w">       </span><span class="c1">// §5.3 — no double-apply (validated at build)</span>
+<span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FieldDesc</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">tag</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">ty</span><span class="p">:</span><span class="w"> </span><span class="nc">Type</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">default</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">Value</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">RecordDesc</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">fields</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">FieldDesc</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="c1">// by ascending tag</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">UnionDesc</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">arms</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="kt">u32</span><span class="p">,</span><span class="w"> </span><span class="n">Type</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">EnumDesc</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="cm">/* known case values, for surfacing unknown(N) */</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+
+<p>A <code>Value</code> is always paired with a <code>&amp;Type</code> at the public entry points:<br />
+<code>encode_value(&amp;Value, &amp;Type) -&gt; Vec&lt;u8&gt;</code> and <code>decode_value(&amp;[u8], &amp;Type) -&gt;
+Result&lt;Value, DecodeError&gt;</code> (the latter a whole-value <code>decode_all</code>, §6.8,<br />
+reusing the S1 <code>TrailingBytes</code> discipline). This dynamic model lets the §6.8<br />
+fixed-point proptest run <strong>without</strong> a full codegen pipeline; RFC 0002 §7<br />
+Zig/BEAM codegen later targets these same encode/decode routines.</p>
+<h3 id="42-records-and-frames-62-encode">4.2 Records and frames (§6.2) — encode</h3>
+<p>Frame bodies and record bodies use the <strong>same encoding</strong> (RFC 0002 §4.1:<br />
+a frame body <em>is</em> a record body; the header is RFC 0003's, out of scope). Encode<br />
+<code>Record(fields)</code> against a <code>RecordDesc</code>:</p>
+<ol>
+<li>For each <code>FieldDesc</code> in <strong>ascending tag order</strong> (the descriptor is pre-sorted;<br />
+   §6.2 rule 1): look up the field value.</li>
+<li>Decide omit vs emit per §4.3.</li>
+<li>If emit: write <code>put_uvarint(tag)</code> then the value's encoding (§4.3 covers the<br />
+   length-prefix for record/union/list/map/string/bytes/hash; bare scalars write<br />
+   their fixed/varint form directly).</li>
+</ol>
+<p>There is <strong>no body-level terminator</strong>; the body ends when bytes run out. A<br />
+<em>nested</em> record field is self-delimited by its own <code>varint(byte-len)</code> (§4.5).</p>
+<h3 id="43-default-omission-63-631-three-asymmetries-to-nail">4.3 Default omission (§6.3, §6.3.1) — three asymmetries to nail</h3>
+<p>Omission is <strong>field-level only</strong> — never omit a list element or a map value (an<br />
+all-default record used as an element/value is emitted in full with a <code>len=0</code><br />
+body). Per field:</p>
+<ul>
+<li><strong>Optional <code>T?</code>, absent</strong> → OMIT (no tag).</li>
+<li><strong>Optional <code>T?</code>, present</strong> (even present-but-default, e.g. <code>list&lt;T&gt;?</code> with<br />
+  count 0, or an all-default <code>R?</code>) → EMIT <code>tag + value</code>. Presence is information<br />
+  (§6.3; §5.3 three-state table). For <code>list&lt;T&gt;?</code>/<code>map&lt;K,V&gt;?</code> present-empty this is<br />
+  the §6.3.1 <code>02 00</code> vector.</li>
+<li><strong>Non-optional, value == default</strong> → OMIT. The default is the declared <code>= …</code><br />
+  literal, else the implicit default from the §6.3 table (<code>bool</code>→false,<br />
+  ints→0, floats→+0.0, string/bytes→empty, list/map→empty, enum→case 0,<br />
+  record→all-fields-at-their-own-default).</li>
+<li><strong>Non-optional <code>union</code>/<code>hash</code>/<code>uuid</code>/<code>timestamp</code></strong> → <strong>NO implicit default,<br />
+  ALWAYS emit</strong> (§6.3; this is why the §10 <code>result: ToolResult</code> union is always<br />
+  on the wire). To express "absent" for these, the schema must make the field<br />
+<code>T?</code>.</li>
+</ul>
+<p><strong>All-default nested record (§6.3, §6.3.1) — the clean mechanism.</strong> Encode the<br />
+inner record body to a <strong>scratch buffer</strong> (§4.5). If the scratch is <strong>empty</strong>,<br />
+the record is all-default → OMIT the field. Otherwise emit <code>tag +
+varint(scratch.len()) + scratch</code>. "Omit iff inner body is empty" <em>naturally<br />
+subsumes</em> the recursive all-default rule: an inner all-default record's body is<br />
+itself empty, so the test composes without special-casing. Validates against<br />
+§6.3.1: <code>Outer{inner:Inner{0,0}, z:1}</code> → <code>02 01</code> (inner omitted); <code>Outer{
+inner:Inner{1,0}, z:1}</code> → <code>01 02 01 02 01</code> (inner emitted, its <code>y=0</code> omitted).</p>
+<p><strong>Decode symmetry.</strong> A decoder treats "tag absent" and (for non-optional fields)<br />
+"the default value" identically: missing fields are filled from the descriptor's<br />
+default (declared or implicit, recursively for records). Decoders MUST NOT accept<br />
+an explicitly-emitted default for a non-optional field if that would admit two<br />
+encodings — but since canonical encoders never emit it, the conformance guard is<br />
+the fixed-point property (§6.8): re-encoding any decoded value must omit it.</p>
+<h3 id="44-lists-and-maps-66-and-the-map-ordering-contradiction-resolved">4.4 Lists and maps (§6.6) — and the map-ordering contradiction (RESOLVED)</h3>
+<ul>
+<li><strong>List:</strong> <code>put_uvarint(count)</code> then each element's encoding <strong>in list order</strong><br />
+  (order significant, preserved). Decode reads <code>count</code> elements of the element<br />
+<code>Type</code>.</li>
+<li><strong>Map:</strong> <code>put_uvarint(count)</code> then <code>key value</code> pairs <strong>sorted by canonical key<br />
+  order</strong>; duplicate keys are a <code>DecodeError</code> on decode and a precondition<br />
+  violation on encode.</li>
+</ul>
+<blockquote>
+<p><strong>Map-key ordering — the #1 trap; RFC 0002 contradicts itself.</strong> §6.6 prose<br />
+says "sorted by the canonical byte ordering of the <strong>encoded</strong> key<br />
+(lexicographic over the key's <code>hcpbin</code> bytes)." But the §6.6.1 worked vector<br />
+sorts <code>"banana"</code> (UTF-8 length 6 → length-prefix <code>0x06</code>) <strong>before</strong> <code>"zebra"</code><br />
+(length 5 → <code>0x05</code>). A sort over <em>length-prefixed encoded</em> bytes would put<br />
+<code>zebra</code> (<code>05 7a…</code>) before <code>banana</code> (<code>06 62…</code>) and <strong>fail the RFC's own golden<br />
+vector</strong>. The governing rule is therefore <strong>§5.3</strong> ("<code>K</code> MUST be a scalar with<br />
+a total canonical order"): sort by the key's <strong>canonical value order</strong>, not its<br />
+encoded bytes —<br />
+- <code>string</code> / <code>bytes</code>: lexicographic over the <strong>raw content</strong> bytes (no length<br />
+  prefix in the comparison). This makes <code>apple &lt; banana &lt; zebra</code> and matches<br />
+  §6.6.1 exactly.<br />
+- sized integers (<code>u8..u64</code>, <code>i8..i64</code>): <strong>numeric</strong> order.</p>
+<p><strong>Working decision (flagged as open):</strong> §5.3/§6.6.1 govern over §6.6's loose<br />
+"encoded bytes" wording. Integer-key order has <strong>no worked example in the RFC</strong>,<br />
+so numeric order is a <em>stated working decision</em>. Discriminating test: keys<br />
+<code>{255u32, 256u32}</code> → numeric ⇒ <code>255</code> first; varint-encoded-byte order would put<br />
+<code>256</code> first (<code>0x80 0x02</code> &lt; <code>0xff 0x01</code>). This contradiction is surfaced as<br />
+<strong>Open question OQ-1 (§7.1)</strong> and mirrors how WP3-S7 surfaced the header-tag<br />
+incoherence (<a href="../../../tools/rfc-incoherence-hunter/"><code>tools/rfc-incoherence-hunter</code></a>).</p>
+</blockquote>
+<h3 id="45-length-prefix-helper-encode-to-measure-the-one-real-writer-extension">4.5 Length-prefix helper: encode-to-measure (the one real Writer extension)</h3>
+<p>Nested records (§6.2/§4.3) and union arms (§6.7/§4.6) both need<br />
+<code>varint(byte-len)</code> of an inner encoding. Add one helper to <code>Writer</code>:</p>
+<div class="highlight"><pre><span></span><span class="sd">/// Encode `f` into a scratch buffer, then emit varint(len) + scratch.</span>
+<span class="sd">/// Used for nested records (§6.2), union arms (§6.7).</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">put_length_prefixed</span><span class="o">&lt;</span><span class="n">F</span><span class="p">:</span><span class="w"> </span><span class="nb">FnOnce</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">Writer</span><span class="p">)</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">:</span><span class="w"> </span><span class="nc">F</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">scratch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Writer</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">    </span><span class="n">f</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">scratch</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">body</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scratch</span><span class="p">.</span><span class="n">into_bytes</span><span class="p">();</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">put_uvarint</span><span class="p">(</span><span class="n">body</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="kt">u64</span><span class="p">);</span>
+<span class="w">    </span><span class="bp">self</span><span class="p">.</span><span class="n">put_raw</span><span class="p">(</span><span class="o">&amp;</span><span class="n">body</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>For the all-default nested-record test (§4.3) the caller inspects the scratch<br />
+length <em>before</em> committing the tag, so the nested-record path uses the scratch<br />
+form directly (encode body → if empty, drop the field; else <code>put_uvarint(tag)</code>,<br />
+<code>put_uvarint(len)</code>, <code>put_raw</code>). Scratch-then-measure is preferred over backpatch<br />
+for clarity; backpatch is a valid optimization left to implementation.</p>
+<h3 id="46-unions-67-and-enums-54-unknown-preservation">4.6 Unions (§6.7) and enums (§5.4) — unknown preservation</h3>
+<p><strong>Union encode.</strong> <code>put_uvarint(arm_tag)</code> then <code>put_length_prefixed(arm value)</code><br />
+(§4.5). For <code>UnionValue::Unknown{tag, raw}</code> write <code>put_uvarint(tag)</code>,<br />
+<code>put_uvarint(raw.len())</code>, <code>put_raw(&amp;raw)</code> — re-emitting verbatim. Validates<br />
+§6.7.1: <code>Payload.text("hi")</code> → <code>01 03 02 68 69</code>.</p>
+<p><strong>Union decode.</strong> Read <code>arm_tag</code>, read <code>byte_len</code>, slice <code>byte_len</code> bytes. If<br />
+<code>arm_tag</code> is in <code>UnionDesc.arms</code>: decode the slice as that arm's <code>Type</code>; the<br />
+slice MUST be fully consumed (a known-arm <code>byte_len</code> mismatch is a <code>DecodeError</code><br />
+— RFC 0002 §6.7, surfaced upstream by RFC 0003 §9.2 as <code>malformed_frame</code>, out of<br />
+scope here). If <code>arm_tag</code> is unknown: store <code>Unknown{tag, raw: slice.to_vec()}</code><br />
+and continue (§6.7 forward-compat). Validates §6.7.1: unknown arm <code>03 05 01 02 03
+04 05</code> round-trips byte-for-byte.</p>
+<p><strong>Enum encode/decode.</strong> An enum value is a plain <code>put_uvarint(case)</code> /<br />
+<code>get_uvarint</code> of its integer value (§5.4); an enum is identical on the wire to a<br />
+sized unsigned varint. Decode does <strong>not</strong> reject unknown case values: it stores<br />
+the raw integer (<code>Value::Enum(n)</code>) and the <code>EnumDesc</code> lets a higher layer surface<br />
+it as <code>"unknown(N)"</code>. Re-encoding writes the same varint → verbatim round-trip<br />
+(§6.7.1: <code>unknown(5)</code> → <code>05</code>). Case <code>0</code> is the default and participates in<br />
+omission (§4.3, §5.4).</p>
+<h3 id="47-unknown-record-tags-explicitly-out-of-scope-open-question">4.7 Unknown record tags — explicitly OUT of scope (open question)</h3>
+<p>A decoder meeting an <strong>unknown record tag</strong> cannot skip it: §6.2 scalars are not<br />
+self-delimiting (§4.1), so without the field's declared type the value length is<br />
+unknowable. This layer is <strong>schema-driven and rejects unknown/out-of-order/<br />
+duplicate record tags</strong> as <code>DecodeError</code> (§6.2 rule 1). This is a real tension<br />
+with RFC 0002 Appendix A's illustrative <code>skipUnknownField(tag)</code> Zig sketch (lines<br />
+1341-1342), which implies generic record-tag skipping. The contradiction is<br />
+surfaced as <strong>OQ-2 (§7.1)</strong>; resolving it (e.g. a wire-type nibble on every field<br />
+à la protobuf, which RFC 0002 §6.2 deliberately does <em>not</em> have) is an RFC-level<br />
+decision, not this layer's job. Forward-compat for records is instead achieved by<br />
+the §8 "tags are forever / add optional fields" discipline — old peers using an<br />
+old descriptor simply never see the new tags from a new peer that sends them.</p>
+<h2 id="5-test-plan-m1-local-vs-dev-cx53linux">5. Test plan — M1-local vs <code>dev-cx53</code>/Linux</h2>
+<p>Toolchain verified on this host (2026-06-14): <code>cargo 1.95.0</code>, <code>rustc 1.95.0</code>,<br />
+<code>zig 0.16.0</code>, <code>arch = arm64</code>. The existing S1 suite passes (<code>cargo test -p
+hcpbin</code> → 50 passed). <code>dev-cx53</code> is OFF-LIMITS for the current 6h autoresearch<br />
+window; nothing below depends on it.</p>
+<h3 id="51-runs-fully-on-m1-aarch64-darwin-the-whole-layer">5.1 Runs fully on M1 (aarch64-darwin) — the whole layer</h3>
+<p>This layer is <strong>pure body-codec logic</strong> — no perf gate, no wire, no transport,<br />
+no syscalls — so verification is essentially <strong>100% M1-local</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Why M1 is sufficient</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Aggregate golden vectors (§4.2-§4.6)</td>
+<td><code>cargo test -p hcpbin --test golden_aggregate</code></td>
+<td>Byte-exact assertions transcribed from RFC §6.3.1/§6.6.1/§6.7.1/§10; arch-independent</td>
+</tr>
+<tr>
+<td>Round-trip fixed point (§6.8)</td>
+<td><code>cargo test -p hcpbin --test fixed_point</code></td>
+<td>proptest over scalars→records→unions→list/map→enums; deterministic given a seed</td>
+</tr>
+<tr>
+<td>Rejection table (§4.2, §4.4)</td>
+<td><code>cargo test -p hcpbin --test rejection_aggregate</code></td>
+<td>Out-of-order/dup tag, dup map key, known-arm len mismatch — typed <code>DecodeError</code></td>
+</tr>
+<tr>
+<td>Map-ordering disambiguation (§4.4)</td>
+<td>included in <code>golden_aggregate</code> + <code>fixed_point</code></td>
+<td>The §6.6.1 string vector + the <code>{255,256}</code> integer vector pin OQ-1's working decision</td>
+</tr>
+<tr>
+<td>Existing S1 suite (no regression)</td>
+<td><code>cargo test -p hcpbin</code></td>
+<td>Aggregates build on landed primitives</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-inherited-out-of-scope-items-that-touch-linux">5.2 Inherited / out-of-scope items that touch Linux</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Status</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zig build -Dtarget=x86_64-linux</code> (compile-only)</td>
+<td>Out of scope here; inherited gate</td>
+<td>RFC 0002 §7 Zig codegen targets this layer <strong>later</strong>; compile-only check belongs to the codegen sprint, not the value codec. Compiles on M1; namespace syscalls run only on Linux.</td>
+</tr>
+<tr>
+<td><code>≤10µs/frame</code> perf gate (kickoff line 54)</td>
+<td>Out of scope</td>
+<td>Perf is WP3-S6's baseline + WP3-S7's gate; an absolute µs threshold is arch-specific (aarch64 ≠ x86_64) and meaningless here. No perf claims in this spec.</td>
+</tr>
+<tr>
+<td>Long fuzz campaign / soak</td>
+<td>Out of scope</td>
+<td>WP3-S7 hardening; this spec delivers correctness + the proptest fixed point that S7's fuzzers seed from.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-ci-wiring">5.3 CI wiring</h3>
+<p>M1-local checks (§5.1) run in the dev shell pre-PR and must all pass. The <code>.hex</code><br />
+golden files (§3 stretch goal) are shared with <code>tests/spec/run_all.py</code> so the<br />
+future Zig path validates the same corpus. No <code>dev-cx53</code> lane is required for<br />
+this layer to land.</p>
+<h2 id="6-acceptance-criteria">6. Acceptance criteria</h2>
+<p>Done when <strong>all</strong> hold (all M1-local):</p>
+<ol>
+<li><strong>Aggregate golden vectors</strong> match the RFC byte-for-byte: at minimum the<br />
+   §6.3.1 nested-all-default-omit (<code>02 01</code>) and emit (<code>01 02 01 02 01</code>) cases, the<br />
+   §6.3.1 present-empty optional (<code>02 00</code>), the §6.6.1 list (<code>01 02 01 61 02 62
+   63</code>) and map (<code>apple&lt;banana&lt;zebra</code>) vectors, the §6.7.1 union known-arm<br />
+   (<code>01 03 02 68 69</code>) / unknown-arm (<code>03 05 01 02 03 04 05</code>) / enum<br />
+   (<code>00</code>/<code>01</code>/unknown <code>05</code>) vectors, and the §10 whole-frame <code>ToolCallRequest</code><br />
+   (<code>01 07 66 73 2e 72 65 61 64 02 03 6b 65 79</code>).</li>
+<li><strong>Round-trip fixed point</strong> (RFC 0002 §6.8) passes via proptest with a fixed<br />
+   case budget for every supported type, <strong>including</strong> unknown union arms and<br />
+   unknown enum cases (round-trip verbatim) and scrambled-insertion-order maps<br />
+   (insertion-order-independent, canonically sorted).</li>
+<li><strong>Negative table</strong> complete — at least one byte vector each for: out-of-order<br />
+   record tag (§6.2), duplicate record tag (§6.2), duplicate map key (§6.6),<br />
+   known union-arm <code>byte_len</code> mismatch (§6.7) — each asserting a typed<br />
+<code>DecodeError</code>.</li>
+<li><strong>Default-omission asymmetries</strong> (§4.3) each have an explicit assertion:<br />
+   non-optional all-default record omitted; present optional all-default record /<br />
+   present-empty optional aggregate emitted; non-optional<br />
+   union/hash/uuid/timestamp always emitted.</li>
+<li><strong>Map-ordering decision</strong> (§4.4 / OQ-1) is enforced by the §6.6.1 string vector<br />
+<strong>and</strong> the <code>{255,256}</code> integer vector, with the §6.6-vs-§6.6.1 contradiction<br />
+   documented in-code and in §7.1.</li>
+<li><strong>No regression</strong> in the S1 suite (<code>cargo test -p hcpbin</code> green).</li>
+<li>Every new test file <strong>cites the RFC § it enforces</strong> and is written blind to<br />
+   the implementation, matching the convention of<br />
+<code>protocol/hcp/hcpbin/tests/golden.rs</code> (<code>../../../protocol/hcp/hcpbin/tests/golden.rs</code>).</li>
+</ol>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>What this layer needs from it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP3-S1</strong> (landed)</td>
+<td><code>Writer</code>/<code>Reader</code>/<code>Hash</code>/<code>DecodeError</code> + varint/signed/bool/bytes/hash primitives (<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>protocol/hcp/hcpbin/src/lib.rs</code></a>); the blind <code>golden.rs</code> convention to extend</td>
+</tr>
+<tr>
+<td><strong>Scalar completion</strong> (HARD PREREQUISITE — see below)</td>
+<td><code>string</code>(NFC), <code>f32</code>/<code>f64</code>, <code>timestamp</code>, <code>uuid</code> scalar codecs. Aggregates cannot be tested without them (the §6.6.1 map golden uses <code>string</code>).</td>
+</tr>
+<tr>
+<td><strong>WP3-S2</strong> (RFC 0003 frame/wire layer)</td>
+<td><strong>Downstream consumer</strong>, not a dependency. The frame layer prepends the RFC 0003 header (<code>@0..@4</code>) and carries an <code>hcpbin</code> body produced by this layer. This layer must land <strong>before</strong> or with S2's body-handling.</td>
+</tr>
+<tr>
+<td><strong>WP3-S7</strong> (hardening)</td>
+<td><strong>Downstream</strong>: S7's proptest/fuzz fixed-point harness seeds from this layer's golden vectors (<a href="2026-06-14-wp3-s7.md"><code>docs/superpowers/specs/2026-06-14-wp3-s7.md</code></a> §4.1).</td>
+</tr>
+<tr>
+<td><strong>RFC 0002 §7 codegen</strong></td>
+<td><strong>Downstream</strong>: Zig/BEAM generated types call this runtime value codec; not built here.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Scalar-completion gap (blocking).</strong> The landed <code>hcpbin</code> implements varint,<br />
+signed varint, bool, bytes, hash — but <strong>not</strong> <code>string</code> (NFC, pinned to Unicode<br />
+15.1.0, §6.4 — needs a normalisation table, flagged as WP3-S2 in<br />
+<a href="../../../protocol/hcp/hcpbin/src/lib.rs"><code>src/lib.rs</code></a> line 19), <code>f32</code>/<code>f64</code><br />
+(NaN + signed-zero canonicalisation, §6.4), <code>timestamp</code>, or <code>uuid</code>. Two<br />
+sub-tasks are cheap and SHOULD be absorbed into this layer's <code>scalar.rs</code>: <code>uuid</code><br />
+= 16 raw bytes (no endianness, §5.1), <code>timestamp</code> = <code>i64</code> ns varint (§5.1).<br />
+<code>string</code> (NFC/Unicode-15.1.0) and <code>f32</code>/<code>f64</code> (NaN/±0 canonicalisation) are the<br />
+<strong>hard prerequisites</strong> — <code>string</code> is required even to reproduce the §6.6.1 map<br />
+golden vector. This spec assumes those two land first (or are co-delivered);<br />
+designing as if <code>string</code> were present would be wrong.</p>
+<h3 id="71-open-questions-to-track">7.1 Open questions to track</h3>
+<ul>
+<li><strong>OQ-1 — map-key ordering (§4.4).</strong> RFC 0002 §6.6 ("encoded-byte order")<br />
+  contradicts §6.6.1's own worked vector (which is content order); §5.3 governs.<br />
+  Working decision: content order for <code>string</code>/<code>bytes</code>, numeric order for<br />
+  integers. Integer order has no RFC worked example — confirm numeric is intended<br />
+  (vs varint-byte order) before freezing. A latent RFC-level incoherence; feed to<br />
+<a href="../../../tools/rfc-incoherence-hunter/"><code>tools/rfc-incoherence-hunter</code></a>.</li>
+<li><strong>OQ-2 — unknown record-tag skipping (§4.7).</strong> RFC 0002 Appendix A's<br />
+<code>skipUnknownField(tag)</code> sketch implies generic record-tag skipping, but §6.2<br />
+  scalars are not self-delimiting, so a schema-less decoder cannot skip an unknown<br />
+  scalar field. This layer rejects unknown record tags; whether the RFC wants a<br />
+  protobuf-style wire-type nibble to enable skipping is an RFC decision.</li>
+<li><strong>OQ-3 — <code>Value</code> vs codegen boundary.</strong> This layer ships a dynamic <code>Value</code>/<br />
+<code>Type</code> codec. RFC 0002 §7 codegen will emit static Zig/BEAM types; confirm the<br />
+  generated encoders are expected to <em>call</em> this runtime codec vs. inline their<br />
+  own (the spec assumes the former, so the fixed-point property is shared).</li>
+<li><strong>Header tag model (informational).</strong> RFC 0002 §4.2 (<code>@0</code> reserved, body tags<br />
+<code>@1+</code>) vs RFC 0003 §4.4.1 (header tags <code>@0..@4</code>). Irrelevant to this layer<br />
+  (body-only), but noted because the body's lowest author tag is <code>@1</code> and the<br />
+  whole-frame golden vectors assume it.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-hcpbin-aggregate-plan.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

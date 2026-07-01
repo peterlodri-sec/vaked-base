@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Design note — the agentic dev loop, expressed grammatically (HCP/Litany) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#context" style="padding-left:0.5rem">Context</a><a href="#the-two-graph-discipline" style="padding-left:0.5rem">The two-graph discipline</a><a href="#how-the-three-request-constraints-map-to-grammar" style="padding-left:0.5rem">How the three request constraints map to grammar</a><a href="#the-mesh-capability-separation" style="padding-left:0.5rem">The mesh (capability separation)</a><a href="#hcp-litany-lowering-map" style="padding-left:0.5rem">HCP / Litany lowering map</a><a href="#open-design-tensions-honest-gaps" style="padding-left:0.5rem">Open design tensions (honest gaps)</a><a href="#prior-art" style="padding-left:0.5rem">Prior art</a><a href="#verification" style="padding-left:0.5rem">Verification</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-hcp-litany-dev-loop-design</div>
+<h1>Design note — the agentic dev loop, expressed grammatically (HCP/Litany)</h1>
+<h1 id="design-note-the-agentic-dev-loop-expressed-grammatically-hcplitany">Design note — the agentic dev loop, expressed grammatically (HCP/Litany)</h1>
+<p>Date: 2026-06-14 · Tracks issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/165">#165</a> (WP3 HCP wire protocol) · Artifact: <a href="../../../vaked/examples/hcp-litany-dev-loop.vaked"><code>vaked/examples/hcp-litany-dev-loop.vaked</code></a></p>
+<h2 id="context">Context</h2>
+<p>We drive development through a repeatable chain of agent activities:</p>
+<blockquote>
+<p><strong>brainstorm → subagent-driven development → deep-research (≤15 min) → PR-babysit (every ~2 min: resolve conflicts, drive CI to all-green, post no comments).</strong></p>
+</blockquote>
+<p>The open question from the request was: <em>"the wire — HCP and Litany — is a bit on a different layer, but it would be ideal if we could express something like this grammatically."</em> This note shows that we <strong>can</strong> — using only existing Vaked constructs (no new grammar) — and documents exactly how each construct <strong>lowers onto</strong> the HCP/Litany protocol layer (RFCs 0001–0007). The companion artifact parses, type-checks, and lowers cleanly through <code>vakedc</code> (see <a href="#verification">Verification</a>).</p>
+<h2 id="the-two-graph-discipline">The two-graph discipline</h2>
+<p>The dev loop is expressed with the same spine as <code>agentfield-swe.vaked</code>, per <a href="../../language/0015-workflow.md">0015-workflow</a>:</p>
+<ul>
+<li><strong><code>mesh field</code></strong> — the <em>authority</em> axis. Agents are declared once with attenuated capabilities; <code>operator -&gt; X</code> edges are delegations checked under POLA (0011 §4.4).</li>
+<li><strong><code>workflow dev_loop</code></strong> — the <em>ordering</em> axis. Steps are a checked DAG (<code>E-WORKFLOW-CYCLE</code>, <code>E-WORKFLOW-DEPTH</code>); each step names its executing mesh agent and threads typed artifacts forward.</li>
+<li><strong><code>budget</code> / <code>runclass</code></strong> — <em>bounds</em> and <em>scheduling</em> threaded onto individual steps.</li>
+</ul>
+<h2 id="how-the-three-request-constraints-map-to-grammar">How the three request constraints map to grammar</h2>
+<table>
+<thead>
+<tr>
+<th>Request phrase</th>
+<th>Vaked construct</th>
+<th>Why this construct</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"deep-research, <strong>max 15 min</strong>"</td>
+<td><code>budget research { wallClock = 15m }</code> on the <code>research</code> step</td>
+<td>A time-box is a per-step resource bound, not a graph node.</td>
+</tr>
+<tr>
+<td>"pr-babysit, <strong>every 2 min</strong>"</td>
+<td><code>runclass babysit_loop { interval = 2m }</code> on the <code>babysit</code> step</td>
+<td>Recurrence is a <em>scheduling-class</em> property; the step appears in the DAG exactly once.</td>
+</tr>
+<tr>
+<td>"<strong>resolve conflicts</strong> / drive green"</td>
+<td><code>retries = 30</code> on the <code>babysit</code> step</td>
+<td>A bounded revision loop — explicitly <em>not</em> a back-edge (a <code>babysit -&gt; babysit</code> edge would trip <code>E-WORKFLOW-CYCLE</code>).</td>
+</tr>
+<tr>
+<td>"<strong>no comments</strong> on the PR"</td>
+<td><code>budget babysit { approvals = "never" }</code></td>
+<td>Encodes the autonomous stance: the babysit step prompts for nothing.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-mesh-capability-separation">The mesh (capability separation)</h2>
+<p>Static, compile-time guarantees from attenuated delegation:</p>
+<table>
+<thead>
+<tr>
+<th>node</th>
+<th>role</th>
+<th>capabilities</th>
+<th>guarantee</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>operator</code></td>
+<td>control-plane</td>
+<td><code>fs.repo_rw, process.spawn, mcp.github_write, mem.admin, network.egress</code></td>
+<td>holds the maximal grant in each delegated domain so every edge attenuates</td>
+</tr>
+<tr>
+<td><code>brainstormer</code></td>
+<td>brainstorm</td>
+<td><code>fs.repo_ro, mem.recall</code></td>
+<td>reads only; cannot mutate or reach the network</td>
+</tr>
+<tr>
+<td><code>implementer</code></td>
+<td>implement</td>
+<td><code>fs.repo_rw, process.spawn_sandboxed, mem.recall</code></td>
+<td>the only writer of code; <strong>cannot</strong> self-publish (no <code>mcp.github_write</code>)</td>
+</tr>
+<tr>
+<td><code>researcher</code></td>
+<td>deep-research</td>
+<td><code>fs.repo_ro, network.egress, mem.append</code></td>
+<td>the <strong>only</strong> node that reaches the internet; cannot touch code or ship</td>
+</tr>
+<tr>
+<td><code>babysitter</code></td>
+<td>pr-babysit</td>
+<td><code>fs.repo_rw, mcp.github_write, mem.recall</code></td>
+<td>resolves conflicts and merges; the publish chokepoint</td>
+</tr>
+</tbody>
+</table>
+<p>Note the attenuation consequence: because <code>researcher</code> needs <code>network.egress</code>, the <code>operator</code> must also hold <code>network.egress</code> (delegation only flows to <code>≤</code> in each domain). This is the one capability the canonical <code>agentfield-swe.vaked</code> did not need.</p>
+<h2 id="hcp-litany-lowering-map">HCP / Litany lowering map</h2>
+<p>The wire protocol is a lower layer; the workflow <strong>lowers onto</strong> it. Concretely, <code>vakedc lower</code> already emits <code>gen/workflow/dev_loop.json</code> bound to an append-only <code>eventd</code> log (<code>var/lib/hcp-litany-dev-loop/eventd/log.jsonl</code>) — the same hash-chained substrate the protocol's state-dependency layer rides on. The construct → frame correspondence:</p>
+<table>
+<thead>
+<tr>
+<th>Vaked construct</th>
+<th>Lowers to (frame / mechanism)</th>
+<th>RFC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workflow edge <code>a -&gt; b</code> (ordering)</td>
+<td><code>DependencyRegistration</code> — consumer <code>b</code> write-ahead pins producer <code>a</code>'s step+hash+epoch</td>
+<td>0004 §3</td>
+</tr>
+<tr>
+<td>step <code>input = artifacts.X</code> consumed</td>
+<td><code>DependencyRegistration</code> before fetch; <code>ConsumerCheckpoint</code> after fold</td>
+<td>0004 §3–4</td>
+</tr>
+<tr>
+<td>step <code>output</code> produced + committed</td>
+<td>producer step on <code>eventd</code>; pinned by downstream <code>ConsumerCheckpoint.min_required_step</code></td>
+<td>0004 §4</td>
+</tr>
+<tr>
+<td><code>runclass.babysit_loop.interval = 2m</code></td>
+<td><code>SetIntervalControl{ interval_ms: 120000 }</code> on the babysit target</td>
+<td>0005 §1, §4.3</td>
+</tr>
+<tr>
+<td><code>budget.research.wallClock = 15m</code> expiry</td>
+<td>supervisor-initiated <code>PauseControl</code> on the research target when the wall-clock budget is spent</td>
+<td>0005 §2.1</td>
+</tr>
+<tr>
+<td>operator resumes a paused step</td>
+<td><code>ResumeControl</code></td>
+<td>0005 §1</td>
+</tr>
+<tr>
+<td>single-tick debugging of a paused step</td>
+<td><code>StepControl</code> (one tick, returns to paused)</td>
+<td>0005 §2.2</td>
+</tr>
+<tr>
+<td>babysit needs to undo a bad merge</td>
+<td><code>RewindControl</code> (req) → supervisor composes <code>RewindEvent</code></td>
+<td>0005 §3 / 0004 §3.3</td>
+</tr>
+<tr>
+<td><code>budget.approvals = "never"</code> (no comments)</td>
+<td><code>preceptord</code> policy + broker autonomy; no approval frames emitted</td>
+<td>0005 §2.3</td>
+</tr>
+<tr>
+<td>mesh delegation <code>operator -&gt; X</code></td>
+<td><strong>not</strong> a wire frame — attenuation checked at compile time</td>
+<td>0011 §4.4</td>
+</tr>
+<tr>
+<td>build-time mesh+workflow topology</td>
+<td><code>topology_epoch</code> stamped on every dependency artifact</td>
+<td>0004 §7</td>
+</tr>
+</tbody>
+</table>
+<p>Every frame above is a <strong>Votive Frame</strong> carried over <strong>Litany Wire</strong> (RFC 0003) in canonical <code>hcpbin</code> (RFC 0002). The recurring babysit step is <em>safe to restart</em> because of RFC 0004 §6 cold-start: each cycle re-verifies its anchor on <code>artifacts.findings</code> before going RUNNING, and parks <code>PAUSED(stale_dependency)</code> rather than driving CI against a rewound/compacted producer.</p>
+<h2 id="open-design-tensions-honest-gaps">Open design tensions (honest gaps)</h2>
+<ol>
+<li><strong>Recurrence is invisible in the static graph.</strong> <code>babysit</code> appears once; its repetition lives in the supervisor tick + <code>SetIntervalControl</code>, not in the DAG. Correct, but counter-intuitive. Adding a back-edge would (rightly) fail the cycle check.</li>
+<li><strong><code>retries</code> only approximates an open-ended loop.</strong> PR-babysitting is genuinely open-ended (conflict → push → CI → maybe new conflict). The truer model is interval-driven re-entry where each tick is a fresh attempt and <code>retries</code> bounds in-tick revision; whether <code>retries</code> and <code>interval</code> <em>compose</em> (revisions-per-tick × ticks-until-green) deserves a decision.</li>
+<li><strong><code>wallClock</code> has no first-class expiry frame.</strong> The 15-min cap is a declared budget, but RFC 0005 has no "deadline reached" frame — expiry is realized as a supervisor <code>PauseControl</code>. There is a gap between <em>declaring</em> a wall-clock budget and a wire mechanism that <em>enforces</em> it.</li>
+<li><strong>"No comments" is a policy, not a graph property.</strong> Vaked can attenuate <code>mcp.github_write</code> but the <code>mcp</code> domain (<code>none &lt; github_read &lt; github_write &lt; broker_admin</code>) is too coarse to say "merge yes, comment no". A finer grant (<code>mcp.github_merge</code> vs <code>mcp.github_comment</code>) would let the checker <em>prove</em> the no-comment property instead of leaving it to broker policy. Candidate follow-up capability-taxonomy refinement.</li>
+<li><strong><code>runclass</code> lowering is a #28 follow-up.</strong> <code>vakedc lower</code> currently carries <code>budget</code> into <code>gen/workflow/dev_loop.json</code> but not <code>runclass</code> (OTP-supervision wiring of worker args + <code>SupFlags</code> is the documented follow-up in <code>builtins.vaked</code>). So the 2-min interval is declared and checked today, but not yet emitted — tracked alongside #28.</li>
+</ol>
+<h2 id="prior-art">Prior art</h2>
+<p>Industry orchestration DSLs validate the modeling choices — time-box as a per-step <em>timeout property</em>, recurrence as a <em>scheduling property</em> separate from the step graph, and bounded <em>retry policies</em> for conflict loops. A time-boxed deep-research pass surveyed six systems:</p>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Time-box (wall-clock cap)</th>
+<th>Recurrence (interval)</th>
+<th>Retry / conflict-loop</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Temporal</strong></td>
+<td><code>StartToCloseTimeout</code> per activity; <code>WorkflowRunTimeout</code> per run</td>
+<td>Schedules (external) + <code>ContinueAsNew</code></td>
+<td><code>RetryPolicy</code> w/ <code>MaximumAttempts</code>, backoff</td>
+</tr>
+<tr>
+<td><strong>Argo Workflows</strong></td>
+<td><code>activeDeadlineSeconds</code></td>
+<td><code>CronWorkflow</code> (separate resource kind)</td>
+<td><code>retryStrategy</code> w/ <code>limit</code>, <code>backoff</code></td>
+</tr>
+<tr>
+<td><strong>Dagster</strong></td>
+<td><code>max_runtime</code> tag / <code>run_monitoring</code></td>
+<td><code>@schedule</code> (cron), <code>@sensor</code> — separate objects</td>
+<td><code>RetryPolicy(max_retries=…)</code></td>
+</tr>
+<tr>
+<td><strong>AWS Step Functions</strong></td>
+<td><code>TimeoutSeconds</code> per state; <code>Wait</code> for delays</td>
+<td>EventBridge Scheduler (external)</td>
+<td><code>Retry</code> (<code>MaxAttempts</code>, <code>BackoffRate</code>) + <code>Catch</code></td>
+</tr>
+<tr>
+<td><strong>GitHub Actions</strong></td>
+<td><code>timeout-minutes</code> per job/step</td>
+<td><code>on: schedule: cron</code> trigger</td>
+<td>no native step-retry; <code>concurrency</code> for conflict avoidance</td>
+</tr>
+<tr>
+<td><strong>BPMN</strong></td>
+<td>timer boundary event on an activity</td>
+<td>timer <code>timeCycle</code> event node</td>
+<td>sequence-flow back-edge through a gateway</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Convergent idiom (Temporal, Argo, Dagster, Step Functions, GitHub Actions).</strong> Recurrence is a first-class scheduling object <em>separate</em> from the step graph (Argo's <code>CronWorkflow</code> is a distinct resource that instantiates a <code>Workflow</code>; Dagster <code>@schedule</code> targets a job; GitHub's <code>cron</code> is a trigger header) — the recurring step appears in the graph <strong>once</strong> and the scheduler re-instantiates it. Time-boxes are <em>scalar attributes hung on a step</em> (<code>StartToCloseTimeout</code>, <code>activeDeadlineSeconds</code>, <code>TimeoutSeconds</code>, <code>timeout-minutes</code>) — not nodes. Retry loops are bounded by an <em>attempt cap plus backoff</em> (<code>MaximumAttempts</code>, <code>retryStrategy.limit</code>, <code>MaxAttempts</code>), re-executing the same node in place rather than threading a back-edge. This is exactly the Vaked tri-axis: time-box → <code>budget.wallClock</code>, recurrence → <code>runclass.interval</code> (one DAG appearance), conflict-loop → step <code>retries</code>.</p>
+<p><strong>Counter-evidence — BPMN</strong> is the genuine dissent: it models all three as graph topology (retry = sequence-flow back-edge through a gateway; time-box = boundary timer event attached to an activity; recurrence = <code>timeCycle</code> timer node). BPMN's lineage is visual process modeling / temporal-logic verification, where time as a first-class graph citizen is the point. It is a coherent road Vaked consciously <em>does not</em> take. (Minor wrinkles: Step Functions <code>Map</code>/<code>Wait</code> <em>are</em> graph states, but <code>Map</code> is bounded fan-out over a known list and <code>Wait</code> is sequencing, not a cap; GitHub <code>concurrency</code> is conflict <em>avoidance</em>, a distinct axis from retry.)</p>
+<p><strong>Recommended refinement (Temporal's pattern):</strong> bound <code>retries</code> by <em>both</em> attempt count and <code>budget.wallClock</code>, so a flaky babysit step can't burn the whole run budget — which the artifact already does (<code>budget babysit { wallClock = 5m }</code> + <code>retries = 30</code>). Separately, conflict-<em>avoidance</em> (à la GitHub <code>concurrency</code>) may deserve an axis distinct from retry; noted as future work.</p>
+<p>Selected sources: Temporal <a href="https://docs.temporal.io/encyclopedia/retry-policies">retry-policies</a> · Argo <a href="https://argo-workflows.readthedocs.io/en/latest/cron-workflows/">Cron Workflows</a> · Dagster <a href="https://docs.dagster.io/deployment/execution/run-retries">run-retries</a> · Step Functions <a href="https://docs.aws.amazon.com/step-functions/latest/dg/concepts-error-handling.html">error handling</a> · GitHub Actions <a href="https://docs.github.com/actions/using-workflows/workflow-syntax-for-github-actions">workflow syntax</a> · BPMN <a href="https://docs.camunda.io/docs/components/modeler/bpmn/timer-events/">Camunda timer events</a>.</p>
+<h2 id="verification">Verification</h2>
+<div class="highlight"><pre><span></span>$<span class="w"> </span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w"> </span>vaked/examples/hcp-litany-dev-loop.vaked
+vakedc:<span class="w"> </span>vaked/examples/hcp-litany-dev-loop.vaked<span class="w"> </span>—<span class="w"> </span>no<span class="w"> </span>diagnostics<span class="w">   </span><span class="c1"># exit 0</span>
+
+$<span class="w"> </span>python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>lower<span class="w"> </span>vaked/examples/hcp-litany-dev-loop.vaked<span class="w"> </span>--out<span class="w"> </span>/tmp/devloop-out
+vakedc:<span class="w"> </span>lowered<span class="w"> </span>…<span class="w"> </span>→<span class="w"> </span>/tmp/devloop-out<span class="w"> </span><span class="o">(</span><span class="m">5</span><span class="w"> </span>files<span class="o">)</span><span class="w">                       </span><span class="c1"># exit 0</span>
+<span class="c1">#   flake.nix · gen/RUNTIME.md · gen/eventd.json · gen/workflow/dev_loop.json · provenance.json</span>
+</pre></div>
+
+<p><code>gen/workflow/dev_loop.json</code> shows the 4-step DAG, <code>depth = 4 ≤ maxDepth = 6</code>, and the <code>eventd</code> log binding — i.e. the dev loop is a typed, checked, lowerable capability graph that sits directly on the HCP/Litany evidence substrate.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-hcp-litany-dev-loop-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

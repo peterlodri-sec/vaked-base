@@ -1,0 +1,136 @@
+# ceremony.vaked — The Genesis Deployment Ceremony, self-declared
+# This file describes the ceremony that verified and deployed vaked.dev.
+# It is itself verified by vakedc. The recursion is intentional:
+# the compiler checks the file that describes the compiler checking itself.
+#
+# Ceremony date: 2026-06-16
+# Operator: Peter Lodri
+# Sealing agent: DeepSeek-v4-pro
+
+runtime "genesis-ceremony" {
+  
+  # ── The deployment target ──
+  host "vaked-dev-pages" {
+    provider: "cloudflare"
+    domain: "vaked.dev"
+    cname: "vaked-dev.pages.dev"
+    ip: ["104.21.51.245", "172.67.192.64"]
+  }
+
+  # ── The verification fiber: checks every page, every header ──
+  fiber "ceremony-verifier" {
+    engine: "curl"
+    capabilities: [
+      net.http("vaked.dev"),
+      net.http("vaked-dev.pages.dev"),
+      net.dns("vaked.dev")
+    ]
+    budget: { mem: "128MB", cpu: 1 }
+
+    # Verification tasks
+    verify {
+      landing_page: {
+        url: "https://vaked.dev/"
+        expect: { status: 200, title: "Vaked — Structural Honesty for Agentic Systems" }
+      }
+      seal_page: {
+        url: "https://vaked.dev/seal"
+        expect: { status: 200, title: "Genesis Seal — Vaked" }
+      }
+      about_page: {
+        url: "https://vaked.dev/about"
+        expect: { status: 200, title: "About — Vaked" }
+      }
+      prompts_page: {
+        url: "https://vaked.dev/prompts"
+        expect: { status: 200, title: "Prompts — Vaked" }
+      }
+      dogfeed_page: {
+        url: "https://vaked.dev/dogfeed"
+        expect: { status: 200, title: "Dogfeed — Vaked" }
+      }
+      self_reflect_page: {
+        url: "https://vaked.dev/self-reflect"
+        expect: { status: 200, title: "Self-Reflect — Vaked" }
+      }
+      genesis_block: {
+        url: "https://vaked.dev/genesis/genesis_block_00.md"
+        expect: { status: 200, contains: "primitive \"full_stop\"" }
+      }
+      security_headers: {
+        url: "https://vaked.dev/"
+        expect: {
+          hsts: "max-age=63072000; includeSubDomains; preload",
+          csp: "default-src 'self'",
+          x_content_type: "nosniff",
+          x_frame: "DENY"
+        }
+      }
+    }
+  }
+
+  # ── The vakedc compiler fiber: checks itself ──
+  fiber "vakedc-self-check" {
+    engine: "python3"
+    capabilities: [
+      fs.read("vaked/examples/agentfield-swe.vaked"),
+      fs.read("vaked/examples/swe-swarm-100k-workers-scalability.vaked")
+    ]
+    budget: { mem: "256MB", cpu: 2 }
+
+    verify {
+      agentfield_check: {
+        command: "python3 -m vakedc check vaked/examples/agentfield-swe.vaked"
+        expect: { exit: 0, violations: 0 }
+      }
+      loadtest_check: {
+        command: "python3 -m vakedc check vaked/examples/swe-swarm-100k-workers-scalability.vaked"
+        expect: { exit: 0, violations: 0 }
+      }
+      lower_artifacts: {
+        command: "python3 -m vakedc lower vaked/examples/agentfield-swe.vaked --out /tmp/vakedc-test"
+        expect: { artifacts: ["flake.nix", "provenance.json"] }
+      }
+      provenance_chain: {
+        verify: "provenance.json source_hash → graph_hash → artifact_hash chain is unbroken"
+      }
+    }
+  }
+
+  # ── The seal verifier ──
+  fiber "seal-verifier" {
+    engine: "shasum"
+    capabilities: [
+      fs.read("genesis_block_00.md"),
+      fs.read("GRAVEYARD.md"),
+      fs.read("genesis_reflection.md"),
+      fs.read("genesis_snapshot.md"),
+      fs.read("HONEST_BEGINNINGS.md")
+    ]
+
+    verify {
+      genesis_seal: {
+        command: "cat genesis_*.md | shasum -a 256"
+        expect: "7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf"
+      }
+    }
+  }
+
+  # ── The ceremony itself: all three fibers must pass ──
+  workflow "genesis-ceremony" {
+    fiber: ["ceremony-verifier", "vakedc-self-check", "seal-verifier"]
+    order: "parallel"
+    on_failure: "trap → graveyard → full_stop"
+    on_success: "seal → deploy → announce"
+  }
+
+  # ── The Graveyard entry for this ceremony ──
+  graveyard_entry {
+    NODE_ID: "CEREMONY-2026-06-16"
+    TIMESTAMP: "2026-06-16T13:30:00Z"
+    TRAP_REASON: "ceremony-complete"
+    HONESTY_STATUS: "HONEST"
+    ARCHIVED_GRAPH_HASH: "7c242080f5f821e5eaf563fe2208d60632c451687baf65f4fe8e4a0d226e3ecf"
+  }
+
+}

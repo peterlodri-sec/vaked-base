@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Prior Art & Lessons — Durable Runtime, Capability Graph, Multi-Target Compilation — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#tldr-five-highest-value-findings" style="padding-left:0.5rem">TL;DR — five highest-value findings</a><a href="#1-durable-agentic-workflow-runtimes" style="padding-left:0.5rem">1. Durable / agentic workflow runtimes</a><a href="#2-object-capability-model-the-capability-graph" style="padding-left:0.5rem">2. Object-capability model ↔ the capability graph</a><a href="#3-multi-target-declarative-compilation" style="padding-left:0.5rem">3. Multi-target declarative compilation</a><a href="#4-supervision-fibers-otp-plane-zig-daemons" style="padding-left:0.5rem">4. Supervision + fibers (OTP plane ↔ Zig daemons)</a><a href="#5-ebpf-enforcement-nix-attestation" style="padding-left:0.5rem">5. eBPF enforcement + Nix attestation</a><a href="#cross-cutting-strategy" style="padding-left:0.5rem">Cross-cutting strategy</a><a href="#confidence-caveats" style="padding-left:0.5rem">Confidence & caveats</a><a href="#follow-up-issues" style="padding-left:0.5rem">Follow-up issues</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/research/">research</a> / 2026-06-14-prior-art-durable-runtime-capability-graph</div>
+<h1>Prior Art & Lessons — Durable Runtime, Capability Graph, Multi-Target Compilation</h1>
+<h1 id="prior-art-lessons-durable-runtime-capability-graph-multi-target-compilation">Prior Art &amp; Lessons — Durable Runtime, Capability Graph, Multi-Target Compilation</h1>
+<blockquote>
+<p>Deep-research synthesis (2026-06-14). Five angles, ~24 primary sources, claims<br />
+tagged with confidence after adversarial verification. Informs Vaked's runtime,<br />
+security, and compiler design. Artifacts are derived; treat this as a reference,<br />
+not a spec — versioned decisions belong in <code>docs/language/</code> and <code>protocol/rfcs/</code>.</p>
+</blockquote>
+<h2 id="tldr-five-highest-value-findings">TL;DR — five highest-value findings</h2>
+<ol>
+<li><strong>The compiler is the moat.</strong> Every durable-workflow runtime's worst footguns<br />
+   (Temporal/Azure non-determinism errors) and every eBPF security mistake<br />
+   (enforcing on an observe-only hook) are <em>runtime</em> failures a typed semantic<br />
+   graph can turn into <em>compile</em> errors. This is the differentiated bet.</li>
+<li><strong>"eBPF testifies, Zig enforces" is defensible but stricter than the kernel<br />
+   requires</strong> — it leaves fail-closed, race-free enforcement on the table<br />
+   (<code>bpf_lsm</code> + cgroup/connect hooks).</li>
+<li><strong>Deny-by-default egress ≈ object-capability "no ambient authority" ~1:1</strong> —<br />
+   but a network membrane gates <em>channels</em>; it cannot <em>wrap/attenuate a capability<br />
+   travelling inside an allowed connection</em>. That gap is the sharpest design edge.</li>
+<li><strong>Do not build Vaked "fibers" on Zig <code>async</code>/<code>await</code> — those keywords do not<br />
+   exist.</strong> Target the new <code>std.Io</code> colorblind model (0.16; backends experimental).</li>
+<li><strong>Adopt MLIR-style progressive lowering, not N direct emitters</strong> — lower through<br />
+   intermediate dialects so capability/policy intent survives until each backend<br />
+   pass needs it.</li>
+</ol>
+<h2 id="1-durable-agentic-workflow-runtimes">1. Durable / agentic workflow runtimes</h2>
+<ul>
+<li>Temporal/Cadence/Azure Durable use <strong>event sourcing + deterministic replay</strong>:<br />
+  workflow code re-runs from history on recovery and <strong>must be deterministic</strong> (no<br />
+  I/O, time, random in control flow). [docs.temporal.io/workflow-definition/determinism-constraints;<br />
+  learn.microsoft.com durable-task-code-constraints]</li>
+<li>Mutating a running workflow breaks replay → explicit <strong>versioning markers</strong><br />
+  (<code>patched()</code>/Worker Versioning). [docs.temporal.io/patching]</li>
+<li><strong>DBOS</strong> = Postgres-backed checkpointing; exactly-once <em>for DB ops</em> via<br />
+  single-transaction checkpoint (medium — vendor framing, DB-scoped). [docs.dbos.dev]</li>
+<li><strong>AWS Step Functions</strong> = declarative JSON (ASL); Standard = exactly-once/durable,<br />
+  Express = at-least-once — chosen per workflow. [docs.aws.amazon.com/step-functions]</li>
+<li><strong>Replay cost grows with history</strong> (Azure long-loop degradation, medium).</li>
+</ul>
+<p><strong>Lessons:</strong> <code>eventd/</code> (hash-chained log) makes event-sourced durability natural,<br />
+but it imposes the determinism tax → make the determinism boundary a language<br />
+construct (pure control-flow nodes; only <code>step</code>/<code>activity</code> nodes touch the world).<br />
+Pin each live execution to its compiled graph hash; require explicit migration to<br />
+mutate a running graph. Assume at-least-once for agent steps → require idempotency<br />
+keys. Design history compaction / continue-as-new from day one.</p>
+<h2 id="2-object-capability-model-the-capability-graph">2. Object-capability model ↔ the capability graph</h2>
+<ul>
+<li>A capability = <strong>unforgeable reference fusing designation + authority</strong>; <strong>no<br />
+  ambient authority</strong>. [Miller, "Capability Myths Demolished"; en.wikipedia.org/wiki/Object-capability_model]</li>
+<li><strong>"Only connectivity begets connectivity"</strong> (gain a cap via initial/parenthood/<br />
+  endowment/introduction) → the live reference set <em>is</em> the authority graph.</li>
+<li><strong>Membrane</strong> = transitive wrapping + single kill-switch → revoke a whole subgraph<br />
+  at once. [tvcutsem.github.io/membranes]</li>
+<li><strong>Confused deputy</strong> = ambient authority + designation/authority separation; caps<br />
+  structurally avoid it. seL4 / Cap'n Proto / SES are production capability systems;<br />
+  Pony refcaps are a <em>different</em> (compile-time aliasing) notion — don't conflate.</li>
+</ul>
+<p><strong>Maps cleanly:</strong> deny-by-default egress = "no ambient authority"; the egress<br />
+allow-set = a node's out-edges. Static analysis: transitive reachability, POLA<br />
+violations, confused-deputy shapes. Implement "runtime membrane" as an<br />
+epoch/generation flip in eBPF maps (one write inerts the subgraph).</p>
+<p><strong>Sharp edge:</strong> eBPF gates channels; it <strong>cannot wrap references in transit</strong> — it<br />
+cannot downgrade a token/handle passed <em>inside</em> an allowed connection, so app-layer<br />
+delegation is invisible to the graph. Either keep all delegation inside<br />
+Vaked-minted capabilities, or have capability-aware Zig daemons parse a<br />
+CapTP/Cap'n-Proto-style protocol and re-derive edges. IP/port/cgroup egress is<br />
+closer to a network ACL than a true capability (NAT/shared-IP/DNS erode<br />
+unforgeability) → bind caps to cgroup/process identity + flow attestation; give each<br />
+membrane its own attenuated egress identity, not a shared deputy.</p>
+<h2 id="3-multi-target-declarative-compilation">3. Multi-target declarative compilation</h2>
+<ul>
+<li><strong>CUE</strong>: types+values in one <strong>unification lattice</strong> (commutative/associative/<br />
+  idempotent); non-Turing-complete by design. [cuelang.org]</li>
+<li><strong>Nickel</strong>: sound <strong>gradual typing</strong> + runtime <strong>contracts</strong> at boundaries +<br />
+  metadata-aware merge. [nickel-lang RATIONALE]</li>
+<li><strong>Dhall</strong>: total/terminating, no general recursion — <em>termination ≠ tractability</em>.</li>
+<li><strong>MLIR</strong>: dialects coexist; <strong>progressive lowering</strong> avoids LLVM IR's premature<br />
+  information loss. [mlir.llvm.org/docs/Rationale]</li>
+<li>CDK/CDKTF/Pulumi = transpilers; Pulumi native + <em>bridged</em> providers<br />
+  (leaky-abstraction lesson).</li>
+</ul>
+<p><strong>Lessons:</strong> make merge the core graph op (order-independent partial graphs);<br />
+stay non-Turing-complete on purpose but watch graph blowup; use progressive<br />
+lowering (capability-graph dialect → resource dialect → per-backend dialects for<br />
+flake.nix / Zig config / eBPF / OTel) — don't flatten policy into target syntax<br />
+early; insert boundary contracts where targets have hard validity rules; treat all<br />
+artifacts as <strong>derived, never hand-edited</strong> + regen-verify in CI (the landing-guru<br />
+cache-coherence pattern).</p>
+<h2 id="4-supervision-fibers-otp-plane-zig-daemons">4. Supervision + fibers (OTP plane ↔ Zig daemons)</h2>
+<ul>
+<li>OTP strategies <code>one_for_one</code>/<code>one_for_all</code>/<code>rest_for_one</code>; <strong>restart-storm<br />
+  breaker</strong> (terminate if &gt; MaxR restarts in MaxT s; defaults 1/5s). [erlang.org sup_princ]</li>
+<li>BEAM shared-nothing message passing = basis of "let it crash".</li>
+<li><strong>Structured concurrency</strong> (Sústrik 2016 / Smith nurseries): child lifetimes<br />
+  nested in parent; an error <strong>cancels siblings then re-raises</strong>. [vorpus.org]</li>
+<li><strong>Divergence:</strong> structured concurrency <strong>cancels</strong> on fault; OTP <strong>restarts</strong>.</li>
+<li>Java virtual threads GA in JDK 21 (M:N); <code>StructuredTaskScope</code> still preview.</li>
+<li><strong>Zig: <code>async</code>/<code>await</code>/<code>suspend</code>/<code>resume</code> DO NOT EXIST</strong> (only in bootstrap<br />
+  stage1; gone with stage2). Direction = colorblind async via <strong><code>std.Io</code></strong><br />
+  (<code>io.async</code>→<code>Future</code>, <code>future.await</code>, <code>io.concurrent</code>, <code>Group</code>, <code>error.Canceled</code>).<br />
+  0.16.0 (min target, 2026-04-14) has <code>std.Io</code>; io_uring/evented backends<br />
+  experimental. [ziglang.org 0.16 notes; andrewkelley.me; kristoff.it]</li>
+</ul>
+<p><strong>Lessons:</strong> supervision = unit of recovery; fibers = unit of cancellation (not the<br />
+same). Do <strong>not</strong> design fibers on Zig language <code>async</code> — target <code>std.Io</code>, treat<br />
+evented backend as experimental, spec as a design→plan cycle. Two-level<br />
+cancellation: OTP plane → daemon (signal) → daemon fiber scopes (<code>error.Canceled</code>).<br />
+Inherit the restart-storm breaker per daemon; pick the strategy from real<br />
+capability-graph dependency edges. "Let it crash" only buys safety at the<br />
+OS-process boundary — keep daemons single-purpose so an in-daemon fault = one<br />
+restartable unit.</p>
+<h2 id="5-ebpf-enforcement-nix-attestation">5. eBPF enforcement + Nix attestation</h2>
+<ul>
+<li>Verifier rejects non-terminating programs; <strong>512-byte stack</strong>; no arbitrary<br />
+  memory. [docs.ebpf.io/verifier; kernel.org]</li>
+<li><strong>Hook point decides enforce vs observe</strong> — kprobes/tracepoints are<br />
+  observe-only and <strong>cannot change the system</strong>; enforcement needs verdict hooks:<br />
+<code>bpf_lsm</code> (≥5.7, 0=allow/-errno=deny), cgroup connect/skb, XDP/tc, override/signal.<br />
+  [linuxfoundation eBPF threat model; kernel.org prog_lsm]</li>
+<li><strong>Tetragon enforces in-kernel</strong>; <strong>Falco is detection-only</strong>.</li>
+<li><strong>SIGKILL ≠ reliable prevention</strong> (TOCTOU). [tetragon enforcement; datadoghq]</li>
+<li><strong>Nix reproducibility is a tracked goal, not a guarantee</strong>; attestation = SLSA +<br />
+  in-toto; reproducibility strengthens attestation via independent rebuild.<br />
+  [reproducible.nixos.org; slsa.dev]</li>
+</ul>
+<p><strong>Lessons:</strong> keep "eBPF testifies" as default but add a <strong><code>bpf_lsm</code> enforcement<br />
+tier</strong> for a few high-value invariants (exec/egress allowlist). Encode<br />
+observe-vs-enforce in the graph and reject "enforce" on observe-only hooks at<br />
+compile time. Put the block in the cgroup/connect hook (fail-closed, in-kernel);<br />
+let the Zig daemon own policy compilation + allowlist map, not the per-packet<br />
+verdict. Prefer <code>bpf_override_return</code>/LSM-deny over SIGKILL. Pair Nix with<br />
+in-toto/SLSA so the artifact chain carries signed, independently-rebuildable<br />
+provenance; don't overclaim "reproducible = trusted".</p>
+<h2 id="cross-cutting-strategy">Cross-cutting strategy</h2>
+<ol>
+<li><strong>Push runtime footguns into the type system</strong> (determinism boundary,<br />
+   observe-vs-enforce hook typing, POLA/reachability) — all vakedc lowering checks.</li>
+<li><strong>Progressive lowering</strong> is the spine that keeps capability/policy/determinism<br />
+   semantics first-class until each backend consumes them.</li>
+<li><strong>Doctrine correction:</strong> "eBPF witnesses <em>and</em> (for a curated set) fail-closed<br />
+   enforces via bpf_lsm/cgroup; Zig daemons own policy + map population; Nix+in-toto<br />
+   attests at build." Fixes the TOCTOU + network-membrane attenuation gaps honestly.</li>
+<li><strong>Name the durability substrate</strong> (<code>eventd</code> → event-sourced) and make its<br />
+   determinism a compile-time contract.</li>
+</ol>
+<h2 id="confidence-caveats">Confidence &amp; caveats</h2>
+<ul>
+<li><strong>Verify before betting:</strong> DBOS exactly-once (DB-scoped); Azure long-loop<br />
+  degradation (single source); exact Zig version that dropped stage1 async (the<br />
+  fact is solid, the "0.11.0" label is not directly quoted); Go ~2KB stack figure.</li>
+<li><strong>Adversarial corrections applied:</strong> "eBPF can enforce" only at verdict hooks;<br />
+  SIGKILL has TOCTOU gaps; Nix reproducibility tracked-not-guaranteed; Pony refcaps<br />
+  ≠ ocap authority caps; membrane attenuation depends on correct return-value wrapping.</li>
+</ul>
+<h2 id="follow-up-issues">Follow-up issues</h2>
+<p>The three compiler checks below were filed as <code>agent</code>-labelled issues:<br />
+determinism-boundary enforcement, observe-vs-enforce hook typing, and<br />
+capability-graph POLA/reachability lints.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/research/2026-06-14-prior-art-durable-runtime-capability-graph.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WASM worker isolation — a sandboxd backend (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#where-it-lives-a-sandboxd-backend-decision" style="padding-left:0.5rem">Where it lives: a sandboxd backend (decision)</a><a href="#how-a-worker-selects-the-wasm-backend-open-grammar-first" style="padding-left:0.5rem">How a worker selects the wasm backend (open, grammar-first)</a><a href="#snapshots-raw-arena-decision-two-phases" style="padding-left:0.5rem">Snapshots: raw → arena (decision, two phases)</a><a href="#metering-budgetfuel-decision-concrete-schema-slice" style="padding-left:0.5rem">Metering: `budget.fuel` (decision — concrete schema slice)</a><a href="#component-model-interface-the-config-contract-open" style="padding-left:0.5rem">Component-Model interface ↔ the config contract (open)</a><a href="#what-is-deliberately-not-here" style="padding-left:0.5rem">What is deliberately NOT here</a><a href="#verification-posture" style="padding-left:0.5rem">Verification posture</a><a href="#plan" style="padding-left:0.5rem">Plan</a><a href="#open" style="padding-left:0.5rem">Open</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-wasm-worker-isolation-design</div>
+<h1>WASM worker isolation — a sandboxd backend (design)</h1>
+<h1 id="wasm-worker-isolation-a-sandboxd-backend-design">WASM worker isolation — a sandboxd backend (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-13). Issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/50">#50</a>,<br />
+triaged in <a href="../../language/0016-substrate-candidates.md">0016</a>. Decisions taken<br />
+with the owner (2026-06-13). Convention: subsystem = design → plan → impl; this<br />
+is the design. Composes shipped foundations (eventd oracle, RFC 0004, the<br />
+otp.supervision worker contract) plus two pending ones (the #16 arena, the Zig<br />
+daemon roster).</p>
+<h2 id="purpose">Purpose</h2>
+<p>Run a fiber/agent worker as a <strong>WebAssembly component under Wasmtime</strong> — a<br />
+language-agnostic, snapshotable, instruction-metered sandbox — as <strong>one of<br />
+<code>sandboxd</code>'s isolation backends</strong>, not a new daemon. WASM buys two properties<br />
+that map exactly onto foundations the runtime already commits to:</p>
+<ul>
+<li><strong>instant linear-memory snapshots</strong> ↔ the arena's content-addressed<br />
+  checkpoints (#16) and eventd's rewind substrate (RFC 0004 §3.3);</li>
+<li><strong>instruction metering</strong> (Wasmtime fuel / epoch interruption) ↔ the <code>budget</code><br />
+  schema (#28) — a <em>mathematical</em> compute bound rather than broker policy<br />
+  (the owner's "flat-cost economic bound").</li>
+</ul>
+<h2 id="where-it-lives-a-sandboxd-backend-decision">Where it lives: a sandboxd backend (decision)</h2>
+<p><code>sandboxd</code> already owns the <strong>process</strong> and <strong>filesystem</strong> membranes<br />
+(<a href="../../runtime/README.md">runtime roster</a>). WASM isolation is a third entry on<br />
+its existing isolation axis, not a peer daemon:</p>
+<div class="highlight"><pre><span></span><span class="nv">sandboxd</span><span class="w"> </span><span class="nv">isolation</span><span class="w"> </span><span class="nv">backend</span><span class="w"> </span>∈<span class="w"> </span>{<span class="w"> </span><span class="nv">native</span><span class="o">-</span><span class="k">exec</span>,<span class="w"> </span><span class="nv">oci</span>,<span class="w"> </span><span class="nv">wasm</span><span class="w"> </span>}
+</pre></div>
+
+<p>This keeps the roster small (CLAUDE.md: "small enough to implement and<br />
+remember") and gives the three backends one supervision/eventing path. The<br />
+otp.supervision worker contract (<code>vaked_fiber_worker</code> → port) gains a <code>wasm</code><br />
+backend alongside the eventual native Zig-daemon port; <strong>distroless Nix OCI</strong><br />
+(0016) is the conservative <code>oci</code> backend bundled in the same axis.</p>
+<h2 id="how-a-worker-selects-the-wasm-backend-open-grammar-first">How a worker selects the wasm backend (open, grammar-first)</h2>
+<p><strong>Lean: the backend follows the engine, not a new language field.</strong> A fiber<br />
+already names an <code>engine</code> that determines its built artifact (today<br />
+<code>zig.build</code> → a native daemon). A WASM-component engine (e.g.<br />
+<code>wasm.component { … }</code>) ⇒ a wasm worker — the language stays small and the<br />
+selection is a property of the artifact, not a separate knob. A <code>backend =</code><br />
+field on <code>fiber</code> would be the alternative; it is <strong>not</strong> proposed here.<br />
+Grammar-first decision deferred to its own issue if the engine-typing route<br />
+proves insufficient (e.g. one engine, two isolation targets).</p>
+<h2 id="snapshots-raw-arena-decision-two-phases">Snapshots: raw → arena (decision, two phases)</h2>
+<p>A WASM worker's whole state is its linear memory + a small amount of host<br />
+state (table, globals, fuel remaining). A checkpoint is a snapshot of that.</p>
+<ul>
+<li><strong>v0 — raw blob.</strong> The snapshot is a raw linear-memory blob, written to the<br />
+  content-addressed arena and <strong>referenced by <code>NodeId</code> from an eventd entry</strong><br />
+  (never inlined — the eventd-design rule: an event payload references<br />
+  arena <code>NodeId</code>s, not inline data).<br />
+  Simple and correct; a <code>RewindEvent</code> (RFC 0004 §3.3) to step N restores the<br />
+  worker to its byte-exact image as of N, <em>complementing</em> cold-start<br />
+  verification (§6): the supervisor restores the snapshot, then re-verifies<br />
+  dependency anchors.</li>
+<li><strong>follow-up — content-addressed pages.</strong> Page the linear memory and store<br />
+  pages as arena nodes (#16). Identical pages dedupe across snapshots and<br />
+  across sibling workers (structural sharing — the same refcount discipline as<br />
+  the GC floor); a rewind shares unchanged pages with the live image. This is<br />
+  the WASM analogue of the arena's graph-node sharing; it lands with the arena.</li>
+</ul>
+<p>Both phases keep the <strong>single source of truth</strong> intact: the snapshot is<br />
+content in the arena, the <em>when</em> is the eventd entry. No second store.</p>
+<h2 id="metering-budgetfuel-decision-concrete-schema-slice">Metering: <code>budget.fuel</code> (decision — concrete schema slice)</h2>
+<p>The <code>budget</code> schema (#28) gains:</p>
+<div class="highlight"><pre><span></span>field fuel : Int { optional &gt; 0 }   # Wasmtime instruction units
+</pre></div>
+
+<p><code>fuel</code> is the instruction ceiling a wasm worker runs under; Wasmtime's<br />
+fuel-exhaustion trap (or epoch interruption) is the enforcement point — the<br />
+bound is checked by the substrate, not estimated by the broker. It composes<br />
+with the existing <code>tokens</code>/<code>wallClock</code>/<code>toolCalls</code> (different axes: fuel meters<br />
+the <em>worker's own compute</em>, tokens/toolCalls meter its <em>model/tool calls</em>).<br />
+Lands now (schema ahead of runtime, the #28 pattern); enforced when the wasm<br />
+backend ships.</p>
+<h2 id="component-model-interface-the-config-contract-open">Component-Model interface ↔ the config contract (open)</h2>
+<p>A fiber's worker config lowers today to <code>gen/zig/&lt;fiber&gt;.json</code> (0012 §5.2). A<br />
+WASM component declares its imports/exports as <strong>Component-Model interface<br />
+types</strong> (WIT). Open question: is the config-contract one IDL (WIT generated<br />
+from, or generating, the gen config) or two parallel descriptions? Decide at<br />
+the daemon-spec phase, alongside the otp.supervision worker-port question.</p>
+<h2 id="what-is-deliberately-not-here">What is deliberately NOT here</h2>
+<ul>
+<li>No new daemon (sandboxd backend, by decision).</li>
+<li>No new top-level Vaked kind (backend follows the engine).</li>
+<li>No hashing on the substrate — snapshots are arena content; the canonical<br />
+  hash stays the eventd oracle's (the supervisord-design rule).</li>
+<li>No second event store — NATS/distribution (#52) is a separate slot.</li>
+</ul>
+<h2 id="verification-posture">Verification posture</h2>
+<p>CI has no Wasmtime; like the OTP tree, runnability is a devshell gate:<br />
+- <code>task wasm-smoke</code> (future): compile a trivial component, run it under the<br />
+  wasm backend, snapshot → rewind → assert byte-exact memory restore +<br />
+  fuel-exhaustion trap on an over-budget run.<br />
+- the <code>budget.fuel</code> schema slice is CI-covered now (builtins self-check +<br />
+  catalog coverage + a range-rejection probe).</p>
+<h2 id="plan">Plan</h2>
+<ol>
+<li><em>(now)</em> <code>budget.fuel</code> schema slice (this round).</li>
+<li><code>sandboxd</code> daemon spec gains the isolation-backend axis + the wasm backend<br />
+   contract (with the daemon roster work). <em>The axis is now opened in the<br />
+<a href="./2026-06-13-sandboxd-design.md">sandboxd design</a> (v0 commits <code>native-exec</code>;<br />
+   this wasm backend is its deferred-but-specified entry).</em></li>
+<li>WIT ↔ gen-config decision + the wasm worker port (with the Zig-port era).</li>
+<li>Arena-paged snapshots (with #16).</li>
+</ol>
+<h2 id="open">Open</h2>
+<ul>
+<li>engine-typed backend vs a <code>fiber.backend</code> field (grammar-first, above).</li>
+<li>WIT/gen-config IDL unification (above).</li>
+<li>fuel ↔ wallClock interaction for a worker that sleeps (fuel doesn't advance<br />
+  while suspended — does a sleeping worker hold its snapshot or release it?).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-wasm-worker-isolation-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

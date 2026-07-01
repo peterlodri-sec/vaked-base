@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dogfood verification kernel v0 — proposer/judge (M2) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#why-this-shape" style="padding-left:0.5rem">Why this shape</a><a href="#the-transition-one-wal-entry" style="padding-left:0.5rem">The transition (one WAL entry)</a><a href="#the-pipeline-kerneljudge" style="padding-left:0.5rem">The pipeline (`kernel.judge`)</a><a href="#validation-2026-06-14" style="padding-left:0.5rem">Validation (2026-06-14)</a><a href="#capability-scope-lowered-from-vaked-m25" style="padding-left:0.5rem">Capability scope lowered from Vaked (M2.5)</a><a href="#hot-path-complexity" style="padding-left:0.5rem">Hot-path complexity</a><a href="#not-in-scope-deliberately" style="padding-left:0.5rem">Not in scope (deliberately)</a><a href="#next-m3" style="padding-left:0.5rem">Next (M3)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/dogfood/">dogfood</a> / kernel-v0</div>
+<h1>Dogfood verification kernel v0 — proposer/judge (M2)</h1>
+<h1 id="dogfood-verification-kernel-v0-proposerjudge-m2">Dogfood verification kernel v0 — proposer/judge (M2)</h1>
+<p>A local, zero-cloud kernel that makes one agent-proposed code transition<br />
+<strong>typed-by-policy, capability-scoped, recorded, and replay-stable</strong> before it is<br />
+accepted. The creative half (opencode + local Ollama) proposes; the deterministic<br />
+half (this kernel) decides. It dogfoods Vaked's three theories — immutable<br />
+(eventd WAL), control (accept/reject/rollback), and capability (POLA scope) —<br />
+on the M3, with no Linux kernel features.</p>
+<p>Code: <code>tools/dogfood/</code> (see its README for the file map and CLI).</p>
+<h2 id="why-this-shape">Why this shape</h2>
+<p>The publication-credibility review flagged that trunk has <strong>no implemented<br />
+<code>used(p) ⊑ granted(p)</code> use-check</strong> and <strong>no negative-POLA test suite</strong><br />
+(<code>E-CAP-USE</code>). This kernel implements that check at the file-path layer — the one<br />
+layer that runs without eBPF — and ships the negative tests. It is not the<br />
+runtime boundary (that is L2, eBPF/seccomp, on the daemon track); it is the<br />
+runnable proof of the <em>principle</em>.</p>
+<h2 id="the-transition-one-wal-entry">The transition (one WAL entry)</h2>
+<p>A transition is captured as a deterministic function of <code>(base tree, post-image
+set)</code>. The payload (<code>transition.build_payload</code>):</p>
+<div class="highlight"><pre><span></span><span class="nx">kind</span><span class="p">=</span><span class="nx">dogfood_transition</span><span class="p">,</span><span class="w"> </span><span class="nx">v</span><span class="p">=</span><span class="mi">1</span>
+<span class="nx">intent</span><span class="p">,</span><span class="w"> </span><span class="nx">capability_scope</span><span class="p">[]</span>
+<span class="nx">input_tree_hash</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">hash</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="k">in</span><span class="o">-</span><span class="nx">scope</span><span class="w"> </span><span class="nx">tree</span><span class="w"> </span><span class="nx">before</span>
+<span class="nx">patch_hash</span><span class="w">                 </span><span class="err">#</span><span class="w"> </span><span class="nx">hash</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">captured</span><span class="w"> </span><span class="nx">post</span><span class="o">-</span><span class="nx">image</span><span class="w"> </span><span class="nx">set</span>
+<span class="nx">postimages</span><span class="w"> </span><span class="p">{</span><span class="nx">rel</span><span class="p">:</span><span class="w"> </span><span class="nx">sha</span><span class="p">}</span><span class="w">      </span><span class="err">#</span><span class="w"> </span><span class="nx">content</span><span class="o">-</span><span class="nx">addressed</span><span class="w"> </span><span class="nx">exact</span><span class="w"> </span><span class="nx">bytes</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="nx">changed</span><span class="w"> </span><span class="nx">files</span>
+<span class="nx">declared_effects</span><span class="w"> </span><span class="p">{</span><span class="nx">writes</span><span class="p">,</span><span class="nx">deletes</span><span class="p">}</span>
+<span class="nx">actual_effects</span><span class="w">   </span><span class="p">{</span><span class="nx">writes</span><span class="p">,</span><span class="nx">deletes</span><span class="p">}</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nx">filesystem</span><span class="w"> </span><span class="nx">reality</span>
+<span class="nx">observed_effects</span><span class="w"> </span><span class="p">{</span><span class="nx">writes</span><span class="p">,</span><span class="nx">deletes</span><span class="p">}</span><span class="o">|</span><span class="nx">null</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nx">Frida</span><span class="w"> </span><span class="p">(</span><span class="nx">M3</span><span class="p">),</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="nx">null</span>
+<span class="nx">capability_ok</span>
+<span class="nx">state_hash_after</span><span class="w">           </span><span class="err">#</span><span class="w"> </span><span class="nx">hash</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="k">in</span><span class="o">-</span><span class="nx">scope</span><span class="w"> </span><span class="nx">tree</span><span class="w"> </span><span class="nx">after</span>
+</pre></div>
+
+<h2 id="the-pipeline-kerneljudge">The pipeline (<code>kernel.judge</code>)</h2>
+<div class="highlight"><pre><span></span>snapshot base → proposer mutates tree → detect actual delta →
+CAPABILITY (delta ⊆ scope) → DECLARED==ACTUAL → [OBSERVED ⊆ DECLARED] →
+capture post-images → REPLAY (base+post-images ⇒ state_hash_after) →
+accept ⇒ append to eventd WAL ; reject ⇒ roll tree back, record nothing
+</pre></div>
+
+<ul>
+<li><strong>Change detection</strong> is a before/after snapshot delta over the git file<br />
+  universe (<code>git ls-files --cached --others --exclude-standard</code>), so a dirty<br />
+  worktree's existing edits never masquerade as the proposal. Non-git roots<br />
+  (tests) use a full content-snapshot delta.</li>
+<li><strong>Replay</strong> rebuilds the post-state in a throwaway dir from base + post-image<br />
+  blobs and re-hashes. It catches incomplete capture, blob corruption, and<br />
+  post-record drift. (Proposer-internal nondeterminism is <em>bounded</em> by capturing<br />
+  exact bytes — the kernel records what happened, byte-for-byte.)</li>
+<li><strong>Rollback</strong> on reject: git worktree → restore in-scope from base blobs +<br />
+<code>git checkout</code>/remove the out-of-scope violations; non-git → total restore<br />
+  from base.</li>
+</ul>
+<h2 id="validation-2026-06-14">Validation (2026-06-14)</h2>
+<ul>
+<li><code>python3 tools/dogfood/test_kernel.py</code> → <strong>11 passed, 0 failed</strong>, covering all<br />
+  four gates, WAL tamper detection, rollback, and the hashing primitives.</li>
+<li>CLI in the live git worktree: in-scope edit <strong>accepted</strong> (seq 0, WAL appended);<br />
+  out-of-scope write <strong>rejected</strong> by the capability gate and rolled back (no<br />
+  stray file); <code>verify</code> confirms the chain; <code>log</code> lists the transition.</li>
+</ul>
+<h2 id="capability-scope-lowered-from-vaked-m25">Capability scope lowered from Vaked (M2.5)</h2>
+<p>The kernel's write-scope is no longer hand-typed — it is <strong>lowered from a Vaked<br />
+capability declaration</strong> (<code>vaked/examples/dogfood-kernel.vaked</code>), so the declared<br />
+POLA and the enforced scope cannot drift:</p>
+<div class="highlight"><pre><span></span><span class="n">dogfood</span><span class="o">-</span><span class="n">kernel</span><span class="p">.</span><span class="n">vaked</span><span class="w">  </span><span class="o">--</span><span class="p">(</span><span class="n">vakedc</span><span class="o">|</span><span class="n">vakedz</span><span class="w"> </span><span class="nf">parse</span><span class="p">)</span><span class="o">--&gt;</span><span class="w">  </span><span class="p">.</span><span class="n">vaked</span><span class="o">/</span><span class="nf">graph</span><span class="p">.</span><span class="n">json</span>
+<span class="w">                                                       </span><span class="o">|</span>
+<span class="w">                              </span><span class="n">scope_from_vaked</span><span class="p">.</span><span class="n">py</span><span class="w"> </span><span class="p">(</span><span class="n">reads</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">LPG</span><span class="p">)</span>
+<span class="w">                                                       </span><span class="o">|</span>
+<span class="w">                       </span><span class="n">kernel</span><span class="p">.</span><span class="n">py</span><span class="w"> </span><span class="n">propose</span><span class="w"> </span><span class="o">--</span><span class="n">from</span><span class="o">-</span><span class="n">vaked</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="o">--</span><span class="n">principal</span><span class="w"> </span><span class="n">proposer</span>
+</pre></div>
+
+<p><code>scope_from_vaked.py</code> returns a principal's <code>writeScope</code> <strong>only</strong> if its <code>fs</code><br />
+grant is write-capable (<code>repo_rw</code>/<code>host_rw</code>); a read-only principal (<code>fs.repo_ro</code>,<br />
+e.g. the judge) gets <code>[]</code> and the kernel refuses to propose as it. It reads the<br />
+parsed <strong>LPG artifact</strong>, not the source, so it is engine-agnostic — it survives<br />
+the planned <code>vakedc</code>(Python)→<code>vakedz</code>(Zig) cutover since both emit the LPG.</p>
+<p><strong>Known gap (follow-up):</strong> <code>filesystem</code> is currently a <em>schema-less</em> kind — there<br />
+is no path-allow-set membrane that <em>checks</em> the <code>writeScope</code> (the way<br />
+<code>networkMembrane</code> refines a <code>network</code> grant into host:port rules). Until that<br />
+membrane schema lands, <code>writeScope</code> rides as a descriptive open field on the<br />
+(open) <code>meshNode</code> schema — carried, not yet checked. Add a real <code>filesystem</code><br />
+membrane kind so the path allow-set is a compile-time fact.</p>
+<h2 id="hot-path-complexity">Hot-path complexity</h2>
+<p>Per transition (N_scope = files in the granted scope; N_repo = repo files;<br />
+N_changed = files this proposal touched; n = WAL length):</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Cost</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Change detection (git)</td>
+<td><code>O(N_tracked stats + N_changed·bytes)</code></td>
+<td>two <code>git status --porcelain</code> calls + a dict diff; git's index/mtime cache hashes only changed files. <strong>Not</strong> a full-tree content hash.</td>
+</tr>
+<tr>
+<td>Change detection (non-git, tests only)</td>
+<td><code>O(N_tree·bytes)</code></td>
+<td>full snapshot diff; acceptable only because non-git roots here are tiny.</td>
+</tr>
+<tr>
+<td>Post-images + state hash</td>
+<td><code>O(N_scope·bytes)</code></td>
+<td>bounded by the small granted scope, not the repo.</td>
+</tr>
+<tr>
+<td>Replay gate</td>
+<td><code>O(N_scope·bytes)</code></td>
+<td>rebuild scope in a temp dir + re-hash.</td>
+</tr>
+<tr>
+<td>Capability check</td>
+<td><code>O(N_changed · N_scope_prefixes)</code></td>
+<td>prefix match per changed path.</td>
+</tr>
+<tr>
+<td>WAL append (<code>eventd</code>)</td>
+<td><code>O(n)</code> per open</td>
+<td><code>EventLog</code> verifies the whole chain on open (the tamper guarantee), then append is <code>O(1)</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>A regression earlier content-hashed the whole git universe <strong>twice</strong> per<br />
+transition (<code>O(N_repo·bytes)</code>); that is removed — detection is now linear in the<br />
+<em>change</em>, not the repo.</p>
+<p>The one super-linear term is <code>eventd</code>'s boot-verify: a fresh <code>EventLog</code> open is<br />
+<code>O(n)</code>, so a one-shot <code>propose</code> per process is <code>O(n)</code> and a loop of m one-shot<br />
+proposes is <code>O(m·n)</code>. This is <code>eventd</code>'s frozen audit design, not the kernel's. A<br />
+long-running supervisor should hold the log open once and append <code>O(1)</code> per<br />
+transition; the CLI pays the <code>O(n)</code> verify per invocation deliberately (it<br />
+re-checks the audit spine on every run).</p>
+<h2 id="not-in-scope-deliberately">Not in scope (deliberately)</h2>
+<ul>
+<li><strong>No AIL-0 / ARP parser</strong> — neutral JSON records; the ARP IR is a separate<br />
+  workstream. A seam exists to adopt it later.</li>
+<li><strong>No enforcement</strong> — capability here is advisory path-scoping, not a kernel<br />
+  boundary. L2 (eBPF/seccomp) is the real boundary.</li>
+</ul>
+<h2 id="next-m3">Next (M3)</h2>
+<p>Wire <code>observe_frida.py</code> (Linux container) into the <strong>observed</strong> gate so<br />
+declared-vs-observed is checked against real syscalls, not just the filesystem<br />
+diff. See <code>l1-frida-evidence.md</code>. The kernel-side observed gate is already<br />
+implemented and tested (via the stub); only the live Frida observation needs the<br />
+Linux substrate.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/dogfood/kernel-v0.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Design — vakedz, the Zig front-end for Vaked — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#problem" style="padding-left:0.5rem">Problem</a><a href="#non-goals" style="padding-left:0.5rem">Non-goals</a><a href="#architecture" style="padding-left:0.5rem">Architecture</a><a href="#the-byte-parity-contract-the-heart-of-the-port" style="padding-left:1rem">  The byte-parity contract (the heart of the port)</a><a href="#the-ralphloop-cache-the-native-primitive" style="padding-left:1rem">  The ralphloop-cache (the native primitive)</a><a href="#why-both-for-the-cache-not-a-grammar-construct-now" style="padding-left:1rem">  Why "both" for the cache, not a grammar construct now</a><a href="#scope-v01" style="padding-left:0.5rem">Scope — v0.1</a><a href="#verification-the-closed-loop" style="padding-left:0.5rem">Verification (the closed loop)</a><a href="#risks-open-questions" style="padding-left:0.5rem">Risks / open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-vakedz-zig-frontend-design</div>
+<h1>Design — vakedz, the Zig front-end for Vaked</h1>
+<h1 id="design-vakedz-the-zig-front-end-for-vaked">Design — vakedz, the Zig front-end for Vaked</h1>
+<p><strong>Date:</strong> 2026-06-13 · <strong>Status:</strong> design (v0.1 shipped: parse + cache) ·<br />
+<strong>Research:</strong> <a href="../research/2026-06-13-vakedz-fanout-research.md"><code>../research/2026-06-13-vakedz-fanout-research.md</code></a> ·<br />
+<strong>Plan:</strong> <a href="../plans/2026-06-13-vakedz-zig-frontend.md"><code>../plans/2026-06-13-vakedz-zig-frontend.md</code></a></p>
+<h2 id="problem">Problem</h2>
+<p>The Vaked compiler exists as a Python reference (<code>vakedc/</code>: <code>parse → check →
+lower</code>). The runtime mantra is <em>"Zig enforces"</em> — the daemons are Zig, and the<br />
+front-end that feeds them should ultimately be Zig too: fast, single-binary,<br />
+embeddable, no Python runtime at the enforcement boundary. We need a <strong>faithful</strong><br />
+Zig front-end that produces <strong>byte-identical</strong> artifacts to <code>vakedc</code>, so the two<br />
+can be cross-checked forever and the Python stays the executable spec.</p>
+<p>Two owner decisions framed this design:<br />
+1. <strong>Cache layer = both.</strong> Build a content-addressed compiler cache now (tooling,<br />
+   no grammar change) <strong>and</strong> file a tracking issue for a future language-level<br />
+<code>cache</code> construct.<br />
+2. <strong>Scope = full <code>parse → check → lower</code></strong> as the eventual target; v0.1 ships the<br />
+   front-end (parse) + the cache, with check/lower scaffolded and the rest<br />
+   tracked as the dogfooding backlog.</p>
+<h2 id="non-goals">Non-goals</h2>
+<ul>
+<li>Not a rewrite of the <em>language</em>. The grammar, type system, and lowering<br />
+  contract are owned by <code>vaked/grammar/</code>, <code>docs/language/0011</code>, <code>0012</code>. <code>vakedz</code><br />
+  ports the <strong>implementation</strong>, it does not evolve the language. Any versioned-<br />
+  language change still needs a GitHub issue first (convention 2).</li>
+<li>Not a divergent dialect. "Faithful" is enforced mechanically (below), not by<br />
+  intention.</li>
+</ul>
+<h2 id="architecture">Architecture</h2>
+<p>A top-level <code>vakedz/</code> package mirroring <code>vakedc/</code>, one module per stage:</p>
+<div class="highlight"><pre><span></span>main.zig → { parse | check | lower | all | cache }
+  json.zig    canonical JSON (the byte-parity contract)
+  lexer.zig   v0.3 tokenizer            (← vakedc/lexer.py)
+  parser.zig  recursive-descent AST      (← vakedc/parser.py)
+  graph.zig   AST → LPG → canonical emit (← resolve.py + graph.py + emit.py)
+  cache.zig   the ralphloop-cache primitive
+  check.zig   0011 checker (scaffold)
+  lower.zig   0012 lowering (scaffold)
+</pre></div>
+
+<p>Memory: an arena per CLI invocation (the compiler is a batch process; freeing<br />
+individually buys nothing). Errors carry <code>file:line:col</code> and a message.</p>
+<h3 id="the-byte-parity-contract-the-heart-of-the-port">The byte-parity contract (the heart of the port)</h3>
+<p><code>vakedc</code> does <strong>not</strong> blanket-sort keys. The structural wrappers are fixed<br />
+order; only the <strong>props subtree</strong> is recursively key-sorted. <code>json.zig</code><br />
+therefore emits objects in <strong>insertion order</strong> and exposes <code>sortRecursive</code>,<br />
+which <code>graph.zig</code> applies <strong>only</strong> to each node's <code>props</code> value. Nodes sort by<br />
+<code>id</code>; edges by <code>(from, label, to, props)</code>. Strings escape like CPython's <code>json</code><br />
+(no <code>/</code> escaping, UTF-8 passthrough); output ends in a newline. This single<br />
+contract is what makes <code>vakedz parse</code> == <code>vakedc parse</code> byte-for-byte; it is<br />
+verified, not assumed (see Verification).</p>
+<h3 id="the-ralphloop-cache-the-native-primitive">The ralphloop-cache (the native primitive)</h3>
+<p><code>cache.zig</code> is a direct application of ralph's research bet<br />
+(<code>tools/ralph/PURPOSE.md</code>): <em>compile history into an immutable, content-addressed<br />
+increment, and the loop runs at near-flat cost while staying coherent and<br />
+rewindable.</em> As a compiler primitive that means:</p>
+<ul>
+<li><strong>Key</strong> (deterministic): <code>{event=phase, file, source_sha256, grammar_version}</code>.</li>
+<li><strong>Value</strong>: <code>output_sha256</code>, with output bytes stored content-addressed at<br />
+<code>.vakedz-cache/cas/&lt;sha256&gt;</code>.</li>
+<li><strong>Ledger</strong>: <code>.vakedz-cache/ledger.jsonl</code> — the <strong>frozen</strong> ralph/eventd chain<br />
+<code>{seq, prev, payload, hash}</code>, <code>hash = sha256(prev_hex ++ canonical(payload))</code>,<br />
+  GENESIS <code>"0"*64</code>. Byte-compatible with <code>ralphcore.py</code>/<code>eventd/core.py</code>, so all<br />
+  three cross-verify.</li>
+<li><strong>Hit</strong> = hash the source, find the latest matching ledger entry, replay the<br />
+  CAS blob. <strong>Miss</strong> = compute, write CAS, append one entry. The payload is<br />
+<strong>clock-free</strong>, so identical source ⇒ identical entry: the loop is<br />
+  content-addressed, replayable (<code>cache verify</code> → longest-valid-prefix), and<br />
+  tamper-evident.</li>
+</ul>
+<p>This closes the loop <strong>literally</strong>: CI builds <code>vakedz</code>, runs it against the<br />
+goldens, and the cache replays its own history; the thing that builds the<br />
+language is built on the language's core idea.</p>
+<h3 id="why-both-for-the-cache-not-a-grammar-construct-now">Why "both" for the cache, not a grammar construct now</h3>
+<p>A language-level <code>cache</code> kind (e.g. <code>cache foo { key=…, ttl=… }</code>) is a real<br />
+future capability — declarable, lowerable to a daemon-backed CAS — but it is a<br />
+<strong>versioned-language change</strong> (grammar + schema + lowering + an issue). The<br />
+compiler cache needs none of that and unblocks the loop today. So: tooling<br />
+primitive now; language construct tracked (issue) for when a <code>.vaked</code> program<br />
+wants to <em>declare</em> a cache, not just benefit from one.</p>
+<h2 id="scope-v01">Scope — v0.1</h2>
+<p>Shipped: <code>parse</code> (lexer→parser→LPG→canonical JSON, byte-identical to <code>vakedc</code>)<br />
+and the <code>ralphloop-cache</code>. <code>check</code>/<code>lower</code> are wired scaffolds that refuse to<br />
+assert success and point at the backlog. Front-end coverage targets the<br />
+constructs exercised by the committed goldens (<code>runtime, engine, index, stream,
+fiber, surface, parallel</code>, imports, signatures, records, inherit, refs, calls,<br />
+lists, durations); other constructs parse but are validated only by adding their<br />
+goldens (the natural way to grow coverage).</p>
+<h2 id="verification-the-closed-loop">Verification (the closed loop)</h2>
+<ul>
+<li><code>zig build test</code> — in-source unit tests per module (canonical JSON ordering &amp;<br />
+  escaping, lexer disambiguation, parser shape, graph emit, cache hashing).</li>
+<li><code>vakedz/test/crossverify.sh</code> — the gate: <code>vakedz parse &lt;src&gt;</code> must equal the<br />
+  committed golden <strong>and</strong> the golden must still equal <code>vakedc parse &lt;src&gt;</code> (drift<br />
+  guard). Run by <code>task vakedz-verify</code> and <code>.github/workflows/vakedz-ci.yml</code>.</li>
+<li>Goldens are generated from the Python reference and committed under<br />
+<code>vakedz/test/golden/</code>. New examples → new goldens → wider coverage.</li>
+</ul>
+<h2 id="risks-open-questions">Risks / open questions</h2>
+<ul>
+<li><strong>Zig version drift.</strong> The devshell's Zig is unpinned (nixpkgs unstable);<br />
+<code>vakedz</code> targets the <code>build.zig.zon</code> floor (0.16) and CI pins it. If the<br />
+  devshell moves ahead and the std API shifts, the build breaks loudly — bump<br />
+  the floor and adapt (tracked). Pinning Zig in the flake is a recommended<br />
+  follow-up.</li>
+<li><strong>NFC gate</strong> not yet ported (ASCII sources unaffected) — tracked.</li>
+<li><strong>check/lower fidelity</strong> is the large remaining surface; the research doc's<br />
+  diagnostic table (Strand B) and emitter slice (Strand C) are the spec.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-vakedz-zig-frontend-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

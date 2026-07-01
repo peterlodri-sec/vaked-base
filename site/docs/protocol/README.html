@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>HCP / Litany — protocol overview — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#vocabulary" style="padding-left:0.5rem">Vocabulary</a><a href="#control-frames-rfc-0005protocolrfcs0005-control-framesmd" style="padding-left:1rem">  Control frames ([RFC 0005](../../protocol/rfcs/0005-control-frames.md))</a><a href="#inter-host-fabric-rfc-0006protocolrfcs0006-transport-identity-distributionmd" style="padding-left:1rem">  Inter-host fabric ([RFC 0006](../../protocol/rfcs/0006-transport-identity-distribution.md))</a><a href="#state-dependency-rfc-0004protocolrfcs0004-multi-agent-state-dependencymd" style="padding-left:1rem">  State dependency ([RFC 0004](../../protocol/rfcs/0004-multi-agent-state-dependency.md))</a><a href="#workflow-orchestration-lowering-rfc-0008protocolrfcs0008-workflow-orchestration-" style="padding-left:1rem">  Workflow orchestration lowering ([RFC 0008](../../protocol/rfcs/0008-workflow-orchestration-lowering.md))</a><a href="#post-quantum-image-as-code-rfc-0007protocolrfcs0007-post-quantum-litany-sealed-i" style="padding-left:1rem">  Post-quantum & image-as-code ([RFC 0007](../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md))</a><a href="#agent-register-protocol-rfc-0009protocolrfcs0009-arpmd" style="padding-left:1rem">  Agent register protocol ([RFC 0009](../../protocol/rfcs/0009-arp.md))</a><a href="#daemons-proposed-roles-to-be-fixed-in-rfcs" style="padding-left:0.5rem">Daemons (proposed — roles to be fixed in RFCs)</a><a href="#tools" style="padding-left:0.5rem">Tools</a><a href="#relationship-to-the-runtime" style="padding-left:0.5rem">Relationship to the runtime</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/protocol/">protocol</a> / README</div>
+<h1>HCP / Litany — protocol overview</h1>
+<h1 id="hcp-litany-protocol-overview">HCP / Litany — protocol overview</h1>
+<p><strong>HCP</strong> (Harness Control Protocol) is the IPC/wire protocol for agent↔harness↔tool communication in the Vaked runtime. <strong>Litany</strong> is its reference implementation: a wire format (<strong>Litany Wire</strong>), a frame model (<strong>Votive Frames</strong>), a schema/IDL language (<code>.hcplang</code>), a binary encoding (<code>hcpbin</code>), and a set of daemons + tools.</p>
+<p>This is a <strong>stub</strong>. The normative spec lives in the RFC series under <a href="../../protocol/rfcs/"><code>/protocol/rfcs</code></a>; see <a href="../../protocol/rfcs/0001-hcp.md"><code>0001-hcp.md</code></a>.</p>
+<blockquote>
+<p><strong>Adjacent register-language RFC:</strong> <a href="../../protocol/rfcs/0009-ail-register-language.md"><code>0009-ail-register-language.md</code></a> defines <strong>AIL-0</strong> (Agentic Intermediate Language) — a register notation for agent reasoning / tool-intent / artifact frames. It is <em>adjacent to</em> HCP (it is the grammar for the text conventions that <strong>ARP</strong>, <a href="https://github.com/peterlodri-sec/vaked-base/issues/202">issue #202</a>, carries), not an HCP wire concern: it adds no Votive Frame, wire format, or daemon. (The 0008 slot is in-flight on a separate branch — crypto-seal domain — so it is intentionally absent from <code>protocol/rfcs/</code> here.)</p>
+</blockquote>
+<h2 id="vocabulary">Vocabulary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HCP</td>
+<td>The protocol itself (HARNESS/IPC layer)</td>
+</tr>
+<tr>
+<td>Litany Wire</td>
+<td>The on-the-wire byte protocol</td>
+</tr>
+<tr>
+<td>Votive Frames</td>
+<td>The framing/message model carried over Litany Wire</td>
+</tr>
+<tr>
+<td><code>.hcplang</code></td>
+<td>Schema / interface definition language for HCP messages</td>
+</tr>
+<tr>
+<td><code>hcpbin</code></td>
+<td>Canonical binary encoding</td>
+</tr>
+</tbody>
+</table>
+<h3 id="control-frames-rfc-0005">Control frames (<a href="../../protocol/rfcs/0005-control-frames.md">RFC 0005</a>)</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Control-plane frame</td>
+<td>Votive <code>request</code> frame addressed to the supervision plane: pause / resume / slow / step / rewind ("control plane" names the destination, not the frame class)</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td><code>runtime</code> (the whole OTP tree) or <code>agent</code> (one supervisor child); case 0 <code>unspecified</code> is refused</td>
+</tr>
+<tr>
+<td>Target</td>
+<td>Declared name (child id / runtime name), fenced by the current topology epoch</td>
+</tr>
+<tr>
+<td><code>ControlAck</code></td>
+<td>The response: applied, or refused with a typed <code>ControlRefusal</code> reason</td>
+</tr>
+<tr>
+<td><code>control_action</code></td>
+<td>The eventd payload kind recording every APPLIED control frame (write-ahead, before effect; carries corr + actor)</td>
+</tr>
+<tr>
+<td>Step</td>
+<td>One-shot tick while paused; stays paused afterwards</td>
+</tr>
+</tbody>
+</table>
+<h3 id="inter-host-fabric-rfc-0006">Inter-host fabric (<a href="../../protocol/rfcs/0006-transport-identity-distribution.md">RFC 0006</a>)</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SVID / SPIFFE ID</td>
+<td>Per-agent transport identity; the SPIFFE ID is the canonical AgentId (resolves the RFC 0005 name→AgentId question via oraclefd)</td>
+</tr>
+<tr>
+<td>Trust domain</td>
+<td>The SPIFFE root scoping one fleet's identities</td>
+</tr>
+<tr>
+<td>Subject</td>
+<td>A NATS pub/sub address (<code>agent.&lt;uuid&gt;.rewind</code>; the dot-free uuid handle, not the dotted SPIFFE URI); wildcard interest = near-constant fan-out matching, no per-peer bookkeeping</td>
+</tr>
+<tr>
+<td>Fabric boundary</td>
+<td>NATS carries notifications + proofs only; the hash-chained log stays the single source of truth</td>
+</tr>
+</tbody>
+</table>
+<h3 id="state-dependency-rfc-0004">State dependency (<a href="../../protocol/rfcs/0004-multi-agent-state-dependency.md">RFC 0004</a>)</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DependencyRegistration</code></td>
+<td>Write-ahead control frame: a consumer's causal anchor on a producer step, logged before consumption</td>
+</tr>
+<tr>
+<td><code>ConsumerCheckpoint</code></td>
+<td>Durable acknowledgement of how far a producer dependency is folded into the consumer's committed state</td>
+</tr>
+<tr>
+<td><code>RewindEvent</code></td>
+<td>Event frame voiding anchors above a producer's rewind point</td>
+</tr>
+<tr>
+<td>Topology epoch</td>
+<td>Version of the state-dependency graph carried by every dependency artifact</td>
+</tr>
+<tr>
+<td>GC floor</td>
+<td>Lowest producer step pinned by any downstream checkpoint — compaction is legal only strictly below it</td>
+</tr>
+<tr>
+<td>Edge kind</td>
+<td><code>state_dependency</code> (must be a DAG) vs <code>observation</code> / <code>control_signal</code> / <code>metrics</code> (cycles tolerated)</td>
+</tr>
+<tr>
+<td><code>stale_dependency</code></td>
+<td>Paused lifecycle state entered when cold-start anchor verification fails</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workflow-orchestration-lowering-rfc-0008">Workflow orchestration lowering (<a href="../../protocol/rfcs/0008-workflow-orchestration-lowering.md">RFC 0008</a>)</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Workflow run</td>
+<td>One end-to-end traversal of a lowered Vaked <code>workflow</code>, instantiated by <code>agent-supervisord</code> under a single topology epoch (the DAG is static; a run executes it once)</td>
+</tr>
+<tr>
+<td>Step activation</td>
+<td>Admitting a step to <code>RUNNING</code> after its inbound <code>DependencyRegistration</code>s are logged and cold-start anchor verification passes; otherwise it parks <code>PAUSED(stale_dependency)</code></td>
+</tr>
+<tr>
+<td>Lowering contract</td>
+<td>The normative construct→frame correspondence (<code>workflow</code>/<code>mesh</code>/<code>budget</code>/<code>runclass</code> → RFC 0004/0005 frames)</td>
+</tr>
+<tr>
+<td><code>DeadlineExpiry</code></td>
+<td><em>Proposed</em> event frame marking a step's <code>budget.wallClock</code> exhausted — the missing wire dual of a declared wall-clock budget (today realized as a supervisor <code>PauseControl</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="post-quantum-image-as-code-rfc-0007">Post-quantum &amp; image-as-code (<a href="../../protocol/rfcs/0007-post-quantum-litany-sealed-image.md">RFC 0007</a>)</h3>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hybrid handshake</td>
+<td>X25519 + ML-KEM-768 key exchange baked into the wire; confidential if either half holds (defeats harvest-now-decrypt-later)</td>
+</tr>
+<tr>
+<td>PQC SVID</td>
+<td>A SPIFFE SVID signed hybrid Ed25519+ML-DSA (migration) or ML-DSA-65 (PQC-only); root signed SLH-DSA</td>
+</tr>
+<tr>
+<td>Sealed image</td>
+<td>Content-addressed materialized artifact (NixOS closure / OCI / unikernel), deny-by-default by construction</td>
+</tr>
+<tr>
+<td>Image-as-code</td>
+<td>The only mutation path to a running system is a re-derived, re-signed code change — no out-of-band mutation</td>
+</tr>
+<tr>
+<td>Votive seal</td>
+<td>A PQC (ML-DSA) signature over a sealed image's measurement + provenance, recorded to <code>eventd</code> — the image's analogue of an SVID</td>
+</tr>
+<tr>
+<td>Attestation quote</td>
+<td>Load-time evidence (ML-DSA over <code>{measurement, nonce, epoch}</code>) that a measured image matches its signed provenance; replaces "eBPF testifies" for sealed unikernels</td>
+</tr>
+</tbody>
+</table>
+<h3 id="agent-register-protocol-rfc-0009">Agent register protocol (<a href="../../protocol/rfcs/0009-arp.md">RFC 0009</a>)</h3>
+<p>ARP adds behavioral signals + per-model adapters layered on <a href="../ailish/2026-06-14-ailish-v1-rfc.md">AI-lish V1</a> (the agent execution-graph IR + <code>ailish/</code> crate). It is in-context text only — no wire — carries no authority, and composes one level below HCP.</p>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ARP</td>
+<td>Behavioral primitives + model adapters for AI-lish (this RFC)</td>
+</tr>
+<tr>
+<td>Stride / Tension / Valence / Branch</td>
+<td><code>[STRIDE: a → b]</code> (progress arc), <code>[T:N]</code> (goal-distance 0..100), <code>[+]/[-]/[!]</code> (result polarity), <code>[BRANCH: a \| b; condition: X]</code> (fork)</td>
+</tr>
+<tr>
+<td>AI-lish V1</td>
+<td>The execution-graph grammar/IR ARP rides on (the <code>ailish/</code> crate + <code>docs/ailish/</code> RFC)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="daemons-proposed-roles-to-be-fixed-in-rfcs">Daemons (proposed — roles to be fixed in RFCs)</h2>
+<table>
+<thead>
+<tr>
+<th>Daemon</th>
+<th>Proposed role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>chapterd</code></td>
+<td>Session/segment ("chapter") lifecycle over a connection</td>
+</tr>
+<tr>
+<td><code>preceptord</code></td>
+<td>Policy/authority plane — what a peer may request</td>
+</tr>
+<tr>
+<td><code>reliquaryd</code></td>
+<td>Durable artifact / relic store referenced by frames</td>
+</tr>
+<tr>
+<td><code>candled</code></td>
+<td>Liveness / presence / heartbeat (vigil)</td>
+</tr>
+<tr>
+<td><code>petitiond</code></td>
+<td>Request intake / ingress</td>
+</tr>
+<tr>
+<td><code>oraclefd</code></td>
+<td>Resolution / query oracle (names, capabilities, answers)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tools">Tools</h2>
+<div class="highlight"><pre><span></span>litanyctl     control plane CLI
+litanydump    inspect / decode captured frames
+litanyfmt     format .hcplang sources
+litanyreplay  replay captured Litany Wire logs
+</pre></div>
+
+<h2 id="relationship-to-the-runtime">Relationship to the runtime</h2>
+<p>HCP is how <code>mcp-brokerd</code> brokers tool calls, how <code>agent-supervisord</code> orchestrates, and how operator <strong>surfaces</strong> subscribe to <code>eventd</code>. The protocol is transport for the membranes; the <a href="../runtime/README.md">runtime daemons</a> are the endpoints.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/protocol/README.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

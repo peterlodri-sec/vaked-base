@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AIL-0 — SDD fan-out plan (drive #211 to end-to-end) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#context" style="padding-left:0.5rem">Context</a><a href="#wave-dag" style="padding-left:0.5rem">Wave DAG</a><a href="#w0-frame-orchestrator" style="padding-left:1rem">  W0 · Frame  *(orchestrator)*</a><a href="#w1-research-researchers-parallel-mostly-done" style="padding-left:1rem">  W1 · Research  *(researchers, parallel — mostly DONE)*</a><a href="#w2-spec-spec-author-coherence-critic" style="padding-left:1rem">  W2 · Spec  *(spec-author + coherence-critic)*</a><a href="#w3-implement-coders-parallel-own-worktrees-builds-on-dev-cx53gha-only" style="padding-left:1rem">  W3 · Implement  *(coders, parallel — own worktrees, builds on dev-cx53/GHA only)*</a><a href="#w4-testverify-test-authors-parallel-integration" style="padding-left:1rem">  W4 · Test/verify  *(test-authors, parallel + integration)*</a><a href="#w5-integrate-broker" style="padding-left:1rem">  W5 · Integrate  *(broker)*</a><a href="#per-wave-subagent-dispatch-copy-paste-briefs" style="padding-left:0.5rem">Per-wave subagent dispatch (copy-paste briefs)</a><a href="#verification-of-this-plan-before-any-execution" style="padding-left:0.5rem">Verification (of this plan, before any execution)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-14-ail-0-sdd-fanout</div>
+<h1>AIL-0 — SDD fan-out plan (drive #211 to end-to-end)</h1>
+<h1 id="ail-0-sdd-fan-out-plan-drive-211-to-end-to-end">AIL-0 — SDD fan-out plan (drive #211 to end-to-end)</h1>
+<p>Instantiates the <strong>subagent-driven-development</strong> workflow<br />
+(<code>.claude/skills/subagent-driven-development</code>, formalized in <code>vaked/examples/sdd.vaked</code>)<br />
+to take #211 (AIL-0 register language + naive ARP e2e) from its current <strong>spec layer</strong><br />
+to a <strong>tested, shippable</strong> state. <strong>This is the plan + per-wave subagent instructions —<br />
+it is not executed here</strong> (no builds; see CLAUDE.md NEVER-BUILD).</p>
+<p>Refs: #211 (AIL-0 spec), #202 (ARP text conventions), #203, RFC <code>0009-*</code>,<br />
+<code>docs/language/0025-*</code>, <code>protocol/ail/</code>. Driver skill for the parser waves:<br />
+<code>ailish-v1-drive</code>.</p>
+<h2 id="context">Context</h2>
+<h1 id="211-ships-an-honest-spec-deep-research-wru7qq2ax-8-strands-adversarially">211 ships an <strong>honest</strong> spec: deep-research (<code>wru7qq2ax</code>, 8 strands, adversarially</h1>
+<p>verified) found register-tagged hand-authored compression has <strong>no direct token-savings<br />
+evidence and the tags are a net token tax</strong>; the proven wins are algorithmic<br />
+(LLMLingua ~20x) and genuinely-compact structured forms. Two evidence-forced<br />
+corrections are baked in: <strong>ASCII-canonical operators</strong> (Unicode is optional sugar) and<br />
+<strong>gate artifacts, not reasoning</strong> (rigid JSON collapses reasoning accuracy). So AIL-0 e2e<br />
+must <em>measure</em> the idea (a bench), not assume it.</p>
+<h2 id="wave-dag">Wave DAG</h2>
+<div class="highlight"><pre><span></span><span class="nx">W0</span><span class="w"> </span><span class="nx">frame</span><span class="w"> </span><span class="err">─▶</span><span class="w"> </span><span class="nx">W1</span><span class="w"> </span><span class="nx">research</span><span class="w"> </span><span class="err">─▶</span><span class="w"> </span><span class="nx">W2</span><span class="w"> </span><span class="nx">spec</span><span class="w"> </span><span class="err">─▶</span><span class="w"> </span><span class="nx">W3</span><span class="w"> </span><span class="nx">implement</span><span class="w"> </span><span class="err">─▶</span><span class="w"> </span><span class="nx">W4</span><span class="w"> </span><span class="nx">test</span><span class="w"> </span><span class="err">─▶</span><span class="w"> </span><span class="nx">W5</span><span class="w"> </span><span class="nx">integrate</span>
+<span class="w">                                         </span><span class="p">(</span><span class="nx">fan</span><span class="o">-</span><span class="nx">out</span><span class="p">)</span><span class="w">      </span><span class="p">(</span><span class="nx">fan</span><span class="o">-</span><span class="nx">out</span><span class="p">)</span>
+</pre></div>
+
+<h3 id="w0-frame-orchestrator">W0 · Frame  <em>(orchestrator)</em></h3>
+<p>Acceptance: this DAG, with each component's gate. Deferred implementables from #211:<br />
+EBNF (<code>protocol/ail/ail-0.ebnf</code>), morpheme table (<code>docs/language/0025-*</code>), RFC<br />
+(<code>protocol/rfcs/0009-*</code>), and the bench (design present; run deferred).</p>
+<h3 id="w1-research-researchers-parallel-mostly-done">W1 · Research  <em>(researchers, parallel — mostly DONE)</em></h3>
+<ul>
+<li>Reuse run <code>wru7qq2ax</code> (single-agent) + <code>wnlq8ckib</code> (multi-agent/adapter) dossiers.</li>
+<li><strong>Adjacent gap to fill</strong> (1 <code>deep-research</code> each, only if not already covered): (a)<br />
+<code>nom</code> parser-combinator patterns for a register-tagged ASCII IL; (b) the LLMLingua /<br />
+  CodeAgents baselines the bench must compare against.</li>
+<li>Gate: every bench hypothesis has a named baseline + metric; unproven claims flagged.</li>
+</ul>
+<h3 id="w2-spec-spec-author-coherence-critic">W2 · Spec  <em>(spec-author + coherence-critic)</em></h3>
+<ul>
+<li>Finalize <code>protocol/ail/ail-0.ebnf</code> (ASCII-canonical operators <code>-&gt; =&gt; bc so ...</code>;<br />
+  Unicode sugar marked optional), <code>docs/language/0025-*</code> morpheme table, and<br />
+<code>protocol/rfcs/0009-*</code> (<code>Status: Draft</code>, <code>Track: protocol</code>). Cite #202/ARP + RFC 0004<br />
+  as ground truth; keep <code>[R:think]/[R:plan]</code> reasoning <strong>free-text</strong> (gate artifacts only).</li>
+<li>coherence-critic (rfc-incoherence-hunter) vs #202, 0004, the 0013 MLIR set.</li>
+<li><strong>Gate:</strong> <code>python3 tools/dockeeper/dockeeper.py</code> 0 errors · <code>python3 tests/spec/test_doc_links.py</code> PASS · critic 0 confirmed-critical/major.</li>
+</ul>
+<h3 id="w3-implement-coders-parallel-own-worktrees-builds-on-dev-cx53gha-only">W3 · Implement  <em>(coders, parallel — own worktrees, builds on dev-cx53/GHA only)</em></h3>
+<table>
+<thead>
+<tr>
+<th>component</th>
+<th>path</th>
+<th>gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AIL-0 parser + validator (nom) + the <code>[R:*]</code>-vs-artifact guardrail</td>
+<td><code>protocol/ail/</code> (Rust crate)</td>
+<td><code>cargo build</code>/<code>test</code>/<code>clippy</code> clean</td>
+</tr>
+<tr>
+<td>ARP ↔ AIL-0 adapter (#202 text conventions ↔ AIL-0 grammar)</td>
+<td>adapter crate/module</td>
+<td>round-trip parses</td>
+</tr>
+<tr>
+<td>token-compaction bench harness (multi-model via OpenRouter; ailishfmt)</td>
+<td><code>tools/ail-bench/</code></td>
+<td><code>--dry-run</code> builds prompts + cost estimate, $0</td>
+</tr>
+<tr>
+<td>Use the <code>ailish-v1-drive</code> skill for the nom parser + ailishfmt waves.</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="w4-testverify-test-authors-parallel-integration">W4 · Test/verify  <em>(test-authors, parallel + integration)</em></h3>
+<ul>
+<li>Parser: golden + <strong>negative</strong> vectors authored spec-only (independent of the parser impl).</li>
+<li>ARP round-trip: ARP→AIL-0→ARP byte-stable on a corpus.</li>
+<li>Bench: the multi-model run (GHA / dev-cx53) producing the honest token-delta table —<br />
+<strong>report the result whatever it shows</strong> (per the #211 honesty stance).</li>
+<li><strong>Gate:</strong> <code>ci-gate</code> green at tier; the bench run completes and the table is committed.</li>
+</ul>
+<h3 id="w5-integrate-broker">W5 · Integrate  <em>(broker)</em></h3>
+<p>Stacked, dependency-ordered, ready-for-review PRs: <code>spec (EBNF/RFC/morpheme)</code> → <code>parser</code><br />
+→ <code>adapter</code> → <code>bench</code>. Each green on <code>ci-gate</code> + <code>agent-structure-guard</code>. <strong>No self-merge.</strong></p>
+<h2 id="per-wave-subagent-dispatch-copy-paste-briefs">Per-wave subagent dispatch (copy-paste briefs)</h2>
+<ul>
+<li><strong>researcher (W1 gap):</strong> <code>deep-research</code> — "nom parser-combinator idioms for an ASCII,<br />
+  EBNF-governed register-tagged IL; and the LLMLingua + CodeAgents token-compression<br />
+  baselines AIL-0's bench must beat. Cited, adversarially verified; flag unproven."</li>
+<li><strong>spec-author (W2):</strong> "From the AIL-0 dossiers + EBNF, finalize RFC 0009 (Status:<br />
+  Draft) + the 0025 morpheme table; ASCII-canonical operators; keep <code>[R:*]</code> free-text;<br />
+  cite #202/RFC 0004. Run dockeeper + doc_links to green."</li>
+<li><strong>coder (W3, one per row):</strong> isolated worktree; "implement <component> per<br />
+<code>protocol/rfcs/0009-*</code> + <code>protocol/ail/ail-0.ebnf</code>; build/test on dev-cx53/GHA; 0<br />
+  warnings; no self-merge." Use <code>ailish-v1-drive</code> for parser/ailishfmt.</li>
+<li><strong>test-author (W4):</strong> spec-only (no parser source); "author golden + negative AIL-0<br />
+  vectors and the ARP round-trip corpus from RFC 0009 alone."</li>
+<li><strong>broker (W5):</strong> open the four stacked PRs ready-for-review; drive <code>ci-gate</code> green.</li>
+</ul>
+<h2 id="verification-of-this-plan-before-any-execution">Verification (of this plan, before any execution)</h2>
+<ul>
+<li><code>python3 tools/dockeeper/dockeeper.py</code> and <code>python3 tests/spec/test_doc_links.py</code><br />
+  pass on this doc (links resolve).</li>
+<li>Each W-gate is a concrete, runnable check (above) — no "looks done" gates.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-14-ail-0-sdd-fanout.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

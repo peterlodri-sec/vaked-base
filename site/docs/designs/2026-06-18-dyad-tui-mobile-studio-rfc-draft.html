@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked Design RFC (DRAFT) — Flake-Native Capability-Graph Routing for the `vaked-tui` Mobile Operator Surface — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-dependency-ledger-design-real-vs-aspirational" style="padding-left:0.5rem">0. Dependency ledger — `[design-real]` vs `[aspirational]`</a><a href="#1-overview-motivation" style="padding-left:0.5rem">1. Overview & motivation</a><a href="#2-flake-native-capability-graph-routing" style="padding-left:0.5rem">2. Flake-native capability-graph routing</a><a href="#21-the-graph" style="padding-left:1rem">  2.1 The graph</a><a href="#22-routing-decision-where-llm-ast-heal-traffic-goes" style="padding-left:1rem">  2.2 Routing decision — where LLM (AST-heal) traffic goes</a><a href="#23-materialization-posture" style="padding-left:1rem">  2.3 Materialization posture</a><a href="#3-deterministic-shared-memory-arena-quickjs-zig-boundary" style="padding-left:0.5rem">3. Deterministic shared-memory arena (QuickJS ⇄ Zig boundary)</a><a href="#31-what-ground-truth-forces" style="padding-left:1rem">  3.1 What ground truth forces</a><a href="#32-layout-offset-based-bounds-checked-never-raw-pointers" style="padding-left:1rem">  3.2 Layout (offset-based, bounds-checked, never raw pointers)</a><a href="#33-determinism-single-writer-discipline" style="padding-left:1rem">  3.3 Determinism & single-writer discipline</a><a href="#34-lifecycle-syscall-budget-the-load-bearing-decision" style="padding-left:1rem">  3.4 Lifecycle & syscall budget (the load-bearing decision)</a><a href="#35-event-sourcing-mapping" style="padding-left:1rem">  3.5 Event-sourcing mapping</a><a href="#4-vaked-tui-strict-ioctl-ansi-renderer-zig-zero-dep-uncompiled-skeleton" style="padding-left:0.5rem">4. `vaked-tui` strict-ioctl ANSI renderer (Zig, zero-dep) — UNCOMPILED SKELETON</a><a href="#41-domain-stance" style="padding-left:1rem">  4.1 Domain stance</a><a href="#42-module-layout-toolsvaked-tuisrcrender" style="padding-left:1rem">  4.2 Module layout (`tools/vaked-tui/src/render/`)</a><a href="#43-performance-invariants-design-targets-not-measured" style="padding-left:1rem">  4.3 Performance invariants (design targets, NOT measured)</a><a href="#44-safety-invariants" style="padding-left:1rem">  4.4 Safety invariants</a><a href="#45-arena-contract-consumed-from-3" style="padding-left:1rem">  4.5 Arena contract (consumed from §3)</a><a href="#5-routing-economics-analyst" style="padding-left:0.5rem">5. Routing economics (Analyst)</a><a href="#51-breakeven-the-only-claim-defended-without-caveats" style="padding-left:1rem">  5.1 Breakeven (the only claim defended without caveats)</a><a href="#52-worked-example-inputs-unverified-aspirational" style="padding-left:1rem">  5.2 Worked example — INPUTS UNVERIFIED `[aspirational]`</a><a href="#53-hidden-self-host-costs-widen-openrouters-lead" style="padding-left:1rem">  5.3 Hidden self-host costs (widen OpenRouter's lead)</a><a href="#54-recommendation" style="padding-left:1rem">  5.4 Recommendation</a><a href="#6-ux-1212-solar-glare-dashboard-the-solarhardglare-profile" style="padding-left:0.5rem">6. UX — 12×12 solar-glare dashboard (the "solarHardGlare" profile)</a><a href="#61-glare-physics-overrides-aesthetics" style="padding-left:1rem">  6.1 Glare physics overrides aesthetics</a><a href="#62-palette-5-colors-max-true-black-bg" style="padding-left:1rem">  6.2 Palette — 5 colors max, true-black bg</a><a href="#63-layout-144-cells-hard-canvas" style="padding-left:1rem">  6.3 Layout — 144 cells (hard canvas)</a><a href="#64-coexistence-with-existing-profiles" style="padding-left:1rem">  6.4 Coexistence with existing profiles</a><a href="#7-v1-14-day-critical-path-pm" style="padding-left:0.5rem">7. V1 14-day critical path (PM)</a><a href="#8-hard-constraints-consolidated-normative" style="padding-left:0.5rem">8. Hard constraints (consolidated, normative)</a><a href="#9-unverified-assumptions-read-before-relying-on-anything-here" style="padding-left:0.5rem">9. Unverified assumptions (read before relying on anything here)</a><a href="#10-open-cross-role-conflicts" style="padding-left:0.5rem">10. Open cross-role conflicts</a><a href="#11-decision-log-required-sign-offs" style="padding-left:0.5rem">11. Decision log / required sign-offs</a><a href="#appendix-z-adversarial-verify-corrections-verify-failed-fixes-applied-here" style="padding-left:0.5rem">Appendix Z — Adversarial verify corrections (verify FAILED; fixes applied here)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/designs/">designs</a> / 2026-06-18-dyad-tui-mobile-studio-rfc-draft</div>
+<h1>Vaked Design RFC (DRAFT) — Flake-Native Capability-Graph Routing for the `vaked-tui` Mobile Operator Surface</h1>
+<h1 id="vaked-design-rfc-draft-flake-native-capability-graph-routing-for-the-vaked-tui-mobile-operator-surface">Vaked Design RFC (DRAFT) — Flake-Native Capability-Graph Routing for the <code>vaked-tui</code> Mobile Operator Surface</h1>
+<p><strong>Status: DRAFT — not built, not executed, not a numbered protocol RFC.</strong><br />
+This is a design document only. Nothing herein has been compiled, run, or measured. It is <strong>not</strong> an HCP/Litany numbered protocol RFC (those live under <code>protocol/rfcs/0001…0007</code>); if promoted to a protocol RFC it must go through the <code>hcp-rfc-author</code> flow. Per the project-wide rule, <strong>no build/compile/execute occurs on the developer machine (M1).</strong> Every "buildable" claim below means <em>design-buildable on a Linux target</em> (<code>dev-cx53</code>, x86_64-linux) or CI, gated by the 3-gate verify-confirm protocol — never the laptop.</p>
+<p>Author: Paige (Tech Writer), compressing the Architect (Winston), Dev/Renderer, Analyst (Mary), UX, and PM (John) roundtable positions.</p>
+<hr />
+<h2 id="0-dependency-ledger-design-real-vs-aspirational">0. Dependency ledger — <code>[design-real]</code> vs <code>[aspirational]</code></h2>
+<p>Every external dependency is tagged. <code>[design-real]</code> = a file or committed spec exists (verified against <code>vaked-base</code> this session). <code>[aspirational]</code> = named only, no backing file, or scope materially smaller than claimed.</p>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Tag</th>
+<th>Ground-truth note (verified this session)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tools/vaked-tui/</code> (TUI project)</td>
+<td><code>[design-real]</code></td>
+<td>Exists. Currently a <strong>TypeScript</strong> package (<code>src/</code>, <code>package.json</code>, <code>tsconfig.json</code>), not Zig. The proposed Zig renderer is greenfield.</td>
+</tr>
+<tr>
+<td><code>tools/vaked-cli</code> + <code>tools/VAKED_CLI_README.md</code></td>
+<td><code>[design-real]</code></td>
+<td><strong>Exists.</strong> Both files present. Brief's "probably absent" is <strong>wrong</strong> — corrected. It is stdlib-Python remote-exec/scp glue, <strong>not</strong> the TLS-verified OpenRouter SDK path CLAUDE.md mandates. Treat as plumbing, not a hardened tool.</td>
+</tr>
+<tr>
+<td><code>daemons/openrouterd/src/qjs_bindings.zig</code></td>
+<td><code>[design-real]</code></td>
+<td>Exists. <code>jsMapMemoryPlanePointer</code> (line 7–9) does <code>return @intFromPtr(raw_ptr);</code> — a <strong>raw host pointer injected into the QuickJS VM as a JSValue</strong>. This is the boundary the arena design forbids and must replace.</td>
+</tr>
+<tr>
+<td><code>daemons/openrouterd/src/layer_collapse.zig</code> <code>MemoryPlane</code></td>
+<td><code>[design-real]</code></td>
+<td>Exists. Fixed-layout <code>extern struct</code> (magic/budget/tokens/<code>conductor_model</code>/build-status). A single control-block, <strong>not</strong> a general arena. <code>conductor_model</code> comment value <code>"deepseek-v4-pro"</code> is an <strong>unverified model slug</strong> (see §10).</td>
+</tr>
+<tr>
+<td><code>daemons/openrouterd/src/seccomp_filter.zig</code></td>
+<td><code>[design-real]</code> file / <code>[aspirational]</code> scope</td>
+<td>Exists but is a <strong>4-instruction BPF stub</strong> (<code>BPF_LD</code> offset 4, one <code>JEQ</code>, <code>RET_ALLOW</code>, else <code>RET_KILL_PROCESS</code>). <strong>No</strong> 22-syscall allowlist, <strong>no</strong> arch gate, <strong>zero</strong> tty/termios/ioctl references. The "22-syscall tty-binding seccomp profile" is <strong>aspirational</strong>.</td>
+</tr>
+<tr>
+<td>QuickJS bindings (~26 files incl. <code>daemons/synapsed/quickjs_bindings.zig</code>)</td>
+<td><code>[design-real]</code></td>
+<td>Exist as files.</td>
+</tr>
+<tr>
+<td>Zig daemons (<code>agent_guardd</code>, <code>eventd</code>, <code>openrouterd</code>, <code>synapsed</code>)</td>
+<td><code>[design-real]</code></td>
+<td>Exist. <code>agent_guardd</code> = egress membrane; <code>eventd</code> = append-only hash-chained log.</td>
+</tr>
+<tr>
+<td>OpenRouter as swarm-default LLM provider</td>
+<td><code>[design-real]</code></td>
+<td>Mandated by CLAUDE.md; <code>daemons/openrouterd/</code> exists. <code>OPENROUTER_API_KEY</code> gating is real; spend is real when set.</td>
+</tr>
+<tr>
+<td><code>docs/superpowers/specs/2026-06-14-sandboxd-seccomp-plan.md</code> (the <strong>real</strong> allowlist)</td>
+<td><code>[design-real]</code></td>
+<td>The only committed syscall allowlist; §5.1 lists <strong>33</strong> syscalls (read/write/openat/close/fstat/lseek/mmap/munmap/mprotect/brk … getrandom/pread64/pwrite64/readv/writev/dup/dup2/fcntl/getpid/gettid/sched_yield/clock_nanosleep).</td>
+</tr>
+<tr>
+<td><code>telemetry.zig</code></td>
+<td><code>[design-real]</code></td>
+<td>Referenced as the cost/volume instrumentation source for routing decisions.</td>
+</tr>
+<tr>
+<td>"Tailscale Aperture"</td>
+<td><code>[aspirational]</code></td>
+<td><strong>Zero product files.</strong> One doc mention, and that doc states the vault has 0 files. The mesh node is <strong>generic Tailscale</strong> <code>[design-real as a generic dependency]</code>; "Aperture" is not a deliverable — do not schedule against it.</td>
+</tr>
+<tr>
+<td>Model slugs <code>DeepSeek-V4-Flash</code> / <code>deepseek-coder</code> / <code>Qwen3.5-9B</code></td>
+<td><code>[aspirational]</code></td>
+<td>No repo file matches. Do not pin V1 to them. (Distinct from the <code>"deepseek-v4-pro"</code> <em>comment</em> in <code>MemoryPlane</code>, which is also unverified.)</td>
+</tr>
+<tr>
+<td>"Liquid Glass" aesthetic</td>
+<td><code>[aspirational]</code></td>
+<td>Zero files reference it; brief-level concept only. Interpreted in §4.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-overview-motivation">1. Overview &amp; motivation</h2>
+<p><code>vaked-tui</code> is the primary operator surface for the Vaked agentic runtime, targeted for V1 at a <strong>mobile (Fiat Ducato van) monitor</strong>. This RFC specifies four coupled subsystems and the economics/UX/timeline that bind them:</p>
+<ol>
+<li><strong>Flake-native capability-graph routing</strong> — how a Vaked declaration materializes the daemon graph (OpenRouter LLM path + Zig enforcement daemons + eBPF evidence) that drives the TUI, and where LLM traffic routes (OpenRouter vs. self-host).</li>
+<li><strong>A deterministic shared-memory arena</strong> for the QuickJS ⇄ Zig boundary (the data plane the renderer reads).</li>
+<li><strong>A zero-dependency Zig ANSI renderer</strong> consuming that arena read-only.</li>
+<li><strong>A glare-survivable 12×12 UX grid</strong> for the outdoor mobile context.</li>
+</ol>
+<p>The Vaked thesis applies end-to-end: <em>Vaked declares → Nix materializes → OTP supervises → Zig enforces → eBPF testifies → surfaces reveal.</em> The capability graph is the declaration; the arena + renderer + routing are the materialized surface.</p>
+<hr />
+<h2 id="2-flake-native-capability-graph-routing">2. Flake-native capability-graph routing</h2>
+<h3 id="21-the-graph">2.1 The graph</h3>
+<p>A Vaked declaration compiles to a typed semantic graph whose nodes, for this surface, are: the TUI process, the OpenRouter LLM edge (<code>openrouterd</code> <code>[design-real]</code>), the shared arena (§3), the enforcement daemons (<code>agent_guardd</code> egress membrane, <code>seccomp_filter</code> <code>[design-real]</code>), and the evidence layer (<code>eventd</code> append-only hash-chained log <code>[design-real]</code>). Nix materializes these as a <code>nixosConfigurations.vakedos</code> host plus daemon configs; OTP supervises; the arena is the inter-actor data plane.</p>
+<h3 id="22-routing-decision-where-llm-ast-heal-traffic-goes">2.2 Routing decision — where LLM (AST-heal) traffic goes</h3>
+<p>LLM routing is <strong>economically governed</strong> (§5), not statically wired. The capability graph carries a routing edge whose target is selected from measured cost/volume telemetry. <strong>Default and only V1-sanctioned path: OpenRouter</strong> (<code>[design-real]</code>, per CLAUDE.md), guarded on <code>OPENROUTER_API_KEY</code>, executed on the Linux target, never the laptop. V1 must pin to an <strong>OpenRouter-default Claude/Opus slug</strong>, not the aspirational DeepSeek/Qwen slugs (§10).</p>
+<h3 id="23-materialization-posture">2.3 Materialization posture</h3>
+<p>The graph is <strong>design-buildable</strong> on <code>dev-cx53</code>/CI via <code>zig build -Dtarget=x86_64-linux</code> (cross-compile on M1 is allowed; <strong>execution is not</strong>). <code>tools/vaked-cli</code> <code>[design-real]</code> can drive the remote build/deploy as plumbing, but it is <strong>not</strong> the TLS-verified OpenRouter SDK path the conventions mandate; production deploy should migrate to <code>@vaked/openrouter-ts</code> / <code>adk-rust</code>.</p>
+<hr />
+<h2 id="3-deterministic-shared-memory-arena-quickjs-zig-boundary">3. Deterministic shared-memory arena (QuickJS ⇄ Zig boundary)</h2>
+<h3 id="31-what-ground-truth-forces">3.1 What ground truth forces</h3>
+<ul>
+<li><code>qjs_bindings.zig:9</code> injects <code>@intFromPtr(raw_ptr)</code> across the boundary today — exactly the raw cross-actor pointer this design forbids. <strong>The current binding must be deleted.</strong></li>
+<li><code>MemoryPlane</code> (<code>layer_collapse.zig</code>) is a fixed control-block, not a general arena — no handle table, no bounds, no offset discipline.</li>
+<li><strong>Verdict: a new module <code>arena.zig</code>, not a <code>MemoryPlane</code> retrofit.</strong> <code>MemoryPlane</code> is demoted to <em>one typed handle</em> (kind = control-block) inside the arena, preserving its getters.</li>
+</ul>
+<h3 id="32-layout-offset-based-bounds-checked-never-raw-pointers">3.2 Layout (offset-based, bounds-checked, never raw pointers)</h3>
+<p>Single contiguous page-aligned <code>mmap</code>, fixed total size at create time. All references are <strong>offsets from arena base</strong>, so the arena survives being mapped at different addresses in two actors.</p>
+<div class="highlight"><pre><span></span><span class="o">+</span><span class="mh">0</span><span class="n">x000</span><span class="w">  </span><span class="n">Header</span><span class="w"> </span><span class="p">(</span><span class="n">one</span><span class="w"> </span><span class="n">cache</span><span class="o">-</span><span class="n">line</span><span class="p">,</span><span class="w"> </span><span class="n">align</span><span class="w"> </span><span class="mh">64</span><span class="p">)</span>
+<span class="w">          </span><span class="n">magic</span><span class="w"> </span><span class="n">u32</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mh">0</span><span class="n">x7C242080</span><span class="w"> </span><span class="p">(</span><span class="n">reuse</span><span class="w"> </span><span class="n">GENESIS_SEAL</span><span class="p">),</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="n">u16</span><span class="p">,</span>
+<span class="w">          </span><span class="n">arena_size</span><span class="w"> </span><span class="n">u32</span><span class="p">,</span><span class="w"> </span><span class="n">seq</span><span class="w"> </span><span class="n">u64</span><span class="w"> </span><span class="p">(</span><span class="n">even</span><span class="o">=</span><span class="n">stable</span><span class="o">/</span><span class="n">odd</span><span class="o">=</span><span class="n">writing</span><span class="p">),</span>
+<span class="w">          </span><span class="n">handle_count</span><span class="w"> </span><span class="n">u32</span><span class="p">,</span><span class="w"> </span><span class="n">handle_cap</span><span class="w"> </span><span class="n">u32</span><span class="p">,</span><span class="w"> </span><span class="n">heap_head</span><span class="w"> </span><span class="n">u32</span><span class="p">,</span><span class="w"> </span><span class="n">owner_pid</span><span class="w"> </span><span class="n">u32</span>
+<span class="o">+</span><span class="mh">0</span><span class="n">x040</span><span class="w">  </span><span class="n">Handle</span><span class="w"> </span><span class="k">table</span><span class="o">:</span><span class="w"> </span><span class="n">handle_cap</span><span class="w"> </span><span class="err">×</span><span class="w"> </span><span class="n">HandleEntry</span><span class="w"> </span><span class="p">(</span><span class="mh">16</span><span class="n">B</span><span class="p">)</span><span class="o">:</span>
+<span class="w">          </span><span class="n">off</span><span class="w"> </span><span class="n">u32</span><span class="w"> </span><span class="p">(</span><span class="mh">0</span><span class="o">=</span><span class="n">null</span><span class="p">),</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="n">u32</span><span class="p">,</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="n">u16</span><span class="p">,</span><span class="w"> </span><span class="n">gen</span><span class="w"> </span><span class="n">u16</span><span class="p">,</span><span class="w"> </span><span class="n">flags</span><span class="w"> </span><span class="n">u32</span><span class="w"> </span><span class="p">(</span><span class="n">RO</span><span class="o">/</span><span class="n">OWNED_BY_ZIG</span><span class="o">/</span><span class="n">OWNED_BY_JS</span><span class="p">)</span>
+<span class="o">+</span><span class="p">....</span><span class="w">   </span><span class="n">Data</span><span class="w"> </span><span class="nl">region:</span><span class="w"> </span><span class="n">bump</span><span class="o">-</span><span class="n">allocated</span><span class="p">,</span><span class="w"> </span><span class="n">offsets</span><span class="w"> </span><span class="n">only</span>
+</pre></div>
+
+<p><strong>Boundary contract:</strong> QuickJS never receives a pointer. It receives a <code>Handle = packed u64 (index:32 | gen:32)</code>. Every JS access goes through a Zig FFI shim <code>arena_read/arena_write</code> that: (1) bounds-checks <code>index &lt; handle_count</code>; (2) checks <code>table[index].gen == handle.gen</code> (defeats use-after-free); (3) overflow-checks <code>off+len &lt;= entry.len</code> and <code>entry.off+entry.len &lt;= arena_size</code> (<code>std.math.add</code> with error); (4) only then computes <code>base + entry.off + off</code> <em>inside Zig</em>, copying into a JS-owned ArrayBuffer.</p>
+<h3 id="33-determinism-single-writer-discipline">3.3 Determinism &amp; single-writer discipline</h3>
+<ul>
+<li>Bump allocator, no free-list, no <code>getrandom</code>/address-dependent hashing in the hot path → identical event sequence yields <strong>byte-identical</strong> arena state.</li>
+<li>Exactly one writer (the Zig daemon side) owns <code>heap_head</code>, the handle table, and <code>seq</code>. JS is read-mostly; JS "writes" are serialized requests applied by the writer (matches the existing single <code>*MemoryPlane</code>).</li>
+<li><strong>Seqlock publish:</strong> writer <code>seq++</code> (odd) → mutate → <code>seq++</code> (even); readers snapshot/recheck/retry. No locks, no <code>futex</code> in the common path.</li>
+</ul>
+<h3 id="34-lifecycle-syscall-budget-the-load-bearing-decision">3.4 Lifecycle &amp; syscall budget (the load-bearing decision)</h3>
+<ul>
+<li><strong>create</strong> (writer): <code>memfd_create("vaked-arena", MFD_CLOEXEC)</code> → <code>ftruncate</code> → <code>mmap(MAP_SHARED)</code> → init header. Anonymous memfd replaces the current named-file <code>open</code>+<code>mmap</code> in <code>layer_collapse.zig</code> (no on-disk path, no <code>open(2)</code>).</li>
+<li><strong>attach</strong> (reader): receive fd (SCM_RIGHTS / same fd in-proc) → <code>mmap</code> → validate magic/version/size → <code>close(fd)</code> (mapping survives).</li>
+<li><strong>teardown:</strong> <code>munmap</code> (+ <code>close</code> memfd on writer).</li>
+</ul>
+<p>Cross-check against the <strong>real</strong> allowlist (<code>sandboxd-seccomp-plan</code> §5.1, 33 syscalls): <code>mmap</code>/<code>munmap</code>/<code>mprotect</code>/<code>close</code> are <strong>present</strong>; <code>memfd_create</code> and <code>ftruncate</code> are <strong>absent</strong>. <strong>Resolution: arena <code>create()</code> runs in the pre-seccomp daemon-setup phase; only <code>mmap</code>/<code>munmap</code>/<code>mprotect</code>/<code>close</code> need to be in the post-seccomp workload profile — and all four already are.</strong> This keeps the arena inside the syscall budget without growing the allowlist. (Alternative — add <code>memfd_create</code>+<code>ftruncate</code>, pushing 33→35 — requires seccomp-owner sign-off; see §11.)</p>
+<h3 id="35-event-sourcing-mapping">3.5 Event-sourcing mapping</h3>
+<p>The data region is an append-only ring of event records; each <code>arena_write</code> bump-allocates a new handle (never overwrites), so the handle table <strong>is</strong> the event index and <code>seq</code> is the logical clock. Canonical hashing stays <code>eventd</code>'s job (<code>[design-real]</code>, RFC 0004 §3.1); the arena emits payloads only.</p>
+<hr />
+<h2 id="4-vaked-tui-strict-ioctl-ansi-renderer-zig-zero-dep-uncompiled-skeleton">4. <code>vaked-tui</code> strict-ioctl ANSI renderer (Zig, zero-dep) — UNCOMPILED SKELETON</h2>
+<h3 id="41-domain-stance">4.1 Domain stance</h3>
+<p>Pure Zig, <strong>zero external deps</strong> — <code>std.os.linux</code> raw syscalls only, no ncurses/termcap/terminfo/libvaxis. This matches the verified in-repo house style (<code>tools/inbox/inbox.zig</code>, <code>tools/monologue/monologue.zig</code> go straight to <code>std.os.linux.&lt;syscall&gt;</code>). No JS/QuickJS in the render hot path; panels may be <em>produced</em> by JS upstream but the renderer only sees resolved <code>Cell</code> bytes.</p>
+<h3 id="42-module-layout-toolsvaked-tuisrcrender">4.2 Module layout (<code>tools/vaked-tui/src/render/</code>)</h3>
+<p><code>term.zig</code> (termios raw-mode + winsize + SIGWINCH), <code>cell.zig</code> (<code>Cell</code> = u21 rune + packed <code>Style</code>; <code>Grid</code> flat row-major), <code>framebuffer.zig</code> (front/back double buffer + dirty-diff + coalesce buffer), <code>ansi.zig</code> (comptime escape constants, alloc-free SGR/cursor encoders), <code>panels.zig</code> (read-only arena view via offset handles), <code>renderer.zig</code> (orchestrator <code>init/deinit/resize/render</code>).</p>
+<h3 id="43-performance-invariants-design-targets-not-measured">4.3 Performance invariants (design targets, NOT measured)</h3>
+<ul>
+<li><strong>One <code>write(2)</code> per frame.</strong> Compose everything into a single preallocated buffer; emit once. Syscall count dominates the budget. A per-cell-write design is rejected.</li>
+<li>Double-buffer + dirty-diff; equal cells emit zero bytes; CUP only on cursor jump; SGR only on style change. Full repaint only on resize/first frame.</li>
+<li><strong>&lt;5ms refresh is a design target, unmeasured and unmeasurable here</strong> (no-build rule). Verification requires a perf harness on <code>dev-cx53</code> (<code>clock_gettime(CLOCK_MONOTONIC)</code> around <code>render()</code>, p99 over a scripted trace). It must <strong>not</strong> be quoted as a measured result.</li>
+<li>Allocation-free at steady state; allocation only at init and on resize.</li>
+</ul>
+<h3 id="44-safety-invariants">4.4 Safety invariants</h3>
+<ul>
+<li>SIGWINCH handler is async-signal-safe: it sets an atomic flag only; all resize work happens in the render loop.</li>
+<li>termios restored on <strong>every</strong> exit path including panic (<code>deinit</code> + panic hook); alt-screen <code>1049h</code>/<code>1049l</code> brackets the session; <code>?25h</code> show-cursor on exit.</li>
+<li>The arena is <strong>untrusted input</strong>: every offset-handle resolve bounds-checks against <code>ArenaView.len</code> before dereferencing — out-of-range = error, never a segfault.</li>
+</ul>
+<h3 id="45-arena-contract-consumed-from-3">4.5 Arena contract (consumed from §3)</h3>
+<p>Renderer receives <code>ArenaView { base, len }</code> + a slice of <code>PanelHandle { offset, len, rows, cols }</code>; <code>panels.zig</code> resolves to <code>[]const Cell</code> with a bounds check. <strong>These types are PROPOSED, not real</strong> — <code>daemons/synapsed/memory_guard.zig</code> exposes only <code>verifyAllocationLimits(...) -&gt; bool</code> and an <code>arena_limit_bytes</code> field; there is <strong>no</strong> published offset-handle accessor. Winston must confirm the handle struct, offset width (u32 vs u64), and cross-process-vs-in-process topology before <code>PanelHandle</code> is frozen (§11).</p>
+<hr />
+<h2 id="5-routing-economics-analyst">5. Routing economics (Analyst)</h2>
+<h3 id="51-breakeven-the-only-claim-defended-without-caveats">5.1 Breakeven (the only claim defended without caveats)</h3>
+<p>Route AST-heal traffic local only when self-host beats per-call OpenRouter over the same window:</p>
+<div class="highlight"><pre><span></span><span class="n">N</span><span class="o">*</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">fixed_host_</span><span class="o">$/</span><span class="n">day</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">cost_per_call_OR</span><span class="w"> </span><span class="err">−</span><span class="w"> </span><span class="n">variable_local_</span><span class="o">$/</span><span class="n">call</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li><code>N</code> (sustained calls/day) <code>&gt; N*</code> → self-host wins; <code>N &lt; N*</code> → OpenRouter wins (zero fixed cost).</li>
+<li>Denominator must be <code>&gt; 0</code>. <strong>Cache hits shrink effective <code>cost_per_call_OR</code>, raising <code>N*</code> — structurally favoring OpenRouter.</strong></li>
+<li>This formula is provider-agnostic and domain-correct. Everything numeric below is an <strong>assumption</strong>.</li>
+</ul>
+<h3 id="52-worked-example-inputs-unverified-aspirational">5.2 Worked example — INPUTS UNVERIFIED <code>[aspirational]</code></h3>
+<p>Brief assumptions (no repo file matches the model slugs): OpenRouter proxy "1.8B tok/$10" ⇒ ~$5.56e-9/tok; ~2k tok/heal-call ⇒ <code>cost_per_call_OR ≈ $1.1e-5</code> (≈$0.7e-5 with assumed 50% cache hit). Assumed Qwen-class box ~$200/mo ⇒ <code>fixed_host_$/day ≈ $6.67</code>; <code>variable_local ≈ $1e-6</code>.</p>
+<div class="highlight"><pre><span></span>N* = 6.67 / (0.7e-5 − 0.1e-5) ≈ 1.11 MILLION heal-calls/day
+</pre></div>
+
+<p>A beta TUI does ~10²–10⁴/day. <strong>OpenRouter wins by 2–4 orders of magnitude.</strong> Robust across the assumption band (halving the box → <code>N* ≈ 555k/day</code>); only collapses if real OpenRouter price is ~10× the proxy — which is <strong>why inputs must be measured, not assumed</strong>.</p>
+<h3 id="53-hidden-self-host-costs-widen-openrouters-lead">5.3 Hidden self-host costs (widen OpenRouter's lead)</h3>
+<p><code>fixed_host_$/day</code> is not just rent: + ops/patching, + cold-start on a 9B model, + idle-GPU underutilization, + a self-host's <strong>own</strong> egress membrane + sandbox. <code>agent_guardd</code>/<code>seccomp_filter</code> are <strong>specs, not a turnkey isolation layer</strong> (<code>seccomp_filter.zig</code> is a 4-instruction stub, ~880B — see §0), so isolation is unbudgeted fixed cost.</p>
+<h3 id="54-recommendation">5.4 Recommendation</h3>
+<p><strong>Route to OpenRouter for V1. Period.</strong> Revisit self-host only when (a) <em>measured</em> sustained volume approaches a <code>N*</code> computed from <em>real</em> prices, and (b) isolation/ops fixed costs are budgeted. Instrument <code>cost_per_call_OR</code> and calls/day from day one via <code>telemetry.zig</code> <code>[design-real]</code>.</p>
+<hr />
+<h2 id="6-ux-1212-solar-glare-dashboard-the-solarhardglare-profile">6. UX — 12×12 solar-glare dashboard (the "solarHardGlare" profile)</h2>
+<h3 id="61-glare-physics-overrides-aesthetics">6.1 Glare physics overrides aesthetics</h3>
+<p>"Liquid Glass" <code>[aspirational]</code> is translucency/blur/low-alpha layering — and <strong>ANSI has no alpha channel</strong>; direct sun washes out exactly those mid-tones. Translation rule: <strong>Liquid Glass = maximal luminance separation + heavy structural borders.</strong> Glass is the <em>feel</em> (depth via z-order/borders), not the implementation.</p>
+<h3 id="62-palette-5-colors-max-true-black-bg">6.2 Palette — 5 colors max, true-black bg</h3>
+<p>Luminance contrast is the only knob that survives glare. Require <strong>true terminal black bg (256 code 16, <code>#000000</code>)</strong>, not the existing TUI <code>#040804</code>. Foreground near-max luminance. Permitted set: <strong>231 white</strong> (primary text), <strong>226 yellow</strong> <code>#ffff00</code> (alerts/headers — highest photopic luminance), <strong>46 green</strong> <code>#00ff00</code> (pass), <strong>196 red</strong> <code>#ff0000</code> (fail), <strong>16 black</strong> (bg). Target on-screen contrast ≥10:1 <em>after</em> the glare floor (~≥15:1 nominal).</p>
+<ul>
+<li><strong>Ban pure-blue-on-black</strong> (blue 21 ≈ 7% relative luminance, near-invisible). Cyan permitted <strong>only</strong> as a non-load-bearing secondary label.</li>
+<li><strong>Bold (SGR 1) required</strong> on all foreground text. <strong>Banned:</strong> dim/faint (SGR 2), italic, 24-bit truecolor gradients. Use <strong>256-color SGR</strong> (<code>38;5;N</code> / <code>48;5;N</code>) for portability.</li>
+<li><strong>Heavy double-line / block borders</strong> (<code>═ ║</code>, or <code>█</code>) in 226/231 — thin single lines disappear in glare. Borders carry the "glass-pane edge" metaphor.</li>
+<li><strong>Monochrome-degrade fallback mandatory:</strong> status conveyed by GLYPH + POSITION + TEXT LABEL (<code>FAIL</code>, <code>[X]</code>, <code>!!!</code>), never by color alone (WCAG-equivalent safety rule).</li>
+</ul>
+<h3 id="63-layout-144-cells-hard-canvas">6.3 Layout — 144 cells (hard canvas)</h3>
+<p>Row 1 (12 wide) TOP BAR = status/clock/profile. AGENT-EXEC = rows 2–7 × cols 1–7 (6×7, primary). SWARM-METRICS = rows 2–7 × cols 8–12 (6×5, KPIs: active agents, <code>val_bpb</code> <code>[aspirational]</code> source, queue depth). MEMORY-LOG = rows 8–12 × cols 1–12 (5×12 append-only scroll, newest top). <strong>No panel chrome may consume &gt;1 cell of border per side</strong> or content drowns (a 6×7 box minus borders ≈ 5×5 interior ≈ 25 glyphs). The grid may be under-spec'd for the data (see §11).</p>
+<h3 id="64-coexistence-with-existing-profiles">6.4 Coexistence with existing profiles</h3>
+<p>The existing three profiles (<code>denseMatrixGreen</code>, <code>cleanGraphCyberpunk</code>, <code>tacticalGraveyard</code>, commit <code>dc92de2</code>) use non-black backgrounds and mid-luminance accents — <strong>fine indoors, fail the glare floor outdoors.</strong> This RFC <strong>adds a 4th profile (<code>solarHardGlare</code>)</strong> selected by environment; it does not delete the existing three. The existing <code>colorscheme.ts</code> stores <strong>hex</strong> (hinting truecolor emit); the 256-color mapping here is <strong>lossy and provisional</strong> until the emit path (<code>main.ts</code>) is read (§11).</p>
+<hr />
+<h2 id="7-v1-14-day-critical-path-pm">7. V1 14-day critical path (PM)</h2>
+<p><strong>Two workstreams, one hard coupling.</strong> SOFTWARE = arena+renderer lock + Linux/CI build. HARDWARE = van power delivery + monitor + Tailscale mesh node. The schedule killer is the <strong>no-build-on-laptop rule</strong>: software cannot validate until a paid build target (<code>dev-cx53</code>/CI + Vast/GPU for agent loops) is live <strong>and</strong> the van's Tailscale node can reach it. <strong>The critical path runs through hardware.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Day</th>
+<th>Track</th>
+<th>Milestone</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>CP HW+infra</td>
+<td>Procure van DC-DC/battery spec, monitor, confirm <code>dev-cx53</code> reachability; provision van Tailscale node identity; Gate-1 check <code>ssh dev-cx53 'which zig &amp;&amp; zig version &amp;&amp; df -h &amp;&amp; free -h'</code>. <strong>Blocker if any fails.</strong></td>
+</tr>
+<tr>
+<td>D2</td>
+<td>CP infra / ∥ SW</td>
+<td>Wire CI build fallback; first green remote build of <code>vaked-tui</code>. ∥ Freeze arena allocator + renderer interface (laptop = edit/design only).</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>CP HW / ∥ SW</td>
+<td>Bench power test (battery→DC-DC→monitor+compute), measured draw. ∥ Arena impl built remote. <strong>Gate: infra trio green here or V1 slips.</strong></td>
+</tr>
+<tr>
+<td>D4</td>
+<td>∥ SW / ∥ HW</td>
+<td>Renderer first paint on <code>dev-cx53</code> viewed via Tailscale. ∥ In-van monitor+compute mount.</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>∥ SW / ∥ HW</td>
+<td>Arena+renderer integration + input loop. ∥ Tailscale node installed in van.</td>
+</tr>
+<tr>
+<td><strong>D6</strong></td>
+<td><strong>CP join</strong></td>
+<td><strong>First end-to-end: van node → remote-built TUI → live render on van monitor.</strong> Convergence point; slips cascade.</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>buffer</td>
+<td>D6 defect burn-down.</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>∥ SW</td>
+<td>OpenRouter agent loop wired (guarded on <code>OPENROUTER_API_KEY</code>), spend through <code>dev-cx53</code>.</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>∥ SW</td>
+<td>TUI ↔ OpenRouter ↔ MemoryPlane/daemon round-trip on target.</td>
+</tr>
+<tr>
+<td><strong>D10</strong></td>
+<td><strong>CP</strong></td>
+<td><strong>Power soak test</strong> (off-grid full-stack) + thermal under TUI+agent load.</td>
+</tr>
+<tr>
+<td>D11</td>
+<td>buffer</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>D12</strong></td>
+<td><strong>CP</strong></td>
+<td><strong>V1 acceptance:</strong> van cold-start, Tailscale up, remote build current, TUI renders, agent call succeeds, power within budget.</td>
+</tr>
+<tr>
+<td>D13</td>
+<td>buffer</td>
+<td>—</td>
+</tr>
+<tr>
+<td>D14</td>
+<td>ship/contingency</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Critical path:</strong> D1→D2→D3 (infra trio) → D6 (SW/HW join) → D10 (power soak) → D12 (acceptance). Arena+renderer SW has genuine parallel slack; the date is set by build-target + Tailscale + power.</p>
+<hr />
+<h2 id="8-hard-constraints-consolidated-normative">8. Hard constraints (consolidated, normative)</h2>
+<ol>
+<li><strong>No raw pointer crosses the QuickJS⇄Zig boundary.</strong> JS receives an opaque packed <code>u64</code> Handle; <code>qjs_bindings.zig:9</code> <code>@intFromPtr</code> behavior is deleted.</li>
+<li>All arena access is offset-based and bounds+generation+overflow-checked inside Zig before any <code>base+offset</code>.</li>
+<li>Arena is offset-relative end to end (address never affects contents) → determinism + cross-actor safety.</li>
+<li>Single-writer; readers use a seqlock; no locks in the common path.</li>
+<li>Workload-phase syscalls confined to <code>mmap</code>/<code>munmap</code>/<code>mprotect</code>/<code>close</code> (all in the §5.1 allowlist); <code>memfd_create</code>+<code>ftruncate</code> run <strong>pre-seccomp</strong> during setup.</li>
+<li>Deterministic bump allocator; no free-list, no <code>getrandom</code> in the hot path.</li>
+<li>Anonymous <code>memfd_create(MFD_CLOEXEC)</code> replaces the named-file <code>open</code>+<code>mmap</code>.</li>
+<li>Renderer: <strong>zero external deps</strong>, <strong>one <code>write(2)</code>/frame</strong>, async-signal-safe SIGWINCH, termios restored on every exit incl. panic, allocation-free steady state, arena treated as untrusted.</li>
+<li>UX: true-black bg, ≤5-color high-luminance palette, bold required, no dim/italic/truecolor-gradient, heavy borders, mandatory monochrome-degrade.</li>
+<li>Routing governed by <code>N*</code> from <strong>measured</strong> <code>cost_per_call_OR</code> and calls/day; OpenRouter is the V1 default and only sanctioned path; agent loop runs on the target host.</li>
+<li><strong>No build/compile/run on the M1.</strong> SPEC only; design-buildable target = <code>dev-cx53</code>/CI under the 3-gate protocol. The &lt;5ms budget is a design target, never a measured claim.</li>
+</ol>
+<hr />
+<h2 id="9-unverified-assumptions-read-before-relying-on-anything-here">9. Unverified assumptions (read before relying on anything here)</h2>
+<ul>
+<li><strong>Tailscale Aperture</strong> — does not exist (1 doc mention; vault has 0 files). Mesh node is generic Tailscale. Do not schedule against an "Aperture" deliverable.</li>
+<li><strong><code>vaked-cli</code></strong> — <strong>does</strong> exist (<code>tools/vaked-cli</code> + <code>tools/VAKED_CLI_README.md</code>); the brief's "probably absent" is corrected. But it is stdlib-Python scp glue, not the mandated TLS-verified OpenRouter SDK path.</li>
+<li><strong>Model slugs <code>DeepSeek-V4-Flash</code> / <code>deepseek-coder</code> / <code>Qwen3.5-9B</code></strong> — unverified, no repo match. The <code>"deepseek-v4-pro"</code> string in <code>MemoryPlane.conductor_model</code> is also an unverified slug. V1 pins to an OpenRouter-default Claude/Opus slug.</li>
+<li><strong>"22-syscall seccomp profile binding tty syscalls"</strong> — does not exist. <code>seccomp_filter.zig</code> is a 4-instruction BPF stub with no allowlist, no arch gate, <strong>zero</strong> tty/termios/ioctl refs. The only real allowlist (<code>sandboxd-seccomp-plan</code> §5.1) lists <strong>33</strong> syscalls. The TUI's required tty syscalls (<code>ioctl TIOCGWINSZ</code>, <code>TCGETS/TCSETSF</code>, <code>rt_sigaction</code>, <code>write</code>) are in <strong>neither</strong> — unreconciled.</li>
+<li><strong>Mary's economic inputs</strong> — OpenRouter price proxy "1.8B tok/$10", ~2k tok/heal-call, 50% cache-hit rate, ~$200/mo box, ~$1e-6/call variable, 10²–10⁴ beta calls/day are <strong>all assumptions</strong>, none measured.</li>
+<li><strong>Van power budget</strong> — no battery capacity / DC-DC rating / monitor draw / compute TDP figures exist in repo. Feasibility unconfirmed.</li>
+<li><strong><code>dev-cx53</code> liveness, Vast/GPU billing, <code>OPENROUTER_API_KEY</code> funding</strong> — asserted by CLAUDE.md but not proven this session.</li>
+<li><strong>Arena topology</strong> — out-of-process (seqlock load-bearing) vs. in-process (current <code>qjs_bindings.zig</code> reality; boundary is the FFI call) is unconfirmed. Handle discipline is mandatory either way.</li>
+<li><strong>Renderer plumbing</strong> — no termios/<code>TIOCGWINSZ</code>/SIGWINCH/<code>tcsetattr</code> code exists anywhere in repo; the Zig renderer is fully greenfield. Whether Zig 0.16 <code>std.posix</code> exposes termios cleanly vs. needing raw <code>ioctl(TCGETS/TCSETSF)</code> is unchecked. Whether the renderer replaces the TS TUI or is a new binary is undecided.</li>
+<li><strong>UX target hardware</strong> — van monitor color depth (16/256/truecolor), nit brightness, and character-cell aspect ratio are unknown; the entire palette/layout decision hinges on them. <code>colorscheme.ts</code> stores hex (hints truecolor emit) — <code>main.ts</code> emit path unread.</li>
+<li><strong>Panel data contracts</strong> — no brief file defines agent-exec / swarm-metrics / memory-log contents or priority; <code>val_bpb</code> as a live TUI-wired source is unverified.</li>
+</ul>
+<hr />
+<h2 id="10-open-cross-role-conflicts">10. Open cross-role conflicts</h2>
+<p>See <code>openConflicts</code>. These are unresolved at draft time and require owner sign-off before any build is gated.</p>
+<hr />
+<h2 id="11-decision-log-required-sign-offs">11. Decision log / required sign-offs</h2>
+<ol>
+<li><strong>Seccomp owner:</strong> accept pre-seccomp arena creation (recommended) OR add <code>memfd_create</code>+<code>ftruncate</code> (33→35).</li>
+<li><strong>Daemon owner:</strong> accept the memfd switch (deletes named-file <code>open</code>+<code>mmap</code>) and deletion of the <code>@intFromPtr</code> JS binding.</li>
+<li><strong>Architect (Winston):</strong> publish the real handle struct + offset width + topology so the renderer can freeze <code>PanelHandle</code>.</li>
+<li><strong>Architecture/rendering owner:</strong> confirm the TUI color-emit path (256 vs truecolor) so the <code>solarHardGlare</code> palette can be fixed.</li>
+<li><strong>Infra/PM:</strong> prove the infra trio (<code>dev-cx53</code> + Tailscale + paid key) green by D3.</li>
+<li><strong>Hardware:</strong> supply measured van power budget before D3 bench / D10 soak.</li>
+</ol>
+<hr />
+<h2 id="appendix-z-adversarial-verify-corrections-verify-failed-fixes-applied-here">Appendix Z — Adversarial verify corrections (verify FAILED; fixes applied here)</h2>
+<p>The 2-lens adversarial pass returned <strong>pass=false</strong>. The failures were <strong>factual-accuracy<br />
+errors in this draft</strong>, NOT implementation overclaims (the "not built / not measured /<br />
+no-build-on-M1" posture held, the arena offset-handle design and the caveated &lt;5ms target<br />
+were verified honest). Corrections, each re-grounded against the tree this session:</p>
+<ol>
+<li><strong>SECCOMP INVERSION (load-bearing).</strong> The body analyzed <code>seccomp_filter.zig</code> (a dead<br />
+   4-instruction BPF stub). The <strong>wired</strong> file is <code>seccomp.zig</code> — <code>main.zig:9</code><br />
+<code>@import("seccomp.zig")</code>, applied at <code>main.zig:275</code>. <code>seccomp.zig:5</code> is a <strong>real<br />
+   22-syscall allowlist</strong>: <code>{0,1,257,3,41,42,44,45,291,233,232,9,11,10,12,60,231,318,228,202,425,426}</code><br />
+   = read,write,openat,close,socket,connect,sendto,recvfrom,epoll_create1,epoll_ctl,<br />
+   epoll_wait,mmap,munmap,mprotect,brk,exit,exit_group,getrandom,clock_gettime,futex,<br />
+   io_uring_setup,io_uring_enter. So the "22-syscall profile" is <strong>[design-real]</strong>, not<br />
+   aspirational — the body's §0/§3.4/§5.3/§8.5/§9 seccomp narrative is RETRACTED.</li>
+<li><strong>REAL BUILDABILITY CONFLICT (was missed).</strong> The wired 22-list contains <strong>no <code>ioctl</code><br />
+   and no <code>rt_sigaction</code></strong>. The renderer's mandatory tty path — <code>ioctl(TIOCGWINSZ)</code> for<br />
+   winsize, <code>rt_sigaction</code> for SIGWINCH — would be <strong>SIGKILL'd</strong> under the live profile.<br />
+   Reconciliation (add <code>ioctl</code>+<code>rt_sigaction</code>, → 24 syscalls; or run the renderer outside<br />
+   this daemon's profile) is <strong>unresolved</strong> and needs the seccomp owner. This is the genuine<br />
+   blocker, not the stub.</li>
+<li><strong>Syscall count.</strong> The <code>sandboxd-seccomp-plan</code> §5.1 allowlist is <strong>~31</strong> syscalls (and<br />
+   DOES contain <code>ioctl</code>/<code>rt_sigaction</code>/<code>write</code>), not "33". Note it diverges from the wired<br />
+   22-list (the plan is not what's loaded).</li>
+<li><strong><code>deepseek-v4-pro</code> is [design-real], wired</strong> — <code>tools/openrouter/cli.py:30</code>,<br />
+<code>tools/openrouter/deliberate.py:23,50</code> (priced 0.27/0.27) — not merely a MemoryPlane<br />
+   comment. (<code>DeepSeek-V4-Flash</code> / <code>Qwen3.5-9B</code> / <code>deepseek-coder</code> remain genuinely absent →<br />
+<code>[aspirational]</code> tags correct.)</li>
+<li><strong>"Tailscale Aperture" is more real than §0 claimed.</strong> <code>.vaked/runtime_policy.zig</code><br />
+   defines <code>assertApertureSecurity()</code>; swe-af specs pin a tailnet gateway + grant cap<br />
+<code>tailscale.com/cap/aperture</code>. The flat "zero product files" claim is <strong>false</strong> and<br />
+   RETRACTED. (The conservative scheduling stance — do not pin the van V1 to an "Aperture<br />
+   deliverable" — still holds; the supporting fact was wrong.)</li>
+</ol>
+<p><strong>Net:</strong> the design (arena, renderer, routing, UX, timeline) stands; the seccomp section is<br />
+corrected and now exposes a real renderer↔profile conflict that must be resolved before any<br />
+build. Nothing here is built, run, or measured.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/designs/2026-06-18-dyad-tui-mobile-studio-rfc-draft.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

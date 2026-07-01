@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Anchoring Integrity Claims Externally — Defeating Tamper-with-Reseal — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-the-core-problem-self-referential-trust" style="padding-left:0.5rem">1. The core problem: self-referential trust</a><a href="#2-mechanisms-by-externalization-strategy" style="padding-left:0.5rem">2. Mechanisms, by externalization strategy</a><a href="#a-git-signed-tags-git-tag--v-cheapest-external-anchor" style="padding-left:1rem">  A. Git signed tags + `git tag -v` — cheapest external anchor</a><a href="#b-sigstore-cosign-rekor-external-append-only-transparency" style="padding-left:1rem">  B. Sigstore / cosign + Rekor — external append-only transparency</a><a href="#c-in-toto-attestations-dsse-signed-claim-multi-signer-capable" style="padding-left:1rem">  C. in-toto attestations (DSSE) — signed claim, multi-signer capable</a><a href="#d-slsa-provenance-levels-the-assurance-ladder" style="padding-left:1rem">  D. SLSA provenance levels — the assurance ladder</a><a href="#e-tuf-threshold-role-separation-freshness" style="padding-left:1rem">  E. TUF — threshold + role separation + freshness</a><a href="#f-github-branch-protection-rulesets-platform-anchored-policy" style="padding-left:1rem">  F. GitHub branch protection / rulesets — platform-anchored policy</a><a href="#g-codeowners-unverified-no-citation-in-evidence" style="padding-left:1rem">  G. CODEOWNERS — **[UNVERIFIED — no citation in evidence]**</a><a href="#h-certificate-transparency-style-append-only-logs-rfc-6962-formal-model-under-b" style="padding-left:1rem">  H. Certificate-Transparency-style append-only logs (RFC 6962) — formal model under B</a><a href="#3-ranked-recommendation-for-this-repos-sealssha256" style="padding-left:0.5rem">3. Ranked recommendation for this repo's `SEALS.sha256`</a><a href="#4-what-not-to-do" style="padding-left:0.5rem">4. What NOT to do</a><a href="#on-ethereum-on-chain-anchoring-peters-question" style="padding-left:0.5rem">On Ethereum / on-chain anchoring (Peter's question)</a><a href="#sources" style="padding-left:0.5rem">Sources</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/research/">research</a> / 2026-06-18-external-anchoring</div>
+<h1>Anchoring Integrity Claims Externally — Defeating Tamper-with-Reseal</h1>
+<blockquote>
+<p>Repo-specific finding (verified this session): <code>the-honest-swarm-researcher/SEALS.sha256</code><br />
+exists; tags <code>v0.3.0</code>–<code>v0.6.0</code> are annotated but <strong>unsigned</strong> (<code>git tag -v v0.6.0</code> →<br />
+"no signature found"); <code>tag.gpgSign</code>/<code>gpg.format</code> unset. The repo is currently at the<br />
+L1 / self-referential failure mode with <strong>no external anchor</strong> — Tier 0 (sign the tag)<br />
+is the immediate fix.</p>
+</blockquote>
+<h2 id="1-the-core-problem-self-referential-trust">1. The core problem: self-referential trust</h2>
+<p>A checked-in <code>SEALS.sha256</code> manifest lists SHA-256 digests of the files it covers. By<br />
+itself it is <strong>L1-equivalent</strong> integrity: it exists, but is "trivial to bypass or forge"<br />
+and "may be incomplete and/or unsigned" (https://slsa.dev/spec/v1.0/levels). The targeted<br />
+failure mode is <strong>tamper-with-reseal</strong>: an actor that can write to the repo modifies a<br />
+covered file, recomputes its hash, and rewrites <code>SEALS.sha256</code> in the <em>same commit</em>.<br />
+Because the verifier's trust root (the manifest) lives in the same writable location as<br />
+the artifacts, the verifier is checking the attacker's arithmetic against the attacker's<br />
+answer key. The reseal is internally consistent and undetectable from inside the repo.</p>
+<p>The defense is <strong>externalization</strong>: bind the integrity claim to something the resealing<br />
+party cannot rewrite in that commit — a key it does not hold, or an append-only log it<br />
+does not control. TUF names this a "rollback attack" and is built to protect "even against<br />
+attackers that compromise the repository or signing keys" (https://theupdateframework.io/).</p>
+<h2 id="2-mechanisms-by-externalization-strategy">2. Mechanisms, by externalization strategy</h2>
+<h3 id="a-git-signed-tags-git-tag-v-cheapest-external-anchor">A. Git signed tags + <code>git tag -v</code> — cheapest external anchor</h3>
+<p>Integrity rests on an external trust anchor — the signer's key in the verifier's keyring,<br />
+not the repo. <code>git tag -v</code> verifies the signature; a tamper-with-reseal cannot forge it<br />
+without the key. Created with <code>-s</code>/<code>-u &lt;key-id&gt;</code>; backends GPG/X.509/SSH via <code>gpg.format</code>.<br />
+Git refuses to silently overwrite a fetched tag (force leaves an auditable intent signal).<br />
+Universal, zero-infra, offline. Anchor strength = keyring distribution. (https://git-scm.com/docs/git-tag)</p>
+<h3 id="b-sigstore-cosign-rekor-external-append-only-transparency">B. Sigstore / cosign + Rekor — external append-only transparency</h3>
+<p><code>cosign verify-blob</code> verifies a signature over an arbitrary file (the manifest). Keyless:<br />
+identity anchored to an external OIDC issuer (<code>--certificate-identity</code> /<br />
+<code>--certificate-oidc-issuer</code>; GitHub Actions = <code>https://token.actions.githubusercontent.com</code>) — a CI workflow<br />
+identity, not a dev key, becomes the anchor. Rekor is an immutable append-only ledger<br />
+outside the producer's control; inclusion provable via a Signed Entry Timestamp (offline).<br />
+Default claims-check binds signature to exact digest. Rekor monitor reusable workflow<br />
+detects entries under a stolen/rewritten root. Public <code>rekor.sigstore.dev</code> (99.5% SLO).<br />
+(https://docs.sigstore.dev/cosign/verifying/verify/, https://docs.sigstore.dev/logging/overview/)</p>
+<h3 id="c-in-toto-attestations-dsse-signed-claim-multi-signer-capable">C. in-toto attestations (DSSE) — signed claim, multi-signer capable</h3>
+<p>Wrap the manifest in a DSSE-signed in-toto Statement; the signature, not a stored hash, is<br />
+verified. Consumers MUST verify the signature over the manifest, not re-read declared<br />
+hashes. Subjects matched purely by digest. Envelope supports multiple signatures → N-of-M<br />
+anchoring. Policy is monotonic: design as "deny unless a valid signed seal attestation<br />
+exists." Caveat: a Sigstore Bundle is single-signature, not ITE-5-compliant for multi-signer.<br />
+(https://github.com/in-toto/attestation)</p>
+<h3 id="d-slsa-provenance-levels-the-assurance-ladder">D. SLSA provenance levels — the assurance ladder</h3>
+<p>L1 = unsigned/incomplete (an unsigned <code>SEALS.sha256</code> is L1-equivalent). L2 = signed<br />
+provenance from a hosted build platform (prevents post-build tampering). L3 = signing<br />
+secret inaccessible to user-defined steps — "the entity that produces content cannot also<br />
+forge its seal." Directive: sign in CI, not on the dev MacBook. Cite SLSA <strong>v1.2</strong> as<br />
+current (v1.0 levels page is Retired and omits the Source track). (https://slsa.dev/spec/v1.0/levels)</p>
+<h3 id="e-tuf-threshold-role-separation-freshness">E. TUF — threshold + role separation + freshness</h3>
+<p>Most complete defense. <code>root.json</code> enumerates trusted keys + thresholds (M-of-N quorum so<br />
+a verifier can't reseal alone). Role separation; offline <code>targets</code>/<code>snapshot</code> keys + online<br />
+short-expiry <code>timestamp</code>. Freshness/anti-rollback (refuse metadata older than seen). Signed<br />
+<code>snapshot</code> binds the whole metadata set (defeats mix-and-match). CNCF graduated; highest<br />
+operational complexity — overkill for one seal file. (https://theupdateframework.io/)</p>
+<h3 id="f-github-branch-protection-rulesets-platform-anchored-policy">F. GitHub branch protection / rulesets — platform-anchored policy</h3>
+<p>Server-side control: require signed commits, block force-push, restrict the <code>SEALS.sha256</code><br />
+path, tag rulesets for immutability, org-level rulesets above any repo admin. Rulesets must<br />
+be <strong>Active</strong> to enforce; editing them needs admin (separate from push); readable by anyone<br />
+(silent policy tamper is detectable). Access control, not cryptographic proof — pair with A/B/C.<br />
+(https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)</p>
+<h3 id="g-codeowners-unverified-no-citation-in-evidence">G. CODEOWNERS — <strong>[UNVERIFIED — no citation in evidence]</strong></h3>
+<p>Gates review approval on the <code>SEALS.sha256</code> path (required-reviewer control); composes with<br />
+rulesets. Treat as a complementary review control, not an external cryptographic anchor.</p>
+<h3 id="h-certificate-transparency-style-append-only-logs-rfc-6962-formal-model-under-b">H. Certificate-Transparency-style append-only logs (RFC 6962) — formal model under B</h3>
+<p>Append-only, publicly auditable, untrusted log; Merkle tree (SHA-256 — <code>SEALS</code> entries map<br />
+onto leaves). Inclusion proof (leaf present) + consistency proof (append-only). Signed Tree<br />
+Head over root hash with monotonic timestamps (anti-rollback). SCT = signed promise to log<br />
+within Maximum Merge Delay. Monitors recompute and cross-check. (https://www.rfc-editor.org/rfc/rfc6962)</p>
+<h2 id="3-ranked-recommendation-for-this-repos-sealssha256">3. Ranked recommendation for this repo's <code>SEALS.sha256</code></h2>
+<ul>
+<li><strong>Tier 0 — do today: signed git tag + <code>git tag -v</code>.</strong> Signing key lives outside the repo;<br />
+  same-commit reseal without it fails verification. Set <code>tag.gpgSign=true</code> + a dedicated<br />
+<code>user.signingKey</code>; tag the seal commit signed. The current <code>v0.3.0</code>–<code>v0.6.0</code> are unsigned<br />
+  → this is the highest-leverage immediate fix. (<code>git tag -s</code> is a git op, NOT a build — the<br />
+  NO-BUILD-ON-DEV-MACHINE rule does not apply.)</li>
+<li><strong>Tier 1 — platform lock (GitHub ruleset).</strong> Restrict the <code>SEALS.sha256</code> path, require<br />
+  signed commits, block force-push, keep Active; CODEOWNERS for a second reviewer [UNVERIFIED].<br />
+  Raises <em>who</em> can reseal; not cryptographic — pair with Tier 0/2.</li>
+<li><strong>Tier 2 — transparency-anchored (cosign + Rekor + in-toto), in CI.</strong> Sign the manifest<br />
+  keyless against the GitHub OIDC identity (key unreachable by the committing agent — SLSA<br />
+  L2/L3), log to Rekor, verify with <code>cosign verify-blob</code>. Wrap as DSSE in-toto Statement,<br />
+  policy deny-unless-valid. Enable Rekor monitor.</li>
+<li><strong>Tier 3 — only if you outgrow the above: full TUF</strong> (threshold, offline keys, freshness).</li>
+</ul>
+<h2 id="4-what-not-to-do">4. What NOT to do</h2>
+<ul>
+<li>Don't treat an unsigned checked-in <code>SEALS.sha256</code> as integrity (SLSA L1).</li>
+<li>Don't re-read the manifest's declared hashes as "verification" — verify the <em>signature over</em> it.</li>
+<li>Don't let the committing agent hold the seal-signing key — sign in CI against an OIDC identity.</li>
+<li>Don't rely on a single signature where the threat is the signer itself — use threshold/multi-sig.</li>
+<li>Don't force-overwrite a published seal tag (Git "MUST NOT" silently; destroys the trust-name).</li>
+<li>Don't treat branch protection/rulesets as cryptographic proof (privileged bypass can reseal).</li>
+<li>Don't disable cosign's claims check on the seal path.</li>
+<li>Don't omit a freshness/expiry signal (else indefinite-freeze/rollback is undetectable).</li>
+<li>Cite SLSA <strong>v1.2</strong> as current (v1.0 Retired).</li>
+</ul>
+<h2 id="on-ethereum-on-chain-anchoring-peters-question">On Ethereum / on-chain anchoring (Peter's question)</h2>
+<p>On-chain anchoring (Ethereum smart contracts, EAS) and OpenTimestamps (Bitcoin/Ethereum) are<br />
+valid external anchors but are <strong>not</strong> the recommended first layer for a per-commit seal:<br />
+they add gas cost + ~block latency + key/contract ops for security a signed tag or Rekor<br />
+provides more cheaply. OpenTimestamps gives free permissionless public timestamping without a<br />
+contract; reserve full on-chain only if censorship-resistant, third-party, no-trusted-operator<br />
+verification is a hard requirement. (Detail in the companion on-chain-vs-translog research doc.)</p>
+<h2 id="sources">Sources</h2>
+<p>docs.sigstore.dev/logging/overview · docs.sigstore.dev/cosign/verifying/verify ·<br />
+github.com/in-toto/attestation · slsa.dev/spec/v1.0/levels · theupdateframework.io ·<br />
+git-scm.com/docs/git-tag · docs.github.com/.../about-rulesets · rfc-editor.org/rfc/rfc6962 ·<br />
+rfc-editor.org/rfc/rfc9162 · theupdateframework.github.io/specification/latest</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/research/2026-06-18-external-anchoring.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

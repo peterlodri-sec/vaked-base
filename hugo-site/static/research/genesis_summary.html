@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vaked — Genesis Summary</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2333;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --text2: #8b949e;
+    --green: #2ea043;
+    --green-bg: rgba(46,160,67,0.1);
+    --amber: #d29922;
+    --amber-bg: rgba(210,153,34,0.1);
+    --blue: #58a6ff;
+    --blue-bg: rgba(88,166,255,0.1);
+    --purple: #a371f7;
+    --purple-bg: rgba(163,113,247,0.1);
+    --red: #f85149;
+    --red-bg: rgba(248,81,73,0.1);
+    --accent: #58a6ff;
+    --radius: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 60px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 48px;
+  }
+  .hero .mantra {
+    font-size: 1.05rem;
+    color: var(--text2);
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+    font-style: italic;
+  }
+  .hero .mantra span { color: var(--accent); }
+  .hero h1 {
+    font-size: 2.4rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #58a6ff, #a371f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero .subtitle {
+    font-size: 1.15rem;
+    color: var(--text2);
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .hero .date-badge {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    font-size: 0.8rem;
+    color: var(--text2);
+  }
+
+  /* Sections */
+  section {
+    margin-bottom: 48px;
+  }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 24px 0 10px;
+    color: var(--accent);
+  }
+  p { margin-bottom: 12px; }
+  p.lead {
+    font-size: 1.1rem;
+    color: var(--text);
+  }
+
+  /* Cards */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+  }
+  .card h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .card p {
+    font-size: 0.9rem;
+    color: var(--text2);
+    margin: 0;
+  }
+  .card .icon {
+    font-size: 1.6rem;
+    margin-bottom: 10px;
+  }
+
+  /* Pipeline */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 24px 0;
+    font-size: 0.85rem;
+  }
+  .pipeline .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    text-align: center;
+  }
+  .pipeline .step .label {
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .pipeline .step .detail {
+    color: var(--text2);
+    font-size: 0.78rem;
+  }
+  .pipeline .arrow {
+    color: var(--text2);
+    font-size: 1.2rem;
+  }
+
+  /* Status */
+  .status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .status-done { background: var(--green-bg); color: var(--green); }
+  .status-progress { background: var(--amber-bg); color: var(--amber); }
+  .status-stub { background: var(--blue-bg); color: var(--blue); }
+  .status-planned { background: var(--surface2); color: var(--text2); }
+
+  .status-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+  }
+  .status-table th, .status-table td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .status-table th {
+    color: var(--text2);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .status-table tr:hover { background: var(--surface); }
+
+  /* Quote */
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding: 12px 20px;
+    margin: 20px 0;
+    background: var(--surface);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-style: italic;
+    color: var(--text2);
+  }
+  blockquote .attr {
+    font-style: normal;
+    font-size: 0.8rem;
+    color: var(--text2);
+    margin-top: 8px;
+  }
+
+  /* Number grid */
+  .num-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .num-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+  }
+  .num-card .number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #58a6ff, #a371f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .num-card .label {
+    font-size: 0.78rem;
+    color: var(--text2);
+  }
+
+  /* Guarantees */
+  .guarantee-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .guarantee-yes {
+    background: var(--surface);
+    border: 1px solid var(--green);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+  .guarantee-no {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+  .guarantee-yes h4 { color: var(--green); margin-bottom: 6px; }
+  .guarantee-no h4 { color: var(--text2); margin-bottom: 6px; }
+  .guarantee-yes p, .guarantee-no p { font-size: 0.85rem; color: var(--text2); margin: 0; }
+  .guarantee-yes ul, .guarantee-no ul {
+    font-size: 0.85rem;
+    color: var(--text2);
+    margin: 6px 0 0 16px;
+  }
+
+  /* Phases */
+  .phase-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin: 24px 0;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+  .phase-item {
+    flex: 1;
+    min-width: 140px;
+    text-align: center;
+    position: relative;
+    padding: 0 8px;
+  }
+  .phase-item .dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin: 0 auto 8px;
+  }
+  .phase-item .dot.done { background: var(--green); }
+  .phase-item .dot.progress { background: var(--amber); }
+  .phase-item .dot.planned { background: var(--text2); border: 2px dashed var(--text2); background: transparent; }
+  .phase-item .phase-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .phase-item .phase-desc {
+    font-size: 0.75rem;
+    color: var(--text2);
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 24px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text2);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* Accordion */
+  details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin: 12px 0;
+    padding: 0;
+  }
+  details summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  details .content {
+    padding: 0 20px 16px;
+    font-size: 0.88rem;
+    color: var(--text2);
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.6rem; }
+    .guarantee-grid { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; }
+    .pipeline .arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<header class="hero">
+  <div class="mantra">
+    <span>Vaked declares.</span> Nix materializes. OTP supervises.
+    <span>Zig enforces.</span> eBPF testifies. CrabCC indexes. Surfaces reveal.
+  </div>
+  <h1>Vaked</h1>
+  <p class="subtitle">
+    A language that describes <strong>what an AI system is allowed to do</strong> —
+    and a compiler that <strong>proves it</strong> before anything runs.
+  </p>
+  <div class="date-badge">Research Snapshot · June 2026 · Pre-release</div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 1. WHAT IS THIS — THE ELEVATOR PITCH -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>What is this?</h2>
+
+  <p class="lead">
+    Vaked is a <strong>safety language for AI systems</strong>. You write down
+    what each part of your system can do — read files, make network calls, spawn
+    processes — and the compiler <strong>checks, mathematically, that nothing
+    exceeds its permissions</strong>. Then it turns your declaration into a
+    real, running system on a dedicated server.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="icon">📝</div>
+      <h4>Write Once, Prove Once</h4>
+      <p>
+        One file describes your entire system: what runs, what it can touch,
+        who it talks to. No scattered config files. No YAML drift.
+      </p>
+    </div>
+    <div class="card">
+      <div class="icon">🔒</div>
+      <h4>Permissions Are Checked Before Anything Runs</h4>
+      <p>
+        The compiler proves that no component can do anything you didn't
+        explicitly allow — before a single line of code executes.
+      </p>
+    </div>
+    <div class="card">
+      <div class="icon">🪵</div>
+      <h4>Everything Is Witnessed</h4>
+      <p>
+        The Linux kernel itself testifies what happened. There's an
+        unforgeable log. If the kernel says it didn't happen, it didn't.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 2. THE PROBLEM -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>Why does this matter?</h2>
+
+  <p>
+    AI agents are starting to do real work: writing code, sending emails, managing
+    servers. The question isn't <em>if</em> they'll be given authority — it's
+    <em>how much</em>, and whether we can <strong>prove they won't exceed it</strong>.
+  </p>
+
+  <p>
+    Today, most AI systems are configured with hand-written YAML files and runtime
+    checks. Mistakes are caught when something breaks — or worse, when something
+    <em>doesn't</em> break but quietly exceeds its permissions. There's no proof.
+    There's no audit trail you can trust. There's no single source of truth.
+  </p>
+
+  <p><strong>Vaked changes that.</strong> It makes authority explicit, checkable,
+  and provable — at the level of a mathematical guarantee, not a policy document.</p>
+
+  <h3>The analogy</h3>
+  <blockquote>
+    If a regular config file is like writing house rules on a sticky note, Vaked
+    is like having an architect certify the blueprints — and then having the
+    building inspector live in the walls.
+    <div class="attr">— from the project documentation</div>
+  </blockquote>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 3. HOW IT WORKS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>How it works</h2>
+
+  <p>A Vaked system goes through four stages, from idea to running reality:</p>
+
+  <div class="pipeline">
+    <div class="step">
+      <div class="label">① Declare</div>
+      <div class="detail">Write one .vaked file<br>describing permissions<br>and structure</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="label">② Check</div>
+      <div class="detail">Compiler proves<br>no permission violations<br>exist</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="label">③ Lower</div>
+      <div class="detail">Produces real configs:<br>Nix, Zig, eBPF policies,<br>audit log setup</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="label">④ Run</div>
+      <div class="detail">Deploys to bare-metal<br>server. Kernel enforces.<br>Everything logged.</div>
+    </div>
+  </div>
+
+  <details>
+    <summary>Technical detail: what does the compiler actually check?</summary>
+    <div class="content">
+      <p>The type system enforces two rules for every component in the system:</p>
+      <ol>
+        <li><strong>Use Check:</strong> every action a component takes must be covered by a permission it was granted. If component A tries to read a file it wasn't granted access to, the compiler rejects the declaration.</li>
+        <li><strong>Attenuation Check:</strong> when component A delegates authority to component B, B can never receive more authority than A had. Permissions only shrink along delegation chains — they never grow.</li>
+      </ol>
+      <p>This is called <strong>POLA</strong> — Principle of Least Authority — and Vaked enforces it at <em>compile time</em>, not runtime. The check is mathematically decidable: it always terminates with a yes/no answer, no edge cases.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 4. WHAT MAKES IT DIFFERENT -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>What makes it different</h2>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>🔐 Compile-time proof, not runtime hope</h4>
+      <p>
+        Most systems check permissions while running. Vaked proves they're
+        correct before anything starts. No permission error can occur at runtime
+        that wasn't caught at compile time.
+      </p>
+    </div>
+    <div class="card">
+      <h4>🧬 One source of truth</h4>
+      <p>
+        One Vaked file replaces scattered config files across multiple systems.
+        Change it in one place, regenerate everything consistently. No drift.
+      </p>
+    </div>
+    <div class="card">
+      <h4>🪵 The kernel is the witness</h4>
+      <p>
+        eBPF — Linux kernel technology — records every action. Not an agent's
+        self-report. Not a log file that can be edited. The kernel itself is the
+        authoritative witness.
+      </p>
+    </div>
+    <div class="card">
+      <h4>🔗 Tamper-evident audit chain</h4>
+      <p>
+        Every event is hash-chained. Every compilation produces a
+        <code>provenance.json</code> linking source code → compiled artifacts.
+        You can trace any running system back to its exact declaration.
+      </p>
+    </div>
+    <div class="card">
+      <h4>📐 Deterministic</h4>
+      <p>
+        Same declaration → same result, every time. Byte-identical artifacts
+        across repeated runs. Verified at 100,000 concurrent workers (273ms avg
+        parse time).
+      </p>
+    </div>
+    <div class="card">
+      <h4>🤖 Self-operating</h4>
+      <p>
+        The project is maintained by a fleet of 10 AI agents running on GitHub
+        Actions — reviewing code, managing merges, labeling issues, posting
+        updates. The agents are themselves declared in Vaked.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 5. WHAT'S BUILT vs WHAT'S PLANNED -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>What's built, what's next</h2>
+
+  <table class="status-table">
+    <thead>
+      <tr><th>Component</th><th>Status</th><th>Plain-language meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Language & Grammar</strong></td>
+        <td><span class="status-badge status-done">Done</span></td>
+        <td>The language exists. You can write .vaked files today: 29 kinds of things you can describe (servers, networks, permissions, workflows).</td>
+      </tr>
+      <tr>
+        <td><strong>Compiler (Python)</strong></td>
+        <td><span class="status-badge status-done">Done</span></td>
+        <td>vakedc: reads your .vaked file, checks permissions, produces real configs. Standard library only — no external dependencies.</td>
+      </tr>
+      <tr>
+        <td><strong>Compiler (Zig)</strong></td>
+        <td><span class="status-badge status-progress">Early</span></td>
+        <td>A faster, cache-native version in Zig. Parser works; checker and lowerer in progress.</td>
+      </tr>
+      <tr>
+        <td><strong>eBPF Membrane</strong></td>
+        <td><span class="status-badge status-done">Done</span></td>
+        <td>First vertical slice: network egress policy declared in Vaked → compiled → loaded into kernel → enforced. Real eBPF, real kernel.</td>
+      </tr>
+      <tr>
+        <td><strong>Agent Fleet</strong></td>
+        <td><span class="status-badge status-done">Live</span></td>
+        <td>10 AI agents actively operating the repo on GitHub Actions — reviewing PRs, managing merges, posting updates.</td>
+      </tr>
+      <tr>
+        <td><strong>Wire Protocol (RFCs)</strong></td>
+        <td><span class="status-badge status-progress">RFCs Drafted</span></td>
+        <td>7 RFCs define how daemons talk to each other. Implementation starts June 24.</td>
+      </tr>
+      <tr>
+        <td><strong>Runtime Daemons</strong></td>
+        <td><span class="status-badge status-stub">Stubs</span></td>
+        <td>Python reference implementations exist for the main daemons (network guard, event log, memory, sandbox). Production Zig versions not yet built.</td>
+      </tr>
+      <tr>
+        <td><strong>Full Deployment</strong></td>
+        <td><span class="status-badge status-planned">Planned</span></td>
+        <td>The vakedos server exists (EPYC 4345P, 256GB RAM). No daemons deployed to it yet. Target: end-to-end smoke test later this year.</td>
+      </tr>
+      <tr>
+        <td><strong>Research Paper</strong></td>
+        <td><span class="status-badge status-progress">Finalizing</span></td>
+        <td>Arxiv upload targeted for July 1–8, 2026.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 6. SAFETY GUARANTEES -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>Safety guarantees — what's proven and what's not</h2>
+
+  <p>
+    Vaked makes <strong>specific, bounded claims</strong> about what it can
+    guarantee. It's equally explicit about what it <em>cannot</em> guarantee.
+    This clarity is part of the design.
+  </p>
+
+  <div class="guarantee-grid">
+    <div class="guarantee-yes">
+      <h4>✅ Vaked DOES guarantee</h4>
+      <ul>
+        <li>No component can use a permission it wasn't granted (proven at compile time)</li>
+        <li>Permissions only shrink along delegation chains — never grow</li>
+        <li>The permission check always finishes; no infinite loops</li>
+        <li>Same input always produces identical artifacts (reproducible builds)</li>
+        <li>Every artifact traces back to its source declaration (provenance)</li>
+      </ul>
+    </div>
+    <div class="guarantee-no">
+      <h4>❌ Vaked does NOT guarantee</h4>
+      <ul>
+        <li>Runtime enforcement — that's the kernel's job (eBPF)</li>
+        <li>Secret management — Vaked doesn't handle passwords or keys</li>
+        <li>Protection if root authority is compromised</li>
+        <li>Timing attacks or side-channel attacks</li>
+        <li>OS or hypervisor exploits</li>
+      </ul>
+    </div>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text2); margin-top: 16px;">
+    The philosophy: Vaked proves what can be proven at the language level.
+    Everything else is delegated to battle-tested layers (Linux kernel, eBPF,
+    NixOS) that have their own security models. No single layer claims to solve
+    everything.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 7. THE AGENT FLEET -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>The project runs itself (mostly)</h2>
+
+  <p>
+    The Vaked repository is operated by a fleet of 10 AI agents — not as a
+    gimmick, but as the <strong>first dogfooding target</strong> for the
+    language. The agents review code, manage the merge queue, label issues,
+    coordinate releases, and post updates. Their actions are logged to a
+    hash-chained event ledger.
+  </p>
+
+  <p>
+    The notable part: the <strong>SWE agent</strong> (software engineering agent)
+    can take an issue labeled <code>agent</code>, write a plan, produce code
+    changes, get reviewed by another agent, and open a pull request — all without
+    holding a GitHub token during the code-writing phase. The broker step that
+    creates the PR is the only part with write access. This is POLA in practice.
+  </p>
+
+  <details>
+    <summary>Meet the agent fleet (10 agents)</summary>
+    <div class="content">
+      <table style="width:100%; font-size: 0.85rem;">
+        <tr><td><strong>ralph</strong></td><td>Surfaces the most important open decision every 3 hours</td></tr>
+        <tr><td><strong>pr-review</strong></td><td>Reviews every pull request (7-perspective council, never blocks merge)</td></tr>
+        <tr><td><strong>@vaked-ci</strong></td><td>Responds to maintainer comments on PRs</td></tr>
+        <tr><td><strong>doc-keeper</strong></td><td>Checks that documentation references are valid and up-to-date</td></tr>
+        <tr><td><strong>yardmaster</strong></td><td>Conductor for the merge train — builds dependency graphs, merges safe PRs</td></tr>
+        <tr><td><strong>vaked-telebot</strong></td><td>Telegram bot for interactive control (workflow dispatch, CI checks)</td></tr>
+        <tr><td><strong>label-tagger</strong></td><td>Auto-labels issues and PRs from the project taxonomy</td></tr>
+        <tr><td><strong>provost</strong></td><td>Product-owner coordination — links issues to goals, creates epics</td></tr>
+        <tr><td><strong>swe-af</strong></td><td>Full software engineering agent: plan → code → review → publish</td></tr>
+        <tr><td><strong>social-post</strong></td><td>Posts development updates to Mastodon (as "Carcin")</td></tr>
+      </table>
+    </div>
+  </details>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 8. PHASE TIMELINE -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>Where we are on the timeline</h2>
+
+  <div class="phase-line">
+    <div class="phase-item">
+      <div class="dot done"></div>
+      <div class="phase-name">Phase 0</div>
+      <div class="phase-desc">Scaffold<br>Monorepo, dev shell,<br>vakedos host config</div>
+    </div>
+    <div class="phase-item">
+      <div class="dot done"></div>
+      <div class="phase-name">Phase 1</div>
+      <div class="phase-desc">Language + Compiler<br>Grammar v0.3, type system,<br>vakedc: parse→check→lower</div>
+    </div>
+    <div class="phase-item">
+      <div class="dot progress"></div>
+      <div class="phase-name">Phase 2</div>
+      <div class="phase-desc">Wire Protocol<br>7 RFCs drafted.<br>Implementation starts Jun 24.</div>
+    </div>
+    <div class="phase-item">
+      <div class="dot progress"></div>
+      <div class="phase-name">Phase 3</div>
+      <div class="phase-desc">Runtime Daemons<br>Stubs exist. First daemon<br>design cycle open.</div>
+    </div>
+    <div class="phase-item">
+      <div class="dot planned"></div>
+      <div class="phase-name">Phase 4</div>
+      <div class="phase-desc">Materialize<br>Deploy to vakedos.<br>Kernel enforces. Surfaces reveal.</div>
+    </div>
+    <div class="phase-item">
+      <div class="dot planned"></div>
+      <div class="phase-name">Phase 5</div>
+      <div class="phase-desc">Language v1<br>Stable grammar. Self-hosting.<br>Published reference.</div>
+    </div>
+  </div>
+
+  <p style="font-size: 0.85rem; color: var(--text2);">
+    We are roughly at the <strong>Phase 2/3 boundary</strong>. The language and
+    compiler are real and tested. The wire protocol is designed and awaiting
+    implementation. The runtime daemons have reference implementations but not
+    production builds. The path to a running deployment is clear but not yet
+    complete.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 9. KEY NUMBERS -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>At a glance</h2>
+
+  <div class="num-grid">
+    <div class="num-card">
+      <div class="number">29</div>
+      <div class="label">Kinds of things you can describe in the language</div>
+    </div>
+    <div class="num-card">
+      <div class="number">2</div>
+      <div class="label">Compiler implementations (Python + Zig)</div>
+    </div>
+    <div class="num-card">
+      <div class="number">8</div>
+      <div class="label">Types of artifacts one declaration produces</div>
+    </div>
+    <div class="num-card">
+      <div class="number">7</div>
+      <div class="label">Protocol RFCs (wire format, crypto, multi-agent)</div>
+    </div>
+    <div class="num-card">
+      <div class="number">10</div>
+      <div class="label">AI agents running the repo</div>
+    </div>
+    <div class="num-card">
+      <div class="number">100k</div>
+      <div class="label">Workers verified at 273ms avg parse time</div>
+    </div>
+    <div class="num-card">
+      <div class="number">~19</div>
+      <div class="label">Real-world example declarations</div>
+    </div>
+    <div class="num-card">
+      <div class="number">120+</div>
+      <div class="label">Documentation artifacts across the project</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- 10. WHAT'S THE ASK? -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>What kind of feedback helps</h2>
+
+  <p>This is a research project seeking peer review. The kinds of questions we're trying to answer:</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>🎯 Is the problem clear?</h4>
+      <p>
+        Does "prove what AI systems are allowed to do before they run" make
+        sense as a goal? Is it explained well enough for someone who doesn't
+        write compilers?
+      </p>
+    </div>
+    <div class="card">
+      <h4>🔒 Are the safety claims honest?</h4>
+      <p>
+        The project is explicit about what it <em>can't</em> guarantee. Does
+        this clarity build trust, or does it raise concerns?
+      </p>
+    </div>
+    <div class="card">
+      <h4>📐 Is the scope right?</h4>
+      <p>
+        Language + compiler + protocol + daemons + agents: is this too much for
+        one project, or does the integration add value that pieces alone wouldn't?
+      </p>
+    </div>
+    <div class="card">
+      <h4>🤖 Are the agents credible?</h4>
+      <p>
+        A fleet of AI agents operating the repo — does this read as genuine
+        dogfooding or as over-automation? Where's the line?
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- FOOTER -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<footer>
+  <p>
+    <strong>Vaked</strong> · Research project · Pre-release ·
+    <a href="https://github.com/peterlodri-sec/vaked-base">github.com/peterlodri-sec/vaked-base</a>
+  </p>
+  <p style="margin-top: 4px;">
+    Generated 2026-06-16 · Part of the docs/research/ package ·
+    <a href="MASTER_RESEARCH_INDEX.html">Full document catalog</a> ·
+    <a href="RESEARCH_SUMMARY.html">Research summary</a> ·
+    <a href="CROSS_REFERENCE_MAP.html">Cross-reference map</a>
+  </p>
+  <p style="margin-top: 12px; font-style: italic;">
+    "Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies. CrabCC indexes. Surfaces reveal."
+  </p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP4-S6 — Integration test: 3 daemons running on vakedos — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-scope-correction-read-first" style="padding-left:0.5rem">0. Scope correction (read first)</a><a href="#01-the-vakedz-lower-vs-vakedc-lower-discrepancy-open-do-not-silently-pick" style="padding-left:1rem">  0.1 The `vakedz lower` vs `vakedc lower` discrepancy (OPEN — do not silently pick)</a><a href="#02-the-systemd-unit-emitter-does-not-exist-yet-load-bearing" style="padding-left:1rem">  0.2 The systemd-unit emitter does not exist yet (load-bearing)</a><a href="#03-transport-scope-litany-wire-is-out" style="padding-left:1rem">  0.3 Transport scope — Litany Wire is out</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-what-this-sprint-is-not-scope-boundary" style="padding-left:1rem">  1.1 What this sprint is NOT (scope boundary)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-normative-inputs-rfcs-design-docs" style="padding-left:1rem">  2.1 Normative inputs (RFCs + design docs)</a><a href="#22-differential-oracles-executable-the-verification-spine" style="padding-left:1rem">  2.2 Differential oracles (executable; the verification spine)</a><a href="#23-code-dependencies-must-exist-before-s6-executes" style="padding-left:1rem">  2.3 Code dependencies (must exist before S6 *executes*)</a><a href="#3-design" style="padding-left:0.5rem">3. Design</a><a href="#31-file-layout-paths-to-create" style="padding-left:1rem">  3.1 File layout (paths to create)</a><a href="#32-the-vm-test-harness-vm-testnix" style="padding-left:1rem">  3.2 The VM test harness (`vm-test.nix`)</a><a href="#33-the-wiring-module-runtime-testnix-the-02-fallback" style="padding-left:1rem">  3.3 The wiring module (`runtime-test.nix`) — the §0.2 fallback</a><a href="#34-service-readiness-gating" style="padding-left:1rem">  3.4 Service-readiness gating</a><a href="#4-the-canonical-scenario-scenariopy" style="padding-left:0.5rem">4. The canonical scenario (`scenario.py`)</a><a href="#5-test-plan" style="padding-left:0.5rem">5. Test plan</a><a href="#51-the-honest-m1-vs-linux-split" style="padding-left:1rem">  5.1 The honest M1-vs-Linux split</a><a href="#52-the-differential-assertion-verification-spine" style="padding-left:1rem">  5.2 The differential assertion (verification spine)</a><a href="#53-local-developer-loop" style="padding-left:1rem">  5.3 Local developer loop</a><a href="#54-zfs-disko-in-the-vm" style="padding-left:1rem">  5.4 ZFS / disko in the VM</a><a href="#6-dependencies-on-other-sprints" style="padding-left:0.5rem">6. Dependencies on other sprints</a><a href="#61-bring-up-ladder-so-s6-isnt-all-or-nothing-on-s1s4" style="padding-left:1rem">  6.1 Bring-up ladder (so S6 isn't all-or-nothing on S1–S4)</a><a href="#7-risks-open-questions" style="padding-left:0.5rem">7. Risks / open questions</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp4-s6</div>
+<h1>WP4-S6 — Integration test: 3 daemons running on vakedos</h1>
+<h1 id="wp4-s6-integration-test-3-daemons-running-on-vakedos">WP4-S6 — Integration test: 3 daemons running on vakedos</h1>
+<ul>
+<li><strong>Status:</strong> Draft (planning artifact; work is future/dependency-blocked — see §6, §8)</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Track:</strong> WP4 (daemon MVP — <code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md</code>)</li>
+<li><strong>Sprint:</strong> WP4-S6, Sep 4–Sep 17, 2026 (Engineer B — Zig/eBPF/Linux)</li>
+<li><strong>Code home:</strong> <code>tests/integration/vakedos/</code> (new) + <code>hosts/vakedos/</code> (NixOS module + flake check)</li>
+<li><strong>Owner of the daemons under test:</strong> WP4-S1..S5 (this sprint <em>wires and exercises</em>, it does not build the daemons)</li>
+</ul>
+<h2 id="0-scope-correction-read-first">0. Scope correction (read first)</h2>
+<p>Two upstream wording issues this spec resolves explicitly rather than silently<br />
+picking a side:</p>
+<ol>
+<li>
+<p><strong>"3 daemons" is exactly <code>sandboxd</code> + <code>agent-supervisord</code> + <code>eventd</code>.</strong> The WP4<br />
+   kickoff §Scope (<code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md</code> lines 7–14)<br />
+   names these three as the WP4 MVP roster. <strong><code>agent-guardd</code> is NOT one of the<br />
+   three</strong> — it is the separately-shipped <code>network</code>/<code>ebpf</code> vertical slice<br />
+   (<code>docs/runtime/agent-guardd.md</code>) with its own Python reference<br />
+   (<code>agent_guardd/</code>). It <em>coexists</em> on vakedos and its eBPF cgroup hooks sit<br />
+   alongside sandboxd's cgroup slice (kickoff lines 43, 66), so it appears in this<br />
+   spec only as <strong>environmental context</strong>, never as a test target.</p>
+</li>
+<li>
+<p><strong>"on vakedos" means the vakedos NixOS <em>config</em> exercised as a VM test, not the<br />
+   bare-metal box.</strong> WP4-S6 (Sep 4–17) <strong>precedes</strong> WP4-S7 ("vakedos deploy test<br />
+   (#114)", Sep 18–30) in the kickoff sprint table. S7 is the bare-metal<br />
+<code>nixos-anywhere</code> deploy (<code>hosts/vakedos/README.md</code> §Install). S6 therefore<br />
+   cannot mean the physical EPYC — it is the integration test of the <em>same<br />
+<code>nixosConfigurations.vakedos</code> config</em> booted in a NixOS VM test, where the three<br />
+   daemons are started under systemd and driven by a test script. S7 promotes that<br />
+   to bare metal.</p>
+</li>
+</ol>
+<p>This spec does <strong>not</strong> reproduce WP3-S3's RFC 0002 <code>hcpbin</code> citation-correction<br />
+block: WP4-S6 specifies no wire byte-encoding (see §0.3), so that correction is not<br />
+relevant here. It is cited only as the precedent for "cite only what you use."</p>
+<h3 id="01-the-vakedz-lower-vs-vakedc-lower-discrepancy-open-do-not-silently-pick">0.1 The <code>vakedz lower</code> vs <code>vakedc lower</code> discrepancy (OPEN — do not silently pick)</h3>
+<p>The kickoff success criteria (line 73) says the daemons start "from systemd units<br />
+generated by <strong><code>vakedz lower</code></strong>" (the Zig compiler port). But the working,<br />
+shipping compiler is <strong><code>vakedc</code></strong> (<code>python3 -m vakedc lower</code>, used throughout<br />
+<code>docs/runtime/agent-guardd.md</code> §"Run it" and <code>hosts/vakedos/README.md</code><br />
+§"Forward pointer"). <code>vakedz/</code> is the in-progress Zig port (<code>vakedz/src/lower.zig</code>).<br />
+<strong>This spec treats <code>vakedc</code> as the reference unit-emitter and notes <code>vakedz</code> as the<br />
+eventual byte-parity port</strong> (the #15 pattern). The discrepancy is flagged as an<br />
+open item in §7; S6 must not assert <code>vakedz</code> is the producer when it is not yet.</p>
+<h3 id="02-the-systemd-unit-emitter-does-not-exist-yet-load-bearing">0.2 The systemd-unit emitter does not exist yet (load-bearing)</h3>
+<p><code>docs/language/0012-lowering.md</code> §6 (the emitter table, line 333) lists<br />
+<code>systemd.units</code> for <code>fiber</code>/<code>parallel</code>/<code>surface</code> as <strong>"(no-op today)"</strong>, and §4.3<br />
+(lines 465–468) states the eBPF policy manifest, OTel config, <strong>systemd unit<br />
+details</strong>, and surface launcher are <strong>deferred (§7)</strong> — "the module slot that<br />
+references them exists; the artifacts themselves are no-ops today." So the kickoff<br />
+criterion "daemons start from generated systemd units" depends on an emitter that<br />
+is itself unbuilt. This spec makes that dependency explicit (§6) and specifies the<br />
+<strong>minimal hand-written wiring module</strong> S6 needs as a fallback so the integration<br />
+test is not blocked on the full §7 emitter (§3.3).</p>
+<h3 id="03-transport-scope-litany-wire-is-out">0.3 Transport scope — Litany Wire is out</h3>
+<p>In the WP4 timeframe the daemons talk over <strong>reference transports</strong>, not the wire:</p>
+<ul>
+<li><code>agent-supervisord</code> ↔ control: the <strong><code>control.json</code></strong> file polled per tick plus<br />
+  the <strong>oracle-port bridge</strong> (<code>python3 -m eventd {verify,append,state,coldstart}</code>,<br />
+  frozen exit codes 0/2/3/4/5) — <code>docs/superpowers/specs/2026-06-12-agent-supervisord-design.md</code><br />
+  §Shape and §"Reference phase bridge".</li>
+<li><code>sandboxd</code> ↔ control: the <strong>HTTP control plane</strong> (<code>POST /spawn</code>, <code>POST /kill</code>,<br />
+<code>GET /status/&lt;pid&gt;</code>, <code>GET /health</code>) — <code>agent_sandboxd/daemon.py</code> §Endpoints,<br />
+  default <code>127.0.0.1:7240</code>.</li>
+<li>The <strong>eventd hash-chained log</strong> (<code>/var/lib/vaked/...</code>) is the shared bus and the<br />
+  audit oracle for all three.</li>
+</ul>
+<p>RFC 0005-over-Litany-Wire control frames are an explicit forward dependency<br />
+(supervisord design §Plan step 3: "RFC 0005 frame intake over Litany Wire;<br />
+retire the control file"). <strong>S6 does not exercise the wire</strong> (that is WP3 + a later<br />
+WP4 sprint). Normative inputs are RFC 0004 (lifecycle / state-dependency) and the<br />
+frozen eventd entry format (<code>eventd/core.py</code>); RFC 0003 is <strong>not</strong> cited because S6<br />
+specifies no framing.</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Prove, as an automated and repeatable test, that the three WP4 daemons —<br />
+<code>sandboxd</code>, <code>agent-supervisord</code>, <code>eventd</code> — <strong>boot together under systemd on the<br />
+<code>vakedos</code> NixOS configuration, wire up, and execute one end-to-end runtime<br />
+scenario whose every security-relevant decision lands on the eventd hash chain and<br />
+verifies</strong>. Concretely, S6 delivers a NixOS VM integration test<br />
+(<code>tests/integration/vakedos/</code>) that:</p>
+<ol>
+<li>Boots <code>nixosConfigurations.vakedos</code> + the runtime wiring module (§3.3) in a VM.</li>
+<li>Starts the three daemons as systemd services and waits for them healthy<br />
+   (<code>systemctl is-active</code>, sandboxd <code>GET /health</code>, eventd log present + <code>verify</code>).</li>
+<li>Drives the <strong>canonical scenario</strong> (§4): supervisord boots its lowered tree and<br />
+   takes the eventd writer; an agent workload is <code>spawn</code>ed through sandboxd into a<br />
+   real namespace boundary with real cgroup-v2 limits; a policy violation is<br />
+   refused; a producer is rewound and the dependent consumer is paused<br />
+<code>stale_dependency</code> (RFC 0004 §6 lifecycle).</li>
+<li>Asserts the <strong>oracle agreement</strong>: the live eventd log produced by the Zig daemon<br />
+   is byte-identical (per the frozen canonical-JSON contract, <code>eventd/core.py</code>) to<br />
+   what the Python references (<code>agent_sandboxd</code>, <code>eventd</code>) produce for the same<br />
+   scenario, and <code>eventd verify</code> (chain intact) + the RFC 0004 cold-start verdict<br />
+   match the oracle.</li>
+</ol>
+<p>The verification spine is <strong>differential against the existing Python oracles</strong><br />
+(the #15 pattern: Python fixes the bytes + the decision; the Zig daemons reproduce<br />
+them under live supervision).</p>
+<h3 id="11-what-this-sprint-is-not-scope-boundary">1.1 What this sprint is NOT (scope boundary)</h3>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Owner</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Building sandboxd's namespace/cgroup backend</td>
+<td>WP4-S1/S2</td>
+<td><code>daemons/sandboxd/</code></td>
+</tr>
+<tr>
+<td>Building agent-supervisord (OTP app)</td>
+<td>WP4-S3</td>
+<td><code>daemons/agent-supervisord/</code> (does not exist yet)</td>
+</tr>
+<tr>
+<td>eventd Zig port (byte-identical to Python ref)</td>
+<td>WP4-S4</td>
+<td><code>daemons/eventd/</code> (does not exist yet)</td>
+</tr>
+<tr>
+<td>Capability-enforcement hooks in all 3 daemons</td>
+<td>WP4-S5</td>
+<td>per-daemon</td>
+</tr>
+<tr>
+<td>Bare-metal deploy to the physical EPYC</td>
+<td>WP4-S7 (#114)</td>
+<td><code>hosts/vakedos/</code>, <code>nixos-anywhere</code></td>
+</tr>
+<tr>
+<td>RFC 0005 / Litany Wire control frames</td>
+<td>WP3 + later WP4</td>
+<td>out of scope (§0.3)</td>
+</tr>
+<tr>
+<td>The full <code>systemd.units</code> lowering emitter (0012 §7)</td>
+<td>a lowering sprint</td>
+<td>S6 uses a minimal hand-wired module (§3.3)</td>
+</tr>
+</tbody>
+</table>
+<p>S6 <strong>wires and exercises</strong>; it does not author the daemons. If S6 starts<br />
+implementing namespace logic or the OTP supervisor, it has written the S1–S4 specs.</p>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-normative-inputs-rfcs-design-docs">2.1 Normative inputs (RFCs + design docs)</h3>
+<ul>
+<li><strong>RFC 0004 (<code>protocol/rfcs/0004-multi-agent-state-dependency.md</code>) §6</strong> —<br />
+  cold-start lifecycle states; <code>PAUSED(stale_dependency)</code>. The verdict the scenario<br />
+  (§4) asserts: a consumer whose anchor is above a rewind point pauses.</li>
+<li><strong>RFC 0004 §3.3 / §5</strong> — checkpoint/rewind; the worked rewind→stale-dependency<br />
+  example the scenario mirrors (same shape as the supervisord design §Verification<br />
+  item 2 "Rewind demo").</li>
+<li><strong>RFC 0004 §4 / §7</strong> — GC floor and topology epoch: read by the supervisor, <em>not</em><br />
+  re-derived by S6; the test reads them through the eventd oracle (<code>eventd floor</code>,<br />
+<code>eventd coldstart</code>).</li>
+<li><strong><code>docs/superpowers/specs/2026-06-12-agent-supervisord-design.md</code></strong> — the control<br />
+  plane shape (§Shape), the reference-phase oracle-port bridge and <code>control.json</code><br />
+  intake (§"Reference phase bridge", §"Control intake"), the frozen exit-code API<br />
+  (0/2/3/4/5), and the existing <strong><code>task otp-smoke</code></strong> shape test S6 extends<br />
+  (§Verification item 1).</li>
+<li><strong><code>docs/runtime/README.md</code></strong> — the daemon roster and membrane mapping (the<br />
+  contract S6 verifies the three daemons satisfy when co-resident).</li>
+<li><strong><code>docs/language/0012-lowering.md</code> §4.3</strong> — the <code>nixosModules.&lt;runtime&gt;</code> wiring<br />
+  layer S6's module conforms to (installs <code>gen/</code> artifacts, points daemons at them,<br />
+<code>environment.etc."vaked/...".source = ./gen/...</code> discipline); §6/§7 — systemd<br />
+  unit emission is deferred (§0.2).</li>
+<li><strong><code>hosts/vakedos/configuration.nix</code></strong> — the substrate facilities the daemons<br />
+  need, already present: <code>security.allowUserNamespaces = true</code> (line 138),<br />
+<code>user.max_user_namespaces = 63920</code> (line 155), <code>boot.kernelModules = [ "kvm-amd"
+  "overlay" ]</code> (line 76), cgroup-v2 (NixOS default unified hierarchy), raised<br />
+<code>fs.file-max</code>/<code>pid_max</code>/inotify limits (lines 151–154), <code>nftables</code> (line 134),<br />
+  persistent journald (lines 184–187), <code>kvm-amd</code> (enables the VM test on a Linux<br />
+  host).</li>
+<li><strong><code>hosts/vakedos/disko.nix</code> lines 106–110</strong> — the <code>/var/lib/vaked</code> ZFS dataset<br />
+  (auto-snapshot on) is the eventd log home (<code>docs/runtime/README.md</code> §Status,<br />
+<code>configuration.nix</code> line 39). In the VM test this is a plain tmpfs/ext4 path<br />
+  (ZFS is not required to validate daemon wiring; see §5.4).</li>
+</ul>
+<h3 id="22-differential-oracles-executable-the-verification-spine">2.2 Differential oracles (executable; the verification spine)</h3>
+<p>These run <strong>on M1 today</strong> (pure Python) and are the byte/decision authority the<br />
+live Zig daemons are diffed against:</p>
+<ul>
+<li><strong><code>eventd/core.py</code></strong> — the FROZEN canonical-JSON hash-chain contract:<br />
+<code>canonical_json</code> (sort_keys, <code>(",",":")</code>, <code>ensure_ascii=False</code>, <code>allow_nan=False</code>),<br />
+<code>chain_hash</code> (<code>sha256(prev_hex || canonical(payload))</code>), <code>make_entry</code>,<br />
+<code>verify_chain</code>. Any byte the Zig eventd emits MUST match this.</li>
+<li><strong><code>eventd/__main__.py</code></strong> — the CLI oracle and <strong>frozen exit-code contract</strong><br />
+  (<code>verify</code>=0/<code>tampered</code>=4/<code>locked</code>=5; <code>coldstart</code>=0 RUNNING / 3 PAUSED). S6<br />
+  asserts the live log passes <code>python3 -m eventd verify &lt;log&gt;</code> and that<br />
+<code>python3 -m eventd coldstart &lt;log&gt; &lt;consumer&gt;</code> returns 3 at the paused step.</li>
+<li><strong><code>eventd/statedep.py</code></strong> — <code>DependencyIndex.from_entries</code> / <code>verify_cold_start</code> /<br />
+<code>gc_floor</code>: the RFC 0004 fold the scenario's pause verdict (§4 t3) is checked<br />
+  against.</li>
+<li><strong><code>eventd/runtime.py</code></strong> — the run/step operational fold (<code>run_started</code>,<br />
+<code>step_started</code>, <code>step_finished</code>, <code>run_finished</code>); the supervisor's<br />
+<code>workflow_engine</code> emits these as the agent workload runs.</li>
+<li><strong><code>agent_sandboxd/</code></strong> — the sandboxd Python reference and <strong>event-payload<br />
+  contract</strong> the Zig sandboxd must reproduce:</li>
+<li><code>agent_sandboxd/eventd.py</code>: payload builders <code>spawn_event</code>/<code>kill_event</code>/<br />
+<code>access_event</code> — <code>kind ∈ {"sandbox_spawn","sandbox_kill","sandbox_fs_access"}</code>,<br />
+<code>v=1</code>, write-ahead discipline, <strong>no wall-clock in the hashed body</strong>.</li>
+<li><code>agent_sandboxd/policy.py</code>: <code>decide_path</code> (deny-by-default fs verdict),<br />
+<code>ProcessGrant.none ⇒ deny</code> (the violation path §4 t2).</li>
+<li><code>agent_sandboxd/namespace.py</code>: the <code>unshare --user --map-root-user --mount
+    --pid --fork --net</code> plan (<code>build_namespace_plan</code>) and <code>probe_userns</code> — the<br />
+    exact isolation the Zig native-exec backend reproduces; <strong><code>enter_namespace(...,
+    dry_run=True)</code> and <code>probe_userns()</code> run on M1</strong>, real entry needs Linux.</li>
+<li><code>agent_sandboxd/cgroup.py</code>: <code>apply_cgroup_limits</code> writing <code>memory.max</code>/<br />
+<code>pids.max</code>/<code>cpu.max</code>/<code>io.max</code> under <code>vaked/&lt;agent-id&gt;/</code>; <strong>mock <code>cgroup_root</code><br />
+    runs on M1</strong>, real <code>/sys/fs/cgroup</code> writes need Linux.</li>
+<li><code>agent_sandboxd/daemon.py</code>: the HTTP control surface (<code>/spawn</code>, <code>/kill</code>,<br />
+<code>/status/&lt;pid&gt;</code>, <code>/health</code>) the Zig daemon mirrors as a TCP listener (its own<br />
+    docstring: "the Zig port replaces this with a TCP listener on the same HTTP<br />
+    API").</li>
+</ul>
+<h3 id="23-code-dependencies-must-exist-before-s6-executes">2.3 Code dependencies (must exist before S6 <em>executes</em>)</h3>
+<ul>
+<li><code>daemons/sandboxd/</code> — Zig native-exec backend (WP4-S1/S2). Today: stub<br />
+  (<code>daemons/sandboxd/src/main.zig</code> exits 1) + <code>build.zig</code> (compiles on Linux).</li>
+<li><code>daemons/agent-supervisord/</code> — OTP app (WP4-S3). <strong>Does not exist yet.</strong></li>
+<li><code>daemons/eventd/</code> — Zig port (WP4-S4). <strong>Does not exist yet.</strong></li>
+<li><code>tests/spec/run_all.py</code> — the existing Python spec runner (tiers: smoke /<br />
+  standard / full). The new oracle-generation helper registers here (§5.2).</li>
+</ul>
+<h2 id="3-design">3. Design</h2>
+<h3 id="31-file-layout-paths-to-create">3.1 File layout (paths to create)</h3>
+<div class="highlight"><pre><span></span><span class="n">tests</span><span class="o">/</span><span class="n">integration</span><span class="o">/</span><span class="n">vakedos</span><span class="o">/</span>
+<span class="w">  </span><span class="n">README</span><span class="p">.</span><span class="n">md</span><span class="w">                      </span><span class="p">#</span><span class="w"> </span><span class="n">how</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="p">(</span><span class="n">M1</span><span class="w"> </span><span class="n">oracle</span><span class="w"> </span><span class="n">slice</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Linux</span><span class="w"> </span><span class="n">VM</span><span class="w"> </span><span class="n">gate</span><span class="p">)</span>
+<span class="w">  </span><span class="n">vm</span><span class="o">-</span><span class="n">test</span><span class="p">.</span><span class="n">nix</span><span class="w">                    </span><span class="p">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">NixOS</span><span class="w"> </span><span class="n">VM</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="p">(</span><span class="n">pkgs</span><span class="p">.</span><span class="n">testers</span><span class="p">.</span><span class="n">runNixOSTest</span><span class="p">)</span>
+<span class="w">  </span><span class="n">driver</span><span class="p">.</span><span class="n">py</span><span class="w">                      </span><span class="p">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">Python</span><span class="w"> </span><span class="n">testScript</span><span class="w"> </span><span class="n">body</span><span class="w"> </span><span class="p">(</span><span class="n">drives</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">VM</span><span class="p">,</span><span class="w"> </span><span class="n">asserts</span><span class="p">)</span>
+<span class="w">  </span><span class="n">scenario</span><span class="p">.</span><span class="n">py</span><span class="w">                    </span><span class="p">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">canonical</span><span class="w"> </span><span class="n">scenario</span><span class="w"> </span><span class="n">steps</span><span class="w"> </span><span class="p">(</span><span class="n">t0</span><span class="p">..</span><span class="n">t4</span><span class="p">,</span><span class="w"> </span><span class="err">§</span><span class="mh">4</span><span class="p">)</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">shared</span>
+<span class="w">                                 </span><span class="p">#</span><span class="w">   </span><span class="n">by</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">oracle</span><span class="w"> </span><span class="n">generator</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">VM</span><span class="w"> </span><span class="n">driver</span>
+<span class="w">  </span><span class="n">oracle</span><span class="o">/</span>
+<span class="w">    </span><span class="n">gen_oracle</span><span class="p">.</span><span class="n">py</span><span class="w">                </span><span class="p">#</span><span class="w"> </span><span class="n">runs</span><span class="w"> </span><span class="n">scenario</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">Python</span><span class="w"> </span><span class="n">refs</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="n">log</span>
+<span class="w">    </span><span class="n">expected</span><span class="o">/</span>
+<span class="w">      </span><span class="n">scenario</span><span class="p">.</span><span class="n">events</span><span class="p">.</span><span class="n">jsonl</span><span class="w">      </span><span class="p">#</span><span class="w"> </span><span class="nl">committed:</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="kt">byte</span><span class="o">-</span><span class="n">exact</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">log</span>
+<span class="w">      </span><span class="n">scenario</span><span class="p">.</span><span class="n">verdicts</span><span class="p">.</span><span class="n">json</span><span class="w">     </span><span class="p">#</span><span class="w"> </span><span class="nl">committed:</span><span class="w"> </span><span class="n">per</span><span class="o">-</span><span class="n">step</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="n">verdicts</span><span class="w"> </span><span class="p">(</span><span class="n">deliver</span><span class="o">/</span>
+<span class="w">                                 </span><span class="p">#</span><span class="w">   </span><span class="n">pause</span><span class="o">/</span><span class="n">deny</span><span class="o">/</span><span class="n">health</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">exit</span><span class="w"> </span><span class="n">codes</span>
+<span class="w">  </span><span class="n">fixtures</span><span class="o">/</span>
+<span class="w">    </span><span class="n">control</span><span class="p">.</span><span class="n">json</span><span class="w">                 </span><span class="p">#</span><span class="w"> </span><span class="n">supervisord</span><span class="w"> </span><span class="n">control</span><span class="o">-</span><span class="n">file</span><span class="w"> </span><span class="n">inputs</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">t1</span><span class="w"> </span><span class="p">(</span><span class="n">rewind</span><span class="p">)</span>
+<span class="w">    </span><span class="n">spawn</span><span class="o">-</span><span class="n">allow</span><span class="p">.</span><span class="n">json</span><span class="w">             </span><span class="p">#</span><span class="w"> </span><span class="n">sandboxd</span><span class="w"> </span><span class="o">/</span><span class="n">spawn</span><span class="w"> </span><span class="nl">body:</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="n">grant</span><span class="w"> </span><span class="n">ok</span><span class="w"> </span><span class="p">(</span><span class="n">t1</span><span class="p">)</span>
+<span class="w">    </span><span class="n">spawn</span><span class="o">-</span><span class="n">deny</span><span class="p">.</span><span class="n">json</span><span class="w">              </span><span class="p">#</span><span class="w"> </span><span class="n">sandboxd</span><span class="w"> </span><span class="o">/</span><span class="n">spawn</span><span class="w"> </span><span class="nl">body:</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="n">grant</span><span class="o">=</span><span class="n">none</span><span class="w"> </span><span class="p">(</span><span class="n">t2</span><span class="p">)</span>
+
+<span class="n">hosts</span><span class="o">/</span><span class="n">vakedos</span><span class="o">/</span>
+<span class="w">  </span><span class="n">runtime</span><span class="o">-</span><span class="n">test</span><span class="p">.</span><span class="n">nix</span><span class="w">               </span><span class="p">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">minimal</span><span class="w"> </span><span class="n">hand</span><span class="o">-</span><span class="n">wired</span><span class="w"> </span><span class="n">nixosModule</span><span class="w"> </span><span class="p">(</span><span class="err">§</span><span class="mf">3.3</span><span class="p">)</span><span class="w"> </span><span class="n">that</span>
+<span class="w">                                 </span><span class="p">#</span><span class="w">   </span><span class="n">declares</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="mh">3</span><span class="w"> </span><span class="n">systemd</span><span class="w"> </span><span class="n">services</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">test</span>
+<span class="w">                                 </span><span class="p">#</span><span class="w">   </span><span class="p">(</span><span class="n">stands</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">deferred</span><span class="w"> </span><span class="mh">0012</span><span class="w"> </span><span class="err">§</span><span class="mh">7</span><span class="w"> </span><span class="n">emitter</span><span class="p">)</span>
+</pre></div>
+
+<p>Flake wiring (edit <code>flake.nix</code>): add <code>checks.&lt;system&gt;.vakedos-integration =
+import ./tests/integration/vakedos/vm-test.nix { ... }</code> so <code>nix flake check</code> (on an<br />
+<code>x86_64-linux</code> builder) discovers it. <strong>There is no <code>checks</code> / <code>nixosTest</code> in the<br />
+flake today</strong> (<code>flake.nix</code> has only <code>nixosConfigurations.vakedos</code>, line 89) — S6<br />
+adds the first one.</p>
+<h3 id="32-the-vm-test-harness-vm-testnix">3.2 The VM test harness (<code>vm-test.nix</code>)</h3>
+<p>Use the standard nixpkgs NixOS test framework. Verify the exact entry point at<br />
+implementation time (<code>pkgs.testers.runNixOSTest</code> is the current idiom;<br />
+<code>nixosTest</code> / <code>pkgs.nixosTest</code> are the older spellings — pick whatever the pinned<br />
+nixpkgs in <code>flake.lock</code> exposes; do <strong>not</strong> assert one here without checking the<br />
+lock). Shape:</p>
+<div class="highlight"><pre><span></span><span class="c1"># tests/integration/vakedos/vm-test.nix</span>
+<span class="p">{</span> pkgs<span class="p">,</span> self<span class="p">,</span> <span class="o">...</span> <span class="p">}:</span>
+pkgs<span class="o">.</span>testers<span class="o">.</span>runNixOSTest <span class="p">{</span>
+  <span class="ss">name</span> <span class="o">=</span> <span class="s2">&quot;vakedos-3daemon-integration&quot;</span><span class="p">;</span>
+  nodes<span class="o">.</span><span class="ss">machine</span> <span class="o">=</span> <span class="p">{</span> <span class="o">...</span> <span class="p">}:</span> <span class="p">{</span>
+    <span class="ss">imports</span> <span class="o">=</span> <span class="p">[</span>
+      self<span class="o">.</span>nixosModules<span class="o">.</span>vakedosBase     <span class="c1"># the vakedos config, minus disko/ZFS (§5.4)</span>
+      <span class="l">./../../../hosts/vakedos/runtime-test.nix</span>   <span class="c1"># §3.3 wiring module</span>
+    <span class="p">];</span>
+    <span class="ss">virtualisation</span> <span class="o">=</span> <span class="p">{</span> <span class="ss">memorySize</span> <span class="o">=</span> <span class="mi">4096</span><span class="p">;</span> <span class="ss">cores</span> <span class="o">=</span> <span class="mi">2</span><span class="p">;</span> <span class="p">};</span>  <span class="c1"># userns + cgroup need a real kernel</span>
+  <span class="p">};</span>
+  <span class="ss">testScript</span> <span class="o">=</span> <span class="nb">builtins</span><span class="o">.</span>readFile <span class="l">./driver.py</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Why a VM test and not the bare box: the daemons are <strong>intrinsically Linux</strong> —<br />
+namespace syscalls, cgroup-v2 writes, BEAM/OTP supervision, systemd. A VM test<br />
+boots the <em>same config</em> with a real Linux kernel and real systemd, drives it from<br />
+the host-side Python <code>testScript</code>, and is reproducible in CI on an <code>x86_64-linux</code><br />
+builder. It is exactly the vehicle the vakedos README already gestures at with<br />
+<code>nixos-anywhere ... --vm-test</code> (README line 121) and<br />
+<code>nix build .#nixosConfigurations.vakedos...toplevel</code> (README line 116), promoted<br />
+to an asserting integration test.</p>
+<h3 id="33-the-wiring-module-runtime-testnix-the-02-fallback">3.3 The wiring module (<code>runtime-test.nix</code>) — the §0.2 fallback</h3>
+<p>Because the <code>0012 §7</code> <code>systemd.units</code> emitter is a no-op today, S6 ships a<br />
+<strong>minimal hand-written <code>nixosModule</code></strong> that declares the three services, following<br />
+the §4.3 contract (it <em>installs and points at</em> artifacts; it does not re-declare<br />
+policy). This is the explicit stand-in until the emitter lands (§7 open item).</p>
+<div class="highlight"><pre><span></span><span class="c1"># hosts/vakedos/runtime-test.nix  (sketch — exact unit options at impl time)</span>
+<span class="p">{</span> config<span class="p">,</span> pkgs<span class="p">,</span> <span class="o">...</span> <span class="p">}:</span>
+<span class="p">{</span>
+  systemd<span class="o">.</span>services<span class="o">.</span><span class="ss">eventd</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="ss">wantedBy</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;multi-user.target&quot;</span> <span class="p">];</span>
+    <span class="ss">serviceConfig</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="ss">ExecStart</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>pkgs<span class="o">.</span>vaked-eventd<span class="si">}</span><span class="s2">/bin/eventd serve /var/lib/vaked/log.jsonl&quot;</span><span class="p">;</span>
+      <span class="ss">StateDirectory</span> <span class="o">=</span> <span class="s2">&quot;vaked&quot;</span><span class="p">;</span>          <span class="c1"># /var/lib/vaked, the disko dataset home</span>
+      <span class="ss">Type</span> <span class="o">=</span> <span class="s2">&quot;notify&quot;</span><span class="p">;</span>                   <span class="c1"># or simple + a health gate</span>
+    <span class="p">};</span>
+  <span class="p">};</span>
+  systemd<span class="o">.</span>services<span class="o">.</span><span class="ss">agent-supervisord</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="ss">wantedBy</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;multi-user.target&quot;</span> <span class="p">];</span>
+    <span class="ss">after</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;eventd.service&quot;</span> <span class="p">];</span>        <span class="c1"># supervisord owns the eventd writer (design §2)</span>
+    <span class="ss">requires</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;eventd.service&quot;</span> <span class="p">];</span>
+    serviceConfig<span class="o">.</span><span class="ss">ExecStart</span> <span class="o">=</span>
+      <span class="s2">&quot;</span><span class="si">${</span>pkgs<span class="o">.</span>vaked-supervisord<span class="si">}</span><span class="s2">/bin/agent_supervisord --gen /etc/vaked/otp &quot;</span>
+      <span class="o">+</span> <span class="s2">&quot;--eventd /var/lib/vaked/log.jsonl --control /run/vaked/control.json&quot;</span><span class="p">;</span>
+  <span class="p">};</span>
+  systemd<span class="o">.</span>services<span class="o">.</span><span class="ss">sandboxd</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="ss">wantedBy</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;multi-user.target&quot;</span> <span class="p">];</span>
+    <span class="ss">after</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;agent-supervisord.service&quot;</span> <span class="p">];</span>
+    <span class="ss">serviceConfig</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="ss">ExecStart</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>pkgs<span class="o">.</span>vaked-sandboxd<span class="si">}</span><span class="s2">/bin/sandboxd --listen 127.0.0.1:7240 &quot;</span>
+        <span class="o">+</span> <span class="s2">&quot;--eventd /var/lib/vaked/log.jsonl --cgroup-root /sys/fs/cgroup&quot;</span><span class="p">;</span>
+      <span class="ss">Delegate</span> <span class="o">=</span> <span class="s2">&quot;yes&quot;</span><span class="p">;</span>                  <span class="c1"># cgroup-v2 subtree delegation (cgroup.py §Hierarchy)</span>
+      <span class="ss">AmbientCapabilities</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;CAP_SYS_ADMIN&quot;</span> <span class="p">];</span>  <span class="c1"># userns/mount/cgroup; tighten in S5</span>
+    <span class="p">};</span>
+  <span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Boot order encodes the dependency contract: <strong>eventd first</strong> (the audit spine and<br />
+single-writer target), <strong>supervisord second</strong> (it <code>verify_on_boot</code>s the log as a<br />
+hard precondition — supervisord design §Purpose item 2, and owns the writer),<br />
+<strong>sandboxd third</strong> (writes spawn/kill/access events through the same log). The<br />
+<code>vaked-{eventd,supervisord,sandboxd}</code> packages are the Zig/BEAM build outputs from<br />
+S1–S4; until those land, the module references the <strong>Python references</strong> as a<br />
+bring-up bridge (§6 "bring-up ladder").</p>
+<h3 id="34-service-readiness-gating">3.4 Service-readiness gating</h3>
+<p>Each daemon exposes a health signal the driver waits on (no fixed <code>sleep</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Daemon</th>
+<th>Readiness probe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>eventd</td>
+<td>log file exists at <code>/var/lib/vaked/log.jsonl</code> and <code>eventd verify</code> exits 0 (genesis ok)</td>
+</tr>
+<tr>
+<td>agent-supervisord</td>
+<td><code>systemctl is-active agent-supervisord</code> = active <strong>and</strong> a <code>boot</code>/<code>tree_started</code> event observable via <code>eventd state</code> (design §Verification item 1, <code>task otp-smoke</code>)</td>
+</tr>
+<tr>
+<td>sandboxd</td>
+<td><code>GET /health</code> → <code>{"status":"ok"}</code> (daemon.py do_GET)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-the-canonical-scenario-scenariopy">4. The canonical scenario (<code>scenario.py</code>)</h2>
+<p>One scenario, five steps, mirroring the supervisord design §Verification item 2<br />
+("Rewind demo … the epic's acceptance 3, end-to-end") and the RFC 0004 §5 rewind<br />
+example. The <strong>same <code>scenario.py</code> drives both</strong> the oracle generator (Python refs,<br />
+M1) and the VM driver (live daemons, Linux) — that shared definition is what makes<br />
+the differential assertion meaningful.</p>
+<div class="highlight"><pre><span></span><span class="nl">Setup</span><span class="p">:</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">log</span><span class="w"> </span><span class="n">empty</span><span class="w"> </span><span class="p">(</span><span class="n">genesis</span><span class="p">).</span><span class="w"> </span><span class="n">supervisord</span><span class="w"> </span><span class="n">booted</span><span class="w"> </span><span class="n">its</span><span class="w"> </span><span class="n">lowered</span><span class="w"> </span><span class="n">tree</span>
+<span class="w">       </span><span class="p">(</span><span class="n">two</span><span class="w"> </span><span class="n">workers</span><span class="o">:</span><span class="w"> </span><span class="n">producer</span><span class="w"> </span><span class="n">P</span><span class="p">,</span><span class="w"> </span><span class="n">consumer</span><span class="w"> </span><span class="n">C</span><span class="p">).</span><span class="w"> </span><span class="n">current</span><span class="w"> </span><span class="n">epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">N</span><span class="p">.</span>
+
+<span class="n">t0</span><span class="w">  </span><span class="n">supervisord</span><span class="w"> </span><span class="n">starts</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">workflow</span><span class="w"> </span><span class="n">run</span><span class="w"> </span><span class="n">R</span><span class="w"> </span><span class="p">(</span><span class="n">run_started</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">step_started</span><span class="w"> </span><span class="n">events</span><span class="p">).</span>
+<span class="w">      </span><span class="nl">assert</span><span class="p">:</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">log</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">run_started</span><span class="p">{</span><span class="n">run</span><span class="o">=</span><span class="n">R</span><span class="p">};</span><span class="w"> </span><span class="n">chain</span><span class="w"> </span><span class="n">verifies</span><span class="p">.</span>
+
+<span class="n">t1</span><span class="w">  </span><span class="n">spawn</span><span class="w"> </span><span class="n">an</span><span class="w"> </span><span class="n">agent</span><span class="w"> </span><span class="n">workload</span><span class="w"> </span><span class="n">through</span><span class="w"> </span><span class="n">sandboxd</span><span class="o">:</span>
+<span class="w">      </span><span class="n">POST</span><span class="w"> </span><span class="o">/</span><span class="n">spawn</span><span class="w">  </span><span class="p">(</span><span class="n">fixtures</span><span class="o">/</span><span class="n">spawn</span><span class="o">-</span><span class="n">allow</span><span class="p">.</span><span class="n">json</span><span class="o">:</span><span class="w"> </span><span class="n">process_policy</span><span class="p">.</span><span class="n">grant</span><span class="o">=</span><span class="s">&quot;spawn_sandboxed&quot;</span><span class="p">,</span>
+<span class="w">                    </span><span class="n">fs</span><span class="w"> </span><span class="n">allowed_write</span><span class="o">=</span><span class="p">[</span><span class="o">/</span><span class="n">tmp</span><span class="o">/</span><span class="n">work</span><span class="p">],</span><span class="w"> </span><span class="n">agent_id</span><span class="o">=</span><span class="s">&quot;C&quot;</span><span class="p">)</span>
+<span class="w">      </span><span class="err">→</span><span class="w"> </span><span class="n">real</span><span class="w"> </span><span class="n">unshare</span><span class="p">(</span><span class="o">--</span><span class="n">user</span><span class="w"> </span><span class="o">--</span><span class="n">mount</span><span class="w"> </span><span class="o">--</span><span class="n">pid</span><span class="w"> </span><span class="o">--</span><span class="n">fork</span><span class="w"> </span><span class="o">--</span><span class="n">net</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">cgroup</span><span class="w"> </span><span class="n">vaked</span><span class="o">/</span><span class="n">C</span><span class="o">/</span><span class="w"> </span><span class="n">limits</span><span class="p">.</span>
+<span class="w">      </span><span class="n">assert</span><span class="w"> </span><span class="p">(</span><span class="n">Linux</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="n">status</span><span class="o">=</span><span class="s">&quot;ok&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="n">set</span><span class="p">;</span><span class="w"> </span><span class="n">child</span><span class="w"> </span><span class="n">runs</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">its</span><span class="w"> </span><span class="n">own</span><span class="w"> </span><span class="n">pid</span><span class="w"> </span><span class="n">ns</span><span class="p">.</span>
+<span class="w">      </span><span class="n">assert</span><span class="w"> </span><span class="p">(</span><span class="n">oracle</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">sandbox_spawn</span><span class="p">{</span><span class="n">agent_id</span><span class="o">=</span><span class="n">C</span><span class="p">,</span><span class="w"> </span><span class="n">action</span><span class="o">=</span><span class="s">&quot;allow&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="o">=</span><span class="mi">1</span><span class="p">}</span>
+<span class="w">                       </span><span class="n">BYTE</span><span class="o">-</span><span class="n">IDENTICAL</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">agent_sandboxd</span><span class="p">.</span><span class="n">eventd</span><span class="p">.</span><span class="n">spawn_event</span><span class="p">(...).</span>
+
+<span class="n">t2</span><span class="w">  </span><span class="n">policy</span><span class="w"> </span><span class="n">violation</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">spawn</span><span class="w"> </span><span class="n">with</span><span class="w"> </span><span class="n">process</span><span class="w"> </span><span class="n">grant</span><span class="o">=</span><span class="n">none</span><span class="o">:</span>
+<span class="w">      </span><span class="n">POST</span><span class="w"> </span><span class="o">/</span><span class="n">spawn</span><span class="w">  </span><span class="p">(</span><span class="n">fixtures</span><span class="o">/</span><span class="n">spawn</span><span class="o">-</span><span class="n">deny</span><span class="p">.</span><span class="n">json</span><span class="o">:</span><span class="w"> </span><span class="n">process_policy</span><span class="p">.</span><span class="n">grant</span><span class="o">=</span><span class="s">&quot;none&quot;</span><span class="p">)</span>
+<span class="w">      </span><span class="nl">assert</span><span class="p">:</span><span class="w"> </span><span class="n">HTTP</span><span class="w"> </span><span class="mi">403</span><span class="w"> </span><span class="n">status</span><span class="o">=</span><span class="s">&quot;denied&quot;</span><span class="p">;</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">sandbox_spawn</span><span class="p">{</span><span class="n">action</span><span class="o">=</span><span class="s">&quot;deny&quot;</span><span class="p">,</span>
+<span class="w">              </span><span class="n">reason</span><span class="o">=</span><span class="s">&quot;process grant=none …&quot;</span><span class="p">};</span><span class="w"> </span><span class="n">daemon</span><span class="w"> </span><span class="n">exit</span><span class="o">/</span><span class="n">refusal</span><span class="w"> </span><span class="n">matches</span>
+<span class="w">              </span><span class="n">agent_sandboxd</span><span class="p">.</span><span class="n">daemon</span><span class="p">.</span><span class="n">spawn</span><span class="w"> </span><span class="n">deny</span><span class="w"> </span><span class="n">path</span><span class="p">.</span><span class="w"> </span><span class="p">(</span><span class="n">kickoff</span><span class="w"> </span><span class="n">success</span><span class="w"> </span><span class="n">criterion</span><span class="o">:</span>
+<span class="w">              </span><span class="s">&quot;policy violations → eventd + exit 1&quot;</span><span class="p">.)</span>
+
+<span class="n">t3</span><span class="w">  </span><span class="n">rewind</span><span class="w"> </span><span class="n">P</span><span class="w"> </span><span class="n">below</span><span class="w"> </span><span class="n">C</span><span class="err">&#39;</span><span class="n">s</span><span class="w"> </span><span class="n">anchor</span><span class="w"> </span><span class="p">(</span><span class="n">control</span><span class="p">.</span><span class="n">json</span><span class="o">:</span><span class="w"> </span><span class="n">rewind</span><span class="w"> </span><span class="n">P</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="mi">50</span><span class="p">;</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">anchored</span><span class="w"> </span><span class="mi">@95</span><span class="p">)</span><span class="o">:</span>
+<span class="w">      </span><span class="n">supervisord</span><span class="w"> </span><span class="n">appends</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">RFC</span><span class="w"> </span><span class="mo">0004</span><span class="w"> </span><span class="n">rewind</span><span class="w"> </span><span class="n">event</span><span class="p">,</span><span class="w"> </span><span class="n">pauses</span><span class="w"> </span><span class="n">C</span><span class="p">,</span><span class="w"> </span><span class="n">runs</span><span class="w"> </span><span class="n">cold</span><span class="o">-</span><span class="n">start</span>
+<span class="w">      </span><span class="n">verify</span><span class="p">.</span>
+<span class="w">      </span><span class="nl">assert</span><span class="p">:</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">coldstart</span><span class="w"> </span><span class="o">&lt;</span><span class="n">log</span><span class="o">&gt;</span><span class="w"> </span><span class="n">C</span><span class="w">  </span><span class="n">exits</span><span class="w"> </span><span class="mi">3</span><span class="w">  </span><span class="p">(</span><span class="n">PAUSED</span><span class="p">(</span><span class="n">stale_dependency</span><span class="p">));</span>
+<span class="w">              </span><span class="n">statedep</span><span class="p">.</span><span class="n">verify_cold_start</span><span class="p">(</span><span class="n">C</span><span class="p">,</span><span class="w"> </span><span class="n">entries</span><span class="p">)</span><span class="w"> </span><span class="n">returns</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="n">StaleDependency</span>
+<span class="w">              </span><span class="n">with</span><span class="w"> </span><span class="n">topology_epoch</span><span class="p">;</span><span class="w"> </span><span class="n">C</span><span class="err">&#39;</span><span class="n">s</span><span class="w"> </span><span class="n">lifecycle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PAUSED</span><span class="p">.</span><span class="w"> </span><span class="n">P</span><span class="err">&#39;</span><span class="n">s</span><span class="w"> </span><span class="n">worker</span><span class="w"> </span><span class="n">never</span>
+<span class="w">              </span><span class="n">restarts</span><span class="w"> </span><span class="p">(</span><span class="n">one_for_one</span><span class="w"> </span><span class="n">isolation</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">supervisord</span><span class="w"> </span><span class="n">design</span><span class="w"> </span><span class="err">§</span><span class="s">&quot;NOT here&quot;</span><span class="p">).</span>
+
+<span class="n">t4</span><span class="w">  </span><span class="n">re</span><span class="o">-</span><span class="n">anchor</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="mi">50</span><span class="p">;</span><span class="w"> </span><span class="n">supervisord</span><span class="w"> </span><span class="n">re</span><span class="o">-</span><span class="n">verifies</span><span class="o">:</span>
+<span class="w">      </span><span class="nl">assert</span><span class="p">:</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">coldstart</span><span class="w"> </span><span class="o">&lt;</span><span class="n">log</span><span class="o">&gt;</span><span class="w"> </span><span class="n">C</span><span class="w">  </span><span class="n">exits</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">(</span><span class="n">RUNNING</span><span class="p">);</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">resumes</span><span class="p">;</span><span class="w"> </span><span class="n">queued</span>
+<span class="w">              </span><span class="n">run</span><span class="w"> </span><span class="n">R</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="n">delivered</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">step_finished</span><span class="p">;</span><span class="w"> </span><span class="n">run_finished</span><span class="p">{</span><span class="n">status</span><span class="o">=</span><span class="n">completed</span><span class="p">}.</span>
+
+<span class="nl">Teardown</span><span class="p">:</span><span class="w"> </span><span class="n">eventd</span><span class="w"> </span><span class="n">verify</span><span class="w"> </span><span class="o">&lt;</span><span class="n">log</span><span class="o">&gt;</span><span class="w"> </span><span class="n">exits</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">(</span><span class="n">whole</span><span class="w"> </span><span class="n">chain</span><span class="w"> </span><span class="n">intact</span><span class="p">);</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">full</span><span class="w"> </span><span class="n">live</span><span class="w"> </span><span class="n">log</span>
+<span class="w">          </span><span class="n">equals</span><span class="w"> </span><span class="n">oracle</span><span class="o">/</span><span class="n">expected</span><span class="o">/</span><span class="n">scenario</span><span class="p">.</span><span class="n">events</span><span class="p">.</span><span class="n">jsonl</span><span class="w"> </span><span class="n">byte</span><span class="o">-</span><span class="k">for</span><span class="o">-</span><span class="n">byte</span><span class="p">.</span>
+</pre></div>
+
+<p>The deliver/pause/deny verdicts at t1/t2/t3/t4 are exactly what the Python oracles<br />
+(<code>spawn_event</code> action, <code>verify_cold_start</code>, exit codes) produce — that equality is<br />
+the acceptance assertion (§5.2, §8).</p>
+<h2 id="5-test-plan">5. Test plan</h2>
+<h3 id="51-the-honest-m1-vs-linux-split">5.1 The honest M1-vs-Linux split</h3>
+<p>WP4-S6 is <strong>the opposite of WP3-S3</strong>: WP3-S3 was pure transport-agnostic Rust, so<br />
+its acceptance ran fully on M1. <strong>S6's live gate is intrinsically Linux</strong> —<br />
+namespace syscalls, real cgroup-v2 writes, BEAM/OTP under systemd, a NixOS VM with<br />
+a real kernel. macOS M1 cannot run the live 3-daemon gate. What M1 <em>can</em> do is the<br />
+<strong>oracle / compile / eval slice</strong>, which is enough to develop and validate every<br />
+contract S6 asserts without a Linux box.</p>
+<h4 id="runs-on-m1-today-assertable-no-linux">Runs on M1 today (assertable, no Linux)</h4>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>How</th>
+<th>Gate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Oracle log generation</td>
+<td><code>python3 tests/integration/vakedos/oracle/gen_oracle.py</code> → <code>expected/scenario.events.jsonl</code> + <code>verdicts.json</code></td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>eventd chain + verdict oracle</td>
+<td><code>python3 -m eventd verify/coldstart/state</code> over the generated log</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>sandboxd plan + policy + payload contract</td>
+<td><code>agent_sandboxd</code> with <code>enter_namespace(dry_run=True)</code>, <code>probe_userns()</code>, <code>apply_cgroup_limits(cgroup_root=&lt;tmp mock&gt;)</code>, <code>decide_path</code>, <code>spawn_event</code> byte check vs <code>eventd.canonical_json</code></td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>Cross-daemon event-payload contract</td>
+<td>assert each <code>kind</code>/<code>v=1</code> payload the scenario emits canonicalizes identically across <code>agent_sandboxd</code> + <code>eventd</code> refs</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>Zig daemon compile-only</td>
+<td><code>zig build -Dtarget=x86_64-linux</code> in <code>daemons/sandboxd/</code> (and <code>daemons/eventd/</code> once it lands) — compile, <strong>do not run</strong> (namespace syscalls run only on Linux)</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>NixOS config <strong>eval</strong></td>
+<td><code>nix flake check</code> restricted to eval (the vakedos config + the new check <em>evaluate</em>); <code>nix eval .#nixosConfigurations.vakedos.config.system.build.toplevel.drvPath</code></td>
+<td>M1 ✓ (eval only)</td>
+</tr>
+</tbody>
+</table>
+<p>Caveat made explicit: <strong>building</strong> the toplevel or <strong>running</strong> the VM test needs an<br />
+<code>x86_64-linux</code> builder. On M1 <code>nix flake check</code> will <em>evaluate</em> the VM test<br />
+derivation but cannot <em>build/run</em> it (it is a Linux VM). That is expected and is<br />
+not an M1 failure.</p>
+<h4 id="linux-only-the-actual-s6-gate">Linux-only — the actual S6 gate</h4>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Why Linux</th>
+<th>Where it runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The VM test itself (boot config, start 3 services, drive scenario)</td>
+<td>needs a real Linux kernel + systemd + KVM</td>
+<td>any <code>x86_64-linux</code> builder (CI runner, dev-cx53 when free, or <code>--build-on-remote</code> to vakedos)</td>
+</tr>
+<tr>
+<td>Real <code>unshare</code>/<code>exec</code> into the namespace boundary (t1)</td>
+<td>namespace syscalls are Linux</td>
+<td>VM</td>
+</tr>
+<tr>
+<td>Real cgroup-v2 enforcement under <code>vaked/&lt;agent&gt;/</code></td>
+<td>cgroup-v2 is Linux</td>
+<td>VM</td>
+</tr>
+<tr>
+<td>eventd Zig daemon byte-identical to Python oracle <strong>under live concurrent writes</strong></td>
+<td>the daemon binary is Linux; static byte-match is M1-checkable, live single-writer behavior is not</td>
+<td>VM</td>
+</tr>
+<tr>
+<td>supervisord OTP boot + lifecycle under systemd</td>
+<td>BEAM + systemd</td>
+<td>VM</td>
+</tr>
+</tbody>
+</table>
+<p><strong>dev-cx53 is not the constraint.</strong> Its 6h off-limits window is a transient<br />
+autoresearcher hold (today, 2026-06-14); S6 runs Sep 4–17. Any <code>x86_64-linux</code><br />
+builder satisfies the gate — CI's Linux runner is the primary target, dev-cx53 a<br />
+convenience, the EPYC itself only at S7. The gate is <em>Linux-required</em>, not<br />
+<em>dev-cx53-required</em>, and is <strong>not blocked by the inability to run it on M1 today</strong>.</p>
+<h3 id="52-the-differential-assertion-verification-spine">5.2 The differential assertion (verification spine)</h3>
+<ol>
+<li><strong>Generate</strong> <code>oracle/expected/scenario.events.jsonl</code> + <code>verdicts.json</code> from the<br />
+   Python refs (<code>gen_oracle.py</code>, runs <code>scenario.py</code> against <code>agent_sandboxd</code> +<br />
+<code>eventd</code>). Commit both. Register <code>gen_oracle</code>'s self-check in<br />
+<code>tests/spec/run_all.py</code> (a new <code>vakedos_oracle</code> module in <code>ALL_MODULES</code>,<br />
+<code>tests/spec/run_all.py</code> line 36) so the oracle stays green on M1 in the<br />
+<code>full</code>/<code>standard</code> tier.</li>
+<li><strong>On the VM (Linux):</strong> <code>driver.py</code> runs the <em>same</em> <code>scenario.py</code> against the<br />
+   live daemons, captures <code>/var/lib/vaked/log.jsonl</code>, and asserts:</li>
+<li>the live log <strong>byte-equals</strong> <code>expected/scenario.events.jsonl</code> (hashed-payload<br />
+     bytes via <code>eventd.core.canonical_json</code>; the wall-time <code>_ts_ns</code> sidecar is<br />
+     excluded from the hash by construction — <code>agent_sandboxd/eventd.py</code> §discipline);</li>
+<li>each step's verdict equals <code>verdicts.json</code> (t1 allow / t2 deny / t3 exit-3 /<br />
+     t4 exit-0 / health ok);</li>
+<li><code>eventd verify</code> exits 0 (chain intact end to end).</li>
+<li><strong>Regression guard:</strong> the t2 deny path and the t3 rewind→stale-dependency path<br />
+   are the two security-critical assertions; they must each FAIL if the respective<br />
+   daemon decision regresses (deny silently allowing, or a stale consumer staying<br />
+   RUNNING). This satisfies CLAUDE.md §5 (regression test that fails without the<br />
+   behavior).</li>
+</ol>
+<h3 id="53-local-developer-loop">5.3 Local developer loop</h3>
+<div class="highlight"><pre><span></span><span class="c1"># M1 (oracle + contracts + compile + eval) — no Linux needed:</span>
+python3<span class="w"> </span>tests/integration/vakedos/oracle/gen_oracle.py<span class="w">        </span><span class="c1"># regenerate expected</span>
+python3<span class="w"> </span>tests/spec/run_all.py<span class="w"> </span>--tier<span class="w"> </span>standard<span class="w">                 </span><span class="c1"># eventd + new oracle check</span>
+<span class="o">(</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>daemons/sandboxd<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span>-Dtarget<span class="o">=</span>x86_64-linux<span class="w"> </span><span class="o">)</span><span class="w">    </span><span class="c1"># compile-only</span>
+nix<span class="w"> </span>flake<span class="w"> </span>check<span class="w"> </span>--no-build<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span>nix<span class="w"> </span><span class="nb">eval</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>.#nixosConfigurations.vakedos.config.system.build.toplevel.drvPath<span class="w">  </span><span class="c1"># eval</span>
+
+<span class="c1"># Linux builder (the S6 gate):</span>
+nix<span class="w"> </span>build<span class="w"> </span>.#checks.x86_64-linux.vakedos-integration<span class="w">           </span><span class="c1"># builds + runs the VM test</span>
+<span class="c1"># or interactively:</span>
+nix<span class="w"> </span>run<span class="w"> </span>.#checks.x86_64-linux.vakedos-integration.driverInteractive
+</pre></div>
+
+<h3 id="54-zfs-disko-in-the-vm">5.4 ZFS / disko in the VM</h3>
+<p><code>hosts/vakedos/disko.nix</code> declares a ZFS mirror (<code>/var/lib/vaked</code> is a ZFS dataset,<br />
+lines 106–110). The VM test does <strong>not</strong> need ZFS to validate daemon wiring: import<br />
+the vakedos config as a <code>nixosModules.vakedosBase</code> that <strong>excludes <code>disko.nix</code> and<br />
+the ZFS/boot stanzas</strong>, and let <code>StateDirectory=vaked</code> provide <code>/var/lib/vaked</code> on<br />
+the VM's plain rootfs. Refactor <code>configuration.nix</code> to split the<br />
+substrate-membrane facilities (userns, cgroup, sysctls, nftables, journald,<br />
+packages) into a reusable module that both the real host and the VM test import;<br />
+the ZFS/disko/GRUB/EPYC-tuning stays host-only. (This refactor is itself a small S6<br />
+deliverable — flagged in §7.) ZFS-backed tamper-evidence is validated at S7 on the<br />
+real box, not here.</p>
+<h2 id="6-dependencies-on-other-sprints">6. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>Provides</th>
+<th>Status (2026-06-14)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP4-S1/S2</strong> (<code>daemons/sandboxd/</code>)</td>
+<td>sandboxd native-exec backend + HTTP control surface</td>
+<td>Stub only (<code>src/main.zig</code> exits 1; <code>build.zig</code> compiles)</td>
+</tr>
+<tr>
+<td><strong>WP4-S3</strong> (<code>daemons/agent-supervisord/</code>)</td>
+<td>OTP control plane, eventd writer, RFC 0004 lifecycle, control-file intake</td>
+<td><strong>Not started</strong> — design exists (<code>docs/superpowers/specs/2026-06-12-agent-supervisord-design.md</code>); dir does not exist</td>
+</tr>
+<tr>
+<td><strong>WP4-S4</strong> (<code>daemons/eventd/</code>)</td>
+<td>eventd Zig port, byte-identical to Python ref</td>
+<td><strong>Not started</strong> — Python ref is the oracle</td>
+</tr>
+<tr>
+<td><strong>WP4-S5</strong></td>
+<td>capability-enforcement hooks (tighten the t2 deny path; preceptord seam)</td>
+<td><strong>Not started</strong></td>
+</tr>
+<tr>
+<td><strong>0012 §7 emitter</strong></td>
+<td>generated systemd units (<code>vakedc</code>/<code>vakedz lower</code>)</td>
+<td><strong>Deferred (no-op today)</strong> — S6 hand-wires <code>runtime-test.nix</code> as the stand-in (§3.3)</td>
+</tr>
+<tr>
+<td>Python refs (<code>eventd/</code>, <code>agent_sandboxd/</code>)</td>
+<td>the differential oracles</td>
+<td><strong>Exist</strong> (M1-runnable today)</td>
+</tr>
+<tr>
+<td><code>hosts/vakedos/configuration.nix</code> + <code>disko.nix</code></td>
+<td>the substrate config under test</td>
+<td><strong>Exists</strong> (needs the §5.4 base-module split)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Depended on by:</strong> <strong>WP4-S7</strong> (#114) — the bare-metal deploy test reuses S6's<br />
+<code>scenario.py</code> + oracle to assert the same end-to-end behavior on the physical EPYC<br />
+(real ZFS tamper-evidence, real cgroup delegation), promoting the VM gate to<br />
+hardware.</p>
+<h3 id="61-bring-up-ladder-so-s6-isnt-all-or-nothing-on-s1s4">6.1 Bring-up ladder (so S6 isn't all-or-nothing on S1–S4)</h3>
+<p>S6 can be developed incrementally as the daemons land, each rung a committable<br />
+milestone:</p>
+<ol>
+<li><strong>M1 oracle + contracts</strong> (needs only the Python refs — buildable today):<br />
+<code>gen_oracle.py</code>, <code>scenario.py</code>, payload-byte assertions, <code>run_all.py</code><br />
+   registration. This is the part of S6 that can start <strong>now</strong>.</li>
+<li><strong>VM harness skeleton</strong> (<code>vm-test.nix</code> + <code>runtime-test.nix</code>) wiring the <em>Python<br />
+   reference</em> daemons (<code>python3 -m agent_sandboxd</code>, <code>python3 -m eventd</code>, and a<br />
+   stub supervisord) under systemd — proves the boot order, health gating, and<br />
+   driver before any Zig/BEAM exists.</li>
+<li><strong>Swap in real daemons</strong> as S1–S4 land: eventd Zig (S4) → sandboxd Zig (S1/S2)<br />
+   → supervisord OTP (S3), re-running the <em>same</em> differential assertion at each<br />
+   swap. The final S6 gate is all three real, green.</li>
+</ol>
+<h2 id="7-risks-open-questions">7. Risks / open questions</h2>
+<ul>
+<li><strong><code>vakedz lower</code> vs <code>vakedc lower</code> (§0.1).</strong> OPEN. Kickoff line 73 says <code>vakedz</code>;<br />
+  the shipping tool is <code>vakedc</code>. S6 uses <code>vakedc</code>-emitted (or, until the §7 emitter<br />
+  exists, hand-wired) units and treats <code>vakedz</code> as the eventual byte-parity port.<br />
+  Resolve with the lowering owner before S6's gate asserts a specific producer.</li>
+<li><strong>The systemd-unit emitter is a no-op today (§0.2).</strong> S6's <code>runtime-test.nix</code> is<br />
+  an explicit hand-wired stand-in. Risk: it drifts from what the real emitter will<br />
+  produce. Mitigation: keep it minimal and §4.3-conformant (install + point, no<br />
+  policy), and add a follow-up to diff hand-wired vs emitted units once §7 lands.</li>
+<li><strong>vakedos config not VM-importable as-is (§5.4).</strong> ZFS/disko/GRUB/EPYC tuning<br />
+  can't boot in a plain VM. Requires the base-module split (small refactor,<br />
+  S6-owned). Risk: the split diverges the VM config from the real host. Mitigation:<br />
+  both import the <em>same</em> membrane-substrate module; only host-physical stanzas<br />
+  differ.</li>
+<li><strong>NixOS test API spelling.</strong> <code>runNixOSTest</code> vs <code>nixosTest</code> vs <code>pkgs.nixosTest</code><br />
+  depends on the pinned nixpkgs in <code>flake.lock</code>. Do not hard-code; check the lock<br />
+  at impl time. The flake has <strong>no <code>checks</code> today</strong> — S6 adds the first.</li>
+<li><strong><code>CAP_SYS_ADMIN</code> / userns in the VM.</strong> The vakedos config sets<br />
+<code>allowUserNamespaces</code> + a high <code>max_user_namespaces</code>; the VM inherits this. If<br />
+  the CI runner forbids nested userns (the agent-guardd doc notes nested-container<br />
+  attach refusal, <code>docs/runtime/agent-guardd.md</code> §"What is real"), the VM's own<br />
+  kernel (not nested) should still permit it — but verify on the chosen runner; a<br />
+  KVM-accelerated VM (<code>kvm-amd</code>, <code>configuration.nix</code> line 76) is the reliable path.</li>
+<li><strong>Supervisord reference-phase shape.</strong> During bring-up supervisord shells out to<br />
+  the eventd oracle via ports (design §"Reference phase bridge"). S6 asserts<br />
+<em>behavior</em> (lifecycle verdicts, log bytes), not the BEAM-native fold — the<br />
+  BEAM-native fold's parity is a later gate (#15 tooling), not S6's.</li>
+<li><strong>eventd transport ("append-only socket", kickoff line 60).</strong> The kickoff's S1<br />
+  first-task mentions logging "via append-only socket"; the shipping eventd ref is<br />
+  file + flock single-writer (<code>eventd/log.py</code>, <code>EventLog(writer=True)</code>). S6 uses<br />
+  the file path as the shared bus (§0.3); if S4 introduces a socket front-end, the<br />
+  driver's readiness probe (§3.4) adapts, but the byte contract is unchanged.</li>
+</ul>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>S6 is done when ALL hold. Criteria are <strong>split by where they run</strong> (the §5.1 honest<br />
+split) — do not claim the live gate runs on M1.</p>
+<p><strong>M1-green (oracle / compile / eval — assertable on the dev laptop):</strong></p>
+<ol>
+<li><code>tests/integration/vakedos/oracle/gen_oracle.py</code> produces committed<br />
+<code>expected/scenario.events.jsonl</code> + <code>verdicts.json</code>, and the oracle self-check is<br />
+   registered in <code>tests/spec/run_all.py</code> and green: <code>python3 tests/spec/run_all.py
+   --tier standard</code>.</li>
+<li>The cross-daemon event-payload contract holds: every scenario payload<br />
+   (<code>sandbox_spawn</code>/<code>sandbox_kill</code>/<code>sandbox_fs_access</code> <code>v=1</code>, <code>run_*</code>/<code>step_*</code>)<br />
+   canonicalizes identically via <code>eventd.core.canonical_json</code>, asserted in the<br />
+   oracle check. No daemon computes its own hash (the eventd oracle owns bytes).</li>
+<li><code>daemons/sandboxd/</code> compiles cross-target: <code>zig build
+   -Dtarget=x86_64-linux</code> clean on M1 (compile-only; not run). Same for<br />
+<code>daemons/eventd/</code> once S4 lands.</li>
+<li>The vakedos config + the new VM-test check <strong>evaluate</strong>: <code>nix eval
+   .#nixosConfigurations.vakedos.config.system.build.toplevel.drvPath</code> succeeds and<br />
+<code>flake.nix</code> exposes <code>checks.x86_64-linux.vakedos-integration</code>.</li>
+</ol>
+<p><strong>Linux-gated (the real S6 integration gate — runs on any <code>x86_64-linux</code><br />
+builder, NOT M1, NOT dependent on dev-cx53):</strong></p>
+<ol>
+<li><code>nix build .#checks.x86_64-linux.vakedos-integration</code> builds and the VM test<br />
+<strong>passes</strong>: the vakedos config boots; <code>eventd</code>, <code>agent-supervisord</code>, <code>sandboxd</code><br />
+   reach active+healthy in that order (§3.4); the driver runs the §4 scenario.</li>
+<li><strong>Real isolation:</strong> t1 spawns through sandboxd into a real<br />
+<code>unshare(user,mount,pid,net)</code> boundary with real cgroup-v2 limits under<br />
+<code>vaked/C/</code>; the child is pid 1 of its own pid ns.</li>
+<li><strong>Violation refused (kickoff criterion):</strong> t2 (process grant=none) is denied,<br />
+   logged <code>action="deny"</code>, and surfaces as a refusal — matching the<br />
+<code>agent_sandboxd.daemon</code> deny path.</li>
+<li><strong>RFC 0004 lifecycle (kickoff/epic acceptance):</strong> t3 rewind pauses C<br />
+<code>stale_dependency</code> (<code>eventd coldstart</code> exit 3, <code>verify_cold_start</code> returns a<br />
+<code>StaleDependency</code>) while P's worker does not restart; t4 re-anchor returns C to<br />
+   RUNNING (exit 0) and the run completes.</li>
+<li><strong>Differential + integrity:</strong> the live <code>/var/lib/vaked/log.jsonl</code> is<br />
+   byte-identical to <code>expected/scenario.events.jsonl</code> (hashed payload bytes) and<br />
+<code>eventd verify &lt;log&gt;</code> exits 0 (whole chain intact).</li>
+<li>The gate is reproducible on a CI Linux runner; <strong>nothing in 5–9 requires<br />
+    dev-cx53 specifically</strong> (it is one of several <code>x86_64-linux</code> builders), and<br />
+    the bare-metal EPYC deploy is explicitly deferred to WP4-S7 (#114).</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp4-s6.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

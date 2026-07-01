@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>agent-guardd — the network-membrane vertical slice — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#the-loop" style="padding-left:0.5rem">The loop</a><a href="#what-is-real-here-and-what-is-honest" style="padding-left:0.5rem">What is real here, and what is honest</a><a href="#run-it" style="padding-left:0.5rem">Run it</a><a href="#tests" style="padding-left:0.5rem">Tests</a><a href="#next-faithful-follow-ups" style="padding-left:0.5rem">Next (faithful follow-ups)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/runtime/">runtime</a> / agent-guardd</div>
+<h1>agent-guardd — the network-membrane vertical slice</h1>
+<h1 id="agent-guardd-the-network-membrane-vertical-slice">agent-guardd — the network-membrane vertical slice</h1>
+<blockquote>
+<p>Vaked declares. Nix materializes. <strong>Zig enforces. eBPF testifies.</strong> eventd<br />
+witnesses. Surfaces reveal.</p>
+</blockquote>
+<p>This is the first <strong>end-to-end vertical slice</strong> through the whole Vaked stack:<br />
+one <code>.vaked</code> declaration of a network egress membrane that <strong>lowers</strong> to a policy<br />
+artifact, is <strong>enforced</strong> by a daemon, <strong>testifies</strong> every decision onto the<br />
+tamper-evident event log, and is <strong>verified</strong> to have held — declaration to<br />
+evidence, closed.</p>
+<p><code>agent-guardd</code> owns the <code>network</code> and <code>ebpf</code> membranes in the roster<br />
+(<a href="README.md"><code>docs/runtime/README.md</code></a>): <em>deny-by-default egress, DNS oracle,<br />
+eBPF cgroup maps</em>. The implementation here is the <strong>Python reference / oracle</strong><br />
+(<a href="../../agent_guardd"><code>agent_guardd/</code></a>) for the eventual Zig daemon — the same<br />
+<code>#15</code> pattern <a href="../../eventd"><code>eventd/</code></a> follows (Python fixes the bytes + the<br />
+decision; Zig reproduces them). The hyphenated daemon name maps to the<br />
+importable module <code>agent_guardd</code>.</p>
+<h2 id="the-loop">The loop</h2>
+<div class="highlight"><pre><span></span>Vaked declares     network agentEgress { default = &quot;deny&quot;; allow = [ egress(h,p) ] }
+    │                                     vaked/examples/membrane/agent-egress.vaked
+    ▼ vakedc lower  (0012 §7, ebpf.policy emitter — realized)
+gen/ebpf.policy.json   { membranes: [ { principal, grant, default, allow:[…] } ] }
+    │
+    ▼ agent-guardd load_membrane()
+Zig enforces       compile posture → real cgroup/skb BPF → BPF_PROG_LOAD
+                   (kernel verifier accepts) → attach @ BPF_CGROUP_INET_EGRESS
+    │
+    ▼ Guard.connect()   deny-by-default decision per (host, port)
+eBPF testifies     Event.Ebpf payload per verdict  ─┐
+    │                                                │ single decision function,
+    ▼ eventd append                                  │ two datapaths (kernel + ref)
+eventd (immutable) hash-chained log.jsonl  ──────────┘
+    │
+    ▼ verify_run()
+Surfaces reveal    chain intact ∧ every verdict conforms to the declared policy
+                   ⇒ &quot;the membrane held&quot;
+</pre></div>
+
+<h2 id="what-is-real-here-and-what-is-honest">What is real here, and what is honest</h2>
+<p>The slice is built to be <strong>run and checked</strong>, not asserted. Concretely:</p>
+<table>
+<thead>
+<tr>
+<th>Leg</th>
+<th>Status in this repo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Declare → lower</strong></td>
+<td>Real. <code>network</code> is grammar-legal; the <a href="../language/0012-lowering.md"><code>ebpf.policy</code></a> emitter (previously a deferred §7 no-op) now compiles the membrane into <code>gen/ebpf.policy.json</code>, deterministically, with provenance.</td>
+</tr>
+<tr>
+<td><strong>Compile → load eBPF</strong></td>
+<td>Real. <code>agent-guardd</code> assembles a real <code>BPF_PROG_TYPE_CGROUP_SKB</code> program for the deny-by-default posture and loads it via the <code>bpf()</code> syscall; the <strong>in-kernel verifier accepts it</strong> (returns a program fd + the "processed N insns" trace). No libbpf/BTF needed — the ABI is driven directly.</td>
+</tr>
+<tr>
+<td><strong>Attach (probe)</strong></td>
+<td>Host-dependent, and only ever a <strong>capability probe</strong> here. On a capable host (vakedos: real cgroup2 delegation) <code>BPF_PROG_ATTACH</code> at <code>BPF_CGROUP_INET_EGRESS</code> succeeds; the daemon attaches, records <code>attach_capable</code>, and immediately <strong>releases</strong> it. Inside a nested container (CI, this sandbox) the attach is <strong>refused (EINVAL)</strong> — reported, not hidden. The loaded program is the deny-by-default <em>posture</em> (drop/pass all egress); it is <strong>not</strong> allow-set-aware, so it is never left attached as the live per-destination enforcer (that would wrongly drop the allow-set too). <code>mechanism</code> therefore stays <code>reference</code> regardless — an allow-set-aware cgroup/skb program is the follow-up that would flip it to <code>ebpf-cgroup</code>.</td>
+</tr>
+<tr>
+<td><strong>Decide + testify</strong></td>
+<td>Real, everywhere, and <strong>authoritative</strong>. The deny-by-default decision and the per-verdict <code>Event.Ebpf</code> testimony run in the userspace <strong>reference datapath</strong> — the byte-for-byte mirror of the kernel program's decision.</td>
+</tr>
+<tr>
+<td><strong>Witness (eventd)</strong></td>
+<td>Real. Testimony is appended to the <a href="../../eventd"><code>eventd</code></a> hash chain (single-writer, fsync, boot-verify).</td>
+</tr>
+<tr>
+<td><strong>Verify</strong></td>
+<td>Real. <code>verify_run</code> proves the chain is intact <strong>and</strong> every recorded verdict conforms to the <em>declared</em> policy. A forged-but-chained event is caught as a conformance mismatch; a single flipped byte is refused as tamper.</td>
+</tr>
+</tbody>
+</table>
+<p>The one link that the kernel sandbox can withhold is <strong>attach</strong>, and the daemon<br />
+says so out loud rather than faking enforcement. The security-critical decision<br />
+(deny-by-default) and the audit spine are real on every host.</p>
+<h2 id="run-it">Run it</h2>
+<div class="highlight"><pre><span></span><span class="c1"># 1. lower the membrane to its policy artifact</span>
+python3<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>lower<span class="w"> </span>vaked/examples/membrane/agent-egress.vaked<span class="w"> </span>--out<span class="w"> </span>/tmp/slice
+
+<span class="c1"># 2. probe what the kernel allows here (load? egress attach?)</span>
+python3<span class="w"> </span>-m<span class="w"> </span>agent_guardd<span class="w"> </span>probe
+
+<span class="c1"># 3. the whole loop, BuildKit-style: load BPF → enforce → testify → verify → tamper-check</span>
+python3<span class="w"> </span>-m<span class="w"> </span>agent_guardd<span class="w"> </span>demo<span class="w"> </span>/tmp/slice/gen/ebpf.policy.json
+
+<span class="c1"># or the one-shot task (lower + demo)</span>
+task<span class="w"> </span>slice
+</pre></div>
+
+<p>Sub-commands: <code>probe</code>, <code>compile &lt;policy&gt;</code>, <code>enforce &lt;policy&gt; --log L --connect host:port …</code>,<br />
+<code>verify &lt;policy&gt; --log L</code>, <code>demo &lt;policy&gt;</code>.</p>
+<h2 id="tests">Tests</h2>
+<p><a href="../../tests/spec/test_agent_guardd.py"><code>tests/spec/test_agent_guardd.py</code></a> covers<br />
+the loop end to end: the emitter output, the deny-by-default decision, enforce +<br />
+testify + verify (membrane held), a forged-event conformance catch, byte-flip<br />
+tamper detection, and the BPF bytecode + real load (tolerant of a sandbox that<br />
+forbids the syscall). Registered in <a href="../../tests/spec/run_all.py"><code>tests/spec/run_all.py</code></a>.</p>
+<h2 id="next-faithful-follow-ups">Next (faithful follow-ups)</h2>
+<ul>
+<li>A <code>cgroup/skb</code> program that parses the dest IP and enforces the <strong>allow-set</strong><br />
+  in-kernel (not just the posture) — bounded packet access with the verifier as<br />
+  judge; the reference datapath already defines the exact bytes it must match.</li>
+<li>The DNS oracle leg (<code>network</code> membrane: name→policy resolution).</li>
+<li>The Zig port of the daemon, with this module as the conformance oracle.</li>
+<li>An operator surface subscribed to <code>stream.ebpfEvents</code> rendering the egress<br />
+  flow map (the <code>surface</code> leg of the mantra).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/runtime/agent-guardd.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

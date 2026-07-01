@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Self-hosting the Vaked CTF arena — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#requirements" style="padding-left:0.5rem">Requirements</a><a href="#quickstart-60-seconds-loopback" style="padding-left:0.5rem">Quickstart (60 seconds, loopback)</a><a href="#run-on-your-tailnet-lan-of-trusted-machines" style="padding-left:0.5rem">Run on your tailnet (LAN of trusted machines)</a><a href="#persist-replay-the-scoreboard" style="padding-left:0.5rem">Persist + replay the scoreboard</a><a href="#run-as-a-service-systemd" style="padding-left:0.5rem">Run as a service (systemd)</a><a href="#the-challenges" style="padding-left:0.5rem">The challenges</a><a href="#add-your-own-challenge" style="padding-left:0.5rem">Add your own challenge</a><a href="#api-for-bots-scripted-players" style="padding-left:0.5rem">API (for bots / scripted players)</a><a href="#tests" style="padding-left:0.5rem">Tests</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/ctf/">ctf</a> / self-host</div>
+<h1>Self-hosting the Vaked CTF arena</h1>
+<h1 id="self-hosting-the-vaked-ctf-arena">Self-hosting the Vaked CTF arena</h1>
+<p>A small, <strong>self-contained, open-source CTF game</strong> you can stand up on your own machine or a<br />
+private box. Pure Python <strong>standard library</strong> — no pip installs, no database, no build step.<br />
+Licensed MIT (repo root <a href="../../LICENSE"><code>LICENSE</code></a>).</p>
+<blockquote>
+<p>🔒 <strong>Safety first.</strong> The live arena and its targets are <strong>tailnet-only by design</strong> — the<br />
+bind host is hard-gated to loopback or the Tailscale CGNAT range <code>100.64.0.0/10</code>. Two of<br />
+the challenges are <em>intentionally vulnerable</em> practice boxes (<a href="../../tools/ctf/vulnbox/"><code>vulnbox/</code></a>);<br />
+they are contained (loopback, unprivileged, <code>realpath</code>-confined) and <strong>must never be made<br />
+public-facing</strong>. This is authorized educational/CTF tooling, not a hardened service.</p>
+</blockquote>
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li>Python <strong>3.8+</strong> (uses only the standard library).</li>
+<li>That's it. No dependencies, no network egress, no compiler.</li>
+</ul>
+<h2 id="quickstart-60-seconds-loopback">Quickstart (60 seconds, loopback)</h2>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/peterlodri-sec/vaked-base
+<span class="nb">cd</span><span class="w"> </span>vaked-base/tools/ctf
+python3<span class="w"> </span>ctf.py<span class="w"> </span>arena<span class="w"> </span>--with-boxes<span class="w">          </span><span class="c1"># → http://127.0.0.1:8099</span>
+</pre></div>
+
+<p>Open <code>http://127.0.0.1:8099</code>, pick a handle, solve a challenge, submit the flag. The<br />
+scoreboard updates live; <code>--with-boxes</code> launches the two real vulnbox targets on loopback so<br />
+the web/IDOR challenges are actually playable.</p>
+<h2 id="run-on-your-tailnet-lan-of-trusted-machines">Run on your tailnet (LAN of trusted machines)</h2>
+<div class="highlight"><pre><span></span>python3<span class="w"> </span>ctf.py<span class="w"> </span>arena<span class="w"> </span>--with-boxes<span class="w"> </span>--tailnet<span class="w">            </span><span class="c1"># auto-bind this host&#39;s 100.x address</span>
+python3<span class="w"> </span>ctf.py<span class="w"> </span>arena<span class="w"> </span>--with-boxes<span class="w"> </span>--host<span class="w"> </span><span class="m">100</span>.105.72.88<span class="w"> </span><span class="c1"># or bind an explicit tailnet IP</span>
+</pre></div>
+
+<p>Players on the same <a href="https://tailscale.com">Tailscale</a> tailnet reach it at<br />
+<code>http://&lt;your-100.x&gt;:8099</code>. The bind guard refuses <code>0.0.0.0</code> / public / LAN addresses, so you<br />
+cannot accidentally expose it to the internet.</p>
+<h2 id="persist-replay-the-scoreboard">Persist + replay the scoreboard</h2>
+<div class="highlight"><pre><span></span>python3<span class="w"> </span>ctf.py<span class="w"> </span>arena<span class="w"> </span>--with-boxes<span class="w"> </span>--tailnet<span class="w"> </span>--ledger<span class="w"> </span>/var/lib/ctf/submissions.jsonl
+</pre></div>
+
+<p>Every correct submission is appended to a <strong>hash-chained, append-only ledger</strong>. The scoreboard<br />
+is a deterministic fold over that ledger — restart the server with the same <code>--ledger</code> and the<br />
+board is reconstructed exactly (<code>verify()</code> confirms the chain is intact). Tamper with a line<br />
+and verification fails.</p>
+<h2 id="run-as-a-service-systemd">Run as a service (systemd)</h2>
+<p>A ready-to-edit unit ships at <a href="../../tools/ctf/ctf-arena.service"><code>tools/ctf/ctf-arena.service</code></a>:</p>
+<div class="highlight"><pre><span></span>sudo<span class="w"> </span>cp<span class="w"> </span>tools/ctf/ctf-arena.service<span class="w"> </span>/etc/systemd/system/
+sudoedit<span class="w"> </span>/etc/systemd/system/ctf-arena.service<span class="w">   </span><span class="c1"># set User=, WorkingDirectory=, --host</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>ctf-arena
+</pre></div>
+
+<p>The unit runs as an unprivileged user, binds a tailnet IP, persists the ledger, and hardens<br />
+the process (<code>NoNewPrivileges</code>, <code>ProtectSystem=strict</code>, <code>PrivateTmp</code>).</p>
+<h2 id="the-challenges">The challenges</h2>
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>category</th>
+<th>pts</th>
+<th>kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>web-traversal</code></td>
+<td>web</td>
+<td>200</td>
+<td>real box — path traversal</td>
+</tr>
+<tr>
+<td><code>web-idor</code></td>
+<td>web</td>
+<td>150</td>
+<td>real box — IDOR</td>
+</tr>
+<tr>
+<td><code>crypto-caesar</code></td>
+<td>crypto</td>
+<td>100</td>
+<td>self-contained (ROT13)</td>
+</tr>
+<tr>
+<td><code>misc-base64</code></td>
+<td>misc</td>
+<td>75</td>
+<td>self-contained (base64)</td>
+</tr>
+<tr>
+<td><code>rev-xor</code></td>
+<td>rev</td>
+<td>125</td>
+<td>self-contained (single-byte XOR)</td>
+</tr>
+</tbody>
+</table>
+<p>First solver of each challenge earns a <strong>first-blood bonus</strong> (+50). Re-submitting a solved<br />
+challenge never double-counts.</p>
+<h2 id="add-your-own-challenge">Add your own challenge</h2>
+<p>Edit <a href="../../tools/ctf/live_challenges.py"><code>tools/ctf/live_challenges.py</code></a> — append to<br />
+<code>CHALLENGES</code>:</p>
+<div class="highlight"><pre><span></span><span class="n">challenge</span><span class="p">(</span><span class="s2">&quot;misc-rot47&quot;</span><span class="p">,</span> <span class="s2">&quot;misc&quot;</span><span class="p">,</span> <span class="mi">80</span><span class="p">,</span> <span class="s2">&quot;FLAG</span><span class="si">{your_flag_here}</span><span class="s2">&quot;</span><span class="p">,</span>
+          <span class="s2">&quot;hint shown to players&quot;</span><span class="p">,</span> <span class="n">artifact</span><span class="o">=</span><span class="s2">&quot;&lt;puzzle text shown on the page&gt;&quot;</span><span class="p">)</span>
+</pre></div>
+
+<p>For a self-contained puzzle, derive <code>artifact</code> from the flag (see the <code>_rot13</code> / <code>_b64</code> /<br />
+<code>_xor_hex</code> helpers) so the puzzle and its answer can never drift. For a box-backed challenge,<br />
+pass <code>box={"module": "...", "solve": "...", ...}</code> and launch it in <code>live_server.launch_boxes()</code>.<br />
+Flags are checked constant-time (<code>hmac.compare_digest</code>).</p>
+<h2 id="api-for-bots-scripted-players">API (for bots / scripted players)</h2>
+<ul>
+<li><code>GET /scoreboard.json</code> → <code>{"ranking": [...], "scoreboard": [...]}</code>.</li>
+<li><code>POST /submit</code> (form-encoded <code>handle</code>, <code>challenge</code>, <code>flag</code>) → <code>303</code> redirect; the result<br />
+  message is in the <code>msg</code> query param of the <code>Location</code>.</li>
+<li><code>GET /healthz</code> → <code>ok</code>.</li>
+</ul>
+<h2 id="tests">Tests</h2>
+<div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>tools/ctf
+python3<span class="w"> </span>test_live.py<span class="w">      </span><span class="c1"># 15 — arena logic, ledger, live HTTP, full real-box loop</span>
+python3<span class="w"> </span>test_web.py<span class="w">       </span><span class="c1"># 11 — tailnet bind guard, render</span>
+python3<span class="w"> </span>test_ctf.py<span class="w">       </span><span class="c1"># 36 — the deterministic sim</span>
+python3<span class="w"> </span>vulnbox/test_vulnbox.py<span class="w">   </span><span class="c1"># 7 — the vulnerable boxes + containment</span>
+</pre></div>
+
+<p>All standard-library, no test runner required.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/ctf/self-host.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

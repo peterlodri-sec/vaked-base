@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP3-S4 — Control frames (RFC 0005) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-scope-boundary-the-spine-of-this-sprint" style="padding-left:1rem">  1.1 Scope boundary (the spine of this sprint)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-normative-inputs" style="padding-left:1rem">  2.1 Normative inputs</a><a href="#22-the-oracle-gap-critical-read-before-writing-tests" style="padding-left:1rem">  2.2 The oracle gap (critical — read before writing tests)</a><a href="#23-code-oracle-already-shipped" style="padding-left:1rem">  2.3 Code oracle (already shipped)</a><a href="#3-design" style="padding-left:0.5rem">3. Design</a><a href="#31-field-type-inventory-bounds-the-dependency-set" style="padding-left:1rem">  3.1 Field-type inventory (bounds the dependency set)</a><a href="#32-the-record-codec-the-real-per-field-machinery" style="padding-left:1rem">  3.2 The record codec (the real per-field machinery)</a><a href="#33-canonical-default-omission-per-field-the-load-bearing-detail" style="padding-left:1rem">  3.3 Canonical default-omission, per field (the load-bearing detail)</a><a href="#34-errors" style="padding-left:1rem">  3.4 Errors</a><a href="#35-uuid-codec-a-prerequisite-gap" style="padding-left:1rem">  3.5 `uuid` codec — a prerequisite gap</a><a href="#36-enum-codec-controlscope-controlrefusal" style="padding-left:1rem">  3.6 Enum codec (`ControlScope`, `ControlRefusal`)</a><a href="#37-service-binding" style="padding-left:1rem">  3.7 Service binding</a><a href="#4-golden-vectors-derived-s4-deliverable" style="padding-left:0.5rem">4. Golden vectors (derived — S4 deliverable)</a><a href="#41-pausecontrol-fully-worked-seed" style="padding-left:1rem">  4.1 `PauseControl` (fully-worked seed)</a><a href="#42-controlack-the-counterintuitive-cases-pin-these" style="padding-left:1rem">  4.2 `ControlAck` (the counterintuitive cases — pin these)</a><a href="#43-setintervalcontrol" style="padding-left:1rem">  4.3 `SetIntervalControl`</a><a href="#44-rewindcontrol-uuid-hash-both-always-emitted" style="padding-left:1rem">  4.4 `RewindControl` (uuid + hash — both always emitted)</a><a href="#45-resumecontrol-stepcontrol" style="padding-left:1rem">  4.5 `ResumeControl` / `StepControl`</a><a href="#46-consumercheckpointevicted" style="padding-left:1rem">  4.6 `ConsumerCheckpointEvicted`</a><a href="#5-test-plan" style="padding-left:0.5rem">5. Test plan</a><a href="#51-m1-local-cargo-test-the-entire-s4-suite" style="padding-left:1rem">  5.1 M1-local (cargo test) — the entire S4 suite</a><a href="#52-what-needs-dev-cx53-linux-essentially-nothing-in-s4" style="padding-left:1rem">  5.2 What needs dev-cx53 / Linux — essentially nothing in S4</a><a href="#53-verification-commands-m1" style="padding-left:1rem">  5.3 Verification commands (M1)</a><a href="#6-file-layout-paths-to-create" style="padding-left:0.5rem">6. File layout (paths to create)</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a><a href="#non-goals-explicitly-deferred" style="padding-left:1rem">  Non-goals / explicitly deferred</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp3-s4</div>
+<h1>WP3-S4 — Control frames (RFC 0005)</h1>
+<h1 id="wp3-s4-control-frames-rfc-0005">WP3-S4 — Control frames (RFC 0005)</h1>
+<ul>
+<li><strong>Status:</strong> Spec (planning artifact; work is dependency-blocked, see §7)</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Work package / sprint:</strong> WP3-S4 (Aug 7–Aug 20 2026), per <a href="../plans/2026-06-14-wp3-kickoff.md"><code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code></a> line 27</li>
+<li><strong>Primary RFC:</strong> <a href="../../../protocol/rfcs/0005-control-frames.md"><code>protocol/rfcs/0005-control-frames.md</code></a></li>
+<li><strong>Encoding RFC:</strong> <a href="../../../protocol/rfcs/0002-hcplang.md"><code>protocol/rfcs/0002-hcplang.md</code></a> §6 (<code>hcpbin</code> encoding rules)</li>
+<li><strong>Wire RFC:</strong> <a href="../../../protocol/rfcs/0003-litany-wire.md"><code>protocol/rfcs/0003-litany-wire.md</code></a> §4 (frame delimitation + frame header)</li>
+<li><strong>Code home:</strong> <code>protocol/hcp/litany/</code> (the frame + routing crate; per kickoff line 14)</li>
+</ul>
+<blockquote>
+<p><strong>Stale-reference correction (load-bearing).</strong> The WP3 kickoff (line 24, line 43)<br />
+says the byte encoding lives in "RFC 0002 §4 / Appendix A". That wording is<br />
+<strong>stale</strong>. In the actual RFC 0002:<br />
+- The byte encoding ("<code>hcpbin</code> encoding rules") is <strong>§6</strong>, not §4. §4 is the<br />
+<em>Votive Frame model</em> (frame decl, the reserved frame header, services).<br />
+- <strong>Appendix A is "Generated code examples" (codegen for Zig/Erlang), not golden<br />
+  vectors.</strong> It is NOT a source of byte vectors.<br />
+- The frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) is <strong>explicitly NOT in<br />
+<code>hcpbin</code></strong>: it is the WIRE layer's concern (RFC 0002 §4.2 and the §6 scope note;<br />
+  RFC 0003 §4.4 / §4.4.1).<br />
+- Byte-level golden vectors live in RFC 0002's <em>worked examples</em> (§6.1.1, §6.3.1,<br />
+  §6.6.1, §6.7.1, §10). <strong>RFC 0005 itself has NO byte-level golden vectors</strong> — its<br />
+  "worked examples" (the doc's §5, internally mis-numbered §4.1–§4.4) are <em>semantic</em><br />
+  request/response shapes, not bytes. Deriving the byte vectors is part of this<br />
+  sprint's deliverable (see §2, §4).</p>
+</blockquote>
+<hr />
+<h2 id="1-objective">1. Objective</h2>
+<p>Implement the <strong><code>hcp.control</code> schema wire codec</strong> — <code>encode</code>/<code>decode</code> for the seven<br />
+control-plane frames defined in RFC 0005 §1, plus the <code>ControlPlane</code> service binding —<br />
+in the <code>litany</code> Rust crate, with a golden-vector + canonical-rejection test suite that<br />
+passes under <code>cargo test</code> on M1.</p>
+<p>Concretely, S4 delivers the byte-level representation of:</p>
+<table>
+<thead>
+<tr>
+<th>Frame</th>
+<th>Class</th>
+<th>RFC 0005 §1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PauseControl</code></td>
+<td>request</td>
+<td>lines 71–76</td>
+</tr>
+<tr>
+<td><code>ResumeControl</code></td>
+<td>request</td>
+<td>lines 79–83</td>
+</tr>
+<tr>
+<td><code>SetIntervalControl</code></td>
+<td>request</td>
+<td>lines 86–91</td>
+</tr>
+<tr>
+<td><code>StepControl</code></td>
+<td>request</td>
+<td>lines 94–98</td>
+</tr>
+<tr>
+<td><code>RewindControl</code></td>
+<td>request</td>
+<td>lines 104–109</td>
+</tr>
+<tr>
+<td><code>ConsumerCheckpointEvicted</code></td>
+<td>request</td>
+<td>lines 114–121</td>
+</tr>
+<tr>
+<td><code>ControlAck</code></td>
+<td>response</td>
+<td>lines 124–129</td>
+</tr>
+</tbody>
+</table>
+<p>plus the two enums <code>ControlScope</code> and <code>ControlRefusal</code> (RFC 0005 §1 lines 53–68) and the<br />
+<code>ControlPlane</code> service with its six <code>call</code> bindings (lines 131–138).</p>
+<h3 id="11-scope-boundary-the-spine-of-this-sprint">1.1 Scope boundary (the spine of this sprint)</h3>
+<p>WP3-S4 is the <strong>wire/codec representation only</strong>. The semantics around these frames are a<br />
+<strong>different work package</strong> (<code>agent-supervisord</code>, per the control-plane design doc plan<br />
+items 3–5, <a href="2026-06-12-control-plane-design.md"><code>docs/superpowers/specs/2026-06-12-control-plane-design.md</code></a>).<br />
+The codec is what <em>produces and parses bytes</em>; the supervisor is the downstream <em>consumer</em><br />
+that enforces meaning.</p>
+<p><strong>In scope (S4):</strong><br />
+- Rust structs/enums mirroring the RFC 0005 §1 schema.<br />
+- <code>encode(&amp;Frame) -&gt; Vec&lt;u8&gt;</code> and <code>decode(kind, &amp;[u8]) -&gt; Result&lt;Frame, DecodeError&gt;</code> for<br />
+  each frame <strong>body</strong> (the <code>&gt;= @1</code> tagged fields), applying RFC 0002 §6.2 ascending-tag<br />
+  emission and §6.3 canonical default-omission.<br />
+- The <code>ControlScope</code> / <code>ControlRefusal</code> enum codec (bare varint, §6.7.1) including<br />
+  unknown-case preservation (forward-compat, §6.7.1 / §8).<br />
+- The <code>ControlPlane</code> service binding as a Rust type that maps <code>(method, request-type) -&gt;
+  response-type</code> (RFC 0002 §4.3), so the routing layer can dispatch.<br />
+- Hand-derived golden byte vectors (§4) and canonical-rejection tests (§4.3).</p>
+<p><strong>Out of scope (NOT S4 — do not implement here):</strong><br />
+- Graceful-pause / step / interval / rewind <strong>semantics</strong> (RFC 0005 §2, §3) — supervisor.<br />
+- <code>preceptord</code> authority checks (RFC 0005 §2.3, Security considerations) — supervisor + policy.<br />
+- <code>topology_epoch</code> <strong>validation</strong> / <code>stale_epoch</code> enforcement (RFC 0005 §2.4, §7) — supervisor.<br />
+  S4 only encodes/decodes the <code>topology_epoch</code> <em>field</em>; it never decides currency.<br />
+- Writing <code>control_action</code> to <code>eventd</code> (RFC 0005 §8) — supervisor (WP3-S5 integrates eventd).<br />
+- Idempotency / nonce de-dup (RFC 0005 §2.5, §4) — supervisor.<br />
+- The <strong>frame header</strong> (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) — owned by the wire layer<br />
+  (RFC 0003 §4.4.1), delivered in WP3-S2. S4 bodies start at <code>@1</code> (RFC 0005 §1 line 45:<br />
+  "Header fields … are implicit; tags begin at <code>@1</code>").<br />
+- The frame-record length prefix and <code>max_frame</code> guard (RFC 0003 §4.1–§4.3) — WP3-S2.</p>
+<hr />
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-normative-inputs">2.1 Normative inputs</h3>
+<ul>
+<li><strong>RFC 0005 §1</strong> — the <code>hcp.control</code> schema (frame field names, types, tags, enums,<br />
+  service). This is the authoritative shape.</li>
+<li><strong>RFC 0002 §6.2</strong> (records/frames: field ordering &amp; tags) — fields emitted in <em>strictly<br />
+  ascending tag order</em>; decoders reject out-of-order/duplicate tags; tag <code>@0</code> reserved.</li>
+<li><strong>RFC 0002 §6.3</strong> (defaults, optionals, canonical omission) — the rule that makes the<br />
+  encoding canonical; see §3.3 below for how it applies to every control field.</li>
+<li><strong>RFC 0002 §6.1</strong> (varints), <strong>§6.4</strong> (bool / string-NFC), <strong>§6.5</strong> (hash), <strong>§6.7</strong><br />
+  (enums encode as a bare varint; unknown cases preserved) — the primitive layer.</li>
+<li><strong>RFC 0002 §5.1</strong> — <code>uuid</code> = 16 raw bytes, <em>no</em> length prefix, <em>no</em> endianness applied.</li>
+<li><strong>RFC 0003 §4.4.1</strong> — frame header field layout (consumed by S2; S4 must agree that<br />
+<code>ControlAck</code> is <code>kind=response (1)</code> and the six requests are <code>kind=request (0)</code>, matching<br />
+  RFC 0005 §1's <code>request</code>/<code>response</code> class annotations and RFC 0002 §4.3's <code>call</code> binding).</li>
+</ul>
+<h3 id="22-the-oracle-gap-critical-read-before-writing-tests">2.2 The oracle gap (critical — read before writing tests)</h3>
+<p>RFC 0005 ships <strong>no byte vectors</strong>. The oracle for S4 is <em>derivational</em>: apply RFC 0002<br />
+§6.2/§6.3 to each RFC 0005 frame shape, <strong>hand-derive the canonical bytes, and pin them as<br />
+the golden set</strong> committed in the test file. The existing primitive vectors that anchor the<br />
+derivation are:<br />
+- Unsigned varint vectors: RFC 0002 §6.1.1 (and already implemented + tested in<br />
+<code>protocol/hcp/hcpbin/src/lib.rs</code>, <code>tests::uvarint_golden</code>).<br />
+- Enum vectors: RFC 0002 §6.7.1 (lines 808–823) — <code>info=0 -&gt; 00</code>, <code>warn=1 -&gt; 01</code>,<br />
+  unknown <code>5 -&gt; 05</code>.<br />
+- Default-omission vectors: RFC 0002 §6.3.1 (lines 622–669) — the worked <code>Outer</code>/<code>Config</code><br />
+  examples are the template for §3.3 below.<br />
+- String vectors: RFC 0002 §6.6.1 (<code>"a" -&gt; 01 61</code>, <code>"bc" -&gt; 02 62 63</code>).</p>
+<p>A fully-worked seed vector for <code>PauseControl</code> is given in §4.1 so the test author has a<br />
+reference derivation. <strong>Each derived vector MUST be re-checked against §6.3</strong> by the<br />
+implementer; the default-omission cases (§3.3) are where mistakes happen.</p>
+<h3 id="23-code-oracle-already-shipped">2.3 Code oracle (already shipped)</h3>
+<p><code>protocol/hcp/hcpbin/src/lib.rs</code> (WP3-S1, done) provides the primitive <code>Reader</code>/<code>Writer</code>:<br />
+<code>put_uvarint</code>/<code>get_uvarint</code>, <code>put_bool</code>/<code>get_bool</code>, <code>put_bytes</code>/<code>get_bytes</code>,<br />
+<code>put_hash</code>/<code>get_hash</code> (<code>Hash{algo,digest}</code>), <code>put_raw</code>/<code>get_raw</code>, and whole-value<br />
+<code>decode_all</code> (rejects <code>TrailingBytes</code>, §6.8). The <code>DecodeError</code> enum (<code>UnexpectedEof</code>,<br />
+<code>Overlong</code>, <code>NonMinimal</code>, <code>WidthOverflow</code>, <code>InvalidBool</code>, <code>HashLengthMismatch</code>,<br />
+<code>LengthOverflow</code>, <code>TrailingBytes</code>) is the shared error surface; S4 extends it (§3.4) with<br />
+record-level variants. S4 reuses this crate; it does <strong>not</strong> re-implement varints.</p>
+<hr />
+<h2 id="3-design">3. Design</h2>
+<h3 id="31-field-type-inventory-bounds-the-dependency-set">3.1 Field-type inventory (bounds the dependency set)</h3>
+<p><code>hcp.control</code> is a <strong>flat</strong> schema: scalars + enums + optionals only. <strong>No unions, no<br />
+lists, no maps, no nested records</strong> (<code>ConsumerCheckpointEvicted.request_nonce</code> is <code>bytes</code>,<br />
+not a record). The complete set of field types across all seven frames:</p>
+<table>
+<thead>
+<tr>
+<th>RFC 0002 type</th>
+<th>Frames using it</th>
+<th>Codec source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>enum</code> (varint)</td>
+<td><code>ControlScope</code> (Pause/Resume/SetInterval/Step), <code>ControlRefusal</code> (ControlAck)</td>
+<td>S1 <code>get/put_uvarint</code> + §6.7 unknown-case handling (S4 thin wrapper)</td>
+</tr>
+<tr>
+<td><code>string</code></td>
+<td><code>target</code>, <code>reason</code> (CCE)</td>
+<td><strong>S2</strong> <code>string</code> codec (NFC, Unicode 15.1.0, §6.4)</td>
+</tr>
+<tr>
+<td><code>string?</code></td>
+<td><code>PauseControl.reason</code>, <code>ControlAck.detail</code></td>
+<td>S2 string + S4 optional handling</td>
+</tr>
+<tr>
+<td><code>u32</code></td>
+<td><code>SetIntervalControl.interval_ms</code></td>
+<td>S1 uvarint, width-bounded (<code>get_u32</code>)</td>
+</tr>
+<tr>
+<td><code>u64</code></td>
+<td>every <code>topology_epoch</code>, <code>rewind_to_step</code>, <code>min_required_step</code></td>
+<td>S1 <code>get_u64</code>/<code>put_uvarint</code></td>
+</tr>
+<tr>
+<td><code>u64?</code></td>
+<td><code>ControlAck.logged_seq</code></td>
+<td>S1 uvarint + S4 optional handling</td>
+</tr>
+<tr>
+<td><code>bool</code></td>
+<td><code>ControlAck.applied</code></td>
+<td>S1 <code>get/put_bool</code></td>
+</tr>
+<tr>
+<td><code>bytes</code></td>
+<td><code>ConsumerCheckpointEvicted.request_nonce</code></td>
+<td>S1 <code>get/put_bytes</code></td>
+</tr>
+<tr>
+<td><code>hash</code></td>
+<td><code>RewindControl.rewind_to_hash</code></td>
+<td>S1 <code>get/put_hash</code></td>
+</tr>
+<tr>
+<td><code>uuid</code></td>
+<td><code>RewindControl.producer</code>, <code>CCE.producer_id</code>/<code>consumer_id</code></td>
+<td><strong>§5.1 — 16 raw bytes; NOT in hcpbin yet</strong> (see §3.5)</td>
+</tr>
+</tbody>
+</table>
+<p>Note: §6.7 <em>union</em> codec is <strong>not</strong> needed here — do not pull it into S4.</p>
+<h3 id="32-the-record-codec-the-real-per-field-machinery">3.2 The record codec (the real per-field machinery)</h3>
+<p>Every frame body is a §6.2 record: present fields emitted in <strong>strictly ascending tag<br />
+order</strong>, each as <code>varint(tag) ++ value-bytes</code>. S4 needs a small, frame-specific<br />
+encode/decode per frame. Recommended shape:</p>
+<div class="highlight"><pre><span></span><span class="c1">// protocol/hcp/litany/src/control.rs</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">PauseControl</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">scope</span><span class="p">:</span><span class="w"> </span><span class="nc">ControlScope</span><span class="p">,</span><span class="w">        </span><span class="c1">// @1  enum, default unspecified(0) -&gt; omit</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">target</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w">             </span><span class="c1">// @2  string, default &quot;&quot; -&gt; omit</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">topology_epoch</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">,</span><span class="w">        </span><span class="c1">// @3  u64,    default 0  -&gt; omit</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">reason</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span><span class="w">     </span><span class="c1">// @4  string?, absent -&gt; omit</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PauseControl</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">w</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">Writer</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// ascending tag order; §6.3 default-omission per field:</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">scope</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">ControlScope</span><span class="p">::</span><span class="n">Unspecified</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">put_uvarint</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span><span class="w"> </span><span class="n">put_enum</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">scope</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="bp">self</span><span class="p">.</span><span class="n">target</span><span class="p">.</span><span class="n">is_empty</span><span class="p">()</span><span class="w">                 </span><span class="p">{</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">put_uvarint</span><span class="p">(</span><span class="mi">2</span><span class="p">);</span><span class="w"> </span><span class="n">put_string</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">target</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">topology_epoch</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="mi">0</span><span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">put_uvarint</span><span class="p">(</span><span class="mi">3</span><span class="p">);</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">put_uvarint</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">topology_epoch</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">r</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">reason</span><span class="w">              </span><span class="p">{</span><span class="w"> </span><span class="n">w</span><span class="p">.</span><span class="n">put_uvarint</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span><span class="w"> </span><span class="n">put_string</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">r</span><span class="p">);</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="n">r</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">Reader</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="p">,</span><span class="w"> </span><span class="n">ControlDecodeError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// tag-loop: read varint(tag), dispatch, enforce ascending+no-dup,</span>
+<span class="w">        </span><span class="c1">// substitute defaults for omitted non-optional fields (§6.3 line 619).</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The decode tag-loop is shared structure across all seven frames; factor a helper<br />
+(<code>read_next_tag</code> returning <code>Option&lt;u64&gt;</code> with ascending/duplicate enforcement) rather than<br />
+a generic derive macro (keep it simple — seven hand-written frames, per CLAUDE.md "no<br />
+abstractions for single-use code"; a <code>derive</code> is over-engineering for seven flat structs).</p>
+<h3 id="33-canonical-default-omission-per-field-the-load-bearing-detail">3.3 Canonical default-omission, per field (the load-bearing detail)</h3>
+<p>Apply RFC 0002 §6.3 (lines 571–620). For <strong>non-optional</strong> fields, a value equal to the<br />
+implicit default <strong>MUST be omitted</strong> (line 578); decoders substitute the default<br />
+(line 619). For <strong>optional</strong> (<code>T?</code>) fields, absent -&gt; omit; present (even if value equals a<br />
+default) -&gt; emit (line 577). Field-by-field:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scope</code></td>
+<td><code>ControlScope</code> enum</td>
+<td>implicit default = case 0 <code>unspecified</code> (§6.3 line 593). <code>scope=unspecified</code> -&gt; <strong>@1 omitted</strong>. This is exactly the RFC 0005 §1 line 51 / Security "default-deny by encoding": an omitted scope decodes to <code>unspecified</code>, which the supervisor refuses. <code>scope=agent(2)</code> emits <code>@1</code>.</td>
+</tr>
+<tr>
+<td><code>target</code></td>
+<td><code>string</code></td>
+<td>default = empty (§6.3 line 591). <code>target=""</code> -&gt; <strong>@2 omitted</strong> (decodes to <code>""</code>, which the supervisor refuses <code>unknown_target</code>).</td>
+</tr>
+<tr>
+<td><code>topology_epoch</code></td>
+<td><code>u64</code></td>
+<td>default = 0 (line 589). <code>topology_epoch=0</code> -&gt; <strong>@3 omitted</strong>. (Epoch 0 is unusual but the codec must omit it canonically.)</td>
+</tr>
+<tr>
+<td><code>interval_ms</code></td>
+<td><code>u32</code></td>
+<td>default = 0 -&gt; <strong>@4 omitted</strong> when 0. (RFC 0005 §1 line 90: <code>interval_ms=0</code> is the omitted default, refused <code>invalid_interval</code> by the supervisor.)</td>
+</tr>
+<tr>
+<td><code>reason</code> (Pause)</td>
+<td><code>string?</code></td>
+<td>absent -&gt; omit; present (even <code>""</code>) -&gt; emit <code>@4</code> (line 577).</td>
+</tr>
+<tr>
+<td><code>applied</code> (Ack)</td>
+<td><code>bool</code></td>
+<td>default = false (line 588). <strong><code>applied=false</code> -&gt; @1 omitted entirely</strong>; body of a refusal is just <code>@2 reason</code>. Counterintuitive — pin a golden vector.</td>
+</tr>
+<tr>
+<td><code>reason</code> (Ack)</td>
+<td><code>ControlRefusal</code> enum, <code>= unspecified</code> declared default</td>
+<td>default omitted -&gt; <strong>@2 omitted</strong> when <code>unspecified</code>. A successful <code>applied=true</code> Ack omits both <code>@1</code> (false… no, applied=true is non-default, emits) — see §4.2 for the exact bytes.</td>
+</tr>
+<tr>
+<td><code>logged_seq</code> (Ack)</td>
+<td><code>u64?</code></td>
+<td>absent -&gt; omit; present -&gt; emit <code>@3</code> even if 0 (line 577).</td>
+</tr>
+<tr>
+<td><code>detail</code> (Ack)</td>
+<td><code>string?</code></td>
+<td>absent -&gt; omit; present -&gt; emit <code>@4</code>.</td>
+</tr>
+<tr>
+<td><code>producer</code> etc.</td>
+<td><code>uuid</code></td>
+<td><strong>no implicit default</strong> (§6.3 line 596): a non-optional <code>uuid</code> is <strong>always emitted</strong> (line 601). All <code>uuid</code> fields in <code>RewindControl</code>/<code>CCE</code> always appear on the wire.</td>
+</tr>
+<tr>
+<td><code>rewind_to_hash</code></td>
+<td><code>hash</code></td>
+<td><strong>no implicit default</strong> (line 596): always emitted.</td>
+</tr>
+<tr>
+<td><code>rewind_to_step</code>, <code>min_required_step</code></td>
+<td><code>u64</code></td>
+<td>default 0 -&gt; omitted when 0 (rare for a real rewind, but canonical).</td>
+</tr>
+<tr>
+<td><code>request_nonce</code></td>
+<td><code>bytes</code></td>
+<td>default = empty -&gt; omitted when empty (but a real nonce is never empty; supervisor concern).</td>
+</tr>
+<tr>
+<td><code>reason</code> (CCE)</td>
+<td><code>string</code> (non-optional, RFC 0005 §1 line 119)</td>
+<td>default empty -&gt; omitted when <code>""</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Decoders MUST treat "tag absent" and "tag present == default" as the same value for<br />
+non-optional fields (§6.3 line 619) — but since encoders MUST omit, a <em>present default</em> on<br />
+a non-optional field is a <strong>non-canonical encoding</strong> and SHOULD be rejected for strictness<br />
+(see §4.3 rejection tests; this mirrors hcpbin's <code>NonMinimal</code> posture).</p>
+<h3 id="34-errors">3.4 Errors</h3>
+<p>Reuse <code>hcpbin::DecodeError</code> for primitive failures. Add a thin record-level error in<br />
+<code>control.rs</code>:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">ControlDecodeError</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Primitive</span><span class="p">(</span><span class="n">hcpbin</span><span class="p">::</span><span class="n">DecodeError</span><span class="p">),</span><span class="w">  </span><span class="c1">// varint/bool/bytes/hash/string failures</span>
+<span class="w">    </span><span class="n">TagOutOfOrder</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">prev</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">,</span><span class="w"> </span><span class="n">got</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="w"> </span><span class="p">},</span><span class="w">     </span><span class="c1">// §6.2 rule 1</span>
+<span class="w">    </span><span class="n">DuplicateTag</span><span class="p">(</span><span class="kt">u64</span><span class="p">),</span><span class="w">                          </span><span class="c1">// §6.2 rule 1</span>
+<span class="w">    </span><span class="n">UnknownTagInBody</span><span class="p">(</span><span class="kt">u64</span><span class="p">),</span><span class="w">    </span><span class="c1">// a tag with no field in this frame (see note)</span>
+<span class="w">    </span><span class="n">NonCanonicalDefault</span><span class="p">(</span><span class="kt">u64</span><span class="p">),</span><span class="w"> </span><span class="c1">// non-optional field present with default value (§6.3)</span>
+<span class="w">    </span><span class="n">ReservedTagZero</span><span class="p">,</span><span class="w">          </span><span class="c1">// @0 appeared in a body (§6.2 rule 3)</span>
+<span class="w">    </span><span class="n">UnknownEnumCase</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">field_tag</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">,</span><span class="w"> </span><span class="n">case</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="c1">// see §3.6 — preserved, not error, for fwd-compat</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Note on <code>UnknownTagInBody</code>: RFC 0002 §6.2 line 557 says self-delimitation lets a decoder<br />
+<em>skip and preserve</em> unknown nested shapes for round-trip — but the control frames are flat<br />
+and every field is a fixed primitive, so an unknown trailing tag in a <em>frozen</em> control<br />
+frame is ambiguous to skip (a bare varint field has no length prefix). <strong>Decision (stated<br />
+assumption):</strong> for S4, treat an unknown tag in a control-frame body as a decode error<br />
+(<code>UnknownTagInBody</code>), because RFC 0005 is the frozen control schema and the wire pins the<br />
+schema digest (RFC 0003 §5.4) — a peer sending an unknown control tag is using a different<br />
+schema, which is a frame-level error, not a forward-compat case. (Enum <em>case</em> evolution is<br />
+handled separately, §3.6.) Revisit if RFC 0005 adds the open-question <code>steps: u32</code> field<br />
+(§ Open questions line 547) — that would be a schema-version event handled by digest<br />
+negotiation, not in-band tolerance.</p>
+<h3 id="35-uuid-codec-a-prerequisite-gap">3.5 <code>uuid</code> codec — a prerequisite gap</h3>
+<p><code>uuid</code> (RFC 0002 §5.1 line 330) = <strong>16 raw bytes, no length prefix, no endianness</strong>. It is<br />
+<strong>not in <code>hcpbin</code> today</strong> — <code>lib.rs</code> lines 488–498 list TODOs (string, f32/f64, records,<br />
+unions) but <strong>not uuid</strong>. It is trivial over <code>put_raw(&amp;[u8;16])</code> / <code>get_raw(16)</code>, but it<br />
+must exist somewhere before S4 can encode <code>RewindControl</code>/<code>ConsumerCheckpointEvicted</code>.</p>
+<p><strong>Stated assumption / dependency:</strong> S4 will add <code>put_uuid</code>/<code>get_uuid</code> to <code>hcpbin</code> (16-byte<br />
+fixed) if S2 has not. This is the cleanest home (it is a §6 primitive). Flag in §7. The<br />
+decode MUST require exactly 16 bytes available (<code>get_raw(16)</code> already errors<br />
+<code>UnexpectedEof</code> otherwise).</p>
+<h3 id="36-enum-codec-controlscope-controlrefusal">3.6 Enum codec (<code>ControlScope</code>, <code>ControlRefusal</code>)</h3>
+<p>Per RFC 0002 §6.7.1 (lines 808–823): an enum encodes as a <strong>bare varint</strong> of the case<br />
+value. Known cases map to the Rust enum; an unknown case (from a future RFC 0005 revision)<br />
+is <strong>preserved</strong> for byte-for-byte round-trip (line 822: <code>unknown(5) -&gt; 05</code>). Model as:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">ControlScope</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Unspecified</span><span class="p">,</span><span class="w"> </span><span class="n">Runtime</span><span class="p">,</span><span class="w"> </span><span class="n">Agent</span><span class="p">,</span><span class="w"> </span><span class="n">Unknown</span><span class="p">(</span><span class="kt">u64</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+</pre></div>
+
+<p><code>put_enum</code> emits the underlying varint; <code>get_enum</code> maps <code>0/1/2</code> to the named cases and any<br />
+other value to <code>Unknown(n)</code>, re-emitting <code>n</code> verbatim. (This matters for <code>ControlRefusal</code><br />
+too — a future refusal reason must round-trip through an older decoder.) Round-trip of an<br />
+<code>Unknown</code> case is a test (§4.3).</p>
+<h3 id="37-service-binding">3.7 Service binding</h3>
+<p>RFC 0005 §1 lines 131–138 define <code>service ControlPlane</code> with six <code>call</code> bindings. Per<br />
+RFC 0002 §4.3 (line 268), <code>call (Req) -&gt; Resp</code> binds a <code>request</code> frame to a terminal<br />
+<code>response</code>; <strong>all six</strong> bind to <code>ControlAck</code>. S4 expresses this as a Rust enum the routing<br />
+layer (S3) dispatches on:</p>
+<div class="highlight"><pre><span></span><span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">ControlRequest</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Pause</span><span class="p">(</span><span class="n">PauseControl</span><span class="p">),</span><span class="w"> </span><span class="n">Resume</span><span class="p">(</span><span class="n">ResumeControl</span><span class="p">),</span><span class="w"> </span><span class="n">Slow</span><span class="p">(</span><span class="n">SetIntervalControl</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Step</span><span class="p">(</span><span class="n">StepControl</span><span class="p">),</span><span class="w"> </span><span class="n">Rewind</span><span class="p">(</span><span class="n">RewindControl</span><span class="p">),</span><span class="w"> </span><span class="n">EvictCheckpoint</span><span class="p">(</span><span class="n">ConsumerCheckpointEvicted</span><span class="p">),</span>
+<span class="p">}</span>
+<span class="c1">// all -&gt; ControlAck</span>
+</pre></div>
+
+<p>S4 does <strong>not</strong> implement dispatch/routing (that is S3's layer); it provides the typed<br />
+request enum and <code>ControlAck</code> so S3 can wire them. The mapping table (method name -&gt;<br />
+request variant -&gt; <code>ControlAck</code>) is the deliverable, matching RFC 0005 §1 lines 132–137.</p>
+<hr />
+<h2 id="4-golden-vectors-derived-s4-deliverable">4. Golden vectors (derived — S4 deliverable)</h2>
+<p>These are derived from RFC 0002 §6.2/§6.3 and pinned in <code>tests/control_golden.rs</code>. The<br />
+implementer MUST re-verify each by the §6.3 rules. Bytes are hex; the body starts at <code>@1</code><br />
+(no frame header — that is the S2 wire layer, RFC 0003 §4.4.1).</p>
+<h3 id="41-pausecontrol-fully-worked-seed">4.1 <code>PauseControl</code> (fully-worked seed)</h3>
+<p><code>PauseControl{ scope: agent, target: "worker-1", topology_epoch: 5, reason: "GC drain" }</code><br />
+(the RFC 0005 §5 worked example, lines 287–292), ascending tag, §6.3 omission:</p>
+<ul>
+<li><code>@1 scope=agent(2)</code> (non-default) -&gt; <code>01</code> (tag) <code>02</code> (varint case 2)</li>
+<li><code>@2 target="worker-1"</code> (len 8) -&gt; <code>02</code> (tag) <code>08</code> (len) <code>77 6f 72 6b 65 72 2d 31</code></li>
+<li><code>@3 topology_epoch=5</code> (non-default) -&gt; <code>03</code> (tag) <code>05</code> (varint)</li>
+<li><code>@4 reason="GC drain"</code> (present, len 8) -&gt; <code>04</code> (tag) <code>08</code> (len) <code>47 43 20 64 72 61 69 6e</code></li>
+</ul>
+<p><strong>Encoded body:</strong> <code>01 02 02 08 77 6f 72 6b 65 72 2d 31 03 05 04 08 47 43 20 64 72 61 69 6e</code></p>
+<p>Default-omission variant — <code>PauseControl{ scope: unspecified, target: "", topology_epoch: 0,
+reason: absent }</code> (every field at default) -&gt; <strong>empty body</strong> (zero bytes). This is the<br />
+canonical "default-deny by omission" frame (RFC 0005 Security line 501–503).</p>
+<h3 id="42-controlack-the-counterintuitive-cases-pin-these">4.2 <code>ControlAck</code> (the counterintuitive cases — pin these)</h3>
+<ul>
+<li><code>ControlAck{ applied: false, reason: stale_epoch(3) }</code> (a refusal):<br />
+<code>applied=false</code> is the bool default -&gt; <strong>@1 omitted</strong>; <code>reason=3</code> non-default -&gt;<br />
+<code>02 03</code>. <strong>Encoded body:</strong> <code>02 03</code> (tag @2, enum 3). <em>(Same shape with <code>reason</code> swapped:<br />
+<code>denied=1 -&gt; 02 01</code>, <code>unknown_target=2 -&gt; 02 02</code>, <code>not_paused=4 -&gt; 02 04</code>,<br />
+<code>invalid_interval=5 -&gt; 02 05</code>, <code>invalid_rewind=6 -&gt; 02 06</code>.)</em></li>
+<li><code>ControlAck{ applied: true, reason: unspecified, logged_seq: 12345 }</code> (an applied ack):<br />
+<code>applied=true</code> non-default -&gt; <code>01 01</code>; <code>reason=unspecified(0)</code> declared default -&gt;<br />
+<strong>@2 omitted</strong>; <code>logged_seq?=12345</code> present -&gt; <code>03</code> + varint(12345). 12345 = 0x3039 -&gt;<br />
+  LEB128 minimal <code>b9 60</code>. <strong>Encoded body:</strong> <code>01 01 03 b9 60</code>.</li>
+<li><code>ControlAck{ applied: true, logged_seq: 0 }</code> (present optional == 0): <code>logged_seq?</code> is<br />
+  optional and present, so emitted even though 0 (§6.3 line 577): <code>01 01 03 00</code>.</li>
+<li><code>ControlAck{ applied: false, reason: invalid_rewind(6), detail: "hash mismatch…" }</code>:<br />
+<code>02 06</code> then <code>04</code> + string(detail). (RFC 0005 §5 line 409 example.)</li>
+</ul>
+<h3 id="43-setintervalcontrol">4.3 <code>SetIntervalControl</code></h3>
+<p><code>SetIntervalControl{ scope: agent, target: "worker-2", topology_epoch: 5,
+interval_ms: 5000 }</code> (RFC 0005 §5 lines 356–361):<br />
+- <code>@1 -&gt; 01 02</code>, <code>@2 "worker-2" -&gt; 02 08 77 6f 72 6b 65 72 2d 32</code>, <code>@3 -&gt; 03 05</code>,<br />
+- <code>@4 interval_ms=5000</code> -&gt; <code>04</code> + varint(5000). 5000 = 0x1388 -&gt; LEB128 <code>88 27</code>.<br />
+- <strong>Encoded body:</strong> <code>01 02 02 08 77 6f 72 6b 65 72 2d 32 03 05 04 88 27</code><br />
+- Refused variant <code>interval_ms=0</code>: <code>@4</code> omitted (0 is the default), body<br />
+<code>01 02 02 08 77 6f 72 6b 65 72 2d 32 03 05</code> — the supervisor (not S4) then refuses<br />
+<code>invalid_interval</code>.</p>
+<h3 id="44-rewindcontrol-uuid-hash-both-always-emitted">4.4 <code>RewindControl</code> (uuid + hash — both always emitted)</h3>
+<p><code>RewindControl{ producer: &lt;uuid&gt;, rewind_to_step: 50, rewind_to_hash: SHA-256(&lt;32B&gt;),
+topology_epoch: 5 }</code>:<br />
+- <code>@1 producer</code> (uuid, no default, always emitted) -&gt; <code>01</code> + 16 raw bytes.<br />
+- <code>@2 rewind_to_step=50</code> -&gt; <code>02 32</code>.<br />
+- <code>@3 rewind_to_hash</code> (hash, no default, always emitted) -&gt; <code>03</code> + <code>01</code> (algo SHA-256) +<br />
+<code>20</code> (len 32) + 32 digest bytes (per RFC 0002 §6.5 / hcpbin <code>put_hash</code>).<br />
+- <code>@4 topology_epoch=5</code> -&gt; <code>04 05</code>.<br />
+- <strong>Encoded body:</strong> <code>01 &lt;16B&gt; 02 32 03 01 20 &lt;32B&gt; 04 05</code>.</p>
+<h3 id="45-resumecontrol-stepcontrol">4.5 <code>ResumeControl</code> / <code>StepControl</code></h3>
+<p>Identical body shape (scope @1, target @2, topology_epoch @3). E.g.<br />
+<code>StepControl{ scope: agent, target: "worker-1", topology_epoch: 5 }</code> -&gt;<br />
+<code>01 02 02 08 77 6f 72 6b 65 72 2d 31 03 05</code>.</p>
+<h3 id="46-consumercheckpointevicted">4.6 <code>ConsumerCheckpointEvicted</code></h3>
+<p><code>{ producer_id, consumer_id, min_required_step, topology_epoch, reason, request_nonce }</code><br />
+with two uuids (always emitted, @1/@2), <code>min_required_step</code> u64 @3, <code>topology_epoch</code> u64 @4,<br />
+<code>reason</code> string @5, <code>request_nonce</code> bytes @6. Body:<br />
+<code>01 &lt;16B&gt; 02 &lt;16B&gt; 03 &lt;varint&gt; 04 &lt;varint&gt; 05 &lt;len&gt; &lt;utf8&gt; 06 &lt;len&gt; &lt;nonce-bytes&gt;</code>.</p>
+<hr />
+<h2 id="5-test-plan">5. Test plan</h2>
+<p>All functional tests run via <code>cargo test -p litany</code> (or <code>cargo test</code> in<br />
+<code>protocol/hcp/litany/</code>). <strong>The control codec is pure Rust; 100% of S4's functional<br />
+verification is M1-local.</strong> There is no namespace-syscall or Linux-only surface in S4.</p>
+<h3 id="51-m1-local-cargo-test-the-entire-s4-suite">5.1 M1-local (cargo test) — the entire S4 suite</h3>
+<ol>
+<li><strong>Golden encode.</strong> For each vector in §4: build the struct, <code>encode</code>, assert bytes equal<br />
+   the pinned hex. (Catches tag-order and §6.3 omission bugs.)</li>
+<li><strong>Golden decode.</strong> For each vector: <code>decode</code> the pinned bytes, assert the struct equals<br />
+   the source. (Round-trip closure: <code>decode(encode(x)) == x</code> and <code>encode(decode(b)) == b</code>.)</li>
+<li><strong>Default-omission correctness</strong> (§3.3): the all-default <code>PauseControl</code> -&gt; empty body;<br />
+<code>ControlAck{applied:false,…}</code> omits @1; <code>ControlAck{applied:true}</code> with<br />
+<code>reason:unspecified</code> omits @2; <code>interval_ms:0</code> omits @4. One assertion per row of §3.3.</li>
+<li><strong>Optional vs default distinction</strong>: <code>reason: Some("")</code> emits <code>@4 04 00</code>; <code>reason: None</code><br />
+   omits @4 (mirrors RFC 0002 §6.3.1 <code>optional_attrs</code> example, lines 661–664).</li>
+<li><strong>uuid / hash always-emitted</strong> (§6.3 line 601): a <code>RewindControl</code> always has @1 and @3<br />
+   on the wire regardless of value (even an all-zero uuid is emitted, not omitted).</li>
+<li><strong>Enum unknown-case round-trip</strong> (§3.6): decode <code>02 07</code> as <code>ControlAck.reason</code> -&gt;<br />
+<code>Unknown(7)</code>; re-encode -&gt; <code>02 07</code> byte-identical (RFC 0002 §6.7.1 line 822 posture).</li>
+<li><strong>Canonical-rejection tests</strong> (negative; these prove the decoder is strict):</li>
+<li>Out-of-order tags (e.g. <code>@3</code> before <code>@2</code>) -&gt; <code>TagOutOfOrder</code> (§6.2 rule 1).</li>
+<li>Duplicate tag -&gt; <code>DuplicateTag</code>.</li>
+<li><code>@0</code> in a body -&gt; <code>ReservedTagZero</code> (§6.2 rule 3).</li>
+<li>Non-minimal varint inside a field -&gt; <code>DecodeError::NonMinimal</code> (reuses hcpbin, §6.1).</li>
+<li>Non-canonical default present (e.g. <code>ControlAck</code> body <code>01 00 …</code> with <code>applied=false</code><br />
+     emitted) -&gt; <code>NonCanonicalDefault</code> (§3.3 strictness).</li>
+<li>Truncated frame (declared string len &gt; remaining) -&gt; <code>DecodeError::UnexpectedEof</code>.</li>
+<li>Trailing bytes after a whole-frame decode -&gt; <code>DecodeError::TrailingBytes</code> (§6.8).</li>
+<li>Unknown body tag in a flat control frame -&gt; <code>UnknownTagInBody</code> (§3.4 decision).</li>
+<li><strong><code>u32</code>/<code>u64</code> width bounds</strong>: <code>interval_ms</code> decoded from a varint &gt; <code>u32::MAX</code> -&gt;<br />
+<code>DecodeError::WidthOverflow</code> (reuses <code>get_u32</code>, hcpbin <code>unsigned_width_overflow</code>).</li>
+</ol>
+<h3 id="52-what-needs-dev-cx53-linux-essentially-nothing-in-s4">5.2 What needs dev-cx53 / Linux — essentially nothing in S4</h3>
+<ul>
+<li><strong>None of S4's correctness tests need dev-cx53.</strong> The codec has no syscalls, no<br />
+  namespaces, no platform-specific behavior.</li>
+<li>The <strong>≤10µs/frame perf number</strong> (kickoff line 54) is a <em>dev-cx53, 8-core, no-alloc</em><br />
+  measurement and belongs to <strong>WP3-S6</strong> (perf baseline), not S4. Do not invent a Linux-only<br />
+  test for S4. If a smoke <code>criterion</code> micro-bench is added in S4, it is informational only<br />
+  and not a gate; the binding gate is on dev-cx53 in S6.</li>
+<li><strong>Zig:</strong> no Zig surface in S4. The <code>vakedz</code> Zig codegen (RFC 0002 §7.1, Appendix A.1)<br />
+  could in principle emit a <code>hcp.control</code> decoder, but there is <strong>no cross-language interop<br />
+  vector in scope for S4</strong>, so no <code>zig build -Dtarget=x86_64-linux</code> step is required here.<br />
+  (If a future sprint adds Zig↔Rust interop vectors, the §4 golden hex is the shared oracle;<br />
+  that is the natural extension point, not an S4 deliverable.)</li>
+</ul>
+<h3 id="53-verification-commands-m1">5.3 Verification commands (M1)</h3>
+<div class="highlight"><pre><span></span><span class="n">cargo</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="o">-</span><span class="n">p</span><span class="w"> </span><span class="n">litany</span><span class="w"> </span><span class="n">control</span><span class="w">          </span><span class="p">#</span><span class="w"> </span><span class="n">golden</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">rejection</span><span class="w"> </span><span class="n">suite</span>
+<span class="n">cargo</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="o">-</span><span class="n">p</span><span class="w"> </span><span class="n">hcpbin</span><span class="w">                  </span><span class="p">#</span><span class="w"> </span><span class="nl">regression:</span><span class="w"> </span><span class="k">primitive</span><span class="w"> </span><span class="n">layer</span><span class="w"> </span><span class="n">still</span><span class="w"> </span><span class="n">green</span>
+<span class="n">cargo</span><span class="w"> </span><span class="n">build</span><span class="w"> </span><span class="o">-</span><span class="n">p</span><span class="w"> </span><span class="n">litany</span><span class="w">                 </span><span class="p">#</span><span class="w"> </span><span class="n">compiles</span><span class="w"> </span><span class="n">on</span><span class="w"> </span><span class="n">M1</span><span class="w"> </span><span class="p">(</span><span class="n">stable</span><span class="p">)</span>
+</pre></div>
+
+<hr />
+<h2 id="6-file-layout-paths-to-create">6. File layout (paths to create)</h2>
+<p><code>protocol/hcp/litany/</code> does <strong>not exist yet</strong> — it is created by WP3-S2/S3 (kickoff line 14:<br />
+"<code>protocol/hcp/litany/</code> — frame + routing layer (WP3-S3+)"). S4 <em>adds to</em> that crate. If S2/S3<br />
+have not landed at S4 start, S4 must scaffold the crate (Cargo.toml depending on <code>hcpbin</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Status</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>protocol/hcp/litany/src/control.rs</code></td>
+<td><strong>create</strong></td>
+<td><code>ControlScope</code>, <code>ControlRefusal</code> enums; the seven frame structs; per-frame <code>encode</code>/<code>decode</code>; <code>ControlRequest</code> enum + <code>ControlPlane</code> service mapping (§3.7); <code>ControlDecodeError</code> (§3.4).</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/litany/src/lib.rs</code></td>
+<td>edit (or create)</td>
+<td><code>pub mod control;</code> (created by S2/S3; S4 adds the module line).</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/litany/tests/control_golden.rs</code></td>
+<td><strong>create</strong></td>
+<td>The §4 golden vectors + §5.1 round-trip + canonical-rejection suite.</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/litany/Cargo.toml</code></td>
+<td>create-if-absent / edit</td>
+<td>crate manifest; <code>[dependencies] hcpbin = { path = "../hcpbin" }</code>.</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/hcpbin/src/lib.rs</code></td>
+<td>edit</td>
+<td>add <code>put_uuid</code>/<code>get_uuid</code> (16 raw bytes, §3.5) <strong>if S2 did not</strong>; remove the matching nothing else (surgical).</td>
+</tr>
+<tr>
+<td><code>protocol/hcplang/examples/hcp-control.hcplang</code></td>
+<td><strong>create (proposed)</strong></td>
+<td>The canonical <code>.hcplang</code> source of the RFC 0005 §1 schema. RFC 0003 §5.4 ties the schema <strong>digest</strong> to this file's <code>litanyfmt</code>-canonical form (RFC 0002 §8); that digest must be advertised in HELLO <code>schema_digests</code> (RFC 0003 §5.3) for control frames to traverse a real connection. S4 should pin the source even though digest computation/advertisement is the wire/handshake layer's job (S2).</td>
+</tr>
+</tbody>
+</table>
+<p>(Existing reference: <code>protocol/hcp/hcpbin/Cargo.toml</code>, <code>protocol/hcp/hcpbin/tests/golden.rs</code><br />
+show the crate conventions to mirror.)</p>
+<hr />
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Sprint</th>
+<th>Why S4 needs it</th>
+<th>Status / risk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Primitive codec: uvarint, bool, bytes, hash, width-bounded ints, <code>decode_all</code>/<code>TrailingBytes</code></td>
+<td><strong>WP3-S1 (done)</strong></td>
+<td>The whole field-value layer (<code>hcpbin::Reader</code>/<code>Writer</code>).</td>
+<td>Shipped (<code>protocol/hcp/hcpbin/src/lib.rs</code>).</td>
+</tr>
+<tr>
+<td><code>string</code> codec (NFC, Unicode 15.1.0, §6.4)</td>
+<td><strong>WP3-S2</strong></td>
+<td><code>target</code>, <code>reason</code>, <code>detail</code> fields. Hard prereq — string is not in hcpbin today (<code>lib.rs</code> line 488 TODO).</td>
+<td><strong>Blocking.</strong> If S2 slips, S4 cannot encode any string-bearing frame.</td>
+</tr>
+<tr>
+<td><strong>Generic record-field framing</strong>: ascending-tag emission + §6.3 default-omission + optional handling (§6.2/§6.3)</td>
+<td><strong>S2 or S3 — ambiguous</strong></td>
+<td>Same machinery S4's per-frame codecs use.</td>
+<td><em>Stated assumption (per CLAUDE.md, not picking silently):</em> the kickoff labels S2 "Frame layer (RFC 0003) + round-trip test suite" and S3 "Message routing". The RFC 0002 §6.2/§6.3 record rules are <em>body-encoding</em> rules, naturally part of the "frame layer" / round-trip suite (S2), since the round-trip suite must exercise real frame bodies. <strong>Assumption: the record tag-ordering/default-omission codec lands in S2.</strong> If instead S2 only does the RFC 0003 <em>wire envelope</em> (length prefix + header) and leaves body-record encoding to consumers, then S4 owns the record codec itself (§3.2 already hand-writes it per frame, so S4 is self-sufficient either way — the risk is only duplicated work, not a blocker). <strong>Action: confirm with the WP3 engineer at S2 close.</strong></td>
+</tr>
+<tr>
+<td><code>uuid</code> 16-byte codec</td>
+<td>S2 or <strong>S4</strong></td>
+<td><code>RewindControl</code>, <code>ConsumerCheckpointEvicted</code> ids.</td>
+<td>Not in hcpbin yet (§3.5). S4 adds it if S2 didn't — low risk (trivial over <code>get_raw(16)</code>).</td>
+</tr>
+<tr>
+<td>Frame header (<code>kind</code>/<code>corr</code>/…) + length prefix + <code>max_frame</code></td>
+<td><strong>WP3-S2</strong></td>
+<td>To put control bodies on a real connection.</td>
+<td>Not needed for S4's <em>unit</em> tests (bodies tested in isolation). Needed only for end-to-end, which is S5+.</td>
+</tr>
+<tr>
+<td>Routing/dispatch on <code>kind</code>+service</td>
+<td><strong>WP3-S3</strong></td>
+<td>Consumer of <code>ControlRequest</code>/<code>ControlAck</code>.</td>
+<td>S4 provides the types; S3 dispatches. Not a blocker for S4.</td>
+</tr>
+<tr>
+<td>eventd integration (<code>control_action</code> write-ahead, RFC 0005 §8)</td>
+<td><strong>WP3-S5 / supervisor</strong></td>
+<td>Downstream consumer.</td>
+<td>Out of S4 scope (§1.1).</td>
+</tr>
+<tr>
+<td><code>agent-supervisord</code> semantics (pause/step/rewind/epoch/authority)</td>
+<td><strong>separate WP / control-plane design plan items 3–5</strong></td>
+<td>Downstream consumer of the codec.</td>
+<td>Out of S4 scope (§1.1).</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>S4 is <strong>done</strong> when all of the following hold (all checkable on M1 via <code>cargo test</code>):</p>
+<ol>
+<li><code>protocol/hcp/litany/src/control.rs</code> defines all seven RFC 0005 §1 frames, both enums,<br />
+   the <code>ControlRequest</code> enum, and the <code>ControlPlane</code>→<code>ControlAck</code> mapping (§3.7), matching<br />
+   the RFC 0005 §1 schema exactly (field names, types, tags @1+).</li>
+<li><code>encode</code>/<code>decode</code> round-trip closes for every frame: <code>decode(encode(x)) == x</code> <strong>and</strong><br />
+<code>encode(decode(b)) == b</code> for every §4 golden vector (byte-for-byte; canonical per §6.8).</li>
+<li>Every golden vector in §4 is pinned in <code>tests/control_golden.rs</code> and asserted<br />
+   byte-exact, <strong>derived and re-verified against RFC 0002 §6.2/§6.3</strong> (not from RFC 0005,<br />
+   which has none).</li>
+<li>Canonical-omission is correct for all §3.3 rows — in particular the three counterintuitive<br />
+   cases (all-default body -&gt; empty; <code>ControlAck{applied:false}</code> omits @1;<br />
+<code>interval_ms:0</code> omits @4) each have a passing assertion.</li>
+<li>The decoder is <strong>strict</strong>: every §5.1 rejection test passes (out-of-order/duplicate/<code>@0</code><br />
+   tags, non-minimal varint, non-canonical default, truncation, trailing bytes, unknown<br />
+   body tag, width overflow) — each returns the specific typed error, not a panic.</li>
+<li>Enum unknown-case round-trips byte-identically (§3.6 / RFC 0002 §6.7.1).</li>
+<li><code>uuid</code> and <code>hash</code> fields are always emitted (never omitted), verified by test (§5.1.5).</li>
+<li><code>cargo test -p litany</code> and <code>cargo test -p hcpbin</code> are green on M1; <code>cargo build -p litany</code><br />
+   compiles on stable. No new <code>unsafe</code>.</li>
+<li>The dependency assumptions in §7 (record-codec home: S2 vs S3; <code>uuid</code> home) are confirmed<br />
+   with the WP3 engineer and the resolution noted in the PR description (per CLAUDE.md §1 —<br />
+   surface, don't pick silently).</li>
+<li><strong>Out of scope is respected:</strong> S4 contains no pause/step/rewind semantics, no preceptord<br />
+    checks, no epoch validation, no eventd writes, no frame-header/length-prefix code<br />
+    (those are §1.1's other owners). A reviewer can trace every changed line to "encode or<br />
+    decode an <code>hcp.control</code> frame body."</li>
+</ol>
+<h3 id="non-goals-explicitly-deferred">Non-goals / explicitly deferred</h3>
+<ul>
+<li>Perf (≤10µs/frame) — WP3-S6 on dev-cx53.</li>
+<li>End-to-end control over a live Litany connection — WP3-S5+ and supervisor.</li>
+<li>The open RFC 0005 questions (<code>StepControl.steps</code> count line 547; uuid targets for the<br />
+  scheduling frames line 554) — schema-version events; not in the frozen S4 schema.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp3-s4.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

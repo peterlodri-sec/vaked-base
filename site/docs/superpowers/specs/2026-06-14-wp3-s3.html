@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP3-S3 — Message routing (RFC 0004 state-dependent model) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#0-citation-correction-read-first" style="padding-left:0.5rem">0. Citation correction (read first)</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-what-this-sprint-is-not-scope-boundary-normative-for-the-design" style="padding-left:1rem">  1.1 What this sprint is NOT (scope boundary — normative for the design)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-normative-inputs-rfcs" style="padding-left:1rem">  2.1 Normative inputs (RFCs)</a><a href="#22-differential-oracle-executable-runs-on-m1" style="padding-left:1rem">  2.2 Differential oracle (executable, runs on M1)</a><a href="#23-upstream-code-dependency-wp3-s1-exists-today" style="padding-left:1rem">  2.3 Upstream code dependency (WP3-S1, exists today)</a><a href="#3-design" style="padding-left:0.5rem">3. Design</a><a href="#31-crate-layout" style="padding-left:1rem">  3.1 Crate layout</a><a href="#32-core-types" style="padding-left:1rem">  3.2 Core types</a><a href="#33-the-trait-seams-this-is-what-makes-s3-codeable-before-s4-and-s5" style="padding-left:1rem">  3.3 The trait seams (this is what makes S3 codeable before S4 and S5)</a><a href="#34-the-routing-algorithm" style="padding-left:1rem">  3.4 The routing algorithm</a><a href="#35-minting-error-frames" style="padding-left:1rem">  3.5 Minting `error` frames</a><a href="#4-worked-routing-trace-matches-rfc-0004-5-checkpointrewind-example" style="padding-left:0.5rem">4. Worked routing trace (matches RFC 0004 §5 checkpoint/rewind example)</a><a href="#5-test-plan" style="padding-left:0.5rem">5. Test plan</a><a href="#51-runs-fully-on-m1-cargo-test-python3" style="padding-left:1rem">  5.1 Runs fully on M1 (`cargo test`, `python3`)</a><a href="#52-differential-test-design-the-verification-spine" style="padding-left:1rem">  5.2 Differential test design (the verification spine)</a><a href="#53-needs-dev-cx53-linux-not-this-sprints-gate-but-tracked" style="padding-left:1rem">  5.3 Needs dev-cx53 / Linux (NOT this sprint's gate, but tracked)</a><a href="#6-dependencies-on-other-sprints" style="padding-left:0.5rem">6. Dependencies on other sprints</a><a href="#7-risks-open-questions" style="padding-left:0.5rem">7. Risks / open questions</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp3-s3</div>
+<h1>WP3-S3 — Message routing (RFC 0004 state-dependent model)</h1>
+<h1 id="wp3-s3-message-routing-rfc-0004-state-dependent-model">WP3-S3 — Message routing (RFC 0004 state-dependent model)</h1>
+<ul>
+<li><strong>Status:</strong> Draft (planning artifact; work is dependency-blocked, see §8)</li>
+<li><strong>Created:</strong> 2026-06-14</li>
+<li><strong>Track:</strong> WP3 (HCP wire protocol — <code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code>)</li>
+<li><strong>Sprint:</strong> WP3-S3, Jul 24–Aug 6, 2026 (Engineer A)</li>
+<li><strong>Code home:</strong> <code>protocol/hcp/litany/</code> (new crate; the kickoff §"Code home" assigns<br />
+  the "frame + routing layer" to this path)</li>
+</ul>
+<h2 id="0-citation-correction-read-first">0. Citation correction (read first)</h2>
+<p>The WP3 kickoff (<code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md</code> line 43) and<br />
+the S3 issue text say golden vectors come from "<strong>RFC 0002 §4 / Appendix A</strong>".<br />
+That wording is <strong>stale and wrong</strong>:</p>
+<ul>
+<li>The byte encoding lives in <strong>RFC 0002 §6</strong> ("<code>hcpbin</code> encoding rules"), not §4.</li>
+<li>The frame header (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>) is <strong>RFC 0002 §4.2</strong>, but<br />
+  its wire encoding is normative in <strong>RFC 0003 §4.4.1</strong>, and the header is part of<br />
+  the <strong>WIRE layer</strong>, explicitly <em>not</em> part of <code>hcpbin</code>'s payload scope<br />
+  (RFC 0002 §4.2; RFC 0003 §4.4).</li>
+<li>There is <strong>no Appendix A</strong> in RFC 0002. Golden vectors are the worked examples<br />
+  in RFC 0002 <strong>§6.1.1, §6.3.1, §6.6.1, §6.7.1, and §10</strong>.</li>
+</ul>
+<p>All citations below use the corrected section numbers. RFC 0004 is referred to by<br />
+the repo path <code>protocol/rfcs/0004-multi-agent-state-dependency.md</code> (its abstract<br />
+notes it was informally called "RFC 0005" in pre-2026-06-12 design sessions; that<br />
+alias is dead — RFC 0005 is the unrelated control-frame catalog).</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Deliver the <strong>message-routing layer</strong> of the <code>litany</code> crate: the component that<br />
+takes an already-decoded inbound Votive Frame and decides where it goes —<br />
+demultiplexing by frame header, reassembling streams, matching responses to<br />
+outstanding requests, binding frames to chapters, and <strong>gating delivery on the<br />
+RFC 0004 state-dependency model</strong> (topology-epoch currency and consumer lifecycle<br />
+state). It produces, for each inbound frame, exactly one routing verdict:</p>
+<div class="highlight"><pre><span></span><span class="n">Deliver</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span><span class="w">        </span><span class="c1"># hand to the destination handler / mailbox (Request, Control)</span>
+<span class="n">Reply</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span><span class="w">            </span><span class="c1"># match to an outstanding local exchange by corr</span>
+<span class="w">                              </span><span class="c1">#   (Response, Error: terminal; Event: to the subscription handler)</span>
+<span class="n">Queue</span><span class="p">(</span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span><span class="w">          </span><span class="c1"># buffer: target is paused (RFC 0003 §2.1 / RFC 0005 §2.1)</span>
+<span class="n">Refuse</span><span class="p">(</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">error_kind</span><span class="p">)</span><span class="w">      </span><span class="c1"># mint a frame-level `error` (RFC 0003 §9.2)</span>
+<span class="n">Reassemble</span><span class="p">(</span><span class="k">stream</span><span class="p">,</span><span class="w"> </span><span class="p">...)</span><span class="w">       </span><span class="c1"># accumulate a stream chunk; not yet terminal</span>
+</pre></div>
+
+<h3 id="11-what-this-sprint-is-not-scope-boundary-normative-for-the-design">1.1 What this sprint is NOT (scope boundary — normative for the design)</h3>
+<p>The router <strong>consults</strong> state-dependency state; it does <strong>not own or enforce</strong><br />
+RFC 0004's machinery. The following are explicitly <strong>out of scope</strong> for S3 and<br />
+belong to other components:</p>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Owner</th>
+<th>RFC</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GC-floor computation, checkpoint leases, eviction</td>
+<td><code>eventd</code> + <code>agent-supervisord</code> (WP3-S5, supervisor)</td>
+<td>RFC 0004 §4</td>
+</tr>
+<tr>
+<td>Cold-start verification <em>execution</em> (the verdict the supervisor acts on)</td>
+<td><code>agent-supervisord</code> over <code>eventd</code></td>
+<td>RFC 0004 §6</td>
+</tr>
+<tr>
+<td>The dependency index / anchor freshness <em>source of truth</em></td>
+<td><code>eventd</code> (<code>eventd/statedep.py</code> ref → Zig port)</td>
+<td>RFC 0004 §8 order 4</td>
+</tr>
+<tr>
+<td>DAG validation</td>
+<td><code>vakedc</code> compiler pass</td>
+<td>RFC 0004 §5</td>
+</tr>
+<tr>
+<td>Control-frame catalog (<code>PauseControl</code>, <code>RewindControl</code>, …) semantics + its refusals</td>
+<td>WP3-S4</td>
+<td>RFC 0005</td>
+</tr>
+<tr>
+<td>Transport (stdio/UDS/vsock byte-streams), handshake, framing bytes</td>
+<td>WP3-S2 (below the router)</td>
+<td>RFC 0003 §3–§5</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The router's RFC-0004 surface is one routing gate plus one read-only seam:</strong></p>
+<ol>
+<li><strong>Lifecycle gate (the genuinely-routing RFC 0004 obligation)</strong> (RFC 0004 §6):<br />
+   a target in <code>PAUSED(stale_dependency)</code> MUST NOT receive normal work frames;<br />
+   they are queued (or refused) until the supervisor clears the pause. The router<br />
+   reads the lifecycle state from an injected source (<code>TargetState</code>); it never<br />
+   performs the verification that <em>sets</em> that state.</li>
+<li><strong>Epoch source (read-only, NOT a router-minted refusal)</strong> (RFC 0004 §7 / §7.1):<br />
+   the router reads the current topology epoch from an injected <code>EpochSource</code> so it<br />
+   can pass it to target resolution (RFC 0005 §2.4). It does <strong>not</strong> mint a<br />
+<code>stale_epoch</code> wire error: a frame with a stale <code>topology_epoch</code> is <em>delivered to<br />
+   S4/the supervisor</em>, which validates the epoch and returns an RFC 0005<br />
+<code>ControlAck{reason=stale_epoch}</code> (control frames) or re-verifies against the old<br />
+   epoch's graph (state-dependency frames, RFC 0004 §7.1). Epochs are<br />
+   supervisor-assigned; the router never asserts, mutates, or refuses on them.</li>
+</ol>
+<p>The lifecycle gate is the only RFC 0004 verdict the router <em>mints</em>; the epoch is a<br />
+read-only input it forwards.</p>
+<p>If S3 reimplements <code>compute_gc_floor</code> or <code>verify_cold_start</code> <em>inside</em> the litany<br />
+crate, it has accidentally written the S5 / supervisor spec. The router's job is<br />
+demux + the one read-only lifecycle gate.</p>
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-normative-inputs-rfcs">2.1 Normative inputs (RFCs)</h3>
+<ul>
+<li><strong>RFC 0002 §4.2</strong> — frame header fields (<code>kind</code>/<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>);<br />
+  reserved <code>@0</code> tag space; author tags begin at <code>@1</code>.</li>
+<li><strong>RFC 0002 §4.3</strong> — the five frame classes via <code>service</code>: <code>call (Req)-&gt;Resp</code><br />
+  binds request↔response; <code>subscribe (Ctrl) yields Ev</code> binds a control frame to a<br />
+  terminated event stream (<code>end=true</code>). Authority is service/class/digest-scoped.</li>
+<li><strong>RFC 0003 §4.4.1</strong> — frame header wire encoding (<code>kind</code> varint 0–4, <code>corr</code><br />
+  16-byte UUID, optional <code>stream</code>/<code>seq</code> varints, <code>end</code> byte; decoder invariant and<br />
+  default-omission rules). This is the byte layout the router's <code>FrameHeader</code><br />
+  mirrors; the <em>decode itself</em> is S2's frame layer.</li>
+<li><strong>RFC 0003 §6.1–6.3</strong> — connection/chapter/stream scopes; multiplexing by<br />
+<code>corr</code>/<code>stream</code>/<code>seq</code>/<code>end</code>; initiator-even / responder-odd <code>stream</code>-id parity;<br />
+<code>end</code> retires a <code>stream</code> id (reuse forbidden); <code>seq</code> gap ⇒ frame-level error.</li>
+<li><strong>RFC 0003 §7.2</strong> — control-class frames take the <strong>priority path exempt from<br />
+  flow control</strong>; the router MUST NOT queue control frames behind data backpressure.</li>
+<li><strong>RFC 0003 §9.2 / §9.2.1</strong> — frame-level <code>error</code> taxonomy: <code>malformed_frame</code>,<br />
+<code>unknown_service</code>, <code>unknown_method</code>, <code>authority_denied</code>, <code>seq_gap</code>,<br />
+<code>chapter_closed</code>, <code>stream_reset</code>, <code>invalid_correlation</code> (the normative set lives<br />
+  in the <code>hcp.wire</code> schema, RFC 0003 Appendix A).</li>
+<li><strong>RFC 0004 §6</strong> — cold-start lifecycle states and <code>PAUSED(stale_dependency)</code>;<br />
+  the verdict the lifecycle gate honors.</li>
+<li><strong>RFC 0004 §7 / §7.1</strong> — topology epoch; immutable per chapter (set at <code>open</code>,<br />
+  RFC 0003 §6.2); stale-epoch frames refused or re-verified; epoch is<br />
+  supervisor-assigned, never caller-asserted.</li>
+<li><strong>RFC 0005 §2.4 / §6</strong> — <code>(target, topology_epoch)</code> name resolution; the<br />
+<code>unknown_target</code> / <code>stale_epoch</code> refusals are RFC 0005 <code>ControlRefusal</code> reasons<br />
+  carried in a <code>ControlAck</code> (response-class frame), <strong>not</strong> RFC 0003 wire<br />
+<code>error_kind</code>s — they are minted by S4/the supervisor, not the router. (RFC 0005<br />
+  is S4; S3 references the resolution contract via the <code>TargetResolver</code> seam, §3.3,<br />
+  but does not implement the control catalog or its refusals.)</li>
+</ul>
+<h3 id="22-differential-oracle-executable-runs-on-m1">2.2 Differential oracle (executable, runs on M1)</h3>
+<p>The Python reference of the RFC 0004 state-dependency layer is the <strong>oracle for<br />
+the router's lifecycle-gate verdict</strong>:</p>
+<ul>
+<li><code>eventd/statedep.py</code>:</li>
+<li><code>DependencyIndex.from_entries(entries)</code> — folds an eventd log into the<br />
+    dependency state.</li>
+<li><code>DependencyIndex.verify_cold_start(consumer, entries) -&gt; StaleDependency | None</code><br />
+    — <code>None</code> ⇒ the target may RUN (deliver); a <code>StaleDependency</code> record ⇒<br />
+<code>PAUSED(stale_dependency)</code> (queue/refuse). This is the exact verdict the<br />
+    router's <strong>lifecycle gate</strong> must agree with.</li>
+<li><code>StaleDependency.topology_epoch</code> and each registration's <code>topology_epoch</code> —<br />
+    the epoch-currency input. The router reads the current epoch (read-only) and<br />
+    forwards it to target resolution; the <em>refusal</em> on a stale epoch is minted by<br />
+    S4/the supervisor as a <code>ControlAck</code>, not by the router (see §1.1, §3.4).</li>
+<li><code>tests/spec/test_eventd.py</code> — <code>_mk_statedep_log(path, *, rewind=, evict=)</code>,<br />
+<code>_test_statedep(...)</code> build canonical statedep eventd logs (fresh anchor,<br />
+  rewind, eviction, recovery). These fixtures are the seed corpus for the<br />
+  differential test (§5.2).</li>
+</ul>
+<p>The router does <strong>not</strong> call <code>gc_floor</code> / <code>compute_gc_floor</code>; that is S5's verdict<br />
+(see §1.1). The oracle relationship is: <em>given the same eventd log + the same<br />
+inbound frame, the Rust router's gate decision (deliver / queue) equals the<br />
+decision implied by <code>verify_cold_start</code>.</em></p>
+<h3 id="23-upstream-code-dependency-wp3-s1-exists-today">2.3 Upstream code dependency (WP3-S1, exists today)</h3>
+<ul>
+<li><code>protocol/hcp/hcpbin/src/lib.rs</code> — <code>hcpbin</code> codec. Public API the router relies<br />
+  on (transitively, via S2's frame decoder): <code>hcpbin::{Reader, Writer, Hash,
+  DecodeError}</code>, <code>encode_uvarint</code>/<code>decode_uvarint</code>, etc. The router operates on<br />
+<em>decoded</em> frames and only re-enters <code>hcpbin</code> to <em>mint</em> the body of an outbound<br />
+<code>error</code> frame.</li>
+</ul>
+<h2 id="3-design">3. Design</h2>
+<h3 id="31-crate-layout">3.1 Crate layout</h3>
+<p>The router is the second module of the <code>litany</code> crate (the first, the frame layer,<br />
+is S2). Files to create:</p>
+<div class="highlight"><pre><span></span><span class="n">protocol</span><span class="o">/</span><span class="n">hcp</span><span class="o">/</span><span class="n">litany</span><span class="o">/</span>
+<span class="w">  </span><span class="n">Cargo</span><span class="o">.</span><span class="n">toml</span><span class="w">                      </span><span class="c1"># new crate: name=&quot;litany&quot;, deps: hcpbin (path)</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span>
+<span class="w">    </span><span class="n">lib</span><span class="o">.</span><span class="n">rs</span><span class="w">                        </span><span class="c1"># re-exports; (S2) creates this, S3 adds `pub mod router;`</span>
+<span class="w">    </span><span class="n">frame</span><span class="o">.</span><span class="n">rs</span><span class="w">                      </span><span class="c1"># (S2) FrameHeader, FrameKind, decode/encode  — DEP, not created here</span>
+<span class="w">    </span><span class="n">router</span><span class="o">.</span><span class="n">rs</span><span class="w">                     </span><span class="c1"># S3: Router, RouteVerdict, dispatch entry point</span>
+<span class="w">    </span><span class="n">correlation</span><span class="o">.</span><span class="n">rs</span><span class="w">                </span><span class="c1"># S3: CorrelationTable (corr -&gt; outstanding exchange)</span>
+<span class="w">    </span><span class="n">stream</span><span class="o">.</span><span class="n">rs</span><span class="w">                     </span><span class="c1"># S3: StreamReassembler (stream/seq/end state machine)</span>
+<span class="w">    </span><span class="n">chapter</span><span class="o">.</span><span class="n">rs</span><span class="w">                    </span><span class="c1"># S3: ChapterTable (chapter id -&gt; open/closed, epoch)</span>
+<span class="w">    </span><span class="n">state_gate</span><span class="o">.</span><span class="n">rs</span><span class="w">                 </span><span class="c1"># S3: EpochSource, TargetState (RFC 0004 lifecycle gate + epoch read)</span>
+<span class="w">    </span><span class="n">error</span><span class="o">.</span><span class="n">rs</span><span class="w">                      </span><span class="c1"># S3: RouteError -&gt; error_kind mapping (RFC 0003 §9.2.1)</span>
+<span class="w">  </span><span class="n">tests</span><span class="o">/</span>
+<span class="w">    </span><span class="n">route_unit</span><span class="o">.</span><span class="n">rs</span><span class="w">                 </span><span class="c1"># S3: pure routing unit tests (no Python)</span>
+<span class="w">    </span><span class="n">route_differential</span><span class="o">.</span><span class="n">rs</span><span class="w">         </span><span class="c1"># S3: differential vs eventd/statedep.py (§5.2)</span>
+<span class="w">  </span><span class="n">fixtures</span><span class="o">/</span>
+<span class="w">    </span><span class="n">statedep</span><span class="o">/</span><span class="w">                     </span><span class="c1"># S3: eventd logs exported from tests/spec fixtures</span>
+</pre></div>
+
+<p><code>frame.rs</code> is an S2 deliverable; S3 lists it as a build dependency, does not author<br />
+it. If S2 has not landed <code>FrameHeader</code>, S3 defines a thin local shim against the<br />
+RFC 0003 §4.4.1 field set and a <code>// TODO(S2): replace with litany::frame::FrameHeader</code>.</p>
+<h3 id="32-core-types">3.2 Core types</h3>
+<div class="highlight"><pre><span></span><span class="c1">// frame.rs (S2 — shown for reference only)</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">FrameKind</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Request</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">Response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">Event</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">Control</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">Error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">FrameHeader</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">kind</span><span class="p">:</span><span class="w">   </span><span class="nc">FrameKind</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">corr</span><span class="p">:</span><span class="w">   </span><span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">16</span><span class="p">],</span><span class="w">       </span><span class="c1">// RFC 0003 §4.4.1: 16 raw bytes</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">stream</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">seq</span><span class="p">:</span><span class="w">    </span><span class="nb">Option</span><span class="o">&lt;</span><span class="kt">u64</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">end</span><span class="p">:</span><span class="w">    </span><span class="kt">bool</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Frame</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">header</span><span class="p">:</span><span class="w"> </span><span class="nc">FrameHeader</span><span class="p">,</span><span class="w"> </span><span class="k">pub</span><span class="w"> </span><span class="n">body</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">]</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="c1">// body opaque to router</span>
+
+<span class="c1">// router.rs (S3)</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">RouteVerdict</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Deliver</span><span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="n">target</span><span class="p">:</span><span class="w"> </span><span class="nc">TargetId</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">:</span><span class="w"> </span><span class="nc">Frame</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="n">Reply</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">corr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">16</span><span class="p">],</span><span class="w">  </span><span class="n">frame</span><span class="p">:</span><span class="w"> </span><span class="nc">Frame</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="n">Queue</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="n">target</span><span class="p">:</span><span class="w"> </span><span class="nc">TargetId</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">:</span><span class="w"> </span><span class="nc">Frame</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">},</span><span class="w">   </span><span class="c1">// RFC 0003 §2.1 / RFC 0005 §2.1</span>
+<span class="w">    </span><span class="n">Reassemble</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">stream</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="w"> </span><span class="p">},</span><span class="w">                          </span><span class="c1">// chunk buffered, not terminal</span>
+<span class="w">    </span><span class="n">Refuse</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="n">corr</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="kt">u8</span><span class="p">;</span><span class="w"> </span><span class="mi">16</span><span class="p">],</span><span class="w"> </span><span class="n">error_kind</span><span class="p">:</span><span class="w"> </span><span class="nc">ErrorKind</span><span class="w"> </span><span class="p">},</span><span class="w">  </span><span class="c1">// RFC 0003 §9.2.1</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Router</span><span class="o">&lt;</span><span class="n">E</span><span class="p">:</span><span class="w"> </span><span class="nc">EpochSource</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">:</span><span class="w"> </span><span class="nc">TargetState</span><span class="p">,</span><span class="w"> </span><span class="n">R</span><span class="p">:</span><span class="w"> </span><span class="nc">TargetResolver</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">chapters</span><span class="p">:</span><span class="w">     </span><span class="nc">ChapterTable</span><span class="p">,</span>
+<span class="w">    </span><span class="n">corr_table</span><span class="p">:</span><span class="w">   </span><span class="nc">CorrelationTable</span><span class="p">,</span>
+<span class="w">    </span><span class="n">reassembler</span><span class="p">:</span><span class="w">  </span><span class="nc">StreamReassembler</span><span class="p">,</span>
+<span class="w">    </span><span class="n">epoch</span><span class="p">:</span><span class="w">        </span><span class="nc">E</span><span class="p">,</span>
+<span class="w">    </span><span class="n">target_state</span><span class="p">:</span><span class="w"> </span><span class="nc">S</span><span class="p">,</span>
+<span class="w">    </span><span class="n">resolver</span><span class="p">:</span><span class="w">     </span><span class="nc">R</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">E</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">R</span><span class="o">&gt;</span><span class="w"> </span><span class="n">Router</span><span class="o">&lt;</span><span class="n">E</span><span class="p">,</span><span class="w"> </span><span class="n">S</span><span class="p">,</span><span class="w"> </span><span class="n">R</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* E:EpochSource, S:TargetState, R:TargetResolver */</span>
+<span class="w">    </span><span class="sd">/// The single routing entry point. `chapter` is the chapter the connection</span>
+<span class="w">    </span><span class="sd">/// established at `open` (RFC 0003 §6.2). Pure: no IO, no blocking.</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">route</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">chapter</span><span class="p">:</span><span class="w"> </span><span class="nc">ChapterId</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">:</span><span class="w"> </span><span class="nc">Frame</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">RouteVerdict</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3 id="33-the-trait-seams-this-is-what-makes-s3-codeable-before-s4-and-s5">3.3 The trait seams (this is what makes S3 codeable before S4 and S5)</h3>
+<p>S3 ships <strong>traits + test doubles</strong>; S5 / the supervisor provide real impls later.<br />
+This is the load-bearing design decision — without it, S3 hard-depends on<br />
+unbuilt sprints.</p>
+<div class="highlight"><pre><span></span><span class="c1">// state_gate.rs</span>
+
+<span class="sd">/// Current topology epoch for a chapter (RFC 0004 §7.1: supervisor-assigned,</span>
+<span class="sd">/// immutable per chapter). S3 ships a fixed/test double; S5 wires it to</span>
+<span class="sd">/// agent-supervisord&#39;s epoch counter (via oraclefd / eventd).</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">EpochSource</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">current_epoch</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">chapter</span><span class="p">:</span><span class="w"> </span><span class="nc">ChapterId</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">u64</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="sd">/// Lifecycle state of a routing target (RFC 0004 §6). S3 ships a HashMap double</span>
+<span class="sd">/// seeded from `verify_cold_start` verdicts; S5 wires it to the supervisor&#39;s</span>
+<span class="sd">/// boot state machine (STOPPED→…→RUNNING | PAUSED(stale_dependency)).</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Lifecycle</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Running</span><span class="p">,</span><span class="w"> </span><span class="n">Paused</span><span class="p">(</span><span class="n">PauseReason</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">PauseReason</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">Operator</span><span class="p">,</span><span class="w"> </span><span class="n">StaleDependency</span><span class="p">,</span><span class="w"> </span><span class="n">GcDrain</span><span class="w"> </span><span class="p">}</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">TargetState</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">lifecycle</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">target</span><span class="p">:</span><span class="w"> </span><span class="nc">TargetId</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">Lifecycle</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="sd">/// (name, epoch) -&gt; AgentId/TargetId (RFC 0005 §2.4; oraclefd surface, OPEN</span>
+<span class="sd">/// in RFC 0005 §1). S3 ships a static roster double; S4/oraclefd provide real</span>
+<span class="sd">/// resolution. For a Request to an unresolvable agent target the router refuses</span>
+<span class="sd">/// with a §9.2.1 wire kind (`unknown_service`); RFC 0005&#39;s `unknown_target`</span>
+<span class="sd">/// ControlRefusal is S4&#39;s ControlAck path, not a router-minted wire error.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">TargetResolver</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">resolve</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">epoch</span><span class="p">:</span><span class="w"> </span><span class="kt">u64</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">TargetId</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3 id="34-the-routing-algorithm">3.4 The routing algorithm</h3>
+<p><code>Router::route(chapter, frame)</code> is a pure function over injected state. Step order<br />
+is normative (early steps gate later ones):</p>
+<div class="highlight"><pre><span></span><span class="n">route</span><span class="p">(</span><span class="n">chapter</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span><span class="o">:</span>
+
+<span class="w">  </span><span class="c1"># --- A. Chapter binding (RFC 0003 §6.1–6.2) ---</span>
+<span class="w">  </span><span class="mf">1.</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">chapter</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="k">open</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">chapters</span><span class="o">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Refuse</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">chapter_closed</span><span class="p">)</span>
+
+<span class="w">  </span><span class="c1"># --- B. Class dispatch (RFC 0002 §4.2/§4.3, kind 0–4) ---</span>
+<span class="w">  </span><span class="mf">2.</span><span class="w"> </span><span class="k">match</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="k">header</span><span class="p">.</span><span class="n">kind</span><span class="o">:</span>
+<span class="w">       </span><span class="n">Response</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="k">Error</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">goto</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="p">(</span><span class="n">correlation</span><span class="p">;</span><span class="w"> </span><span class="n">terminal</span><span class="w"> </span><span class="n">Reply</span><span class="p">)</span>
+<span class="w">       </span><span class="k">Event</span><span class="w">            </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">goto</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="p">(</span><span class="n">subscription</span><span class="w"> </span><span class="n">corr</span><span class="p">);</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">multi</span><span class="o">-</span><span class="n">frame</span><span class="p">,</span><span class="w"> </span><span class="n">D</span><span class="w"> </span><span class="p">(</span><span class="k">stream</span><span class="p">);</span>
+<span class="w">                           </span><span class="n">terminal</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">Reply</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">subscription</span><span class="w"> </span><span class="k">handler</span><span class="w"> </span><span class="p">(</span><span class="k">never</span><span class="w"> </span><span class="n">E</span><span class="p">)</span>
+<span class="w">       </span><span class="n">Request</span><span class="w">          </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">goto</span><span class="w"> </span><span class="n">D</span><span class="w"> </span><span class="p">(</span><span class="k">stream</span><span class="p">)</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">E</span><span class="w"> </span><span class="p">(</span><span class="n">target</span><span class="w"> </span><span class="n">gates</span><span class="p">)</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="n">deliver</span>
+<span class="w">       </span><span class="n">Control</span><span class="w">          </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">goto</span><span class="w"> </span><span class="n">F</span><span class="w"> </span><span class="p">(</span><span class="n">control</span><span class="w"> </span><span class="k">fast</span><span class="w"> </span><span class="k">path</span><span class="p">)</span><span class="w">   </span><span class="c1"># RFC 0003 §7.2</span>
+
+<span class="w">  </span><span class="c1"># --- C. Correlation match (RFC 0003 §6.3) ---</span>
+<span class="w">  </span><span class="c1"># Reached by Response, Error, Event. Request/Control skip C (no outstanding</span>
+<span class="w">  </span><span class="c1"># local exchange to match) and go straight to D/E or F.</span>
+<span class="w">  </span><span class="mf">3.</span><span class="w"> </span><span class="n">lookup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">corr_table</span><span class="p">.</span><span class="k">get</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">)</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="k">none</span><span class="o">:</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Refuse</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">invalid_correlation</span><span class="p">)</span><span class="w">   </span><span class="c1"># benign-late; §9.2.1</span>
+<span class="w">     </span><span class="k">match</span><span class="w"> </span><span class="n">kind</span><span class="o">:</span>
+<span class="w">        </span><span class="n">Response</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="k">Error</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">corr_table</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">)</span><span class="w">  </span><span class="c1"># exchange terminates</span>
+<span class="w">                            </span><span class="k">return</span><span class="w"> </span><span class="n">Reply</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span>
+<span class="w">        </span><span class="k">Event</span><span class="w">            </span><span class="o">-&gt;</span><span class="w"> </span><span class="c1"># subscription continues; events may be multi-frame.</span>
+<span class="w">                            </span><span class="c1"># Single-shot event: deliver now. Multi-frame: reassemble.</span>
+<span class="w">                            </span><span class="k">if</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="k">header</span><span class="p">.</span><span class="k">stream</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">None</span><span class="o">:</span>
+<span class="w">                               </span><span class="k">return</span><span class="w"> </span><span class="n">Reply</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span><span class="w">   </span><span class="c1"># to subscription handler</span>
+<span class="w">                            </span><span class="p">(</span><span class="k">continue</span><span class="w"> </span><span class="k">to</span><span class="w"> </span><span class="n">D</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="k">stream</span><span class="w"> </span><span class="n">reassembly</span><span class="p">;</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">TERMINAL</span>
+<span class="w">                             </span><span class="k">event</span><span class="w"> </span><span class="n">chunk</span><span class="w"> </span><span class="k">returns</span><span class="w"> </span><span class="n">Reply</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="p">...)</span><span class="w"> </span><span class="n">—</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="n">E</span><span class="o">:</span>
+<span class="w">                             </span><span class="k">events</span><span class="w"> </span><span class="n">route</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">subscription</span><span class="w"> </span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="k">never</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="k">name</span><span class="p">)</span>
+
+<span class="w">  </span><span class="c1"># --- D. Stream reassembly (RFC 0003 §6.3, §4.4.1 decoder invariant) ---</span>
+<span class="w">  </span><span class="mf">4.</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="k">header</span><span class="p">.</span><span class="k">stream</span><span class="w"> </span><span class="k">is</span><span class="w"> </span><span class="k">Some</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">:</span>
+<span class="w">        </span><span class="c1"># parity: even = initiator-allocated, odd = responder (RFC 0003 §6.3)</span>
+<span class="w">        </span><span class="n">st</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reassembler</span><span class="p">.</span><span class="n">get_or_open</span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="k">header</span><span class="p">.</span><span class="n">seq</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">st</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">Retired</span><span class="o">:</span><span class="w">                     </span><span class="c1"># id reused after end=true</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Refuse</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">stream_reset</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="k">header</span><span class="p">.</span><span class="n">seq</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="n">st</span><span class="p">.</span><span class="n">expected_next_seq</span><span class="p">()</span><span class="o">:</span>
+<span class="w">            </span><span class="n">reassembler</span><span class="p">.</span><span class="n">fault</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Refuse</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">seq_gap</span><span class="p">)</span><span class="w">   </span><span class="c1"># in-order transport; gap = loss/bug</span>
+<span class="w">        </span><span class="n">st</span><span class="p">.</span><span class="n">accept</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="k">not</span><span class="w"> </span><span class="n">frame</span><span class="p">.</span><span class="k">header</span><span class="p">.</span><span class="k">end</span><span class="o">:</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Reassemble</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="k">stream</span><span class="o">:</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="err">}</span><span class="w">   </span><span class="c1"># not terminal yet</span>
+<span class="w">        </span><span class="n">reassembler</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="w">                 </span><span class="c1"># end seen: id MUST NOT be reused</span>
+<span class="w">        </span><span class="c1"># TERMINAL chunk:</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="n">kind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="k">Event</span><span class="o">:</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="n">Reply</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span><span class="w">   </span><span class="c1"># to subscription handler; NOT step E</span>
+<span class="w">        </span><span class="c1"># else (Request): fall through to E (target gates / delivery)</span>
+<span class="w">     </span><span class="c1"># single-shot Request (no stream) also falls through to E.</span>
+
+<span class="w">  </span><span class="c1"># --- E. RFC 0004 state-dependency gates (Request / terminal Request stream only) ---</span>
+<span class="w">  </span><span class="mf">5.</span><span class="w"> </span><span class="n">target</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">resolver</span><span class="p">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">target_name</span><span class="p">(),</span><span class="w"> </span><span class="n">epoch</span><span class="p">.</span><span class="n">current_epoch</span><span class="p">(</span><span class="n">chapter</span><span class="p">))</span>
+<span class="w">     </span><span class="k">if</span><span class="w"> </span><span class="k">none</span><span class="o">:</span>
+<span class="w">        </span><span class="c1"># An unresolvable *agent* target for a Request is a wire error_kind.</span>
+<span class="w">        </span><span class="c1"># NOTE: do NOT borrow RFC 0005&#39;s `unknown_target` ControlRefusal here —</span>
+<span class="w">        </span><span class="c1"># that is a ControlAck reason, not a §9.2.1 wire error_kind. Map to the</span>
+<span class="w">        </span><span class="c1"># closest §9.2.1 kind (`unknown_service`); see §7 open item on whether a</span>
+<span class="w">        </span><span class="c1"># dedicated `unknown_target` wire error_kind should be added to hcp.wire.</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">Refuse</span><span class="p">(</span><span class="n">frame</span><span class="p">.</span><span class="n">corr</span><span class="p">,</span><span class="w"> </span><span class="n">unknown_service</span><span class="p">)</span><span class="w">        </span><span class="c1"># RFC 0003 §9.2.1</span>
+
+<span class="w">  </span><span class="mf">6.</span><span class="w"> </span><span class="c1"># Lifecycle gate (RFC 0004 §6). Normal work to a stale target is queued.</span>
+<span class="w">     </span><span class="c1"># This is the ONE genuinely-routing RFC 0004 gate (see §1.1 / §3.4 notes).</span>
+<span class="w">     </span><span class="c1"># The epoch fence for state-dependency / control frames is NOT minted here:</span>
+<span class="w">     </span><span class="c1"># epoch refusal produces a ControlAck{stale_epoch} (RFC 0005 §2.4/§7), which</span>
+<span class="w">     </span><span class="c1"># is S4/supervisor&#39;s job — the router delivers control frames to S4 (step 7).</span>
+<span class="w">     </span><span class="k">match</span><span class="w"> </span><span class="n">target_state</span><span class="p">.</span><span class="n">lifecycle</span><span class="p">(</span><span class="n">target</span><span class="p">)</span><span class="o">:</span>
+<span class="w">        </span><span class="n">Running</span><span class="w">                       </span><span class="o">-&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Deliver</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="err">}</span>
+<span class="w">        </span><span class="n">Paused</span><span class="p">(</span><span class="n">Operator</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">GcDrain</span><span class="p">)</span><span class="w">    </span><span class="o">-&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Queue</span><span class="w">   </span><span class="err">{</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="err">}</span><span class="w">  </span><span class="c1"># RFC 0003 §2.1</span>
+<span class="w">        </span><span class="n">Paused</span><span class="p">(</span><span class="n">StaleDependency</span><span class="p">)</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">Queue</span><span class="w">   </span><span class="err">{</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="err">}</span><span class="w">  </span><span class="c1"># RFC 0004 §6</span>
+
+<span class="w">  </span><span class="c1"># --- F. Control fast path (RFC 0003 §7.2) ---</span>
+<span class="w">  </span><span class="mf">7.</span><span class="w"> </span><span class="c1"># Control-class frames are NEVER queued behind data backpressure and bypass</span>
+<span class="w">     </span><span class="c1"># the lifecycle queue gate (a paused agent must still answer ping/pause).</span>
+<span class="w">     </span><span class="c1"># The router does NOT mint stale_epoch / unknown_target here: those are</span>
+<span class="w">     </span><span class="c1"># RFC 0005 ControlRefusal reasons returned in a ControlAck (a response-class</span>
+<span class="w">     </span><span class="c1"># frame), which S4/the supervisor produces after it validates the epoch</span>
+<span class="w">     </span><span class="c1"># (RFC 0005 §2.4/§7) and resolves the target (RFC 0005 §2.4). The router&#39;s</span>
+<span class="w">     </span><span class="c1"># job is to DELIVER the control frame to the control plane unblocked.</span>
+<span class="w">     </span><span class="k">return</span><span class="w"> </span><span class="n">Deliver</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="n">target</span><span class="p">,</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="err">}</span><span class="w">     </span><span class="c1"># to the control plane (S4 dispatches verbs)</span>
+</pre></div>
+
+<p>Notes the implementation must honor:</p>
+<ul>
+<li><strong>Step 6 vs step 7 is the §1.1 boundary made executable.</strong> The router queues<br />
+<em>normal work</em> to a <code>stale_dependency</code> target but never blocks <em>control</em> frames<br />
+  — that is RFC 0003 §7.2 (liveness exempt from flow control) intersected with<br />
+  RFC 0004 §6 (no work to a stale target). The router does not decide <em>when</em> the<br />
+  pause clears; it only routes around it.</li>
+<li><strong>Epoch refusal is not a router-minted wire error.</strong> A control or<br />
+  state-dependency frame with a stale <code>topology_epoch</code> does NOT come back as an<br />
+  RFC 0003 wire <code>error{stale_epoch}</code> (no such §9.2.1 kind exists). It comes back<br />
+  as an RFC 0005 <code>ControlAck{applied=false, reason=stale_epoch}</code> (or, for a<br />
+  dependency frame, re-verification against the old epoch's graph — RFC 0004<br />
+  §7.1). Both are S4/supervisor outputs above the router. The router only<br />
+<em>delivers</em> such frames; it never asserts or validates the epoch (epochs are<br />
+  supervisor-assigned — RFC 0004 §7).</li>
+<li><strong>Events route by subscription <code>corr</code>, never by target name.</strong> An <code>event</code> frame<br />
+  carries its subscription's <code>corr</code> (RFC 0002 §4.2); it is matched in step C and<br />
+  delivered (<code>Reply</code>) to the subscription handler. It never enters step E (target<br />
+  resolution / lifecycle gate) — that path is for Request work only.</li>
+<li><strong><code>Queue</code> vs <code>Refuse</code> for a paused target</strong> is a policy knob: graceful pause<br />
+  (RFC 0003 §2.1, RFC 0005 §2.1) buffers up to a bound, then refuses. The<br />
+  overflow refusal is a resource-exhaustion / budget condition (preceptord/S4,<br />
+  RFC 0005 §Security, #28) — it is NOT an RFC 0003 §9.2.1 routing error_kind;<br />
+  S3 ships the bound as a constant with a <code>// TODO</code> to source the bound and the<br />
+  overflow disposition from S4 policy.</li>
+<li><strong>No reordering.</strong> <code>seq</code> is for gap detection only (RFC 0003 §6.3): the<br />
+  transport is in-order per direction (RFC 0003 T2), so a gap is loss/bug ⇒<br />
+<code>seq_gap</code>, never a reorder buffer.</li>
+<li><strong><code>end</code> retires the stream id</strong> (RFC 0003 §6.3); a later frame on a retired id is<br />
+<code>stream_reset</code>.</li>
+</ul>
+<h3 id="35-minting-error-frames">3.5 Minting <code>error</code> frames</h3>
+<p>Every <code>RouteVerdict::Refuse</code> the router emits carries a genuine RFC 0003 §9.2.1<br />
+wire <code>error_kind</code> — <code>chapter_closed</code>, <code>invalid_correlation</code>, <code>seq_gap</code>,<br />
+<code>stream_reset</code>, or <code>unknown_service</code> (the closest §9.2.1 kind for an unresolvable<br />
+agent target; see §7 open item). The caller (the connection driver, S2) turns the<br />
+verdict into an <code>error</code> Votive Frame echoing <code>corr</code> with that <code>error_kind</code><br />
+(RFC 0003 §9.2); minting the bytes uses <code>hcpbin::Writer</code> against the <code>hcp.wire</code><br />
+<code>error</code> schema (RFC 0003 Appendix A). S3 provides<br />
+<code>error::mint(corr, error_kind) -&gt; Vec&lt;u8&gt;</code> as a thin helper; the connection driver<br />
+owns send.</p>
+<p><strong><code>stale_epoch</code> / <code>unknown_target</code> are deliberately absent from the router's<br />
+refusal set.</strong> They are RFC 0005 <code>ControlRefusal</code> reasons carried in a <code>ControlAck</code><br />
+(a response-class frame), produced by S4/the supervisor — not RFC 0003 wire<br />
+<code>error_kind</code>s. The router delivers epoch/target-bearing control frames to S4 and<br />
+never mints these (see §3.4 step 7 and the epoch-refusal note).</p>
+<h2 id="4-worked-routing-trace-matches-rfc-0004-5-checkpointrewind-example">4. Worked routing trace (matches RFC 0004 §5 checkpoint/rewind example)</h2>
+<p>Mirrors the RFC 0004 §5 worked example (producer P rewound; consumer C anchored<br />
+at step 95 &gt; rewind point 50). The router sees C's next inbound work frame:</p>
+<div class="highlight"><pre><span></span><span class="nt">Setup</span><span class="o">:</span><span class="w"> </span><span class="nt">chapter</span><span class="w"> </span><span class="nt">open</span><span class="o">,</span><span class="w"> </span><span class="nt">current_epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">N</span><span class="o">.</span>
+<span class="w">       </span><span class="nt">C</span><span class="s1">&#39;s lifecycle (from supervisor, seeded by verify_cold_start) = RUNNING</span>
+<span class="s1">       while P&#39;</span><span class="nt">s</span><span class="w"> </span><span class="nt">history</span><span class="w"> </span><span class="nt">is</span><span class="w"> </span><span class="nt">intact</span><span class="o">.</span>
+
+<span class="nt">t0</span><span class="w">  </span><span class="nt">Request</span><span class="p">{</span><span class="err">corr=X,</span><span class="w"> </span><span class="err">target=&quot;C&quot;</span><span class="p">}</span><span class="w"> </span><span class="nt">arrives</span><span class="o">:</span>
+<span class="w">      </span><span class="nt">A</span><span class="o">:</span><span class="w">   </span><span class="nt">chapter</span><span class="w"> </span><span class="nt">open</span><span class="w">                                 </span><span class="nt">ok</span>
+<span class="w">      </span><span class="nt">B</span><span class="o">:</span><span class="w">   </span><span class="nt">kind</span><span class="o">=</span><span class="nt">Request</span><span class="w">                                 </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">D</span><span class="o">,</span><span class="nt">E</span>
+<span class="w">      </span><span class="nt">D</span><span class="o">:</span><span class="w">   </span><span class="nt">no</span><span class="w"> </span><span class="nt">stream</span><span class="w"> </span><span class="o">(</span><span class="nt">single-shot</span><span class="o">)</span><span class="w">                       </span><span class="nt">skip</span>
+<span class="w">      </span><span class="nt">E</span><span class="p">.</span><span class="nc">5</span><span class="o">:</span><span class="w"> </span><span class="nt">resolve</span><span class="o">(</span><span class="s2">&quot;C&quot;</span><span class="o">,</span><span class="w"> </span><span class="nt">N</span><span class="o">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">TargetId</span><span class="o">(</span><span class="nt">C</span><span class="o">)</span><span class="w">                </span><span class="nt">ok</span>
+<span class="w">      </span><span class="nt">E</span><span class="p">.</span><span class="nc">6</span><span class="o">:</span><span class="w"> </span><span class="nt">lifecycle</span><span class="o">(</span><span class="nt">C</span><span class="o">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">Running</span><span class="w">                       </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">Deliver</span><span class="p">{</span><span class="err">C,</span><span class="w"> </span><span class="err">...</span><span class="p">}</span>
+
+<span class="nt">t1</span><span class="w">  </span><span class="nt">Operator</span><span class="w"> </span><span class="nt">rewinds</span><span class="w"> </span><span class="nt">P</span><span class="w"> </span><span class="nt">to</span><span class="w"> </span><span class="nt">step</span><span class="w"> </span><span class="nt">50</span><span class="w"> </span><span class="o">(</span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0005</span><span class="w"> </span><span class="nt">RewindControl</span><span class="w"> </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0004</span><span class="w"> </span><span class="err">§</span><span class="nt">3</span><span class="p">.</span><span class="nc">3</span><span class="o">).</span>
+<span class="w">      </span><span class="nt">Supervisor</span><span class="w"> </span><span class="nt">pauses</span><span class="w"> </span><span class="nt">C</span><span class="o">,</span><span class="w"> </span><span class="nt">runs</span><span class="w"> </span><span class="nt">verify_cold_start</span><span class="o">(</span><span class="nt">C</span><span class="o">,</span><span class="w"> </span><span class="nt">eventd_log</span><span class="o">):</span>
+<span class="w">        </span><span class="nt">anchor</span><span class="w"> </span><span class="nt">step</span><span class="w"> </span><span class="nt">95</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nt">rewind</span><span class="w"> </span><span class="nt">50</span><span class="w">  </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">StaleDependency</span><span class="w">  </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">lifecycle</span><span class="o">(</span><span class="nt">C</span><span class="o">)=</span><span class="nt">Paused</span><span class="o">(</span><span class="nt">StaleDependency</span><span class="o">)</span>
+
+<span class="nt">t2</span><span class="w">  </span><span class="nt">Request</span><span class="p">{</span><span class="err">corr=Y,</span><span class="w"> </span><span class="err">target=&quot;C&quot;</span><span class="p">}</span><span class="w"> </span><span class="nt">arrives</span><span class="o">:</span>
+<span class="w">      </span><span class="nt">E</span><span class="p">.</span><span class="nc">6</span><span class="o">:</span><span class="w"> </span><span class="nt">lifecycle</span><span class="o">(</span><span class="nt">C</span><span class="o">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nt">Paused</span><span class="o">(</span><span class="nt">StaleDependency</span><span class="o">)</span><span class="w">       </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">Queue</span><span class="p">{</span><span class="err">C,</span><span class="w"> </span><span class="err">...</span><span class="p">}</span>
+<span class="w">           </span><span class="o">(</span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0004</span><span class="w"> </span><span class="err">§</span><span class="nt">6</span><span class="o">:</span><span class="w"> </span><span class="nt">no</span><span class="w"> </span><span class="nt">work</span><span class="w"> </span><span class="nt">into</span><span class="w"> </span><span class="nt">corrupt</span><span class="w"> </span><span class="nt">history</span><span class="o">)</span>
+
+<span class="nt">t3</span><span class="w">  </span><span class="nt">Control</span><span class="p">{</span><span class="err">ping</span><span class="p">}</span><span class="w"> </span><span class="nt">to</span><span class="w"> </span><span class="nt">C</span><span class="w"> </span><span class="nt">arrives</span><span class="o">:</span>
+<span class="w">      </span><span class="nt">F</span><span class="p">.</span><span class="nc">7</span><span class="o">:</span><span class="w"> </span><span class="nt">control</span><span class="w"> </span><span class="nt">fast</span><span class="w"> </span><span class="nt">path</span><span class="o">,</span><span class="w"> </span><span class="nt">bypasses</span><span class="w"> </span><span class="nt">queue</span><span class="w"> </span><span class="nt">gate</span><span class="w">       </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">Deliver</span><span class="p">{</span><span class="err">C,</span><span class="w"> </span><span class="err">ping</span><span class="p">}</span>
+<span class="w">           </span><span class="o">(</span><span class="nt">RFC</span><span class="w"> </span><span class="nt">0003</span><span class="w"> </span><span class="err">§</span><span class="nt">7</span><span class="p">.</span><span class="nc">2</span><span class="o">:</span><span class="w"> </span><span class="nt">a</span><span class="w"> </span><span class="nt">paused</span><span class="w"> </span><span class="nt">agent</span><span class="w"> </span><span class="nt">still</span><span class="w"> </span><span class="nt">answers</span><span class="w"> </span><span class="nt">liveness</span><span class="o">)</span>
+
+<span class="nt">t4</span><span class="w">  </span><span class="nt">Operator</span><span class="w"> </span><span class="nt">re-anchors</span><span class="w"> </span><span class="nt">C</span><span class="w"> </span><span class="nt">at</span><span class="w"> </span><span class="nt">step</span><span class="w"> </span><span class="nt">50</span><span class="o">;</span><span class="w"> </span><span class="nt">supervisor</span><span class="w"> </span><span class="nt">verify_cold_start</span><span class="o">(</span><span class="nt">C</span><span class="o">)=</span><span class="nt">None</span>
+<span class="w">      </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">lifecycle</span><span class="o">(</span><span class="nt">C</span><span class="o">)=</span><span class="nt">Running</span><span class="o">.</span><span class="w"> </span><span class="nt">Queued</span><span class="w"> </span><span class="nt">frame</span><span class="w"> </span><span class="o">(</span><span class="nt">corr</span><span class="o">=</span><span class="nt">Y</span><span class="o">)</span><span class="w"> </span><span class="nt">is</span><span class="w"> </span><span class="nt">re-routed</span><span class="w"> </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">Deliver</span><span class="o">.</span>
+</pre></div>
+
+<p>The deliver/queue verdicts at t0, t2, t4 are exactly what <code>verify_cold_start</code><br />
+returns (<code>None</code>→deliver, <code>StaleDependency</code>→queue); t3 is the RFC 0003 §7.2<br />
+override. This is the differential assertion (§5.2).</p>
+<h2 id="5-test-plan">5. Test plan</h2>
+<h3 id="51-runs-fully-on-m1-cargo-test-python3">5.1 Runs fully on M1 (<code>cargo test</code>, <code>python3</code>)</h3>
+<p>The router is <strong>pure async-free Rust over already-decoded frames</strong>: no namespace<br />
+syscalls, no transport, transport-agnostic. The kickoff's blanket "No local builds<br />
+on M1" applies to the <em>transport/perf</em> targets, not to this layer. Concretely:</p>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>How</th>
+<th>Where it runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Routing unit tests</strong> (<code>tests/route_unit.rs</code>)</td>
+<td><code>cargo test -p litany</code></td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— class dispatch (5 kinds), corr match, <code>invalid_correlation</code></td>
+<td>pure</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— Event routes by subscription corr → <code>Reply</code> (single-shot and terminal multi-frame), never into target resolution (step E)</td>
+<td>pure</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— stream reassembly: in-order accept, <code>seq_gap</code>, <code>end</code> retire, <code>stream_reset</code>, parity</td>
+<td>pure</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— chapter binding: <code>chapter_closed</code></td>
+<td>pure</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— unresolvable Request target → <code>unknown_service</code></td>
+<td>pure (double <code>TargetResolver</code>)</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— epoch is forwarded to resolution (current epoch → correct TargetId); router does NOT mint <code>stale_epoch</code></td>
+<td>pure (double <code>EpochSource</code>)</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— lifecycle gate: Running→Deliver, Paused(StaleDependency)→Queue</td>
+<td>pure (double <code>TargetState</code>)</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td>— control fast path bypasses queue gate (RFC 0003 §7.2)</td>
+<td>pure</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td><strong>Differential vs Python oracle</strong> (<code>tests/route_differential.rs</code>)</td>
+<td>§5.2</td>
+<td>M1 ✓</td>
+</tr>
+<tr>
+<td><strong>Compile check</strong></td>
+<td><code>cargo build -p litany</code> (no transport features)</td>
+<td>M1 ✓</td>
+</tr>
+</tbody>
+</table>
+<p>The Zig port is out of scope (RFC 0004 §8 order 8; WP4). No <code>zig build</code> is needed<br />
+for S3; if a Zig stub lands, <code>zig build -Dtarget=x86_64-linux</code> is compile-only on M1.</p>
+<h3 id="52-differential-test-design-the-verification-spine">5.2 Differential test design (the verification spine)</h3>
+<p>Goal: prove the Rust <strong>lifecycle gate</strong> verdict agrees with <code>eventd/statedep.py</code><br />
+(<code>verify_cold_start</code>), and that the epoch read from <code>EpochSource</code> matches the<br />
+oracle's epoch-currency check feeding target resolution.</p>
+<ol>
+<li><strong>Export fixtures.</strong> A small Python helper (in <code>tests/spec/</code>, reusing<br />
+<code>_mk_statedep_log</code> from <code>tests/spec/test_eventd.py</code>) writes the canonical<br />
+   statedep eventd logs — fresh anchor, post-rewind, post-eviction, recovered —<br />
+   as JSONL into <code>protocol/hcp/litany/fixtures/statedep/*.jsonl</code>. Committed.</li>
+<li><strong>Oracle verdicts.</strong> For each fixture log L and each consumer C, compute the<br />
+   oracle: <code>verify_cold_start(C, L) is None</code> (deliver) vs <code>StaleDependency</code><br />
+   (queue), plus epoch currency (<code>reg.topology_epoch == current</code>). Write these as<br />
+   a JSON sidecar <code>*.expected.json</code>.</li>
+<li><strong>Rust side.</strong> <code>route_differential.rs</code> loads each fixture into the <code>TargetState</code><br />
+   / <code>EpochSource</code> doubles (lifecycle = oracle verdict for that log), feeds a<br />
+   synthetic <code>Request{target=C}</code> frame, and asserts the <code>RouteVerdict</code> matches the<br />
+   sidecar: <code>verify_cold_start</code> returns <code>None</code> → <code>Deliver</code>; returns<br />
+<code>StaleDependency</code> → <code>Queue</code>. (A stale-epoch control frame is <em>delivered</em> to S4,<br />
+   which mints the <code>ControlAck{stale_epoch}</code> — the router does not refuse it, so it<br />
+   is not part of this router-verdict assertion; it is covered by an S4 test.)</li>
+<li><strong>Regression guard:</strong> add the RFC 0004 §5 trace (this spec §4) as a fixture —<br />
+   it must reproduce deliver(t0)/queue(t2)/deliver-control(t3)/deliver(t4).</li>
+</ol>
+<p>Local invocation (M1):</p>
+<div class="highlight"><pre><span></span><span class="c1"># Python oracle + fixture regeneration:</span>
+<span class="n">python3</span> <span class="n">tests</span><span class="o">/</span><span class="n">spec</span><span class="o">/</span><span class="n">run_all</span><span class="o">.</span><span class="n">py</span>            <span class="c1"># runs test_eventd (statedep) among others</span>
+<span class="c1"># or target the module directly:</span>
+<span class="n">cd</span> <span class="n">tests</span><span class="o">/</span><span class="n">spec</span> <span class="o">&amp;&amp;</span> <span class="n">python3</span> <span class="o">-</span><span class="n">c</span> <span class="s2">&quot;import test_eventd as t; print(t.run())&quot;</span>
+
+<span class="c1"># Rust router (after S2 lands frame.rs):</span>
+<span class="n">cargo</span> <span class="n">test</span> <span class="o">-</span><span class="n">p</span> <span class="n">litany</span>
+</pre></div>
+
+<h3 id="53-needs-dev-cx53-linux-not-this-sprints-gate-but-tracked">5.3 Needs dev-cx53 / Linux (NOT this sprint's gate, but tracked)</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Why Linux/dev-cx53</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Perf baseline ≤10µs/frame encode+decode, 8-core, no-alloc hot path (kickoff §Success criteria)</td>
+<td>needs the canonical 8-core bench box; routing perf only meaningful with the real transport+codec wired</td>
+<td>WP3-S6 (perf), measured on dev-cx53</td>
+</tr>
+<tr>
+<td><code>vsock</code> transport binding (RFC 0003 §13.3)</td>
+<td>vsock is Linux-only</td>
+<td>below the router; S2/transport, exercised in integration</td>
+</tr>
+<tr>
+<td>Full eventd integration (router gate against <em>real</em> eventd, not the Python ref)</td>
+<td>eventd Zig port / live log</td>
+<td>WP3-S5</td>
+</tr>
+</tbody>
+</table>
+<p>dev-cx53 is off-limits for the 6h autoresearcher window; <strong>nothing in S3's<br />
+acceptance criteria (§8) requires it</strong> — the perf number is an S6 gate.</p>
+<h2 id="6-dependencies-on-other-sprints">6. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>Provides</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP3-S1</strong> (<code>protocol/hcp/hcpbin/</code>)</td>
+<td><code>hcpbin::{Reader,Writer,Hash,DecodeError}</code> codec for minting <code>error</code> bodies</td>
+<td>Landed (crate exists)</td>
+</tr>
+<tr>
+<td><strong>WP3-S2</strong> (<code>protocol/hcp/litany/frame.rs</code>)</td>
+<td><code>FrameHeader</code>/<code>FrameKind</code>/<code>Frame</code> decode (RFC 0003 §4.4.1)</td>
+<td><strong>Hard precondition</strong> — router consumes decoded frames</td>
+</tr>
+<tr>
+<td><strong><code>eventd/statedep.py</code></strong></td>
+<td>differential oracle (<code>verify_cold_start</code>)</td>
+<td>Exists (Python ref)</td>
+</tr>
+<tr>
+<td><code>tests/spec/test_eventd.py</code></td>
+<td>fixture builders (<code>_mk_statedep_log</code>)</td>
+<td>Exists</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Depended on by (S3 ships seams they fill)</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP3-S4</strong> (RFC 0005)</td>
+<td>implements control-verb dispatch behind the <code>Deliver{control}</code> verdict; produces <code>ControlAck{stale_epoch\|unknown_target}</code>; provides real <code>TargetResolver</code> (oraclefd roster) + queue-bound policy</td>
+</tr>
+<tr>
+<td><strong>WP3-S5</strong> (eventd integration)</td>
+<td>implements <code>EpochSource</code> + <code>TargetState</code> against live eventd/supervisor, replacing the test doubles</td>
+</tr>
+</tbody>
+</table>
+<p>The trait seams (§3.3) are the contract: S4/S5 implement them; S3 must land them<br />
+with doubles so S3 is testable in isolation and S4/S5 have stable signatures.</p>
+<h2 id="7-risks-open-questions">7. Risks / open questions</h2>
+<ul>
+<li><strong><code>FrameHeader</code> ownership.</strong> If S2 slips, S3 needs the shim (§3.1). Mitigation:<br />
+  S3 defines <code>FrameHeader</code> against RFC 0003 §4.4.1 directly; merge with S2's on landing.</li>
+<li><strong>Where does <code>target_name</code> come from for a Request frame, and is there a wire<br />
+<code>unknown_target</code> error_kind?</strong> RFC 0005 §2.4 ties name resolution to the<br />
+  supervisor roster (oraclefd surface — <strong>OPEN</strong> in RFC 0005 §1 and §"Open<br />
+  questions"). RFC 0005's <code>unknown_target</code> is a <code>ControlRefusal</code>/<code>ControlAck</code><br />
+  reason, not an RFC 0003 §9.2.1 wire <code>error_kind</code>. For a Request to an<br />
+  unresolvable agent target the router currently maps to <code>unknown_service</code><br />
+  (§3.4 step 5). Open: should <code>hcp.wire</code> add a dedicated <code>unknown_target</code> wire<br />
+<code>error_kind</code> for agent-level routing? Decide with S4/oraclefd. S3 abstracts<br />
+  resolution behind <code>TargetResolver</code>; the real source is S4/oraclefd.</li>
+<li><strong>Epoch on Request frames + who mints <code>stale_epoch</code>.</strong> RFC 0004/0005 attach<br />
+<code>topology_epoch</code> to dependency and control frames, not to every Request. The<br />
+  router does not mint <code>stale_epoch</code>: a stale-epoch control or dependency frame is<br />
+<em>delivered</em> to S4/the supervisor, which returns <code>ControlAck{stale_epoch}</code> or<br />
+  re-verifies against the old epoch (RFC 0004 §7.1). Plain Request frames carry no<br />
+  epoch and are gated only by the lifecycle gate (step 6). Confirm with S4 whether<br />
+  work frames should carry epoch at all (cross-node, RFC 0004 §7.1 eventual<br />
+  consistency) — currently they do not.</li>
+<li><strong>Queue bound + overflow class.</strong> Default bound is a placeholder constant;<br />
+  the refuse-on-overflow <code>error_kind</code> (resource-exhaustion) is a preceptord/S4<br />
+  budget concern (RFC 0005 §Security; #28). S3 ships a constant + TODO.</li>
+<li><strong>Cross-node routing</strong> (frame to a target on another host, Litany Wire between<br />
+  hosts) is RFC 0006 / the #16 mesh boundary — out of scope; single-connection<br />
+  routing only (RFC 0003 §6.5 v1: no cross-connection chapter resumption).</li>
+</ul>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>S3 is done when ALL hold (all verifiable on M1):</p>
+<ol>
+<li><code>protocol/hcp/litany/</code> crate builds: <code>cargo build -p litany</code> (no transport<br />
+   features) is clean on M1.</li>
+<li><code>Router::route</code> implements the §3.4 algorithm: every <code>FrameKind</code> (0–4) is<br />
+   dispatched; chapter binding, correlation, stream reassembly, the Event<br />
+   subscription-corr path, and the RFC 0004 lifecycle gate (plus the read-only<br />
+   epoch forward to resolution) are all reachable and unit-tested (§5.1 table —<br />
+   every row green).</li>
+<li>The three trait seams (<code>EpochSource</code>, <code>TargetState</code>, <code>TargetResolver</code>, §3.3)<br />
+   exist with documented signatures and test doubles; no RFC 0004 §4/§5/§6<br />
+<em>machinery</em> (gc_floor, cold-start execution, DAG) is reimplemented in the crate<br />
+   (scope boundary §1.1 holds — verified by grep: no <code>gc_floor</code> symbol in <code>src/</code>).</li>
+<li>Frame-level error mapping covers exactly the RFC 0003 §9.2.1 wire <code>error_kind</code>s<br />
+   reachable from routing: <code>chapter_closed</code>, <code>invalid_correlation</code>, <code>seq_gap</code>,<br />
+<code>stream_reset</code>, <code>unknown_service</code> — each has a unit test asserting the verdict.<br />
+   The router does NOT mint <code>stale_epoch</code> / <code>unknown_target</code> (those are RFC 0005<br />
+<code>ControlRefusal</code>/<code>ControlAck</code> outputs owned by S4); a test asserts a stale-epoch<br />
+   control frame is <strong>delivered</strong> to the control plane, not refused.</li>
+<li>Control-class frames bypass the lifecycle queue gate (RFC 0003 §7.2) — explicit<br />
+   test (the §4 t3 case).</li>
+<li><strong>Differential test (§5.2) passes:</strong> for every committed statedep fixture, the<br />
+   Rust router's deliver/queue verdict equals the <code>verify_cold_start</code> verdict from<br />
+<code>eventd/statedep.py</code>. The RFC 0004 §5 worked trace (§4) is a committed<br />
+   regression fixture and reproduces t0/t2/t3/t4.</li>
+<li>The Python oracle still passes locally: <code>python3 tests/spec/run_all.py</code> green<br />
+   (statedep tests unaffected by fixture export).</li>
+<li>No dependency on dev-cx53 for any of 1–7. The ≤10µs/frame perf number is<br />
+   explicitly deferred to WP3-S6 (§5.3) and is NOT an S3 gate.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp3-s3.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

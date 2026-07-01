@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Ralph Decision Loop — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#file-structure" style="padding-left:0.5rem">File Structure</a><a href="#task-1-config-reposjson-loader" style="padding-left:0.5rem">Task 1: Config — `repos.json` + loader</a><a href="#task-2-cost-math-pure" style="padding-left:0.5rem">Task 2: Cost math (pure)</a><a href="#task-3-candidate-selection-pure" style="padding-left:0.5rem">Task 3: Candidate selection (pure)</a><a href="#task-4-round-robin-pure" style="padding-left:0.5rem">Task 4: Round-robin (pure)</a><a href="#task-5-prompt-entry-formatting-pure" style="padding-left:0.5rem">Task 5: Prompt + entry formatting (pure)</a><a href="#task-6-dashboard-rendering-pure" style="padding-left:0.5rem">Task 6: Dashboard rendering (pure)</a><a href="#task-7-openrouter-client-context-gathering-io" style="padding-left:0.5rem">Task 7: OpenRouter client + context gathering (I/O)</a><a href="#task-8-decide-live-path-two-stage-call-log-append" style="padding-left:0.5rem">Task 8: `decide` live path — two-stage call + log append</a><a href="#task-9-supervisor-state-statusjson-round-trip" style="padding-left:0.5rem">Task 9: Supervisor state (status.json) — round-trip</a><a href="#task-10-run-supervisor-continuous-round-robin-budget-backstop" style="padding-left:0.5rem">Task 10: `run` supervisor — continuous round-robin + budget backstop</a><a href="#task-11-watch-dashboard-command" style="padding-left:0.5rem">Task 11: `watch` dashboard command</a><a href="#task-12-wiring-gitignore-state-dir-full-test-pass" style="padding-left:0.5rem">Task 12: Wiring — gitignore, state dir, full test pass</a><a href="#task-13-smoke-the-real-loop-1-iteration-sanity" style="padding-left:0.5rem">Task 13: Smoke the real loop (1 iteration) + sanity</a><a href="#notes-for-the-implementer" style="padding-left:0.5rem">Notes for the implementer</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-11-ralph</div>
+<h1>Ralph Decision Loop — Implementation Plan</h1>
+<h1 id="ralph-decision-loop-implementation-plan">Ralph Decision Loop — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</p>
+</blockquote>
+<p><strong>Goal:</strong> Build <code>ralph</code> — an always-on, budget-capped decision/strategy loop that round-robins across the fleet's repos, appending advisory decision entries via two cheap OpenRouter MoE models, with a terminal "eye" dashboard.</p>
+<p><strong>Architecture:</strong> A stdlib-only Python package under <code>tools/ralph/</code>. Pure logic (cost math, candidate selection, round-robin, dashboard rendering, prompt + entry formatting) lives in <code>ralphcore.py</code> and is fully unit-tested; I/O + CLI (OpenRouter HTTP via <code>urllib</code>, <code>gh</code>/<code>git</code>/file context reads, <code>status.json</code>, the <code>decide</code>/<code>run</code>/<code>watch</code> subcommands) live in <code>ralph.py</code>. Per-repo advisory logs and live state live in the home repo (<code>vaked-base</code>); the other target repos are read-only.</p>
+<p><strong>Tech Stack:</strong> Python 3.12 stdlib only (<code>urllib</code>, <code>json</code>, <code>subprocess</code>, <code>argparse</code>, <code>dataclasses</code>). OpenRouter chat-completions API. Models: <code>qwen/qwen3-235b-a22b-thinking-2507</code> (stage 1), <code>deepseek/deepseek-v4-flash</code> (stage 2).</p>
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-06-11-ralph-decide-design.md</code></p>
+<hr />
+<h2 id="file-structure">File Structure</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tools/ralph/ralphcore.py</code></td>
+<td>Pure functions: cost math, candidate selection, round-robin, dashboard render, prompt + entry formatting. No I/O.</td>
+</tr>
+<tr>
+<td><code>tools/ralph/ralph.py</code></td>
+<td>I/O + CLI: OpenRouter client, context gathering, status read/write, log append, <code>decide</code>/<code>run</code>/<code>watch</code>.</td>
+</tr>
+<tr>
+<td><code>tools/ralph/repos.json</code></td>
+<td>Target repo list (name, path, gh). Extensible.</td>
+</tr>
+<tr>
+<td><code>tools/ralph/test_ralph.py</code></td>
+<td>Standalone test runner for <code>ralphcore</code> + <code>--dry-run</code> smoke + status round-trip.</td>
+</tr>
+<tr>
+<td><code>tools/ralph/state/.gitkeep</code></td>
+<td>State dir (status.json is gitignored).</td>
+</tr>
+<tr>
+<td><code>docs/decisions/&lt;repo&gt;.ralph-log.md</code></td>
+<td>Per-repo advisory logs (created at runtime).</td>
+</tr>
+<tr>
+<td><code>.gitignore</code></td>
+<td>add <code>tools/ralph/state/status.json</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>All work is on the <code>ralph-decide</code> branch (already created off <code>main</code>).</p>
+<hr />
+<h2 id="task-1-config-reposjson-loader">Task 1: Config — <code>repos.json</code> + loader</h2>
+<p><strong>Files:</strong><br />
+- Create: <code>tools/ralph/repos.json</code><br />
+- Create: <code>tools/ralph/ralphcore.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write <code>repos.json</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;repos&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;vaked-base&quot;</span><span class="p">,</span><span class="w">       </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;~/workspace/peterlodri-sec/vaked-base&quot;</span><span class="p">,</span><span class="w">       </span><span class="nt">&quot;gh&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;peterlodri-sec/vaked-base&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;crabcc&quot;</span><span class="p">,</span><span class="w">           </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;~/workspace/peterlodri-sec/crabcc&quot;</span><span class="p">,</span><span class="w">           </span><span class="nt">&quot;gh&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;crabcc-labs/crabcc&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;agentfield-stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;~/workspace/peterlodri-sec/agentfield-stack&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;gh&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;peterlodri-sec/agentfield-stack&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Write the failing test for <code>load_repos</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="c1"># tools/ralph/test_ralph.py</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)))</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ralphcore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">C</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_load_repos_expands_paths</span><span class="p">():</span>
+    <span class="n">cfg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;repos&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;~/x&quot;</span><span class="p">,</span> <span class="s2">&quot;gh&quot;</span><span class="p">:</span> <span class="s2">&quot;o/r&quot;</span><span class="p">}]}</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.json&quot;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">fh</span><span class="p">);</span> <span class="n">p</span> <span class="o">=</span> <span class="n">fh</span><span class="o">.</span><span class="n">name</span>
+    <span class="n">repos</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">load_repos</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">repos</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+    <span class="k">assert</span> <span class="n">repos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;r&quot;</span>
+    <span class="k">assert</span> <span class="n">repos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">gh</span> <span class="o">==</span> <span class="s2">&quot;o/r&quot;</span>
+    <span class="k">assert</span> <span class="ow">not</span> <span class="n">repos</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;~&quot;</span><span class="p">),</span> <span class="s2">&quot;path must be expanded&quot;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 3: Run it — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code><br />
+Expected: FAIL (<code>module 'ralphcore' has no attribute 'load_repos'</code>).</p>
+<ul>
+<li>[ ] <strong>Step 4: Implement <code>Repo</code> + <code>load_repos</code> in <code>ralphcore.py</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;ralphcore — pure logic for the ralph decision loop (no I/O).&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Repo</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>   <span class="c1"># absolute, expanded</span>
+    <span class="n">gh</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># owner/repo</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_repos</span><span class="p">(</span><span class="n">config_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Repo</span><span class="p">]:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">config_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fh</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">cfg</span><span class="p">[</span><span class="s2">&quot;repos&quot;</span><span class="p">]:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Repo</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                        <span class="n">path</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;path&quot;</span><span class="p">])),</span>
+                        <span class="n">gh</span><span class="o">=</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;gh&quot;</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="n">out</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 5: Run — expect pass; commit</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code><br />
+Expected: PASS.</p>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/repos.json<span class="w"> </span>tools/ralph/ralphcore.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): repo config + loader&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-2-cost-math-pure">Task 2: Cost math (pure)</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralphcore.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_cost_usd</span><span class="p">():</span>
+    <span class="c1"># 10k prompt + 2k completion at $0.10/$0.10 per 1M = 0.001 + 0.0002</span>
+    <span class="n">usage</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;prompt_tokens&quot;</span><span class="p">:</span> <span class="mi">10000</span><span class="p">,</span> <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">2000</span><span class="p">}</span>
+    <span class="n">price</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">Price</span><span class="p">(</span><span class="n">prompt_per_m</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span> <span class="n">completion_per_m</span><span class="o">=</span><span class="mf">0.10</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">C</span><span class="o">.</span><span class="n">cost_usd</span><span class="p">(</span><span class="n">usage</span><span class="p">,</span> <span class="n">price</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.0012</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-9</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>no attribute 'Price'</code>).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Price</span><span class="p">:</span>
+    <span class="n">prompt_per_m</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">completion_per_m</span><span class="p">:</span> <span class="nb">float</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">cost_usd</span><span class="p">(</span><span class="n">usage</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">price</span><span class="p">:</span> <span class="n">Price</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="n">pin</span> <span class="o">=</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;prompt_tokens&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span>
+    <span class="n">pout</span> <span class="o">=</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;completion_tokens&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">pin</span> <span class="o">/</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="n">price</span><span class="o">.</span><span class="n">prompt_per_m</span> <span class="o">+</span> <span class="n">pout</span> <span class="o">/</span> <span class="mf">1e6</span> <span class="o">*</span> <span class="n">price</span><span class="o">.</span><span class="n">completion_per_m</span>
+
+
+<span class="c1"># Hardcoded fallback prices (refresh from OpenRouter /models at startup; see ralph.py).</span>
+<span class="n">FALLBACK_PRICES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;qwen/qwen3-235b-a22b-thinking-2507&quot;</span><span class="p">:</span> <span class="n">Price</span><span class="p">(</span><span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">),</span>
+    <span class="s2">&quot;deepseek/deepseek-v4-flash&quot;</span><span class="p">:</span> <span class="n">Price</span><span class="p">(</span><span class="mf">0.098</span><span class="p">,</span> <span class="mf">0.197</span><span class="p">),</span>
+<span class="p">}</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run — expect pass; commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralphcore.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): cost math + fallback prices&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-3-candidate-selection-pure">Task 3: Candidate selection (pure)</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralphcore.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing tests</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_select_picks_highest_urgency_unaddressed</span><span class="p">():</span>
+    <span class="n">cands</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;urgency&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;addressed&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;urgency&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;addressed&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;urgency&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span> <span class="s2">&quot;addressed&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
+    <span class="p">]</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">select_candidate</span><span class="p">(</span><span class="n">cands</span><span class="p">)[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;C&quot;</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_select_all_addressed_falls_back_to_top_urgency</span><span class="p">():</span>
+    <span class="n">cands</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;urgency&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;addressed&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;urgency&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;addressed&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
+    <span class="p">]</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">select_candidate</span><span class="p">(</span><span class="n">cands</span><span class="p">)[</span><span class="s2">&quot;title&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;B&quot;</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_select_empty_returns_none</span><span class="p">():</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">select_candidate</span><span class="p">([])</span> <span class="ow">is</span> <span class="kc">None</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>no attribute 'select_candidate'</code>).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">select_candidate</span><span class="p">(</span><span class="n">candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">&quot;dict | None&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Highest-urgency unaddressed candidate (ties → first in list); if all are</span>
+<span class="sd">    addressed, the highest-urgency one (to advance with new info). None if empty.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">candidates</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">key</span><span class="p">(</span><span class="n">c</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;urgency&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">unaddressed</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;addressed&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)]</span>
+    <span class="n">pool</span> <span class="o">=</span> <span class="n">unaddressed</span> <span class="k">if</span> <span class="n">unaddressed</span> <span class="k">else</span> <span class="n">candidates</span>
+    <span class="n">best</span> <span class="o">=</span> <span class="n">pool</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">pool</span><span class="p">[</span><span class="mi">1</span><span class="p">:]:</span>
+        <span class="k">if</span> <span class="n">key</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">key</span><span class="p">(</span><span class="n">best</span><span class="p">):</span>
+            <span class="n">best</span> <span class="o">=</span> <span class="n">c</span>
+    <span class="k">return</span> <span class="n">best</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run — expect pass; commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralphcore.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): candidate selection&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-4-round-robin-pure">Task 4: Round-robin (pure)</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralphcore.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing tests</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_next_repo_advances_and_wraps</span><span class="p">():</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span> <span class="o">==</span> <span class="s2">&quot;b&quot;</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span>   <span class="c1"># wrap</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">set</span><span class="p">())</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span>   <span class="c1"># first run</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_next_repo_skips_unavailable</span><span class="p">():</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;b&quot;</span><span class="p">})</span> <span class="o">==</span> <span class="s2">&quot;c&quot;</span>     <span class="c1"># b unavailable</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;b&quot;</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">})</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span>  <span class="c1"># only a left → self</span>
+    <span class="k">assert</span> <span class="n">C</span><span class="o">.</span><span class="n">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">,</span> <span class="s2">&quot;c&quot;</span><span class="p">})</span> <span class="ow">is</span> <span class="kc">None</span>  <span class="c1"># none available</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>no attribute 'next_repo'</code>).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">current</span><span class="p">:</span> <span class="s2">&quot;str | None&quot;</span><span class="p">,</span>
+              <span class="n">unavailable</span><span class="p">:</span> <span class="nb">set</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;str | None&quot;</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The next available repo after ``current`` (round-robin, wrapping). On</span>
+<span class="sd">    first run (current=None) the first available. None if all unavailable.&quot;&quot;&quot;</span>
+    <span class="n">available</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span> <span class="k">if</span> <span class="n">n</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">unavailable</span><span class="p">]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">available</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">current</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">current</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">available</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">current</span><span class="p">)</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">names</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">cand</span> <span class="o">=</span> <span class="n">names</span><span class="p">[(</span><span class="n">start</span> <span class="o">+</span> <span class="n">i</span><span class="p">)</span> <span class="o">%</span> <span class="n">n</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">cand</span> <span class="ow">in</span> <span class="n">available</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">cand</span>
+    <span class="k">return</span> <span class="n">available</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run — expect pass; commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralphcore.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): round-robin repo selection&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-5-prompt-entry-formatting-pure">Task 5: Prompt + entry formatting (pure)</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralphcore.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing tests</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_stage1_prompt_includes_repo_and_prior_titles</span><span class="p">():</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">build_stage1_messages</span><span class="p">(</span><span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="s2">&quot;ISSUES…</span><span class="se">\n</span><span class="s2">GITLOG…&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;Prior: X&quot;</span><span class="p">])</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s2">&quot;crabcc&quot;</span> <span class="ow">in</span> <span class="n">blob</span> <span class="ow">and</span> <span class="s2">&quot;Prior: X&quot;</span> <span class="ow">in</span> <span class="n">blob</span> <span class="ow">and</span> <span class="s2">&quot;candidates&quot;</span> <span class="ow">in</span> <span class="n">blob</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_stage2_prompt_includes_candidate_and_context</span><span class="p">():</span>
+    <span class="n">cand</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Adopt Zoekt&quot;</span><span class="p">,</span> <span class="s2">&quot;why_now&quot;</span><span class="p">:</span> <span class="s2">&quot;fast&quot;</span><span class="p">,</span> <span class="s2">&quot;urgency&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">}</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">build_stage2_messages</span><span class="p">(</span><span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="s2">&quot;FULL CONTEXT&quot;</span><span class="p">,</span> <span class="n">cand</span><span class="p">)</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s2">&quot;Adopt Zoekt&quot;</span> <span class="ow">in</span> <span class="n">blob</span> <span class="ow">and</span> <span class="s2">&quot;FULL CONTEXT&quot;</span> <span class="ow">in</span> <span class="n">blob</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_format_entry_shape</span><span class="p">():</span>
+    <span class="n">e</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">format_entry</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">date</span><span class="o">=</span><span class="s2">&quot;2026-06-11&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="n">head</span><span class="o">=</span><span class="s2">&quot;abc123&quot;</span><span class="p">,</span>
+                       <span class="n">open_issues</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="s2">&quot;Decision body text&quot;</span><span class="p">,</span>
+                       <span class="n">s1</span><span class="o">=</span><span class="s2">&quot;qwen&quot;</span><span class="p">,</span> <span class="n">s2</span><span class="o">=</span><span class="s2">&quot;deepseek&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">e</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;## 2026-06-11 — Decision #7: &quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s2">&quot;**Repo:** crabcc&quot;</span> <span class="ow">in</span> <span class="n">e</span>
+    <span class="k">assert</span> <span class="s2">&quot;HEAD abc123&quot;</span> <span class="ow">in</span> <span class="n">e</span> <span class="ow">and</span> <span class="s2">&quot;4 open issues&quot;</span> <span class="ow">in</span> <span class="n">e</span>
+    <span class="k">assert</span> <span class="s2">&quot;Decision body text&quot;</span> <span class="ow">in</span> <span class="n">e</span>
+    <span class="k">assert</span> <span class="n">e</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>no attribute 'build_stage1_messages'</code>).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="n">_STAGE1_SYS</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;You are the strategy advisor for the </span><span class="si">{repo}</span><span class="s2"> repository. From the project &quot;</span>
+    <span class="s2">&quot;state and the titles of prior decisions, identify the open STRATEGIC &quot;</span>
+    <span class="s2">&quot;decisions that matter most right now. Return JSON ONLY matching the schema: &quot;</span>
+    <span class="s1">&#39;{{&quot;candidates&quot;:[{{&quot;title&quot;:str,&quot;why_now&quot;:str,&quot;urgency&quot;:1-5,&quot;addressed&quot;:bool}}]}}. &#39;</span>
+    <span class="s2">&quot;Mark addressed=true if a prior-decision title already covers it. Rank by &quot;</span>
+    <span class="s2">&quot;urgency. Do not invent work; ground every candidate in the provided state.&quot;</span>
+<span class="p">)</span>
+
+<span class="n">_STAGE2_SYS</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;You are the strategy advisor for the </span><span class="si">{repo}</span><span class="s2"> repository. Given ONE chosen &quot;</span>
+    <span class="s2">&quot;decision and the full project context, write a single decision entry in &quot;</span>
+    <span class="s2">&quot;GitHub-flavored markdown with these bold-labelled lines: Decision / question, &quot;</span>
+    <span class="s2">&quot;Options, Recommendation, Risks, Next actions, Confidence (low|med|high). Be &quot;</span>
+    <span class="s2">&quot;concrete and grounded; no preamble, output only the entry body.&quot;</span>
+<span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_stage1_messages</span><span class="p">(</span><span class="n">repo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">compact_state</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                          <span class="n">prior_titles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+    <span class="n">titles</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;- &quot;</span> <span class="o">+</span> <span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">prior_titles</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;(none yet)&quot;</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">_STAGE1_SYS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">repo</span><span class="o">=</span><span class="n">repo</span><span class="p">)},</span>
+        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span>
+            <span class="sa">f</span><span class="s2">&quot;# Prior decision titles</span><span class="se">\n</span><span class="si">{</span><span class="n">titles</span><span class="si">}</span><span class="se">\n\n</span><span class="s2"># Project state</span><span class="se">\n</span><span class="si">{</span><span class="n">compact_state</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+    <span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_stage2_messages</span><span class="p">(</span><span class="n">repo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">full_context</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">candidate</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">_STAGE2_SYS</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">repo</span><span class="o">=</span><span class="n">repo</span><span class="p">)},</span>
+        <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span>
+            <span class="sa">f</span><span class="s2">&quot;# Chosen decision</span><span class="se">\n</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="se">\n\n</span><span class="s2"># Full project context</span><span class="se">\n</span><span class="si">{</span><span class="n">full_context</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span>
+    <span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">format_entry</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">date</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">repo</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">head</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">open_issues</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                 <span class="n">body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">s1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">s2</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="c1"># title = the first non-empty line of the body, stripped of markdown noise.</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s2">&quot; #*-&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">body</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span> <span class="k">if</span> <span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">()),</span> <span class="s2">&quot;untitled&quot;</span><span class="p">)</span>
+    <span class="n">title</span> <span class="o">=</span> <span class="n">first</span><span class="p">[:</span><span class="mi">80</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;## </span><span class="si">{</span><span class="n">date</span><span class="si">}</span><span class="s2"> — Decision #</span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;- **Repo:** </span><span class="si">{</span><span class="n">repo</span><span class="si">}</span><span class="s2"> · **Models:** stage1 </span><span class="si">{</span><span class="n">s1</span><span class="si">}</span><span class="s2"> · stage2 </span><span class="si">{</span><span class="n">s2</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;- **Context snapshot:** HEAD </span><span class="si">{</span><span class="n">head</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">open_issues</span><span class="si">}</span><span class="s2"> open issues</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">body</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run — expect pass; commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralphcore.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): prompt + entry formatting&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-6-dashboard-rendering-pure">Task 6: Dashboard rendering (pure)</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralphcore.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_render_dashboard_running_and_stale</span><span class="p">():</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;running&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;current&quot;</span><span class="p">:</span> <span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="s2">&quot;iteration&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="s2">&quot;total_cost&quot;</span><span class="p">:</span> <span class="mf">0.42</span><span class="p">,</span> <span class="s2">&quot;budget_total&quot;</span><span class="p">:</span> <span class="mf">2.00</span><span class="p">,</span>
+        <span class="s2">&quot;repos&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;vaked-base&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;entries&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;last_title&quot;</span><span class="p">:</span> <span class="s2">&quot;Merge cohort&quot;</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.20</span><span class="p">},</span>
+            <span class="s2">&quot;crabcc&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;entries&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;last_title&quot;</span><span class="p">:</span> <span class="s2">&quot;Adopt Zoekt&quot;</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.22</span><span class="p">},</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;recent&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;repo&quot;</span><span class="p">:</span> <span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="s2">&quot;2026-06-11&quot;</span><span class="p">,</span> <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;Adopt Zoekt&quot;</span><span class="p">}],</span>
+    <span class="p">}</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">render_dashboard</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">now_epoch</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">last_step_epoch</span><span class="o">=</span><span class="mi">970</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s2">&quot;crabcc&quot;</span> <span class="ow">in</span> <span class="n">out</span> <span class="ow">and</span> <span class="s2">&quot;Adopt Zoekt&quot;</span> <span class="ow">in</span> <span class="n">out</span>
+    <span class="k">assert</span> <span class="s2">&quot;0.42&quot;</span> <span class="ow">in</span> <span class="n">out</span> <span class="ow">and</span> <span class="s2">&quot;2.00&quot;</span> <span class="ow">in</span> <span class="n">out</span>
+    <span class="k">assert</span> <span class="s2">&quot;30s&quot;</span> <span class="ow">in</span> <span class="n">out</span>  <span class="c1"># seconds since last step</span>
+
+    <span class="c1"># missing status → &quot;no supervisor&quot;</span>
+    <span class="k">assert</span> <span class="s2">&quot;no supervisor&quot;</span> <span class="ow">in</span> <span class="n">C</span><span class="o">.</span><span class="n">render_dashboard</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>no attribute 'render_dashboard'</code>).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">_bar</span><span class="p">(</span><span class="n">frac</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">frac</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="nb">min</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">frac</span><span class="p">))</span>
+    <span class="n">fill</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">frac</span> <span class="o">*</span> <span class="n">width</span><span class="p">))</span>
+    <span class="k">return</span> <span class="s2">&quot;[&quot;</span> <span class="o">+</span> <span class="s2">&quot;#&quot;</span> <span class="o">*</span> <span class="n">fill</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span> <span class="o">*</span> <span class="p">(</span><span class="n">width</span> <span class="o">-</span> <span class="n">fill</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;]&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">render_dashboard</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="s2">&quot;dict | None&quot;</span><span class="p">,</span> <span class="n">now_epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                     <span class="n">last_step_epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">status</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;ralph — no supervisor running (status.json missing or empty)</span><span class="se">\n</span><span class="s2">&quot;</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">dot</span> <span class="o">=</span> <span class="s2">&quot;●&quot;</span> <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;running&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;○&quot;</span>
+    <span class="n">since</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">now_epoch</span> <span class="o">-</span> <span class="n">last_step_epoch</span><span class="p">))</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;ralph eye  </span><span class="si">%s</span><span class="s2">  current=</span><span class="si">%s</span><span class="s2">  iter=</span><span class="si">%d</span><span class="s2">  (</span><span class="si">%d</span><span class="s2">s since last step)&quot;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="n">dot</span><span class="p">,</span> <span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;current&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">),</span> <span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;iteration&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">since</span><span class="p">))</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;total_cost&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+    <span class="n">budget</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;budget_total&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span> <span class="ow">or</span> <span class="mf">1e-9</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;spend  $</span><span class="si">%.4f</span><span class="s2"> / $</span><span class="si">%.2f</span><span class="s2">  </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">total</span><span class="p">,</span> <span class="n">budget</span><span class="p">,</span> <span class="n">_bar</span><span class="p">(</span><span class="n">total</span> <span class="o">/</span> <span class="n">budget</span><span class="p">)))</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%-18s</span><span class="s2"> </span><span class="si">%6s</span><span class="s2">  </span><span class="si">%-40s</span><span class="s2"> </span><span class="si">%8s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s2">&quot;repo&quot;</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">,</span> <span class="s2">&quot;last decision&quot;</span><span class="p">,</span> <span class="s2">&quot;cost$&quot;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;repos&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">%-18s</span><span class="s2"> </span><span class="si">%6d</span><span class="s2">  </span><span class="si">%-40.40s</span><span class="s2"> </span><span class="si">%8.4f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="n">name</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;entries&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_title&quot;</span><span class="p">,</span> <span class="s2">&quot;-&quot;</span><span class="p">),</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cost&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)))</span>
+    <span class="n">recent</span> <span class="o">=</span> <span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;recent&quot;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">if</span> <span class="n">recent</span><span class="p">:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;recent decisions:&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">recent</span><span class="p">[:</span><span class="mi">5</span><span class="p">]:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;  [</span><span class="si">%s</span><span class="s2">] </span><span class="si">%s</span><span class="s2"> — </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;repo&quot;</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">),</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;date&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                                             <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)))</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run — expect pass; commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralphcore.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): dashboard rendering&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-7-openrouter-client-context-gathering-io">Task 7: OpenRouter client + context gathering (I/O)</h2>
+<p><strong>Files:</strong><br />
+- Create: <code>tools/ralph/ralph.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code> (dry-run smoke)</p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing dry-run smoke test</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_decide_dry_run_writes_nothing</span><span class="p">(</span><span class="n">monkeypatch</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span><span class="o">,</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+    <span class="n">here</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="c1"># dry-run must not require a network call or an API key.</span>
+    <span class="n">env</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">);</span> <span class="n">env</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">here</span><span class="p">,</span> <span class="s2">&quot;ralph.py&quot;</span><span class="p">),</span> <span class="s2">&quot;decide&quot;</span><span class="p">,</span>
+         <span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="s2">&quot;vaked-base&quot;</span><span class="p">,</span> <span class="s2">&quot;--dry-run&quot;</span><span class="p">],</span>
+        <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="n">here</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">r</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">stderr</span>
+    <span class="k">assert</span> <span class="s2">&quot;stage 1&quot;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">and</span> <span class="s2">&quot;estimate&quot;</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>ralph.py</code> missing / nonzero exit).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement <code>ralph.py</code> — client, context, decide skeleton</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env python3</span>
+<span class="sd">&quot;&quot;&quot;ralph — decision/strategy loop (decide / run / watch). Stdlib only.&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.error</span>
+
+<span class="n">HERE</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">HERE</span><span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ralphcore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">C</span>  <span class="c1"># noqa: E402</span>
+
+<span class="n">REPO_HOME</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">HERE</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">,</span> <span class="s2">&quot;..&quot;</span><span class="p">))</span>   <span class="c1"># vaked-base</span>
+<span class="n">DECISIONS_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">REPO_HOME</span><span class="p">,</span> <span class="s2">&quot;docs&quot;</span><span class="p">,</span> <span class="s2">&quot;decisions&quot;</span><span class="p">)</span>
+<span class="n">STATE_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">HERE</span><span class="p">,</span> <span class="s2">&quot;state&quot;</span><span class="p">)</span>
+<span class="n">STATUS_PATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">STATE_DIR</span><span class="p">,</span> <span class="s2">&quot;status.json&quot;</span><span class="p">)</span>
+<span class="n">OPENROUTER_URL</span> <span class="o">=</span> <span class="s2">&quot;https://openrouter.ai/api/v1/chat/completions&quot;</span>
+<span class="n">DEFAULT_S1</span> <span class="o">=</span> <span class="s2">&quot;qwen/qwen3-235b-a22b-thinking-2507&quot;</span>
+<span class="n">DEFAULT_S2</span> <span class="o">=</span> <span class="s2">&quot;deepseek/deepseek-v4-flash&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run</span><span class="p">(</span><span class="n">cmd</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">cwd</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a read-only command, return stdout (empty string on any failure).&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="n">cwd</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                           <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">r</span><span class="o">.</span><span class="n">stdout</span> <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">gather_context</span><span class="p">(</span><span class="n">repo</span><span class="p">:</span> <span class="n">C</span><span class="o">.</span><span class="n">Repo</span><span class="p">,</span> <span class="n">git_log_window</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">compact</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read-only project state for a repo: issues, recent commits, key docs.</span>
+<span class="sd">    compact=True trims for stage 1; full text for stage 2.&quot;&quot;&quot;</span>
+    <span class="n">parts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">issues</span> <span class="o">=</span> <span class="n">_run</span><span class="p">([</span><span class="s2">&quot;gh&quot;</span><span class="p">,</span> <span class="s2">&quot;issue&quot;</span><span class="p">,</span> <span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="o">.</span><span class="n">gh</span><span class="p">,</span> <span class="s2">&quot;--state&quot;</span><span class="p">,</span> <span class="s2">&quot;open&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;--limit&quot;</span><span class="p">,</span> <span class="s2">&quot;40&quot;</span><span class="p">,</span> <span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="s2">&quot;number,title,body&quot;</span><span class="p">],</span> <span class="n">repo</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">issues</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">issues</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">compact</span><span class="p">:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Open issues</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="s2">&quot;#</span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;number&quot;</span><span class="p">],</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">data</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Open issues</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                <span class="s2">&quot;### #</span><span class="si">%d</span><span class="s2"> </span><span class="si">%s</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;number&quot;</span><span class="p">],</span> <span class="n">i</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">],</span>
+                                    <span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;body&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)[:</span><span class="mi">4000</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">data</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Open issues</span><span class="se">\n</span><span class="s2">(unavailable)&quot;</span><span class="p">)</span>
+    <span class="n">gitlog</span> <span class="o">=</span> <span class="n">_run</span><span class="p">([</span><span class="s2">&quot;git&quot;</span><span class="p">,</span> <span class="s2">&quot;log&quot;</span><span class="p">,</span> <span class="s2">&quot;--oneline&quot;</span><span class="p">,</span> <span class="s2">&quot;-n&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">git_log_window</span><span class="p">)],</span> <span class="n">repo</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## Recent commits</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="p">(</span><span class="n">gitlog</span> <span class="ow">or</span> <span class="s2">&quot;(unavailable)&quot;</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">rel</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;README.md&quot;</span><span class="p">,</span> <span class="s2">&quot;CLAUDE.md&quot;</span><span class="p">,</span> <span class="s2">&quot;AGENTS.md&quot;</span><span class="p">):</span>
+        <span class="n">fp</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">rel</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span>
+            <span class="n">txt</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="n">parts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;## </span><span class="si">%s</span><span class="se">\n</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">rel</span><span class="p">,</span> <span class="n">txt</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">compact</span> <span class="k">else</span> <span class="n">txt</span><span class="p">[:</span><span class="mi">1500</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">openrouter_call</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">messages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">api_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                    <span class="n">temperature</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">max_tokens</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+                    <span class="n">reasoning</span><span class="p">:</span> <span class="s2">&quot;dict | None&quot;</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">response_format</span><span class="p">:</span> <span class="s2">&quot;dict | None&quot;</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="n">seed</span><span class="p">:</span> <span class="s2">&quot;int | None&quot;</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">retries</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;POST to OpenRouter chat-completions; return the parsed JSON. Bounded</span>
+<span class="sd">    retry with backoff on non-200 / network error.&quot;&quot;&quot;</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span> <span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="n">messages</span><span class="p">,</span>
+            <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="n">temperature</span><span class="p">,</span> <span class="s2">&quot;top_p&quot;</span><span class="p">:</span> <span class="mf">0.95</span><span class="p">,</span> <span class="s2">&quot;max_tokens&quot;</span><span class="p">:</span> <span class="n">max_tokens</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">reasoning</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">body</span><span class="p">[</span><span class="s2">&quot;reasoning&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">reasoning</span>
+    <span class="k">if</span> <span class="n">response_format</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">body</span><span class="p">[</span><span class="s2">&quot;response_format&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">response_format</span>
+    <span class="k">if</span> <span class="n">seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">body</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">seed</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">body</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="n">last</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">retries</span><span class="p">):</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">OPENROUTER_URL</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="s2">&quot;Bearer &quot;</span> <span class="o">+</span> <span class="n">api_key</span><span class="p">,</span>
+                     <span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">})</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span> <span class="k">as</span> <span class="n">resp</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>   <span class="c1"># noqa: BLE001 — bounded retry then re-raise</span>
+            <span class="n">last</span> <span class="o">=</span> <span class="n">e</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span> <span class="o">**</span> <span class="n">attempt</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;OpenRouter call failed after </span><span class="si">%d</span><span class="s2"> tries: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">retries</span><span class="p">,</span> <span class="n">last</span><span class="p">))</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Add the <code>decide</code> command with <code>--dry-run</code> (no network on dry-run)</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">cmd_decide</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">repos</span> <span class="o">=</span> <span class="p">{</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">C</span><span class="o">.</span><span class="n">load_repos</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">repos</span><span class="p">)}</span>
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">repo</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">repos</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;unknown repo: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">args</span><span class="o">.</span><span class="n">repo</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">);</span> <span class="k">return</span> <span class="mi">2</span>
+    <span class="n">repo</span> <span class="o">=</span> <span class="n">repos</span><span class="p">[</span><span class="n">args</span><span class="o">.</span><span class="n">repo</span><span class="p">]</span>
+
+    <span class="n">compact</span> <span class="o">=</span> <span class="n">gather_context</span><span class="p">(</span><span class="n">repo</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">git_log_window</span><span class="p">,</span> <span class="n">compact</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">prior_titles</span> <span class="o">=</span> <span class="n">_prior_titles</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">s1_msgs</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">build_stage1_messages</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">compact</span><span class="p">,</span> <span class="n">prior_titles</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">dry_run</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=== stage 1 prompt (</span><span class="si">%s</span><span class="s2">) ===&quot;</span> <span class="o">%</span> <span class="n">args</span><span class="o">.</span><span class="n">stage1_model</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">s1_msgs</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)[:</span><span class="mi">2000</span><span class="p">])</span>
+        <span class="n">approx_in</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">s1_msgs</span><span class="p">))</span> <span class="o">//</span> <span class="mi">4</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">=== cost estimate ===&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;stage1 ~</span><span class="si">%d</span><span class="s2"> input tokens; stage2 adds full context. &quot;</span>
+              <span class="s2">&quot;Rough per-iteration estimate: $0.002-0.005.&quot;</span> <span class="o">%</span> <span class="n">approx_in</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="n">api_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">api_key</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY not set&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">);</span> <span class="k">return</span> <span class="mi">1</span>
+    <span class="c1"># ... live path implemented in Task 8 ...</span>
+    <span class="k">return</span> <span class="n">_decide_live</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">s1_msgs</span><span class="p">,</span> <span class="n">api_key</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_prior_titles</span><span class="p">(</span><span class="n">repo_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">_log_path</span><span class="p">(</span><span class="n">repo_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="n">titles</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">ln</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;## &quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="s2">&quot;Decision #&quot;</span> <span class="ow">in</span> <span class="n">ln</span><span class="p">:</span>
+            <span class="n">titles</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ln</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="s2">&quot;:&quot;</span> <span class="ow">in</span> <span class="n">ln</span> <span class="k">else</span> <span class="n">ln</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">titles</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_log_path</span><span class="p">(</span><span class="n">repo_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">DECISIONS_DIR</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">.ralph-log.md&quot;</span> <span class="o">%</span> <span class="n">repo_name</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 5: Add argparse entrypoint (decide registered; run/watch stubs raise NotImplementedError)</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">ap</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">prog</span><span class="o">=</span><span class="s2">&quot;ralph&quot;</span><span class="p">)</span>
+    <span class="n">sub</span> <span class="o">=</span> <span class="n">ap</span><span class="o">.</span><span class="n">add_subparsers</span><span class="p">(</span><span class="n">dest</span><span class="o">=</span><span class="s2">&quot;cmd&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">common</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">add_help</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">common</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--repos&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">HERE</span><span class="p">,</span> <span class="s2">&quot;repos.json&quot;</span><span class="p">))</span>
+    <span class="n">common</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--stage1-model&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">DEFAULT_S1</span><span class="p">)</span>
+    <span class="n">common</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--stage2-model&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">DEFAULT_S2</span><span class="p">)</span>
+    <span class="n">common</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--git-log-window&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;decide&quot;</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">common</span><span class="p">])</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--seed&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--dry-run&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_decide</span><span class="p">)</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;run&quot;</span><span class="p">,</span> <span class="n">parents</span><span class="o">=</span><span class="p">[</span><span class="n">common</span><span class="p">])</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--interval&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">900</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--budget-total&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mf">2.00</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--max-iters&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># 0 = unbounded</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_run</span><span class="p">)</span>
+
+    <span class="n">w</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;watch&quot;</span><span class="p">)</span>
+    <span class="n">w</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--refresh&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">w</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">cmd_watch</span><span class="p">)</span>
+
+    <span class="n">args</span> <span class="o">=</span> <span class="n">ap</span><span class="o">.</span><span class="n">parse_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">args</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">SystemExit</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</pre></div>
+
+<p>(Define <code>cmd_run</code>/<code>cmd_watch</code>/<code>_decide_live</code> as <code>def cmd_run(args): raise NotImplementedError</code> placeholders ONLY long enough to import; they are implemented in Tasks 8-10. To keep the dry-run test green now, ensure <code>cmd_decide --dry-run</code> returns before touching them.)</p>
+<ul>
+<li>[ ] <strong>Step 6: Run the dry-run test — expect pass; commit</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code><br />
+Expected: PASS (dry-run prints stage-1 prompt + estimate, exits 0, no network, no key).</p>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralph.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): OpenRouter client + context gathering + decide --dry-run&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-8-decide-live-path-two-stage-call-log-append">Task 8: <code>decide</code> live path — two-stage call + log append</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralph.py</code><br />
+- Test: manual (requires <code>OPENROUTER_API_KEY</code>); plus a status round-trip later.</p>
+<ul>
+<li>[ ] <strong>Step 1: Implement <code>_decide_live</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="n">_STAGE1_SCHEMA</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;json_schema&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;json_schema&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;candidates&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;strict&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="s2">&quot;schema&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;object&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;properties&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;candidates&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;array&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;items&quot;</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;object&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;properties&quot;</span><span class="p">:</span> <span class="p">{</span>
+                            <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">},</span>
+                            <span class="s2">&quot;why_now&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">},</span>
+                            <span class="s2">&quot;urgency&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">},</span>
+                            <span class="s2">&quot;addressed&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;boolean&quot;</span><span class="p">},</span>
+                        <span class="p">},</span>
+                        <span class="s2">&quot;required&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">,</span> <span class="s2">&quot;why_now&quot;</span><span class="p">,</span> <span class="s2">&quot;urgency&quot;</span><span class="p">,</span> <span class="s2">&quot;addressed&quot;</span><span class="p">],</span>
+                    <span class="p">},</span>
+                <span class="p">}</span>
+            <span class="p">},</span>
+            <span class="s2">&quot;required&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;candidates&quot;</span><span class="p">],</span>
+        <span class="p">},</span>
+    <span class="p">},</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_decide_live</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">s1_msgs</span><span class="p">,</span> <span class="n">api_key</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="c1"># Stage 1 — rank candidates (thinking + JSON).</span>
+    <span class="n">s1</span> <span class="o">=</span> <span class="n">openrouter_call</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">stage1_model</span><span class="p">,</span> <span class="n">s1_msgs</span><span class="p">,</span> <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span>
+                         <span class="n">temperature</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>
+                         <span class="n">reasoning</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;enabled&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;effort&quot;</span><span class="p">:</span> <span class="s2">&quot;medium&quot;</span><span class="p">},</span>
+                         <span class="n">response_format</span><span class="o">=</span><span class="n">_STAGE1_SCHEMA</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+    <span class="n">s1_text</span> <span class="o">=</span> <span class="n">s1</span><span class="p">[</span><span class="s2">&quot;choices&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;message&quot;</span><span class="p">][</span><span class="s2">&quot;content&quot;</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">cands</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">s1_text</span><span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;candidates&quot;</span><span class="p">,</span> <span class="p">[])</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;stage-1 returned non-JSON; skipping iteration&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="k">return</span> <span class="mi">3</span>
+    <span class="n">chosen</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">select_candidate</span><span class="p">(</span><span class="n">cands</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">chosen</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;no candidates; skipping&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">);</span> <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="c1"># Stage 2 — deep-dive (full context, 1M window).</span>
+    <span class="n">full</span> <span class="o">=</span> <span class="n">gather_context</span><span class="p">(</span><span class="n">repo</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">git_log_window</span><span class="p">,</span> <span class="n">compact</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">full</span> <span class="o">+=</span> <span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">## Full prior decisions</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">_read_log</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+    <span class="n">s2_msgs</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">build_stage2_messages</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">full</span><span class="p">,</span> <span class="n">chosen</span><span class="p">)</span>
+    <span class="n">s2</span> <span class="o">=</span> <span class="n">openrouter_call</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">stage2_model</span><span class="p">,</span> <span class="n">s2_msgs</span><span class="p">,</span> <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span>
+                         <span class="n">temperature</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">1800</span><span class="p">)</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="n">s2</span><span class="p">[</span><span class="s2">&quot;choices&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;message&quot;</span><span class="p">][</span><span class="s2">&quot;content&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Account + append.</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">FALLBACK_PRICES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">stage1_model</span><span class="p">,</span> <span class="n">C</span><span class="o">.</span><span class="n">Price</span><span class="p">(</span><span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">))</span>
+    <span class="n">p2</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">FALLBACK_PRICES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">stage2_model</span><span class="p">,</span> <span class="n">C</span><span class="o">.</span><span class="n">Price</span><span class="p">(</span><span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.20</span><span class="p">))</span>
+    <span class="n">cost</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">cost_usd</span><span class="p">(</span><span class="n">s1</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;usage&quot;</span><span class="p">,</span> <span class="p">{}),</span> <span class="n">p1</span><span class="p">)</span> <span class="o">+</span> <span class="n">C</span><span class="o">.</span><span class="n">cost_usd</span><span class="p">(</span><span class="n">s2</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;usage&quot;</span><span class="p">,</span> <span class="p">{}),</span> <span class="n">p2</span><span class="p">)</span>
+    <span class="n">head</span> <span class="o">=</span> <span class="n">_run</span><span class="p">([</span><span class="s2">&quot;git&quot;</span><span class="p">,</span> <span class="s2">&quot;rev-parse&quot;</span><span class="p">,</span> <span class="s2">&quot;--short&quot;</span><span class="p">,</span> <span class="s2">&quot;HEAD&quot;</span><span class="p">],</span> <span class="n">repo</span><span class="o">.</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="s2">&quot;?&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_prior_titles</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">date</span> <span class="o">=</span> <span class="n">_today</span><span class="p">()</span>
+    <span class="n">entry</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">format_entry</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">date</span><span class="o">=</span><span class="n">date</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">head</span><span class="o">=</span><span class="n">head</span><span class="p">,</span>
+                           <span class="n">open_issues</span><span class="o">=</span><span class="n">_open_issue_count</span><span class="p">(</span><span class="n">repo</span><span class="p">),</span> <span class="n">body</span><span class="o">=</span><span class="n">body</span><span class="p">,</span>
+                           <span class="n">s1</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">stage1_model</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+                           <span class="n">s2</span><span class="o">=</span><span class="n">args</span><span class="o">.</span><span class="n">stage2_model</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">_append_log</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;decided #</span><span class="si">%d</span><span class="s2"> for </span><span class="si">%s</span><span class="s2"> (cost $</span><span class="si">%.4f</span><span class="s2">): </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">cost</span><span class="p">,</span> <span class="n">entry</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">return</span> <span class="mi">0</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Implement the log + small helpers</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">_today</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="c1"># passed in by callers in tests; here we read the date once at call time.</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+    <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="o">.</span><span class="n">today</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_read_log</span><span class="p">(</span><span class="n">repo_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">_log_path</span><span class="p">(</span><span class="n">repo_name</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">open</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fp</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;(none)&quot;</span>
+
+
+<span class="n">_LOG_HEADER</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;# Ralph decision log — </span><span class="si">{repo}</span><span class="se">\n\n</span><span class="s2">&quot;</span>
+    <span class="s2">&quot;&gt; Machine-generated, ADVISORY. Each entry is one strategic decision surfaced &quot;</span>
+    <span class="s2">&quot;by the ralph loop (qwen3-235b-thinking → deepseek-v4-flash). A human ratifies; &quot;</span>
+    <span class="s2">&quot;entries are appended, never rewritten.</span><span class="se">\n\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_append_log</span><span class="p">(</span><span class="n">repo_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">DECISIONS_DIR</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">fp</span> <span class="o">=</span> <span class="n">_log_path</span><span class="p">(</span><span class="n">repo_name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">fp</span><span class="p">):</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+            <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">_LOG_HEADER</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">repo</span><span class="o">=</span><span class="n">repo_name</span><span class="p">))</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="n">fh</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">entry</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_open_issue_count</span><span class="p">(</span><span class="n">repo</span><span class="p">:</span> <span class="n">C</span><span class="o">.</span><span class="n">Repo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">_run</span><span class="p">([</span><span class="s2">&quot;gh&quot;</span><span class="p">,</span> <span class="s2">&quot;issue&quot;</span><span class="p">,</span> <span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="o">.</span><span class="n">gh</span><span class="p">,</span> <span class="s2">&quot;--state&quot;</span><span class="p">,</span> <span class="s2">&quot;open&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;--limit&quot;</span><span class="p">,</span> <span class="s2">&quot;200&quot;</span><span class="p">,</span> <span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="s2">&quot;number&quot;</span><span class="p">],</span> <span class="n">repo</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">out</span><span class="p">))</span> <span class="k">if</span> <span class="n">out</span> <span class="k">else</span> <span class="mi">0</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 3: Manual verification (needs key)</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/ralph.py decide --repo vaked-base</code><br />
+Expected: appends a Decision #1 entry to <code>docs/decisions/vaked-base.ralph-log.md</code>; prints cost. Inspect the entry reads sensibly and is grounded in real issues/commits.</p>
+<ul>
+<li>[ ] <strong>Step 4: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): decide live two-stage call + advisory log append&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-9-supervisor-state-statusjson-round-trip">Task 9: Supervisor state (status.json) — round-trip</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralph.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code> (status round-trip)</p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_status_round_trip</span><span class="p">(</span><span class="n">tmp</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">importlib</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+    <span class="n">here</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">here</span><span class="p">)</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">import_module</span><span class="p">(</span><span class="s2">&quot;ralph&quot;</span><span class="p">)</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;running&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;current&quot;</span><span class="p">:</span> <span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="s2">&quot;iteration&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+         <span class="s2">&quot;total_cost&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;budget_total&quot;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s2">&quot;repos&quot;</span><span class="p">:</span> <span class="p">{},</span> <span class="s2">&quot;recent&quot;</span><span class="p">:</span> <span class="p">[]}</span>
+    <span class="n">R</span><span class="o">.</span><span class="n">write_status</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="n">back</span> <span class="o">=</span> <span class="n">R</span><span class="o">.</span><span class="n">read_status</span><span class="p">()</span>
+    <span class="k">assert</span> <span class="n">back</span><span class="p">[</span><span class="s2">&quot;current&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;crabcc&quot;</span> <span class="ow">and</span> <span class="n">back</span><span class="p">[</span><span class="s2">&quot;iteration&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">2</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>no attribute 'write_status'</code>).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">read_status</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="s2">&quot;dict | None&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">STATUS_PATH</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">STATUS_PATH</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">write_status</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">STATE_DIR</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">tmp</span> <span class="o">=</span> <span class="n">STATUS_PATH</span> <span class="o">+</span> <span class="s2">&quot;.tmp&quot;</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fh</span><span class="p">:</span>
+        <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">fh</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="n">STATUS_PATH</span><span class="p">)</span>   <span class="c1"># atomic</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Run — expect pass; commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralph.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): status.json read/write (atomic)&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-10-run-supervisor-continuous-round-robin-budget-backstop">Task 10: <code>run</code> supervisor — continuous round-robin + budget backstop</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralph.py</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code> (budget-0 backstop)</p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test (budget 0 → zero iterations)</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_run_budget_zero_no_iterations</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span><span class="o">,</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+    <span class="n">here</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">here</span><span class="p">,</span> <span class="s2">&quot;ralph.py&quot;</span><span class="p">),</span> <span class="s2">&quot;run&quot;</span><span class="p">,</span>
+         <span class="s2">&quot;--budget-total&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">,</span> <span class="s2">&quot;--max-iters&quot;</span><span class="p">,</span> <span class="s2">&quot;1&quot;</span><span class="p">],</span>
+        <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">cwd</span><span class="o">=</span><span class="n">here</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">r</span><span class="o">.</span><span class="n">returncode</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">r</span><span class="o">.</span><span class="n">stderr</span>
+    <span class="k">assert</span> <span class="s2">&quot;budget&quot;</span> <span class="ow">in</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">stdout</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect fail</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code> → FAIL (<code>cmd_run</code> is a NotImplementedError stub).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement <code>cmd_run</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">cmd_run</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">repos</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">load_repos</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">repos</span><span class="p">)</span>
+    <span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">repos</span><span class="p">]</span>
+    <span class="n">by_name</span> <span class="o">=</span> <span class="p">{</span><span class="n">r</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">repos</span><span class="p">}</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">read_status</span><span class="p">()</span> <span class="ow">or</span> <span class="p">{</span>
+        <span class="s2">&quot;running&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;current&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;iteration&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">&quot;total_cost&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span> <span class="s2">&quot;budget_total&quot;</span><span class="p">:</span> <span class="n">args</span><span class="o">.</span><span class="n">budget_total</span><span class="p">,</span>
+        <span class="s2">&quot;repos&quot;</span><span class="p">:</span> <span class="p">{</span><span class="n">n</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;entries&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;last_title&quot;</span><span class="p">:</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">names</span><span class="p">},</span>
+        <span class="s2">&quot;recent&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;last_step_epoch&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">status</span><span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">status</span><span class="p">[</span><span class="s2">&quot;budget_total&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span><span class="o">.</span><span class="n">budget_total</span>
+    <span class="n">iters</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;total_cost&quot;</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">args</span><span class="o">.</span><span class="n">budget_total</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;budget cap reached ($</span><span class="si">%.2f</span><span class="s2">) — stopping&quot;</span> <span class="o">%</span> <span class="n">args</span><span class="o">.</span><span class="n">budget_total</span><span class="p">)</span>
+                <span class="k">break</span>
+            <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">max_iters</span> <span class="ow">and</span> <span class="n">iters</span> <span class="o">&gt;=</span> <span class="n">args</span><span class="o">.</span><span class="n">max_iters</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;max-iters reached — stopping&quot;</span><span class="p">);</span> <span class="k">break</span>
+            <span class="n">unavailable</span> <span class="o">=</span> <span class="p">{</span><span class="n">r</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">repos</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">path</span><span class="p">)}</span>
+            <span class="n">nxt</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">next_repo</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;current&quot;</span><span class="p">],</span> <span class="n">unavailable</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">nxt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;no available repos — stopping&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">);</span> <span class="k">break</span>
+            <span class="n">status</span><span class="p">[</span><span class="s2">&quot;current&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">nxt</span>
+            <span class="n">status</span><span class="p">[</span><span class="s2">&quot;iteration&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">iters</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">_supervised_decide</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">by_name</span><span class="p">[</span><span class="n">nxt</span><span class="p">],</span> <span class="n">status</span><span class="p">)</span>   <span class="c1"># updates status in place</span>
+            <span class="n">status</span><span class="p">[</span><span class="s2">&quot;last_step_epoch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+            <span class="n">write_status</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">args</span><span class="o">.</span><span class="n">max_iters</span> <span class="ow">and</span> <span class="n">iters</span> <span class="o">&gt;=</span> <span class="n">args</span><span class="o">.</span><span class="n">max_iters</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">interval</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">SIGINT — shutting down&quot;</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">status</span><span class="p">[</span><span class="s2">&quot;running&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">write_status</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+    <span class="k">return</span> <span class="mi">0</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Implement <code>_supervised_decide</code> (one iteration, updates status, never crashes the loop)</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">_supervised_decide</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">status</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run one decide iteration for ``repo``; fold cost + result into ``status``.</span>
+<span class="sd">    Any failure is contained (logged) so the supervisor keeps running.&quot;&quot;&quot;</span>
+    <span class="n">api_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">api_key</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;OPENROUTER_API_KEY not set — cannot decide&quot;</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+        <span class="k">return</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">compact</span> <span class="o">=</span> <span class="n">gather_context</span><span class="p">(</span><span class="n">repo</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">git_log_window</span><span class="p">,</span> <span class="n">compact</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">s1_msgs</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">build_stage1_messages</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">compact</span><span class="p">,</span> <span class="n">_prior_titles</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="n">before</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">_prior_titles</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="c1"># reuse the live path but capture cost; _decide_live prints + appends.</span>
+        <span class="n">rc</span> <span class="o">=</span> <span class="n">_decide_live</span><span class="p">(</span><span class="n">args</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">s1_msgs</span><span class="p">,</span> <span class="n">api_key</span><span class="p">)</span>
+        <span class="n">after</span> <span class="o">=</span> <span class="n">_prior_titles</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">rep</span> <span class="o">=</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;repos&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                                         <span class="p">{</span><span class="s2">&quot;entries&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;last_title&quot;</span><span class="p">:</span> <span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">after</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">before</span><span class="p">:</span>
+            <span class="n">rep</span><span class="p">[</span><span class="s2">&quot;entries&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">after</span><span class="p">)</span>
+            <span class="n">rep</span><span class="p">[</span><span class="s2">&quot;last_title&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">after</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">status</span><span class="p">[</span><span class="s2">&quot;recent&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;repo&quot;</span><span class="p">:</span> <span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="n">_today</span><span class="p">(),</span>
+                                        <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">after</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]})</span>
+            <span class="n">status</span><span class="p">[</span><span class="s2">&quot;recent&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">status</span><span class="p">[</span><span class="s2">&quot;recent&quot;</span><span class="p">][:</span><span class="mi">10</span><span class="p">]</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>   <span class="c1"># noqa: BLE001 — contain per-iteration failures</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;iteration failed for </span><span class="si">%s</span><span class="s2">: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">repo</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span><span class="p">),</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+</pre></div>
+
+<blockquote>
+<p>NOTE: <code>_decide_live</code> must return the cost so the supervisor can accumulate it.<br />
+Refactor <code>_decide_live</code> to <code>return cost</code> (float) on success / <code>0.0</code> on skip, and<br />
+have <code>cmd_decide</code>'s standalone path ignore the return. Update <code>_supervised_decide</code><br />
+to do <code>status["total_cost"] += _decide_live(...)</code>. (Make this change in Task 8's<br />
+function when implementing — both tasks reference the same <code>cost</code> value.)</p>
+</blockquote>
+<ul>
+<li>[ ] <strong>Step 5: Run the budget-0 test — expect pass; commit</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code><br />
+Expected: PASS (budget 0 → prints "budget cap reached", zero API calls, exit 0).</p>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralph.py<span class="w"> </span>tools/ralph/test_ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): run supervisor (round-robin, budget backstop, SIGINT)&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-11-watch-dashboard-command">Task 11: <code>watch</code> dashboard command</h2>
+<p><strong>Files:</strong><br />
+- Modify: <code>tools/ralph/ralph.py</code><br />
+- Test: manual (visual) + the render unit test (Task 6) already covers the pure part.</p>
+<ul>
+<li>[ ] <strong>Step 1: Implement <code>cmd_watch</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">cmd_watch</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">status</span> <span class="o">=</span> <span class="n">read_status</span><span class="p">()</span>
+            <span class="n">last</span> <span class="o">=</span> <span class="n">status</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;last_step_epoch&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">status</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">C</span><span class="o">.</span><span class="n">render_dashboard</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()),</span> <span class="n">last</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\033</span><span class="s2">[2J</span><span class="se">\033</span><span class="s2">[H&quot;</span><span class="p">)</span>   <span class="c1"># clear + home</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+            <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">refresh</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">0</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Manual verification</strong></li>
+</ul>
+<p>Run (in one terminal): <code>python3 tools/ralph/ralph.py run --interval 60</code><br />
+Run (in another): <code>python3 tools/ralph/ralph.py watch</code><br />
+Expected: the watch view refreshes, shows the active repo, iteration, spend bar, and recent decisions; shows "no supervisor running" if <code>run</code> is stopped.</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/ralph.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(ralph): watch terminal dashboard&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-12-wiring-gitignore-state-dir-full-test-pass">Task 12: Wiring — gitignore, state dir, full test pass</h2>
+<p><strong>Files:</strong><br />
+- Create: <code>tools/ralph/state/.gitkeep</code><br />
+- Modify: <code>.gitignore</code><br />
+- Test: <code>tools/ralph/test_ralph.py</code> (full run)</p>
+<ul>
+<li>[ ] <strong>Step 1: Add state dir keeper + gitignore</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>tools/ralph/state
+touch<span class="w"> </span>tools/ralph/state/.gitkeep
+<span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;\n# ralph loop live state\ntools/ralph/state/status.json\n&#39;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>.gitignore
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run the full test suite — expect all pass</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/test_ralph.py</code><br />
+Expected: every test PASS (load_repos, cost, select ×3, round-robin ×2, prompts ×3, render, dry-run, status round-trip, budget-0).</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/ralph/state/.gitkeep<span class="w"> </span>.gitignore
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore(ralph): state dir + gitignore status.json&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-13-smoke-the-real-loop-1-iteration-sanity">Task 13: Smoke the real loop (1 iteration) + sanity</h2>
+<p><strong>Files:</strong> none (verification only).</p>
+<ul>
+<li>[ ] <strong>Step 1: One real iteration per repo (needs <code>OPENROUTER_API_KEY</code> + <code>gh</code> auth)</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/ralph.py decide --repo vaked-base</code><br />
+Then: <code>python3 tools/ralph/ralph.py decide --repo crabcc</code><br />
+Expected: each appends a grounded Decision #1 to <code>docs/decisions/&lt;repo&gt;.ralph-log.md</code>; printed cost &lt; $0.01 each. Read both entries — they should reference real issues/commits, not hallucinate.</p>
+<ul>
+<li>[ ] <strong>Step 2: Short supervised run + watch</strong></li>
+</ul>
+<p>Run: <code>python3 tools/ralph/ralph.py run --interval 30 --max-iters 3 --budget-total 0.10</code><br />
+In another terminal: <code>python3 tools/ralph/ralph.py watch</code><br />
+Expected: round-robins vaked-base → crabcc → agentfield-stack, dashboard updates, stops at 3 iters or $0.10.</p>
+<ul>
+<li>[ ] <strong>Step 3: Final commit / PR</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>-A<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;docs(ralph): seed decision logs from first run&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="c1"># open a PR for the ralph-decide branch when ready</span>
+</pre></div>
+
+<hr />
+<h2 id="notes-for-the-implementer">Notes for the implementer</h2>
+<ul>
+<li><strong>Date in <code>format_entry</code></strong> is passed as a string so the function stays pure/testable; <code>ralph.py</code> supplies <code>_today()</code>. Do not call <code>datetime</code> inside <code>ralphcore</code>.</li>
+<li><strong><code>_decide_live</code> returns the cost</strong> (float) — both the standalone <code>decide</code> and the supervisor depend on this (see Task 10 Step 4 note). Implement it that way in Task 8.</li>
+<li><strong>Read-only invariant:</strong> the only writes are <code>docs/decisions/*.ralph-log.md</code> and <code>tools/ralph/state/status.json</code>, both under <code>vaked-base</code>. No <code>git</code> writes, no edits to crabcc/agentfield-stack. Keep <code>_run</code> to read-only subcommands.</li>
+<li><strong>Live price refresh</strong> (spec): optional enhancement — fetch <code>/models</code> at supervisor start and override <code>FALLBACK_PRICES</code>. The plan ships with the hardcoded fallback (correct as of 2026-06-11); add the refresh as a follow-up if drift matters.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-11-ralph.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

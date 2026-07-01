@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Capability reachability — POLA & confused-deputy lints — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#motivation" style="padding-left:0.5rem">Motivation</a><a href="#the-capability-graph-as-the-authority-graph" style="padding-left:0.5rem">The capability graph as the authority graph</a><a href="#declared-need-needs" style="padding-left:1rem">  Declared need (`needs`)</a><a href="#the-lints" style="padding-left:0.5rem">The lints</a><a href="#e-cap-use-the-pola-use-check" style="padding-left:1rem">  `E-CAP-USE` (the POLA use-check)</a><a href="#w-pola-excess" style="padding-left:1rem">  `W-POLA-EXCESS`</a><a href="#w-confused-deputy" style="padding-left:1rem">  `W-CONFUSED-DEPUTY`</a><a href="#e-egress-use-w-egress-unrefined-network-membrane-pola" style="padding-left:1rem">  `E-EGRESS-USE` & `W-EGRESS-UNREFINED` (network-membrane POLA)</a><a href="#2-the-channel-vs-reference-attenuation-gap" style="padding-left:0.5rem">§2 — The channel-vs-reference attenuation gap</a><a href="#determinism" style="padding-left:0.5rem">Determinism</a><a href="#examples" style="padding-left:0.5rem">Examples</a><a href="#status" style="padding-left:0.5rem">Status</a><a href="#references" style="padding-left:0.5rem">References</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0026-capability-reachability-pola</div>
+<h1>Capability reachability — POLA & confused-deputy lints</h1>
+<h1 id="0026-capability-reachability-pola-confused-deputy-lints">0026 — Capability reachability: POLA &amp; confused-deputy lints</h1>
+<p>Status: <strong>Draft</strong> · Series: language design notes · Track: Language</p>
+<h2 id="abstract">Abstract</h2>
+<p>In the object-capability model, security is <em>reachability in the<br />
+reference/authority graph</em>: "only connectivity begets connectivity," and<br />
+deny-by-default egress maps almost 1:1 onto "no ambient authority." Because Vaked<br />
+declares the capability graph as a first-class artifact (the LPG built in<br />
+<code>vakedc/resolve.py</code>), the checker can perform authority analysis at <em>compile time</em><br />
+that runtime systems can only discover late. This note specifies the<br />
+capability-reachability pass added to <code>vakedc check</code> (issue #226): per-node<br />
+authority derived from the mesh, two advisory least-authority lints<br />
+(<code>W-POLA-EXCESS</code>, <code>W-CONFUSED-DEPUTY</code>), the <strong>POLA use-check</strong> error<br />
+(<code>E-CAP-USE</code>, 0011 §4.3 — a node may not exercise authority it does not hold),<br />
+and the documented limit on what a network membrane can and cannot attenuate.</p>
+<h2 id="motivation">Motivation</h2>
+<p><code>vakedc</code> already enforces <strong>per-edge attenuation</strong> on mesh delegation edges<br />
+(<code>E-CAP-ATTENUATION</code>, 0011 §4.4): for <code>a -&gt; b</code>, every grant the receiver <code>b</code> holds<br />
+must be <code>&lt;=</code> some grant the sender <code>a</code> holds in the same domain. That is a <em>local</em><br />
+property of a single edge. Two <em>graph-level</em> least-authority hazards are invisible<br />
+to a per-edge rule:</p>
+<ol>
+<li><strong>Over-grant (POLA violation).</strong> A node may hold a strong capability it never<br />
+   needs. Attenuation says nothing about whether a node's <em>own</em> grant is justified<br />
+   — only about what flows across an edge.</li>
+<li><strong>Confused deputy.</strong> A shared, high-authority deputy reachable from multiple<br />
+   callers acts under <em>its own</em> identity on behalf of weaker callers. Each<br />
+   delegation edge into the deputy can be individually attenuation-clean while the<br />
+   aggregate shape still launders authority.</li>
+</ol>
+<p>Vaked sees the whole graph at compile time, so it can flag both.</p>
+<h2 id="the-capability-graph-as-the-authority-graph">The capability graph as the authority graph</h2>
+<p>The relevant edges of the LPG (see <code>vakedc/resolve.py</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Edge label</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>requires_capability</code></td>
+<td>a node/decl holds a <code>domain.grant</code></td>
+</tr>
+<tr>
+<td><code>routes_to</code></td>
+<td>a mesh <code>a -&gt; b</code> delegation edge</td>
+</tr>
+</tbody>
+</table>
+<p>A mesh <code>node</code>'s <code>capabilities = [domain.grant, …]</code> list is its <strong>held authority</strong>.<br />
+Its egress allow-set / effective authority is the union of (a) its own grants and<br />
+(b) the grants reachable by following <code>routes_to</code> edges, attenuated per edge. The<br />
+out-edges of a node are exactly what the eBPF deny-by-default manifest should<br />
+encode (<code>emit_ebpf_policy</code> in <code>vakedc/lower.py</code> already compiles a <code>network</code><br />
+membrane's allow-set from <code>egress(host, port)</code> rules; wiring transitive<br />
+reachability into that emitter is tracked as a follow-up — see <em>Status</em> below).</p>
+<h3 id="declared-need-needs">Declared need (<code>needs</code>)</h3>
+<p>The built-in <code>meshNode</code> schema is <strong>open</strong>, so a node may declare an optional</p>
+<div class="highlight"><pre><span></span>needs = [fs.repo_rw]
+</pre></div>
+
+<p>list alongside <code>capabilities</code>. <code>needs</code> is the node's least-authority <em>budget</em>: the<br />
+maximum authority the node claims it requires, expressed in the same<br />
+<code>domain.grant</code> ref form as <code>capabilities</code>. It is validated against the capability<br />
+registry exactly like <code>capabilities</code> (unknown domain/grant ⇒ the usual<br />
+<code>E-CAP-UNKNOWN-DOMAIN</code> / <code>E-CAP-UNKNOWN-GRANT</code> errors). A node that omits <code>needs</code><br />
+opts out of <em>both</em> POLA checks — the <code>W-POLA-EXCESS</code> lint and the <code>E-CAP-USE</code><br />
+use-check (no declared budget / use set ⇒ nothing to compare).</p>
+<h2 id="the-lints">The lints</h2>
+<p>The two <strong>advisory warnings</strong> below (<code>severity = "warning"</code>) never block a<br />
+<code>check</code>; they surface a hazard with the node name and the offending grants so an<br />
+author can tighten the graph or consciously accept the shape. They sit alongside<br />
+the <strong>POLA use-check error</strong> (<code>E-CAP-USE</code>, <code>severity = "error"</code>), which <em>does</em><br />
+block — exercising authority a node does not hold is unsound, not merely<br />
+imprudent.</p>
+<h3 id="e-cap-use-the-pola-use-check"><code>E-CAP-USE</code> (the POLA use-check)</h3>
+<p><code>needs</code> declares the capabilities a node <strong>uses</strong> (<code>used(p)</code>, 0011 §4.3). The<br />
+use-check requires <code>used(p) ⊑ granted(p)</code>: for each declared <code>(domain,
+need_grant)</code>, the node must hold some grant <code>g</code> in the <strong>same domain</strong> with<br />
+<code>need_grant ≤ g</code> under that domain's attenuation order (a stronger held grant<br />
+authorizes a weaker use). If no held grant in the domain dominates the need — the<br />
+node holds nothing in the domain, or only weaker grants — the node is<br />
+<em>underpowered</em>: it exercises authority it does not hold. Emit <code>E-CAP-USE</code><br />
+(severity <code>error</code>) against the node's <code>needs</code> field, naming the node, the<br />
+exercised <code>domain.grant</code>, and the held grants (or <code>(none in domain &lt;d&gt;)</code>).</p>
+<p>This is the <strong>dual</strong> of <code>W-POLA-EXCESS</code> and orthogonal to it per domain:<br />
+<code>W-POLA-EXCESS</code> fires when a held grant is <em>stronger</em> than every declared need<br />
+(granted &gt; needed — a warning); <code>E-CAP-USE</code> fires when a declared need is not<br />
+dominated by any held grant (needed &gt; held — an error). One node can raise both,<br />
+in different domains. A node that declares no <code>needs</code> opts out of both (no<br />
+declared <code>used</code> set ⇒ nothing to check).</p>
+<h3 id="w-pola-excess"><code>W-POLA-EXCESS</code></h3>
+<p>For a node that declares <code>needs</code>, for each held grant <code>dom.g</code>: if <code>dom.g</code> is <em>not</em><br />
+<code>&lt;=</code> some declared need in the same domain (i.e. the node is granted strictly more<br />
+than it claims to need), emit <code>W-POLA-EXCESS</code> against the node's <code>capabilities</code>,<br />
+naming the node, the held grant, and the declared need.</p>
+<h3 id="w-confused-deputy"><code>W-CONFUSED-DEPUTY</code></h3>
+<p>A node is a <strong>shared deputy</strong> when it (a) holds at least one capability of its own<br />
+and (b) is the <code>routes_to</code> target of <strong>two or more distinct callers</strong>. Such a node<br />
+multiplexes multiple callers while acting under its own identity — the classic<br />
+confused-deputy shape. Emit <code>W-CONFUSED-DEPUTY</code> against the deputy node, naming the<br />
+deputy, the distinct callers, and the held capabilities, and recommend keeping<br />
+delegation inside Vaked-minted capabilities.</p>
+<p>This deliberately fires even when every incoming edge is attenuation-clean: the<br />
+hazard is the <em>aggregation</em> of callers onto one authority-bearing sink, which a<br />
+per-edge rule cannot see.</p>
+<h3 id="e-egress-use-w-egress-unrefined-network-membrane-pola"><code>E-EGRESS-USE</code> &amp; <code>W-EGRESS-UNREFINED</code> (network-membrane POLA)</h3>
+<p>The <strong>network-domain dual</strong> of <code>E-CAP-USE</code> / <code>W-POLA-EXCESS</code>. A <code>networkMembrane</code><br />
+refines a principal's <code>network</code> grant into a concrete <code>allow = [egress(host, port)]</code><br />
+set; the membrane must not authorize egress the capability graph never granted.</p>
+<ul>
+<li>
+<p><strong><code>E-EGRESS-USE</code></strong> (<code>severity = "error"</code>) — for each membrane, classify every<br />
+<code>allow</code> host to the network lattice level it implies (<code>none &lt; loopback &lt; lan &lt;
+  egress</code>): a loopback host/IP → <code>loopback</code>; a private IP → <code>lan</code>; any other IP or a<br />
+  DNS name → <code>egress</code>. If the principal's strongest held <code>network</code> grant does <strong>not</strong><br />
+  dominate the strongest required level — or the <code>principal</code> names no node in the mesh<br />
+  — the membrane authorizes egress beyond the granted capability, which is unsound:<br />
+  emit <code>E-EGRESS-USE</code>. This is the membrane-side analog of <code>E-CAP-USE</code>'s<br />
+<code>used ⊑ granted</code> (here: <em>allowed ⊑ granted</em>).</p>
+</li>
+<li>
+<p><strong><code>W-EGRESS-UNREFINED</code></strong> (<code>severity = "warning"</code>) — a node holds <code>network.egress</code><br />
+  or <code>network.lan</code> with <strong>no</strong> <code>networkMembrane</code> refining it: its egress is unbounded.<br />
+  Advisory (the dual of <code>W-POLA-EXCESS</code>); never blocks. Add a <code>network</code> membrane with<br />
+  an <code>allow</code> set to scope it.</p>
+</li>
+</ul>
+<p>Host classification uses the stdlib <code>ipaddress</code> order; deterministic (membranes and<br />
+nodes sorted by name). This promotes the oracle's tool-local egress drift-check<br />
+(<code>tools/oracle/roster_from_vaked.check_roster_egress</code>, slice-4b thread 1) to a<br />
+first-class language pass.</p>
+<h2 id="2-the-channel-vs-reference-attenuation-gap">§2 — The channel-vs-reference attenuation gap</h2>
+<p>A network / eBPF membrane gates <strong>channels</strong>: it decides whether a connection from<br />
+principal P to host:port H is allowed. It <strong>cannot</strong> wrap or attenuate a capability<br />
+passed <em>inside</em> an allowed connection. Once <code>worker</code> is allowed to talk to<br />
+<code>egressProxy</code>, the membrane has no say over what <code>egressProxy</code> does with its own<br />
+<code>net.egress</code> grant on <code>worker</code>'s behalf — that is app-layer delegation, and it can<br />
+escape the declared graph.</p>
+<p>Consequences and the recommended discipline:</p>
+<ul>
+<li><strong>Keep delegation inside Vaked-minted capabilities.</strong> If authority is only ever<br />
+  passed as a Vaked <code>domain.grant</code> (which the checker attenuates per edge), the<br />
+  graph stays sound. Authority smuggled inside an opaque application payload over<br />
+  an allowed channel does not.</li>
+<li><strong>Re-derive edges at the daemon.</strong> Where an application protocol <em>does</em> carry<br />
+  delegation, parse a capability-aware protocol at the Zig enforcement daemon so it<br />
+  can re-derive the reference edges and re-check attenuation at runtime, rather than<br />
+  trusting the channel grant alone.</li>
+<li><code>W-CONFUSED-DEPUTY</code> is the compile-time <em>warning</em> for exactly this gap: it points<br />
+  at the shared deputy where app-layer delegation is most likely to launder<br />
+  authority the membrane cannot attenuate.</li>
+</ul>
+<h2 id="determinism">Determinism</h2>
+<p>The pass is a pure read of the graph. Nodes are visited in sorted name order and<br />
+callers are sorted before rendering, so diagnostics are byte-stable across runs<br />
+(verified by the existing determinism group of <code>test_vakedc_check.py</code>).</p>
+<h2 id="examples">Examples</h2>
+<ul>
+<li><code>vaked/examples/types/pola-violation.vaked</code> — emits one <code>W-POLA-EXCESS</code><br />
+  (<code>builder</code> holds <code>fs.host_rw</code>, needs only <code>fs.repo_rw</code>) and one<br />
+<code>W-CONFUSED-DEPUTY</code> (<code>proxy</code> is the delegation target of <code>worker</code> and <code>cron</code>).</li>
+<li><code>vaked/examples/types/pola-least-authority.vaked</code> — the clean pair: every node<br />
+  holds exactly its declared need and no shared deputy arises, so the pass is<br />
+  silent.</li>
+<li><code>vaked/examples/types/cap-use-*.vaked</code> — the <code>E-CAP-USE</code> fixtures (Risk 6):<br />
+  seven negative cases (underpowered, no-caps, wrong-domain, partial, two-node,<br />
+  and combos with <code>W-POLA-EXCESS</code> / <code>E-CAP-ATTENUATION</code>) plus <code>cap-use-no-needs</code>,<br />
+  the opt-out proof (a cap-holding node with no <code>needs</code> stays clean).</li>
+<li><code>vaked/examples/types/egress-*.vaked</code> — the <code>E-EGRESS-USE</code> fixtures:<br />
+<code>egress-use-exceeds</code> (membrane allows public egress for a <code>loopback</code>-only<br />
+  principal), <code>egress-use-bad-principal</code> (membrane principal names no node),<br />
+<code>egress-use-ok</code> (egress grant covers a public-egress cordon, clean), and<br />
+<code>egress-unrefined</code> (an unrefined egress grant → one <code>W-EGRESS-UNREFINED</code>).</li>
+</ul>
+<h2 id="status">Status</h2>
+<ul>
+<li>✅ Per-node held authority + declared <code>needs</code> from the mesh.</li>
+<li>✅ <code>W-POLA-EXCESS</code> and <code>W-CONFUSED-DEPUTY</code> warnings with node names + offending<br />
+  grants/edges.</li>
+<li>✅ <code>E-CAP-USE</code> use-check error (Risk 6, 0011 §4.3): a node may not exercise (via<br />
+<code>needs</code>) authority no held grant dominates; the dual of <code>W-POLA-EXCESS</code>.</li>
+<li>✅ <code>E-EGRESS-USE</code> error + <code>W-EGRESS-UNREFINED</code> warning: the network-membrane POLA<br />
+  pass (allowed ⊑ granted) — a <code>networkMembrane</code> may not authorize egress beyond its<br />
+  principal's <code>network</code> grant; an unrefined egress grant is flagged advisory.<br />
+  Promotes the oracle's tool-local egress check to a language pass.</li>
+<li>✅ Design note (this document) on the channel-vs-reference attenuation gap.</li>
+<li>✅ Example pair exercising a warning case and a clean least-authority graph.</li>
+<li>⏳ Follow-up: expose the transitive reachability set to <code>emit_ebpf_policy</code> so the<br />
+  per-node egress allow-set in <code>gen/ebpf.policy.json</code> is literally the out-edges of<br />
+  each node (the eBPF deny-by-default manifest). Tracked on #226.</li>
+</ul>
+<h2 id="references">References</h2>
+<ul>
+<li>Miller, "Capability Myths Demolished"; <a href="https://en.wikipedia.org/wiki/Object-capability_model">https://en.wikipedia.org/wiki/Object-capability_model</a></li>
+<li><a href="https://tvcutsem.github.io/membranes">https://tvcutsem.github.io/membranes</a>; <a href="https://en.wikipedia.org/wiki/Confused_deputy_problem">https://en.wikipedia.org/wiki/Confused_deputy_problem</a></li>
+<li>0011 §4.4 (capability attenuation), <code>vakedc/check.py</code> <code>_check_mesh</code></li>
+<li><code>docs/research/</code> prior-art on durable-runtime capability graphs</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0026-capability-reachability-pola.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

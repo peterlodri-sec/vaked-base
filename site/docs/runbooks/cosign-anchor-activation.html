@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Runbook — Activate the cosign/Rekor deploy anchor (no log-reading required) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#the-one-value-you-need" style="padding-left:0.5rem">The one value you need</a><a href="#set-it-one-command-no-logs" style="padding-left:0.5rem">Set it (one command, no logs)</a><a href="#confirm-it-took-still-no-logs" style="padding-left:0.5rem">Confirm it took (still no logs)</a><a href="#how-to-know-the-first-run-actually-worked-one-glance-not-logs" style="padding-left:0.5rem">How to know the first run actually worked (one glance, not logs)</a><a href="#if-you-ever-want-to-prove-an-artifact-is-anchored-optional-advanced" style="padding-left:0.5rem">If you ever want to prove an artifact is anchored (optional, advanced)</a><a href="#what-this-buys-you" style="padding-left:0.5rem">What this buys you</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/runbooks/">runbooks</a> / cosign-anchor-activation</div>
+<h1>Runbook — Activate the cosign/Rekor deploy anchor (no log-reading required)</h1>
+<h1 id="runbook-activate-the-cosignrekor-deploy-anchor-no-log-reading-required">Runbook — Activate the cosign/Rekor deploy anchor (no log-reading required)</h1>
+<p>You said you're not great with logs. This is written so you never have to read one.<br />
+Goal: after the <code>honesty-anchor</code> workflow runs for the first time, tell <code>verify-seals.sh</code><br />
+<em>who</em> signed the manifest, by setting one repository variable: <code>COSIGN_IDENTITY</code>.</p>
+<p>You do <strong>not</strong> need to understand the run output. The identity is <strong>deterministic</strong> — it's<br />
+just a fixed string built from the repo name and the workflow path. You can set it blind.</p>
+<h2 id="the-one-value-you-need">The one value you need</h2>
+<div class="highlight"><pre><span></span><span class="nl">https</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="p">.</span><span class="n">com</span><span class="o">/</span><span class="n">peterlodri</span><span class="o">-</span><span class="n">sec</span><span class="o">/</span><span class="n">vaked</span><span class="o">-</span><span class="n">base</span><span class="o">/</span><span class="p">.</span><span class="n">github</span><span class="o">/</span><span class="n">workflows</span><span class="o">/</span><span class="n">honesty</span><span class="o">-</span><span class="n">anchor</span><span class="p">.</span><span class="n">yml</span><span class="nv">@refs</span><span class="o">/</span><span class="n">heads</span><span class="o">/</span><span class="n">main</span>
+</pre></div>
+
+<p>That is the <code>COSIGN_IDENTITY</code>. It does not change between runs (only if you rename the repo,<br />
+move the workflow file, or run it from a non-<code>main</code> branch).</p>
+<h2 id="set-it-one-command-no-logs">Set it (one command, no logs)</h2>
+<div class="highlight"><pre><span></span><span class="n">gh</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">COSIGN_IDENTITY</span><span class="w"> </span>\
+<span class="w">  </span><span class="o">--</span><span class="n">repo</span><span class="w"> </span><span class="n">peterlodri</span><span class="o">-</span><span class="n">sec</span><span class="o">/</span><span class="n">vaked</span><span class="o">-</span><span class="n">base</span><span class="w"> </span>\
+<span class="w">  </span><span class="o">--</span><span class="n">body</span><span class="w"> </span><span class="s2">&quot;https://github.com/peterlodri-sec/vaked-base/.github/workflows/honesty-anchor.yml@refs/heads/main&quot;</span>
+</pre></div>
+
+<p>Or in the browser: <strong>Repo → Settings → Secrets and variables → Actions → Variables tab →<br />
+New repository variable</strong> → Name <code>COSIGN_IDENTITY</code>, Value = the URL above.</p>
+<h2 id="confirm-it-took-still-no-logs">Confirm it took (still no logs)</h2>
+<div class="highlight"><pre><span></span><span class="n">gh</span><span class="w"> </span><span class="n">variable</span><span class="w"> </span><span class="n">list</span><span class="w"> </span><span class="o">--</span><span class="n">repo</span><span class="w"> </span><span class="n">peterlodri</span><span class="o">-</span><span class="n">sec</span><span class="o">/</span><span class="n">vaked</span><span class="o">-</span><span class="n">base</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">grep</span><span class="w"> </span><span class="n">COSIGN_IDENTITY</span>
+</pre></div>
+
+<h2 id="how-to-know-the-first-run-actually-worked-one-glance-not-logs">How to know the first run actually worked (one glance, not logs)</h2>
+<div class="highlight"><pre><span></span>gh run list --repo peterlodri-sec/vaked-base --workflow honesty-anchor.yml --limit 1
+</pre></div>
+
+<p>Look at the first column only: a green <strong>completed/success</strong> = it signed and logged to Rekor.<br />
+A red <strong>failure</strong> = it didn't (most likely cosign permissions). You don't need the log body —<br />
+just the green/red.</p>
+<h2 id="if-you-ever-want-to-prove-an-artifact-is-anchored-optional-advanced">If you ever want to prove an artifact is anchored (optional, advanced)</h2>
+<p>The bundle is committed to the repo at<br />
+<code>the-honest-swarm-researcher/SEALS.sha256.cosign.bundle</code> by the <code>honesty-anchor</code><br />
+workflow after each successful signing run, so it is present in any checkout of<br />
+<code>main</code>. No manual download step is required.</p>
+<div class="highlight"><pre><span></span><span class="n">cosign</span><span class="w"> </span><span class="n">verify</span><span class="o">-</span><span class="k">blob</span><span class="w"> </span><span class="err">\</span>
+<span class="w">  </span><span class="c1">--bundle the-honest-swarm-researcher/SEALS.sha256.cosign.bundle \</span>
+<span class="w">  </span><span class="c1">--certificate-identity &quot;https://github.com/peterlodri-sec/vaked-base/.github/workflows/honesty-anchor.yml@refs/heads/main&quot; \</span>
+<span class="w">  </span><span class="c1">--certificate-oidc-issuer &quot;https://token.actions.githubusercontent.com&quot; \</span>
+<span class="w">  </span><span class="n">the</span><span class="o">-</span><span class="n">honest</span><span class="o">-</span><span class="n">swarm</span><span class="o">-</span><span class="n">researcher</span><span class="o">/</span><span class="n">SEALS</span><span class="p">.</span><span class="n">sha256</span>
+</pre></div>
+
+<p>Output <code>Verified OK</code> = the live manifest matches what was signed and logged. Anything else =<br />
+it doesn't. (Note: the CI OIDC issuer is <code>https://token.actions.githubusercontent.com</code> for<br />
+GitHub-Actions identities — different from a human browser login's issuer.)</p>
+<h2 id="what-this-buys-you">What this buys you</h2>
+<p><code>verify-seals.sh</code> (Anchor 2) stays a no-op until <code>COSIGN_IDENTITY</code> is set. Once set, it will<br />
+verify the cosign bundle against the Rekor transparency log on every run — so a manifest<br />
+re-sealed without re-anchoring fails the build, witnessed by an append-only log you don't own.<br />
+The GPG-signed tag (Anchor 1) already gives you this today; cosign adds the external witness.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/runbooks/cosign-anchor-activation.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

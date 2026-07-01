@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Deployment plan: Vaked docs site → Hetzner (NixOS, existing proxy) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#what-we-are-deploying" style="padding-left:0.5rem">What we are deploying</a><a href="#target-confirmed" style="padding-left:0.5rem">Target (confirmed)</a><a href="#recommended-approach-nix-native-on-brand" style="padding-left:0.5rem">Recommended approach (Nix-native, on-brand)</a><a href="#prerequisites-block-any-deploy-do-these-first" style="padding-left:0.5rem">Prerequisites (block any deploy — do these first)</a><a href="#deploy-steps-nixos-host-existing-proxy" style="padding-left:0.5rem">Deploy steps (NixOS host, existing proxy)</a><a href="#update-redeploy-model" style="padding-left:0.5rem">Update / redeploy model</a><a href="#open-inputs-needed-to-make-this-exact" style="padding-left:0.5rem">Open inputs needed to make this exact</a><a href="#risk-register" style="padding-left:0.5rem">Risk register</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/deployment/">deployment</a> / docs-site-hetzner</div>
+<h1>Deployment plan: Vaked docs site → Hetzner (NixOS, existing proxy)</h1>
+<h1 id="deployment-plan-vaked-docs-site-hetzner-nixos-existing-proxy">Deployment plan: Vaked docs site → Hetzner (NixOS, existing proxy)</h1>
+<p>Plan to deploy <strong>PR #90</strong> (self-hosted Astro Starlight docs site under <code>site/</code>) to the<br />
+existing NixOS Hetzner host that already serves public services behind a reverse proxy<br />
+with TLS. Docs to live at a dedicated subdomain.</p>
+<p>Status: <strong>plan only — nothing deployed.</strong> Generated 2026-06-13.</p>
+<h2 id="what-we-are-deploying">What we are deploying</h2>
+<ul>
+<li>A <strong>purely static</strong> HTML bundle (Astro Starlight: 53 pages, Pagefind client-side<br />
+  search). No server-side runtime, no database, no open ports of its own.</li>
+<li>Produced reproducibly by <code>nix build .#docs</code> (the <code>packages.docs</code> output PR #90 adds<br />
+  to <code>flake.nix</code>) → a Nix store path of static files. Equivalent npm path: <code>cd site &amp;&amp;
+  npm run build</code> → <code>site/dist/</code>.</li>
+<li>Source of truth stays the repo Markdown; <code>site/scripts/sync-docs.mjs</code> regenerates<br />
+  content at build time.</li>
+</ul>
+<h2 id="target-confirmed">Target (confirmed)</h2>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Answer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Host</td>
+<td>Existing <strong>NixOS</strong> Hetzner machine</td>
+</tr>
+<tr>
+<td>Topology</td>
+<td><strong>Existing reverse proxy + TLS</strong> already fronts other public services — docs is a new vhost</td>
+</tr>
+<tr>
+<td>URL</td>
+<td><strong>Dedicated subdomain</strong> (exact hostname: <em>TBD — fill in</em>)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="recommended-approach-nix-native-on-brand">Recommended approach (Nix-native, on-brand)</h2>
+<p>Consume <code>vaked-base</code> as a <strong>flake input</strong> in the host's NixOS configuration and serve<br />
+<code>vaked-base.packages.&lt;system&gt;.docs</code> as the static root of a new vhost on the existing<br />
+proxy. TLS reuses the host's existing ACME setup. This keeps "Vaked declares, Nix<br />
+materializes": the deployed bytes are the reproducible build output, and a docs update<br />
+is just a flake-input bump + <code>nixos-rebuild switch</code> (rollback = previous generation).</p>
+<p>Alternative (lighter, less on-brand): build <code>dist/</code> in CI and <code>rsync</code> it to a web root<br />
+the proxy already serves. Use only if you do <strong>not</strong> want the host to evaluate this<br />
+flake. The rest of this plan assumes the Nix-native path.</p>
+<p><strong>Assumption that gates execution:</strong> the existing proxy is <strong>NixOS-managed Caddy or<br />
+nginx</strong> (<code>services.caddy</code> / <code>services.nginx</code>). On a NixOS host that is the idiomatic<br />
+setup, but it is unconfirmed. If the proxy is <strong>Traefik</strong>, or runs <strong>outside NixOS</strong><br />
+(Docker labels, a hand-rolled config), the <code>virtualHosts</code> integration below does not<br />
+slot in and the serving mechanism changes — confirm which proxy and how it is managed<br />
+before step 2.</p>
+<h2 id="prerequisites-block-any-deploy-do-these-first">Prerequisites (block any deploy — do these first)</h2>
+<ol>
+<li><strong>PR #90 is <code>CONFLICTING</code>.</strong> Resolve conflicts (expect <code>flake.nix</code> <code>packages</code> block</li>
+<li><code>README.md</code>) and merge to <code>main</code>, so the host can pin a clean <code>main</code> rev. (Or pin<br />
+   the flake input directly at the PR head commit — but merging first is cleaner.)</li>
+<li><strong>Set the real origin.</strong> <code>site/astro.config.mjs</code> has <code>site: 'https://docs.vaked.example'</code><br />
+   (placeholder). Change it to the chosen subdomain <strong>before the build</strong> — it drives<br />
+   canonical URLs, the sitemap, and Pagefind base paths. This is a code change in the<br />
+   PR; patch it before merge.</li>
+<li><strong>Verify <code>nix build .#docs</code> on the target arch.</strong> <strong>Verified green on<br />
+<code>aarch64-darwin</code> during planning</strong> (exit 0 → 53 HTML pages, <code>pagefind/</code> search index,<br />
+<code>404.html</code>, pretty-URL deep pages, 5.8M bundle). <code>importNpmLock</code> fetched per-platform<br />
+<strong>prebuilt</strong> <code>sharp</code>/<code>esbuild</code>/<code>rollup</code> tarballs (no libvips compile), so the hermetic<br />
+   build holds. The host is <code>x86_64-linux</code> (or <code>aarch64-linux</code>); the build is<br />
+   platform-parameterized (<code>forAllSystems</code>) so a linux build should be equivalent —<br />
+   confirm once on a linux builder, low risk.</li>
+<li><strong>DNS.</strong> Create the subdomain <code>A</code>/<code>AAAA</code> record → host IP. (Provider unknown; wherever<br />
+   the existing services' DNS lives.)</li>
+</ol>
+<h2 id="deploy-steps-nixos-host-existing-proxy">Deploy steps (NixOS host, existing proxy)</h2>
+<blockquote>
+<p>These edits land in <strong>the host's NixOS config</strong> (a separate infra repo or <code>/etc/nixos</code>),<br />
+NOT in <code>vaked-base</code>. Exact file paths depend on that repo's layout — <em>confirm where the<br />
+host config lives and how it is pushed (nixos-rebuild over SSH / deploy-rs / colmena).</em></p>
+</blockquote>
+<ol>
+<li>Add the flake input (pin a rev/tag, do not float <code>main</code>):</li>
+</ol>
+<div class="highlight"><pre><span></span><span class="c1"># host flake.nix</span>
+   inputs<span class="o">.</span>vaked-base<span class="o">.</span><span class="ss">url</span> <span class="o">=</span> <span class="s2">&quot;github:peterlodri-sec/vaked-base/&lt;pinned-rev-or-tag&gt;&quot;</span><span class="p">;</span>
+</pre></div>
+
+<ol>
+<li>Thread <code>inputs</code> into the host system and bind the built docs:</li>
+</ol>
+<div class="highlight"><pre><span></span>nixosConfigurations<span class="o">.</span><span class="l">&lt;host&gt;</span> <span class="o">=</span> nixpkgs<span class="o">.</span>lib<span class="o">.</span>nixosSystem <span class="p">{</span>
+     <span class="ss">specialArgs</span> <span class="o">=</span> <span class="p">{</span> <span class="k">inherit</span> inputs<span class="p">;</span> <span class="p">};</span>
+     <span class="ss">modules</span> <span class="o">=</span> <span class="p">[</span> <span class="l">./hosts</span><span class="o">/</span><span class="l">&lt;host&gt;</span><span class="o">.</span>nix <span class="p">];</span>
+   <span class="p">};</span>
+</pre></div>
+
+<div class="highlight"><pre><span></span><span class="c1"># ./hosts/&lt;host&gt;.nix</span>
+   <span class="p">{</span> pkgs<span class="p">,</span> inputs<span class="p">,</span> <span class="o">...</span> <span class="p">}:</span>
+   <span class="k">let</span> <span class="ss">docs</span> <span class="o">=</span> inputs<span class="o">.</span>vaked-base<span class="o">.</span>packages<span class="o">.</span><span class="si">${</span>pkgs<span class="o">.</span>stdenv<span class="o">.</span>hostPlatform<span class="o">.</span>system<span class="si">}</span><span class="o">.</span>docs<span class="p">;</span>
+   <span class="k">in</span> <span class="p">{</span>
+     <span class="c1"># --- if the existing proxy is Caddy (most likely — PR ships a Caddyfile) ---</span>
+     services<span class="o">.</span>caddy<span class="o">.</span>virtualHosts<span class="o">.</span><span class="s2">&quot;docs.&lt;your-domain&gt;&quot;</span><span class="o">.</span><span class="ss">extraConfig</span> <span class="o">=</span> <span class="s s-Multiline">&#39;&#39;</span>
+<span class="s s-Multiline">       root * </span><span class="si">${</span>docs<span class="si">}</span>
+<span class="s s-Multiline">       encode zstd gzip</span>
+<span class="s s-Multiline">       file_server</span>
+<span class="s s-Multiline">       try_files {path} {path}/ {path}.html =404</span>
+<span class="s s-Multiline">       handle_errors {</span>
+<span class="s s-Multiline">         rewrite * /404.html</span>
+<span class="s s-Multiline">         file_server</span>
+<span class="s s-Multiline">       }</span>
+<span class="s s-Multiline">     &#39;&#39;</span><span class="p">;</span>
+   <span class="p">}</span>
+</pre></div>
+
+<p>If the existing proxy is <strong>nginx</strong> instead, use:</p>
+<div class="highlight"><pre><span></span>services<span class="o">.</span>nginx<span class="o">.</span>virtualHosts<span class="o">.</span><span class="s2">&quot;docs.&lt;your-domain&gt;&quot;</span> <span class="o">=</span> <span class="p">{</span>
+     <span class="ss">enableACME</span> <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+     <span class="ss">forceSSL</span> <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+     <span class="ss">root</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>docs<span class="si">}</span><span class="s2">&quot;</span><span class="p">;</span>
+     locations<span class="o">.</span><span class="s2">&quot;/&quot;</span> <span class="o">=</span> <span class="p">{</span>
+       <span class="ss">tryFiles</span> <span class="o">=</span> <span class="s2">&quot;$uri $uri/ $uri.html =404&quot;</span><span class="p">;</span>
+       <span class="ss">extraConfig</span> <span class="o">=</span> <span class="s2">&quot;error_page 404 /404.html;&quot;</span><span class="p">;</span>
+     <span class="p">};</span>
+   <span class="p">};</span>
+</pre></div>
+
+<p>(ACME terms/email and Caddy's email are already configured if other vhosts use TLS —<br />
+   just add the block. Caddy provisions the cert on first request once DNS resolves;<br />
+   nginx+ACME provisions on activation.)</p>
+<ol>
+<li>
+<p>Push the change the way this host is already deployed (<code>nixos-rebuild switch
+   --flake .#&lt;host&gt;</code>, or <code>deploy-rs</code>/<code>colmena</code> — match existing practice).</p>
+</li>
+<li>
+<p><strong>Verify after activation:</strong></p>
+</li>
+<li><code>curl -I https://docs.&lt;your-domain&gt;/</code> → <code>200</code>, valid TLS.</li>
+<li>A deep link (pretty URL), e.g. <code>/docs/language/0011-type-system/</code> → <code>200</code> (proves<br />
+     the <code>try_files</code> rule).</li>
+<li>Pagefind search loads (<code>/pagefind/pagefind.js</code> → <code>200</code>) and returns results.</li>
+<li>A bogus path → custom <code>404.html</code>.</li>
+</ol>
+<h2 id="update-redeploy-model">Update / redeploy model</h2>
+<ul>
+<li>Docs change → bump the <code>vaked-base</code> input pin on the host (<code>nix flake update
+  vaked-base</code> or repin to a new tag) → <code>nixos-rebuild switch</code>. Reproducible; rollback is<br />
+  the previous NixOS generation.</li>
+<li><strong>Follow-up, not built now:</strong> a CI job (GitHub Action) to auto-bump the host pin or<br />
+  push on merge to <code>main</code>. Default is manual one-shot. Decide later.</li>
+</ul>
+<h2 id="open-inputs-needed-to-make-this-exact">Open inputs needed to make this exact</h2>
+<ol>
+<li>Exact docs subdomain (<code>docs.&lt;your-domain&gt;</code>).</li>
+<li>Which reverse proxy the host runs (Caddy vs nginx) — determines which block above.</li>
+<li>Where the host NixOS config lives + how it is pushed (repo path, rebuild mechanism).</li>
+<li>DNS provider (for the subdomain record).</li>
+</ol>
+<h2 id="risk-register">Risk register</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Severity</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PR #90 <code>CONFLICTING</code>, not merged</td>
+<td>Blocker</td>
+<td>Resolve + merge before pinning the input</td>
+</tr>
+<tr>
+<td><code>nix build .#docs</code> not yet run on linux</td>
+<td>Low</td>
+<td><strong>Verified green on darwin</strong> (53 pages, search, 404, pretty URLs); prebuilt sharp tarballs = no native compile; re-run once on a linux builder</td>
+</tr>
+<tr>
+<td><code>site:</code> placeholder → wrong canonicals/sitemap</td>
+<td>Med</td>
+<td>Patch <code>astro.config.mjs</code> before build</td>
+</tr>
+<tr>
+<td>Deploy mechanism unknown</td>
+<td>Med</td>
+<td>Match existing host push workflow before editing</td>
+</tr>
+<tr>
+<td>Static bundle exposes dotfiles</td>
+<td>Low</td>
+<td>Caddy/nginx <code>file_server</code> over the Nix store path serves only built output; no secrets in the bundle</td>
+</tr>
+<tr>
+<td>Build runs on the host at rebuild time</td>
+<td>Low/Med</td>
+<td>A <code>nixos-rebuild</code> referencing <code>vaked-base.packages.&lt;system&gt;.docs</code> builds ~359 derivations <strong>on the host</strong>, needing npm + GitHub egress during rebuild. Given the project's deny-by-default-egress leanings: build on a separate builder or push to a binary cache, or ensure rebuild-time egress is open</td>
+</tr>
+<tr>
+<td>Resource footprint</td>
+<td>Low</td>
+<td>Static files only; negligible CPU/RAM; no new listening port behind the existing proxy</td>
+</tr>
+</tbody>
+</table>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/deployment/docs-site-hetzner.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

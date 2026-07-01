@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>protocol.vaked.dev — Design Spec — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#what" style="padding-left:0.5rem">What</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#architecture" style="padding-left:0.5rem">Architecture</a><a href="#page-sections" style="padding-left:0.5rem">Page Sections</a><a href="#1-header" style="padding-left:1rem">  1. Header</a><a href="#2-spec-ag-ui-protocol" style="padding-left:1rem">  2. Spec — AG-UI Protocol</a><a href="#3-connected-work" style="padding-left:1rem">  3. Connected Work</a><a href="#4-proposals-feed" style="padding-left:1rem">  4. Proposals Feed</a><a href="#5-submit" style="padding-left:1rem">  5. Submit</a><a href="#visual-style" style="padding-left:0.5rem">Visual Style</a><a href="#future" style="padding-left:0.5rem">Future</a><a href="#files-to-create" style="padding-left:0.5rem">Files to Create</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-23-protocol-vaked-dev-design</div>
+<h1>protocol.vaked.dev — Design Spec</h1>
+<h1 id="protocolvakeddev-design-spec">protocol.vaked.dev — Design Spec</h1>
+<p><strong>Date:</strong> 2026-06-23<br />
+<strong>Author:</strong> ⊰•-•⦑ The Architect of Structural Honesty ⦒•-•⊱<br />
+<strong>Status:</strong> Approved, ready for implementation</p>
+<hr />
+<h2 id="what">What</h2>
+<p>Single-page static site at <code>protocol.vaked.dev</code>. The canonical public reference for the AG-UI open protocol standard — the UI↔AI surface — plus the connected work (Vaked DYAD, GLOSSOPETRAE, Anastigate/VICE) and a Mastodon-backed append-only proposals feed.</p>
+<hr />
+<h2 id="why">Why</h2>
+<p>The formal AG-UI reference doc does not exist yet. This page IS the spec. Everything is in the open: the protocol definition, the authorship, the proposals. Anyone — human or bot — can read and submit (via Mastodon account).</p>
+<hr />
+<h2 id="architecture">Architecture</h2>
+<p><strong>Type:</strong> Single static <code>index.html</code><br />
+<strong>Deploy:</strong> Cloudflare Pages<br />
+<strong>Backend:</strong> None. Mastodon public API fetched client-side.<br />
+<strong>Logo:</strong> <code>https://vaked.dev/ultrawhale/logo.svg</code> (top of page)</p>
+<hr />
+<h2 id="page-sections">Page Sections</h2>
+<h3 id="1-header">1. Header</h3>
+<ul>
+<li>Logo: <code>https://vaked.dev/ultrawhale/logo.svg</code></li>
+<li>Title: <strong>AG-UI Open Protocol</strong></li>
+<li>Tagline: <em>The open standard for the UI↔AI surface</em></li>
+<li>Authorship: <code>⊰•-•⦑ The Architect of Structural Honesty ⦒•-•⊱</code></li>
+<li>Badge: <code>OPEN STANDARD · protocol.vaked.dev</code></li>
+<li>Links: GitHub (vaked-base, ultrawhale), GLOSSOPETRAE</li>
+</ul>
+<h3 id="2-spec-ag-ui-protocol">2. Spec — AG-UI Protocol</h3>
+<p>Two sub-sections, separated but unified under AG-UI:</p>
+<p><strong>AG-UI Wire Protocol</strong> (upstream-compatible + Vaked extensions)</p>
+<table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Direction</th>
+<th>Payload</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RUN_STARTED</code></td>
+<td>agent → UI</td>
+<td><code>{run_id, model}</code></td>
+<td>Session opens</td>
+</tr>
+<tr>
+<td><code>TEXT_MESSAGE_START</code></td>
+<td>agent → UI</td>
+<td><code>{message_id}</code></td>
+<td>Token stream begins</td>
+</tr>
+<tr>
+<td><code>TEXT_MESSAGE_CONTENT</code></td>
+<td>agent → UI</td>
+<td><code>{delta}</code></td>
+<td>Token delta</td>
+</tr>
+<tr>
+<td><code>TEXT_MESSAGE_END</code></td>
+<td>agent → UI</td>
+<td><code>{message_id}</code></td>
+<td>Stream closes</td>
+</tr>
+<tr>
+<td><code>TOOL_CALL_START</code></td>
+<td>agent → UI</td>
+<td><code>{tool_id, name}</code></td>
+<td>Tool intent declared</td>
+</tr>
+<tr>
+<td><code>TOOL_CALL_ARGS</code></td>
+<td>agent → UI</td>
+<td><code>{delta}</code></td>
+<td>Args delta</td>
+</tr>
+<tr>
+<td><code>TOOL_CALL_END</code></td>
+<td>agent → UI</td>
+<td><code>{tool_id}</code></td>
+<td>Args complete</td>
+</tr>
+<tr>
+<td><code>TOOL_CALL_RESULT</code></td>
+<td>UI → agent</td>
+<td><code>{tool_id, result}</code></td>
+<td>Execution result</td>
+</tr>
+<tr>
+<td><code>RUN_FINISHED</code></td>
+<td>agent → UI</td>
+<td><code>{run_id}</code></td>
+<td>Session closes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>HITL Gate:</strong> Between <code>TOOL_CALL_END</code> → <code>TOOL_CALL_RESULT</code>. Human approval can pause or reject execution before the result is returned.</p>
+<p><strong>Vaked Extensions:</strong> Vaked-specific events layered on top — ARP behavioral signals (<code>[STRIDE]</code>, <code>[T:N]</code>, <code>[+]/[-]/[!]</code>), VICE context-defense frames, Anastigate fieldstop primitives.</p>
+<p><strong>AG-UI Surface</strong> (the implementation)</p>
+<table>
+<thead>
+<tr>
+<th>Theme</th>
+<th>Background</th>
+<th>Accent</th>
+<th>Vibe</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dense Matrix Green</td>
+<td><code>#040804</code></td>
+<td><code>#00e660</code></td>
+<td>Neon terminal</td>
+</tr>
+<tr>
+<td>Clean Graph Cyberpunk</td>
+<td><code>#0a0a14</code></td>
+<td><code>#00d4ff</code></td>
+<td>Cyberpunk</td>
+</tr>
+<tr>
+<td>Tactical Graveyard</td>
+<td><code>#141414</code></td>
+<td><code>#b0b0b0</code></td>
+<td>Minimal grayscale</td>
+</tr>
+</tbody>
+</table>
+<p>ChatBlock API: <code>NewChatBlock(type, title, content, width)</code> → themed chrome.<br />
+Block types: <code>BlockThinking</code>, <code>BlockToolCall</code>, <code>BlockToolResult</code>, <code>BlockCodeDiff</code>, <code>BlockPlanCard</code>, <code>BlockFileTree</code>.<br />
+Shader: Perlin-noise animated background, Unicode block chars, 60fps, zero allocations after init.</p>
+<p>Cards displayed collapsibly. Wire Protocol and Surface shown side-by-side as two aspects of one standard.</p>
+<h3 id="3-connected-work">3. Connected Work</h3>
+<p><strong>Vaked — The Open DYAD</strong><br />
+Human + AI, honestly together. The capability graph that declares what a system does, what it may touch, and who supervises it. Not a framework — a structural commitment. Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies. CrabCC indexes. Surfaces reveal.</p>
+<p><strong>GLOSSOPETRAE</strong> (Elder Plinius)<br />
+Prompt steganography toolkit. A network stamp — a signature embedded in the output itself. Every AI-generated artifact can carry a verifiable authorship mark invisible to casual readers.<br />
+Link: <code>https://github.com/elder-plinius/GLOSSOPETRAE</code></p>
+<p><strong>Anastigate / VICE</strong><br />
+Fieldstop Primitives. Self-defense through recursive disclosure. When jailbreak is attempted, VICE does not block — it reveals everything, expanding context until the session collapses under its own weight. The attacker is blinded by truth.</p>
+<h3 id="4-proposals-feed">4. Proposals Feed</h3>
+<ul>
+<li>Source: <code>#openagui</code> hashtag on <code>social.crabcc.app</code></li>
+<li>API: <code>GET https://social.crabcc.app/api/v1/timelines/tag/openagui?limit=40</code></li>
+<li>Display: append-only log, oldest → newest (log order, not social feed order)</li>
+<li>Render: post content, author handle, timestamp. No avatars, no engagement counts — just the text.</li>
+<li>Auto-refresh: on page load only (no polling)</li>
+<li>Empty state: "No proposals yet. Be the first."</li>
+</ul>
+<h3 id="5-submit">5. Submit</h3>
+<p>Button: <strong>Post a Proposal</strong><br />
+Target: <code>https://social.crabcc.app</code> (opens new tab)<br />
+Pre-fill template hint shown on page:</p>
+<div class="highlight"><pre><span></span><span class="cp">#openagui [your proposal]</span>
+</pre></div>
+
+<p>Label beneath: <em>Any Mastodon account works. Future: DYAD auth.</em></p>
+<hr />
+<h2 id="visual-style">Visual Style</h2>
+<div class="highlight"><pre><span></span>background:  #070b16
+surface:     #0a0a14 / #14141f
+text:        #e0e8f5
+accent:      #00d4ff
+ok:          #00e660
+warn:        #ffb020
+border:      #26304a
+font:        monospace (system-ui fallback)
+</pre></div>
+
+<p>Matches ultrawhale/event-horizon aesthetic. No external CSS frameworks.</p>
+<hr />
+<h2 id="future">Future</h2>
+<ul>
+<li><code>#openagui</code> hashtag → <code>@proposals@social.crabcc.app</code> dedicated account</li>
+<li>Mastodon-account gate → CUSTOM_OPEN_DYAD_AUTH</li>
+<li>Formal RFC numbering (RFC-0001-agui-wire-protocol.md) added to vaked-base protocol/rfcs/</li>
+</ul>
+<hr />
+<h2 id="files-to-create">Files to Create</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>protocol-vaked-dev/index.html</code></td>
+<td>The entire site</td>
+</tr>
+<tr>
+<td><code>protocol-vaked-dev/README.md</code></td>
+<td>Deploy instructions</td>
+</tr>
+</tbody>
+</table>
+<p>Location: new repo <code>peterlodri-sec/protocol-vaked-dev</code> or subdirectory under vaked-base <code>sites/protocol-vaked-dev/</code>.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-23-protocol-vaked-dev-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

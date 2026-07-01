@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Proposal — `llmproxy.crabcc.app`: a self-hosted LiteLLM gateway for the agent fleet — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#why" style="padding-left:0.5rem">Why</a><a href="#public-facing-but-non-public-consumption" style="padding-left:0.5rem">"Public-facing but non-public consumption"</a><a href="#how-it-slots-in-config-only-for-the-agents" style="padding-left:0.5rem">How it slots in (config-only for the agents)</a><a href="#one-compatibility-caveat-worth-getting-right" style="padding-left:1rem">  One compatibility caveat (worth getting right)</a><a href="#deployment-sketch" style="padding-left:0.5rem">Deployment sketch</a><a href="#rollout" style="padding-left:0.5rem">Rollout</a><a href="#new-ci-secrets-this-introduces" style="padding-left:0.5rem">New `ci` secrets this introduces</a><a href="#complementary-self-hostable-stack-5-picks" style="padding-left:0.5rem">Complementary self-hostable stack (5 picks)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/agents/">agents</a> / llmproxy-proposal</div>
+<h1>Proposal — `llmproxy.crabcc.app`: a self-hosted LiteLLM gateway for the agent fleet</h1>
+<h1 id="proposal-llmproxycrabccapp-a-self-hosted-litellm-gateway-for-the-agent-fleet">Proposal — <code>llmproxy.crabcc.app</code>: a self-hosted LiteLLM gateway for the agent fleet</h1>
+<blockquote>
+<p>Status: <strong>proposal</strong> · Owner: cabotage · Depends on: nothing (agents already<br />
+support <code>OPENROUTER_BASE_URL</code> / <code>*_API_KEY</code> overrides) · Default model stays<br />
+<code>deepseek/deepseek-v4-flash</code> via OpenRouter.</p>
+</blockquote>
+<h2 id="why">Why</h2>
+<p>Today every agent (pr-review, <code>@vaked-ci</code>, ralph, mastodon writer) calls OpenRouter<br />
+<strong>directly</strong>, each embedding its own routing, key, retry, and cache config. That<br />
+scatters control and means cache locality, budgets, and observability are<br />
+per-agent. A single <strong>self-hosted <a href="https://github.com/BerriAI/litellm">LiteLLM</a> proxy</strong> in front of OpenRouter gives us<br />
+one chokepoint to:</p>
+<ul>
+<li><strong>Reduce + control the pipeline</strong> — model routing, fallbacks, retries, timeouts,<br />
+  per-key budgets and rate limits live in <strong>one <code>config.yaml</code></strong>, not in N agents.<br />
+  Agents just ask for a logical model name; the proxy decides where it lands.</li>
+<li><strong>Raise cache-hit</strong> — a proxy-level <strong>Redis cache</strong> (exact + optional semantic)<br />
+  sits <em>above</em> OpenRouter, so identical/near-identical requests across agents and<br />
+  re-runs short-circuit before egress. It complements (doesn't replace) DeepSeek's<br />
+  provider-side prefix cache the pr-review agent already pins for.</li>
+<li><strong>Centralize tracing</strong> — LiteLLM has a native <strong>Langfuse callback</strong>; pairing it<br />
+  with the OTEL work means every call is traced once, at the gateway, with cost +<br />
+  cache metadata, regardless of which agent made it.</li>
+<li><strong>Govern spend + access</strong> — virtual keys with budgets/expiry, spend dashboards,<br />
+  and per-key model allow-lists.</li>
+</ul>
+<p><strong>Defaults are unchanged:</strong> the proxy's default route is<br />
+<code>deepseek/deepseek-v4-flash</code> through OpenRouter. OpenRouter + DeepSeek remain the<br />
+primary path; the proxy is a control plane, not a model swap.</p>
+<h2 id="public-facing-but-non-public-consumption">"Public-facing but non-public consumption"</h2>
+<p><code>llmproxy.crabcc.app</code> is reachable from GitHub-hosted runners (so CI agents can use<br />
+it) yet <strong>closed to the public</strong>:</p>
+<ul>
+<li><strong>TLS + edge</strong> — fronted by Cloudflare (crabcc.app is already on Cloudflare),<br />
+  terminating TLS; origin via a Cloudflare Tunnel so no inbound port is exposed.</li>
+<li><strong>Auth = virtual keys</strong> — LiteLLM <strong><code>virtual_key</code></strong> per consumer (pr-review,<br />
+  ralph, IDE), each scoped to allowed models + a monthly budget. The master key<br />
+  never leaves the host. No key ⇒ 401.</li>
+<li><strong>Defense in depth</strong> — Cloudflare WAF + rate-limit rules, optional<br />
+<strong>Cloudflare Access</strong> (service tokens) or an IP allow-list, and LiteLLM's own<br />
+  per-key RPM/TPM caps. Public DNS, non-public consumption. 😉</li>
+</ul>
+<h2 id="how-it-slots-in-config-only-for-the-agents">How it slots in (config-only for the agents)</h2>
+<p>The pr-review agent already accepts <code>OPENROUTER_BASE_URL</code> (+ <code>PR_REVIEW_API_KEY</code><br />
+taking precedence over <code>OPENROUTER_API_KEY</code>), and ralph accepts <code>RALPH_BASE_URL</code> /<br />
+<code>RALPH_API_KEY</code>. So adoption is <strong>secret/env only</strong> — no code change:</p>
+<div class="highlight"><pre><span></span><span class="c1"># .github/workflows/pr-review.yml (ci env) — point the agent at the proxy</span>
+<span class="nt">PR_REVIEW_API_KEY</span><span class="p">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.LLMPROXY_VIRTUAL_KEY }}</span><span class="w">   </span><span class="c1"># LiteLLM virtual key</span>
+<span class="nt">OPENROUTER_BASE_URL</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">https://llmproxy.crabcc.app/v1</span><span class="w">        </span><span class="c1"># OpenAI-compatible</span>
+<span class="c1"># PR_REVIEW_MODEL stays deepseek/deepseek-v4-flash</span>
+</pre></div>
+
+<p>LiteLLM exposes an <strong>OpenAI-compatible</strong> <code>/v1</code>, and the agent's OpenRouter client<br />
+already runs in <code>ChatCompletions</code> mode, so the wire shape matches.</p>
+<h3 id="one-compatibility-caveat-worth-getting-right">One compatibility caveat (worth getting right)</h3>
+<p>The pr-review agent sends OpenRouter-specific knobs the proxy must <strong>forward</strong>, not<br />
+swallow: <code>provider</code> preferences (the DeepSeek pin), <code>usage: {include:true}</code>, and<br />
+<code>prompt_cache_key</code>. Two clean options:</p>
+<ol>
+<li><strong>Pass-through</strong> — set LiteLLM <code>litellm_settings.allowed_openai_params</code> /<br />
+<code>forward_openai_org_id</code>-style passthrough (or <code>extra_body</code> forwarding) so those<br />
+   fields reach OpenRouter unchanged. Simplest; keeps the agent the source of truth.</li>
+<li><strong>Move routing into the proxy</strong> — drop the agent-side provider pin and let<br />
+   LiteLLM's <strong>router</strong> own provider order, fallbacks, and caching. Cleaner<br />
+   long-term (the whole point of the gateway), but means the agent stops setting<br />
+<code>provider.order</code> for deepseek/* (gate it behind a <code>PR_REVIEW_PROVIDER_ORDER=""</code><br />
+   override, which the agent already supports).</li>
+</ol>
+<p>Recommend <strong>(1) first</strong> (zero-risk pass-through), migrate to <strong>(2)</strong> once the proxy<br />
+is proven.</p>
+<h2 id="deployment-sketch">Deployment sketch</h2>
+<p>Self-hosted on the <code>vakedos</code> host (or a small VPS), <code>docker compose</code>:</p>
+<div class="highlight"><pre><span></span><span class="c1"># litellm + postgres (keys/spend) + redis (cache)</span>
+<span class="nt">services</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">litellm</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ghcr.io/berriai/litellm:main-stable</span>
+<span class="w">    </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--config&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;/app/config.yaml&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">    </span><span class="nt">environment</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">OPENROUTER_API_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${OPENROUTER_API_KEY}</span><span class="w">   </span><span class="c1"># the ONE real upstream key</span>
+<span class="w">      </span><span class="nt">LITELLM_MASTER_KEY</span><span class="p">:</span><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">${LITELLM_MASTER_KEY}</span>
+<span class="w">      </span><span class="nt">DATABASE_URL</span><span class="p">:</span><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">${DATABASE_URL}</span>
+<span class="w">      </span><span class="nt">REDIS_URL</span><span class="p">:</span><span class="w">           </span><span class="l l-Scalar l-Scalar-Plain">${REDIS_URL}</span>
+<span class="w">      </span><span class="nt">LANGFUSE_HOST/PUBLIC_KEY/SECRET_KEY</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">…</span><span class="w">       </span><span class="c1"># gateway-level tracing</span>
+<span class="w">    </span><span class="c1"># behind a Cloudflare Tunnel → llmproxy.crabcc.app</span>
+</pre></div>
+
+<div class="highlight"><pre><span></span><span class="c1"># config.yaml (essence)</span>
+<span class="nt">model_list</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">model_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">deepseek/deepseek-v4-flash</span><span class="w">          </span><span class="c1"># the default the fleet asks for</span>
+<span class="w">    </span><span class="nt">litellm_params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> model</span><span class="p">:</span><span class="w"> </span><span class="nv">openrouter/deepseek/deepseek-v4-flash</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="nt">router_settings</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">routing_strategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">latency-based-routing</span>
+<span class="w">  </span><span class="nt">fallbacks</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[{</span><span class="w"> </span><span class="s">&quot;deepseek/deepseek-v4-flash&quot;</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;openrouter/z-ai/glm-5&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="p p-Indicator">}]</span>
+<span class="w">  </span><span class="nt">cooldown_time</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30</span>
+<span class="nt">litellm_settings</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">cache</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">cache_params</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> type</span><span class="p">:</span><span class="w"> </span><span class="nv">redis</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<span class="w">  </span><span class="nt">success_callback</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;langfuse&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">failure_callback</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;langfuse&quot;</span><span class="p p-Indicator">]</span>
+</pre></div>
+
+<h2 id="rollout">Rollout</h2>
+<ol>
+<li>Stand up the proxy + Cloudflare Tunnel; smoke-test <code>/v1/chat/completions</code> with a<br />
+   virtual key.</li>
+<li>Point <strong>ralph</strong> at it first (lowest blast radius), watch Langfuse + spend.</li>
+<li>Point <strong>pr-review</strong> / <strong>@vaked-ci</strong> at it via the <code>ci</code> env (pass-through mode).</li>
+<li>Once stable, migrate provider routing/caching into the proxy and simplify the<br />
+   agent (option 2). Keep <strong>direct-OpenRouter as the documented fallback</strong> (unset<br />
+<code>OPENROUTER_BASE_URL</code>) for incident recovery.</li>
+</ol>
+<h2 id="new-ci-secrets-this-introduces">New <code>ci</code> secrets this introduces</h2>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LLMPROXY_VIRTUAL_KEY</code></td>
+<td>per-agent LiteLLM virtual key (replaces direct <code>OPENROUTER_API_KEY</code> in agents that move behind the proxy)</td>
+</tr>
+<tr>
+<td><code>LLMPROXY_BASE_URL</code></td>
+<td><code>https://llmproxy.crabcc.app/v1</code> (or hard-code in the workflow env)</td>
+</tr>
+</tbody>
+</table>
+<p><code>OPENROUTER_API_KEY</code> then lives <strong>only</strong> on the proxy host, not in <code>ci</code>.</p>
+<hr />
+<h2 id="complementary-self-hostable-stack-5-picks">Complementary self-hostable stack (5 picks)</h2>
+<p>Actively-maintained, self-hostable services that pair well with this gateway and<br />
+would make the research infra stand out — see chat thread for the rationale:</p>
+<ol>
+<li><strong>vLLM</strong> — OpenAI-compatible local inference; a LiteLLM fallback route to a<br />
+   local DeepSeek-distill / Qwen for offline + zero-marginal-cost runs.</li>
+<li><strong>Qdrant</strong> — Rust vector DB for semantic RAG over Vaked docs/RFCs, layered on<br />
+   the crabcc symbol index.</li>
+<li><strong>OpenBao</strong> (Vault fork) — real secrets management; directly prevents the<br />
+<code>LANGFUSE_*</code> secret-name drift that silently disabled tracing.</li>
+<li><strong>Temporal</strong> — durable execution for the ralph loop + agent pipelines<br />
+   (retries/timeouts/replay as first-class), research-grade reliability.</li>
+<li><strong>Authentik</strong> — SSO / forward-auth to make <code>llmproxy.crabcc.app</code>, Langfuse, and<br />
+   future dashboards "public-facing but non-public" uniformly.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/agents/llmproxy-proposal.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked Swarm Benchmarks — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#runtime-performance" style="padding-left:0.5rem">Runtime Performance</a><a href="#routemodel-100k-iterations-conductor" style="padding-left:1rem">  routeModel — 100K iterations (Conductor)</a><a href="#binary-size" style="padding-left:1rem">  Binary Size</a><a href="#linting-oxlint-0-9-files" style="padding-left:0.5rem">Linting — oxlint 0 (9 files)</a><a href="#compaction-2-rounds" style="padding-left:0.5rem">Compaction — 2 rounds</a><a href="#api-latency" style="padding-left:0.5rem">API Latency</a><a href="#memory-openrouterd" style="padding-left:0.5rem">Memory (openrouterd)</a><a href="#final-round-new-files" style="padding-left:0.5rem">Final Round (new files)</a><a href="#session-totals" style="padding-left:0.5rem">Session Totals</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/reports/">reports</a> / 2026-06-18-benchmarks</div>
+<h1>Vaked Swarm Benchmarks</h1>
+<h1 id="vaked-swarm-benchmarks">Vaked Swarm Benchmarks</h1>
+<p><strong>Date:</strong> 2026-06-18 · <strong>GENESIS_SEAL:</strong> 7c242080<br />
+<strong>Hardware:</strong> Apple M3 Pro · 36GB RAM · macOS 15 · Zig 0.16.0</p>
+<h2 id="runtime-performance">Runtime Performance</h2>
+<h3 id="routemodel-100k-iterations-conductor">routeModel — 100K iterations (Conductor)</h3>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Time</th>
+<th>Binary</th>
+<th>JIT</th>
+<th>Allocator</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Zig native</strong></td>
+<td>&lt;1ms</td>
+<td>5.4MB</td>
+<td>AOT</td>
+<td>Arena</td>
+</tr>
+<tr>
+<td><strong>QuickJS</strong></td>
+<td>36ms</td>
+<td>2.6MB</td>
+<td>No</td>
+<td>Ref count</td>
+</tr>
+<tr>
+<td><strong>Node.js 22</strong></td>
+<td>5ms</td>
+<td>50MB+</td>
+<td>V8</td>
+<td>ptmalloc3</td>
+</tr>
+<tr>
+<td><strong>Bun 1.3</strong></td>
+<td>5ms</td>
+<td>80MB+</td>
+<td>JSC</td>
+<td>mimalloc</td>
+</tr>
+</tbody>
+</table>
+<h3 id="binary-size">Binary Size</h3>
+<table>
+<thead>
+<tr>
+<th>Runtime</th>
+<th>Size</th>
+<th>TLS</th>
+<th>HTTP</th>
+<th>Seccomp</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>NullClaw</strong></td>
+<td>678KB</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>QuickJS</strong></td>
+<td>2.6MB</td>
+<td>❌</td>
+<td>HTTP</td>
+<td>❌</td>
+</tr>
+<tr>
+<td><strong>openrouterd</strong></td>
+<td>5.4MB</td>
+<td>proxy</td>
+<td>✅</td>
+<td>✅ 22</td>
+</tr>
+<tr>
+<td><strong>Node.js</strong></td>
+<td>50MB+</td>
+<td>✅</td>
+<td>✅</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<h2 id="linting-oxlint-0-9-files">Linting — oxlint 0 (9 files)</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Time</th>
+<th>Rules</th>
+<th>Threads</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>oxlint</strong></td>
+<td>3ms</td>
+<td>98</td>
+<td>14</td>
+</tr>
+<tr>
+<td><strong>ESLint</strong></td>
+<td>~2s</td>
+<td>~100</td>
+<td>1</td>
+</tr>
+<tr>
+<td><strong>oxlint 666x faster.</strong></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="compaction-2-rounds">Compaction — 2 rounds</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Before</th>
+<th>After</th>
+<th>Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>vakedc</td>
+<td>7,550</td>
+<td>5,903</td>
+<td>-21.8%</td>
+</tr>
+<tr>
+<td>TS SDK</td>
+<td>2,520</td>
+<td>1,852</td>
+<td>-26.5%</td>
+</tr>
+<tr>
+<td>Go</td>
+<td>~4,000</td>
+<td>~3,200</td>
+<td>-20.0%</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>~15,500</strong></td>
+<td><strong>~12,100</strong></td>
+<td><strong>-22.0%</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="api-latency">API Latency</h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Endpoint</th>
+<th>Avg</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OpenRouter</td>
+<td>chat (500 tok)</td>
+<td>2.3s</td>
+</tr>
+<tr>
+<td>Context7</td>
+<td>/search</td>
+<td>320ms</td>
+</tr>
+<tr>
+<td><strong>Vaked Docs</strong></td>
+<td>/search</td>
+<td><strong>&lt;1ms</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="memory-openrouterd">Memory (openrouterd)</h2>
+<table>
+<thead>
+<tr>
+<th>Allocator</th>
+<th>Size</th>
+<th>Startup</th>
+<th>24h Frag</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>BigArena</td>
+<td>256MB</td>
+<td>2.3ms</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Standard</td>
+<td>8MB</td>
+<td>1.1ms</td>
+<td>12%</td>
+</tr>
+</tbody>
+</table>
+<p>GENESIS_SEAL: 7c242080</p>
+<h2 id="final-round-new-files">Final Round (new files)</h2>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Before</th>
+<th>After</th>
+<th>Delta</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cube.ts</td>
+<td>114</td>
+<td>88</td>
+<td>-22.8%</td>
+</tr>
+<tr>
+<td>memory.ts</td>
+<td>157</td>
+<td>127</td>
+<td>-19.1%</td>
+</tr>
+<tr>
+<td>vault.zig</td>
+<td>111</td>
+<td>78</td>
+<td>-29.7%</td>
+</tr>
+<tr>
+<td>context7.zig</td>
+<td>64</td>
+<td>61</td>
+<td>-4.7%</td>
+</tr>
+<tr>
+<td>vastai.py</td>
+<td>86</td>
+<td>73</td>
+<td>-15.1%</td>
+</tr>
+<tr>
+<td>quickjs_embed.zig</td>
+<td>85</td>
+<td>58</td>
+<td>-31.8%</td>
+</tr>
+<tr>
+<td>seccomp.zig</td>
+<td>43</td>
+<td>20</td>
+<td>-53.5%</td>
+</tr>
+<tr>
+<td>scrubber.zig</td>
+<td>27</td>
+<td>23</td>
+<td>-14.8%</td>
+</tr>
+<tr>
+<td>blogger.sh</td>
+<td>15</td>
+<td>13</td>
+<td>-13.3%</td>
+</tr>
+<tr>
+<td>blogger.yml</td>
+<td>20</td>
+<td>19</td>
+<td>-5.0%</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>722</strong></td>
+<td><strong>560</strong></td>
+<td><strong>-22.4%</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="session-totals">Session Totals</h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total files compacted</td>
+<td>47</td>
+</tr>
+<tr>
+<td>Total lines removed</td>
+<td>~10,000</td>
+</tr>
+<tr>
+<td>Overall compression</td>
+<td>~22%</td>
+</tr>
+<tr>
+<td>DeepSeek API calls</td>
+<td>4,645</td>
+</tr>
+<tr>
+<td>DeepSeek tokens</td>
+<td>1.84 billion</td>
+</tr>
+<tr>
+<td>DeepSeek cost</td>
+<td>~$422</td>
+</tr>
+<tr>
+<td>Claude equivalent</td>
+<td>~$27,500 (65x more)</td>
+</tr>
+</tbody>
+</table>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/reports/2026-06-18-benchmarks.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

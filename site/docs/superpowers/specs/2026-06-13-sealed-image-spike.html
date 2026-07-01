@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Sealed-image spike — RFC 0007 Q5 — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-what-the-spike-does" style="padding-left:0.5rem">1. What the spike does</a><a href="#end-to-end-example" style="padding-left:1rem">  End-to-end example</a><a href="#2-what-this-answers" style="padding-left:0.5rem">2. What this answers</a><a href="#q5-image-as-code-flow-end-to-end" style="padding-left:1rem">  Q5 — image-as-code flow end-to-end</a><a href="#q1-vsock-boundary-partial" style="padding-left:1rem">  Q1 — vsock boundary (partial)</a><a href="#3-what-this-defers" style="padding-left:0.5rem">3. What this defers</a><a href="#4-next-step-wire-into-vakedc-lower" style="padding-left:0.5rem">4. Next step: wire into `vakedc lower`</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-sealed-image-spike</div>
+<h1>Sealed-image spike — RFC 0007 Q5</h1>
+<h1 id="sealed-image-spike-rfc-0007-q5">Sealed-image spike — RFC 0007 Q5</h1>
+<ul>
+<li><strong>Date:</strong> 2026-06-13</li>
+<li><strong>Track:</strong> Protocol / tooling spike</li>
+<li><strong>RFC cross-ref:</strong> RFC 0007 §5 (image-as-code &amp; sealed-image attestation), Open Questions 1, 2, 5</li>
+<li><strong>Target membrane:</strong> <code>network/agent-egress</code> (<code>vaked/examples/membrane/agent-egress.vaked</code>)</li>
+<li><strong>Artifacts:</strong></li>
+<li><code>tools/seal/provenance-schema.json</code> — JSON Schema (draft-07) for <code>provenance.json</code></li>
+<li><code>tools/seal/sign-provenance.sh</code> — shell + Python signing script</li>
+<li><code>tools/seal/preceptord-mock.py</code> — Python mock admission controller</li>
+</ul>
+<h2 id="1-what-the-spike-does">1. What the spike does</h2>
+<p>This spike closes the <strong>produce → sign → admit</strong> loop for a single Vaked membrane<br />
+without requiring the full RFC 0007 PKI or a real preceptord daemon. It exercises<br />
+the <em>image-as-code</em> flow end-to-end on the <code>network/agent-egress</code> membrane:</p>
+<ol>
+<li>
+<p><strong><code>provenance-schema.json</code></strong> — a JSON Schema (draft-07) defining the<br />
+<code>provenance.json</code> votive-seal document. Every materialized image (NixOS<br />
+   closure, OCI layer, unikernel) carries one of these; the deploy plane checks<br />
+   it before admission. Required fields: <code>kind</code>, <code>version</code>, <code>closure_hash</code><br />
+   (SHA-256 hex), <code>topology_epoch</code> (integer), <code>membrane</code> (e.g.<br />
+<code>"network/agent-egress"</code>), <code>signed_at</code> (ISO 8601 UTC). A <code>signature</code> object<br />
+   carries <code>algorithm</code>, <code>value</code> (base64), and optionally <code>public_key</code> (base64).</p>
+</li>
+<li>
+<p><strong><code>sign-provenance.sh</code></strong> — accepts a closure path (directory or file) or a<br />
+   bare 64-hex hash plus a membrane name and optional epoch, and writes a signed<br />
+<code>provenance.json</code> to stdout.</p>
+</li>
+</ol>
+<p>Signature strategy (runtime-detected):<br />
+   - If <code>python3 -c "import oqs"</code> succeeds: sign with <strong>ML-DSA-65</strong> (FIPS 204 /<br />
+     CRYSTALS-Dilithium3 level-3) via the liboqs Python bindings. The key pair<br />
+     is ephemeral for the spike.<br />
+   - Otherwise: fall back to <strong>HMAC-SHA256</strong> with an OS-random ephemeral key.<br />
+     The seal carries <code>"placeholder": true</code> in the signature object and the<br />
+     algorithm is <code>"hmac-sha256-placeholder"</code>. This is explicitly NOT ML-DSA and<br />
+     NOT post-quantum; the field makes that unambiguous to any downstream consumer.</p>
+<p>Canonical payload: the provenance fields (excluding <code>signature</code>) serialised<br />
+   with sorted keys and no extra whitespace — <code>json.dumps(…, sort_keys=True,
+   separators=(",", ":"))</code>. This matches the schema's stated canonical-JSON rule<br />
+   and is what gets signed (and what <code>preceptord-mock.py</code> reconstructs for<br />
+   verification).</p>
+<ol>
+<li><strong><code>preceptord-mock.py</code></strong> — <code>python3 preceptord-mock.py &lt;provenance.json&gt;</code>.<br />
+   Reads the seal, runs structural validation (required fields, regex on<br />
+<code>closure_hash</code>, integer epoch), checks <code>membrane</code> against a hardcoded spike<br />
+   allowlist, and dispatches on <code>signature.algorithm</code>:</li>
+<li><code>"hmac-sha256-placeholder"</code> with <code>placeholder: true</code> → logs a stderr<br />
+     warning and proceeds (spike mode; key not available for re-verification).</li>
+<li><code>"ml-dsa-65"</code> → verifies with liboqs; refuses if the library is absent or<br />
+     the signature is invalid.</li>
+<li>Emits <code>ADMIT: &lt;membrane&gt; closure=&lt;hash&gt; epoch=&lt;epoch&gt;</code> (exit 0) or<br />
+<code>REFUSE: &lt;reason&gt;</code> (exit 1).</li>
+</ol>
+<h3 id="end-to-end-example">End-to-end example</h3>
+<div class="highlight"><pre><span></span><span class="c1"># Produce a seal for the agent-egress closure (hash supplied directly for spike):</span>
+./tools/seal/sign-provenance.sh<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>network/agent-egress<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>&gt;<span class="w"> </span>/tmp/provenance.json
+
+<span class="c1"># Admit (or refuse) via the mock controller:</span>
+python3<span class="w"> </span>tools/seal/preceptord-mock.py<span class="w"> </span>/tmp/provenance.json
+<span class="c1"># → WARNING: spike mode: signature.placeholder=true ... (stderr)</span>
+<span class="c1"># → ADMIT: network/agent-egress closure=a3b4... epoch=1</span>
+<span class="c1"># exit 0</span>
+</pre></div>
+
+<h2 id="2-what-this-answers">2. What this answers</h2>
+<h3 id="q5-image-as-code-flow-end-to-end">Q5 — image-as-code flow end-to-end</h3>
+<p>RFC 0007 Q5 asks whether the full flow (closure produced → votive seal signed →<br />
+deploy plane admits) can be demonstrated on at least one membrane. This spike<br />
+answers <strong>yes</strong> for <code>network/agent-egress</code>:</p>
+<ul>
+<li>The schema defines the seal document format, making it a first-class artifact<br />
+  in the lowering output alongside <code>gen/ebpf.policy</code> and <code>gen/RUNTIME.md</code>.</li>
+<li>The sign script shows how the seal is produced at closure materialization time<br />
+  (the point after <code>nix build</code> / <code>nix path-info --hash</code> returns a store path).</li>
+<li>The mock controller shows the admission check the deploy plane performs before<br />
+  activating a new image. The <code>closure_hash → membrane</code> binding is the invariant:<br />
+  only images whose hash was signed under the declared membrane may be admitted.</li>
+</ul>
+<h3 id="q1-vsock-boundary-partial">Q1 — vsock boundary (partial)</h3>
+<p>The seal is applied at <strong>closure materialization time</strong>, not at wire time.<br />
+This directly informs Q1: the votive seal establishes <em>what was built</em> and<br />
+<em>which membrane it implements</em>, but does not authenticate the <em>channel</em> through<br />
+which that image arrives at the deploy plane. The Litany Wire (RFC 0003) is<br />
+still needed to protect the delivery channel from the build system to the host.<br />
+The seal and the wire are complementary, not substitutes.</p>
+<p>The spike confirms: seal-at-build, wire-at-delivery is the correct split.</p>
+<h2 id="3-what-this-defers">3. What this defers</h2>
+<table>
+<thead>
+<tr>
+<th>Deferred item</th>
+<th>Why deferred</th>
+<th>Path to resolution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Real ML-DSA-65</td>
+<td>Requires liboqs or Zig ML-DSA-65. Key infrastructure (PKI, rotation, revocation) not yet designed.</td>
+<td>RFC 0007 §6; wire into <code>vakedc lower</code> once the Zig ML-DSA-65 crate is available or liboqs is added to the dev shell.</td>
+</tr>
+<tr>
+<td>Real preceptord</td>
+<td>The mock is a script; the real preceptord is a supervised Zig daemon that holds the policy store and the topology epoch.</td>
+<td><code>daemons/preceptord/</code> — design → plan → implement per CLAUDE.md convention.</td>
+</tr>
+<tr>
+<td>TPM measurement binding (Q2)</td>
+<td>The seal's <code>closure_hash</code> is a content hash, not a TPM PCR quote. Binding the seal to a TPM measurement requires hardware on the vakedos host.</td>
+<td>Spike separately on the EPYC 4345P host once the bare-metal NixOS deploy is stable.</td>
+</tr>
+<tr>
+<td>Epoch fence (Q5 detail)</td>
+<td>The mock checks <code>topology_epoch &gt;= 0</code> but does not cross-check the current epoch in a live topology store.</td>
+<td>Wire into the real preceptord's epoch tracking (RFC 0005 §2.4).</td>
+</tr>
+<tr>
+<td>Persistent signing key</td>
+<td>The spike uses an ephemeral key.</td>
+<td>PKI design (separate RFC or RFC 0007 §6 extension): key managed by SPIRE SVID rotation or a hardware token.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-next-step-wire-into-vakedc-lower">4. Next step: wire into <code>vakedc lower</code></h2>
+<p>The natural next integration point is the <code>vakedc lower</code> pass. When a <code>network</code><br />
+membrane is lowered (emitter <code>ebpf.policy</code>, currently deferred in <code>lower.py</code><br />
+<code>emit_deferred</code>), the lowering pass should also emit a <code>provenance.json</code> stub:</p>
+<div class="highlight"><pre><span></span><span class="c1"># In emit_deferred (or a new emit_votive_seal emitter):</span>
+<span class="c1"># For each network membrane node, emit a provenance.json template with</span>
+<span class="c1"># closure_hash = &quot;&lt;placeholder&gt;&quot; (the build resolves it post-nix-build)</span>
+<span class="c1"># and all other fields populated from the graph (membrane name, topology_epoch</span>
+<span class="c1"># from the runtime decl, signed_at = build time).</span>
+<span class="c1"># The sign step (sign-provenance.sh or its Zig equivalent) then replaces</span>
+<span class="c1"># the placeholder hash and signs.</span>
+</pre></div>
+
+<p>This closes the declare → lower → sign → admit loop fully within the Vaked<br />
+pipeline, making <code>provenance.json</code> as first-class as <code>flake.nix</code> and<br />
+<code>gen/ebpf.policy</code>.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-sealed-image-spike.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

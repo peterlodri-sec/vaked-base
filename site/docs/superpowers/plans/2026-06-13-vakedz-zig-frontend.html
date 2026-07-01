@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Plan — vakedz (Zig front-end) port — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#phase-0-scaffold-parity-harness-this-pr" style="padding-left:0.5rem">Phase 0 — scaffold + parity harness ✅ (this PR)</a><a href="#phase-1-parse-parity-green-drive-ci-to-green" style="padding-left:0.5rem">Phase 1 — parse parity, green ⏳ (drive CI to green)</a><a href="#phase-2-check-0011-port" style="padding-left:0.5rem">Phase 2 — check (0011) port</a><a href="#phase-3-lower-0012-first-slice" style="padding-left:0.5rem">Phase 3 — lower (0012) first slice</a><a href="#phase-4-make-vakedz-first-class" style="padding-left:0.5rem">Phase 4 — make vakedz first-class</a><a href="#tracking-issues" style="padding-left:0.5rem">Tracking issues</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-13-vakedz-zig-frontend</div>
+<h1>Plan — vakedz (Zig front-end) port</h1>
+<h1 id="plan-vakedz-zig-front-end-port">Plan — vakedz (Zig front-end) port</h1>
+<p><strong>Date:</strong> 2026-06-13 · <strong>Design:</strong> <a href="../specs/2026-06-13-vakedz-zig-frontend-design.md"><code>../specs/2026-06-13-vakedz-zig-frontend-design.md</code></a></p>
+<p>Phased port of <code>vakedc</code> (<code>parse → check → lower</code>) to Zig, gated by byte-parity<br />
+against the Python reference. Each phase's "done" = the cross-verify gate green<br />
+for the goldens it adds. Gaps found while dogfooding become GitHub issues — that<br />
+stream is the live backlog.</p>
+<h2 id="phase-0-scaffold-parity-harness-this-pr">Phase 0 — scaffold + parity harness ✅ (this PR)</h2>
+<ul>
+<li>[x] <code>vakedz/</code> package (<code>build.zig</code>, <code>build.zig.zon</code>, Zig 0.16 floor).</li>
+<li>[x] <code>json.zig</code> canonical writer (fixed-order wrappers + <code>sortRecursive</code> props).</li>
+<li>[x] <code>lexer.zig</code>, <code>parser.zig</code>, <code>graph.zig</code> — parse → LPG → canonical JSON.</li>
+<li>[x] <code>cache.zig</code> — the ralphloop-cache (content-addressed, hash-chained).</li>
+<li>[x] CLI <code>parse | check | lower | all | cache</code>; parse mediated by the cache.</li>
+<li>[x] Goldens from <code>vakedc parse</code>; <code>crossverify.sh</code>; <code>vakedz-ci.yml</code>; Taskfile.</li>
+<li>[x] Research + design + plan docs.</li>
+</ul>
+<h2 id="phase-1-parse-parity-green-drive-ci-to-green">Phase 1 — parse parity, green ⏳ (drive CI to green)</h2>
+<ul>
+<li>[ ] First CI run is the parity gate; fix any byte diffs in <code>graph.zig</code>/<code>json.zig</code><br />
+      against real Zig (no Zig/Nix in the authoring sandbox — CI is the oracle).</li>
+<li>[ ] Add goldens for more examples to widen front-end coverage:<br />
+<code>vaked/examples/types/*</code>, <code>membrane/*</code>, <code>agentfield-swe.vaked</code>,<br />
+<code>primitives/memory.vaked</code>, <code>containers/browser-pool.vaked</code>.</li>
+<li>[ ] Port the NFC (Unicode 15.1.0) gate.</li>
+</ul>
+<h2 id="phase-2-check-0011-port">Phase 2 — check (0011) port</h2>
+<p>Port the 22-code checker (research Strand B). Suggested order:<br />
+- [ ] Builtins loader (<code>vaked/schema/builtins.vaked</code>) + schema/capability registry.<br />
+- [ ] Load-time well-formedness: <code>E-SCHEMA-*</code>, <code>E-CAP-ORDER-*</code>.<br />
+- [ ] Conformance + constraints: <code>E-CONFORM-*</code>, <code>E-CONSTRAINT-*</code>.<br />
+- [ ] Capability attenuation: <code>E-CAP-*</code> (transitive closure + POLA on mesh edges).<br />
+- [ ] Generics, ref resolution, workflow DAG, name collisions.<br />
+- [ ] <code>check --json</code> byte-parity; goldens diff vs. <code>vakedc check --json</code>.</p>
+<h2 id="phase-3-lower-0012-first-slice">Phase 3 — lower (0012) first slice</h2>
+<ul>
+<li>[ ] The operator-field slice (research Strand C): <code>nix.spine</code>, <code>docs.runtime</code>,<br />
+<code>zig.daemoncfg</code>, <code>catalog.jsonl</code>, <code>otp.supervision</code> → 7 files, byte-identical<br />
+      to <code>vaked/examples/lowering/</code>.</li>
+<li>[ ] <code>inputsHash</code> projections + <code>provenance.json</code> parity.</li>
+<li>[ ] Extend to the agentfield slice (<code>memory.store</code>, <code>workflow.spec</code>,<br />
+<code>eventd.config</code>, <code>colmena.hive</code>) and the NixOS cohort.</li>
+</ul>
+<h2 id="phase-4-make-vakedz-first-class">Phase 4 — make vakedz first-class</h2>
+<ul>
+<li>[ ] Pin Zig in <code>flake.nix</code> (kill the version-drift risk).</li>
+<li>[ ] Wire <code>vakedz</code> into <code>tools/vaked-run.sh</code> / the spec-test harness as a<br />
+      second oracle (Python and Zig must agree).</li>
+<li>[ ] Language-level <code>cache</code> construct: design (grammar + schema + lowering) per<br />
+      the tracking issue — only once a <code>.vaked</code> program needs to <em>declare</em> a cache.</li>
+</ul>
+<h2 id="tracking-issues">Tracking issues</h2>
+<p>Filed against <code>peterlodri-sec/vaked-base</code> with this PR (see PR body for links):<br />
+- <code>vakedz</code> subsystem tracking (the parse→check→lower backlog).<br />
+- Language-level <code>cache</code> construct (the owner's "both" follow-up).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-13-vakedz-zig-frontend.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

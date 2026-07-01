@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0014 — `memory`: the MemPalace-shaped runtime memory primitive — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#spark" style="padding-left:0.5rem">Spark</a><a href="#why-a-new-primitive-rule-2-justification" style="padding-left:0.5rem">Why a new primitive (rule-2 justification)</a><a href="#semantics" style="padding-left:0.5rem">Semantics</a><a href="#schema-normative-copy-in-parallel-typesmdvakedschemaparallel-typesmd" style="padding-left:0.5rem">Schema (normative copy in [`parallel-types.md`](../../vaked/schema/parallel-types.md))</a><a href="#lowering-output-first-rule-what-does-it-lower-to" style="padding-left:0.5rem">Lowering (output-first rule: what does it lower to?)</a><a href="#runtime-contract" style="padding-left:0.5rem">Runtime contract</a><a href="#relationship-to-mempalace-the-proving-ground" style="padding-left:0.5rem">Relationship to MemPalace (the proving ground)</a><a href="#open" style="padding-left:0.5rem">Open</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0014-memory-primitive</div>
+<h1>0014 — `memory`: the MemPalace-shaped runtime memory primitive</h1>
+<h1 id="0014-memory-the-mempalace-shaped-runtime-memory-primitive">0014 — <code>memory</code>: the MemPalace-shaped runtime memory primitive</h1>
+<p>Status: <strong>design, grammar landed</strong> (2026-06-12) · Series: language design notes ·<br />
+Issue <a href="https://github.com/peterlodri-sec/vaked-base/issues/24">#24</a> · Epic<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<h2 id="spark">Spark</h2>
+<blockquote>
+<p>mempalace is kind of the right "primitive" for memory (in this Vaked system<br />
+point of view — new addition based on my heavy use)</p>
+</blockquote>
+<p>The proving ground is <strong>MemPalace</strong>, the session-memory system used daily on<br />
+this very repo: agent transcripts are mined asynchronously in the background<br />
+into a durable, queryable store of distilled episodes, and recalled in later<br />
+sessions. Heavy use validated the <em>shape</em>; this note promotes that shape from<br />
+external tooling to a Vaked primitive, so every agent in the runtime<br />
+(epic #17) can declare its memory instead of improvising it.</p>
+<h2 id="why-a-new-primitive-rule-2-justification">Why a new primitive (rule-2 justification)</h2>
+<p>A new top-level kind needs justification over composing existing primitives.<br />
+The three nearest kinds each model something else:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>What it is</th>
+<th>Why it isn't memory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>index</code></td>
+<td>reproducible <strong>build-time</strong> corpus (pinned sources, <code>trust</code>)</td>
+<td>read-only; nothing appends at runtime</td>
+</tr>
+<tr>
+<td><code>catalog</code></td>
+<td>queryable <strong>materialization of an index</strong></td>
+<td>a derived view, not a primary store</td>
+</tr>
+<tr>
+<td><code>stream</code></td>
+<td><strong>ephemeral</strong> typed event flow (<code>retention</code>, <code>fps</code>)</td>
+<td>events expire; no distilled, queryable residue</td>
+</tr>
+</tbody>
+</table>
+<p><code>memory</code> is the missing fourth quadrant: <strong>runtime-appended</strong> (mined from<br />
+streams), <strong>durable and replayable</strong> (state = fold over the eventd log),<br />
+<strong>queryable</strong> (recall), and <strong>capability-bound</strong> (who may recall / append /<br />
+administer). Composition cannot express it: an <code>index</code> over a <code>stream</code> still<br />
+has no runtime append path, and a <code>catalog</code> still has no primary store to<br />
+materialize.</p>
+<h2 id="semantics">Semantics</h2>
+<p><code>Memory&lt;T&gt;</code> — a runtime-accumulated, mined, replayable store of typed entries.</p>
+<ul>
+<li><strong>Mining (the write path).</strong> The <code>mine</code> normalizer distills raw events from<br />
+  the <code>source</code> stream(s) into entries of the <code>schema</code> type <code>T</code>. Mining is a<br />
+<em>runtime</em> effect performed by the runtime plane — declaring a <code>memory</code><br />
+  implies no evaluation-time side effect (determinism rule holds; evaluation<br />
+  still only produces the typed graph).</li>
+<li><strong>State = fold.</strong> Memory entries are events on the per-runtime hash-chained<br />
+<code>eventd</code> log (<a href="../superpowers/specs/2026-06-12-eventd-design.md">design</a>,<br />
+  #18); memory state is the fold over those events, resolving content against<br />
+  the arena (#16). Rewind/jump (Track D, #20) therefore rewinds memory <strong>for<br />
+  free</strong> — no separate snapshot discipline.</li>
+<li><strong>Recall (the read path).</strong> Recall is mediated by the new <code>mem</code> capability<br />
+  domain (POLA, 0011 §4): <code>none &lt; recall &lt; append &lt; admin</code>. A mesh node that<br />
+  holds <code>mem.recall</code> may read but not write; mining daemons hold<br />
+<code>mem.append</code>; only the control plane holds <code>mem.admin</code>. (The domain is named<br />
+<code>mem</code>, not <code>memory</code>: a top-level <code>capability memory</code> collides with<br />
+<code>schema memory</code> in the LPG's kind-agnostic decl ids — #25.)</li>
+<li><strong>Scope.</strong> <code>"session"</code> (one agent turn-sequence), <code>"agent"</code> (one agent across<br />
+  sessions — the MemPalace default), <code>"runtime"</code> (shared across the runtime's<br />
+  agents). Scope names the fold's partition key, not a storage location.</li>
+</ul>
+<h2 id="schema-normative-copy-in-parallel-typesmd">Schema (normative copy in <a href="../../vaked/schema/parallel-types.md"><code>parallel-types.md</code></a>)</h2>
+<div class="highlight"><pre><span></span>schema memory {
+  field source    : Stream&lt;T&gt; | List&lt;Stream&lt;T&gt;&gt; { nonempty }   # what gets mined
+  field schema    : Schema&lt;T&gt;    { optional }     # entry schema; binds T
+  field mine      : Normalizer   { optional }     # distiller: raw events → entries
+  field scope     : String       { optional oneof [&quot;session&quot;, &quot;agent&quot;, &quot;runtime&quot;] default = &quot;agent&quot; }
+  field retention : Duration     { optional }     # entry time-to-live in the fold
+  field emit      : List&lt;ArtifactTarget&gt; { optional nonempty }
+}
+</pre></div>
+
+<div class="highlight"><pre><span></span>capability mem {
+  grant none recall append admin
+  order none &lt; recall &lt; append &lt; admin
+}
+</pre></div>
+
+<p>Worked example: <a href="../../vaked/examples/primitives/memory.vaked"><code>vaked/examples/primitives/memory.vaked</code></a>.</p>
+<h2 id="lowering-output-first-rule-what-does-it-lower-to">Lowering (output-first rule: what does it lower to?)</h2>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>eventd store config</strong></td>
+<td>the per-runtime log path + the memory's partition key (<code>scope</code>), so entries ride the existing hash-chained spine (#18) — <code>gen/memory/&lt;name&gt;.json</code></td>
+</tr>
+<tr>
+<td><strong>CrabCC recall index</strong></td>
+<td><code>emit</code> materializes the recall side as ordinary index/catalog artifacts (<code>catalog.jsonl</code>, <code>catalog.sqlite</code>) — CrabCC indexes</td>
+</tr>
+<tr>
+<td><strong>docs</strong></td>
+<td>the generated memory map per runtime</td>
+</tr>
+</tbody>
+</table>
+<p>The emitter is <strong>landed</strong> (<code>memory.store</code> in the 0012 §3.4 registry):<br />
+<code>vakedc lower</code> emits <code>gen/memory/&lt;name&gt;.json</code> per memory decl — source, mine,<br />
+scope, retention, recall <code>emit</code> targets, and the per-runtime eventd log path —<br />
+plus <code>gen/eventd.json</code> (the log contract) whenever a runtime declares any<br />
+memory/workflow.</p>
+<h2 id="runtime-contract">Runtime contract</h2>
+<p>Memory needs a runtime home with its own design → plan → implement cycle (like<br />
+eventd): a <code>memoryd</code> roster entry — the mining daemon that consumes <code>source</code><br />
+streams, applies <code>mine</code>, appends to <code>eventd</code>, and serves recall queries against<br />
+the folded state, enforcing the <code>mem</code> capability domain. Noted in<br />
+<a href="../runtime/README.md"><code>docs/runtime/README.md</code></a>; designed in<br />
+<a href="../superpowers/specs/2026-06-13-memoryd-design.md"><code>2026-06-13-memoryd-design.md</code></a><br />
+(CDN-backed recall, edge <code>cf-second-brain</code> reuse, GitHub fallback tier).</p>
+<h2 id="relationship-to-mempalace-the-proving-ground">Relationship to MemPalace (the proving ground)</h2>
+<p>MemPalace remains the live instance of this shape (transcript mining via async<br />
+hooks; see CLAUDE.md patch-doctor). The primitive generalizes it: <code>source</code> =<br />
+the transcript stream, <code>mine</code> = the convos miner, <code>scope = "agent"</code>,<br />
+recall = the indexed palace. When the runtime exists, MemPalace becomes <em>a</em><br />
+<code>memory</code> declaration rather than a special case — and the MLIR/AOT pipeline<br />
+(<a href="./0013-mlir-topology-compilation.md">0013</a>, #23) can compile its schemas<br />
+ahead-of-time like any other.</p>
+<h2 id="open">Open</h2>
+<ul>
+<li>Recall query surface: is recall purely a runtime API, or does a <code>recall</code><br />
+  expression form ever enter the language? (Lean: runtime API only — keep the<br />
+  language declarative.)</li>
+<li>Entry eviction: <code>retention</code> semantics inside a fold (tombstone events vs.<br />
+  fold-time filtering) — decide with the eventd compaction question.</li>
+<li>Cross-runtime memory (mesh-shared palaces) — interacts with the SHM arena<br />
+  graft design (#16).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0014-memory-primitive.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

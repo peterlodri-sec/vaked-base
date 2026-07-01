@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vakedc E-EGRESS-USE + W-EGRESS-UNREFINED — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#task-1-checkegressuse-wiring-fixtures-tests" style="padding-left:1rem">  Task 1: `_check_egress_use` + wiring + fixtures + tests</a><a href="#task-2-docs" style="padding-left:1rem">  Task 2: docs</a><a href="#final-verification" style="padding-left:0.5rem">Final verification</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-16-vakedc-egress-use</div>
+<h1>vakedc E-EGRESS-USE + W-EGRESS-UNREFINED — Implementation Plan</h1>
+<h1 id="vakedc-e-egress-use-w-egress-unrefined-implementation-plan">vakedc E-EGRESS-USE + W-EGRESS-UNREFINED — Implementation Plan</h1>
+<blockquote>
+<p>REQUIRED SUB-SKILL: superpowers:subagent-driven-development.</p>
+</blockquote>
+<p><strong>Goal:</strong> language-level network-egress POLA in <code>vakedc/check.py</code>: a <code>networkMembrane</code> may not authorize egress beyond its principal's held <code>network</code> grant (E-EGRESS-USE, error); a node with unrefined <code>network.egress</code>/<code>lan</code> is flagged (W-EGRESS-UNREFINED, warning).</p>
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-06-16-vakedc-egress-use-design.md</code></p>
+<p><strong>Verified facts:</strong> <code>_node_bindings(decl)</code> (check.py:1054) reads a decl's <code>{field: value-prop}</code>. <code>_emit(diags, code, file, span, decl, msg, severity="error")</code> (899). <code>_leq(cap, a, b)</code> (1099) — true iff <code>a ≤ b</code>; <code>cap = registry.caps["network"]</code> (lattice <code>none&lt;loopback&lt;lan&lt;egress</code>). <code>node_grants = {name:[(dom,grant)]}</code> built in <code>_check_mesh</code>; <code>_check_capability_reachability(mesh_decl, node_decls, node_grants, node_needs, registry, smap, file, diags)</code> called ~line 1724. <code>network &lt;name&gt;{}</code> membranes are <code>P.Decl</code> with <code>kind=="network"</code>, <strong>siblings of the mesh</strong> in the runtime body. A membrane's <code>allow</code> entry = <code>{"ref":"egress","args":[{"lit":"STRING","value":host}, {"lit":..,"value":port}]}</code>. Fixtures need NO inline <code>capability network</code> (builtins provide it). vakedc is pure-Python → <code>python3 -m vakedc check</code> is M3-safe.</p>
+<p><strong>Tests:</strong> <code>tests/spec/test_vakedc_check.py</code> (run <code>python3 -m pytest tests/spec/test_vakedc_check.py -v</code>, or the repo's test entry). Mirror the E-CAP-USE group (group 5e).</p>
+<p><strong>Constraints:</strong> pure stdlib (+<code>ipaddress</code>); MUST NOT add any new <em>error</em> to the existing example corpus (only the advisory warning); in-lane (vakedc ours). <code>git add</code> only named files.</p>
+<hr />
+<h3 id="task-1-_check_egress_use-wiring-fixtures-tests">Task 1: <code>_check_egress_use</code> + wiring + fixtures + tests</h3>
+<p><strong>Files:</strong> Modify <code>vakedc/check.py</code>; create 4 <code>vaked/examples/types/egress-*.vaked</code>; modify <code>tests/spec/test_vakedc_check.py</code>.</p>
+<ul>
+<li>[ ] <strong>Step 1: fixtures</strong> (create under <code>vaked/examples/types/</code>):</li>
+</ul>
+<p><code>egress-use-exceeds.vaked</code> (→ <code>E-EGRESS-USE</code>):</p>
+<div class="highlight"><pre><span></span><span class="cp"># E-EGRESS-USE: membrane allows public egress for a loopback-only principal.</span>
+<span class="n">runtime</span><span class="w"> </span><span class="s">&quot;egress-exceeds&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">systems</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;x86_64-linux&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">mesh</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">operator</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;control&quot;</span><span class="w"> </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">network</span><span class="p">.</span><span class="n">loopback</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">worker</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;w&quot;</span><span class="w"> </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">network</span><span class="p">.</span><span class="n">loopback</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">operator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">worker</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="n">network</span><span class="w"> </span><span class="n">workerCordon</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;worker&quot;</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;deny&quot;</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="n">egress</span><span class="p">(</span><span class="s">&quot;203.0.113.10&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">443</span><span class="p">)</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><code>egress-use-ok.vaked</code> (→ clean, no codes):</p>
+<div class="highlight"><pre><span></span><span class="err">#</span><span class="w"> </span><span class="nt">OK</span><span class="o">:</span><span class="w"> </span><span class="nt">principal</span><span class="w"> </span><span class="nt">holds</span><span class="w"> </span><span class="nt">network</span><span class="p">.</span><span class="nc">egress</span><span class="o">;</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">membrane</span><span class="err">&#39;</span><span class="nt">s</span><span class="w"> </span><span class="nt">public</span><span class="w"> </span><span class="nt">allow</span><span class="w"> </span><span class="nt">is</span><span class="w"> </span><span class="nt">within</span><span class="w"> </span><span class="nt">grant</span><span class="o">.</span>
+<span class="nt">runtime</span><span class="w"> </span><span class="s2">&quot;egress-ok&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="err">systems</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="cp">[</span><span class="s2">&quot;x86_64-linux&quot;</span><span class="cp">]</span>
+<span class="w">  </span><span class="err">mesh</span><span class="w"> </span><span class="err">m</span><span class="w"> </span><span class="err">{</span>
+<span class="w">    </span><span class="err">node</span><span class="w"> </span><span class="err">operator</span><span class="w"> </span><span class="err">{</span><span class="w"> </span><span class="err">role</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;control&quot;</span><span class="w"> </span><span class="err">capabilities</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="cp">[</span><span class="nx">network.egress</span><span class="cp">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">node</span><span class="w"> </span><span class="nt">worker</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="err">role</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;w&quot;</span><span class="w"> </span><span class="err">capabilities</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="cp">[</span><span class="nx">network.egress</span><span class="cp">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">operator</span><span class="w"> </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">worker</span>
+<span class="w">  </span><span class="err">}</span>
+<span class="w">  </span><span class="nt">network</span><span class="w"> </span><span class="nt">workerCordon</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">principal</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;worker&quot;</span><span class="w"> </span><span class="err">default</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="err">&quot;deny&quot;</span><span class="w"> </span><span class="err">allow</span><span class="w"> </span><span class="err">=</span><span class="w"> </span><span class="cp">[</span><span class="w"> </span><span class="nx">egress</span><span class="p">(</span><span class="s2">&quot;203.0.113.10&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">443</span><span class="p">)</span><span class="w"> </span><span class="cp">]</span><span class="w"> </span><span class="p">}</span>
+<span class="err">}</span>
+</pre></div>
+
+<p><code>egress-unrefined.vaked</code> (→ <code>W-EGRESS-UNREFINED</code> only):</p>
+<div class="highlight"><pre><span></span><span class="cp"># W-EGRESS-UNREFINED: node holds network.egress with no refining membrane.</span>
+<span class="n">runtime</span><span class="w"> </span><span class="s">&quot;egress-unrefined&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">systems</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;x86_64-linux&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">mesh</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">operator</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;control&quot;</span><span class="w"> </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">worker</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;w&quot;</span><span class="w"> </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">operator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">worker</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><code>egress-use-bad-principal.vaked</code> (→ <code>E-EGRESS-USE</code>):</p>
+<div class="highlight"><pre><span></span><span class="cp"># E-EGRESS-USE: membrane principal names no node in the mesh.</span>
+<span class="n">runtime</span><span class="w"> </span><span class="s">&quot;egress-bad-principal&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">systems</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;x86_64-linux&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">mesh</span><span class="w"> </span><span class="n">m</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">operator</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;control&quot;</span><span class="w"> </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">network</span><span class="p">.</span><span class="n">loopback</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">node</span><span class="w"> </span><span class="n">worker</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;w&quot;</span><span class="w"> </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">network</span><span class="p">.</span><span class="n">loopback</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="n">operator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">worker</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="n">network</span><span class="w"> </span><span class="n">ghostCordon</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">principal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;ghost&quot;</span><span class="w"> </span><span class="n">default</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;deny&quot;</span><span class="w"> </span><span class="n">allow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="n">egress</span><span class="p">(</span><span class="s">&quot;203.0.113.10&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">443</span><span class="p">)</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Verify each with <code>python3 -m vakedc check &lt;f&gt;</code> — BEFORE the impl, <code>egress-use-exceeds</code>/<code>bad-principal</code> check clean (gap), <code>egress-ok</code> clean, <code>egress-unrefined</code> clean. If any fixture fails to resolve <code>network.*</code> (E-CAP-UNKNOWN-DOMAIN), add an inline <code>capability network { grant none loopback lan egress  order none &lt; loopback &lt; lan &lt; egress }</code> like <code>cap-use-partial.vaked</code> — but the probe confirmed builtins suffice, so this should not be needed.</p>
+<ul>
+<li>[ ] <strong>Step 2: failing tests</strong> — add a group to <code>tests/spec/test_vakedc_check.py</code> mirroring the <code>_CAP_USE</code> block (uses <code>vakedc.check_source(open(path).read(), rel, builtins_cache=_builtins_cache())</code>):</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="n">_EGRESS_USE</span> <span class="o">=</span> <span class="s2">&quot;E-EGRESS-USE&quot;</span>
+<span class="n">_EGRESS_UNREF</span> <span class="o">=</span> <span class="s2">&quot;W-EGRESS-UNREFINED&quot;</span>
+<span class="n">_EGRESS_DIR</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">REPO</span><span class="p">,</span> <span class="s2">&quot;vaked&quot;</span><span class="p">,</span> <span class="s2">&quot;examples&quot;</span><span class="p">,</span> <span class="s2">&quot;types&quot;</span><span class="p">)</span>
+<span class="n">_EGRESS_CASES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">(</span><span class="s2">&quot;egress-use-exceeds.vaked&quot;</span><span class="p">,</span>       <span class="p">[</span><span class="n">_EGRESS_USE</span><span class="p">]),</span>
+    <span class="p">(</span><span class="s2">&quot;egress-use-ok.vaked&quot;</span><span class="p">,</span>            <span class="p">[]),</span>
+    <span class="p">(</span><span class="s2">&quot;egress-unrefined.vaked&quot;</span><span class="p">,</span>         <span class="p">[</span><span class="n">_EGRESS_UNREF</span><span class="p">]),</span>
+    <span class="p">(</span><span class="s2">&quot;egress-use-bad-principal.vaked&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">_EGRESS_USE</span><span class="p">]),</span>
+<span class="p">]</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_test_egress_use</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
+    <span class="n">ok</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">cache</span> <span class="o">=</span> <span class="n">_builtins_cache</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">base</span><span class="p">,</span> <span class="n">expect</span> <span class="ow">in</span> <span class="n">_EGRESS_CASES</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_EGRESS_DIR</span><span class="p">,</span> <span class="n">base</span><span class="p">)</span>
+        <span class="n">rel</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">REPO</span><span class="p">)</span>
+        <span class="n">diags</span> <span class="o">=</span> <span class="n">vakedc</span><span class="o">.</span><span class="n">check_source</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">rel</span><span class="p">,</span> <span class="n">builtins_cache</span><span class="o">=</span><span class="n">cache</span><span class="p">)</span>
+        <span class="n">codes</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">code</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">diags</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">codes</span> <span class="o">!=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">expect</span><span class="p">):</span>
+            <span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  FAIL egress-use: </span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2"> expected </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">expect</span><span class="p">)</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">codes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">diags</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">code</span> <span class="o">==</span> <span class="n">_EGRESS_USE</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">severity</span> <span class="o">!=</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span>
+                <span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span><span class="p">;</span> <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  FAIL egress-use: </span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">_EGRESS_USE</span><span class="si">}</span><span class="s2"> not error&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">code</span> <span class="o">==</span> <span class="n">_EGRESS_UNREF</span> <span class="ow">and</span> <span class="n">d</span><span class="o">.</span><span class="n">severity</span> <span class="o">!=</span> <span class="s2">&quot;warning&quot;</span><span class="p">:</span>
+                <span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span><span class="p">;</span> <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  FAIL egress-use: </span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">_EGRESS_UNREF</span><span class="si">}</span><span class="s2"> not warning&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">d</span><span class="o">.</span><span class="n">code</span> <span class="ow">in</span> <span class="p">(</span><span class="n">_EGRESS_USE</span><span class="p">,</span> <span class="n">_EGRESS_UNREF</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">byteStart</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">byteEnd</span><span class="p">)</span> <span class="o">==</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span><span class="p">;</span> <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  FAIL egress-use: </span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">d</span><span class="o">.</span><span class="n">code</span><span class="si">}</span><span class="s2"> not source-mapped&quot;</span><span class="p">)</span>
+    <span class="c1"># corpus guard: the oracle team graph must NOT raise E-EGRESS-USE (its cordons match grants)</span>
+    <span class="n">ot</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">REPO</span><span class="p">,</span> <span class="s2">&quot;vaked&quot;</span><span class="p">,</span> <span class="s2">&quot;examples&quot;</span><span class="p">,</span> <span class="s2">&quot;oracle-team.vaked&quot;</span><span class="p">)</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">vakedc</span><span class="o">.</span><span class="n">check_source</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">ot</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span>
+                             <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">ot</span><span class="p">,</span> <span class="n">REPO</span><span class="p">),</span> <span class="n">builtins_cache</span><span class="o">=</span><span class="n">cache</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">d</span><span class="o">.</span><span class="n">code</span> <span class="o">==</span> <span class="n">_EGRESS_USE</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">d2</span><span class="p">):</span>
+        <span class="n">ok</span> <span class="o">=</span> <span class="kc">False</span><span class="p">;</span> <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;  FAIL egress-use: oracle-team.vaked raised E-EGRESS-USE&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">ok</span>
+</pre></div>
+
+<p>Wire <code>_test_egress_use</code> into the file's runner exactly as <code>_test_cap_use</code> is invoked (find where <code>_test_cap_use(lines)</code> is called in the main test driver and add <code>ok &amp;= _test_egress_use(lines)</code> alongside). Run the suite → the egress cases FAIL (codes empty, expected non-empty) before the impl.</p>
+<ul>
+<li>[ ] <strong>Step 3: implement</strong> in <code>vakedc/check.py</code>. Add <code>import ipaddress</code> near the stdlib imports. Add these helpers + the check function (place <code>_check_egress_use</code> near <code>_check_cap_use</code>):</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="n">_LOOPBACK_HOST_NAMES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">((</span><span class="s2">&quot;localhost&quot;</span><span class="p">,))</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_lit_str</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;lit&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;STRING&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_required_egress_grant</span><span class="p">(</span><span class="n">host</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The network-lattice level an allow-host implies: loopback &lt; lan &lt; egress.&quot;&quot;&quot;</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="p">(</span><span class="n">host</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">_LOOPBACK_HOST_NAMES</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;loopback&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">ip</span> <span class="o">=</span> <span class="n">ipaddress</span><span class="o">.</span><span class="n">ip_address</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;egress&quot;</span>          <span class="c1"># a non-loopback DNS name -&gt; public egress (conservative)</span>
+    <span class="k">if</span> <span class="n">ip</span><span class="o">.</span><span class="n">is_loopback</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;loopback&quot;</span>
+    <span class="k">if</span> <span class="n">ip</span><span class="o">.</span><span class="n">is_private</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;lan&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;egress&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_egress_allow_hosts</span><span class="p">(</span><span class="n">allow_vprop</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Hosts from a membrane `allow` value-prop (list of egress(host, port) app-calls).&quot;&quot;&quot;</span>
+    <span class="n">hosts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">allow_vprop</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">allow_vprop</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">e</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ref&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;egress&quot;</span><span class="p">:</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="n">e</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;args&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+                <span class="k">if</span> <span class="n">args</span><span class="p">:</span>
+                    <span class="n">h</span> <span class="o">=</span> <span class="n">_lit_str</span><span class="p">(</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+                    <span class="k">if</span> <span class="n">h</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">hosts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">hosts</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_grant_max</span><span class="p">(</span><span class="n">cap</span><span class="p">,</span> <span class="n">grants</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The strongest grant under cap&#39;s order (network is a chain).&quot;&quot;&quot;</span>
+    <span class="n">best</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">grants</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">best</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">_leq</span><span class="p">(</span><span class="n">cap</span><span class="p">,</span> <span class="n">best</span><span class="p">,</span> <span class="n">g</span><span class="p">):</span>
+            <span class="n">best</span> <span class="o">=</span> <span class="n">g</span>
+    <span class="k">return</span> <span class="n">best</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_check_egress_use</span><span class="p">(</span><span class="n">mesh_decl</span><span class="p">,</span> <span class="n">node_decls</span><span class="p">,</span> <span class="n">node_grants</span><span class="p">,</span> <span class="n">network_decls</span><span class="p">,</span>
+                      <span class="n">registry</span><span class="p">,</span> <span class="n">smap</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">diags</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Network-domain POLA (the dual of E-CAP-USE / W-POLA-EXCESS):</span>
+
+<span class="sd">    * **E-EGRESS-USE** (error) — a `networkMembrane` `allow` set implies an egress</span>
+<span class="sd">      level its principal&#39;s held `network` grant does not dominate (a membrane that</span>
+<span class="sd">      authorizes egress the capability graph never granted), or whose `principal`</span>
+<span class="sd">      names no node in the mesh.</span>
+<span class="sd">    * **W-EGRESS-UNREFINED** (warning) — a node holds `network.egress`/`lan` with no</span>
+<span class="sd">      `networkMembrane` refining it (unbounded egress; least-authority advisory).&quot;&quot;&quot;</span>
+    <span class="n">cap</span> <span class="o">=</span> <span class="n">registry</span><span class="o">.</span><span class="n">caps</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;network&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">cap</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">net_grants</span> <span class="o">=</span> <span class="p">{</span><span class="n">n</span><span class="p">:</span> <span class="p">[</span><span class="n">g</span> <span class="k">for</span> <span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span> <span class="ow">in</span> <span class="p">(</span><span class="n">node_grants</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">n</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span> <span class="k">if</span> <span class="n">d</span> <span class="o">==</span> <span class="s2">&quot;network&quot;</span><span class="p">]</span>
+                  <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">node_decls</span><span class="p">}</span>
+    <span class="n">refined</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">mname</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">network_decls</span><span class="p">):</span>
+        <span class="n">mdecl</span> <span class="o">=</span> <span class="n">network_decls</span><span class="p">[</span><span class="n">mname</span><span class="p">]</span>
+        <span class="n">bindings</span><span class="p">,</span> <span class="n">_order</span> <span class="o">=</span> <span class="n">_node_bindings</span><span class="p">(</span><span class="n">mdecl</span><span class="p">)</span>
+        <span class="n">principal</span> <span class="o">=</span> <span class="n">_lit_str</span><span class="p">(</span><span class="n">bindings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;principal&quot;</span><span class="p">))</span>
+        <span class="n">span</span> <span class="o">=</span> <span class="p">(</span><span class="n">mdecl</span><span class="o">.</span><span class="n">byteStart</span><span class="p">,</span> <span class="n">mdecl</span><span class="o">.</span><span class="n">byteEnd</span><span class="p">,</span> <span class="n">mdecl</span><span class="o">.</span><span class="n">line</span><span class="p">,</span> <span class="n">mdecl</span><span class="o">.</span><span class="n">col</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">principal</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">refined</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">principal</span><span class="p">)</span>
+        <span class="n">hosts</span> <span class="o">=</span> <span class="n">_egress_allow_hosts</span><span class="p">(</span><span class="n">bindings</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;allow&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">hosts</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">required</span> <span class="o">=</span> <span class="n">_grant_max</span><span class="p">(</span><span class="n">cap</span><span class="p">,</span> <span class="p">[</span><span class="n">_required_egress_grant</span><span class="p">(</span><span class="n">h</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">hosts</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">principal</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">node_decls</span><span class="p">:</span>
+            <span class="n">_emit</span><span class="p">(</span><span class="n">diags</span><span class="p">,</span> <span class="s2">&quot;E-EGRESS-USE&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">span</span><span class="p">,</span> <span class="n">mesh_decl</span><span class="p">,</span>
+                  <span class="sa">f</span><span class="s2">&quot;membrane `</span><span class="si">{</span><span class="n">mname</span><span class="si">}</span><span class="s2">` names principal `</span><span class="si">{</span><span class="n">principal</span><span class="si">}</span><span class="s2">` which is not a node &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;in mesh `</span><span class="si">{</span><span class="n">mesh_decl</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">` — a membrane cannot refine a network grant &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;no node holds (0026)&quot;</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="n">held</span> <span class="o">=</span> <span class="n">net_grants</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">principal</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">_leq</span><span class="p">(</span><span class="n">cap</span><span class="p">,</span> <span class="n">required</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">held</span><span class="p">):</span>
+            <span class="n">held_str</span> <span class="o">=</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;network.</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">h</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">held</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;no network grant&quot;</span>
+            <span class="n">_emit</span><span class="p">(</span><span class="n">diags</span><span class="p">,</span> <span class="s2">&quot;E-EGRESS-USE&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">span</span><span class="p">,</span> <span class="n">mesh_decl</span><span class="p">,</span>
+                  <span class="sa">f</span><span class="s2">&quot;membrane `</span><span class="si">{</span><span class="n">mname</span><span class="si">}</span><span class="s2">` allows egress at level `</span><span class="si">{</span><span class="n">required</span><span class="si">}</span><span class="s2">` for principal &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;`</span><span class="si">{</span><span class="n">principal</span><span class="si">}</span><span class="s2">` which holds </span><span class="si">{</span><span class="n">held_str</span><span class="si">}</span><span class="s2"> — a membrane cannot authorize &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;egress beyond the principal&#39;s granted network capability (0026)&quot;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">node_decls</span><span class="p">):</span>
+        <span class="n">unrefined</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">g</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="p">(</span><span class="n">net_grants</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span> <span class="k">if</span> <span class="n">g</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;egress&quot;</span><span class="p">,</span> <span class="s2">&quot;lan&quot;</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">unrefined</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">refined</span><span class="p">:</span>
+            <span class="n">st</span> <span class="o">=</span> <span class="n">node_decls</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="n">nspan</span> <span class="o">=</span> <span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">byteStart</span><span class="p">,</span> <span class="n">st</span><span class="o">.</span><span class="n">byteEnd</span><span class="p">,</span> <span class="n">st</span><span class="o">.</span><span class="n">line</span><span class="p">,</span> <span class="n">st</span><span class="o">.</span><span class="n">col</span><span class="p">)</span>
+            <span class="n">cspan</span> <span class="o">=</span> <span class="p">(</span><span class="n">smap</span><span class="o">.</span><span class="n">field_value_span</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">byteStart</span><span class="p">,</span> <span class="n">st</span><span class="o">.</span><span class="n">byteEnd</span><span class="p">,</span> <span class="s2">&quot;capabilities&quot;</span><span class="p">)</span>
+                     <span class="k">if</span> <span class="n">smap</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">nspan</span>
+            <span class="n">_emit</span><span class="p">(</span><span class="n">diags</span><span class="p">,</span> <span class="s2">&quot;W-EGRESS-UNREFINED&quot;</span><span class="p">,</span> <span class="n">file</span><span class="p">,</span> <span class="n">cspan</span><span class="p">,</span> <span class="n">mesh_decl</span><span class="p">,</span>
+                  <span class="sa">f</span><span class="s2">&quot;node `</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">` holds `network.</span><span class="si">{</span><span class="n">unrefined</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">` but no networkMembrane &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;refines it — egress is unbounded (least-authority advisory; add a &quot;</span>
+                  <span class="sa">f</span><span class="s2">&quot;`network` membrane with an `allow` set)&quot;</span><span class="p">,</span> <span class="n">severity</span><span class="o">=</span><span class="s2">&quot;warning&quot;</span><span class="p">)</span>
+</pre></div>
+
+<p>Wire it: (a) thread <code>network_decls</code> into <code>_check_mesh</code> (add a keyword param defaulting to <code>None</code>); (b) in the caller (<code>_check_decl_tree</code>, where <code>_check_mesh</code> is invoked for <code>kind=="mesh"</code>), build <code>child_networks = {st.name: st for st in &lt;runtime/parent body&gt; if isinstance(st, P.Decl) and st.kind == "network"}</code> and pass it; (c) inside <code>_check_mesh</code>, after the <code>_check_capability_reachability(...)</code> call, add <code>_check_egress_use(mesh_decl, node_decls, node_grants, network_decls or {}, registry, smap, file, diags)</code>. <strong>Read the actual <code>_check_mesh</code>/<code>_check_decl_tree</code> signatures and adapt precisely</strong> — the membranes are siblings of the mesh in the same parent body, so the parent (<code>_check_decl_tree</code>) is where they're in scope to collect and pass down.</p>
+<ul>
+<li>
+<p>[ ] <strong>Step 4: run</strong> — <code>python3 -m vakedc check</code> on each fixture gives exactly its expected codes; the test suite group passes; <strong>the full example corpus + <code>python3 -m pytest tests/spec/test_vakedc_check.py</code> shows NO new E-EGRESS-USE errors</strong> (only W-EGRESS-UNREFINED warnings on the 9 unrefined-egress examples — confirm those are warnings, not errors, and don't fail any existing exact-code assertion; if an existing test asserts an exact code set on one of those 9 files, update it to include <code>W-EGRESS-UNREFINED</code>).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 5: commit</strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>vakedc/check.py<span class="w"> </span>vaked/examples/types/egress-use-exceeds.vaked<span class="w"> </span>vaked/examples/types/egress-use-ok.vaked<span class="w"> </span>vaked/examples/types/egress-unrefined.vaked<span class="w"> </span>vaked/examples/types/egress-use-bad-principal.vaked<span class="w"> </span>tests/spec/test_vakedc_check.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(vakedc): E-EGRESS-USE + W-EGRESS-UNREFINED — network-membrane POLA (dual of E-CAP-USE)&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-2-docs">Task 2: docs</h3>
+<p><strong>Files:</strong> Modify a <code>docs/language/</code> reference (the POLA / 0026 area) + <code>.DEV.TODO</code>.</p>
+<ul>
+<li>[ ] Add a short subsection documenting E-EGRESS-USE (error: membrane allow-set ≤ principal's network grant) + W-EGRESS-UNREFINED (warning: unrefined egress), as the network-domain dual of E-CAP-USE/W-POLA-EXCESS; note it promotes thread-1's tool-local <code>tools/oracle/roster_from_vaked.check_roster_egress</code> to a language pass. Find the existing E-CAP-USE / POLA doc (grep <code>docs/ -rl "E-CAP-USE"</code>) and add alongside.</li>
+<li>[ ] <code>.DEV.TODO</code>: mark "vakedc E-EGRESS-USE pass — DONE"; note follow-ups (RFC formalization; port to vakedz).</li>
+<li>[ ] Commit: <code>docs(vakedc): document E-EGRESS-USE + W-EGRESS-UNREFINED (network-domain POLA)</code>.</li>
+</ul>
+<h2 id="final-verification">Final verification</h2>
+<ul>
+<li>[ ] <code>python3 -m pytest tests/spec/test_vakedc_check.py -v</code> green (or the repo test runner).</li>
+<li>[ ] No new E-EGRESS-USE error anywhere in <code>vaked/examples/</code> (the corpus guard).</li>
+<li>[ ] Final whole-branch review (focus: corpus-safety; lattice classification correctness; determinism).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-16-vakedc-egress-use.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

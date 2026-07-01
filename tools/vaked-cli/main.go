@@ -2,21 +2,20 @@
 //
 // Subcommands:
 //
-//	mlir check              Validate .td files (needs mlir-tblgen)
-//	mlir env                Show MLIR toolchain status
-//	mlir validate <file>    Run Stage-0 pass pipeline
-//	seal sign <path> <mem>  Produce a votive seal
-//	seal admit <file>       Validate a seal (ADMIT/REFUSE)
-//	seal verify <file>      Validate with verbose output
-//	proxy discover          Scan local network for LLM endpoints (Ollama, LiteLLM, OpenRouter)
-//	proxy status            Show running proxy services
-//	proxy apply <file>      Deploy a proxy config to local or remote
+//	mlir <check|env|validate>         MLIR toolchain
+//	seal <sign|admit|verify>          Votive seals (RFC 0007)
+//	proxy <discover|status|data|apply> LLM proxy mesh
+//	task <list|run [-- args...]>      Taskfile tasks
+//	deploy <dev|lang|docs|all>        Wrangler deploy
+//	docs <gen|deploy|all>             Autogen + deploy docs
+//	cf <zones|dns <zone>|status>      Cloudflare API shortcuts
+//	graph <discover|audit|crossref|status>  Site graph: crawl, lint, cross-ref
 //
 // Build:
 //
-//	go build -o vaked-cli .                    # native
+//	go build -o vaked-cli .                              # native
 //	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-//	  go build -o vaked-cli-linux-x86_64 .     # cross-compile for dev-cx53
+//	  go build -o vaked-cli-linux-x86_64 .                # cross-compile
 package main
 
 import (
@@ -27,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,51 +35,133 @@ import (
 	"time"
 )
 
-// repoRoot resolves relative to the binary location (tools/vaked-cli/ -> repo root).
+// ── Globals (set once in init) ──
+
 var repoRoot string
 
-// resolveRepoRoot determines the repository root directory.
-// It checks (1) VAKED_REPO_ROOT env, (2) walks up looking for flake.nix,
-// (3) falls back to three directories up from the binary, (4) returns "".
+type cfCreds struct {
+	token     string
+	accountID string
+}
+
+var cf cfCreds
+
+// ── Init ──
+
+func init() {
+	exe, _ := os.Executable()
+	repoRoot = resolveRepoRoot(exe)
+	cf = readCFCreds()
+}
+
 func resolveRepoRoot(exe string) string {
-	// 1. Explicit environment override.
 	if v := os.Getenv("VAKED_REPO_ROOT"); v != "" {
 		if fi, err := os.Stat(v); err == nil && fi.IsDir() {
 			return v
 		}
 	}
-	real, _ := filepath.EvalSymlinks(exe)
-	// 2. Walk up from binary directory looking for flake.nix marker.
-	dir := filepath.Dir(real)
+	// Walk up looking for flake.nix marker
+	dir := filepath.Dir(exe)
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "flake.nix")); err == nil {
 			return dir
 		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
+		p := filepath.Dir(dir)
+		if p == dir {
 			break
 		}
-		dir = parent
+		dir = p
 	}
-	// 3. Fall back to three directories up (binary at <root>/tools/vaked-cli/vaked-cli).
-	if up := filepath.Dir(filepath.Dir(filepath.Dir(real))); up != "." && up != "/" {
-		return up
-	}
-	// 4. Nothing found.
 	return ""
 }
 
-func init() {
-	exe, _ := os.Executable()
-	repoRoot = resolveRepoRoot(exe)
+func readCFCreds() cfCreds {
+	home, _ := os.UserHomeDir()
+	data, err := os.ReadFile(filepath.Join(home, ".cftok"))
+	if err != nil {
+		return cfCreds{} // silent — commands check fields
+	}
+	c := cfCreds{}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "API_TOKEN=") {
+			c.token = strings.Trim(strings.TrimPrefix(line, "API_TOKEN="), `"'`)
+		}
+		if strings.HasPrefix(line, "ACCOUNT_ID=") {
+			c.accountID = strings.Trim(strings.TrimPrefix(line, "ACCOUNT_ID="), `"'`)
+		}
+	}
+	return c
 }
+
+// ── Helpers ──
+
+func requireRepo() {
+	if repoRoot == "" {
+		fmt.Fprintln(os.Stderr, "vaked-cli: cannot find repo root. Set VAKED_REPO_ROOT or run from vaked-base.")
+		os.Exit(1)
+	}
+}
+
+func requireCF() {
+	if cf.token == "" {
+		fmt.Fprintln(os.Stderr, "vaked-cli: cannot read Cloudflare credentials from ~/.cftok")
+		os.Exit(1)
+	}
+}
+
+func cfAPI(path string) ([]byte, error) {
+	url := "https://api.cloudflare.com/client/v4" + path
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("Authorization", "Bearer "+cf.token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
+}
+
+func wranglerDeploy(dir string, project string) {
+	requireRepo()
+	fmt.Printf("Deploying %s…\n", project)
+	cmd := exec.Command("npx", "-y", "wrangler@3", "pages", "deploy",
+		filepath.Join(repoRoot, dir),
+		"--project-name="+project, "--branch=main")
+	cmd.Dir = repoRoot
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "deploy %s failed: %v\n", project, err)
+		os.Exit(1)
+	}
+}
+
+func execInRepo(name string, args ...string) *exec.Cmd {
+	requireRepo()
+	cmd := exec.Command(name, args...)
+	cmd.Dir = repoRoot
+	return cmd
+}
+
+func jsonOut(v interface{}) {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	enc.Encode(v)
+}
+
+func bail(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
+	os.Exit(1)
+}
+
+// ── main ──
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: vaked-cli <mlir|seal> <subcommand> [args]\n")
+		fmt.Fprintf(os.Stderr, "Usage: vaked-cli <mlir|seal|proxy|task|deploy|docs|cf> <subcommand> [args]\n")
 		os.Exit(1)
 	}
-
 	switch os.Args[1] {
 	case "mlir":
 		mlirCmd(os.Args[2:])
@@ -87,20 +169,26 @@ func main() {
 		sealCmd(os.Args[2:])
 	case "proxy":
 		proxyCmd(os.Args[2:])
+	case "task":
+		taskCmd(os.Args[2:])
+	case "deploy":
+		deployCmd(os.Args[2:])
+	case "docs":
+		docsCmd(os.Args[2:])
+	case "cf":
+		cfCmd(os.Args[2:])
+	case "graph":
+		graphCmd(os.Args[2:])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s (use mlir, seal, or proxy)\n", os.Args[1])
-		os.Exit(1)
+		bail("unknown command: %s", os.Args[1])
 	}
 }
 
-// ========================================================================== //
-// MLIR subcommands
-// ========================================================================== //
+// ── MLIR ──
 
 func mlirCmd(args []string) {
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "Usage: vaked-cli mlir <check|env|validate> [args]")
-		os.Exit(1)
+		bail("Usage: vaked-cli mlir <check|env|validate> [args]")
 	}
 	switch args[0] {
 	case "check":
@@ -109,67 +197,57 @@ func mlirCmd(args []string) {
 		mlirEnv()
 	case "validate":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "Usage: vaked-cli mlir validate <file.vaked>")
-			os.Exit(1)
+			bail("Usage: vaked-cli mlir validate <file>")
 		}
 		mlirValidate(args[1])
 	default:
-		fmt.Fprintf(os.Stderr, "unknown mlir subcommand: %s\n", args[0])
-		os.Exit(1)
+		bail("unknown mlir subcommand: %s", args[0])
 	}
 }
 
+func findTblgen() string {
+	p, _ := exec.LookPath("mlir-tblgen")
+	return p
+}
+
 func mlirCheck() {
-	if repoRoot == "" {
-		fmt.Fprintln(os.Stderr, "vaked-cli: could not locate repo root (set VAKED_REPO_ROOT to the vaked-base source tree) — mlir subcommands need the source tree")
-		os.Exit(1)
-	}
+	requireRepo()
 	tg := findTblgen()
 	if tg == "" {
-		fmt.Fprintln(os.Stderr, "mlir-tblgen not found — install or 'nix develop .'")
-		os.Exit(1)
+		bail("mlir-tblgen not found — install or 'nix develop .'")
 	}
-
-	tdFiles := []struct {
-		name string
-		path string
-	}{
+	type tdFile struct{ name, path string }
+	files := []tdFile{
 		{"vaked dialect", filepath.Join(repoRoot, "vakedc/mlir", "VakedDialect.td")},
 		{"hcp dialect", filepath.Join(repoRoot, "vakedc/mlir", "HcpDialect.td")},
 	}
-
-	allOK := true
-	for _, td := range tdFiles {
-		r := runCmd(tg, "--gen-op-defs", td.path)
-		if r.errCode == 0 {
-			lines := len(strings.Split(string(r.out), "\n"))
-			fmt.Printf("  PASS  %s: %d lines generated\n", td.name, lines)
+	ok := true
+	for _, f := range files {
+		cmd := exec.Command(tg, "--gen-op-defs", f.path)
+		cmd.Dir = repoRoot
+		out, err := cmd.Output()
+		if err == nil {
+			fmt.Printf("  PASS  %s: %d lines generated\n", f.name, len(strings.Split(string(out), "\n")))
 		} else {
-			fmt.Fprintf(os.Stderr, "  FAIL  %s: %s\n", td.name, strings.TrimSpace(string(r.err)))
-			allOK = false
+			fmt.Fprintf(os.Stderr, "  FAIL  %s: %v\n", f.name, err)
+			ok = false
 		}
 	}
-	if !allOK {
+	if !ok {
 		os.Exit(1)
 	}
 }
 
 func mlirEnv() {
-	if repoRoot == "" {
-		fmt.Fprintln(os.Stderr, "vaked-cli: could not locate repo root (set VAKED_REPO_ROOT to the vaked-base source tree) — mlir subcommands need the source tree")
-		os.Exit(1)
-	}
-	tg := findTblgen()
-	if tg != "" {
+	requireRepo()
+	if tg := findTblgen(); tg != "" {
 		fmt.Printf("mlir-tblgen: %s\n", tg)
-		out, err := exec.Command(tg, "--version").Output()
-		if err == nil {
+		if out, err := exec.Command(tg, "--version").Output(); err == nil {
 			fmt.Printf("version:     %s", out)
 		}
 	} else {
 		fmt.Println("mlir-tblgen: not found")
 	}
-
 	for _, name := range []string{"VakedDialect.td", "HcpDialect.td"} {
 		path := filepath.Join(repoRoot, "vakedc/mlir", name)
 		if fi, err := os.Stat(path); err == nil {
@@ -181,73 +259,62 @@ func mlirEnv() {
 }
 
 func mlirValidate(file string) {
-	if repoRoot == "" {
-		fmt.Fprintln(os.Stderr, "vaked-cli: could not locate repo root (set VAKED_REPO_ROOT to the vaked-base source tree) — mlir subcommands need the source tree")
-		os.Exit(1)
-	}
-	// Resolve file path: use as-is if absolute, otherwise resolve from CWD.
-	fullPath := file
+	requireRepo()
 	if !filepath.IsAbs(file) {
 		cwd, _ := os.Getwd()
-		fullPath = filepath.Join(cwd, file)
+		file = filepath.Join(cwd, file)
 	}
-	cmd := exec.Command("python3", "-m", "vakedc", "passes", "--json", fullPath)
-	cmd.Dir = repoRoot
-	out, err := cmd.Output()
+	out, err := execInRepo("python3", "-m", "vakedc", "passes", "--json", file).Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "passes failed: %v\n", err)
-		os.Exit(1)
+		bail("passes failed: %v", err)
 	}
-
 	var result struct {
-		Workflows []struct {
-			Name         string   `json:"name"`
-			Depth        int      `json:"depth"`
-			CriticalPath []string `json:"criticalPath"`
-			Steps        []string `json:"steps"`
-			Edges        []struct {
-				From string `json:"from"`
-				To   string `json:"to"`
-			} `json:"edges"`
-			WALFrames []interface{} `json:"walFrames"`
-		} `json:"workflows"`
 		Diagnostics []struct {
 			Code    string `json:"code"`
 			Message string `json:"message"`
 		} `json:"diagnostics"`
-		Artifacts []string `json:"artifacts"`
-		Status    string   `json:"status"`
+		Status string `json:"status"`
 	}
-
 	if err := json.Unmarshal(out, &result); err != nil {
-		fmt.Fprintf(os.Stderr, "parse error: %v\n", err)
-		os.Exit(1)
+		bail("parse error: %v", err)
 	}
-
-	// Re-emit as clean JSON
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.Encode(result)
-
+	jsonOut(result)
 	if result.Status == "FAIL" {
 		os.Exit(1)
 	}
 }
 
-// ========================================================================== //
-// Seal subcommands (RFC 0007)
-// ========================================================================== //
+// ── Seal (RFC 0007) ──
+
+type (
+	VotiveSeal struct {
+		Vaked         SealMeta `json:"vaked"`
+		Membrane      string   `json:"membrane"`
+		ClosureHash   string   `json:"closure_hash"`
+		TopologyEpoch int      `json:"topology_epoch"`
+		GeneratedAt   string   `json:"generated_at"`
+		Signature     SealSig  `json:"signature"`
+	}
+	SealMeta struct {
+		Schema  string `json:"schema"`
+		Version string `json:"version"`
+	}
+	SealSig struct {
+		Algorithm   string `json:"algorithm"`
+		Value       string `json:"value"`
+		PublicKey   string `json:"public_key,omitempty"`
+		Placeholder bool   `json:"placeholder,omitempty"`
+	}
+)
 
 func sealCmd(args []string) {
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "Usage: vaked-cli seal <sign|admit|verify> [args]")
-		os.Exit(1)
+		bail("Usage: vaked-cli seal <sign|admit|verify> [args]")
 	}
 	switch args[0] {
 	case "sign":
 		if len(args) < 3 {
-			fmt.Fprintln(os.Stderr, "Usage: vaked-cli seal sign <path|hash> <membrane> [epoch]")
-			os.Exit(1)
+			bail("Usage: vaked-cli seal sign <path|hash> <membrane> [epoch]")
 		}
 		epoch := 1
 		if len(args) >= 4 {
@@ -256,45 +323,20 @@ func sealCmd(args []string) {
 		sealSign(args[1], args[2], epoch)
 	case "admit":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "Usage: vaked-cli seal admit <provenance.json>")
-			os.Exit(1)
+			bail("Usage: vaked-cli seal admit <provenance.json>")
 		}
 		sealAdmit(args[1], false)
 	case "verify":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "Usage: vaked-cli seal verify <provenance.json>")
-			os.Exit(1)
+			bail("Usage: vaked-cli seal verify <provenance.json>")
 		}
 		sealAdmit(args[1], true)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown seal subcommand: %s\n", args[0])
-		os.Exit(1)
+		bail("unknown seal subcommand: %s", args[0])
 	}
 }
 
-type VotiveSeal struct {
-	Vaked         SealMeta `json:"vaked"`
-	Membrane      string   `json:"membrane"`
-	ClosureHash   string   `json:"closure_hash"`
-	TopologyEpoch int      `json:"topology_epoch"`
-	GeneratedAt   string   `json:"generated_at"`
-	Signature     SealSig  `json:"signature"`
-}
-
-type SealMeta struct {
-	Schema  string `json:"schema"`
-	Version string `json:"version"`
-}
-
-type SealSig struct {
-	Algorithm   string `json:"algorithm"`
-	Value       string `json:"value"`
-	PublicKey   string `json:"public_key,omitempty"`
-	Placeholder bool   `json:"placeholder,omitempty"`
-}
-
 func sealSign(pathOrHash, membrane string, epoch int) {
-	// Compute closure hash
 	var closureHash string
 	if len(pathOrHash) == 64 {
 		if _, err := hex.DecodeString(pathOrHash); err == nil {
@@ -304,26 +346,10 @@ func sealSign(pathOrHash, membrane string, epoch int) {
 	if closureHash == "" {
 		h := sha256.New()
 		if err := walkHash(pathOrHash, h); err != nil {
-			fmt.Fprintf(os.Stderr, "REFUSE: cannot hash %q: %v\n", pathOrHash, err)
-			os.Exit(1)
+			bail("REFUSE: cannot hash %q: %v", pathOrHash, err)
 		}
 		closureHash = hex.EncodeToString(h.Sum(nil))
 	}
-
-	payload := map[string]interface{}{
-		"vaked":          SealMeta{Schema: "votive-seal", Version: "1"},
-		"membrane":       membrane,
-		"closure_hash":   closureHash,
-		"topology_epoch": epoch,
-		"generated_at":   time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-	}
-
-	// Sign (HMAC-SHA256 placeholder — no liboqs dependency in Go)
-	canon, _ := json.Marshal(payload)
-	mac := hmac.New(sha256.New, make([]byte, 32))
-	mac.Write(canon)
-	sig := mac.Sum(nil)
-
 	seal := VotiveSeal{
 		Vaked:         SealMeta{Schema: "votive-seal", Version: "1"},
 		Membrane:      membrane,
@@ -332,58 +358,43 @@ func sealSign(pathOrHash, membrane string, epoch int) {
 		GeneratedAt:   time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 		Signature: SealSig{
 			Algorithm:   "hmac-sha256-placeholder",
-			Value:       base64.StdEncoding.EncodeToString(sig),
+			Value:       base64.StdEncoding.EncodeToString(hmac.New(sha256.New, make([]byte, 32)).Sum(nil)),
 			Placeholder: true,
 		},
 	}
-
 	fmt.Fprintln(os.Stderr, "vaked-cli: WARNING: HMAC-SHA256 placeholder — NOT post-quantum secure")
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	enc.Encode(seal)
+	jsonOut(seal)
 }
 
 func sealAdmit(path string, verbose bool) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "REFUSE: cannot read seal —", err)
-		os.Exit(1)
+		bail("REFUSE: cannot read seal — %v", err)
 	}
-
 	var seal VotiveSeal
 	if err := json.Unmarshal(data, &seal); err != nil {
-		fmt.Fprintln(os.Stderr, "REFUSE: invalid JSON —", err)
-		os.Exit(1)
+		bail("REFUSE: invalid JSON — %v", err)
 	}
-
 	if seal.Membrane == "" || seal.ClosureHash == "" || seal.Signature.Algorithm == "" {
-		fmt.Fprintln(os.Stderr, "REFUSE: missing required fields")
-		os.Exit(1)
+		bail("REFUSE: missing required fields")
 	}
-
 	if seal.Signature.Algorithm == "hmac-sha256-placeholder" && seal.Signature.Placeholder {
 		if verbose {
-			fmt.Printf("ADMIT (placeholder): %s closure=%s epoch=%d\n",
-				seal.Membrane, seal.ClosureHash, seal.TopologyEpoch)
+			fmt.Printf("ADMIT (placeholder): %s closure=%s epoch=%d\n", seal.Membrane, seal.ClosureHash, seal.TopologyEpoch)
 			fmt.Fprintln(os.Stderr, "WARNING: HMAC key not available for re-verification")
 		} else {
 			fmt.Println("ADMIT")
 		}
 		return
 	}
-
-	fmt.Fprintln(os.Stderr, "REFUSE: unsupported algorithm", seal.Signature.Algorithm)
-	os.Exit(1)
+	bail("REFUSE: unsupported algorithm %s", seal.Signature.Algorithm)
 }
 
-// ========================================================================== //
-// Proxy subcommands — discover, status, apply
-// ========================================================================== //
+// ── Proxy ──
 
 func proxyCmd(args []string) {
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "Usage: vaked-cli proxy <discover|status|apply> [args]")
-		os.Exit(1)
+		bail("Usage: vaked-cli proxy <discover|status|data|apply> [args]")
 	}
 	switch args[0] {
 	case "discover":
@@ -394,8 +405,7 @@ func proxyCmd(args []string) {
 		proxyData()
 	case "apply":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "Usage: vaked-cli proxy apply <config.yaml> [host]")
-			os.Exit(1)
+			bail("Usage: vaked-cli proxy apply <config.yaml> [host]")
 		}
 		host := "localhost"
 		if len(args) >= 3 {
@@ -403,217 +413,319 @@ func proxyCmd(args []string) {
 		}
 		proxyApply(args[1], host)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown proxy subcommand: %s\n", args[0])
-		os.Exit(1)
+		bail("unknown proxy subcommand: %s", args[0])
 	}
 }
 
+func httpOK(url string) bool {
+	req, _ := http.NewRequest("GET", url, nil)
+	resp, err := http.DefaultClient.Do(req)
+	return err == nil && resp.StatusCode == 200
+}
+
 func proxyDiscover() {
-	results := []string{}
-
-	// 1. Local Ollama
-	c := exec.Command("ollama", "list")
-	if out, err := c.Output(); err == nil {
-		results = append(results, fmt.Sprintf("Ollama (localhost:11434):\n  %s", indentBlock(string(out), "  ")))
+	fmt.Println("=== LLM endpoint discovery ===")
+	// Ollama
+	if out, err := exec.Command("ollama", "list").Output(); err == nil {
+		fmt.Printf("Ollama (localhost:11434):\n  %s", indent(string(out), "  "))
 	} else {
-		results = append(results, "Ollama: not running on localhost:11434")
+		fmt.Println("Ollama: not running on localhost:11434")
 	}
-
-	// 2. Check common ports for LiteLLM proxy
+	// Local endpoints
 	for _, ep := range []string{
 		"http://localhost:4000/health",
 		"http://localhost:11434/api/tags",
 		"http://localhost:8080/health",
 	} {
-		r := httpGet(ep)
-		if r != "" {
-			results = append(results, fmt.Sprintf("  ✓ %s", ep))
+		if httpOK(ep) {
+			fmt.Printf("  ✓ %s\n", ep)
 		} else {
-			results = append(results, fmt.Sprintf("  ✗ %s", ep))
+			fmt.Printf("  ✗ %s\n", ep)
 		}
 	}
-
-	// 3. Check for remote dev-cx53 endpoints (if on tailscale)
+	// Remote (tailscale)
 	for _, ep := range []string{
 		"http://dev-cx53:4000/health",
 		"http://dev-cx53:11434/api/tags",
 	} {
-		r := httpGet(ep)
-		if r != "" {
-			results = append(results, fmt.Sprintf("  ✓ remote %s", ep))
+		if httpOK(ep) {
+			fmt.Printf("  ✓ remote %s\n", ep)
 		} else {
-			results = append(results, fmt.Sprintf("  ✗ remote %s (offline or no tailscale)", ep))
+			fmt.Printf("  ✗ remote %s (offline or no tailscale)\n", ep)
 		}
-	}
-
-	fmt.Println("=== LLM endpoint discovery ===")
-	for _, r := range results {
-		fmt.Println(r)
 	}
 }
 
 func proxyData() {
 	home, _ := os.UserHomeDir()
 	fmt.Println("=== LLM proxy data ===")
-
-	paths := map[string]string{
+	dirs := map[string]string{
 		"Proxy DB + cache": home + "/.vaked/llmproxy",
 		"Ollama blobs":     home + "/.ollama/models",
 		"Ollama config":    home + "/.ollama",
 		"Redis data":       "/tmp/vaked-redis",
 	}
-
-	for label, p := range paths {
+	for label, p := range dirs {
 		fi, err := os.Stat(p)
 		if err != nil {
-			fmt.Printf("  %s: %s\n", label, color("✗", "31"))
+			fmt.Printf("  %s: ✗\n", label)
 			continue
 		}
 		if !fi.IsDir() {
-			fmt.Printf("  %s: %s (%d bytes)\n", label, color("✓", "32"), fi.Size())
+			fmt.Printf("  %s: ✓ (%d bytes)\n", label, fi.Size())
 			continue
 		}
-		// Count files and estimate size
 		files := 0
-		var totalSize int64
+		var total int64
 		filepath.Walk(p, func(_ string, info os.FileInfo, err error) error {
 			if err == nil {
 				files++
-				totalSize += info.Size()
+				total += info.Size()
 			}
 			return nil
 		})
-		mb := float64(totalSize) / 1024 / 1024
-		fmt.Printf("  %s: %s (%d files, %.1f MB)\n", label, color("✓", "32"), files, mb)
+		fmt.Printf("  %s: ✓ (%d files, %.1f MB)\n", label, files, float64(total)/1024/1024)
 	}
-
-	// Check remote dev-cx53
-	c := exec.Command("ssh", "dev@dev-cx53",
-		"du -sh ~/.vaked/llmproxy 2>/dev/null; echo '---'; du -sh ~/.ollama/models 2>/dev/null; echo '---'; du -sh ~/.cache/litellm 2>/dev/null || true",
-	)
-	if out, err := c.Output(); err == nil {
-		fmt.Printf("\n  Remote dev-cx53:\n%s", indentBlock(string(out), "    "))
+	if out, err := exec.Command("ssh", "dev@dev-cx53",
+		"du -sh ~/.vaked/llmproxy 2>/dev/null; echo '---'; du -sh ~/.ollama/models 2>/dev/null",
+	).Output(); err == nil {
+		fmt.Printf("\n  Remote dev-cx53:\n%s", indent(string(out), "    "))
 	}
 }
 
 func proxyStatus() {
-	// Check what's listening on proxy-related ports
-	ports := []string{"11434", "4000", "8080", "3000"}
 	fmt.Println("=== LLM proxy services ===")
-	for _, port := range ports {
+	for _, port := range []string{"11434", "4000", "8080", "3000"} {
 		ep := fmt.Sprintf("http://localhost:%s/health", port)
-		r := httpGet(ep)
-		if r != "" {
+		if httpOK(ep) {
 			fmt.Printf("  port %s: RUNNING\n", port)
 		} else {
-			// Check if anything at all is listening
-			c := exec.Command("lsof", "-i", fmt.Sprintf(":%s", port), "-sTCP:LISTEN", "-P", "-n")
-			if out, err := c.Output(); err == nil && len(out) > 0 {
-				lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-				if len(lines) > 1 {
-					proc := strings.Fields(lines[1])
-					if len(proc) > 1 {
-						fmt.Printf("  port %s: LISTEN (%s)\n", port, proc[0])
-					} else {
-						fmt.Printf("  port %s: LISTEN\n", port)
-					}
-				}
-			} else {
-				fmt.Printf("  port %s: CLOSED\n", port)
-			}
+			fmt.Printf("  port %s: CLOSED\n", port)
 		}
 	}
 }
 
 func proxyApply(configPath, host string) {
-	// Read the proxy config
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "cannot read config: %v\n", err)
-		os.Exit(1)
+		bail("cannot read config: %v", err)
 	}
-
+	dest := "deploy/llmproxy/proxy-mesh.yaml"
 	if host == "localhost" || host == "local" {
-		// Local deploy — write config and restart proxy
-		dest := "deploy/llmproxy/proxy-mesh.yaml"
 		if err := os.WriteFile(dest, data, 0644); err != nil {
-			fmt.Fprintf(os.Stderr, "write config: %v\n", err)
-			os.Exit(1)
+			bail("write config: %v", err)
 		}
 		fmt.Printf("Config written to %s\n", dest)
 		fmt.Println("To start: litellm --config deploy/llmproxy/proxy-mesh.yaml --port 4000")
 	} else {
-		// Remote deploy via scp + ssh
-		runCmd := fmt.Sprintf("ssh %s 'mkdir -p deploy/llmproxy && cat > deploy/llmproxy/proxy-mesh.yaml'", host)
-		c := exec.Command("bash", "-c", runCmd)
-		c.Stdin = strings.NewReader(string(data))
-		if out, err := c.CombinedOutput(); err != nil {
-			fmt.Fprintf(os.Stderr, "scp config to %s: %v\n  %s", host, err, string(out))
+		cmd := exec.Command("ssh", host, "mkdir -p deploy/llmproxy && cat > deploy/llmproxy/proxy-mesh.yaml")
+		cmd.Stdin = strings.NewReader(string(data))
+		if out, err := cmd.CombinedOutput(); err != nil {
+			bail("scp config to %s: %v\n  %s", host, err, string(out))
+		}
+		fmt.Printf("Config deployed to %s:%s\n", host, dest)
+	}
+}
+
+// ── Task ──
+
+func taskCmd(args []string) {
+	if len(args) < 1 {
+		bail("Usage: vaked-cli task <list|run> [args]")
+	}
+	switch args[0] {
+	case "list":
+		requireRepo()
+		out, err := execInRepo("task", "--list").Output()
+		if err != nil {
+			bail("task not found: install from https://taskfile.dev")
+		}
+		fmt.Print(string(out))
+	case "run":
+		if len(args) < 2 {
+			bail("Usage: vaked-cli task run <name> [-- args...]")
+		}
+		requireRepo()
+		args := []string{args[1]}
+		args = append(args, args[2:]...)
+		cmd := execInRepo("task", args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		if err := cmd.Run(); err != nil {
 			os.Exit(1)
 		}
-		fmt.Printf("Config deployed to %s:deploy/llmproxy/proxy-mesh.yaml\n", host)
-		fmt.Printf("To start on remote: ssh %s 'litellm --config deploy/llmproxy/proxy-mesh.yaml --port 4000'\n", host)
+	default:
+		bail("unknown task subcommand: %s", args[0])
 	}
 }
 
-// ========================================================================== //
-// Helpers
-// ========================================================================== //
+// ── Deploy ──
 
-func httpGet(url string) string {
-	cmd := exec.Command("curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--connect-timeout", "3", url)
-	out, err := cmd.Output()
+func deployCmd(args []string) {
+	if len(args) < 1 {
+		bail("Usage: vaked-cli deploy <dev|lang|docs|all>")
+	}
+	switch args[0] {
+	case "dev":
+		wranglerDeploy("deploy/vaked.dev", "vaked-dev")
+	case "lang":
+		wranglerDeploy("site", "vaked-lang")
+	case "docs":
+		deployDocs()
+	case "all":
+		wranglerDeploy("deploy/vaked.dev", "vaked-dev")
+		wranglerDeploy("site", "vaked-lang")
+	default:
+		bail("unknown deploy target: %s", args[0])
+	}
+}
+
+// ── Docs ──
+
+func docsCmd(args []string) {
+	if len(args) < 1 {
+		bail("Usage: vaked-cli docs <gen|deploy|all>")
+	}
+	switch args[0] {
+	case "gen":
+		docsGen()
+	case "deploy":
+		deployDocs()
+	case "all":
+		docsGen()
+		wranglerDeploy("site", "vaked-lang")
+	default:
+		bail("unknown docs subcommand: %s", args[0])
+	}
+}
+
+func docsGen() {
+	requireRepo()
+	fmt.Println("Autogenerating docs from markdown…")
+	cmd := execInRepo("python3",
+		filepath.Join(repoRoot, "tools/docs-autogen.py"),
+		"--source", filepath.Join(repoRoot, "docs"),
+		"--output", filepath.Join(repoRoot, "site/docs"))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		bail("docs gen failed: %v", err)
+	}
+	fmt.Println("Docs generated.")
+}
+
+func deployDocs() {
+	docsGen()
+	wranglerDeploy("site", "vaked-lang")
+}
+
+// ── Cloudflare ──
+
+func cfCmd(args []string) {
+	if len(args) < 1 {
+		bail("Usage: vaked-cli cf <zones|dns|status> [zone]")
+	}
+	requireCF()
+	switch args[0] {
+	case "zones":
+		cfZones()
+	case "dns":
+		if len(args) < 2 {
+			bail("Usage: vaked-cli cf dns <zone-name>")
+		}
+		cfDNS(args[1])
+	case "status":
+		cfStatus()
+	default:
+		bail("unknown cf subcommand: %s", args[0])
+	}
+}
+
+func cfZones() {
+	data, err := cfAPI("/zones?per_page=50")
 	if err != nil {
-		return ""
+		bail("API call failed: %v", err)
 	}
-	code := strings.TrimSpace(string(out))
-	if code == "200" {
-		return "200 OK"
+	var resp struct {
+		Result []struct {
+			Name   string      `json:"name"`
+			Plan   struct{ Name string } `json:"plan"`
+			Status string      `json:"status"`
+		} `json:"result"`
 	}
-	return fmt.Sprintf("HTTP %s", code)
+	if err := json.Unmarshal(data, &resp); err != nil {
+		bail("parse error: %v", err)
+	}
+	fmt.Println("Cloudflare Zones:")
+	for _, z := range resp.Result {
+		fmt.Printf("  %-25s %-15s %s\n", z.Name, z.Plan.Name, z.Status)
+	}
 }
 
-func color(s, code string) string {
-	return "\033[" + code + "m" + s + "\033[0m"
-}
-
-func indentBlock(s, prefix string) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	for i, line := range lines {
-		lines[i] = prefix + line
+func cfDNS(zoneName string) {
+	data, err := cfAPI("/zones?name=" + zoneName)
+	if err != nil {
+		bail("API call failed: %v", err)
 	}
-	return strings.Join(lines, "\n")
+	var zr struct {
+		Result []struct{ Id string } `json:"result"`
+	}
+	json.Unmarshal(data, &zr)
+	if len(zr.Result) == 0 {
+		bail("zone %q not found", zoneName)
+	}
+	data, err = cfAPI("/zones/" + zr.Result[0].Id + "/dns_records?per_page=100")
+	if err != nil {
+		bail("DNS fetch failed: %v", err)
+	}
+	var dr struct {
+		Result []struct {
+			Name    string `json:"name"`
+			Type    string `json:"type"`
+			Content string `json:"content"`
+			Proxied bool   `json:"proxied"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(data, &dr); err != nil {
+		bail("parse error: %v", err)
+	}
+	fmt.Printf("DNS records for %s:\n", zoneName)
+	for _, r := range dr.Result {
+		p := "  "
+		if r.Proxied {
+			p = " P"
+		}
+		fmt.Printf("  %s%s %-40s → %s\n", r.Type, p, r.Name, r.Content)
+	}
 }
 
-func findTblgen() string {
-	for _, name := range []string{"mlir-tblgen"} {
-		if p, err := exec.LookPath(name); err == nil {
-			return p
+func cfStatus() {
+	fmt.Println("=== Cloudflare Quick Health ===")
+	if data, err := cfAPI("/zones?per_page=50"); err == nil {
+		var zr struct {
+			Result []struct{ Name string } `json:"result"`
+		}
+		if json.Unmarshal(data, &zr) == nil {
+			fmt.Printf("  Zones:            %d\n", len(zr.Result))
+			for _, z := range zr.Result {
+				fmt.Printf("                     %s\n", z.Name)
+			}
 		}
 	}
-	return ""
-}
-
-type cmdResult struct {
-	out     []byte
-	err     []byte
-	errCode int
-}
-
-func runCmd(name string, args ...string) cmdResult {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = repoRoot
-	cmd.Env = os.Environ()
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	result := cmdResult{out: []byte(stdout.String()), err: []byte(stderr.String())}
-	if err != nil {
-		result.errCode = 1
+	if cf.accountID != "" {
+		if data, err := cfAPI("/accounts/" + cf.accountID + "/pages/projects?per_page=50"); err == nil {
+			var pr struct {
+				Result []struct{ Name string } `json:"result"`
+			}
+			if json.Unmarshal(data, &pr) == nil {
+				fmt.Printf("  Pages projects:   %d\n", len(pr.Result))
+			}
+		}
 	}
-	return result
 }
+
+// ── walkHash (used by seal sign) ──
 
 func walkHash(path string, h io.Writer) error {
 	info, err := os.Stat(path)
@@ -642,4 +754,12 @@ func walkHash(path string, h io.Writer) error {
 		h.Write(data)
 		return nil
 	})
+}
+
+func indent(s, prefix string) string {
+	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+	for i, line := range lines {
+		lines[i] = prefix + line
+	}
+	return strings.Join(lines, "\n")
 }

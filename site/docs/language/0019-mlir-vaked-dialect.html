@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MLIR vaked dialect — agent dataflow ops, types, verifier — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#terminology" style="padding-left:0.5rem">Terminology</a><a href="#1-types" style="padding-left:0.5rem">1. Types</a><a href="#vakedstatehash" style="padding-left:1rem">  `!vaked.state_hash`</a><a href="#vakedagent-symbol-not-a-value-type" style="padding-left:1rem">  `!vaked.agent` (symbol, not a value type)</a><a href="#2-operations" style="padding-left:0.5rem">2. Operations</a><a href="#21-vakedagent" style="padding-left:1rem">  2.1 `vaked.agent`</a><a href="#22-vakedexecutestep" style="padding-left:1rem">  2.2 `vaked.execute_step`</a><a href="#23-vakedconsume-the-load-bearing-op" style="padding-left:1rem">  2.3 `vaked.consume` — the load-bearing op</a><a href="#24-vakedexecutewithdep" style="padding-left:1rem">  2.4 `vaked.execute_with_dep`</a><a href="#25-vakedyield" style="padding-left:1rem">  2.5 `vaked.yield`</a><a href="#3-ssa-use-def-chains-as-dependency-lineages" style="padding-left:0.5rem">3. SSA use-def chains as dependency lineages</a><a href="#4-tablegen-mapping-stage-1-starting-point" style="padding-left:0.5rem">4. TableGen mapping (Stage-1 starting point)</a><a href="#5-stage-0-fidelity" style="padding-left:0.5rem">5. Stage-0 fidelity</a><a href="#security-considerations" style="padding-left:0.5rem">Security considerations</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0019-mlir-vaked-dialect</div>
+<h1>MLIR vaked dialect — agent dataflow ops, types, verifier</h1>
+<h1 id="0019-the-vaked-mlir-dialect">0019 — The <code>vaked</code> MLIR dialect</h1>
+<p>Status: <strong>Accepted</strong> (2026-06-14) · Series: language design notes · Track:<br />
+<strong>Language / MLIR</strong> · Issue<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/23">#23</a> · Epic<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<p>Part of the MLIR set; umbrella + terminology in<br />
+<a href="./0013-mlir-topology-compilation.md">0013</a>. Stage-0 reference semantics: the<br />
+typed semantic graph (LPG) <code>vakedc</code> produces, specifically the <code>workflow</code><br />
+agent-step DAG checked in <code>vakedc/check.py</code> (<code>_check_workflow</code>) and the<br />
+<a href="./0015-workflow.md">0015</a> construct.</p>
+<h2 id="abstract">Abstract</h2>
+<p>This part specifies the <strong>high-level <code>vaked</code> dialect</strong>: the MLIR serialization<br />
+of the multi-agent dataflow graph. Agents are structural region ops; a step's<br />
+committed output is an SSA value of type <code>!vaked.state_hash</code>; a cross-agent<br />
+dependency is an explicit <code>vaked.consume</code>. SSA use-def chains <em>are</em> the agent<br />
+dependency lineages — the property <a href="./0021-mlir-pass-topology-analysis.md">0021</a><br />
+analyzes. Every op is given as operands / results / attributes / types +<br />
+verifier invariants, at the precision needed to write its TableGen <code>.td</code>.</p>
+<h2 id="terminology">Terminology</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agent</td>
+<td>A boundary owning state schemas + execution logic; a <code>vaked.agent</code> region op, named by a <code>sym_name</code>.</td>
+</tr>
+<tr>
+<td>State hash</td>
+<td>The eventd <code>StepHash</code> (RFC 0004 terminology) anchoring a step's committed output; the SSA value type <code>!vaked.state_hash</code>.</td>
+</tr>
+<tr>
+<td>Producer / consumer</td>
+<td>The agent whose step output is read / the agent reading it (RFC 0004 §1). A <code>vaked.consume</code> names its producer by symbol.</td>
+</tr>
+<tr>
+<td>Dependency lineage</td>
+<td>The transitive use-def chain of <code>!vaked.state_hash</code> values across <code>vaked.consume</code>; the <code>state_dependency</code> edge set Pass 1 requires acyclic.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1-types">1. Types</h2>
+<h3 id="vakedstate_hash"><code>!vaked.state_hash</code></h3>
+<p>An opaque, value-typed handle to a step's committed output — the cryptographic<br />
+anchor a downstream dependency pins (RFC 0004's <code>StepHash</code>). It carries no<br />
+payload in the IR; it is a dataflow token whose <strong>use-def edges encode the<br />
+dependency graph</strong>. Parameterless in v1.</p>
+<div class="highlight"><pre><span></span><span class="sx">!vaked.state_hash</span>
+</pre></div>
+
+<h3 id="vakedagent-symbol-not-a-value-type"><code>!vaked.agent</code> (symbol, not a value type)</h3>
+<p>Agents are <strong>symbols</strong>, not SSA values: a <code>vaked.agent</code> op defines a<br />
+<code>SymbolRefAttr</code>-addressable name, and <code>vaked.consume</code> references a producer by<br />
+that symbol (<code>@agent_alpha</code>). v1 introduces no first-class <code>!vaked.agent</code> value<br />
+type; if a future revision needs to pass an agent as a value (e.g. higher-order<br />
+supervision), it is added then. State, not agents, flows as SSA.</p>
+<h2 id="2-operations">2. Operations</h2>
+<p>Worked reference (the canonical shape this dialect serializes):</p>
+<div class="highlight"><pre><span></span><span class="n">vaked</span><span class="p">.</span><span class="n">agent</span><span class="w"> </span><span class="err">@</span><span class="n">agent_alpha</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nf">%s15</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vaked</span><span class="p">.</span><span class="n">execute_step</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i64</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span>
+<span class="w">  </span><span class="n">vaked</span><span class="p">.</span><span class="n">yield</span><span class="w"> </span><span class="nf">%s15</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span>
+<span class="p">}</span>
+
+<span class="n">vaked</span><span class="p">.</span><span class="n">agent</span><span class="w"> </span><span class="err">@</span><span class="n">agent_beta</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// beta consumes alpha&#39;s step-15 output — the load-bearing cross-agent edge</span>
+<span class="w">  </span><span class="nf">%in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vaked</span><span class="p">.</span><span class="n">consume</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">producer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">@</span><span class="n">agent_alpha</span><span class="p">,</span><span class="w"> </span><span class="n">producer_step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i64</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span>
+<span class="w">  </span><span class="nf">%out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vaked</span><span class="p">.</span><span class="n">execute_with_dep</span><span class="p">(</span><span class="nf">%in</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span>
+<span class="w">  </span><span class="n">vaked</span><span class="p">.</span><span class="n">yield</span><span class="w"> </span><span class="nf">%out</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3 id="21-vakedagent">2.1 <code>vaked.agent</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Agent boundary; the structural region op (like <code>func.func</code>).</td>
+</tr>
+<tr>
+<td><strong>Attributes</strong></td>
+<td><code>sym_name : SymbolNameAttr</code> (required, unique in the module). Optional <code>epoch : i64</code> recording the topology epoch the body was compiled under (RFC 0004 §7).</td>
+</tr>
+<tr>
+<td><strong>Regions</strong></td>
+<td>exactly one, single-block, terminated by <code>vaked.yield</code>.</td>
+</tr>
+<tr>
+<td><strong>Operands / results</strong></td>
+<td>none (it is a definition, not a value).</td>
+</tr>
+<tr>
+<td><strong>Traits</strong></td>
+<td><code>Symbol</code>, <code>IsolatedFromAbove</code>, <code>SingleBlockImplicitTerminator&lt;"vaked.yield"&gt;</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-AGENT</strong>:<br />
+1. <code>sym_name</code> is present and unique among <code>vaked.agent</code> ops in the module.<br />
+2. The region has exactly one block whose terminator is <code>vaked.yield</code>.</p>
+<h3 id="22-vakedexecute_step">2.2 <code>vaked.execute_step</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>An intra-agent step that commits an output (no cross-agent dependency).</td>
+</tr>
+<tr>
+<td><strong>Operands</strong></td>
+<td>variadic <code>!vaked.state_hash</code> — intra-agent predecessors (may be empty).</td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td>exactly one <code>!vaked.state_hash</code>.</td>
+</tr>
+<tr>
+<td><strong>Attributes</strong></td>
+<td><code>step : i64</code> (optional; the eventd <code>StepId</code>, else inferred by Pass 3 ordering).</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-STEP</strong>: the single result is <code>!vaked.state_hash</code>; all operands<br />
+are <code>!vaked.state_hash</code>; the op is inside a <code>vaked.agent</code> region.</p>
+<h3 id="23-vakedconsume-the-load-bearing-op">2.3 <code>vaked.consume</code> — the load-bearing op</h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Agent B reading agent A's step output. <strong>Every cross-agent dependency is one <code>vaked.consume</code></strong> — there is no other way to depend on another agent.</td>
+</tr>
+<tr>
+<td><strong>Operands</strong></td>
+<td>none.</td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td>exactly one <code>!vaked.state_hash</code> (the consumed input).</td>
+</tr>
+<tr>
+<td><strong>Attributes</strong></td>
+<td><code>producer : FlatSymbolRefAttr</code> (required → a <code>vaked.agent</code>); <code>producer_step : i64</code> (optional; the anchored producer step, RFC 0004 §1).</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-CONSUME</strong>:<br />
+1. <code>producer</code> resolves to a <code>vaked.agent</code> symbol in the module (else the<br />
+   structural analogue of <code>E-REF-UNRESOLVED</code>).<br />
+2. The op is lexically inside a <code>vaked.agent</code> region (the <strong>consumer</strong>).<br />
+3. <code>producer !=</code> the enclosing consumer's <code>sym_name</code> (no self-consume — a<br />
+   trivial cycle; the non-trivial case is Pass 1's, <a href="./0021-mlir-pass-topology-analysis.md">0021</a>).<br />
+4. The single result is <code>!vaked.state_hash</code>.</p>
+<p>This op is the surface Pass 1 reads to build the <code>state_dependency</code> edge<br />
+(consumer agent ← <code>producer</code>) and Pass 2 rewrites into the <code>hcp</code> WAL sequence<br />
+(<a href="./0022-mlir-pass-wal-injection.md">0022</a>).</p>
+<h3 id="24-vakedexecute_with_dep">2.4 <code>vaked.execute_with_dep</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Downstream execution built on consumed input(s) — the dependent form of <code>execute_step</code>.</td>
+</tr>
+<tr>
+<td><strong>Operands</strong></td>
+<td><strong>≥ 1</strong> <code>!vaked.state_hash</code> (its dependencies, typically <code>vaked.consume</code> results).</td>
+</tr>
+<tr>
+<td><strong>Results</strong></td>
+<td>exactly one <code>!vaked.state_hash</code>.</td>
+</tr>
+<tr>
+<td><strong>Attributes</strong></td>
+<td><code>step : i64</code> (optional).</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-DEP</strong>: at least one operand; all operands and the single result<br />
+are <code>!vaked.state_hash</code>; inside a <code>vaked.agent</code> region. The use-def edge from a<br />
+<code>vaked.consume</code> result into a <code>vaked.execute_with_dep</code> operand is the IR<br />
+encoding of "this step's output causally depends on the consumed anchor."</p>
+<h3 id="25-vakedyield">2.5 <code>vaked.yield</code></h3>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Role</strong></td>
+<td>Terminator of a <code>vaked.agent</code> region; names the agent's exported outputs.</td>
+</tr>
+<tr>
+<td><strong>Operands</strong></td>
+<td>variadic <code>!vaked.state_hash</code>.</td>
+</tr>
+<tr>
+<td><strong>Traits</strong></td>
+<td><code>Terminator</code>, <code>HasParent&lt;"vaked.agent"&gt;</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Verifier — <strong>V-YIELD</strong>: parent is <code>vaked.agent</code>; every operand is<br />
+<code>!vaked.state_hash</code>.</p>
+<h2 id="3-ssa-use-def-chains-as-dependency-lineages">3. SSA use-def chains as dependency lineages</h2>
+<p>Because state flows as SSA values, the use-def chain <em>is</em> the dependency graph,<br />
+with no separate bookkeeping:</p>
+<ul>
+<li><strong>Intra-agent</strong>: <code>execute_step</code>/<code>execute_with_dep</code> results feed later ops in<br />
+  the same region — ordinary SSA dominance.</li>
+<li><strong>Inter-agent</strong>: a <code>vaked.consume {producer = @A}</code> in agent <code>@B</code> is a<br />
+  cross-region edge <code>@A → @B</code>, recovered by the verifier resolving the symbol.<br />
+  The union of these edges (one per <code>vaked.consume</code>) is the <strong>state-dependency<br />
+  subgraph</strong> (RFC 0004 §5) whose acyclicity Pass 1 enforces.</li>
+</ul>
+<p>This mirrors what the LPG already encodes: a <code>workflow</code>'s <code>-&gt;</code> step edges are<br />
+<code>state_dependency</code> edges (<code>vakedc/check.py</code> <code>_check_workflow</code>), and the dialect<br />
+is a <em>serialization of the same typed graph</em> — "syntax is the mask; the graph<br />
+is the face."</p>
+<h2 id="4-tablegen-mapping-stage-1-starting-point">4. TableGen mapping (Stage-1 starting point)</h2>
+<p>Each op above maps directly to ODS. Sketch for the two load-bearing ops:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="n">Vaked_StateHashType</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">TypeDef</span><span class="p">&lt;</span><span class="n">Vaked_Dialect</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;StateHash&quot;</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">mnemonic</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;state_hash&quot;</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="n">Vaked_AgentOp</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Vaked_Op</span><span class="p">&lt;</span><span class="s">&quot;agent&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="n">Symbol</span><span class="p">,</span><span class="w"> </span><span class="n">IsolatedFromAbove</span><span class="p">,</span>
+<span class="w">    </span><span class="n">SingleBlockImplicitTerminator</span><span class="p">&lt;</span><span class="s">&quot;vaked::YieldOp&quot;</span><span class="p">&gt;]&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">arguments</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">ins</span><span class="w"> </span><span class="n">SymbolNameAttr</span><span class="p">:</span><span class="nv">$sym_name</span><span class="p">,</span><span class="w"> </span><span class="n">OptionalAttr</span><span class="p">&lt;</span><span class="n">I64Attr</span><span class="p">&gt;:</span><span class="nv">$epoch</span><span class="p">);</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">regions</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">region</span><span class="w"> </span><span class="n">SizedRegion</span><span class="p">&lt;</span><span class="mi">1</span><span class="p">&gt;:</span><span class="nv">$body</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="n">Vaked_ConsumeOp</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="n">Vaked_Op</span><span class="p">&lt;</span><span class="s">&quot;consume&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[]&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">arguments</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">ins</span><span class="w"> </span><span class="n">FlatSymbolRefAttr</span><span class="p">:</span><span class="nv">$producer</span><span class="p">,</span>
+<span class="w">                       </span><span class="n">OptionalAttr</span><span class="p">&lt;</span><span class="n">I64Attr</span><span class="p">&gt;:</span><span class="nv">$producer_step</span><span class="p">);</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">results</span><span class="w">   </span><span class="p">=</span><span class="w"> </span><span class="p">(</span><span class="n">outs</span><span class="w"> </span><span class="n">Vaked_StateHashType</span><span class="p">:</span><span class="nv">$input</span><span class="p">);</span>
+<span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">hasVerifier</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w">   </span><span class="c1">// V-CONSUME (1)-(4)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>The verifier invariants V-AGENT … V-YIELD are the <code>hasVerifier</code> bodies. A<br />
+compiler developer can begin the dialect from this part alone; nothing here<br />
+defers an op's shape to a later document.</p>
+<h2 id="5-stage-0-fidelity">5. Stage-0 fidelity</h2>
+<p>The Stage-1 verifier MUST agree with the shipped Stage-0 checks<br />
+(<a href="./0024-mlir-lowering-staged-adoption.md">0024</a> §4):</p>
+<table>
+<thead>
+<tr>
+<th><code>vaked</code> dialect</th>
+<th>Stage-0 (LPG)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vaked.agent @X</code></td>
+<td>a <code>workflow</code> step's <code>agent = mesh.X</code> / a mesh agent node</td>
+</tr>
+<tr>
+<td><code>vaked.consume {producer=@A}</code> in <code>@B</code></td>
+<td>a <code>workflow</code> <code>-&gt;</code> ordering edge <code>A -&gt; B</code> (a <code>state_dependency</code> edge)</td>
+</tr>
+<tr>
+<td><code>!vaked.state_hash</code> result of a step</td>
+<td>the step <code>output</code> token in <code>gen/workflow/&lt;name&gt;.json</code></td>
+</tr>
+<tr>
+<td>V-CONSUME (1) symbol resolution</td>
+<td><code>_check_workflow</code>'s <code>E-REF-UNRESOLVED</code> on an <code>agent</code> head that names no sibling node</td>
+</tr>
+</tbody>
+</table>
+<h2 id="security-considerations">Security considerations</h2>
+<ul>
+<li><strong>Symbol resolution is a trust boundary.</strong> An unresolved <code>producer</code><br />
+  (V-CONSUME 1) MUST fail verification, never silently drop the edge — a<br />
+  dropped edge is a dependency the runtime won't register (RFC 0004 §3),<br />
+  re-opening the "run on history that was never pinned" hazard.</li>
+<li><strong>No implicit cross-agent dataflow.</strong> Because <code>vaked.consume</code> is the only way<br />
+  to depend on another agent, the verified IR cannot hide a dependency from<br />
+  Pass 1. Any future op that introduces cross-agent dataflow MUST be added to<br />
+  the Pass-1 edge extraction in the same change.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>Whether <code>!vaked.state_hash</code> should be parameterized by the producing agent's<br />
+  state schema (a typed <code>!vaked.state&lt;@A, "schemaName"&gt;</code>) for richer<br />
+  verification, or stay opaque in v1. Opaque is sufficient for Pass 1/2/3.</li>
+<li>Whether <code>vaked.execute_step</code> and <code>vaked.execute_with_dep</code> should be one op<br />
+  distinguished by operand arity, or stay two ops for readability. (Non-gating;<br />
+  either lowers identically.)</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0019-mlir-vaked-dialect.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

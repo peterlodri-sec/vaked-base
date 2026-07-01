@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Integrating CrabCC Indexing & MCP Server — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#user-review-required" style="padding-left:0.5rem">User Review Required</a><a href="#proposed-integration-plan" style="padding-left:0.5rem">Proposed Integration Plan</a><a href="#1-installation-caching-in-github-actions" style="padding-left:1rem">  1. Installation & Caching in GitHub Actions</a><a href="#2-localci-indexing-lifecycle" style="padding-left:1rem">  2. Local/CI Indexing Lifecycle</a><a href="#3-connecting-the-mcp-server-to-the-agent" style="padding-left:1rem">  3. Connecting the MCP Server to the Agent</a><a href="#verification-plan" style="padding-left:0.5rem">Verification Plan</a><a href="#automated-local-verification" style="padding-left:1rem">  Automated Local Verification</a><a href="#manual-ci-verification" style="padding-left:1rem">  Manual CI Verification</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-18-crabcc-integration</div>
+<h1>Integrating CrabCC Indexing & MCP Server</h1>
+<h1 id="integrating-crabcc-indexing-mcp-server">Integrating CrabCC Indexing &amp; MCP Server</h1>
+<p>This plan outlines the architecture, setup steps, and verification procedures to integrate <code>crabcc</code> (a private, high-performance symbol indexing tool) into another repository and organization of yours, enabling LLM-based CI/CD agents to perform deep code symbol resolution (references, definitions, and callers) via the Model Context Protocol (MCP).</p>
+<h2 id="user-review-required">User Review Required</h2>
+<blockquote>
+<p>[!IMPORTANT]<br />
+Since <code>crabcc-labs/crabcc</code> is a private repository, the integration relies on the <code>CRABCC_INSTALL_TOKEN</code> secret. Please verify that:<br />
+1. The machine user or GitHub App has been added to <a href="https://github.com/orgs/crabcc-labs/teams/vaked/members">crabcc-labs/teams/vaked/members</a> with read permission.<br />
+2. The secret <code>CRABCC_INSTALL_TOKEN</code> is populated in your target repository's GitHub Action Secrets (under the <code>ci</code> environment or repository-wide).</p>
+</blockquote>
+<h2 id="proposed-integration-plan">Proposed Integration Plan</h2>
+<p>The integration is split into three main parts: private installation, repository indexing with cache support, and connecting the MCP server to your AI agent.</p>
+<hr />
+<h3 id="1-installation-caching-in-github-actions">1. Installation &amp; Caching in GitHub Actions</h3>
+<p>Add the following steps to your CI workflow (e.g., <code>.github/workflows/ci.yml</code>).</p>
+<h4 id="a-cache-the-symbol-index">A. Cache the Symbol Index</h4>
+<p>To prevent indexing the entire repository on every commit, cache the <code>.crabcc</code> directory. If the directory exists, <code>crabcc</code> will automatically perform a fast incremental update (<code>refresh</code>) instead of a full rebuild.</p>
+<div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Cache crabcc index</span>
+<span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/cache@v5</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.crabcc</span>
+<span class="w">    </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">crabcc-index-${{ github.repository }}-${{ github.ref_name }}</span>
+<span class="w">    </span><span class="nt">restore-keys</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">      </span><span class="no">crabcc-index-${{ github.repository }}-</span>
+</pre></div>
+
+<h4 id="b-cache-the-crabcc-binary">B. Cache the <code>crabcc</code> Binary</h4>
+<p>Compile <code>crabcc</code> from source only when the version changes.</p>
+<div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Cache crabcc binary (v6.5.1)</span>
+<span class="w">  </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">crabcc-bin-cache</span>
+<span class="w">  </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/cache@v5</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">~/.cargo/bin/crabcc</span>
+<span class="w">    </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">crabcc-bin-v6.5.1-${{ runner.os }}</span>
+</pre></div>
+
+<h4 id="c-install-crabcc-cli-privately">C. Install <code>crabcc-cli</code> privately</h4>
+<p>Configure git to use the PAT token when pulling from <code>crabcc-labs</code> on GitHub, then install the binary.</p>
+<div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Install crabcc v6.5.1 (optional)</span>
+<span class="w">  </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ env.CRABCC_INSTALL_TOKEN != &#39;&#39; &amp;&amp; steps.crabcc-bin-cache.outputs.cache-hit != &#39;true&#39; }}</span>
+<span class="w">  </span><span class="nt">env</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">CRABCC_INSTALL_TOKEN</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${{ secrets.CRABCC_INSTALL_TOKEN }}</span>
+<span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">    </span><span class="no">git config --global url.&quot;https://x-access-token:${CRABCC_INSTALL_TOKEN}@github.com/&quot;.insteadOf &quot;https://github.com/&quot;</span>
+<span class="w">    </span><span class="no">CARGO_NET_GIT_FETCH_WITH_CLI=true \</span>
+<span class="w">      </span><span class="no">cargo install --git https://github.com/crabcc-labs/crabcc --tag v6.5.1 crabcc-cli --force || \</span>
+<span class="w">      </span><span class="no">echo &quot;crabcc install failed — workflow will degrade gracefully to diff-only&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="2-localci-indexing-lifecycle">2. Local/CI Indexing Lifecycle</h3>
+<p>To update the symbol index, run the following commands in the root of your repository:</p>
+<ul>
+<li><strong>Initialization (First Run):</strong><br />
+  If <code>.crabcc</code> does not exist, initialize it:<br />
+<br />
+<div class="highlight"><pre><span></span>mkdir<span class="w"> </span>.crabcc
+<span class="w">  </span>crabcc<span class="w"> </span>index<span class="w"> </span>build
+</pre></div>
+</li>
+</ul>
+<p><em>(Creating the <code>.crabcc</code> directory in the repository root instructs the CLI to store the database locally in the workspace instead of the global <code>~/.crabcc/repos/</code> store, enabling GitHub Actions cache to capture it).</em></p>
+<ul>
+<li><strong>Incremental Update:</strong><br />
+  On subsequent runs, refresh the index:<br />
+<br />
+<div class="highlight"><pre><span></span>crabcc<span class="w"> </span>index<span class="w"> </span>refresh
+</pre></div>
+</li>
+</ul>
+<hr />
+<h3 id="3-connecting-the-mcp-server-to-the-agent">3. Connecting the MCP Server to the Agent</h3>
+<p>When your custom review/agent binary runs, it should spawn <code>crabcc --mcp</code> as a subprocess and establish an MCP stdio transport connection:</p>
+<div class="highlight"><pre><span></span><span class="c1">// Example connection logic in Rust (mimicking your pr-review agent)</span>
+<span class="k">pub</span><span class="p">(</span><span class="k">crate</span><span class="p">)</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">connect_crabcc</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="n">McpToolset</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">bin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">env</span><span class="p">::</span><span class="n">var</span><span class="p">(</span><span class="s">&quot;CRABCC_BIN&quot;</span><span class="p">).</span><span class="n">unwrap_or_else</span><span class="p">(</span><span class="o">|</span><span class="n">_</span><span class="o">|</span><span class="w"> </span><span class="s">&quot;crabcc&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">());</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="c1">// Ensure index is ready/refreshed</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">sub</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">path</span><span class="p">::</span><span class="n">Path</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="s">&quot;.crabcc&quot;</span><span class="p">).</span><span class="n">is_dir</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;refresh&quot;</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s">&quot;build&quot;</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="n">std</span><span class="p">::</span><span class="n">process</span><span class="p">::</span><span class="n">Command</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bin</span><span class="p">).</span><span class="n">args</span><span class="p">([</span><span class="s">&quot;index&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sub</span><span class="p">]).</span><span class="n">status</span><span class="p">()</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// Spawn the MCP server</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">process</span><span class="p">::</span><span class="n">Command</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="o">&amp;</span><span class="n">bin</span><span class="p">);</span>
+<span class="w">    </span><span class="n">command</span><span class="p">.</span><span class="n">arg</span><span class="p">(</span><span class="s">&quot;--mcp&quot;</span><span class="p">);</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TokioChildProcess</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">McpClient</span><span class="p">::</span><span class="n">serve</span><span class="p">(</span><span class="n">transport</span><span class="p">).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="n">McpToolset</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">client</span><span class="p">).</span><span class="n">with_name</span><span class="p">(</span><span class="s">&quot;crabcc&quot;</span><span class="p">))</span>
+<span class="p">}</span>
+</pre></div>
+
+<hr />
+<h2 id="verification-plan">Verification Plan</h2>
+<h3 id="automated-local-verification">Automated Local Verification</h3>
+<p>To test the integration locally before running in CI:<br />
+1. Ensure the <code>crabcc</code> binary is installed:<br />
+<br />
+<div class="highlight"><pre><span></span>crabcc<span class="w"> </span>--version
+</pre></div>
+</p>
+<ol>
+<li>
+<p>Build a local index inside a test folder:<br />
+<br />
+<div class="highlight"><pre><span></span>mkdir<span class="w"> </span>-p<span class="w"> </span>test-index/.crabcc
+<span class="w">   </span><span class="nb">cd</span><span class="w"> </span>test-index
+<span class="w">   </span>crabcc<span class="w"> </span>index<span class="w"> </span>build
+</pre></div>
+</p>
+</li>
+<li>
+<p>Verify the generated database exists:<br />
+<br />
+<div class="highlight"><pre><span></span>ls<span class="w"> </span>-la<span class="w"> </span>.crabcc/index.db
+</pre></div>
+</p>
+</li>
+<li>
+<p>Test running the MCP server locally over stdio:<br />
+<br />
+<div class="highlight"><pre><span></span>crabcc<span class="w"> </span>--mcp
+</pre></div>
+</p>
+</li>
+</ol>
+<p><em>(It should start and wait for an MCP handshake).</em></p>
+<h3 id="manual-ci-verification">Manual CI Verification</h3>
+<ol>
+<li>Push the updated workflow to a branch.</li>
+<li>Verify the <code>Cache crabcc index</code> step restores successfully on subsequent commits.</li>
+<li>Check workflow logs to ensure <code>crabcc index build</code> or <code>crabcc index refresh</code> finishes with status <code>0</code>.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-18-crabcc-integration.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

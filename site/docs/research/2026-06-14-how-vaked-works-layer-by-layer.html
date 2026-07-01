@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>How Vaked works, layer by layer — under the compiler — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#part-1-the-compiler-stack-vakedc-text-artifacts" style="padding-left:0.5rem">Part 1 — The compiler stack (`vakedc`: text → artifacts)</a><a href="#layer-1-lexer" style="padding-left:1rem">  Layer 1 — lexer</a><a href="#layer-2-parser" style="padding-left:1rem">  Layer 2 — parser</a><a href="#layer-3-resolve-buildgraph" style="padding-left:1rem">  Layer 3 — resolve (`build_graph`)</a><a href="#layer-4-check-the-0011-type-system" style="padding-left:1rem">  Layer 4 — check (the 0011 type system)</a><a href="#layer-5-lower-0012" style="padding-left:1rem">  Layer 5 — lower (0012)</a><a href="#layer-6-writetree" style="padding-left:1rem">  Layer 6 — `_write_tree`</a><a href="#part-2-the-runtime-stack-artifacts-running-host" style="padding-left:0.5rem">Part 2 — The runtime stack (artifacts → running host)</a><a href="#the-lowering-fan-out-the-9-dogfood-artifacts" style="padding-left:1rem">  The lowering fan-out (the 9 dogfood artifacts)</a><a href="#part-3-the-load-bearing-idea-two-graphs-two-checks-design-0015" style="padding-left:0.5rem">Part 3 — The load-bearing idea: two graphs, two checks (design 0015)</a><a href="#why-a-naive-design-fails-and-the-split-is-forced" style="padding-left:1rem">  Why a naive design fails (and the split is forced)</a><a href="#part-4-enforcement-is-proven-by-negative-tests" style="padding-left:0.5rem">Part 4 — Enforcement is proven by negative tests</a><a href="#how-the-research-backs-this-design" style="padding-left:1rem">  How the research backs this design</a><a href="#flashcards" style="padding-left:0.5rem">Flashcards</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/research/">research</a> / 2026-06-14-how-vaked-works-layer-by-layer</div>
+<h1>How Vaked works, layer by layer — under the compiler</h1>
+<h1 id="how-vaked-works-layer-by-layer-under-the-compiler">How Vaked works, layer by layer — under the compiler</h1>
+<p>Date: 2026-06-14 · Companion to the PR-pipeline dogfood research batch<br />
+(<code>claude/vaked-pr-pipeline-dogfood-pdl4sk</code>).</p>
+<blockquote>
+<p>One sentence: <strong>Vaked declares a typed capability graph; the compiler checks it;<br />
+lowering materializes it into the boring, inspectable artifacts that other<br />
+systems already know how to run.</strong> Nothing is enforced by Vaked itself at<br />
+runtime — Vaked's job is to make a graph <em>true before</em> it is allowed to become<br />
+artifacts.</p>
+</blockquote>
+<p>The project tagline is the layer map:</p>
+<blockquote>
+<p>Vaked declares. Nix materializes. OTP supervises. Zig enforces. eBPF testifies.<br />
+CrabCC indexes. Surfaces reveal.</p>
+</blockquote>
+<p>This document walks both stacks: (1) the <strong>compiler</strong> stack — what happens to a<br />
+<code>.vaked</code> file from text to artifacts — and (2) the <strong>runtime</strong> stack — what those<br />
+artifacts become once they leave the compiler. The dogfood example<br />
+(<code>pr-multimodel-pipeline.vaked</code>) is used throughout as the worked case.</p>
+<hr />
+<h2 id="part-1-the-compiler-stack-vakedc-text-artifacts">Part 1 — The compiler stack (<code>vakedc</code>: text → artifacts)</h2>
+<p><code>vakedc</code> is a stdlib-only Python front-end with three user-facing subcommands —<br />
+<code>parse</code>, <code>check</code>, <code>lower</code> — but six internal layers. Each layer has one job and<br />
+hands a stricter object to the next.</p>
+<div class="highlight"><pre><span></span><span class="nx">flowchart</span><span class="w"> </span><span class="nx">TD</span>
+<span class="w">    </span><span class="nx">SRC</span><span class="p">[</span><span class="s">&quot;`.vaked` source&lt;br/&gt;(UTF-8, NFC-normalized text)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">LEX</span><span class="p">[</span><span class="s">&quot;1 · lexer&lt;br/&gt;tokens (+ source spans)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">PARSE</span><span class="p">[</span><span class="s">&quot;2 · parser&lt;br/&gt;declaration items / AST&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">RESOLVE</span><span class="p">[</span><span class="s">&quot;3 · resolve · build_graph&lt;br/&gt;Labeled Property Graph (LPG)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">CHECK</span><span class="p">[</span><span class="s">&quot;4 · check (0011 type system)&lt;br/&gt;diagnostics list&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">LOWER</span><span class="p">[</span><span class="s">&quot;5 · lower (0012)&lt;br/&gt;pure emitters → files&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">EMIT</span><span class="p">[</span><span class="s">&quot;6 · _write_tree&lt;br/&gt;artifact tree on disk&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="nx">SRC</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">LEX</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">PARSE</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">RESOLVE</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">CHECK</span>
+<span class="w">    </span><span class="nx">CHECK</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="o">|</span><span class="s">&quot;any diagnostic ⇒ STOP&lt;br/&gt;(emit nothing, exit 1)&quot;</span><span class="o">|</span><span class="w"> </span><span class="nx">HALT</span><span class="p">[</span><span class="s">&quot;refuse to lower&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">CHECK</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="o">|</span><span class="s">&quot;clean (0 diagnostics)&quot;</span><span class="o">|</span><span class="w"> </span><span class="nx">LOWER</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">EMIT</span>
+<span class="w">    </span><span class="nx">EMIT</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">ART</span><span class="p">[</span><span class="s">&quot;flake.nix · gen/… · provenance.json&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">CHECK</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">fde68a</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="nx">b45309</span>
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">HALT</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">fecaca</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="nx">b91c1c</span>
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">EMIT</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">bbf7d0</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="mi">15803</span><span class="nx">d</span>
+</pre></div>
+
+<p><strong>Diagram 1 — the compiler pipeline.</strong> The load-bearing gate is the edge out of<br />
+<code>check</code>: lowering only runs on a graph with zero diagnostics (<code>lower</code> refuses to<br />
+emit a single byte otherwise, 0012 §1). "Compiles" therefore means "proven," not<br />
+"emitted then validated."</p>
+<h3 id="layer-1-lexer">Layer 1 — lexer</h3>
+<p>Reads UTF-8, enforces NFC normalization, produces tokens carrying byte spans.<br />
+A bad Unicode/lex error stops here with a source-mapped message. Spans are kept<br />
+because every later layer (diagnostics, provenance) points back to exact source<br />
+bytes.</p>
+<h3 id="layer-2-parser">Layer 2 — parser</h3>
+<p>Tokens → declaration items (the AST of <code>field</code>, <code>mesh</code>, <code>workflow</code>, <code>node</code>, <code>-&gt;</code><br />
+edges, config blocks). Grammar is <code>vaked/grammar/vaked-v0-plus.ebnf</code> (v0.3, 29<br />
+kinds). Grammar-first is a project rule: a new construct lands in the EBNF + an<br />
+example <em>before</em> any code.</p>
+<h3 id="layer-3-resolve-build_graph">Layer 3 — resolve (<code>build_graph</code>)</h3>
+<p>The AST becomes a <strong>Labeled Property Graph</strong>: nodes (declarations) and typed<br />
+edges (<code>-&gt;</code>). This is the canonical object Vaked reasons over — emittable as<br />
+canonical JSON (<code>parse --print</code>) or a SQLite graph DB. Two graphs of different<br />
+<em>kinds</em> can coexist in one file (this is the semantic split, Part 3).</p>
+<h3 id="layer-4-check-the-0011-type-system">Layer 4 — check (the 0011 type system)</h3>
+<p>The heart. Validates the LPG against the built-in capability catalog<br />
+(<code>vaked/schema/builtins.vaked</code>). Produces a sorted, deterministic diagnostics<br />
+list. Key checks for the dogfood:</p>
+<ul>
+<li><code>E-CAP-ATTENUATION</code> (0011 §4.4) — a <code>mesh</code> edge may only <em>delegate</em> capability<br />
+  that narrows; a delegate cannot be granted what the delegator lacks.</li>
+<li><code>E-WORKFLOW-CYCLE</code> — a <code>workflow</code> graph must be acyclic.</li>
+<li><code>E-WORKFLOW-DEPTH</code> — the workflow's critical path must not exceed <code>maxDepth</code>.</li>
+</ul>
+<h3 id="layer-5-lower-0012">Layer 5 — lower (0012)</h3>
+<p>Runs only on a clean graph. A set of <strong>pure</strong> emitters, each<br />
+<code>emit : (graph, nodes) -&gt; (files, provenance_entries)</code>. Pure = no IO, and the<br />
+same graph yields byte-identical artifacts (all ordering is structural, never<br />
+hash-map order). Determinism is what makes the provenance manifest meaningful.</p>
+<h3 id="layer-6-_write_tree">Layer 6 — <code>_write_tree</code></h3>
+<p>The only IO in lowering. Writes each emitted file at its relative path plus<br />
+<code>provenance.json</code> at the root: one entry per artifact/region, each keyed by a hash<br />
+of the <em>projection</em> (the slice of the graph that produced it). Change the source,<br />
+change the projection, change the hash — drift is detectable.</p>
+<hr />
+<h2 id="part-2-the-runtime-stack-artifacts-running-host">Part 2 — The runtime stack (artifacts → running host)</h2>
+<p>Lowering emits artifacts addressed to systems that already exist. Vaked owns the<br />
+<em>declaration</em>; each downstream layer owns its <em>mechanism</em>.</p>
+<div class="highlight"><pre><span></span><span class="nx">flowchart</span><span class="w"> </span><span class="nx">LR</span>
+<span class="w">    </span><span class="nx">V</span><span class="p">[</span><span class="s">&quot;**Vaked**&lt;br/&gt;declares&lt;br/&gt;(typed capability graph)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">N</span><span class="p">[</span><span class="s">&quot;**Nix**&lt;br/&gt;materializes&lt;br/&gt;`flake.nix`, NixOS modules&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">O</span><span class="p">[</span><span class="s">&quot;**OTP**&lt;br/&gt;supervises&lt;br/&gt;`gen/otp/*_sup.erl`&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">Z</span><span class="p">[</span><span class="s">&quot;**Zig**&lt;br/&gt;enforces&lt;br/&gt;per-fiber daemon config&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">E</span><span class="p">[</span><span class="s">&quot;**eBPF**&lt;br/&gt;testifies&lt;br/&gt;policy manifest + egress&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">C</span><span class="p">[</span><span class="s">&quot;**CrabCC**&lt;br/&gt;indexes&lt;br/&gt;`catalog.jsonl`&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="nx">S</span><span class="p">[</span><span class="s">&quot;**Surfaces**&lt;br/&gt;reveal&lt;br/&gt;operator views&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="nx">V</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">N</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">O</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">Z</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">E</span>
+<span class="w">    </span><span class="nx">Z</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">C</span>
+<span class="w">    </span><span class="nx">E</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">S</span>
+<span class="w">    </span><span class="nx">C</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">S</span>
+
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">V</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">ddd6fe</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="mi">6</span><span class="nx">d28d9</span>
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">E</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">bbf7d0</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="mi">15803</span><span class="nx">d</span>
+</pre></div>
+
+<p><strong>Diagram 2 — the runtime stack.</strong> Read left to right: a declaration becomes a<br />
+Nix-materialized host, OTP supervises single-purpose Zig enforcement daemons,<br />
+eBPF is the evidence layer, CrabCC indexes the symbols, surfaces reveal state to<br />
+operators. Each arrow is a lowering artifact, not a runtime call back into Vaked.</p>
+<h3 id="the-lowering-fan-out-the-9-dogfood-artifacts">The lowering fan-out (the 9 dogfood artifacts)</h3>
+<div class="highlight"><pre><span></span><span class="n">flowchart</span><span class="w"> </span><span class="n">TD</span>
+<span class="w">    </span><span class="n">G</span><span class="p">[</span><span class="s">&quot;validated graph&lt;br/&gt;(0 diagnostics)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A1</span><span class="p">[</span><span class="s">&quot;flake.nix&lt;br/&gt;(nix spine — ALWAYS)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A2</span><span class="p">[</span><span class="s">&quot;gen/workflow/pr_loop.json&lt;br/&gt;(DAG + precomputed depth)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A3</span><span class="p">[</span><span class="s">&quot;gen/otp/pr_pipeline_sup.erl&lt;br/&gt;(supervision tree)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A4</span><span class="p">[</span><span class="s">&quot;gen/eventd.json&lt;br/&gt;(replay contract)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A5</span><span class="p">[</span><span class="s">&quot;per-fiber Zig config&lt;br/&gt;(daemon enforcement)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A6</span><span class="p">[</span><span class="s">&quot;catalog.jsonl&lt;br/&gt;(CrabCC source index)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">G</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">A7</span><span class="p">[</span><span class="s">&quot;provenance.json&lt;br/&gt;(decl-level manifest)&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">G</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">fde68a</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="n">b45309</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">A7</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">e0e7ff</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="mi">4338</span><span class="n">ca</span>
+</pre></div>
+
+<p><strong>Diagram 3 — lowering fan-out.</strong> One checked graph, many addressees. <code>flake.nix</code><br />
+always emits (the spine that wires the rest); the <code>gen/</code> tree and provenance are<br />
+the per-construct projections.</p>
+<hr />
+<h2 id="part-3-the-load-bearing-idea-two-graphs-two-checks-design-0015">Part 3 — The load-bearing idea: two graphs, two checks (design 0015)</h2>
+<p>Two graphs live in any agent system, and conflating them is how capability models<br />
+rot. Vaked keeps them as distinct <em>kinds</em> with distinct edge meaning and distinct<br />
+checks.</p>
+<table>
+<thead>
+<tr>
+<th>Graph</th>
+<th>Kind</th>
+<th>Edge <code>a -&gt; b</code> means</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>authority</strong></td>
+<td><code>mesh</code></td>
+<td><code>a</code> <em>delegates</em> capability to <code>b</code></td>
+<td>attenuation (<code>E-CAP-ATTENUATION</code>)</td>
+</tr>
+<tr>
+<td><strong>ordering</strong></td>
+<td><code>workflow</code></td>
+<td><code>a</code> <em>sequences before</em> <code>b</code></td>
+<td>DAG + depth (<code>E-WORKFLOW-CYCLE</code>, <code>E-WORKFLOW-DEPTH</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Agents are declared <strong>once</strong>, in the mesh, where the operator delegates each an<br />
+attenuated grant set. Workflow steps merely <em>reference</em> those agents<br />
+(<code>agent = field.author</code>); steps never carry authority, so a workflow can never<br />
+widen what an agent may do — only ask it to act.</p>
+<div class="highlight"><pre><span></span><span class="nx">flowchart</span><span class="w"> </span><span class="nx">TB</span>
+<span class="w">    </span><span class="nx">subgraph</span><span class="w"> </span><span class="nx">AUTHORITY</span><span class="p">[</span><span class="s">&quot;mesh field — AUTHORITY (who may do what)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nx">direction</span><span class="w"> </span><span class="nx">TB</span>
+<span class="w">        </span><span class="nx">OP</span><span class="p">[</span><span class="s">&quot;operator&lt;br/&gt;(root grants)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nx">AU</span><span class="p">[</span><span class="s">&quot;author · claude-opus-4-8&lt;br/&gt;grant: fs.repo_rw&lt;br/&gt;(no publish)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nx">RV</span><span class="p">[</span><span class="s">&quot;reviewer · gemini-3.1-flash-lite&lt;br/&gt;grant: fs.repo_ro&lt;br/&gt;(cannot mutate)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nx">BR</span><span class="p">[</span><span class="s">&quot;broker&lt;br/&gt;grant: mcp.github_write&lt;br/&gt;(sole publisher)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nx">OP</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="o">|</span><span class="nx">delegate</span><span class="w"> </span><span class="err">⊆</span><span class="o">|</span><span class="w"> </span><span class="nx">AU</span>
+<span class="w">        </span><span class="nx">OP</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="o">|</span><span class="nx">delegate</span><span class="w"> </span><span class="err">⊆</span><span class="o">|</span><span class="w"> </span><span class="nx">RV</span>
+<span class="w">        </span><span class="nx">OP</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="o">|</span><span class="nx">delegate</span><span class="w"> </span><span class="err">⊆</span><span class="o">|</span><span class="w"> </span><span class="nx">BR</span>
+<span class="w">    </span><span class="nx">end</span>
+
+<span class="w">    </span><span class="nx">subgraph</span><span class="w"> </span><span class="nx">ORDERING</span><span class="p">[</span><span class="s">&quot;workflow pr_loop — ORDERING (in what sequence)&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nx">direction</span><span class="w"> </span><span class="nx">LR</span>
+<span class="w">        </span><span class="nx">C</span><span class="p">[</span><span class="s">&quot;collect&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">I</span><span class="p">[</span><span class="s">&quot;implement&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">R</span><span class="p">[</span><span class="s">&quot;review&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">P</span><span class="p">[</span><span class="s">&quot;publish&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">K</span><span class="p">[</span><span class="s">&quot;checkin&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="nx">I</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="o">-&gt;|</span><span class="nx">retries</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">N</span><span class="p">&lt;</span><span class="nx">br</span><span class="o">/</span><span class="p">&gt;(</span><span class="nx">fix</span><span class="o">-</span><span class="nx">loop</span><span class="p">,</span><span class="w"> </span><span class="nx">NOT</span><span class="w"> </span><span class="nx">a</span><span class="w"> </span><span class="nx">back</span><span class="o">-</span><span class="nx">edge</span><span class="p">)</span><span class="o">|</span><span class="w"> </span><span class="nx">I</span>
+<span class="w">    </span><span class="nx">end</span>
+
+<span class="w">    </span><span class="nx">AU</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="w"> </span><span class="nx">referenced</span><span class="w"> </span><span class="nx">by</span><span class="w"> </span><span class="p">.</span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">I</span>
+<span class="w">    </span><span class="nx">RV</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="w"> </span><span class="nx">referenced</span><span class="w"> </span><span class="nx">by</span><span class="w"> </span><span class="p">.</span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">R</span>
+<span class="w">    </span><span class="nx">BR</span><span class="w"> </span><span class="o">-</span><span class="p">.</span><span class="w"> </span><span class="nx">referenced</span><span class="w"> </span><span class="nx">by</span><span class="w"> </span><span class="p">.</span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">P</span>
+
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">AUTHORITY</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">ede9fe</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="mi">6</span><span class="nx">d28d9</span>
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">ORDERING</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">ecfdf5</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="mi">059669</span>
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">BR</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">fef9c3</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="nx">ca8a04</span>
+<span class="w">    </span><span class="nx">style</span><span class="w"> </span><span class="nx">I</span><span class="w"> </span><span class="nx">fill</span><span class="p">:</span><span class="err">#</span><span class="nx">dbeafe</span><span class="p">,</span><span class="nx">stroke</span><span class="p">:</span><span class="err">#</span><span class="mi">2563</span><span class="nx">eb</span>
+</pre></div>
+
+<p><strong>Diagram 4 — the semantic split for the dogfood.</strong> Top: the authority graph —<br />
+the operator delegates <em>narrowing</em> grants (<code>⊆</code>); the broker is the only node with<br />
+<code>mcp.github_write</code>. Bottom: the ordering graph — a straight DAG with the fix-loop<br />
+modeled as <strong>retries on <code>implement</code></strong>, never a <code>checkin -&gt; collect</code> back-edge.<br />
+Dotted edges show workflow steps <em>referencing</em> mesh agents without inheriting<br />
+their authority.</p>
+<h3 id="why-a-naive-design-fails-and-the-split-is-forced">Why a naive design fails (and the split is forced)</h3>
+<p>A naive <code>planner -&gt; coder</code> edge placed <em>inside a mesh</em> is <strong>rejected</strong> by<br />
+attenuation: the coder holds <code>fs.repo_rw</code>, which the planner cannot delegate<br />
+(it does not hold it). Correct — that edge was never a delegation, it was an<br />
+ordering. Ordering needed its own home. The split fell out of dogfooding.</p>
+<div class="highlight"><pre><span></span><span class="n">flowchart</span><span class="w"> </span><span class="n">LR</span>
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="n">BAD</span><span class="p">[</span><span class="s">&quot;WRONG: ordering edge inside a mesh&quot;</span><span class="p">]</span>
+<span class="w">        </span><span class="n">PL</span><span class="p">[</span><span class="s">&quot;planner&lt;br/&gt;(no fs.repo_rw)&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;|</span><span class="s">&quot;-&gt; (read as delegate)&quot;</span><span class="o">|</span><span class="w"> </span><span class="n">CO</span><span class="p">[</span><span class="s">&quot;coder&lt;br/&gt;(holds fs.repo_rw)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="kd">end</span>
+<span class="w">    </span><span class="n">BAD</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">X</span><span class="p">([</span><span class="s">&quot;E-CAP-ATTENUATION&lt;br/&gt;planner cannot delegate&lt;br/&gt;what it does not hold&quot;</span><span class="p">])</span>
+
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">BAD</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">fee2e2</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="n">b91c1c</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">X</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">fecaca</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="mi">991</span><span class="n">b1b</span>
+</pre></div>
+
+<p><strong>Diagram 5 — the rejected design.</strong> This is the mistake the two-graph split<br />
+prevents: an ordering relationship miswritten as a delegation, caught by<br />
+attenuation at compile time.</p>
+<hr />
+<h2 id="part-4-enforcement-is-proven-by-negative-tests">Part 4 — Enforcement is proven by negative tests</h2>
+<p>Vaked's claim is not "it ran" but "the bad versions are rejected." Two mutations<br />
+of the dogfood graph each trip a distinct checker error, with no artifacts<br />
+written.</p>
+<div class="highlight"><pre><span></span><span class="n">flowchart</span><span class="w"> </span><span class="n">TD</span>
+<span class="w">    </span><span class="n">OK</span><span class="p">[</span><span class="s">&quot;pr_loop as written&lt;br/&gt;(DAG, depth 5, maxDepth ≥ 5)&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">check</span><span class="o">|</span><span class="w"> </span><span class="n">PASS</span><span class="p">[</span><span class="s">&quot;0 diagnostics → lower → 9 artifacts&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="n">M1</span><span class="p">[</span><span class="s">&quot;mutation A:&lt;br/&gt;add edge checkin -&gt; collect&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">check</span><span class="o">|</span><span class="w"> </span><span class="n">CYC</span><span class="p">[</span><span class="s">&quot;E-WORKFLOW-CYCLE&lt;br/&gt;(back-edge ⇒ not a DAG)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">M2</span><span class="p">[</span><span class="s">&quot;mutation B:&lt;br/&gt;set maxDepth = 3&lt;br/&gt;(against the depth-5 chain)&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;|</span><span class="n">check</span><span class="o">|</span><span class="w"> </span><span class="n">DEP</span><span class="p">[</span><span class="s">&quot;E-WORKFLOW-DEPTH&lt;br/&gt;(critical path &gt; maxDepth)&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="n">CYC</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">NONE</span><span class="p">[</span><span class="s">&quot;nothing written (exit 1)&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">DEP</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">NONE</span>
+
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">PASS</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">bbf7d0</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="mi">15803</span><span class="n">d</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">CYC</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">fecaca</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="n">b91c1c</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">DEP</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">fecaca</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="n">b91c1c</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">NONE</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">fee2e2</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="mi">991</span><span class="n">b1b</span>
+</pre></div>
+
+<p><strong>Diagram 6 — the enforcement proof.</strong> The same source, mutated two ways, fails<br />
+two different checks. Because <code>lower</code> refuses on any diagnostic, a graph that<br />
+fails to type-check can never become artifacts — the safety property is at the<br />
+compiler boundary, not at runtime.</p>
+<h3 id="how-the-research-backs-this-design">How the research backs this design</h3>
+<p>The two companion deep-research reports in this batch validate the two graphs<br />
+against the 2025–2026 literature:</p>
+<div class="highlight"><pre><span></span><span class="n">flowchart</span><span class="w"> </span><span class="n">LR</span>
+<span class="w">    </span><span class="n">R1</span><span class="p">[</span><span class="s">&quot;Report A&lt;br/&gt;capability attenuation /&lt;br/&gt;least-privilege&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">AUTH</span><span class="p">[</span><span class="s">&quot;validates&lt;br/&gt;**mesh** + broker&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">R2</span><span class="p">[</span><span class="s">&quot;Report B&lt;br/&gt;multi-model author/&lt;br/&gt;reviewer loops&quot;</span><span class="p">]</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">ORD</span><span class="p">[</span><span class="s">&quot;validates&lt;br/&gt;**workflow** + retries&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="n">AUTH</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">F1</span><span class="p">[</span><span class="s">&quot;attenuation-only delegation,&lt;br/&gt;sole-publisher broker,&lt;br/&gt;gate the egress leg&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="n">ORD</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">F2</span><span class="p">[</span><span class="s">&quot;cross-model review beats self-review;&lt;br/&gt;advisory read-only reviewer avoids&lt;br/&gt;cheap-judge rubber-stamping;&lt;br/&gt;fix-loops as bounded retries, not cycles&quot;</span><span class="p">]</span>
+
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">R1</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">ede9fe</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="mi">6</span><span class="n">d28d9</span>
+<span class="w">    </span><span class="n">style</span><span class="w"> </span><span class="n">R2</span><span class="w"> </span><span class="n">fill</span><span class="o">:</span><span class="err">#</span><span class="n">ecfdf5</span><span class="p">,</span><span class="n">stroke</span><span class="o">:</span><span class="err">#</span><span class="mo">05</span><span class="mi">9669</span>
+</pre></div>
+
+<p><strong>Diagram 7 — research ↔ design map.</strong> Report A's "narrow at every hop + single<br />
+side-effect broker + gate egress" maps onto the <code>mesh</code> + <code>E-CAP-ATTENUATION</code> +<br />
+sole <code>mcp.github_write</code> broker. Report B's "never self-grade + advisory cheap<br />
+reviewer + bounded retries not back-edges" maps onto the <code>workflow</code> DAG with a<br />
+different-family reviewer and <code>retries</code> on <code>implement</code>.</p>
+<hr />
+<h2 id="flashcards">Flashcards</h2>
+<p>Self-test the model. Cover the answer; recall before reading.</p>
+<p><strong>Q1.</strong> What does "Vaked compiles" actually guarantee?<br />
+<strong>A1.</strong> That the graph type-checked with zero diagnostics. <code>lower</code> refuses to emit<br />
+a single byte if the checker reports anything (0012 §1), so artifacts only exist<br />
+for proven graphs.</p>
+<p><strong>Q2.</strong> Name the six internal compiler layers in order.<br />
+<strong>A2.</strong> lexer → parser → resolve (<code>build_graph</code>/LPG) → check (0011) → lower (0012)<br />
+→ <code>_write_tree</code>.</p>
+<p><strong>Q3.</strong> What are the two graph kinds and what does an edge mean in each?<br />
+<strong>A3.</strong> <code>mesh</code> = authority: <code>a -&gt; b</code> means <code>a</code> <em>delegates</em> capability to <code>b</code>.<br />
+<code>workflow</code> = ordering: <code>a -&gt; b</code> means <code>a</code> runs <em>before</em> <code>b</code>.</p>
+<p><strong>Q4.</strong> Which check guards each graph?<br />
+<strong>A4.</strong> <code>mesh</code>: <code>E-CAP-ATTENUATION</code> (delegation may only narrow). <code>workflow</code>:<br />
+<code>E-WORKFLOW-CYCLE</code> (must be acyclic) and <code>E-WORKFLOW-DEPTH</code> (critical path ≤<br />
+<code>maxDepth</code>).</p>
+<p><strong>Q5.</strong> Why can't a workflow step widen an agent's authority?<br />
+<strong>A5.</strong> Agents are declared once in the mesh with attenuated grants; workflow<br />
+steps only <em>reference</em> them (<code>agent = field.author</code>) and carry no authority.</p>
+<p><strong>Q6.</strong> Why is the fix-loop modeled as <code>retries</code> on <code>implement</code> instead of a<br />
+<code>checkin -&gt; collect</code> back-edge?<br />
+<strong>A6.</strong> A back-edge makes the graph cyclic → <code>E-WORKFLOW-CYCLE</code>. Bounded retries<br />
+keep the workflow a checked DAG with a finite critical path; the literature<br />
+(Agentproof, Temporal) agrees fix-loops should be bounded retries, not cycles.</p>
+<p><strong>Q7.</strong> What makes the broker special in the authority graph?<br />
+<strong>A7.</strong> It is the <em>sole publisher</em> — the only node granted <code>mcp.github_write</code>.<br />
+Author and reviewer hold <code>fs.*</code> only, so side effects funnel through one node<br />
+(the single-writer pattern from the prompt-injection-defense literature).</p>
+<p><strong>Q8.</strong> Why must lowering emitters be pure?<br />
+<strong>A8.</strong> So the same graph yields byte-identical artifacts. Determinism is what<br />
+makes the <code>provenance.json</code> hashes (keyed on each artifact's source projection)<br />
+meaningful for drift detection.</p>
+<p><strong>Q9.</strong> Map the runtime tagline to mechanisms.<br />
+<strong>A9.</strong> Vaked declares → Nix materializes (<code>flake.nix</code>) → OTP supervises<br />
+(<code>*_sup.erl</code>) → Zig enforces (per-fiber config) → eBPF testifies (policy +<br />
+egress) → CrabCC indexes (<code>catalog.jsonl</code>) → Surfaces reveal (operator views).</p>
+<p><strong>Q10.</strong> What two mutations prove enforcement, and what does each trip?<br />
+<strong>A10.</strong> Adding <code>checkin -&gt; collect</code> ⇒ <code>E-WORKFLOW-CYCLE</code>; setting <code>maxDepth = 3</code><br />
+against the depth-5 chain ⇒ <code>E-WORKFLOW-DEPTH</code>. Both write nothing (exit 1).</p>
+<p><strong>Q11.</strong> Why does a naive <code>planner -&gt; coder</code> mesh edge get rejected?<br />
+<strong>A11.</strong> The planner does not hold <code>fs.repo_rw</code>, so it cannot delegate it →<br />
+<code>E-CAP-ATTENUATION</code>. The edge was ordering, not delegation — which is exactly<br />
+why ordering needs its own <code>workflow</code> graph.</p>
+<p><strong>Q12.</strong> What is the single research-backed reason to gate egress (the broker /<br />
+<code>agent_guardd</code> membrane)?<br />
+<strong>A12.</strong> It removes one leg of the "lethal trifecta" (private data + untrusted<br />
+input + external comms). With no exfiltration channel, a successful prompt<br />
+injection has nowhere to send stolen data — even if the model obeys it.</p>
+<p><strong>Q13.</strong> Does the cheap reviewer being weaker than the author undermine the<br />
+pipeline?<br />
+<strong>A13.</strong> No, because the reviewer is <em>advisory and read-only</em> (<code>fs.repo_ro</code>, no<br />
+publish grant). It informs; the broker decides. That structure sidesteps the<br />
+"cheap judge rubber-stamps" failure mode the routing literature warns about.</p>
+<p><strong>Q14.</strong> Where is Vaked's safety property enforced — compile time or runtime?<br />
+<strong>A14.</strong> Compile time. The bad graphs never become artifacts. This is ahead of<br />
+shipping agent frameworks, which bound cycles/depth only at runtime.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/research/2026-06-14-how-vaked-works-layer-by-layer.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0016 — Substrate & distribution candidates (triage) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#spark" style="padding-left:0.5rem">Spark</a><a href="#triage" style="padding-left:0.5rem">Triage</a><a href="#the-pattern-worth-stating-once" style="padding-left:0.5rem">The pattern worth stating once</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0016-substrate-candidates</div>
+<h1>0016 — Substrate & distribution candidates (triage)</h1>
+<h1 id="0016-substrate-distribution-candidates-triage">0016 — Substrate &amp; distribution candidates (triage)</h1>
+<p>Status: <strong>reference / triage</strong> (2026-06-12) · Series: language design notes ·<br />
+Issues <a href="https://github.com/peterlodri-sec/vaked-base/issues/50">#50</a><br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/51">#51</a><br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/52">#52</a></p>
+<h2 id="spark">Spark</h2>
+<p>A second owner technology dump (the first became<br />
+<a href="./0013-mlir-topology-compilation.md">0013</a>): fourteen substrate, build, and<br />
+distribution rows (SPIFFE/SPIRE and NATS are one candidate sharing #52;<br />
+distroless OCI rides #50) for the agentfield runtime. As with 0013, the value is<br />
+in the <strong>anchoring</strong> — several of these name things the architecture already<br />
+has, and saying so prevents parallel inventions. Verdicts: <strong>slot</strong> (a design<br />
+issue is open), <strong>reference</strong> (recorded here + the<br />
+<a href="./0003-reference-map.md">reference map</a>; revisit at its named trigger), or<br />
+<strong>have-it</strong> (exists under another name — do not rebuild).</p>
+<h2 id="triage">Triage</h2>
+<table>
+<thead>
+<tr>
+<th>Candidate</th>
+<th>Anchor in this repo</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Wasmtime / Component Model</strong></td>
+<td>worker isolation with instant linear-memory snapshots (↔ arena checkpoints #16, eventd phase 4) and instruction-metered budgets (↔ <code>budget</code> #28, enforced mathematically rather than by broker policy); a third worker backend after BEAM port and Zig daemon</td>
+<td><strong>slot → #50</strong> — designed: <a href="../superpowers/specs/2026-06-13-wasm-worker-isolation-design.md">wasm worker isolation</a> (sandboxd backend, <code>budget.fuel</code> metering, raw→arena snapshots)</td>
+</tr>
+<tr>
+<td><strong>NixOps / Colmena</strong></td>
+<td>the direct consumer of the <code>host</code> schema's <code>deploy</code> field (#28 slice 3): one declarative <code>colmena apply</code> over the emitted <code>nixosModules</code> for the whole multi-runtime topology</td>
+<td><strong>slot → #51</strong> (the nearest-term row)</td>
+</tr>
+<tr>
+<td><strong>SPIFFE/SPIRE</strong></td>
+<td>transport-layer identity: <code>DependencyRegistration</code> frames validated by mTLS <em>before parsing</em>; candidate canonical AgentId for RFC 0005's name→AgentId roster question</td>
+<td><strong>slot → #52</strong> — designed: <a href="../../protocol/rfcs/0006-transport-identity-distribution.md">RFC 0006</a></td>
+</tr>
+<tr>
+<td><strong>NATS</strong></td>
+<td><code>agent.*.rewind</code> wildcard fan-out for cross-node <code>RewindEvent</code> distribution; KV/object store as retained-accumulator transport (RFC 0004 §4). Boundary: notifications and proofs only — the hash-chained log stays the single source of truth</td>
+<td><strong>slot → #52</strong> — designed: <a href="../../protocol/rfcs/0006-transport-identity-distribution.md">RFC 0006</a> §2</td>
+</tr>
+<tr>
+<td><strong>Temporal / effect systems</strong></td>
+<td><strong>have-it</strong>: durable execution = the eventd fold + the supervisord <code>workflow_engine</code> — "virtual threads sleeping for days" and crash-resume follow from state-is-a-fold plus the engine's logged step events (an inference from the designs, not yet a stated requirement in them)</td>
+<td>have-it</td>
+</tr>
+<tr>
+<td><strong>Determ-SR</strong></td>
+<td><strong>have-it</strong>: deterministic state recovery = the content-addressed Nix store (environments) + RFC 0004 §6 cold-start verification (state) — the two layers this names are both specified</td>
+<td>have-it</td>
+</tr>
+<tr>
+<td><strong>crane / dream2nix</strong></td>
+<td>granular per-component Nix caching when <code>gen/</code> artifacts become <em>built</em> (Zig daemons, WASM components): changing one agent's skill rebuilds one derivation, not the cluster</td>
+<td>reference; trigger = first compiled-agent build (#15-era)</td>
+</tr>
+<tr>
+<td><strong>Content-Addressed Nix</strong></td>
+<td>CA derivations mirror immutable increments: identical MLIR/lowering output ⇒ identical store path ⇒ fleet-wide no-op deploy. Experimental Nix feature</td>
+<td>reference; trigger = #51 deploy loop maturing</td>
+</tr>
+<tr>
+<td><strong>TVM / Relay</strong></td>
+<td>below the 0013 stack: AOT-compile local model-inference tools to hardware-specific code inside the Nix build</td>
+<td>reference; trigger = first local-inference fiber</td>
+</tr>
+<tr>
+<td><strong>Linear / affine types</strong></td>
+<td>use-exactly-once / at-most-once resources in the 0011 type system — natural fit for one-shot capability grants and consumed artifacts</td>
+<td>reference; trigger = 0011 revision</td>
+</tr>
+<tr>
+<td><strong>Polyhedral compilation</strong></td>
+<td>scheduling cascading-rewind recovery (A→B→C) for memory locality inside MLIR</td>
+<td>reference; trigger = 0013 Stage 1</td>
+</tr>
+<tr>
+<td><strong>CCN / NDN</strong></td>
+<td>anchors as <em>content names</em> (<code>/agent_alpha/step_15/&lt;hash&gt;</code>): a rewind invalidates the name in the network fabric itself — RFC 0004's invariants pushed into routing</td>
+<td>reference; trigger = #52 outgrowing point-to-point</td>
+</tr>
+<tr>
+<td><strong>Distroless Nix OCI</strong></td>
+<td>immutable, shell-less, &lt;50MB images for the <code>container</code> kind's lowering</td>
+<td>reference (bundled in #50 as the conservative isolation path)</td>
+</tr>
+<tr>
+<td><strong>ZKP / RISC Zero</strong></td>
+<td>zk-STARK alongside a <code>RewindEvent</code>: "my new tip is un-drifted" provable across org boundaries without exposing logs — extends RFC 0004 §4 proof retention beyond trusting the chain holder</td>
+<td>reference; trigger = first cross-boundary consumer</td>
+</tr>
+</tbody>
+</table>
+<h2 id="the-pattern-worth-stating-once">The pattern worth stating once</h2>
+<p>Every "verdict: have-it" above resolves to the same two foundations — the<br />
+hash-chained log (state is a fold; eventd design + RFC 0004) and content addressing<br />
+(environments and graph nodes; Nix store + arena). Candidates should be<br />
+evaluated by what they add <em>on top of</em> those two, never as replacements:<br />
+Wasmtime adds a snapshotable compute substrate, NATS adds fan-out, SPIFFE adds<br />
+transport identity, ZKP adds third-party verifiability. Anything that proposes<br />
+a second source of truth is automatically wrong here.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0016-substrate-candidates.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

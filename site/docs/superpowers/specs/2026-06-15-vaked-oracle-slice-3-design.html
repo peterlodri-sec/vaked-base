@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle slice 3 — agentic reverser (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#goal" style="padding-left:0.5rem">Goal</a><a href="#background-the-seam-slice-12-on-originmain" style="padding-left:0.5rem">Background — the seam (slice 1/2, on `origin/main`)</a><a href="#crabcc-capability-verified-2026-06-15-crabcc-630" style="padding-left:0.5rem">crabcc capability (verified 2026-06-15, crabcc 6.3.0)</a><a href="#architecture" style="padding-left:0.5rem">Architecture</a><a href="#1-parameterize-the-loop-brain-backward-compatible" style="padding-left:1rem">  1. Parameterize the loop brain (backward-compatible)</a><a href="#2-action-space" style="padding-left:1rem">  2. Action space</a><a href="#3-agent-brain-toolsoracleagentpy" style="padding-left:1rem">  3. Agent brain — `tools/oracle/agent.py`</a><a href="#4-investigate-toolsoracleinvestigatepy" style="padding-left:1rem">  4. Investigate — `tools/oracle/investigate.py`</a><a href="#5-loop-handling-of-investigate-the-only-new-loop-branch" style="padding-left:1rem">  5. Loop handling of `investigate` (the only new loop branch)</a><a href="#6-determinism-replay-audit" style="padding-left:1rem">  6. Determinism / replay / audit</a><a href="#7-safety" style="padding-left:1rem">  7. Safety</a><a href="#data-shapes" style="padding-left:0.5rem">Data shapes</a><a href="#testing-toolsoracletestoraclepy-extend-pure-python-m3-safe" style="padding-left:0.5rem">Testing — `tools/oracle/test_oracle.py` (extend; pure-Python, M3-safe)</a><a href="#cli-toolsoracleoraclepy" style="padding-left:0.5rem">CLI — `tools/oracle/oracle.py`</a><a href="#on-box-acceptance-dev-cx53-box-gated" style="padding-left:0.5rem">On-box acceptance (dev-cx53 — BOX-GATED)</a><a href="#out-of-scope-slice-45-devtodo" style="padding-left:0.5rem">Out of scope (→ slice 4/5, `.DEV.TODO`)</a><a href="#constraints" style="padding-left:0.5rem">Constraints</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-15-vaked-oracle-slice-3-design</div>
+<h1>vaked-oracle slice 3 — agentic reverser (design)</h1>
+<h1 id="vaked-oracle-slice-3-agentic-reverser-design">vaked-oracle slice 3 — agentic reverser (design)</h1>
+<p><strong>Date:</strong> 2026-06-15<br />
+<strong>Branch:</strong> <code>feat/oracle-agentic-reverser</code> (worktree <code>.worktrees/oracle-slice3</code>, off <code>origin/main</code> <code>9f092fe</code>)<br />
+<strong>Status:</strong> approved design → implementation plan next</p>
+<h2 id="goal">Goal</h2>
+<p>Replace the oracle loop's hardcoded decision policy with an <strong>LLM-driven brain</strong><br />
+that adaptively picks the next action from loop state, plus a hybrid <strong>investigate</strong><br />
+action that queries read-only structural knowledge (crabcc over the C ground-truth<br />
+source, binary tools as fallback). Every action stays a recorded, replayable<br />
+primitive — "reverser_ai-style" planning, vaked-style audit. One sentence: <em>the<br />
+decompiler-LLM stops following a fixed round-robin and starts deciding what to<br />
+attack, refine, or investigate next — but the action layer remains deterministic.</em></p>
+<h2 id="background-the-seam-slice-12-on-originmain">Background — the seam (slice 1/2, on <code>origin/main</code>)</h2>
+<p><code>tools/oracle/loop.run_loop(...)</code> is already a policy-driven loop that <strong>logs every<br />
+decision to the ledger</strong>:</p>
+<div class="highlight"><pre><span></span><span class="n">state</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">LoopState</span><span class="p">(</span><span class="n">functions</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">iters</span><span class="p">,</span> <span class="n">budget_iters</span><span class="p">)</span>
+<span class="n">act</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>                       <span class="c1"># {&quot;action&quot;: ..., &quot;fn&quot;: ...}</span>
+<span class="n">ledger_</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;decision&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">act</span><span class="p">,</span> <span class="s2">&quot;iter&quot;</span><span class="p">:</span> <span class="n">iters</span><span class="p">})</span>
+</pre></div>
+
+<p><code>policy.next_action</code> (pure) is a fixed round-robin: decompile each fn once → refine<br />
+any below <code>FIDELITY_THRESHOLD=0.75</code> (≤ <code>MAX_REFINE=2</code>) → finalize. Slice 3 swaps<br />
+this brain. Producers (<code>decompile</code>, <code>refine</code>, <code>dynamic</code>) are injected callables;<br />
+findings are grounded to the aegis kernel via slice-2 <code>dogfood_bridge</code>.</p>
+<h2 id="crabcc-capability-verified-2026-06-15-crabcc-630">crabcc capability (verified 2026-06-15, crabcc 6.3.0)</h2>
+<p>Empirical test: <code>.c</code> files index with full symbol/signature/caller data; <code>.cpp</code><br />
+files are <code>skipped_unsupported</code>. <strong>crabcc indexes C, not C++.</strong> Consequence for the<br />
+llama.cpp ground truth:</p>
+<ul>
+<li><strong>Indexed:</strong> the ggml tensor core (<code>ggml.c</code>, <code>ggml-*.c</code>) and C headers<br />
+  (<code>llama.h</code>, <code>ggml.h</code>) → full symbols + the <strong>C-API signatures</strong> of functions like<br />
+<code>llama_decode</code> (declared in the C header even though implemented in C++).</li>
+<li><strong>Not indexed:</strong> C++ implementation bodies (<code>llama-*.cpp</code>, <code>src/*.cpp</code>).</li>
+</ul>
+<p>So <code>investigate</code> is most powerful for C/ggml targets + any C-API signature; for<br />
+C++-only bodies it degrades to binary tools or the decompiled output. This steers<br />
+slice 3 toward the C surface (and dovetails with slice 5's ggml hot-path).</p>
+<h2 id="architecture">Architecture</h2>
+<h3 id="1-parameterize-the-loop-brain-backward-compatible">1. Parameterize the loop brain (backward-compatible)</h3>
+<p><code>run_loop</code> gains two optional params; <strong>defaults preserve slice-1/2 behavior exactly</strong>:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">run_loop</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">functions</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">decompiler_meta</span><span class="p">,</span> <span class="n">ledger_</span><span class="p">,</span>
+             <span class="n">decompile</span><span class="p">,</span> <span class="n">refine</span><span class="p">,</span> <span class="n">dynamic</span><span class="p">,</span> <span class="n">budget_iters</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">control_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">decide</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">investigate</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="n">decide</span> <span class="o">=</span> <span class="n">decide</span> <span class="ow">or</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span>          <span class="c1"># deterministic by default</span>
+    <span class="o">...</span>
+</pre></div>
+
+<p>When <code>decide is policy.next_action</code> (default) and <code>investigate is None</code>, the loop is<br />
+identical to today (all 41 existing tests stay green). When an agent brain is<br />
+injected, the loop additionally handles the <code>investigate</code> action.</p>
+<h3 id="2-action-space">2. Action space</h3>
+<p><code>{decompile fn, refine fn, investigate &lt;query&gt;, finalize}</code>. The agent additionally<br />
+chooses <strong>which</strong> function (order is no longer fixed) and <strong>whether</strong> to refine or<br />
+finalize based on fidelity feedback. (A separate dynamic-<code>probe</code> action is deferred<br />
+to slice 5 — <code>decompile</code> already runs <code>dynamic(fn)</code> as today.)</p>
+<p><code>decompile</code>/<code>refine</code> targets must be in the provided <code>functions</code> list (bounded);<br />
+<code>investigate</code> queries are free-form read-only. <code>investigate</code> counts against<br />
+<code>budget_iters</code> like any tick (no unbounded investigation).</p>
+<h3 id="3-agent-brain-toolsoracleagentpy">3. Agent brain — <code>tools/oracle/agent.py</code></h3>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">make_policy</span><span class="p">(</span><span class="n">llm_call</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">max_refine</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a decide(state) -&gt; action using an injected llm_call(prompt)-&gt;str.</span>
+<span class="sd">    Falls back to policy.next_action on any parse/validation failure.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decide</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+        <span class="n">prompt</span> <span class="o">=</span> <span class="n">build_prompt</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">max_refine</span><span class="o">=</span><span class="n">max_refine</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">parse_action</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>        <span class="c1"># validated; raises on bad shape</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>                          <span class="c1"># noqa: BLE001 — any failure ⇒ deterministic</span>
+            <span class="k">return</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">decide</span>
+</pre></div>
+
+<ul>
+<li><code>build_prompt(state, ...)</code> — compact rendering of: target, the function list, each<br />
+  function's current <code>{fidelity, refine_passes, has_dynamic}</code>, recent observations<br />
+  (last N), the action menu + the threshold/max_refine rules. Asks for <strong>one JSON<br />
+  action</strong> and a short <code>rationale</code>.</li>
+<li><code>parse_action(raw, state)</code> — extract the first JSON object; validate <code>action ∈
+  {decompile, refine, investigate, finalize}</code>; <code>fn ∈ state.functions</code> for<br />
+  decompile/refine; <code>query</code> present for investigate. Returns the normalized action<br />
+  dict (incl. <code>rationale</code>). Raises <code>ValueError</code> on any violation → fallback.</li>
+<li><code>LiteLLMClient(endpoint="http://127.0.0.1:4000/v1/chat/completions", model, key)</code> —<br />
+  thin OpenAI-chat POST, <code>temperature=0</code> (replayable), returns the message content.<br />
+  Mirrors revdev's <code>oq</code> helper. <strong>Injectable</strong> — tests pass a fake <code>llm_call</code>.</li>
+</ul>
+<h3 id="4-investigate-toolsoracleinvestigatepy">4. Investigate — <code>tools/oracle/investigate.py</code></h3>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">make_investigator</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">source_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">binary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crabcc</span><span class="o">=</span><span class="s2">&quot;crabcc&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">callable</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return investigate(query) -&gt; observation. crabcc-preferred (C subset of the</span>
+<span class="sd">    ground-truth source), binary-tool fallback, graceful &#39;none&#39; if neither works.&quot;&quot;&quot;</span>
+</pre></div>
+
+<ul>
+<li>Query shape: <code>{"kind": "sym"|"callers"|"refs"|"outline"|"fuzzy", "name": "..."}</code>.</li>
+<li><strong>crabcc provider:</strong> shell <code>crabcc --root &lt;source_root&gt; lookup &lt;kind&gt; &lt;name&gt;</code> (JSON<br />
+  out), trimmed to a compact observation. Requires a built index (<code>crabcc index
+  build</code> at acceptance time).</li>
+<li><strong>binutils fallback:</strong> <code>nm</code>/<code>objdump</code>/<code>strings</code> over <code>binary</code> for <code>sym</code>/<code>fuzzy</code><br />
+  (symbol presence/addr); <code>callers</code>/<code>refs</code>/<code>outline</code> → <code>not_available</code> for binary-only.</li>
+<li><strong>Observation:</strong> <code>{"query": &lt;query&gt;, "provider": "crabcc"|"binutils"|"none",
+  "result": &lt;compact&gt;}</code>. Never raises — degrades to <code>provider:"none"</code>.</li>
+<li>Injectable — tests pass a fake investigator.</li>
+</ul>
+<h3 id="5-loop-handling-of-investigate-the-only-new-loop-branch">5. Loop handling of <code>investigate</code> (the only new loop branch)</h3>
+<div class="highlight"><pre><span></span><span class="k">elif</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;action&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;investigate&quot;</span><span class="p">:</span>
+    <span class="n">obs</span> <span class="o">=</span> <span class="n">investigate</span><span class="p">(</span><span class="n">act</span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">])</span> <span class="k">if</span> <span class="n">investigate</span> <span class="k">else</span> <span class="p">{</span><span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">]}</span>
+    <span class="n">observations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span>
+    <span class="n">ledger_</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;observation&quot;</span><span class="p">,</span> <span class="s2">&quot;iter&quot;</span><span class="p">:</span> <span class="n">iters</span><span class="p">,</span> <span class="o">**</span><span class="n">obs</span><span class="p">})</span>
+</pre></div>
+
+<p><code>observations</code> is threaded into <code>LoopState</code> so the agent sees prior results. Decision<br />
+logging already records the chosen action; for agentic ticks the appended decision<br />
+also carries <code>rationale</code> + <code>model</code>.</p>
+<h3 id="6-determinism-replay-audit">6. Determinism / replay / audit</h3>
+<ul>
+<li><code>temperature=0</code> for all agent decisions.</li>
+<li>The ledger records, per tick: <code>{kind:decision, action, fn?/query?, rationale?,
+  model?, iter}</code> and <code>{kind:observation, ...}</code>. The <strong>recorded run replays from the<br />
+  ledger</strong> (the actions are the record; no LLM re-call needed to verify the chain).</li>
+<li>ralphcore budget (<code>budget_iters</code>) + <code>control_path</code> <code>{"stop":true}</code> preserved.</li>
+<li>The assembled finding is unchanged in shape (slice-2 ground still applies).</li>
+</ul>
+<h3 id="7-safety">7. Safety</h3>
+<p>Actions are a bounded menu, not arbitrary shell — the agent cannot execute code, only<br />
+select among recorded primitives + read-only investigate. revdev stays unprivileged<br />
+(eBPF via the watcher socket only); crabcc + binary tools are read-only; target is<br />
+FOSS. No untrusted-binary sandbox needed for slice 3 (known target).</p>
+<h2 id="data-shapes">Data shapes</h2>
+<div class="highlight"><pre><span></span><span class="k">action</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="ss">&quot;action&quot;</span><span class="err">:</span><span class="ss">&quot;decompile&quot;</span><span class="p">,</span><span class="ss">&quot;fn&quot;</span><span class="err">:</span><span class="nf">str</span><span class="p">,</span><span class="ss">&quot;rationale&quot;</span><span class="err">:</span><span class="nf">str</span><span class="vm">?</span><span class="err">}</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="err">{</span><span class="ss">&quot;action&quot;</span><span class="err">:</span><span class="ss">&quot;refine&quot;</span><span class="p">,</span><span class="ss">&quot;fn&quot;</span><span class="err">:</span><span class="nf">str</span><span class="p">,</span><span class="ss">&quot;rationale&quot;</span><span class="err">:</span><span class="nf">str</span><span class="vm">?</span><span class="err">}</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="err">{</span><span class="ss">&quot;action&quot;</span><span class="err">:</span><span class="ss">&quot;investigate&quot;</span><span class="p">,</span><span class="ss">&quot;query&quot;</span><span class="err">:{</span><span class="ss">&quot;kind&quot;</span><span class="err">:</span><span class="nf">str</span><span class="p">,</span><span class="ss">&quot;name&quot;</span><span class="err">:</span><span class="nf">str</span><span class="err">}</span><span class="p">,</span><span class="ss">&quot;rationale&quot;</span><span class="err">:</span><span class="nf">str</span><span class="vm">?</span><span class="err">}</span>
+<span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="err">{</span><span class="ss">&quot;action&quot;</span><span class="err">:</span><span class="ss">&quot;finalize&quot;</span><span class="p">,</span><span class="ss">&quot;rationale&quot;</span><span class="err">:</span><span class="nf">str</span><span class="vm">?</span><span class="err">}</span>
+<span class="n">observation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">{</span><span class="ss">&quot;query&quot;</span><span class="err">:{</span><span class="p">...</span><span class="err">}</span><span class="p">,</span><span class="w"> </span><span class="ss">&quot;provider&quot;</span><span class="err">:</span><span class="ss">&quot;crabcc&quot;</span><span class="o">|</span><span class="ss">&quot;binutils&quot;</span><span class="o">|</span><span class="ss">&quot;none&quot;</span><span class="p">,</span><span class="w"> </span><span class="ss">&quot;result&quot;</span><span class="err">:</span><span class="o">&lt;</span><span class="n">json</span><span class="o">&gt;</span><span class="err">}</span>
+<span class="n">LoopState</span><span class="w">  </span><span class="o">+=</span><span class="w"> </span><span class="nl">observations</span><span class="p">:</span><span class="w"> </span><span class="n">list</span><span class="o">[</span><span class="n">dict</span><span class="o">]</span>
+</pre></div>
+
+<h2 id="testing-toolsoracletest_oraclepy-extend-pure-python-m3-safe">Testing — <code>tools/oracle/test_oracle.py</code> (extend; pure-Python, M3-safe)</h2>
+<p>Injected fakes — no live LLM/crabcc. All via <code>python3 tools/oracle/test_oracle.py</code>.</p>
+<ol>
+<li><code>test_agent_decide_parses_llm_action</code> — fake <code>llm_call</code> returns<br />
+<code>'{"action":"decompile","fn":"a","rationale":"start"}'</code>; <code>make_policy(...)</code> decide<br />
+   returns that normalized action.</li>
+<li><code>test_agent_decide_falls_back_on_garbage</code> — fake <code>llm_call</code> returns <code>"not json"</code>;<br />
+   decide returns <code>policy.next_action(state)</code> (deterministic fallback).</li>
+<li><code>test_agent_decide_rejects_out_of_menu</code> — fake returns<br />
+<code>'{"action":"rm","fn":"a"}'</code> (or <code>fn</code> not in <code>functions</code>) → fallback.</li>
+<li><code>test_loop_agentic_drives_to_finalize_with_fake_llm</code> — a scripted fake <code>llm_call</code><br />
+   (decompile a → investigate → finalize) + fake producers + fake investigator drives<br />
+<code>run_loop(decide=make_policy(fake), investigate=fake_inv)</code> to a valid finding; the<br />
+   ledger contains a <code>decision</code> with <code>rationale</code> and an <code>observation</code> entry.</li>
+<li><code>test_loop_records_observation</code> — agentic run with one investigate action →<br />
+   ledger has <code>{"kind":"observation","provider":"crabcc",...}</code>.</li>
+<li><code>test_investigate_crabcc_adapter_parses</code> — fake <code>subprocess</code> runner (injected)<br />
+   returns crabcc JSON for <code>lookup sym</code> → observation <code>provider:"crabcc"</code> with the<br />
+   trimmed result; runner error → <code>provider:"none"</code> (never raises).</li>
+<li><code>test_investigate_binutils_fallback</code> — no <code>source_root</code>, <code>binary</code> set, fake runner<br />
+   returns <code>nm</code> output → observation <code>provider:"binutils"</code>.</li>
+<li><code>test_loop_default_brain_unchanged</code> — <code>run_loop</code> with no <code>decide</code>/<code>investigate</code><br />
+   produces the identical finding/ledger as the slice-1 deterministic path<br />
+   (back-compat guard).</li>
+</ol>
+<p>Target: 41 existing + 8 new = 49 passing.</p>
+<h2 id="cli-toolsoracleoraclepy">CLI — <code>tools/oracle/oracle.py</code></h2>
+<p>Add agentic flags to the <code>run</code> subcommand (default off ⇒ deterministic, unchanged):</p>
+<div class="highlight"><pre><span></span><span class="nt">--agent</span><span class="w">                         </span><span class="err">#</span><span class="w"> </span><span class="nt">enable</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">LLM-driven</span><span class="w"> </span><span class="nt">brain</span>
+<span class="nt">--llm-endpoint</span><span class="w">  </span><span class="nt">http</span><span class="o">://</span><span class="nt">127</span><span class="p">.</span><span class="nc">0</span><span class="p">.</span><span class="nc">0</span><span class="p">.</span><span class="nc">1</span><span class="p">:</span><span class="nd">4000</span><span class="o">/</span><span class="nt">v1</span><span class="o">/</span><span class="nt">chat</span><span class="o">/</span><span class="nt">completions</span>
+<span class="nt">--llm-model</span><span class="w">     </span><span class="nt">qwen2</span><span class="p">.</span><span class="nc">5-coder</span><span class="p">:</span><span class="nd">7b</span><span class="w">     </span><span class="err">#</span><span class="w"> </span><span class="nt">env</span><span class="o">:</span><span class="w"> </span><span class="nt">OQ_MODEL</span><span class="o">;</span><span class="w"> </span><span class="nt">key</span><span class="o">:</span><span class="w"> </span><span class="nt">LITELLM_KEY</span>
+<span class="nt">--crabcc-root</span><span class="w">   </span><span class="o">&lt;</span><span class="nt">source_root</span><span class="o">&gt;</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">crabcc</span><span class="w"> </span><span class="nt">index</span><span class="w"> </span><span class="nt">root</span><span class="w"> </span><span class="nt">for</span><span class="w"> </span><span class="nt">investigate</span><span class="w"> </span><span class="o">(</span><span class="nt">the</span><span class="w"> </span><span class="nt">ground-truth</span><span class="w"> </span><span class="nt">source</span><span class="o">)</span>
+<span class="nt">--binary-investigate</span><span class="w">                 </span><span class="err">#</span><span class="w"> </span><span class="nt">allow</span><span class="w"> </span><span class="nt">binutils</span><span class="w"> </span><span class="nt">fallback</span><span class="w"> </span><span class="nt">over</span><span class="w"> </span><span class="nt">--target</span>
+</pre></div>
+
+<p><code>cmd_run</code> wires <code>decide = agent.make_policy(LiteLLMClient(...))</code> and<br />
+<code>investigate = investigate.make_investigator(source_root=..., binary=...)</code> when<br />
+<code>--agent</code> is set; otherwise the deterministic path runs as today.</p>
+<h2 id="on-box-acceptance-dev-cx53-box-gated">On-box acceptance (dev-cx53 — BOX-GATED)</h2>
+<ol>
+<li><strong>Install crabcc on dev-cx53</strong> (private repo <code>crabcc-labs/crabcc</code>, <code>cargo install</code>)<br />
+   — this is a <strong>box build</strong>: run the CLAUDE.md 3-gate protocol (Gate 1 target check,<br />
+<strong>Gate 2 user approval</strong>, Gate 3 pre-flight). Falls back to skipping crabcc<br />
+   (binutils-only investigate) if the user declines the build.</li>
+<li><code>crabcc --root ~revdev/oracle/llama.cpp-src index build</code> (indexes the C subset:<br />
+   ggml + C headers).</li>
+<li>Ensure the litellm gateway is up (<code>:4000</code>; <code>export LITELLM_KEY</code>) — the local LLM<br />
+   that <code>oq</code> already uses.</li>
+<li><code>oracle run --agent --target &lt;libllama.so.0&gt; --funcs ggml_compute_forward,llama_decode
+   --crabcc-root ~revdev/oracle/llama.cpp-src ...</code> → confirm the agent adaptively<br />
+   decompiles/refines/investigates and grounds a finding; record the decision/observation<br />
+   trail + confidence in <code>docs/oracle/v0.md</code>.</li>
+</ol>
+<h2 id="out-of-scope-slice-45-devtodo">Out of scope (→ slice 4/5, <code>.DEV.TODO</code>)</h2>
+<ul>
+<li>Off-the-shelf free-form agent CLIs (claude/pi/nullclaw) — the LLM-driven-policy +<br />
+  investigate hybrid is the chosen, auditable middle ground.</li>
+<li>Separate dynamic <code>probe</code> action + ggml deepening → slice 5.</li>
+<li>Arbitrary-binary RE without ground truth (no crabcc/source) → slice 4 (investigate<br />
+  already degrades to binary tools, which is the slice-4 path).</li>
+</ul>
+<h2 id="constraints">Constraints</h2>
+<p>Never compile on the M3 (the brain + investigate adapter + all tests are pure-Python;<br />
+only the crabcc install + on-box run touch dev-cx53). revdev unprivileged. Snyk OFF.<br />
+<code>tools/ralph</code> + <code>eventd</code> call-only. Don't touch the execution ARP IR or L2 eBPF-LSM.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-15-vaked-oracle-slice-3-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

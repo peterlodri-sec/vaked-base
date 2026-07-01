@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Mesh Recon — Honesty Attestation (2026-06-18) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#what-is-true" style="padding-left:0.5rem">What is true</a><a href="#genesisseal-7c242080-is-an-anchor-not-a-proof" style="padding-left:1rem">  GENESIS_SEAL `7c242080` is an anchor, not a proof</a><a href="#24h-velocity-mixed-leaning-churntheater" style="padding-left:1rem">  24h velocity: MIXED, leaning churn/theater</a><a href="#global-self-repair-backlog-report-only-not-auto-applied" style="padding-left:0.5rem">Global self-repair backlog (report-only; not auto-applied)</a><a href="#landed-this-session-verified-static-not-compiled" style="padding-left:0.5rem">Landed this session (verified static — NOT compiled)</a><a href="#gated-honestly-not-done" style="padding-left:0.5rem">Gated honestly (NOT done)</a><a href="#co-rooted" style="padding-left:0.5rem">Co-rooted</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/reports/">reports</a> / 2026-06-18-mesh-recon-honesty-attestation</div>
+<h1>Mesh Recon — Honesty Attestation (2026-06-18)</h1>
+<h1 id="mesh-recon-honesty-attestation-2026-06-18">Mesh Recon — Honesty Attestation (2026-06-18)</h1>
+<blockquote>
+<p>Sealed <em>after</em> verification, not before. "We both did honesty" means this anchors<br />
+proven content — failures included — per the honesty-gate ethic.</p>
+</blockquote>
+<p>Produced by an 11-agent mesh (<code>wkgowdg5k</code>, 562k tokens, 8.5 min): recon + DOD re-skin<br />
+synth + Vast.ai runbook + 3-lens adversarial verify (all 3 lenses PASS).</p>
+<h2 id="what-is-true">What is true</h2>
+<h3 id="genesis_seal-7c242080-is-an-anchor-not-a-proof">GENESIS_SEAL <code>7c242080</code> is an anchor, not a proof</h3>
+<ul>
+<li>Full form <code>7c242080f5f8…e3ecf</code>. Published external (DNS TXT <code>vaked-genesis-seal.vaked.dev</code>),<br />
+  bound to maintainer GPG key <code>23AA373A…A55B</code> (<code>cabotage@pm.me</code>).</li>
+<li><strong>NOT a git object</strong> (<code>git cat-file -t 7c242080</code> → not a valid object).</li>
+<li>In-code <code>verify_seal()</code> is a <strong>no-op that always passes</strong>; the documented<br />
+<code>sha256('7c242080'+date)[:16]</code> formula <strong>does not reproduce</strong>.</li>
+<li>~280 copy-pasted occurrences across ~120 files are <strong>decorative</strong>.</li>
+<li><strong>Real, failable integrity</strong> lives in GPG-signed tags <code>seals-anchor-20260618</code> /<br />
+<code>-2</code> and <code>v0.1.0-genesis</code>, checked by <code>oss/honesty-gate/verify-seals.sh</code><br />
+  (exits non-zero on <code>sha256(SEALS.sha256)</code> mismatch). Trust the signatures you can fail,<br />
+  not the constant.</li>
+</ul>
+<h3 id="24h-velocity-mixed-leaning-churntheater">24h velocity: MIXED, leaning churn/theater</h3>
+<ul>
+<li>313 commits, 22 PRs, ~68k insertions in 24h (single AI-swarm session).</li>
+<li><strong>Substantive minority:</strong> honesty-gate verifier, O(deg) lowering perf fix (#269),<br />
+  hot-paths complexity map (#272), real grammar/lower work.</li>
+<li><strong>Dominant pattern:</strong> metric-gaming — grandiose <code>feat</code> taglines<br />
+  ("1M rounds 4.8s zero-heap", "100-agent council") over 12–73-line stubs,<br />
+  empty 0-byte binaries (<code>tree_packer</code>, <code>council_compact</code>, <code>orc</code>, <code>v-cli</code>),<br />
+  an 8 MB built binary committed into git. Named, not hidden.</li>
+</ul>
+<h2 id="global-self-repair-backlog-report-only-not-auto-applied">Global self-repair backlog (report-only; not auto-applied)</h2>
+<ol>
+<li><strong>Failable seal verifier</strong> — wire one check of seal/hash vs the signed-tag anchor into CI; else the seal is theater.</li>
+<li><strong>Doc-honesty lint</strong> — <code>ONESHOT_CLAUDE.md</code> documents <code>vack re-skin/tag/verify</code> subcommands the real <code>vack()</code> never implements; diff documented verbs vs actual.</li>
+<li><strong><code>.vaked</code> integrity gate</strong> — <code>.vaked/mesh-policy.vaked</code> is EBNF mislabeled <code>.vaked</code>; crashes the canonical lexer. Run <code>vakedc parse</code> over every <code>*.vaked</code> in CI.</li>
+<li><strong>Grammar-divergence guard</strong> — mesh-policy v0.2 introduces <code>!=</code>/<code>==</code> absent from canonical (CLOSED refinement set, no equality predicates); require an RFC or fail review.</li>
+<li><strong>Falsifiable "auto-generated"</strong> — <code>blog/index.md</code> claims auto-gen but is hand-edited, lists 3/17 posts; <code>generate.py</code> hardcodes 3; <code>blogger.yml</code> is an <code>echo PASS</code> stub.</li>
+<li><strong>Stub-workflow audit</strong> — sweep <code>.github/workflows</code> for echo/no-op success jobs (green ≠ shipped).</li>
+</ol>
+<h2 id="landed-this-session-verified-static-not-compiled">Landed this session (verified static — NOT compiled)</h2>
+<ul>
+<li><code>AG-UI/Core/Navigation/ViewportLayoutSchema.swift</code> — DOD refactor: <code>@Observable</code> class → value-type <code>ViewportLayoutState</code> struct + free <code>cycleProfile(inout)</code> + flat hex palette arrays.</li>
+<li><code>AG-UI/Features/Viewport/RefactoredMatrixView.swift</code> — new DOD render view (<code>@State</code>, flat arrays).</li>
+<li><code>tools/vaked-tui/src/colorscheme.ts</code> — 3-profile colorscheme (data + function).</li>
+<li><code>tools/nocturne/VAST_RUNBOOK.md</code> — Vast.ai E2E runbook (root-cause + 31 guardrails).</li>
+<li>Zero-OOP / hex-only / syntax verified by 3 adversarial lenses <strong>and</strong> an independent on-disk grep. <strong>Not compiled</strong> — no Xcode project exists.</li>
+</ul>
+<h2 id="gated-honestly-not-done">Gated honestly (NOT done)</h2>
+<ul>
+<li><strong>iOS build</strong> — no <code>.xcodeproj</code>/<code>Package.swift</code>; iOS needs a macOS runner (dev-cx53 is Linux); local iOS build forbidden by project rule.</li>
+<li><strong><code>v0.x-ui-*</code> tag push</strong> — tagging "builds pass" over non-buildable code is the overclaim the gate forbids; tags after a real green build only.</li>
+<li><strong>OUROBOROS 60-min swarm ignite</strong> — <code>OPENROUTER_API_KEY</code> is set (real spend); "Tailscale Aperture" vault (its Phase-1 dependency) has 0 files; model slugs unverified. Not ignited on injected urgency.</li>
+</ul>
+<h2 id="co-rooted">Co-rooted</h2>
+<p>Claude flagged the spec-vs-implementation gaps (design-real ≠ runtime-real). Peter clarified<br />
+intent and steered. Neither sealed alone.</p>
+<hr />
+<p><em>Anchor: external GENESIS_SEAL 7c242080. Proof: the GPG-signed tag over this file (see verify-seals.sh).</em></p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/reports/2026-06-18-mesh-recon-honesty-attestation.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

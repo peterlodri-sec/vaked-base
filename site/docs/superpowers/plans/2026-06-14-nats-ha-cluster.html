@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NATS HA cluster — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#task-1-internal-mtls-ca-per-node-certs-scriptsnatsmtls-cash" style="padding-left:0.5rem">Task 1: Internal mTLS CA + per-node certs (`scripts/nats/mtls-ca.sh`)</a><a href="#task-2-jwt-auth-bootstrap-scriptsnatsnsc-bootstrapsh" style="padding-left:0.5rem">Task 2: JWT auth bootstrap (`scripts/nats/nsc-bootstrap.sh`)</a><a href="#task-3-nats-node-nixos-module-nixnatsnats-nodenix" style="padding-left:0.5rem">Task 3: `nats-node` NixOS module (`nix/nats/nats-node.nix`)</a><a href="#task-4-provisioning-script-scriptsnatsprovisionsh-operator" style="padding-left:0.5rem">Task 4: Provisioning script (`scripts/nats/provision.sh`) [OPERATOR]</a><a href="#task-5-deploy-tailnet-join-operator" style="padding-left:0.5rem">Task 5: Deploy + tailnet join [OPERATOR]</a><a href="#task-6-streams-scriptsnatsstreamssh" style="padding-left:0.5rem">Task 6: Streams (`scripts/nats/streams.sh`)</a><a href="#task-7-monitoring-backups" style="padding-left:0.5rem">Task 7: Monitoring + backups</a><a href="#task-8-migration-cutover" style="padding-left:0.5rem">Task 8: Migration / cutover</a><a href="#task-9-validation-drills-scriptsnatsvalidatesh" style="padding-left:0.5rem">Task 9: Validation drills (`scripts/nats/validate.sh`)</a><a href="#verification-whole-feature" style="padding-left:0.5rem">Verification (whole feature)</a><a href="#open-items" style="padding-left:0.5rem">Open items</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-14-nats-ha-cluster</div>
+<h1>NATS HA cluster — Implementation Plan</h1>
+<h1 id="nats-ha-cluster-implementation-plan">NATS HA cluster — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (<code>- [ ]</code>). Steps tagged <strong>[OPERATOR]</strong> need live credentials / spend / interactive auth and are run by the human; everything else is authorable + statically checkable offline.</p>
+</blockquote>
+<p><strong>Goal:</strong> Replace the single-node <code>crabcc-nats</code> SPOF with a 3-node JetStream cluster (R3/RAFT), decentralized JWT auth (nsc), hybrid connectivity (tailnet clients + mTLS RAFT routes), leaf nodes, monitoring, backups — deployed reproducibly via NixOS.</p>
+<p><strong>Architecture:</strong> 3 × Hetzner CCX13 in one location. Each runs <code>nats-server</code> (JetStream cluster member + leaf hub + JWT resolver) declared via a NixOS <code>services.nats.settings</code> module and applied with nixos-anywhere. Clients reach <code>:4222</code> over the tailnet; RAFT routes <code>:6222</code> run over public IPs + mutual TLS; leaf nodes connect <code>:7422</code> mTLS. See design: <code>docs/superpowers/specs/2026-06-14-nats-ha-cluster-design.md</code>; cost: <code>docs/economy.md</code>.</p>
+<p><strong>Tech Stack:</strong> NixOS 26.05, nats-server 2.14.x, <code>nsc</code> (JWT), <code>nats</code> CLI, Hetzner Cloud (<code>hcloud</code>), internal mTLS CA (<code>step-cli</code>), nixos-anywhere, prometheus-nats-exporter, NUI.</p>
+<p><strong>Repo layout for artifacts:</strong></p>
+<div class="highlight"><pre><span></span><span class="n">nix</span><span class="o">/</span><span class="n">nats</span><span class="o">/</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nats</span><span class="o">-</span><span class="n">node</span><span class="p">.</span><span class="n">nix</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">reusable</span><span class="w"> </span><span class="n">nats</span><span class="o">-</span><span class="n">server</span><span class="w"> </span><span class="k">module</span><span class="w"> </span><span class="p">(</span><span class="n">cluster</span><span class="w"> </span><span class="k">member</span><span class="p">)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nats</span><span class="o">-</span><span class="n">leaf</span><span class="p">.</span><span class="n">nix</span><span class="w">          </span><span class="err">#</span><span class="w"> </span><span class="n">smaller</span><span class="w"> </span><span class="n">leaf</span><span class="o">-</span><span class="n">node</span><span class="w"> </span><span class="k">module</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">app</span><span class="w"> </span><span class="n">hosts</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">hosts</span><span class="o">/</span><span class="err">{</span><span class="n">nats</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">nats</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span><span class="n">nats</span><span class="o">-</span><span class="mi">3</span><span class="err">}</span><span class="p">.</span><span class="n">nix</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">per</span><span class="o">-</span><span class="n">node</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">routes</span><span class="p">,</span><span class="w"> </span><span class="n">tags</span><span class="p">)</span>
+<span class="n">scripts</span><span class="o">/</span><span class="n">nats</span><span class="o">/</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">provision</span><span class="p">.</span><span class="n">sh</span><span class="w">           </span><span class="err">#</span><span class="w"> </span><span class="o">[</span><span class="n">OPERATOR</span><span class="o">]</span><span class="w"> </span><span class="n">hcloud</span><span class="w"> </span><span class="k">create</span><span class="w"> </span><span class="mi">3</span><span class="n">x</span><span class="w"> </span><span class="n">CCX13</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">nsc</span><span class="o">-</span><span class="n">bootstrap</span><span class="p">.</span><span class="n">sh</span><span class="w">       </span><span class="err">#</span><span class="w"> </span><span class="n">operator</span><span class="o">/</span><span class="n">accounts</span><span class="o">/</span><span class="n">users</span><span class="o">/</span><span class="n">creds</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">resolver</span><span class="w"> </span><span class="n">config</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">mtls</span><span class="o">-</span><span class="n">ca</span><span class="p">.</span><span class="n">sh</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="n">internal</span><span class="w"> </span><span class="n">CA</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">per</span><span class="o">-</span><span class="n">node</span><span class="w"> </span><span class="n">route</span><span class="o">/</span><span class="n">leaf</span><span class="w"> </span><span class="n">certs</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">streams</span><span class="p">.</span><span class="n">sh</span><span class="w">             </span><span class="err">#</span><span class="w"> </span><span class="k">create</span><span class="w"> </span><span class="n">SWE_AF_TASKS</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">EVENTS</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="n">via</span><span class="w"> </span><span class="n">nats</span><span class="w"> </span><span class="n">CLI</span>
+<span class="err">├──</span><span class="w"> </span><span class="k">backup</span><span class="p">.</span><span class="n">sh</span><span class="w">              </span><span class="err">#</span><span class="w"> </span><span class="n">nats</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="k">backup</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">minio</span><span class="w"> </span><span class="p">(</span><span class="n">timer</span><span class="p">)</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">validate</span><span class="p">.</span><span class="n">sh</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="n">RTT</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">failover</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">throughput</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">auth</span><span class="o">-</span><span class="k">isolation</span><span class="w"> </span><span class="n">drills</span>
+<span class="n">docs</span><span class="o">/</span><span class="n">runbooks</span><span class="o">/</span><span class="n">nats</span><span class="o">-</span><span class="n">ha</span><span class="p">.</span><span class="n">md</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">operator</span><span class="w"> </span><span class="n">runbook</span><span class="w"> </span><span class="n">tying</span><span class="w"> </span><span class="n">it</span><span class="w"> </span><span class="n">together</span>
+</pre></div>
+
+<hr />
+<h2 id="task-1-internal-mtls-ca-per-node-certs-scriptsnatsmtls-cash">Task 1: Internal mTLS CA + per-node certs (<code>scripts/nats/mtls-ca.sh</code>)</h2>
+<p>RAFT routes + leaf links use mutual TLS. A tiny offline CA (step-cli) issues a cert per node (SAN = public IP + <code>nats-N.vaked.internal</code>). Tailnet client traffic is encrypted by WireGuard, so client <code>:4222</code> does <strong>not</strong> require TLS in v1.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write <code>mtls-ca.sh</code></strong> — creates <code>ca.crt/ca.key</code> once (idempotent), then a cert+key per node.</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env bash</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nv">OUT</span><span class="o">=</span><span class="si">${</span><span class="nv">1</span><span class="k">:-</span><span class="p">./nats-pki</span><span class="si">}</span><span class="p">;</span><span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$OUT</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$OUT</span><span class="s2">&quot;</span>
+<span class="c1"># root CA (once)</span>
+<span class="o">[</span><span class="w"> </span>-f<span class="w"> </span>ca.crt<span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span>step<span class="w"> </span>certificate<span class="w"> </span>create<span class="w"> </span><span class="s2">&quot;vaked-nats CA&quot;</span><span class="w"> </span>ca.crt<span class="w"> </span>ca.key<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--profile<span class="w"> </span>root-ca<span class="w"> </span>--no-password<span class="w"> </span>--insecure<span class="w"> </span>--not-after<span class="w"> </span>87600h
+<span class="c1"># per-node leaf certs (SANs passed as: name=ip)</span>
+<span class="k">for</span><span class="w"> </span>spec<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$spec</span><span class="s2">&quot;</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>*<span class="o">=</span>*<span class="o">)</span><span class="w"> </span><span class="nv">name</span><span class="o">=</span><span class="si">${</span><span class="nv">spec</span><span class="p">%%=*</span><span class="si">}</span><span class="p">;</span><span class="w"> </span><span class="nv">ip</span><span class="o">=</span><span class="si">${</span><span class="nv">spec</span><span class="p">#*=</span><span class="si">}</span><span class="p">;;</span><span class="w"> </span>*<span class="o">)</span><span class="w"> </span><span class="k">continue</span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span>
+<span class="w">  </span><span class="o">[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">.crt&quot;</span><span class="w"> </span><span class="o">]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">continue</span>
+<span class="w">  </span>step<span class="w"> </span>certificate<span class="w"> </span>create<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">.crt&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">.key&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--profile<span class="w"> </span>leaf<span class="w"> </span>--ca<span class="w"> </span>ca.crt<span class="w"> </span>--ca-key<span class="w"> </span>ca.key<span class="w"> </span>--no-password<span class="w"> </span>--insecure<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--san<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$ip</span><span class="s2">&quot;</span><span class="w"> </span>--san<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$name</span><span class="s2">.vaked.internal&quot;</span><span class="w"> </span>--not-after<span class="w"> </span>8760h
+<span class="k">done</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Static check</strong> — Run: <code>bash -n scripts/nats/mtls-ca.sh</code> (syntax) and <code>shellcheck scripts/nats/mtls-ca.sh</code>. Expected: no errors.</li>
+<li>[ ] <strong>Step 3: Commit</strong> — <code>git add scripts/nats/mtls-ca.sh &amp;&amp; git commit -m "feat(nats): internal mTLS CA + per-node cert script"</code></li>
+</ul>
+<hr />
+<h2 id="task-2-jwt-auth-bootstrap-scriptsnatsnsc-bootstrapsh">Task 2: JWT auth bootstrap (<code>scripts/nats/nsc-bootstrap.sh</code>)</h2>
+<p>Decentralized JWT: one operator, a locked-down SYS account, and per-domain accounts (EVENTS, SWE_AF, TELEMETRY, AGENTS) each with a JetStream tier and scoped users. Emits the NATS-resolver preload + creds files.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write <code>nsc-bootstrap.sh</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env bash</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nb">export</span><span class="w"> </span><span class="nv">NSC_HOME</span><span class="o">=</span><span class="si">${</span><span class="nv">NSC_HOME</span><span class="k">:-</span><span class="p">./nsc</span><span class="si">}</span>
+nsc<span class="w"> </span>add<span class="w"> </span>operator<span class="w"> </span>--name<span class="w"> </span>vaked<span class="w"> </span>--sys<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+nsc<span class="w"> </span>edit<span class="w"> </span>operator<span class="w"> </span>--service-url<span class="w"> </span>nats://nats-1.vaked.internal:4222
+
+<span class="c1"># per-domain accounts with JetStream tiers (mem/disk/streams/consumers)</span>
+add_acct<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="c1"># name  mem  disk  streams  consumers</span>
+<span class="w">  </span>nsc<span class="w"> </span>add<span class="w"> </span>account<span class="w"> </span>--name<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">  </span>nsc<span class="w"> </span>edit<span class="w"> </span>account<span class="w"> </span>--name<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--js-mem-storage<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$2</span><span class="s2">&quot;</span><span class="w"> </span>--js-disk-storage<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$3</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--js-streams<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$4</span><span class="s2">&quot;</span><span class="w"> </span>--js-consumers<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$5</span><span class="s2">&quot;</span>
+<span class="o">}</span>
+add_acct<span class="w"> </span>EVENTS<span class="w">    </span>256M<span class="w"> </span>5G<span class="w">  </span><span class="m">50</span><span class="w">  </span><span class="m">200</span>
+add_acct<span class="w"> </span>SWE_AF<span class="w">    </span>256M<span class="w"> </span>5G<span class="w">  </span><span class="m">20</span><span class="w">  </span><span class="m">100</span>
+add_acct<span class="w"> </span>TELEMETRY<span class="w"> </span>256M<span class="w"> </span>10G<span class="w"> </span><span class="m">50</span><span class="w">  </span><span class="m">500</span>
+add_acct<span class="w"> </span>AGENTS<span class="w">    </span>128M<span class="w"> </span>2G<span class="w">  </span><span class="m">20</span><span class="w">  </span><span class="m">100</span>
+
+<span class="c1"># scoped users -&gt; creds (one per consumer)</span>
+add_user<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w"> </span>nsc<span class="w"> </span>add<span class="w"> </span>user<span class="w"> </span>--account<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span><span class="w"> </span>--name<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$2</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="w">  </span>nsc<span class="w"> </span>generate<span class="w"> </span>creds<span class="w"> </span>--account<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$1</span><span class="s2">&quot;</span><span class="w"> </span>--name<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$2</span><span class="s2">&quot;</span><span class="w"> </span>&gt;<span class="w"> </span><span class="s2">&quot;creds/</span><span class="nv">$1</span><span class="s2">-</span><span class="nv">$2</span><span class="s2">.creds&quot;</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span>creds
+add_user<span class="w"> </span>SWE_AF<span class="w">    </span>orchestrator
+add_user<span class="w"> </span>SWE_AF<span class="w">    </span>enqueue
+add_user<span class="w"> </span>EVENTS<span class="w">    </span>console
+add_user<span class="w"> </span>TELEMETRY<span class="w"> </span>exporter
+
+<span class="c1"># cross-account export: SWE_AF status visible to a CONSOLE consumer in EVENTS</span>
+nsc<span class="w"> </span>edit<span class="w"> </span>account<span class="w"> </span>SWE_AF<span class="w"> </span>--js-tier<span class="w"> </span>...<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+<span class="c1"># (export/import of swe.af.status.&gt; SWE_AF-&gt;EVENTS: see runbook; nsc add export/import)</span>
+
+<span class="c1"># NATS-based resolver config fragment for the server (preload + dir)</span>
+nsc<span class="w"> </span>generate<span class="w"> </span>config<span class="w"> </span>--nats-resolver<span class="w"> </span>--sys-account<span class="w"> </span>SYS<span class="w"> </span>&gt;<span class="w"> </span>nats-resolver.conf
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Static check</strong> — <code>bash -n</code> + <code>shellcheck</code>. Document the exact <code>nsc add export</code>/<code>nsc add import</code> invocations for the <code>swe.af.status.&gt;</code> cross-account share in <code>docs/runbooks/nats-ha.md</code> (the inline <code>...</code> above is filled there with verified flags).</li>
+<li>[ ] <strong>Step 3: Commit</strong> — <code>feat(nats): nsc JWT bootstrap (operator, accounts, users, resolver)</code></li>
+</ul>
+<hr />
+<h2 id="task-3-nats-node-nixos-module-nixnatsnats-nodenix">Task 3: <code>nats-node</code> NixOS module (<code>nix/nats/nats-node.nix</code>)</h2>
+<p>The cluster-member server config, expressed through <code>services.nats.settings</code> (the free-form escape hatch that maps 1:1 to the nats-server config — avoids guessing per-option NixOS names). Parameterized by node name, this node's listen IPs, the peer route URLs, and the server tag.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write the module</strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="c1"># nix/nats/nats-node.nix</span>
+<span class="p">{</span> name<span class="p">,</span> routes<span class="p">,</span> publicIp<span class="p">,</span> certDir<span class="p">,</span> <span class="o">...</span> <span class="p">}:</span>
+<span class="p">{</span> config<span class="p">,</span> pkgs<span class="p">,</span> lib<span class="p">,</span> <span class="o">...</span> <span class="p">}:</span> <span class="p">{</span>
+  networking<span class="o">.</span>firewall<span class="o">.</span><span class="ss">allowedTCPPorts</span> <span class="o">=</span> <span class="p">[</span> <span class="mi">4222</span> <span class="mi">6222</span> <span class="mi">7422</span> <span class="mi">8222</span> <span class="p">];</span>
+  services<span class="o">.</span><span class="ss">nats</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="ss">enable</span> <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+    <span class="ss">jetstream</span> <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+    <span class="ss">settings</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="ss">server_name</span> <span class="o">=</span> name<span class="p">;</span>
+      <span class="c1"># clients over the tailnet; bind 4222 on all (ACL gates reachability)</span>
+      <span class="ss">host</span> <span class="o">=</span> <span class="s2">&quot;0.0.0.0&quot;</span><span class="p">;</span>
+      <span class="ss">port</span> <span class="o">=</span> <span class="mi">4222</span><span class="p">;</span>
+      <span class="ss">max_payload</span> <span class="o">=</span> <span class="mi">1048576</span><span class="p">;</span>          <span class="c1"># 1 MiB</span>
+      <span class="ss">write_deadline</span> <span class="o">=</span> <span class="s2">&quot;10s&quot;</span><span class="p">;</span>
+      <span class="ss">ping_interval</span> <span class="o">=</span> <span class="s2">&quot;2m&quot;</span><span class="p">;</span>
+      <span class="ss">lame_duck_duration</span> <span class="o">=</span> <span class="s2">&quot;30s&quot;</span><span class="p">;</span>     <span class="c1"># zero-downtime rolling restart</span>
+      <span class="ss">server_tags</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;az:fsn1&quot;</span> <span class="s2">&quot;node:</span><span class="si">${</span>name<span class="si">}</span><span class="s2">&quot;</span> <span class="p">];</span>
+
+      <span class="ss">jetstream</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="ss">store_dir</span> <span class="o">=</span> <span class="s2">&quot;/var/lib/nats/jetstream&quot;</span><span class="p">;</span>
+        <span class="ss">max_memory_store</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">;</span>
+        <span class="ss">max_file_store</span>  <span class="o">=</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span><span class="p">;</span>
+        <span class="ss">sync_interval</span> <span class="o">=</span> <span class="s2">&quot;2m&quot;</span><span class="p">;</span>
+      <span class="p">};</span>
+
+      <span class="ss">cluster</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="ss">name</span> <span class="o">=</span> <span class="s2">&quot;vaked-nats&quot;</span><span class="p">;</span>
+        <span class="ss">host</span> <span class="o">=</span> publicIp<span class="p">;</span>              <span class="c1"># RAFT over public IP</span>
+        <span class="ss">port</span> <span class="o">=</span> <span class="mi">6222</span><span class="p">;</span>
+        <span class="ss">routes</span> <span class="o">=</span> routes<span class="p">;</span>              <span class="c1"># [ &quot;nats://nats-2.vaked.internal:6222&quot; ... ]</span>
+        <span class="ss">pool_size</span> <span class="o">=</span> <span class="mi">3</span><span class="p">;</span>
+        <span class="ss">no_advertise</span> <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+        <span class="ss">tls</span> <span class="o">=</span> <span class="p">{</span>                       <span class="c1"># mutual TLS on routes</span>
+          <span class="ss">cert_file</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>certDir<span class="si">}</span><span class="s2">/</span><span class="si">${</span>name<span class="si">}</span><span class="s2">.crt&quot;</span><span class="p">;</span>
+          <span class="ss">key_file</span>  <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>certDir<span class="si">}</span><span class="s2">/</span><span class="si">${</span>name<span class="si">}</span><span class="s2">.key&quot;</span><span class="p">;</span>
+          <span class="ss">ca_file</span>   <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>certDir<span class="si">}</span><span class="s2">/ca.crt&quot;</span><span class="p">;</span>
+          <span class="ss">verify_and_map</span> <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+          <span class="ss">timeout</span> <span class="o">=</span> <span class="mi">5</span><span class="p">;</span>
+        <span class="p">};</span>
+      <span class="p">};</span>
+
+      <span class="ss">leafnodes</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="ss">port</span> <span class="o">=</span> <span class="mi">7422</span><span class="p">;</span>
+        <span class="ss">tls</span> <span class="o">=</span> <span class="p">{</span>
+          <span class="ss">cert_file</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>certDir<span class="si">}</span><span class="s2">/</span><span class="si">${</span>name<span class="si">}</span><span class="s2">.crt&quot;</span><span class="p">;</span>
+          <span class="ss">key_file</span>  <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>certDir<span class="si">}</span><span class="s2">/</span><span class="si">${</span>name<span class="si">}</span><span class="s2">.key&quot;</span><span class="p">;</span>
+          <span class="ss">ca_file</span>   <span class="o">=</span> <span class="s2">&quot;</span><span class="si">${</span>certDir<span class="si">}</span><span class="s2">/ca.crt&quot;</span><span class="p">;</span>
+          <span class="ss">verify</span> <span class="o">=</span> <span class="no">true</span><span class="p">;</span>
+        <span class="p">};</span>
+      <span class="p">};</span>
+
+      <span class="c1"># decentralized JWT (operator + SYS + nats-resolver); preload from nsc</span>
+      <span class="ss">include</span> <span class="o">=</span> <span class="s2">&quot;auth.conf&quot;</span><span class="p">;</span>          <span class="c1"># operator/system_account/resolver, deployed via secrets</span>
+
+      <span class="ss">http</span> <span class="o">=</span> <span class="s2">&quot;0.0.0.0:8222&quot;</span><span class="p">;</span>          <span class="c1"># monitoring (ACL-gated to tailnet)</span>
+    <span class="p">};</span>
+  <span class="p">};</span>
+
+  <span class="c1"># OS tuning</span>
+  boot<span class="o">.</span>kernel<span class="o">.</span><span class="ss">sysctl</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;net.core.somaxconn&quot;</span> <span class="o">=</span> <span class="mi">4096</span><span class="p">;</span>
+    <span class="s2">&quot;net.core.default_qdisc&quot;</span> <span class="o">=</span> <span class="s2">&quot;fq&quot;</span><span class="p">;</span>
+    <span class="s2">&quot;net.ipv4.tcp_congestion_control&quot;</span> <span class="o">=</span> <span class="s2">&quot;bbr&quot;</span><span class="p">;</span>
+    <span class="s2">&quot;vm.swappiness&quot;</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+  <span class="p">};</span>
+  systemd<span class="o">.</span>services<span class="o">.</span>nats<span class="o">.</span><span class="ss">serviceConfig</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="ss">LimitNOFILE</span> <span class="o">=</span> <span class="mi">1048576</span><span class="p">;</span>
+    <span class="ss">Environment</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;GOMEMLIMIT=6GiB&quot;</span> <span class="p">];</span>
+  <span class="p">};</span>
+<span class="p">}</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Per-node hosts</strong> — write <code>nix/nats/hosts/nats-{1,2,3}.nix</code> instantiating the module with each node's <code>publicIp</code> + the other two as <code>routes</code>.</li>
+<li>[ ] <strong>Step 3: Static check</strong> — <code>nix-instantiate --parse nix/nats/nats-node.nix</code> (syntax) and, once a flake target exists, <code>nix flake check</code>. Expected: parses. <strong>Note:</strong> verify <code>services.nats.settings</code> accepts these keys against the pinned nixpkgs (<code>nixos-option services.nats.settings</code> or the module source) — adapt key names if the module wraps any.</li>
+<li>[ ] <strong>Step 4: Commit</strong> — <code>feat(nats): nats-node NixOS module (cluster, jetstream, leaf, mTLS, tuning)</code></li>
+</ul>
+<hr />
+<h2 id="task-4-provisioning-script-scriptsnatsprovisionsh-operator">Task 4: Provisioning script (<code>scripts/nats/provision.sh</code>) [OPERATOR]</h2>
+<ul>
+<li>[ ] <strong>Step 1: Write <code>provision.sh</code></strong> (needs <code>HCLOUD_TOKEN</code>)</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env bash</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+:<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">HCLOUD_TOKEN</span><span class="p">:?set HCLOUD_TOKEN</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="nv">LOC</span><span class="o">=</span><span class="si">${</span><span class="nv">LOC</span><span class="k">:-</span><span class="nv">fsn1</span><span class="si">}</span><span class="p">;</span><span class="w"> </span><span class="nv">TYPE</span><span class="o">=</span><span class="si">${</span><span class="nv">TYPE</span><span class="k">:-</span><span class="nv">ccx13</span><span class="si">}</span><span class="p">;</span><span class="w"> </span><span class="nv">IMAGE</span><span class="o">=</span><span class="si">${</span><span class="nv">IMAGE</span><span class="k">:-</span><span class="nv">debian</span><span class="p">-12</span><span class="si">}</span>
+<span class="k">for</span><span class="w"> </span>n<span class="w"> </span><span class="k">in</span><span class="w"> </span>nats-1<span class="w"> </span>nats-2<span class="w"> </span>nats-3<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>hcloud<span class="w"> </span>server<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$n</span><span class="s2">&quot;</span><span class="w"> </span>--type<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$TYPE</span><span class="s2">&quot;</span><span class="w"> </span>--image<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$IMAGE</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--location<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$LOC</span><span class="s2">&quot;</span><span class="w"> </span>--ssh-key<span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>hcloud<span class="w"> </span>ssh-key<span class="w"> </span>list<span class="w"> </span>-o<span class="w"> </span>noheader<span class="w"> </span>-o<span class="w"> </span><span class="nv">columns</span><span class="o">=</span>name<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1<span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--label<span class="w"> </span><span class="nv">role</span><span class="o">=</span>nats
+<span class="k">done</span>
+hcloud<span class="w"> </span>server<span class="w"> </span>list<span class="w"> </span>-l<span class="w"> </span><span class="nv">role</span><span class="o">=</span>nats<span class="w"> </span>-o<span class="w"> </span><span class="nv">columns</span><span class="o">=</span>name,ipv4,ipv6,datacenter
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Static check</strong> — <code>bash -n</code> + <code>shellcheck</code>.</li>
+<li>[ ] <strong>Step 3 [OPERATOR]:</strong> run it; record the 3 public IPs into <code>nix/nats/hosts/*.nix</code>.</li>
+<li>[ ] <strong>Step 4: Commit</strong> — <code>feat(nats): hcloud provisioning script (3x CCX13, one location)</code></li>
+</ul>
+<hr />
+<h2 id="task-5-deploy-tailnet-join-operator">Task 5: Deploy + tailnet join [OPERATOR]</h2>
+<ul>
+<li>[ ] <strong>Step 1:</strong> <code>mtls-ca.sh nats-1=&lt;ip1&gt; nats-2=&lt;ip2&gt; nats-3=&lt;ip3&gt;</code> → PKI; <code>nsc-bootstrap.sh</code> → JWTs + creds; assemble each node's <code>auth.conf</code> (operator JWT + <code>system_account</code> + resolver) as a deploy secret (age/sops or <code>LoadCredential</code>).</li>
+<li>[ ] <strong>Step 2 [OPERATOR]:</strong> <code>nixos-anywhere --flake .#nats-1 root@&lt;ip1&gt;</code> (×3). Verify <code>systemctl status nats</code>, <code>curl localhost:8222/healthz</code>.</li>
+<li>[ ] <strong>Step 3 [OPERATOR]:</strong> on each node <code>tailscale up --advertise-tags=tag:server</code>; approve. Confirm clients reach <code>:4222</code> over the tailnet.</li>
+<li>[ ] <strong>Step 4:</strong> verify cluster formed: <code>nats --server nats://&lt;ip1&gt;:4222 server list</code> shows 3; <code>server report jetstream</code> shows R3 capable. Commit any host-file IP updates.</li>
+</ul>
+<hr />
+<h2 id="task-6-streams-scriptsnatsstreamssh">Task 6: Streams (<code>scripts/nats/streams.sh</code>)</h2>
+<ul>
+<li>[ ] <strong>Step 1: Write <code>streams.sh</code></strong> (uses the SWE_AF/EVENTS creds)</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env bash</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nv">S</span><span class="o">=</span><span class="si">${</span><span class="nv">NATS_URL</span><span class="k">:-</span><span class="nv">nats</span><span class="p">://nats-1.vaked.internal:</span><span class="nv">4222</span><span class="si">}</span>
+nats<span class="w"> </span>--server<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$S</span><span class="s2">&quot;</span><span class="w"> </span>--creds<span class="w"> </span>creds/SWE_AF-orchestrator.creds<span class="w"> </span>stream<span class="w"> </span>add<span class="w"> </span>SWE_AF_TASKS<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--subjects<span class="w"> </span><span class="s1">&#39;swe.af.tasks&#39;</span><span class="w"> </span>--retention<span class="w"> </span>work<span class="w"> </span>--replicas<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--max-age<span class="w"> </span>24h<span class="w"> </span>--dupe-window<span class="w"> </span>2m<span class="w"> </span>--storage<span class="w"> </span>file<span class="w"> </span>--defaults
+nats<span class="w"> </span>--server<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$S</span><span class="s2">&quot;</span><span class="w"> </span>--creds<span class="w"> </span>creds/EVENTS-console.creds<span class="w"> </span>stream<span class="w"> </span>add<span class="w"> </span>EVENTS<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--subjects<span class="w"> </span><span class="s1">&#39;crabcc.&gt;&#39;</span><span class="w"> </span>--retention<span class="w"> </span>limits<span class="w"> </span>--replicas<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--max-age<span class="w"> </span>168h<span class="w"> </span>--max-bytes<span class="w"> </span>5GB<span class="w"> </span>--storage<span class="w"> </span>file<span class="w"> </span>--defaults
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Static check</strong> — <code>bash -n</code> + <code>shellcheck</code>.</li>
+<li>[ ] <strong>Step 3 [OPERATOR]:</strong> run against the live cluster; <code>nats stream report</code> shows R3.</li>
+<li>[ ] <strong>Step 4: Commit</strong> — <code>feat(nats): stream provisioning (SWE_AF_TASKS workqueue, EVENTS)</code></li>
+</ul>
+<hr />
+<h2 id="task-7-monitoring-backups">Task 7: Monitoring + backups</h2>
+<ul>
+<li>[ ] <strong>Step 1:</strong> add <code>prometheus-nats-exporter</code> to the node module (scrape <code>:8222</code>), wire a scrape target into the fleet telemetry stack (uptrace/openobserve on cx53). Deploy one <strong>NUI</strong> instance (tailnet-only) for human browsing.</li>
+<li>[ ] <strong>Step 2: Write <code>backup.sh</code></strong> + a systemd timer: <code>nats stream backup &lt;name&gt; &lt;dir&gt;</code> for each stream → push to the fleet rustfs/minio. Document restore.</li>
+<li>[ ] <strong>Step 3: Static check</strong> + <strong>Commit</strong> — <code>feat(nats): prometheus exporter + NUI + scheduled stream backups</code></li>
+</ul>
+<hr />
+<h2 id="task-8-migration-cutover">Task 8: Migration / cutover</h2>
+<ul>
+<li>[ ] <strong>Step 1:</strong> recreate the 3 existing crabcc-nats stream <strong>definitions</strong> on the cluster (current msg count 0 → no data migration).</li>
+<li>[ ] <strong>Step 2 [OPERATOR]:</strong> repoint clients one at a time — set <code>NATS_URL</code> to the 3-node list + the right <code>.creds</code>: the Sentinel Console (EVENTS-console), the swe-af orchestrator (SWE_AF-orchestrator), telemetry (TELEMETRY-exporter), agents. Watch <code>/jsz</code> after each.</li>
+<li>[ ] <strong>Step 3 [OPERATOR]:</strong> retire single-node <code>crabcc-nats</code> (or convert to a 4th leaf). Update the swe-af-orchestrator env (<code>NATS_URL</code>, <code>NATS_CREDS</code>) — ties back to PR #188's deploy.</li>
+<li>[ ] <strong>Step 4: Commit</strong> the runbook <code>docs/runbooks/nats-ha.md</code>.</li>
+</ul>
+<hr />
+<h2 id="task-9-validation-drills-scriptsnatsvalidatesh">Task 9: Validation drills (<code>scripts/nats/validate.sh</code>)</h2>
+<ul>
+<li>[ ] <strong>Step 1: Write <code>validate.sh</code></strong> covering the spec's validation plan:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="ch">#!/usr/bin/env bash</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nv">S</span><span class="o">=</span><span class="si">${</span><span class="nv">NATS_URL</span><span class="p">:?</span><span class="si">}</span><span class="p">;</span><span class="w"> </span><span class="nv">C</span><span class="o">=</span><span class="si">${</span><span class="nv">CREDS</span><span class="p">:?</span><span class="si">}</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== inter-node RTT (expect &lt;2ms) ==&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span>h<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$@</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span>ping<span class="w"> </span>-c5<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$h</span><span class="s2">&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-1<span class="p">;</span><span class="w"> </span><span class="k">done</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== throughput/latency ==&quot;</span><span class="p">;</span><span class="w"> </span>nats<span class="w"> </span>--server<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$S</span><span class="s2">&quot;</span><span class="w"> </span>--creds<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$C</span><span class="s2">&quot;</span><span class="w"> </span>bench<span class="w"> </span>bench.test<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--js<span class="w"> </span>--replicas<span class="w"> </span><span class="m">3</span><span class="w"> </span>--pub<span class="w"> </span><span class="m">4</span><span class="w"> </span>--sub<span class="w"> </span><span class="m">4</span><span class="w"> </span>--msgs<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--size<span class="w"> </span><span class="m">256</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== failover: kill nats-1, confirm quorum + writable ==&quot;</span><span class="w">  </span><span class="c1"># [OPERATOR] manual</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;== auth isolation: SWE_AF creds must NOT read crabcc.&gt; ==&quot;</span>
+nats<span class="w"> </span>--server<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$S</span><span class="s2">&quot;</span><span class="w"> </span>--creds<span class="w"> </span>creds/SWE_AF-orchestrator.creds<span class="w"> </span>sub<span class="w"> </span><span class="s1">&#39;crabcc.&gt;&#39;</span><span class="w"> </span>--count<span class="w"> </span><span class="m">1</span><span class="w"> </span>--timeout<span class="w"> </span>3s<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;FAIL: isolation breach&quot;</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="o">}</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;ok: isolation holds&quot;</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Static check</strong> — <code>bash -n</code> + <code>shellcheck</code>.</li>
+<li>[ ] <strong>Step 3 [OPERATOR]:</strong> run all drills; record baseline numbers + the failover recovery time in <code>docs/runbooks/nats-ha.md</code>.</li>
+<li>[ ] <strong>Step 4: Commit</strong> — <code>feat(nats): validation drills (RTT, throughput, failover, auth isolation)</code></li>
+</ul>
+<hr />
+<h2 id="verification-whole-feature">Verification (whole feature)</h2>
+<ul>
+<li>[ ] All scripts pass <code>bash -n</code> + <code>shellcheck</code>; Nix files pass <code>nix-instantiate --parse</code> / <code>nix flake check</code>.</li>
+<li>[ ] [OPERATOR] 3-node cluster up; <code>server list</code> = 3; a stream is R3; killing one node keeps it writable (quorum 2/3); rolling restart causes no client errors (lame-duck).</li>
+<li>[ ] [OPERATOR] auth isolation holds (SWE_AF cannot read EVENTS subjects); SYS locked.</li>
+<li>[ ] [OPERATOR] all fleet clients repointed; <code>crabcc-nats</code> SPOF retired.</li>
+</ul>
+<h2 id="open-items">Open items</h2>
+<ul>
+<li>Verify pinned-nixpkgs <code>services.nats.settings</code> key acceptance (adapt if wrapped).</li>
+<li>Confirm exact <code>nsc add export/import</code> flags for the <code>swe.af.status.&gt;</code> cross-account share.</li>
+<li>IPv6-only nodes + tailnet to avoid IPv4 surcharge (economy.md open item).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-14-nats-ha-cluster.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

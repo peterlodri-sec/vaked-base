@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle slice 3 — agentic reverser — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#key-facts-verified" style="padding-left:0.5rem">Key facts (verified)</a><a href="#file-structure" style="padding-left:0.5rem">File Structure</a><a href="#task-1-agentpy-the-llm-brain-parse-fallback" style="padding-left:0.5rem">Task 1: `agent.py` — the LLM brain (parse + fallback)</a><a href="#task-2-investigatepy-crabcc-binutils-adapter" style="padding-left:0.5rem">Task 2: `investigate.py` — crabcc + binutils adapter</a><a href="#task-3-loop-integration-inject-brain-handle-investigate" style="padding-left:0.5rem">Task 3: Loop integration — inject brain + handle `investigate`</a><a href="#task-4-cli-run---agent" style="padding-left:0.5rem">Task 4: CLI — `run --agent`</a><a href="#task-5-docs-agentic-mode" style="padding-left:0.5rem">Task 5: Docs — agentic mode</a><a href="#agentic-mode-slice-3" style="padding-left:0.5rem">Agentic mode (slice 3)</a><a href="#task-6-on-box-acceptance-dev-cx53-box-gated" style="padding-left:0.5rem">Task 6: On-box acceptance (dev-cx53 — BOX-GATED)</a><a href="#final-verification" style="padding-left:0.5rem">Final verification</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-15-vaked-oracle-slice-3</div>
+<h1>vaked-oracle slice 3 — agentic reverser — Implementation Plan</h1>
+<h1 id="vaked-oracle-slice-3-agentic-reverser-implementation-plan">vaked-oracle slice 3 — agentic reverser — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans. Steps use checkbox (<code>- [ ]</code>) syntax.</p>
+</blockquote>
+<p><strong>Goal:</strong> Swap the oracle loop's fixed <code>policy.next_action</code> for an LLM-driven brain over a bounded action set <code>{decompile, refine, investigate, finalize}</code>, plus a hybrid <code>investigate</code> action backed by crabcc (C ground-truth source) with a binutils fallback. Replay-stable, deterministic fallback, grounds via slice-2.</p>
+<p><strong>Architecture:</strong> New <code>agent.py</code> (LLM brain + parse + fallback + litellm client) and <code>investigate.py</code> (crabcc/binutils adapter). <code>loop.run_loop</code> gains optional <code>decide=</code>/<code>investigate=</code> params — defaults preserve slice-1/2 behavior exactly. <code>LoopState</code> gains <code>observations</code>. CLI <code>run --agent</code> wires the brain.</p>
+<p><strong>Tech Stack:</strong> Pure-Python stdlib (urllib for HTTP, subprocess for crabcc/nm). Local LLM via revdev <code>oq</code>/litellm <code>:4000</code>. All M3-safe except the gated on-box acceptance.</p>
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-06-15-vaked-oracle-slice-3-design.md</code></p>
+<hr />
+<h2 id="key-facts-verified">Key facts (verified)</h2>
+<ul>
+<li><code>loop.run_loop(*, functions, target, decompiler_meta, ledger_, decompile, refine, dynamic, budget_iters=50, control_path=None)</code> calls <code>policy.next_action(state)</code> each tick and logs <code>{"kind":"decision", **act, "iter":iters}</code>.</li>
+<li><code>policy.LoopState</code> is a dataclass <code>(functions, results, iters, budget_iters)</code>; <code>policy.next_action</code> returns <code>{"action":"decompile"|"refine"|"finalize", "fn"?}</code>; <code>FIDELITY_THRESHOLD=0.75</code>, <code>MAX_REFINE=2</code>.</li>
+<li><code>ledger.Ledger(path)</code>: <code>.append(payload)-&gt;entry</code>, <code>.entries()</code>, <code>.verify()</code>.</li>
+<li>crabcc 6.3.0: <code>crabcc --root &lt;dir&gt; lookup &lt;sym|callers|refs|outline|fuzzy&gt; &lt;name&gt;</code> → JSON. Indexes C, not C++ (<code>.cpp</code> skipped).</li>
+<li><code>oracle.py</code> <code>run</code> subparser + <code>cmd_run</code> build the producers and call <code>loop.run_loop</code>.</li>
+<li><code>test_oracle.py</code> is a stdlib runner; add <code>test_*</code> functions. Baseline: 41 passing.</li>
+</ul>
+<hr />
+<h2 id="file-structure">File Structure</h2>
+<ul>
+<li><strong>Create:</strong> <code>tools/oracle/agent.py</code> — <code>build_prompt</code>, <code>parse_action</code>, <code>make_policy</code>, <code>LiteLLMClient</code>.</li>
+<li><strong>Create:</strong> <code>tools/oracle/investigate.py</code> — <code>crabcc_query</code>, <code>binutils_query</code>, <code>make_investigator</code>.</li>
+<li><strong>Modify:</strong> <code>tools/oracle/policy.py</code> — add <code>observations</code> field to <code>LoopState</code>.</li>
+<li><strong>Modify:</strong> <code>tools/oracle/loop.py</code> — <code>decide=</code>/<code>investigate=</code> params; handle <code>investigate</code>; thread <code>observations</code>.</li>
+<li><strong>Modify:</strong> <code>tools/oracle/oracle.py</code> — <code>run --agent</code> + LLM/crabcc flags; wire brain in <code>cmd_run</code>.</li>
+<li><strong>Modify:</strong> <code>tools/oracle/test_oracle.py</code> — 8 new tests (41→49).</li>
+<li><strong>Modify:</strong> <code>docs/oracle/README.md</code> + <code>docs/oracle/v0.md</code> — agentic-mode note.</li>
+</ul>
+<hr />
+<h2 id="task-1-agentpy-the-llm-brain-parse-fallback">Task 1: <code>agent.py</code> — the LLM brain (parse + fallback)</h2>
+<p><strong>Files:</strong> Create <code>tools/oracle/agent.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write failing tests</strong> (append to <code>test_oracle.py</code>)</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="c1"># --- slice 3: agentic reverser ---------------------------------------------</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">agent</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_agent</span>  <span class="c1"># noqa: E402</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">investigate</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_inv</span>  <span class="c1"># noqa: E402</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_state</span><span class="p">(</span><span class="n">functions</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">),</span> <span class="n">results</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">iters</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">budget</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">observations</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">policy</span><span class="o">.</span><span class="n">LoopState</span><span class="p">(</span><span class="n">functions</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">functions</span><span class="p">),</span> <span class="n">results</span><span class="o">=</span><span class="n">results</span> <span class="ow">or</span> <span class="p">{},</span>
+                            <span class="n">iters</span><span class="o">=</span><span class="n">iters</span><span class="p">,</span> <span class="n">budget_iters</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                            <span class="n">observations</span><span class="o">=</span><span class="n">observations</span> <span class="ow">or</span> <span class="p">[])</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_agent_decide_parses_llm_action</span><span class="p">():</span>
+    <span class="n">decide</span> <span class="o">=</span> <span class="n">_agent</span><span class="o">.</span><span class="n">make_policy</span><span class="p">(</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="s1">&#39;{&quot;action&quot;:&quot;decompile&quot;,&quot;fn&quot;:&quot;a&quot;,&quot;rationale&quot;:&quot;start&quot;}&#39;</span><span class="p">)</span>
+    <span class="n">act</span> <span class="o">=</span> <span class="n">decide</span><span class="p">(</span><span class="n">_state</span><span class="p">())</span>
+    <span class="k">assert</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;action&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;decompile&quot;</span> <span class="ow">and</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;fn&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;a&quot;</span> <span class="ow">and</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;rationale&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;start&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_agent_decide_falls_back_on_garbage</span><span class="p">():</span>
+    <span class="n">decide</span> <span class="o">=</span> <span class="n">_agent</span><span class="o">.</span><span class="n">make_policy</span><span class="p">(</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="s2">&quot;not json at all&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">decide</span><span class="p">(</span><span class="n">_state</span><span class="p">())</span> <span class="o">==</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span><span class="p">(</span><span class="n">_state</span><span class="p">())</span>   <span class="c1"># deterministic fallback</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_agent_decide_rejects_out_of_menu</span><span class="p">():</span>
+    <span class="n">d1</span> <span class="o">=</span> <span class="n">_agent</span><span class="o">.</span><span class="n">make_policy</span><span class="p">(</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="s1">&#39;{&quot;action&quot;:&quot;rm&quot;,&quot;fn&quot;:&quot;a&quot;}&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">d1</span><span class="p">(</span><span class="n">_state</span><span class="p">())</span> <span class="o">==</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span><span class="p">(</span><span class="n">_state</span><span class="p">())</span>          <span class="c1"># bad action -&gt; fallback</span>
+    <span class="n">d2</span> <span class="o">=</span> <span class="n">_agent</span><span class="o">.</span><span class="n">make_policy</span><span class="p">(</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="s1">&#39;{&quot;action&quot;:&quot;decompile&quot;,&quot;fn&quot;:&quot;zzz&quot;}&#39;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">d2</span><span class="p">(</span><span class="n">_state</span><span class="p">())</span> <span class="o">==</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span><span class="p">(</span><span class="n">_state</span><span class="p">())</span>          <span class="c1"># fn not in functions -&gt; fallback</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: Run — expect FAIL</strong> (<code>No module named 'agent'</code>)</li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | grep -E "agent|Error" | head</code></p>
+<ul>
+<li>[ ] <strong>Step 3: Write <code>tools/oracle/agent.py</code></strong></li>
+</ul>
+<div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;Agentic brain for the oracle loop — an LLM picks the next action (slice 3).</span>
+
+<span class="sd">Replaces policy.next_action&#39;s fixed round-robin with an LLM decision over the same</span>
+<span class="sd">bounded action set {decompile, refine, investigate, finalize}. Deterministic at the</span>
+<span class="sd">action layer; the LLM only selects among recorded primitives. Any parse/validation</span>
+<span class="sd">failure falls back to policy.next_action, so a flaky model can never derail or</span>
+<span class="sd">unbound the loop. temperature=0 ⇒ replayable.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">policy</span>
+
+<span class="n">ACTIONS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;decompile&quot;</span><span class="p">,</span> <span class="s2">&quot;refine&quot;</span><span class="p">,</span> <span class="s2">&quot;investigate&quot;</span><span class="p">,</span> <span class="s2">&quot;finalize&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_prompt</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">max_refine</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;You are a reverse-engineering planner. Pick ONE next action.&quot;</span><span class="p">,</span>
+             <span class="sa">f</span><span class="s2">&quot;Functions under analysis: </span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">functions</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+             <span class="s2">&quot;Current results (fn -&gt; fidelity / refine_passes / has_dynamic):&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">functions</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">r</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">: not yet decompiled&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">: fidelity=</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;fidelity&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;refine_passes=</span><span class="si">{</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;refine_passes&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+                         <span class="sa">f</span><span class="s2">&quot;has_dynamic=</span><span class="si">{</span><span class="nb">bool</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;frida&#39;</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;ebpf&#39;</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">obs</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="s2">&quot;observations&quot;</span><span class="p">,</span> <span class="p">[])</span> <span class="ow">or</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">obs</span><span class="p">:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;Recent investigations:&quot;</span><span class="p">)</span>
+        <span class="n">lines</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">o</span><span class="p">)[:</span><span class="mi">300</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">obs</span><span class="p">[</span><span class="o">-</span><span class="mi">5</span><span class="p">:]]</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Budget: iter </span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">iters</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">budget_iters</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Rules: decompile a function before refining it; refine only functions &quot;</span>
+                 <span class="sa">f</span><span class="s2">&quot;below fidelity </span><span class="si">{</span><span class="n">threshold</span><span class="si">}</span><span class="s2"> with &lt; </span><span class="si">{</span><span class="n">max_refine</span><span class="si">}</span><span class="s2"> refine passes; use &quot;</span>
+                 <span class="sa">f</span><span class="s2">&quot;investigate to learn a function&#39;s signature/callers/refs; finalize when &quot;</span>
+                 <span class="sa">f</span><span class="s2">&quot;no useful action remains or budget is low.&quot;</span><span class="p">)</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s1">&#39;Reply with ONE JSON object only, e.g. &#39;</span>
+                 <span class="s1">&#39;{&quot;action&quot;:&quot;decompile&quot;,&quot;fn&quot;:&quot;NAME&quot;,&quot;rationale&quot;:&quot;...&quot;} or &#39;</span>
+                 <span class="s1">&#39;{&quot;action&quot;:&quot;investigate&quot;,&quot;query&quot;:{&quot;kind&quot;:&quot;sym&quot;,&quot;name&quot;:&quot;NAME&quot;},&quot;rationale&quot;:&quot;...&quot;} or &#39;</span>
+                 <span class="s1">&#39;{&quot;action&quot;:&quot;finalize&quot;,&quot;rationale&quot;:&quot;...&quot;}. action in &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">ACTIONS</span><span class="p">))</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_action</span><span class="p">(</span><span class="n">raw</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract + validate the first JSON action object. Raises ValueError on any</span>
+<span class="sd">    violation (caller falls back to the deterministic policy).&quot;&quot;&quot;</span>
+    <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;{&quot;</span><span class="p">),</span> <span class="n">raw</span><span class="o">.</span><span class="n">rfind</span><span class="p">(</span><span class="s2">&quot;}&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">end</span> <span class="o">&lt;=</span> <span class="n">start</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;no JSON object in LLM reply&quot;</span><span class="p">)</span>
+    <span class="n">obj</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+    <span class="n">act</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;action&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">act</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ACTIONS</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;action </span><span class="si">{</span><span class="n">act</span><span class="si">!r}</span><span class="s2"> not in </span><span class="si">{</span><span class="n">ACTIONS</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">rationale</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;rationale&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">act</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;decompile&quot;</span><span class="p">,</span> <span class="s2">&quot;refine&quot;</span><span class="p">):</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fn&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fn</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">functions</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;fn </span><span class="si">{</span><span class="n">fn</span><span class="si">!r}</span><span class="s2"> not in functions&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="n">act</span><span class="p">,</span> <span class="s2">&quot;fn&quot;</span><span class="p">:</span> <span class="n">fn</span><span class="p">,</span> <span class="s2">&quot;rationale&quot;</span><span class="p">:</span> <span class="n">rationale</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">act</span> <span class="o">==</span> <span class="s2">&quot;investigate&quot;</span><span class="p">:</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;query&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;kind&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">q</span> <span class="ow">or</span> <span class="s2">&quot;name&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">q</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;investigate needs query{kind,name}&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;investigate&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]),</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">q</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">])},</span>
+                <span class="s2">&quot;rationale&quot;</span><span class="p">:</span> <span class="n">rationale</span><span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;finalize&quot;</span><span class="p">,</span> <span class="s2">&quot;rationale&quot;</span><span class="p">:</span> <span class="n">rationale</span><span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">make_policy</span><span class="p">(</span><span class="n">llm_call</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;?&quot;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.75</span><span class="p">,</span> <span class="n">max_refine</span><span class="o">=</span><span class="mi">2</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;decide(state) -&gt; action using llm_call(prompt)-&gt;str. Deterministic fallback.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decide</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="n">build_prompt</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">max_refine</span><span class="o">=</span><span class="n">max_refine</span><span class="p">))</span>
+            <span class="n">act</span> <span class="o">=</span> <span class="n">parse_action</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span>
+            <span class="n">act</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span>
+            <span class="k">return</span> <span class="n">act</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 — any failure ⇒ deterministic policy</span>
+            <span class="k">return</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">decide</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">LiteLLMClient</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Thin OpenAI-chat client for the local litellm gateway (revdev `oq`, :4000).&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">endpoint</span><span class="o">=</span><span class="s2">&quot;http://127.0.0.1:4000/v1/chat/completions&quot;</span><span class="p">,</span>
+                 <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-coder:7b&quot;</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">120</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">endpoint</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;LITELLM_KEY&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">timeout</span> <span class="o">=</span> <span class="n">timeout</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                           <span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">prompt</span><span class="p">}]})</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">body</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span>
+                                     <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">,</span>
+                                              <span class="s2">&quot;Authorization&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">})</span>
+        <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>  <span class="c1"># noqa: S310 (loopback gateway)</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">r</span><span class="p">)[</span><span class="s2">&quot;choices&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;message&quot;</span><span class="p">][</span><span class="s2">&quot;content&quot;</span><span class="p">]</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 4: Add the <code>observations</code> field to <code>policy.LoopState</code></strong></li>
+</ul>
+<p>In <code>tools/oracle/policy.py</code>, change the imports + dataclass:</p>
+<div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+</pre></div>
+
+<div class="highlight"><pre><span></span><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LoopState</span><span class="p">:</span>
+    <span class="n">functions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">results</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span>
+    <span class="n">iters</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">budget_iters</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">observations</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 5: Run — expect PASS</strong> (<code>44 passed</code>)</li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -2</code></p>
+<ul>
+<li>[ ] <strong>Step 6: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/agent.py<span class="w"> </span>tools/oracle/policy.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): agent.py — LLM-driven loop brain with deterministic fallback&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-2-investigatepy-crabcc-binutils-adapter">Task 2: <code>investigate.py</code> — crabcc + binutils adapter</h2>
+<p><strong>Files:</strong> Create <code>tools/oracle/investigate.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write failing tests</strong> (append to <code>test_oracle.py</code>)</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_investigate_crabcc_adapter_parses</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fake_runner</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">cmd</span><span class="p">[:</span><span class="mi">5</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="s2">&quot;--root&quot;</span><span class="p">,</span> <span class="s2">&quot;SRC&quot;</span><span class="p">,</span> <span class="s2">&quot;lookup&quot;</span><span class="p">,</span> <span class="s2">&quot;sym&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;[{&quot;name&quot;:&quot;ggml_compute_forward&quot;,&quot;signature&quot;:&quot;int ggml_compute_forward(int)&quot;}]&#39;</span>
+    <span class="n">investigate</span> <span class="o">=</span> <span class="n">_inv</span><span class="o">.</span><span class="n">make_investigator</span><span class="p">(</span><span class="n">source_root</span><span class="o">=</span><span class="s2">&quot;SRC&quot;</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">fake_runner</span><span class="p">)</span>
+    <span class="n">obs</span> <span class="o">=</span> <span class="n">investigate</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;sym&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ggml_compute_forward&quot;</span><span class="p">})</span>
+    <span class="k">assert</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;provider&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;crabcc&quot;</span> <span class="ow">and</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ggml_compute_forward&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_investigate_binutils_fallback</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fake_runner</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;0000000000001234 T ggml_compute_forward</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">cmd</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;nm&quot;</span> <span class="k">else</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">investigate</span> <span class="o">=</span> <span class="n">_inv</span><span class="o">.</span><span class="n">make_investigator</span><span class="p">(</span><span class="n">binary</span><span class="o">=</span><span class="s2">&quot;/lib/libggml.so&quot;</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">fake_runner</span><span class="p">)</span>
+    <span class="n">obs</span> <span class="o">=</span> <span class="n">investigate</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;sym&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;ggml_compute_forward&quot;</span><span class="p">})</span>
+    <span class="k">assert</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;provider&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;binutils&quot;</span> <span class="ow">and</span> <span class="n">obs</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">][</span><span class="s2">&quot;found&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_investigate_never_raises_returns_none</span><span class="p">():</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">boom</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;crabcc exploded&quot;</span><span class="p">)</span>
+    <span class="n">investigate</span> <span class="o">=</span> <span class="n">_inv</span><span class="o">.</span><span class="n">make_investigator</span><span class="p">(</span><span class="n">source_root</span><span class="o">=</span><span class="s2">&quot;SRC&quot;</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">boom</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">investigate</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;sym&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">})[</span><span class="s2">&quot;provider&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;none&quot;</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 2: Run — expect FAIL</strong> (<code>No module named 'investigate'</code>)</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: Write <code>tools/oracle/investigate.py</code></strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;Read-only structural investigation for the agentic reverser (slice 3).</span>
+
+<span class="sd">The hybrid &#39;investigate&#39; action: answer a function query (signature / callers /</span>
+<span class="sd">refs / outline / fuzzy) from crabcc over the C ground-truth source (crabcc indexes</span>
+<span class="sd">C, not C++ — so ggml.c + C headers like llama.h/ggml.h), falling back to binutils</span>
+<span class="sd">over the target binary, else a &#39;none&#39; observation. Never raises — investigation</span>
+<span class="sd">must never crash the loop.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+
+<span class="n">_CRABCC_KINDS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;sym&quot;</span><span class="p">,</span> <span class="s2">&quot;callers&quot;</span><span class="p">,</span> <span class="s2">&quot;refs&quot;</span><span class="p">,</span> <span class="s2">&quot;outline&quot;</span><span class="p">,</span> <span class="s2">&quot;fuzzy&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a command -&gt; (rc, stdout). Injectable via make_investigator(runner=...).&quot;&quot;&quot;</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">)</span>  <span class="c1"># noqa: S603</span>
+    <span class="k">return</span> <span class="n">p</span><span class="o">.</span><span class="n">returncode</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">stdout</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">crabcc_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source_root</span><span class="p">,</span> <span class="n">crabcc</span><span class="o">=</span><span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">_run</span><span class="p">):</span>
+    <span class="n">kind</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kind&quot;</span><span class="p">),</span> <span class="n">query</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_CRABCC_KINDS</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">rc</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">runner</span><span class="p">([</span><span class="n">crabcc</span><span class="p">,</span> <span class="s2">&quot;--root&quot;</span><span class="p">,</span> <span class="n">source_root</span><span class="p">,</span> <span class="s2">&quot;lookup&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="p">,</span> <span class="n">name</span><span class="p">])</span>
+    <span class="k">if</span> <span class="n">rc</span> <span class="o">!=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">out</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">strip</span><span class="p">()[:</span><span class="mi">1000</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">query</span><span class="p">,</span> <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">binutils_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">binary</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">_run</span><span class="p">):</span>
+    <span class="n">kind</span><span class="p">,</span> <span class="n">name</span> <span class="o">=</span> <span class="n">query</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kind&quot;</span><span class="p">),</span> <span class="n">query</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">binary</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">kind</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;sym&quot;</span><span class="p">,</span> <span class="s2">&quot;fuzzy&quot;</span><span class="p">):</span>
+        <span class="n">rc</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="n">runner</span><span class="p">([</span><span class="s2">&quot;nm&quot;</span><span class="p">,</span> <span class="s2">&quot;-C&quot;</span><span class="p">,</span> <span class="s2">&quot;--defined-only&quot;</span><span class="p">,</span> <span class="n">binary</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">rc</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">hits</span> <span class="o">=</span> <span class="p">[</span><span class="n">ln</span> <span class="k">for</span> <span class="n">ln</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">ln</span><span class="p">][:</span><span class="mi">20</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">query</span><span class="p">,</span> <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="s2">&quot;binutils&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;symbols&quot;</span><span class="p">:</span> <span class="n">hits</span><span class="p">,</span> <span class="s2">&quot;found&quot;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">hits</span><span class="p">)}}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">query</span><span class="p">,</span> <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="s2">&quot;binutils&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">kind</span><span class="si">}</span><span class="s2"> not available from a binary&quot;</span><span class="p">}}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">make_investigator</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">source_root</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">binary</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">crabcc</span><span class="o">=</span><span class="s2">&quot;crabcc&quot;</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">_run</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;investigate(query) -&gt; observation. crabcc-preferred, binutils fallback, &#39;none&#39;</span>
+<span class="sd">    if neither usable. Never raises.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">investigate</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">source_root</span><span class="p">:</span>
+                <span class="n">obs</span> <span class="o">=</span> <span class="n">crabcc_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">source_root</span><span class="o">=</span><span class="n">source_root</span><span class="p">,</span> <span class="n">crabcc</span><span class="o">=</span><span class="n">crabcc</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">runner</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">obs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">obs</span>
+            <span class="k">if</span> <span class="n">binary</span><span class="p">:</span>
+                <span class="n">obs</span> <span class="o">=</span> <span class="n">binutils_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">binary</span><span class="o">=</span><span class="n">binary</span><span class="p">,</span> <span class="n">runner</span><span class="o">=</span><span class="n">runner</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">obs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">obs</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 — investigation must never crash the loop</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">query</span><span class="p">,</span> <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">investigate</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 4: Run — expect PASS</strong> (<code>47 passed</code>)</p>
+</li>
+<li>
+<p>[ ] <strong>Step 5: Commit</strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/investigate.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): investigate.py — crabcc (C) + binutils read-only adapter&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-3-loop-integration-inject-brain-handle-investigate">Task 3: Loop integration — inject brain + handle <code>investigate</code></h2>
+<p><strong>Files:</strong> Modify <code>tools/oracle/loop.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write failing tests</strong> (append to <code>test_oracle.py</code>)</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_loop_agentic_drives_to_finalize</span><span class="p">():</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d</span><span class="p">:</span>
+        <span class="n">lg</span> <span class="o">=</span> <span class="n">ledger</span><span class="o">.</span><span class="n">Ledger</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s2">&quot;events.jsonl&quot;</span><span class="p">))</span>
+        <span class="n">script</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">([</span>
+            <span class="s1">&#39;{&quot;action&quot;:&quot;investigate&quot;,&quot;query&quot;:{&quot;kind&quot;:&quot;sym&quot;,&quot;name&quot;:&quot;a&quot;},&quot;rationale&quot;:&quot;scout&quot;}&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;{&quot;action&quot;:&quot;decompile&quot;,&quot;fn&quot;:&quot;a&quot;,&quot;rationale&quot;:&quot;go&quot;}&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;{&quot;action&quot;:&quot;finalize&quot;,&quot;rationale&quot;:&quot;done&quot;}&#39;</span><span class="p">,</span>
+        <span class="p">])</span>
+        <span class="n">decide</span> <span class="o">=</span> <span class="n">_agent</span><span class="o">.</span><span class="n">make_policy</span><span class="p">(</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="nb">next</span><span class="p">(</span><span class="n">script</span><span class="p">))</span>
+        <span class="n">investigate</span> <span class="o">=</span> <span class="n">_inv</span><span class="o">.</span><span class="n">make_investigator</span><span class="p">(</span><span class="n">source_root</span><span class="o">=</span><span class="s2">&quot;SRC&quot;</span><span class="p">,</span>
+            <span class="n">runner</span><span class="o">=</span><span class="k">lambda</span> <span class="n">cmd</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">30</span><span class="p">:</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;[{&quot;name&quot;:&quot;a&quot;}]&#39;</span><span class="p">))</span>
+        <span class="n">finding</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_loop</span><span class="p">(</span>
+            <span class="n">functions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">],</span>
+            <span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/bin/x&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;source_ref&quot;</span><span class="p">:</span> <span class="s2">&quot;v&quot;</span><span class="p">},</span>
+            <span class="n">decompiler_meta</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;model_sha256&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="n">ledger_</span><span class="o">=</span><span class="n">lg</span><span class="p">,</span>
+            <span class="n">decompile</span><span class="o">=</span><span class="k">lambda</span> <span class="n">fn</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="s2">&quot;int a()</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">),</span>
+            <span class="n">refine</span><span class="o">=</span><span class="k">lambda</span> <span class="n">fn</span><span class="p">,</span> <span class="n">prev</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;int a()</span><span class="si">{}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">),</span>
+            <span class="n">dynamic</span><span class="o">=</span><span class="k">lambda</span> <span class="n">fn</span><span class="p">:</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">budget_iters</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">decide</span><span class="o">=</span><span class="n">decide</span><span class="p">,</span> <span class="n">investigate</span><span class="o">=</span><span class="n">investigate</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">finding</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;oracle_finding&quot;</span>
+        <span class="n">payloads</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;payload&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">lg</span><span class="o">.</span><span class="n">entries</span><span class="p">()]</span>
+        <span class="n">kinds</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">payloads</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="s2">&quot;observation&quot;</span> <span class="ow">in</span> <span class="n">kinds</span> <span class="ow">and</span> <span class="s2">&quot;finding&quot;</span> <span class="ow">in</span> <span class="n">kinds</span>
+        <span class="n">decs</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">payloads</span> <span class="k">if</span> <span class="n">p</span><span class="p">[</span><span class="s2">&quot;kind&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;decision&quot;</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;rationale&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;go&quot;</span> <span class="ow">and</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">decs</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">lg</span><span class="o">.</span><span class="n">verify</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_loop_default_brain_unchanged</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;No decide/investigate ⇒ identical finding + ledger to explicit policy.next_action.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="o">**</span><span class="n">extra</span><span class="p">):</span>
+        <span class="n">lg</span> <span class="o">=</span> <span class="n">ledger</span><span class="o">.</span><span class="n">Ledger</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="s2">&quot;events.jsonl&quot;</span><span class="p">))</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">loop</span><span class="o">.</span><span class="n">run_loop</span><span class="p">(</span>
+            <span class="n">functions</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">],</span>
+            <span class="n">target</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;/bin/x&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;source_ref&quot;</span><span class="p">:</span> <span class="s2">&quot;v&quot;</span><span class="p">},</span>
+            <span class="n">decompiler_meta</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;model_sha256&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;temperature&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+            <span class="n">ledger_</span><span class="o">=</span><span class="n">lg</span><span class="p">,</span>
+            <span class="n">decompile</span><span class="o">=</span><span class="k">lambda</span> <span class="n">fn</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;int </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">()</span><span class="se">{{}}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">),</span>
+            <span class="n">refine</span><span class="o">=</span><span class="k">lambda</span> <span class="n">fn</span><span class="p">,</span> <span class="n">prev</span><span class="p">:</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot;int </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">()</span><span class="se">{{}}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="mf">0.95</span><span class="p">),</span>
+            <span class="n">dynamic</span><span class="o">=</span><span class="k">lambda</span> <span class="n">fn</span><span class="p">:</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="n">budget_iters</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="o">**</span><span class="n">extra</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="p">[</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;payload&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">lg</span><span class="o">.</span><span class="n">entries</span><span class="p">()]</span>
+    <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d1</span><span class="p">,</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">d2</span><span class="p">:</span>
+        <span class="n">f_default</span><span class="p">,</span> <span class="n">led_default</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="n">d1</span><span class="p">)</span>
+        <span class="n">f_explicit</span><span class="p">,</span> <span class="n">led_explicit</span> <span class="o">=</span> <span class="n">run</span><span class="p">(</span><span class="n">d2</span><span class="p">,</span> <span class="n">decide</span><span class="o">=</span><span class="n">policy</span><span class="o">.</span><span class="n">next_action</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">f_default</span> <span class="o">==</span> <span class="n">f_explicit</span> <span class="ow">and</span> <span class="n">led_default</span> <span class="o">==</span> <span class="n">led_explicit</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 2: Run — expect FAIL</strong> (<code>run_loop() got an unexpected keyword argument 'decide'</code>)</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: Modify <code>tools/oracle/loop.py</code></strong></p>
+</li>
+</ul>
+<p>Change the signature + loop body. Replace the <code>run_loop</code> signature line and the <code>while True:</code> decision block:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">run_loop</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">functions</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">decompiler_meta</span><span class="p">,</span> <span class="n">ledger_</span><span class="p">,</span>
+             <span class="n">decompile</span><span class="p">,</span> <span class="n">refine</span><span class="p">,</span> <span class="n">dynamic</span><span class="p">,</span> <span class="n">budget_iters</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">control_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">decide</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">investigate</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+    <span class="n">decide</span> <span class="o">=</span> <span class="n">decide</span> <span class="ow">or</span> <span class="n">policy</span><span class="o">.</span><span class="n">next_action</span>
+    <span class="n">results</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">observations</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">iters</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">_control_stop</span><span class="p">(</span><span class="n">control_path</span><span class="p">):</span>
+            <span class="n">ledger_</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;decision&quot;</span><span class="p">,</span> <span class="s2">&quot;action&quot;</span><span class="p">:</span> <span class="s2">&quot;control_stop&quot;</span><span class="p">})</span>
+            <span class="k">break</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="n">policy</span><span class="o">.</span><span class="n">LoopState</span><span class="p">(</span><span class="n">functions</span><span class="o">=</span><span class="n">functions</span><span class="p">,</span> <span class="n">results</span><span class="o">=</span><span class="n">results</span><span class="p">,</span>
+                                 <span class="n">iters</span><span class="o">=</span><span class="n">iters</span><span class="p">,</span> <span class="n">budget_iters</span><span class="o">=</span><span class="n">budget_iters</span><span class="p">,</span>
+                                 <span class="n">observations</span><span class="o">=</span><span class="n">observations</span><span class="p">)</span>
+        <span class="n">act</span> <span class="o">=</span> <span class="n">decide</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="n">ledger_</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;decision&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">act</span><span class="p">,</span> <span class="s2">&quot;iter&quot;</span><span class="p">:</span> <span class="n">iters</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;action&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;finalize&quot;</span><span class="p">:</span>
+            <span class="k">break</span>
+        <span class="k">if</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;action&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;investigate&quot;</span><span class="p">:</span>
+            <span class="n">obs</span> <span class="o">=</span> <span class="p">(</span><span class="n">investigate</span><span class="p">(</span><span class="n">act</span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">])</span> <span class="k">if</span> <span class="n">investigate</span>
+                   <span class="k">else</span> <span class="p">{</span><span class="s2">&quot;query&quot;</span><span class="p">:</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">],</span> <span class="s2">&quot;provider&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;result&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">})</span>
+            <span class="n">observations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">obs</span><span class="p">)</span>
+            <span class="n">ledger_</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;observation&quot;</span><span class="p">,</span> <span class="s2">&quot;iter&quot;</span><span class="p">:</span> <span class="n">iters</span><span class="p">,</span> <span class="o">**</span><span class="n">obs</span><span class="p">})</span>
+            <span class="n">iters</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+        <span class="n">fn</span> <span class="o">=</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;fn&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;action&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;decompile&quot;</span><span class="p">:</span>
+            <span class="n">pseudo_c</span><span class="p">,</span> <span class="n">refined_c</span><span class="p">,</span> <span class="n">fid</span> <span class="o">=</span> <span class="n">decompile</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+            <span class="n">fr</span><span class="p">,</span> <span class="n">eb</span> <span class="o">=</span> <span class="n">dynamic</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">fn</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;pseudo_c&quot;</span><span class="p">:</span> <span class="n">pseudo_c</span><span class="p">,</span> <span class="s2">&quot;refined&quot;</span><span class="p">:</span> <span class="n">refined_c</span><span class="p">,</span> <span class="s2">&quot;fidelity&quot;</span><span class="p">:</span> <span class="n">fid</span><span class="p">,</span>
+                           <span class="s2">&quot;refine_passes&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;frida&quot;</span><span class="p">:</span> <span class="n">fr</span><span class="p">,</span> <span class="s2">&quot;ebpf&quot;</span><span class="p">:</span> <span class="n">eb</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="n">act</span><span class="p">[</span><span class="s2">&quot;action&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;refine&quot;</span><span class="p">:</span>
+            <span class="n">refined_c</span><span class="p">,</span> <span class="n">fid</span> <span class="o">=</span> <span class="n">refine</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="n">results</span><span class="p">[</span><span class="n">fn</span><span class="p">][</span><span class="s2">&quot;refined&quot;</span><span class="p">])</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">fn</span><span class="p">][</span><span class="s2">&quot;refined&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">refined_c</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">fn</span><span class="p">][</span><span class="s2">&quot;fidelity&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fid</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">fn</span><span class="p">][</span><span class="s2">&quot;refine_passes&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">iters</span> <span class="o">+=</span> <span class="mi">1</span>
+</pre></div>
+
+<p>(The finding-assembly block after the loop is unchanged.)</p>
+<ul>
+<li>[ ] <strong>Step 4: Run — expect PASS</strong> (<code>49 passed</code>)</li>
+</ul>
+<p>Run: <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -2</code></p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/loop.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): loop accepts an injected decide brain + investigate action (back-compat default)&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-4-cli-run-agent">Task 4: CLI — <code>run --agent</code></h2>
+<p><strong>Files:</strong> Modify <code>tools/oracle/oracle.py</code>; Test <code>tools/oracle/test_oracle.py</code>.</p>
+<ul>
+<li>[ ] <strong>Step 1: Write failing test</strong> (append to <code>test_oracle.py</code>)</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_parse_args_agent_flags</span><span class="p">():</span>
+    <span class="n">ns</span> <span class="o">=</span> <span class="n">oracle_cli</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([</span><span class="s2">&quot;run&quot;</span><span class="p">,</span> <span class="s2">&quot;--target&quot;</span><span class="p">,</span> <span class="s2">&quot;/bin/x&quot;</span><span class="p">,</span> <span class="s2">&quot;--funcs&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span>
+                                <span class="s2">&quot;--agent&quot;</span><span class="p">,</span> <span class="s2">&quot;--crabcc-root&quot;</span><span class="p">,</span> <span class="s2">&quot;/src&quot;</span><span class="p">,</span> <span class="s2">&quot;--llm-model&quot;</span><span class="p">,</span> <span class="s2">&quot;m7&quot;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">ns</span><span class="o">.</span><span class="n">agent</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="n">ns</span><span class="o">.</span><span class="n">crabcc_root</span> <span class="o">==</span> <span class="s2">&quot;/src&quot;</span> <span class="ow">and</span> <span class="n">ns</span><span class="o">.</span><span class="n">llm_model</span> <span class="o">==</span> <span class="s2">&quot;m7&quot;</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 2: Run — expect FAIL</strong> (<code>unrecognized arguments: --agent</code>)</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: Implement in <code>tools/oracle/oracle.py</code></strong></p>
+</li>
+</ul>
+<p>Add to the <code>run</code> subparser (<code>r</code>), before the slice-2 subparsers:</p>
+<div class="highlight"><pre><span></span><span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--agent&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;LLM-driven brain (default: deterministic policy)&quot;</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--llm-endpoint&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;http://127.0.0.1:4000/v1/chat/completions&quot;</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--llm-model&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;OQ_MODEL&quot;</span><span class="p">,</span> <span class="s2">&quot;qwen2.5-coder:7b&quot;</span><span class="p">))</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--crabcc-root&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;crabcc index root (ground-truth source) for investigate&quot;</span><span class="p">)</span>
+    <span class="n">r</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--binary-investigate&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;allow binutils investigate over --target&quot;</span><span class="p">)</span>
+</pre></div>
+
+<p>In <code>cmd_run</code>, build the brain just before the <code>loop.run_loop(...)</code> call and pass it:</p>
+<div class="highlight"><pre><span></span><span class="n">decide</span> <span class="o">=</span> <span class="n">investigate_fn</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">ns</span><span class="o">.</span><span class="n">agent</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">agent</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_agent</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">investigate</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_inv</span>
+        <span class="n">llm</span> <span class="o">=</span> <span class="n">_agent</span><span class="o">.</span><span class="n">LiteLLMClient</span><span class="p">(</span><span class="n">endpoint</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">llm_endpoint</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">llm_model</span><span class="p">)</span>
+        <span class="n">decide</span> <span class="o">=</span> <span class="n">_agent</span><span class="o">.</span><span class="n">make_policy</span><span class="p">(</span><span class="n">llm</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">llm_model</span><span class="p">)</span>
+        <span class="n">investigate_fn</span> <span class="o">=</span> <span class="n">_inv</span><span class="o">.</span><span class="n">make_investigator</span><span class="p">(</span>
+            <span class="n">source_root</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">crabcc_root</span><span class="p">,</span>
+            <span class="n">binary</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">target</span> <span class="k">if</span> <span class="n">ns</span><span class="o">.</span><span class="n">binary_investigate</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
+</pre></div>
+
+<p>And add <code>decide=decide, investigate=investigate_fn</code> to the <code>loop.run_loop(...)</code> call.</p>
+<ul>
+<li>
+<p>[ ] <strong>Step 4: Run — expect PASS</strong> (<code>50 passed</code>)</p>
+</li>
+<li>
+<p>[ ] <strong>Step 5: Commit</strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/oracle.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): CLI &#39;run --agent&#39; + --llm-*/--crabcc-root wiring&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-5-docs-agentic-mode">Task 5: Docs — agentic mode</h2>
+<p><strong>Files:</strong> Modify <code>docs/oracle/README.md</code>, <code>docs/oracle/v0.md</code>.</p>
+<ul>
+<li>[ ] <strong>Step 1: <code>docs/oracle/README.md</code></strong> — add two module rows (after <code>dogfood_bridge.py</code>):</li>
+</ul>
+<div class="highlight"><pre><span></span>| <span class="sb">`agent.py`</span> | Slice-3 LLM-driven loop brain — <span class="sb">`make_policy(llm_call)`</span> picks the next action (decompile/refine/investigate/finalize) over the bounded set; <span class="sb">`build_prompt`</span>/<span class="sb">`parse_action`</span>; <span class="sb">`LiteLLMClient`</span> (local litellm <span class="sb">`:4000`</span>, temp=0); deterministic <span class="sb">`policy.next_action`</span> fallback on any parse failure |
+| <span class="sb">`investigate.py`</span> | Slice-3 read-only structural lookup — <span class="sb">`make_investigator(source_root, binary)`</span> answers function queries from crabcc (C ground-truth source) with a binutils fallback; never raises |
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 2: <code>docs/oracle/v0.md</code></strong> — add a subsection after the schema section:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="gu">## Agentic mode (slice 3)</span>
+
+<span class="sb">`oracle run --agent`</span> replaces the fixed <span class="sb">`policy.next_action`</span> round-robin with an
+LLM brain (<span class="sb">`agent.py`</span>, local litellm <span class="sb">`:4000`</span>, temp=0) that adaptively chooses the
+next action over <span class="sb">`{decompile, refine, investigate, finalize}`</span> and <span class="ge">*which*</span> function
+to attack. The hybrid <span class="sb">`investigate`</span> action queries crabcc over the C ground-truth
+source (<span class="sb">`ggml.c`</span> + C headers; crabcc indexes C, not C++) with a binutils fallback.
+Every decision (+ rationale, model) and observation is logged to the ledger, so an
+agentic run replays from the chain exactly like a deterministic one; any LLM
+parse/validation failure falls back to the deterministic policy. Findings ground to
+the aegis kernel via slice-2 unchanged.
+</pre></div>
+
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>docs/oracle/README.md<span class="w"> </span>docs/oracle/v0.md
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;docs(oracle): agentic mode (slice 3) — agent.py + investigate.py&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="task-6-on-box-acceptance-dev-cx53-box-gated">Task 6: On-box acceptance (dev-cx53 — BOX-GATED)</h2>
+<p><strong>Box-gated. crabcc install is a build → CLAUDE.md 3-gate (Gate-2 user approval required).</strong></p>
+<ul>
+<li>
+<p>[ ] <strong>Step 1: Deploy slice-3 code</strong> — <code>git archive feat/oracle-agentic-reverser tools eventd | ssh dev@100.105.72.88 'cat &gt;/tmp/s3.tar &amp;&amp; sudo -n -u revdev tar -xf /tmp/s3.tar -C /home/revdev/oracle-code &amp;&amp; rm /tmp/s3.tar'</code>.</p>
+</li>
+<li>
+<p>[ ] <strong>Step 2: Install crabcc on dev-cx53 (GATED build)</strong> — present Gate-1/2/3; on approval:<br />
+<code>gh auth setup-git &amp;&amp; CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git https://github.com/crabcc-labs/crabcc --tag &lt;latest&gt; crabcc-cli --force</code> (as a user with the toolchain). If declined → skip crabcc, run with <code>--binary-investigate</code> only.</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: Index the C ground truth</strong> — <code>crabcc --root ~revdev/oracle/llama.cpp-src index build</code> (ggml + C headers).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 4: Bring up the LLM gateway</strong> — ensure litellm <code>:4000</code> is up; <code>export LITELLM_KEY</code> (see <code>crabcc/install/ollama-stack/OLLAMA-AUTH.md</code>).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 5: Run the agentic loop</strong> —<br />
+<code>python3 tools/oracle/oracle.py run --agent --target &lt;libllama.so.0&gt; --funcs ggml_compute_forward,llama_decode --crabcc-root ~revdev/oracle/llama.cpp-src --source-dir ~revdev/oracle/llama.cpp-src ...</code><br />
+  Confirm the ledger shows agent decisions (with rationale) + observations, and a finding is produced + groundable.</p>
+</li>
+<li>
+<p>[ ] <strong>Step 6: Record + commit</strong> — capture the decision/observation trail + confidence into <code>docs/oracle/v0.md</code>; commit.</p>
+</li>
+</ul>
+<hr />
+<h2 id="final-verification">Final verification</h2>
+<ol>
+<li>M3: <code>python3 tools/oracle/test_oracle.py</code> → <code>50 passed, 0 failed</code>.</li>
+<li>Back-compat: <code>test_loop_default_brain_unchanged</code> green (deterministic path identical).</li>
+<li>No edits under <code>tools/ralph/</code> or <code>eventd/</code>: <code>git diff --name-only origin/main | grep -E "tools/ralph/|eventd/"</code> empty.</li>
+<li>On-box: agentic run produces a finding with a logged decision+observation trail.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-15-vaked-oracle-slice-3.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

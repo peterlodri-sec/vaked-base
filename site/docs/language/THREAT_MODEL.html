@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Threat Model: Vaked POLA Guarantees and Boundaries — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#overview" style="padding-left:0.5rem">Overview</a><a href="#part-1-the-pola-guarantee" style="padding-left:0.5rem">Part 1: The POLA Guarantee</a><a href="#11-formal-statement" style="padding-left:1rem">  1.1 Formal Statement</a><a href="#12-informal-soundness-sketch" style="padding-left:1rem">  1.2 Informal Soundness Sketch</a><a href="#13-scope-of-the-guarantee" style="padding-left:1rem">  1.3 Scope of the Guarantee</a><a href="#part-2-attack-scenarios" style="padding-left:0.5rem">Part 2: Attack Scenarios</a><a href="#scenario-a-privilege-escalation-via-type-evasion" style="padding-left:1rem">  Scenario A: Privilege Escalation via Type Evasion</a><a href="#scenario-b-capability-amplification-via-delegation" style="padding-left:1rem">  Scenario B: Capability Amplification via Delegation</a><a href="#scenario-c-undeclared-capability-use-via-code-injection" style="padding-left:1rem">  Scenario C: Undeclared Capability Use via Code Injection</a><a href="#scenario-d-privilege-escalation-via-mesh-cycles" style="padding-left:1rem">  Scenario D: Privilege Escalation via Mesh Cycles</a><a href="#scenario-e-authority-hiding-via-schema-omission" style="padding-left:1rem">  Scenario E: Authority Hiding via Schema Omission</a><a href="#part-3-integration-with-runtime-layers" style="padding-left:0.5rem">Part 3: Integration with Runtime Layers</a><a href="#the-division-of-responsibility" style="padding-left:1rem">  The Division of Responsibility</a><a href="#what-the-zigebpf-layer-must-do" style="padding-left:1rem">  What the Zig/eBPF Layer Must Do</a><a href="#what-the-nix-layer-must-do" style="padding-left:1rem">  What the Nix Layer Must Do</a><a href="#part-4-what-could-still-go-wrong" style="padding-left:0.5rem">Part 4: What Could Still Go Wrong?</a><a href="#41-bugs-in-the-vaked-type-checker" style="padding-left:1rem">  4.1 Bugs in the Vaked Type Checker</a><a href="#42-bugs-in-zig-daemons" style="padding-left:1rem">  4.2 Bugs in Zig Daemons</a><a href="#43-privilege-escalation-in-kernel-hypervisor" style="padding-left:1rem">  4.3 Privilege-Escalation in Kernel / Hypervisor</a><a href="#44-compromise-of-the-root-authority" style="padding-left:1rem">  4.4 Compromise of the Root Authority</a><a href="#45-supply-chain-attacks-on-dependencies" style="padding-left:1rem">  4.5 Supply-Chain Attacks on Dependencies</a><a href="#part-5-summary-for-paper-evaluation" style="padding-left:0.5rem">Part 5: Summary for Paper / Evaluation</a><a href="#vakeds-security-claims-for-publication" style="padding-left:1rem">  Vaked's Security Claims (for publication)</a><a href="#threat-model-scope" style="padding-left:1rem">  Threat Model Scope</a><a href="#evaluation-plan" style="padding-left:1rem">  Evaluation Plan</a><a href="#references" style="padding-left:0.5rem">References</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / THREAT_MODEL</div>
+<h1>Threat Model: Vaked POLA Guarantees and Boundaries</h1>
+<h1 id="threat-model-vaked-pola-guarantees-and-boundaries">Threat Model: Vaked POLA Guarantees and Boundaries</h1>
+<h2 id="overview">Overview</h2>
+<p>Vaked's security model is built on <strong>Principle of Least Privilege (POLA)</strong>: no principal should exercise more authority than necessary for its role. This document defines:</p>
+<ol>
+<li>What Vaked <strong>guarantees</strong> (static, compile-time)</li>
+<li>What Vaked <strong>does not guarantee</strong> (runtime enforcement is out-of-scope)</li>
+<li>How to interpret Vaked's security claims in an integrated system</li>
+</ol>
+<hr />
+<h2 id="part-1-the-pola-guarantee">Part 1: The POLA Guarantee</h2>
+<h3 id="11-formal-statement">1.1 Formal Statement</h3>
+<p><strong>Vaked's POLA invariant (informal):</strong> If a Vaked declaration passes type-checking (Goal 2, §6 of 0011), then:</p>
+<blockquote>
+<p><strong>No principal can exercise a capability strictly above (in the attenuation order) any capability held in any of its granted sets.</strong></p>
+</blockquote>
+<p>More precisely (§4.5 of 0011):</p>
+<ol>
+<li>Let <code>p</code> be a principal (node, fiber, surface, etc.) in the graph.</li>
+<li>Let <code>granted(p)</code> be the set of capabilities written in <code>capabilities = [...]</code> on <code>p</code>.</li>
+<li>Let <code>used(p)</code> be the set of capabilities that <code>p</code>'s engines, streams, effects, and connected services <em>require</em>.</li>
+<li>Let <code>G</code> be the set of all capabilities held by any upstream delegator of <code>p</code> (in a mesh or routing topology).</li>
+<li><strong>Claim:</strong> For all <code>c ∈ used(p)</code>, there exists <code>g ∈ granted(p)</code> such that <code>c ≤ g</code> (in the attenuation order). Additionally, every grant held by <code>p</code> is <code>≤</code> every grant held by upstream delegators (monotone attenuation along edges).</li>
+</ol>
+<p>If both conditions hold, the type system verifies that <strong>authority only flows downward (or stays equal) along delegation paths</strong>, and <strong>no principal exercises authority it was not granted</strong>.</p>
+<blockquote>
+<p><strong>Caveat (not yet machine-checked).</strong> This POLA invariant rests on an <strong>informal</strong> soundness argument (§4.5 of 0011), hand-written and <strong>not</strong> verified by a proof assistant. A Lean 4 mechanization is planned (RFC 0027, <code>0027-pola-formalization.md</code>). The invariant also holds only insofar as the use check <code>E-CAP-USE</code> (§4.3 of 0011) is correctly implemented and negative-tested (Risk 6 / <code>feat/cap-use-check</code>).</p>
+</blockquote>
+<h3 id="12-informal-soundness-sketch">1.2 Informal Soundness Sketch</h3>
+<p>The type checker enforces this via three rules (§4 of 0011):</p>
+<p><strong>Rule 1: Use Check (Local)</strong><br />
+For every principal <code>p</code>:</p>
+<div class="highlight"><pre><span></span>used(p) ⊑ granted(p)
+</pre></div>
+
+<p>where <code>c ⊑ G</code> means "there exists <code>g ∈ G</code> in the same domain with <code>c ≤ g</code>."</p>
+<p><em>Intuition:</em> A principal cannot exercise a capability unless it was granted something at least as strong.</p>
+<p><strong>Rule 2: Attenuation Check (Delegation)</strong><br />
+For every delegating edge <code>s -&gt; r</code> (sender to receiver):</p>
+<div class="highlight"><pre><span></span>granted(r) ⊑ granted(s)
+</pre></div>
+
+<p><em>Intuition:</em> A receiver cannot be granted more authority than the sender holds. Authority is attenuated (decreases or stays equal) along delegation edges.</p>
+<p><strong>Rule 3: Partial Order Validity</strong><br />
+For each capability domain, the attenuation order <code>&lt;</code> must form a <strong>partial order</strong> (reflexive, transitive, antisymmetric). This is checked at schema load (§4.2 of 0011).</p>
+<p><em>Why this ensures POLA:</em><br />
+- By Rule 3, <code>≤</code> is well-defined (transitive closure of <code>&lt;</code>).<br />
+- By Rule 1, any capability <code>p</code> exercises is covered by a grant it holds.<br />
+- By Rule 2, along any path <code>s -&gt;* r</code>, <code>granted(r) ⊑ granted(s)</code>.<br />
+- By transitivity of <code>⊑</code>, any grant <code>r</code> holds is <code>≤</code> a grant any upstream delegator holds.<br />
+- Combining: any capability <code>p</code> exercises is <code>≤</code> a grant it holds, which is <code>≤</code> a grant any ancestor holds. Thus authority is bounded by the root grant and never increases.</p>
+<h3 id="13-scope-of-the-guarantee">1.3 Scope of the Guarantee</h3>
+<p><strong>Vaked guarantees:</strong><br />
+- ✅ No principal's <strong>declared capabilities</strong> exceed the declared authorities of its delegators<br />
+- ✅ No principal <strong>attempts to use</strong> (in its declared engines/streams/effects) a capability stronger than what it was granted<br />
+- ✅ Authority does not <strong>increase</strong> along delegation paths<br />
+- ✅ The <strong>static authority topology</strong> (who holds what) is consistent with POLA before any code runs</p>
+<p><strong>Vaked does NOT guarantee:</strong><br />
+- ❌ Runtime enforcement: The Zig daemons, eBPF layer, and OTP supervisor must actually enforce the authority graph. Vaked cannot prevent a buggy or compromised runtime daemon from violating the declared capability boundary.<br />
+- ❌ Secrets/cryptographic enforcement: Vaked does not emit cryptographic proofs or credentials; it emits <em>text</em> (configs, JSON, Nix). The runtime must translate the declared authority into cryptographic or syscall-level checks.<br />
+- ❌ Revocation: Vaked specifies authority <em>statically</em>. Revoking a capability (e.g., a fiber loses access mid-execution) is a <strong>runtime membrane</strong> operation, not a Vaked operation.<br />
+- ❌ Timing/side-channel attacks: Vaked does not model timing, signal handling, or covert channels.<br />
+- ❌ Compromise of authorities: If a principal that holds root authority is compromised, POLA cannot help. The threat model assumes authorities (domains, grants, the root grant-set) are themselves trustworthy.</p>
+<hr />
+<h2 id="part-2-attack-scenarios">Part 2: Attack Scenarios</h2>
+<h3 id="scenario-a-privilege-escalation-via-type-evasion">Scenario A: Privilege Escalation via Type Evasion</h3>
+<p><strong>Attack:</strong> A fiber declares <code>capabilities = [fs.repo_rw]</code> but references an engine that actually requires <code>fs.repo_rw_dangerous</code>.</p>
+<p><strong>Reality check:</strong> The type system (Rule 1, Use Check) compares the engine's schema-declared requirements against the fiber's granted set. If the engine's schema says it needs <code>fs.repo_rw_dangerous</code>, and the fiber only holds <code>fs.repo_rw</code>, the check fails with a capability-use error.</p>
+<p><strong>Defense:</strong> The <strong>schema</strong> for each engine/stream declares its capability requirements. These are <strong>not user-provided</strong>; they are part of the language specification (in <code>parallel-types.md</code>). If a real engine has a capability requirement that the schema doesn't model, that is a <strong>language design event</strong> (§6.2 of 0011): the schema is fixed, not the application.</p>
+<h3 id="scenario-b-capability-amplification-via-delegation">Scenario B: Capability Amplification via Delegation</h3>
+<p><strong>Attack:</strong> A delegator <code>A</code> holds <code>fs.repo_ro</code> but delegates to <code>B</code> a grant <code>fs.repo_rw</code>.</p>
+<p><strong>Reality check:</strong> The type system (Rule 2, Attenuation Check) verifies that <code>granted(B) ⊑ granted(A)</code>. Since <code>fs.repo_rw &gt; fs.repo_ro</code> (repo_rw is stronger), the delegation violates the attenuation order. The checker rejects it.</p>
+<p><strong>Defense:</strong> Type-checking at declaration time, before any code runs.</p>
+<h3 id="scenario-c-undeclared-capability-use-via-code-injection">Scenario C: Undeclared Capability Use via Code Injection</h3>
+<p><strong>Attack:</strong> An attacker injects code into a Vaked engine/stream such that it uses capabilities not declared in its schema.</p>
+<p><strong>Reality check:</strong> Vaked does <strong>not prevent this</strong>. This is a <strong>runtime attack</strong>, outside the scope of the type system. The defense is:<br />
+1. <strong>Daemon sandboxing</strong> — Zig daemons should run in OS-level sandboxes (seccomp, pledge, pledge-like mechanisms).<br />
+2. <strong>eBPF policy enforcement</strong> — Syscall interception and audit.<br />
+3. <strong>Capability revocation</strong> — If a daemon is compromised, the OTP supervisor can revoke its membranes.</p>
+<p>These are <strong>runtime enforcement</strong> mechanisms, not Vaked's job. See §Scope.</p>
+<h3 id="scenario-d-privilege-escalation-via-mesh-cycles">Scenario D: Privilege Escalation via Mesh Cycles</h3>
+<p><strong>Attack:</strong> Create a cycle in a mesh: <code>A -&gt; B -&gt; C -&gt; A</code>. Can authority increase around the loop?</p>
+<p><strong>Reality check:</strong> The type system allows cycles structurally (they represent feedback or bidirectional communication). However, the attenuation check (Rule 2) still applies: <code>granted(B) ⊑ granted(A)</code>, <code>granted(C) ⊑ granted(B)</code>, <code>granted(A) ⊑ granted(C)</code>. This forces <code>granted(A) ⊑ granted(B) ⊑ granted(C) ⊑ granted(A)</code>, which by antisymmetry means all three have <strong>identical grant-sets</strong>. The cycle forces equality, which is sound (no escalation, just symmetric authority).</p>
+<p><strong>Defense:</strong> Type-checking + partial-order properties.</p>
+<h3 id="scenario-e-authority-hiding-via-schema-omission">Scenario E: Authority Hiding via Schema Omission</h3>
+<p><strong>Attack:</strong> Declare a <code>runtime</code> with an engine, but omit the <code>capabilities</code> field. Does it default to empty (no authority)?</p>
+<p><strong>Reality check:</strong> From §1.2 of 0011, a field with <code>default = [...]</code> is elaborated at type-check time. If the schema for <code>runtime</code> marks the <code>capabilities</code> field as <code>optional</code>, an omission is legal and elaborated to <code>[]</code> (empty grant-set). A field marked <code>required</code> with no <code>default</code> is a schema error if omitted.</p>
+<p>The language design (the schema for <code>runtime</code>) determines whether capabilities are mandatory or optional. If a real system <em>requires</em> an explicit authority declaration, the schema must mark it <code>required</code>.</p>
+<p><strong>Defense:</strong> Schema-level enforcement. The language design team (not application authors) decides this.</p>
+<hr />
+<h2 id="part-3-integration-with-runtime-layers">Part 3: Integration with Runtime Layers</h2>
+<h3 id="the-division-of-responsibility">The Division of Responsibility</h3>
+<p>Vaked operates in a <strong>three-layer architecture</strong> (per the manifesto: <em>"Vaked declares. Nix materializes. Zig enforces. eBPF testifies."</em>):</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Component</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Declaration</strong></td>
+<td>Vaked</td>
+<td>Declare authority topology; type-check POLA consistency</td>
+</tr>
+<tr>
+<td><strong>Build &amp; Pin</strong></td>
+<td>Nix + <code>flake.lock</code></td>
+<td>Fetch, build, and pin all dependencies; ensure artifact reproducibility</td>
+</tr>
+<tr>
+<td><strong>Runtime</strong></td>
+<td>Zig daemons + OTP</td>
+<td>Execute principals; enforce authority membranes; manage revocation</td>
+</tr>
+<tr>
+<td><strong>Audit</strong></td>
+<td>eBPF + CrabCC</td>
+<td>Intercept syscalls; verify authority at enforcement boundary; index call sites</td>
+</tr>
+</tbody>
+</table>
+<h3 id="what-the-zigebpf-layer-must-do">What the Zig/eBPF Layer Must Do</h3>
+<p>For Vaked's POLA guarantee to be <strong>end-to-end</strong>, the runtime must:</p>
+<ol>
+<li><strong>Create membranes:</strong> Each principal (fiber, node) runs in a distinct security context (process, namespace, container).</li>
+<li><strong>Enforce capability checks:</strong> Before a principal exercises a capability (e.g., opens a file, makes a network call), verify it holds the corresponding grant (or a stronger one).</li>
+<li><strong>Implement attenuation:</strong> When a principal delegates to another (via message passing, RPC, etc.), the receiver's effective grant-set is the <strong>intersection</strong> of what was granted and what the receiver declared.</li>
+<li><strong>Prevent revocation escape:</strong> If the OTP supervisor revokes a capability, the principal loses the ability to exercise it (via membrane revocation, not just configuration change).</li>
+</ol>
+<h3 id="what-the-nix-layer-must-do">What the Nix Layer Must Do</h3>
+<p>Nix ensures <strong>supply-chain reproducibility</strong>:</p>
+<ol>
+<li><strong>Pin all sources:</strong> <code>flake.lock</code> records the exact commit/hash of every dependency (Zig stdlib, engine code, secrets, etc.).</li>
+<li><strong>Reproducible builds:</strong> Derive artifacts from the pinned sources deterministically (no timestamps, no random data, no network).</li>
+<li><strong>Audit trail:</strong> The built artifacts' provenances (from <code>provenance.json</code>, see §6.2 of 0012) trace back to Vaked declarations and Nix derivations, forming an <strong>auditable chain</strong>.</li>
+</ol>
+<hr />
+<h2 id="part-4-what-could-still-go-wrong">Part 4: What Could Still Go Wrong?</h2>
+<p>Even with Vaked POLA + Nix reproducibility + Zig enforcement, the system can be compromised by:</p>
+<h3 id="41-bugs-in-the-vaked-type-checker">4.1 Bugs in the Vaked Type Checker</h3>
+<p>If the checker has a bug (e.g., incorrectly accepting an attenuation violation), the POLA invariant is not statically verified. <strong>Mitigation:</strong> Spec tests (§ of 0011) and differential oracle testing against the spec.</p>
+<h3 id="42-bugs-in-zig-daemons">4.2 Bugs in Zig Daemons</h3>
+<p>A daemon might have a memory safety bug (buffer overflow, use-after-free) exploited to escape the sandbox. <strong>Mitigation:</strong> Zig's memory safety guarantees (manual but checked) + eBPF as a defense-in-depth boundary.</p>
+<h3 id="43-privilege-escalation-in-kernel-hypervisor">4.3 Privilege-Escalation in Kernel / Hypervisor</h3>
+<p>If the host OS or hypervisor has a privilege escalation vulnerability, POLA cannot help. <strong>Mitigation:</strong> Regular patching, exploit mitigations (ASLR, CFI, etc.) at the OS level.</p>
+<h3 id="44-compromise-of-the-root-authority">4.4 Compromise of the Root Authority</h3>
+<p>If the principal holding the root capability (e.g., the "admin" fiber with <code>fs.repo_rw</code> and <code>network.full</code>) is compromised, all delegated principals are at risk. <strong>Mitigation:</strong> Principle of least privilege applies to the root authority itself; minimize who/what holds ultimate authority.</p>
+<h3 id="45-supply-chain-attacks-on-dependencies">4.5 Supply-Chain Attacks on Dependencies</h3>
+<p>An attacker compromises a Zig library that a daemon links. <strong>Mitigation:</strong> Nix's <code>flake.lock</code> pinning + reproducible builds enable verification (rebuild and checksum); still relies on the integrity of the pinned sources.</p>
+<hr />
+<h2 id="part-5-summary-for-paper-evaluation">Part 5: Summary for Paper / Evaluation</h2>
+<h3 id="vakeds-security-claims-for-publication">Vaked's Security Claims (for publication)</h3>
+<ol>
+<li>
+<p><strong>Static POLA Verification:</strong> Vaked's type system verifies that authority topology is POLA-consistent before compilation. This is a <em>compile-time</em> verification (informal argument, not machine-checked — Lean mechanization planned, RFC 0027), not a runtime check.</p>
+</li>
+<li>
+<p><strong>Decidable Checking:</strong> The constraint set is closed, making conformance and capability-flow checking decidable and terminating (no halting-problem edge cases).</p>
+</li>
+<li>
+<p><strong>Provenance Tracking:</strong> Every artifact carries a provenance map (§6.2 of 0012) linking artifact regions to source spans, enabling auditable tracing from infra back to declarations.</p>
+</li>
+<li>
+<p><strong>Deterministic Lowering:</strong> The same Vaked declaration produces byte-identical artifacts (given the same inputs/pinned sources), enabling reproducibility checks.</p>
+</li>
+</ol>
+<h3 id="threat-model-scope">Threat Model Scope</h3>
+<table>
+<thead>
+<tr>
+<th>Threat</th>
+<th>Vaked Scope</th>
+<th>Out of Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Static POLA verification</strong></td>
+<td>✅</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Runtime authority enforcement</strong></td>
+<td>Advisory (design guidance)</td>
+<td>✅ Zig/eBPF</td>
+</tr>
+<tr>
+<td><strong>Secrets management</strong></td>
+<td>❌ (no embedded secrets)</td>
+<td>✅ Nix/agent integrations</td>
+</tr>
+<tr>
+<td><strong>Compromise of root authority</strong></td>
+<td>❌ (policy question)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Kernel/OS exploits</strong></td>
+<td>❌</td>
+<td>✅ OS hardening</td>
+</tr>
+<tr>
+<td><strong>Supply-chain attacks on pinned sources</strong></td>
+<td>⚠️ (detectable via reproducibility)</td>
+<td>✅ Nix/GPG verification</td>
+</tr>
+<tr>
+<td><strong>Timing/covert channels</strong></td>
+<td>❌</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Revocation enforcement</strong></td>
+<td>Advisory (membranes)</td>
+<td>✅ OTP supervisor</td>
+</tr>
+</tbody>
+</table>
+<h3 id="evaluation-plan">Evaluation Plan</h3>
+<p>For the paper, evaluate:<br />
+1. <strong>Type-checker correctness:</strong> Specification tests + differential oracle (compare vakedc output to hand-written expected outputs).<br />
+2. <strong>POLA soundness:</strong> Case studies showing how violations are caught at type-check time.<br />
+3. <strong>Performance:</strong> Compile time, type-check time, artifact size vs. codebase complexity.<br />
+4. <strong>Practical examples:</strong> Demonstrate POLA enforcement on 2–3 real-world agentic workloads (operator-field, agentfield-swe, memory/workflow).</p>
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li>Miller, M., Tulloh, B., et al. "Capability-Based Financial Instruments." <em>International Conference on Financial Cryptography and Data Security</em>, 2000.</li>
+<li>Karp, A. H. "A Language for Distributed Applications." <em>ACM SIGPLAN Notices</em>, 1994.</li>
+<li>Neumann, P. G. "Computer-Related Risks." <em>ACM Press</em>, 1995.</li>
+<li>Saltzer, J. H., and Schroeder, M. D. "The Protection of Information in Computer Systems." <em>Proceedings of the IEEE</em>, 1975.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/THREAT_MODEL.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

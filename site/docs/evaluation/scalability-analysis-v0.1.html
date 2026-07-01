@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked compiler scalability — analysis v0.1 — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-methodology" style="padding-left:0.5rem">1. Methodology</a><a href="#11-input-synthetic-flat-architecture" style="padding-left:1rem">  1.1 Input — synthetic flat architecture</a><a href="#12-n-range-iterations-environment" style="padding-left:1rem">  1.2 N range, iterations, environment</a><a href="#13-how-to-run-it" style="padding-left:1rem">  1.3 How to run it</a><a href="#2-results" style="padding-left:0.5rem">2. Results</a><a href="#21-before-the-fix-lower-is-super-linear" style="padding-left:1rem">  2.1 Before the fix — `lower` is super-linear</a><a href="#22-after-the-fix-all-three-stages-linear" style="padding-left:1rem">  2.2 After the fix — all three stages linear</a><a href="#23-before-vs-after-at-shared-n-the-fixs-effect" style="padding-left:1rem">  2.3 Before vs after at shared N (the fix's effect)</a><a href="#3-complexity-analysis-prediction-refutation-root-cause" style="padding-left:0.5rem">3. Complexity analysis — prediction, refutation, root cause</a><a href="#31-reading-the-log-log-slope" style="padding-left:1rem">  3.1 Reading the log-log slope</a><a href="#32-the-original-suspicion-childrenof-was-wrong" style="padding-left:1rem">  3.2 The original suspicion — `_children_of` — was wrong</a><a href="#33-what-the-measurement-actually-found-enrichgraph" style="padding-left:1rem">  3.3 What the measurement actually found — `enrich_graph`</a><a href="#34-the-other-latent-super-linear-path-still-not-exercised-here" style="padding-left:1rem">  3.4 The other latent super-linear path (still not exercised here)</a><a href="#35-status-of-the-reviews-adverse-numbers" style="padding-left:1rem">  3.5 Status of the review's adverse numbers</a><a href="#4-per-stage-breakdown" style="padding-left:0.5rem">4. Per-stage breakdown</a><a href="#5-projection-to-1m-from-the-measured-post-fix-slope" style="padding-left:0.5rem">5. Projection to 1M (from the measured post-fix slope)</a><a href="#6-mitigation-applied-the-fix-the-beforeafter-curve-justifies" style="padding-left:0.5rem">6. Mitigation — APPLIED (the fix the before/after curve justifies)</a><a href="#61-acceptance-met" style="padding-left:1rem">  6.1 Acceptance (met)</a><a href="#62-not-done-scoped-out-flagged" style="padding-left:1rem">  6.2 Not done (scoped out, flagged)</a><a href="#appendix-artifacts-reproducibility" style="padding-left:0.5rem">Appendix — artifacts & reproducibility</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/evaluation/">evaluation</a> / scalability-analysis-v0.1</div>
+<h1>Vaked compiler scalability — analysis v0.1</h1>
+<h1 id="vaked-compiler-scalability-analysis-v01">Vaked compiler scalability — analysis v0.1</h1>
+<blockquote>
+<p>Status: <strong>MEASURED.</strong> A controlled multi-point sweep ran on GitHub Actions<br />
+(<code>ubuntu-latest</code>, Python 3.12) via the <code>scalability-sweep</code> workflow. The sweep<br />
+found a <strong>super-linear <code>lower</code> stage</strong>, the root cause was isolated to a single<br />
+O(N²) pass (<code>enrich_graph</code> → <code>_node_for_chain</code>), a fix was applied, and the<br />
+<strong>same sweep was re-run to confirm the curve dropped to linear.</strong> Both curves<br />
+are committed (<code>scalability-curve-before.csv</code>, <code>scalability-curve-after.csv</code>).<br />
+Numbers below are GHA medians, not the dev machine (repo rule: NEVER BUILD ON<br />
+DEVELOPER MACHINE).</p>
+</blockquote>
+<p>This document establishes a <em>credibility-grade</em> scalability curve for the<br />
+<code>vakedc</code> front-end (<code>parse → check → lower</code>). It exists because the project's<br />
+headline claim — "100k workers verified (273ms avg, deterministic)" — and the<br />
+credibility review's adverse observations ("1.6s @ 1024", "25s @ 10k") were<br />
+<strong>not</strong> produced by a controlled, multi-point sweep. This analysis replaces the<br />
+single-point anecdote with a method, a harness, a measured curve, and a fix that<br />
+the before/after curve justifies.</p>
+<p><strong>Bottom line:</strong> the review was right that growth was super-linear — but the<br />
+suspected cause (<code>_children_of</code>, §3.2) was <strong>not</strong> it. The measurement refuted<br />
+the original O(n log n) prediction (§3.3, now corrected), root-causing pointed at<br />
+an unanalyzed pre-emit pass, and indexing that pass took <code>lower</code> from an<br />
+empirical slope of <strong>~1.7→2.0 (quadratic)</strong> to <strong>~1.0 (linear)</strong>, turning a<br />
+N=100 000 compile that <strong>exceeded the 40-minute CI wall</strong> into a 70-second one.</p>
+<hr />
+<h2 id="1-methodology">1. Methodology</h2>
+<h3 id="11-input-synthetic-flat-architecture">1.1 Input — synthetic flat architecture</h3>
+<p>The sweep does <strong>not</strong> use the committed <code>vaked/examples/swe-swarm-100k-workers-scalability.vaked</code>.<br />
+That file is a stub: its header describes 100k workers, but the body declares<br />
+only a handful of representative <code>node</code>s with <code># ... omitted ...</code> comments. It<br />
+cannot measure scaling — there is nothing at scale in it.</p>
+<p>Instead, <code>scripts/benchmark-scalability-sweep.py</code> <strong>generates</strong> a deterministic,<br />
+self-contained flat-architecture source for each size <code>N</code>:</p>
+<div class="highlight"><pre><span></span><span class="nx">use</span><span class="w"> </span><span class="s">&quot;./engine.vaked&quot;</span><span class="w">           </span><span class="err">#</span><span class="w"> </span><span class="nx">sidecar</span><span class="w"> </span><span class="nx">the</span><span class="w"> </span><span class="nx">harness</span><span class="w"> </span><span class="nx">writes</span><span class="p">;</span><span class="w"> </span><span class="nx">defines</span><span class="w"> </span><span class="err">`</span><span class="nx">engine</span><span class="w"> </span><span class="nx">zigDaemon</span><span class="err">`</span>
+
+<span class="nx">runtime</span><span class="w"> </span><span class="s">&quot;scale-sweep&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">systems</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;x86_64-linux&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="nx">stream</span><span class="w"> </span><span class="nx">workIn</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">source</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">agentpipe</span><span class="p">.</span><span class="nx">transcripts</span><span class="p">;</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">Agent</span><span class="p">.</span><span class="nx">Transcript</span><span class="p">;</span><span class="w"> </span><span class="nx">retention</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="mi">7</span><span class="nx">d</span><span class="w"> </span><span class="p">}</span>
+
+<span class="w">  </span><span class="nx">fiber</span><span class="w"> </span><span class="nx">worker00001</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">zigDaemon</span><span class="p">;</span><span class="w"> </span><span class="nx">input</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">stream</span><span class="p">.</span><span class="nx">workIn</span><span class="p">;</span><span class="w"> </span><span class="nx">output</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">artifacts</span><span class="p">.</span><span class="nx">w00001</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="o">...</span><span class="w"> </span><span class="nx">N</span><span class="w"> </span><span class="nx">of</span><span class="w"> </span><span class="nx">them</span><span class="w"> </span><span class="o">...</span>
+<span class="w">  </span><span class="nx">fiber</span><span class="w"> </span><span class="nx">aggregatorA</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">zigDaemon</span><span class="p">;</span><span class="w"> </span><span class="nx">input</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">stream</span><span class="p">.</span><span class="nx">workIn</span><span class="p">;</span><span class="w"> </span><span class="nx">output</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">artifacts</span><span class="p">.</span><span class="nx">aggA</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">fiber</span><span class="w"> </span><span class="nx">aggregatorB</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">zigDaemon</span><span class="p">;</span><span class="w"> </span><span class="nx">input</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">stream</span><span class="p">.</span><span class="nx">workIn</span><span class="p">;</span><span class="w"> </span><span class="nx">output</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">artifacts</span><span class="p">.</span><span class="nx">aggB</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<ul>
+<li><strong>1 runtime · 1 stream · N worker fibers · 2 aggregator fibers.</strong> Every fiber<br />
+  shares the single stream as <code>input</code> and emits one distinct artifact.</li>
+<li><strong>Flat, not nested:</strong> the runtime's <code>contains</code> fan-out is exactly <code>N + 2</code><br />
+  fibers + 1 stream. No <code>mesh</code>, no <code>workflow</code>, no deep nesting. This isolates the<br />
+<strong>runtime-decomposition / graph-enrichment</strong> cost from the <em>other</em> potentially<br />
+  quadratic path (the per-workflow scan; see §3.4).</li>
+<li><strong>Deterministic &amp; hermetic:</strong> <code>generate_synthetic_vaked(n)</code> is a pure function<br />
+  of <code>n</code> — byte-identical output for a given N, no clock, no RNG, no network. This<br />
+  is why the curve is reproducible.</li>
+</ul>
+<p>The generated source <strong>parses, checks, and lowers with zero diagnostics</strong>.<br />
+Lowering it produces <code>flake.nix</code>, <code>gen/RUNTIME.md</code>, and one <code>gen/zig/&lt;fiber&gt;.json</code><br />
+per fiber.</p>
+<h3 id="12-n-range-iterations-environment">1.2 N range, iterations, environment</h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>N (worker fibers)</td>
+<td>{100, 1000, 10000, 30000, 100000}</td>
+</tr>
+<tr>
+<td>Iterations K per N</td>
+<td>3 (median reported; sufficient — the curve is smooth and the effect is &gt;4×)</td>
+</tr>
+<tr>
+<td>Stages timed</td>
+<td><code>parse</code>, <code>check</code>, <code>lower</code> (each a separate <code>python3 -m vakedc &lt;stage&gt;</code> subprocess)</td>
+</tr>
+<tr>
+<td>Aggregation</td>
+<td>per-stage <strong>median</strong> across K clean iterations; <code>min</code> also recorded</td>
+</tr>
+<tr>
+<td>Host</td>
+<td>GitHub Actions <code>ubuntu-latest</code>, Python 3.12, vakedc stdlib-only (no install)</td>
+</tr>
+</tbody>
+</table>
+<p>Five N spanning three decades give a log-log line with enough points to read a<br />
+slope and watch it bend (§3). Note the original run used the doc's default<br />
+{100, 1000, 10000, 100000} × K=10; at N=100 000 the <strong>pre-fix</strong> pipeline blew the<br />
+40-minute job wall (the super-linear <code>lower</code>, §3.3), which is itself the first<br />
+hard datum. The reported curves use K=3 and add N=30 000 so the bend is visible<br />
+and 100 000 completes within budget.</p>
+<h3 id="13-how-to-run-it">1.3 How to run it</h3>
+<p>The <code>scalability-sweep</code> workflow (<code>.github/workflows/scalability-sweep.yml</code>,<br />
+<code>workflow_dispatch</code>, inputs <code>sizes</code> / <code>iters</code>) runs:</p>
+<div class="highlight"><pre><span></span><span class="nv">PYTHONPATH</span><span class="o">=</span>.<span class="w"> </span>python3<span class="w"> </span>scripts/benchmark-scalability-sweep.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--sweep<span class="w"> </span>--sizes<span class="w"> </span>&lt;csv&gt;<span class="w"> </span>--iters<span class="w"> </span>&lt;K&gt;<span class="w"> </span>--out<span class="w"> </span>artifacts/scalability-curve.csv
+</pre></div>
+
+<p>and uploads <code>scalability-curve.{csv,json}</code> as an artifact. The generator alone is<br />
+dev-safe for inspection:<br />
+<code>python3 scripts/benchmark-scalability-sweep.py --emit-only --n 1000 --out /tmp/x.vaked</code>.</p>
+<blockquote>
+<p><strong>Why GHA, not the dev machine?</strong> N=100 000 emits a ~3–4 MB source file, builds a<br />
+~100k-node graph, and runs the whole pipeline K×. That is squarely a "build"<br />
+under the project rule.</p>
+</blockquote>
+<hr />
+<h2 id="2-results">2. Results</h2>
+<p>Per-stage wall-clock, <strong>median of K=3 iterations</strong>, GHA <code>ubuntu-latest</code> / Python 3.12.<br />
+The two curves are committed alongside this doc:<br />
+<code>scalability-curve-before.csv</code> (pre-fix) and <code>scalability-curve-after.csv</code> (post-fix).</p>
+<h3 id="21-before-the-fix-lower-is-super-linear">2.1 Before the fix — <code>lower</code> is super-linear</h3>
+<table>
+<thead>
+<tr>
+<th>N (workers)</th>
+<th>fibers</th>
+<th>parse (ms)</th>
+<th>check (ms)</th>
+<th>lower (ms)</th>
+<th>total (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100</td>
+<td>102</td>
+<td>79.7</td>
+<td>89.7</td>
+<td>123.1</td>
+<td>328.2</td>
+</tr>
+<tr>
+<td>300</td>
+<td>302</td>
+<td>115.8</td>
+<td>123.1</td>
+<td>213.5</td>
+<td>449.9</td>
+</tr>
+<tr>
+<td>1 000</td>
+<td>1 002</td>
+<td>246.5</td>
+<td>249.8</td>
+<td>653.1</td>
+<td>1 149.1</td>
+</tr>
+<tr>
+<td>3 000</td>
+<td>3 002</td>
+<td>635.1</td>
+<td>621.6</td>
+<td>2 242.9</td>
+<td>3 494.8</td>
+</tr>
+<tr>
+<td>10 000</td>
+<td>10 002</td>
+<td>2 145.9</td>
+<td>2 041.4</td>
+<td>13 537.0</td>
+<td>17 702.7</td>
+</tr>
+<tr>
+<td>30 000</td>
+<td>30 002</td>
+<td>6 774.5</td>
+<td>6 545.2</td>
+<td>89 985.0</td>
+<td>103 403.8</td>
+</tr>
+<tr>
+<td>100 000</td>
+<td>100 002</td>
+<td>—</td>
+<td>—</td>
+<td><strong>DNF</strong></td>
+<td><strong>DNF</strong> (exceeded the 40-min CI wall)</td>
+</tr>
+</tbody>
+</table>
+<p><code>parse</code> and <code>check</code> track linearly. <code>lower</code> does not: between N=10 000 and<br />
+N=30 000 (a 3× step) it grows <strong>6.65×</strong>, an empirical slope of <strong>1.72</strong>, and the<br />
+slope <em>rises</em> with N (1.12 → 1.21 → 1.49 → 1.72 across successive segments) —<br />
+the signature of an O(N²) term overtaking a linear one. Extrapolating the slope<br />
+puts the N=100 000 <code>lower</code> near ~700 s, consistent with the observed 40-minute<br />
+timeout.</p>
+<h3 id="22-after-the-fix-all-three-stages-linear">2.2 After the fix — all three stages linear</h3>
+<table>
+<thead>
+<tr>
+<th>N (workers)</th>
+<th>fibers</th>
+<th>parse (ms)</th>
+<th>check (ms)</th>
+<th>lower (ms)</th>
+<th>total (ms)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100</td>
+<td>102</td>
+<td>110.1</td>
+<td>98.2</td>
+<td>220.4</td>
+<td>416.3</td>
+</tr>
+<tr>
+<td>1 000</td>
+<td>1 002</td>
+<td>262.8</td>
+<td>260.8</td>
+<td>651.3</td>
+<td>1 175.0</td>
+</tr>
+<tr>
+<td>10 000</td>
+<td>10 002</td>
+<td>2 307.9</td>
+<td>2 193.6</td>
+<td>6 961.0</td>
+<td>11 429.1</td>
+</tr>
+<tr>
+<td>30 000</td>
+<td>30 002</td>
+<td>7 408.3</td>
+<td>6 842.3</td>
+<td>20 599.6</td>
+<td>34 811.6</td>
+</tr>
+<tr>
+<td>100 000</td>
+<td>100 002</td>
+<td>24 972.6</td>
+<td>23 615.6</td>
+<td><strong>70 294.7</strong></td>
+<td>118 883.0</td>
+</tr>
+</tbody>
+</table>
+<p><code>lower</code> now grows <strong>10.1×</strong> from N=10 000 to N=100 000 (a 10× step) — an empirical<br />
+slope of <strong>1.00</strong>. N=100 000 <strong>completes in ~70 s</strong> (was: did-not-finish in 40 min).</p>
+<h3 id="23-before-vs-after-at-shared-n-the-fixs-effect">2.3 Before vs after at shared N (the fix's effect)</h3>
+<table>
+<thead>
+<tr>
+<th>N</th>
+<th><code>lower</code> before (ms)</th>
+<th><code>lower</code> after (ms)</th>
+<th>speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1 000</td>
+<td>653.1</td>
+<td>651.3</td>
+<td>1.00× (quadratic term negligible here)</td>
+</tr>
+<tr>
+<td>10 000</td>
+<td>13 537.0</td>
+<td>6 961.0</td>
+<td>1.94×</td>
+</tr>
+<tr>
+<td>30 000</td>
+<td>89 985.0</td>
+<td>20 599.6</td>
+<td><strong>4.37×</strong></td>
+</tr>
+<tr>
+<td>100 000</td>
+<td>DNF (~700 s est.)</td>
+<td>70 294.7</td>
+<td><strong>DNF → 70 s</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The speedup <strong>grows with N</strong> — exactly what removing an O(N²) term (and leaving<br />
+the O(N) remainder) predicts: at N=1 000 the quadratic term is invisible; by<br />
+N=30 000 it dominated 77% of <code>lower</code>'s time.</p>
+<p><strong>Constant-offset caveat:</strong> each stage is a separate Python process, so every cell<br />
+carries a fixed interpreter-startup + import cost (~50–75 ms, visible as the N=100<br />
+floor). It dominates the N=100 row and partly N=1 000; the slope is read from the<br />
+<strong>large-N</strong> end (N≥10 000), where the algorithmic term has overtaken the offset.</p>
+<hr />
+<h2 id="3-complexity-analysis-prediction-refutation-root-cause">3. Complexity analysis — prediction, refutation, root cause</h2>
+<h3 id="31-reading-the-log-log-slope">3.1 Reading the log-log slope</h3>
+<p>Plot <code>log(stage_ms)</code> against <code>log(N)</code>; the <strong>slope is the empirical complexity<br />
+exponent</strong>. Between a 10× step in N: a linear stage rises ~10×; a quadratic stage<br />
+~100×. That ratio is the single most important number this sweep produces.</p>
+<table>
+<thead>
+<tr>
+<th>Slope (large-N end)</th>
+<th>Reading</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>≈ <strong>1.0</strong></td>
+<td>O(n) — linear. The measured post-fix <code>lower</code>, and <code>parse</code>/<code>check</code> throughout.</td>
+</tr>
+<tr>
+<td>≈ <strong>1.0–1.2</strong></td>
+<td>O(n log n) — a repeated-sort term showing through. Healthy.</td>
+</tr>
+<tr>
+<td>≈ <strong>1.7–2.0</strong></td>
+<td>super-linear / quadratic — the measured <strong>pre-fix <code>lower</code></strong>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-the-original-suspicion-_children_of-was-wrong">3.2 The original suspicion — <code>_children_of</code> — was wrong</h3>
+<p>The first draft of this analysis fingered <code>_children_of</code> (<code>vakedc/lower.py</code>), an<br />
+O(E) full-edge scan with no adjacency index, called via <code>_runtime_view</code>. That code<br />
+<em>is</em> wasteful (it re-copies and re-scans the edge list), but the measurement shows<br />
+it is <strong>not</strong> the super-linear term: <code>_runtime_view</code> calls <code>_children_of</code> a small<br />
+constant number of times per <code>lower</code> (once per firing emitter; ~3–4 for the flat<br />
+arch), so its total cost is O(n log n) with a small constant — a <em>constant-factor</em><br />
+inefficiency, not a complexity-class regression. <strong>Fixing it would not have moved<br />
+the curve.</strong> This is exactly why the prediction had to be checked against a<br />
+measurement rather than shipped.</p>
+<h3 id="33-what-the-measurement-actually-found-enrich_graph">3.3 What the measurement actually found — <code>enrich_graph</code></h3>
+<p><code>vakedc lower</code> runs the full pipeline <code>parse → resolve → check → lower</code>, and just<br />
+before emitting it runs <strong><code>enrich_graph(graph, items)</code></strong> (<code>lower.py</code>), a pass that<br />
+re-attaches config sub-blocks (e.g. a fiber's <code>policy { … }</code>) the minimal resolver<br />
+drops. That pass was the O(N²):</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">enrich_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">items</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">walk</span><span class="p">(</span><span class="n">decl</span><span class="p">,</span> <span class="n">chain</span><span class="p">):</span>
+        <span class="n">node</span> <span class="o">=</span> <span class="n">_node_for_chain</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">chain</span><span class="p">)</span>   <span class="c1"># called once PER DECL</span>
+        <span class="o">...</span>
+        <span class="k">for</span> <span class="n">st</span> <span class="ow">in</span> <span class="n">decl</span><span class="o">.</span><span class="n">body</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">P</span><span class="o">.</span><span class="n">Decl</span><span class="p">):</span>
+                <span class="n">walk</span><span class="p">(</span><span class="n">st</span><span class="p">,</span> <span class="n">chain</span> <span class="o">+</span> <span class="p">[</span><span class="n">st</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="n">P</span><span class="o">.</span><span class="n">Decl</span><span class="p">):</span>
+            <span class="n">walk</span><span class="p">(</span><span class="n">it</span><span class="p">,</span> <span class="p">[</span><span class="n">it</span><span class="o">.</span><span class="n">name</span><span class="p">])</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_node_for_chain</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">chain</span><span class="p">):</span>
+    <span class="n">suffix</span> <span class="o">=</span> <span class="s2">&quot;#&quot;</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chain</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>                       <span class="c1"># O(N) scan, + graph.nodes is a fresh O(N) copy</span>
+        <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">suffix</span><span class="p">)</span> <span class="ow">and</span> <span class="n">n</span><span class="o">.</span><span class="n">provenance</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">n</span>
+    <span class="k">return</span> <span class="kc">None</span>
+</pre></div>
+
+<p><code>walk</code> runs once per declaration → <strong>O(N) calls</strong>, each doing a full <strong>O(N)</strong> node<br />
+scan (worse: <code>Graph.nodes</code> returns <code>list(self._nodes.values())</code>, a fresh O(N) copy<br />
+per access). That is <strong>O(N²)</strong>. At N=30 000 that is ~9×10⁸ comparisons ≈ the<br />
+measured 90 s; at N=100 000 it is ~10¹⁰ ≈ the 40-minute timeout. The flat sweep<br />
+isolated it cleanly because <code>enrich_graph</code> walks <em>every</em> decl regardless of shape.</p>
+<h3 id="34-the-other-latent-super-linear-path-still-not-exercised-here">3.4 The other latent super-linear path (still not exercised here)</h3>
+<p><code>_workflow_steps_edges</code> (<code>lower.py</code>) calls <code>_children_of(graph, wf.id)</code> <strong>once per<br />
+workflow node</strong> and separately re-scans the full edge list for <code>routes_to</code> edges,<br />
+giving <strong>O(W·E)</strong> for W workflows. The synthetic flat arch declares <strong>zero</strong><br />
+workflows, so this path is dormant in the sweep and is <strong>not</strong> fixed by §6. A<br />
+workflow-heavy sweep would be needed to characterize it; flagged for follow-up.</p>
+<h3 id="35-status-of-the-reviews-adverse-numbers">3.5 Status of the review's adverse numbers</h3>
+<p>The review's "1.6s @ 1024 · 25s @ 10k" implied a slope ≈1.21 between those points —<br />
+the framing called it quadratic, but two points cannot distinguish O(n log n) +<br />
+overhead from O(n²). This sweep <strong>supersedes</strong> them: it confirms the <em>direction</em><br />
+(super-linear) the review sensed, locates the <em>actual</em> cause (<code>enrich_graph</code>, which<br />
+the review did not name), and shows the fixed front-end is linear. Treat the prior<br />
+"273ms @ 100k" and "25s @ 10k" figures as retired in favor of §2.</p>
+<hr />
+<h2 id="4-per-stage-breakdown">4. Per-stage breakdown</h2>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>What it does</th>
+<th>Measured slope (large-N)</th>
+<th>Reading</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>parse</code></td>
+<td>lex + recursive-descent parse → AST (<code>parser.py</code>)</td>
+<td><strong>~1.03</strong> (before &amp; after)</td>
+<td>O(n) — linear in source bytes/decls ✓</td>
+</tr>
+<tr>
+<td><code>check</code></td>
+<td>resolve + 0011 type/closed-world/POLA checks (<code>check.py</code>)</td>
+<td><strong>~1.03</strong> (before &amp; after)</td>
+<td>O(n) on the flat arch ✓ (see note)</td>
+</tr>
+<tr>
+<td><code>lower</code></td>
+<td><code>enrich_graph</code> + <code>_runtime_view</code> ×≈4 + per-fiber emit</td>
+<td><strong>1.72→2.0 before</strong>, <strong>1.00 after</strong></td>
+<td>was O(n²) (<code>enrich_graph</code>), now O(n)</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>lower</code> was the steepest stage and its large-N slope was well above 1.2 → §3.3<br />
+  located the cause → §6 fixed it; the post-fix re-run confirms ≈1.0.</li>
+<li><strong><code>check</code> note:</strong> the flat arch declares <strong>no capabilities</strong>, so the POLA<br />
+  use-check's worst case (O(n²) in <em>capabilities per principal</em>, see the paper's<br />
+  Future Work) is not exercised here; on this input <code>check</code> is measured linear.<br />
+  That separate concern is out of scope for this doc.</li>
+</ul>
+<hr />
+<h2 id="5-projection-to-1m-from-the-measured-post-fix-slope">5. Projection to 1M (from the measured post-fix slope)</h2>
+<div class="highlight"><pre><span></span>lower_ms(1e6)  ≈  lower_ms(1e5) × (1e6 / 1e5)^slope  =  70 295 ms × 10^1.0  ≈  703 s
+total_ms(1e6)  ≈  118 883 ms × 10^1.0  ≈  1 189 s  (~20 min, parse+check+lower, K=1-equivalent)
+</pre></div>
+
+<table>
+<thead>
+<tr>
+<th>Slope</th>
+<th>1M <code>lower</code> from measured 100k = 70.3 s</th>
+<th>Verdict</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~1.0 (measured, post-fix)</td>
+<td>~703 s</td>
+<td><strong>Linear — the "1M projected" claim holds as a complexity statement.</strong> Absolute time is large (pure-Python, single-process), but it scales, and a 1M-fiber declaration is far outside any realistic hand-authored topology.</td>
+</tr>
+<tr>
+<td>~2.0 (pre-fix)</td>
+<td>~7 000 s (~2 h)</td>
+<td>would <strong>not</strong> have shipped — which is why the fix was necessary, not optional.</td>
+</tr>
+</tbody>
+</table>
+<p>The honest claim for the paper: <strong>front-end compilation is linear in declaration<br />
+size</strong> (all three stages slope ≈1.0 post-fix); the "1M" figure is a <em>projection<br />
+from the measured slope</em>, not a measured point.</p>
+<hr />
+<h2 id="6-mitigation-applied-the-fix-the-beforeafter-curve-justifies">6. Mitigation — APPLIED (the fix the before/after curve justifies)</h2>
+<p>§3.3 located the O(N²) in <code>enrich_graph</code>'s per-decl <code>_node_for_chain</code> scan. The fix<br />
+replaces the per-decl O(N) scan with <strong>one O(N) index pass</strong>:</p>
+<div class="highlight"><pre><span></span><span class="c1"># lower.py — inside enrich_graph, built once before walk()</span>
+<span class="n">index</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">_n</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">_n</span><span class="o">.</span><span class="n">provenance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">continue</span>
+    <span class="n">_h</span> <span class="o">=</span> <span class="n">_n</span><span class="o">.</span><span class="n">id</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">_h</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="n">index</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">_n</span><span class="o">.</span><span class="n">id</span><span class="p">[</span><span class="n">_h</span><span class="p">:],</span> <span class="n">_n</span><span class="p">)</span>        <span class="c1"># &#39;#&lt;chain&gt;&#39; -&gt; first node with that suffix</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">walk</span><span class="p">(</span><span class="n">decl</span><span class="p">,</span> <span class="n">chain</span><span class="p">):</span>
+    <span class="n">node</span> <span class="o">=</span> <span class="n">index</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;#&quot;</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chain</span><span class="p">))</span>     <span class="c1"># O(1) lookup, was O(N) scan</span>
+    <span class="o">...</span>
+</pre></div>
+
+<p>A node id is <code>&lt;basename&gt;#&lt;chain&gt;</code> with exactly one <code>#</code>, and <code>graph.nodes</code> is<br />
+insertion-ordered, so keeping the <strong>first</strong> node per suffix reproduces the prior<br />
+<code>endswith</code> first-match exactly. <code>enrich_graph</code> goes O(N²) → O(N); the now-unused<br />
+<code>_node_for_chain</code> is removed.</p>
+<h3 id="61-acceptance-met">6.1 Acceptance (met)</h3>
+<ul>
+<li><strong>Slope:</strong> post-fix <code>lower</code> large-N slope <strong>1.00</strong> (§2.2), down from 1.72→2.0.</li>
+<li><strong>Absolute:</strong> N=30 000 <code>lower</code> 90 s → 20.6 s (4.4×); N=100 000 DNF (&gt;40 min) → 70 s.</li>
+<li><strong>Byte-identical output:</strong> the lowering-fixtures golden, agentfield/OTP golden<br />
+  trees, <code>vakedc lower</code> provenance test, and the determinism baseline (100%<br />
+  convergence) all stay <strong>byte-identical</strong> — the fix is purely a lookup change.</li>
+</ul>
+<h3 id="62-not-done-scoped-out-flagged">6.2 Not done (scoped out, flagged)</h3>
+<ul>
+<li>The <code>_children_of</code> edge-list re-copy/re-scan (§3.2) is a constant-factor waste,<br />
+  not on the critical path; an adjacency index in <code>graph.py</code> would still tidy it<br />
+  but the curve does not demand it.</li>
+<li>The O(W·E) <code>_workflow_steps_edges</code> path (§3.4) needs a workflow-heavy sweep to<br />
+  characterize and is untouched here.</li>
+</ul>
+<hr />
+<h2 id="appendix-artifacts-reproducibility">Appendix — artifacts &amp; reproducibility</h2>
+<ul>
+<li><strong>Harness:</strong> <code>scripts/benchmark-scalability-sweep.py</code> (<code>--sweep</code> / <code>--emit-only</code>).</li>
+<li><strong>Workflow:</strong> <code>.github/workflows/scalability-sweep.yml</code> (<code>workflow_dispatch</code>).</li>
+<li><strong>Committed curves:</strong> <code>scalability-curve-before.csv</code> / <code>.json</code> (pre-fix),<br />
+<code>scalability-curve-after.csv</code> / <code>.json</code> (post-fix) — GHA <code>ubuntu-latest</code>, Py 3.12.</li>
+<li><strong>Fix:</strong> <code>vakedc/lower.py</code> <code>enrich_graph</code> (suffix index; <code>_node_for_chain</code> removed).</li>
+<li><strong>Determinism:</strong> the generator is a pure function of N; same N ⇒ byte-identical<br />
+  source ⇒ byte-identical artifacts (0012 §2.1), so re-runs differ only in timing.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/evaluation/scalability-analysis-v0.1.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

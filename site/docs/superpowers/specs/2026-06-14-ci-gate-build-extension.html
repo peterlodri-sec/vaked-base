@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Spec — `ci-gate-build-extension`: build + test Rust and Zig in the CI gate — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#success-in-one-sentence" style="padding-left:1rem">  Success in one sentence</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-code-under-gate-discovered-not-hardcoded-see-44" style="padding-left:1rem">  2.1 Code under gate (discovered, not hardcoded — see §4.4)</a><a href="#22-test-oracles-already-in-repo-blindadversarial-do-not-author-new-ones-here" style="padding-left:1rem">  2.2 Test oracles (already in-repo, blind/adversarial — do not author new ones here)</a><a href="#23-rfc-authority-for-the-byte-format-for-reviewers-reading-the-spec" style="padding-left:1rem">  2.3 RFC authority for the byte format (for reviewers reading the spec)</a><a href="#24-existing-ci-machinery-this-extends" style="padding-left:1rem">  2.4 Existing CI machinery this extends</a><a href="#3-design" style="padding-left:0.5rem">3. Design</a><a href="#31-part-a-ciclassifypy-changes-the-root-cause-fix" style="padding-left:1rem">  3.1 Part A — `ci_classify.py` changes (the root-cause fix)</a><a href="#32-part-b-new-classify-job-outputs" style="padding-left:1rem">  3.2 Part B — new `classify` job outputs</a><a href="#33-part-c-new-rust-build-job" style="padding-left:1rem">  3.3 Part C — new `rust-build` job</a><a href="#34-part-d-new-zig-build-job" style="padding-left:1rem">  3.4 Part D — new `zig-build` job</a><a href="#35-part-e-wire-both-jobs-into-the-aggregator-the-meta-trap-do-not-skip" style="padding-left:1rem">  3.5 Part E — wire BOTH jobs into the aggregator (the meta-trap — do not skip)</a><a href="#4-file-layout-paths-to-create-modify" style="padding-left:0.5rem">4. File layout (paths to create / modify)</a><a href="#44-discovery-not-hardcoding" style="padding-left:1rem">  4.4 Discovery, not hardcoding</a><a href="#5-algorithm-control-flow" style="padding-left:0.5rem">5. Algorithm / control flow</a><a href="#6-dependencies-on-other-sprints-blockers" style="padding-left:0.5rem">6. Dependencies on other sprints / blockers</a><a href="#7-test-plan-what-is-verifiable-on-m1-now-vs-what-needs-linuxdev-cx53" style="padding-left:0.5rem">7. Test plan — what is verifiable on M1 now vs. what needs Linux/dev-cx53</a><a href="#71-verified-locally-on-this-m1-now-author-evidence" style="padding-left:1rem">  7.1 Verified locally on this M1 now (author evidence)</a><a href="#72-verified-on-ubuntu-latest-in-ci-the-gate-itself" style="padding-left:1rem">  7.2 Verified on ubuntu-latest in CI (the gate itself)</a><a href="#73-needs-privileged-linux-not-m1-not-plain-ubuntu-latest-container-out-of-scope-" style="padding-left:1rem">  7.3 Needs privileged Linux (NOT M1, NOT plain ubuntu-latest container) — out of scope for this gate</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-ci-gate-build-extension</div>
+<h1>Spec — `ci-gate-build-extension`: build + test Rust and Zig in the CI gate</h1>
+<h1 id="spec-ci-gate-build-extension-build-test-rust-and-zig-in-the-ci-gate">Spec — <code>ci-gate-build-extension</code>: build + test Rust and Zig in the CI gate</h1>
+<p><strong>Date:</strong> 2026-06-14<br />
+<strong>Status:</strong> Planning artifact (work is dependency-blocked; not codeable now — see §7)<br />
+<strong>Target file:</strong> <code>.github/workflows/ci-gate.yml</code> (+ <code>.github/scripts/ci_classify.py</code>)<br />
+<strong>Repo:</strong> <code>peterlodri-sec/vaked-base</code><br />
+<strong>Related:</strong> issue #7 (false-green / vacuous-green), WP3-S1 (<code>protocol/hcp/hcpbin</code>), WP4-S1 (<code>daemons/sandboxd</code>)</p>
+<hr />
+<h2 id="1-objective">1. Objective</h2>
+<p><code>ci-gate</code> is the only <strong>REQUIRED</strong> check (<code>.github/workflows/ci-gate.yml:20-21, 258-262</code>). Today it runs <strong>only Python + Nix</strong>: the <code>smoke</code> / <code>standard</code> / <code>full</code> jobs invoke <code>tests/smoke.py</code> and <code>tests/spec/run_all.py</code> (lines 117-118, 142-143, 161-164), and <code>nix-parse</code> / <code>nix-check</code> run <code>nix-instantiate</code> / <code>nix flake check</code>. <strong>No job ever compiles Rust or Zig.</strong></p>
+<p>The result is a verified vacuous-green for the two code subtrees that are about to receive the most work (WP3 Rust under <code>protocol/hcp/**</code>, WP4 Zig under <code>daemons/**</code>): a PR that touches only that code passes <code>ci-gate</code> without the code ever being built or tested. This is precisely the false-green issue #7 warns about.</p>
+<p><strong>Empirically confirmed</strong> (running <code>.github/scripts/ci_classify.py</code> helpers against current <code>HEAD</code>, see §3.1):</p>
+<table>
+<thead>
+<tr>
+<th>Changed file</th>
+<th><code>changed_groups</code></th>
+<th><code>is_non_src</code></th>
+<th>auto tier (≤20 LOC)</th>
+<th>What actually runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>protocol/hcp/hcpbin/src/lib.rs</code></td>
+<td><code>{docs}</code></td>
+<td><code>True</code></td>
+<td><strong>smoke</strong></td>
+<td>grammar + doc tests only</td>
+</tr>
+<tr>
+<td><code>protocol/hcp/litany/src/lib.rs</code> (future)</td>
+<td><code>{docs}</code></td>
+<td><code>True</code></td>
+<td><strong>smoke</strong></td>
+<td>grammar + doc tests only</td>
+</tr>
+<tr>
+<td><code>daemons/sandboxd/src/main.zig</code></td>
+<td><code>{other}</code></td>
+<td><code>False</code></td>
+<td><strong>standard</strong></td>
+<td>Python core compiler tests only</td>
+</tr>
+</tbody>
+</table>
+<p>So a small Rust hcpbin change classifies as <strong>smoke</strong> (because <code>protocol/</code> is in both <code>NON_SRC_PREFIXES</code> and the <code>docs</code> path-group), and a Zig daemon change classifies at most as <strong>standard/full</strong> — in every case the Rust/Zig code is never compiled.</p>
+<p><strong>Goal:</strong> make <code>ci-gate</code> fail when Rust under <code>protocol/hcp/**</code> fails to <code>cargo test</code>, or Zig under <code>daemons/**</code> fails to <code>zig build</code>, on the PRs that touch that code — without slowing down PRs that don't.</p>
+<h3 id="success-in-one-sentence">Success in one sentence</h3>
+<p>A PR touching only <code>protocol/hcp/hcpbin/src/lib.rs</code> (any size) must produce <code>run_rust=true</code>, run <code>cargo test</code>, and the result must flow into the <code>ci-gate</code> aggregator's pass/fail decision; likewise a PR touching <code>daemons/sandboxd/**</code> must produce <code>run_zig=true</code> and run <code>zig build</code>.</p>
+<hr />
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-code-under-gate-discovered-not-hardcoded-see-44">2.1 Code under gate (discovered, not hardcoded — see §4.4)</h3>
+<ul>
+<li><strong>Rust:</strong> every <code>Cargo.toml</code> under <code>protocol/hcp/</code> (today: <code>protocol/hcp/hcpbin/Cargo.toml</code>; WP3-S2 adds <code>protocol/hcp/litany/</code>). Each crate is <strong>standalone</strong> — it carries its own empty <code>[workspace]</code> table to detach from any parent (pattern seen in <code>vaked-agents/ci/provost/Cargo.toml</code>), and there is <strong>no root <code>Cargo.toml</code> workspace</strong>. So the gate invokes <code>cargo</code> per manifest, not once at the root.</li>
+<li><strong>Zig:</strong> every <code>build.zig</code> under <code>daemons/</code> (today: <code>daemons/sandboxd/build.zig</code>). WP4 adds <code>daemons/agent-supervisord/</code>, <code>daemons/eventd/</code> (<code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md:18</code>).</li>
+</ul>
+<h3 id="22-test-oracles-already-in-repo-blindadversarial-do-not-author-new-ones-here">2.2 Test oracles (already in-repo, blind/adversarial — do not author new ones here)</h3>
+<ul>
+<li><strong>hcpbin Rust:</strong> <code>protocol/hcp/hcpbin/tests/golden.rs</code> — 50 tests across 3 suites; golden vectors derived <strong>only</strong> from RFC 0002. The file header and per-section comments cite the authoritative sections explicitly:</li>
+<li><strong>§6.1</strong> strict varint decode (<code>golden.rs:6, 317-318</code>)</li>
+<li><strong>§6.1.1</strong> worked examples / primitive types (<code>golden.rs:6, 22-24, 73-81, 139-142, 182-185</code>)</li>
+<li><strong>§6.5</strong> <code>hash</code> encoding (<code>golden.rs:6, 245-251</code>)</li>
+<li>These are the byte-level oracles. The codec lives in <code>protocol/hcp/hcpbin/src/lib.rs</code>.</li>
+<li><strong>Zig daemons:</strong> <code>zig build test</code> runs the in-source <code>test {}</code> blocks (<code>daemons/sandboxd/build.zig:20-26</code>; same pattern as <code>vakedz/build.zig:34-43</code>). <code>daemons/sandboxd/src/main.zig</code> is currently a stub with no tests, so the daemon gate's first job is <strong>compile</strong> (<code>zig build</code>), with <code>zig build test</code> added as those tests land (WP4-S1+).</li>
+</ul>
+<h3 id="23-rfc-authority-for-the-byte-format-for-reviewers-reading-the-spec">2.3 RFC authority for the byte format (for reviewers reading the spec)</h3>
+<p>Per the corrected RFC layout (<code>protocol/rfcs/0002-hcplang.md</code>): the hcpbin byte encoding is <strong>§6 ("hcpbin encoding rules")</strong>, with worked golden vectors in <strong>§6.1.1, §6.3.1, §6.6.1, §6.7.1, §10</strong>. The frame header fields (kind/corr/stream/seq/end) are the <strong>WIRE</strong> layer (<strong>RFC 0003</strong>), explicitly <strong>not</strong> in hcpbin (RFC 0002 §4.2 + the §6 scope note). <strong>There is no Appendix A.</strong></p>
+<blockquote>
+<p>Note: <code>docs/superpowers/plans/2026-06-14-wp3-kickoff.md:41-43</code> says "RFC 0002 §4 / Appendix A" and "varint, frame header, payload framing" in one crate — that wording is <strong>stale</strong>. This spec does <strong>not</strong> propagate it. The frame header is RFC 0003 (litany layer); hcpbin is primitives/§6 only. The gate cares about <em>building+testing</em> the crate, not about which RFC section the bytes come from, but the oracle citations above are the correct ones.</p>
+</blockquote>
+<h3 id="24-existing-ci-machinery-this-extends">2.4 Existing CI machinery this extends</h3>
+<ul>
+<li><code>ci_classify.py</code> emits <code>GITHUB_OUTPUT</code> vars consumed by job <code>if:</code> guards. The <strong><code>run_nix_parse</code></strong> mechanism (<code>ci_classify.py:134</code>, <code>ci-gate.yml:181-184</code>) is the exact pattern to mirror for <code>run_rust</code> / <code>run_zig</code>.</li>
+<li>Hosted runner: <strong><code>ubuntu-latest</code></strong> (every job; e.g. <code>ci-gate.yml:45, 108, 133</code>). The "build target <code>dev-cx53</code>" in the kickoff docs is the <em>engineering</em> devshell, <strong>not</strong> the CI runner — see §7.</li>
+</ul>
+<hr />
+<h2 id="3-design">3. Design</h2>
+<h3 id="31-part-a-ci_classifypy-changes-the-root-cause-fix">3.1 Part A — <code>ci_classify.py</code> changes (the root-cause fix)</h3>
+<p>Two bugs cause the vacuous-green; both are in path classification.</p>
+<p><strong>Bug 1 — Rust code is classified as <code>docs</code> and as non-src.</strong><br />
+<code>protocol/</code> is a prefix in <strong>both</strong> <code>NON_SRC_PREFIXES</code> (<code>ci_classify.py:43-47</code>) and the <code>docs</code> entry of <code>PATH_GROUPS</code> (<code>ci_classify.py:53</code>). <code>classify_paths</code> is first-match-wins over <code>PATH_GROUPS</code> (the <code>break</code> at line 67), and <code>language</code> (<code>vaked/ vakedc/ vakedz/</code>) does not match <code>protocol/</code>, so <code>protocol/hcp/hcpbin/src/lib.rs</code> falls to <code>docs</code>. Independently <code>is_non_src</code> returns <code>True</code>, so <code>auto_tier</code> returns <code>smoke</code> for a small change.</p>
+<p><strong>Bug 2 — Zig daemons match no group.</strong><br />
+<code>daemons/</code> is in no <code>PATH_GROUPS</code> entry, so it falls to <code>"other"</code> and never triggers a build.</p>
+<p><strong>Fix (surgical, mirrors existing style):</strong></p>
+<ol>
+<li>Add two <strong>code</strong> groups to <code>PATH_GROUPS</code>, placed <strong>before</strong> <code>docs</code> so first-match-wins routes code correctly. <code>dict</code> preserves insertion order in Python 3.7+; the runner uses 3.12 (<code>ci-gate.yml:115</code>):</li>
+</ol>
+<div class="highlight"><pre><span></span><span class="n">PATH_GROUPS</span> <span class="o">=</span> <span class="p">{</span>
+       <span class="s2">&quot;language&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;vaked/&quot;</span><span class="p">,</span> <span class="s2">&quot;vakedc/&quot;</span><span class="p">,</span> <span class="s2">&quot;vakedz/&quot;</span><span class="p">,</span> <span class="s2">&quot;daemons/&quot;</span><span class="p">),</span>  <span class="c1"># zig front-end + daemons are compiled code</span>
+       <span class="s2">&quot;rust&quot;</span><span class="p">:</span>     <span class="p">(</span><span class="s2">&quot;protocol/hcp/&quot;</span><span class="p">,),</span>       <span class="c1"># Rust crates under protocol/hcp  ── MUST precede &quot;docs&quot;</span>
+       <span class="s2">&quot;nix&quot;</span><span class="p">:</span>      <span class="p">(</span><span class="s2">&quot;nix/&quot;</span><span class="p">,</span> <span class="s2">&quot;hosts/&quot;</span><span class="p">,</span> <span class="s2">&quot;flake.nix&quot;</span><span class="p">,</span> <span class="s2">&quot;flake.lock&quot;</span><span class="p">),</span>
+       <span class="s2">&quot;docs&quot;</span><span class="p">:</span>     <span class="p">(</span><span class="s2">&quot;docs/&quot;</span><span class="p">,</span> <span class="s2">&quot;protocol/&quot;</span><span class="p">,</span> <span class="s2">&quot;prompts/&quot;</span><span class="p">,</span> <span class="s2">&quot;examples/evaluation/&quot;</span><span class="p">),</span>
+       <span class="s2">&quot;agents&quot;</span><span class="p">:</span>   <span class="p">(</span><span class="s2">&quot;vaked-agents/&quot;</span><span class="p">,),</span>
+       <span class="s2">&quot;tools&quot;</span><span class="p">:</span>    <span class="p">(</span><span class="s2">&quot;tools/&quot;</span><span class="p">,),</span>
+       <span class="s2">&quot;tests&quot;</span><span class="p">:</span>    <span class="p">(</span><span class="s2">&quot;tests/&quot;</span><span class="p">,),</span>
+       <span class="s2">&quot;ci&quot;</span><span class="p">:</span>       <span class="p">(</span><span class="s2">&quot;.github/&quot;</span><span class="p">,),</span>
+   <span class="p">}</span>
+</pre></div>
+
+<p>Rationale for placement:<br />
+   - <code>"rust"</code> before <code>"docs"</code> so <code>protocol/hcp/**</code> routes to <code>rust</code>, while <code>protocol/rfcs/**</code> and other <code>protocol/</code> paths still route to <code>docs</code> (longer, more specific prefix wins by ordering).<br />
+   - <code>daemons/</code> folded into <code>"language"</code> (the existing "compiled language code" group) rather than a new <code>"zig"</code> group, to minimise new vocabulary; the build trigger is derived separately (step 3). <strong>Decision point for the implementer:</strong> if a distinct <code>"zig"</code> group reads cleaner alongside <code>"rust"</code>, add <code>"zig": ("daemons/",)</code> before <code>docs</code> instead and trigger off <code>"zig" in changed_groups</code>. Either is acceptable; pick one and be consistent in the YAML guards.</p>
+<ol>
+<li>Narrow <code>NON_SRC_PREFIXES</code> so Rust code is not treated as non-source. Replace the bare <code>"protocol/"</code> with the doc subtree only:</li>
+</ol>
+<div class="highlight"><pre><span></span><span class="n">NON_SRC_PREFIXES</span> <span class="o">=</span> <span class="p">(</span>
+       <span class="s2">&quot;docs/&quot;</span><span class="p">,</span> <span class="s2">&quot;protocol/rfcs/&quot;</span><span class="p">,</span> <span class="s2">&quot;prompts/&quot;</span><span class="p">,</span> <span class="s2">&quot;.github/&quot;</span><span class="p">,</span> <span class="s2">&quot;CLAUDE.md&quot;</span><span class="p">,</span>
+       <span class="c1"># ... unchanged tail ...</span>
+   <span class="p">)</span>
+</pre></div>
+
+<p>This stops <code>protocol/hcp/**</code> from forcing <code>only_non_src=True</code> → smoke. (<code>protocol/rfcs/**</code> and <code>protocol/hcp/README.md</code> are still doc-ish; if a <code>protocol/</code>-wide doc carve-out is desired, list the specific doc subdirs — do <strong>not</strong> restore the bare <code>protocol/</code> prefix, or Bug 1 returns.)</p>
+<ol>
+<li>Compute the build triggers from <code>changed_groups</code>, <strong>tier-independent</strong> (a 5-line change can break compilation), and emit them. This mirrors <code>run_nix_parse</code> but <strong>without</strong> the <code>or tier in (full,extended)</code> clause — that clause is wrong for builds (a tiny PR must still compile):</li>
+</ol>
+<div class="highlight"><pre><span></span><span class="n">run_rust</span> <span class="o">=</span> <span class="s2">&quot;rust&quot;</span> <span class="ow">in</span> <span class="n">changed_groups</span>
+   <span class="n">run_zig</span>  <span class="o">=</span> <span class="s2">&quot;language&quot;</span> <span class="ow">in</span> <span class="n">changed_groups</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;daemons/&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">)</span>
+   <span class="c1"># (or, if a dedicated &quot;zig&quot; group was added in step 1:  run_zig = &quot;zig&quot; in changed_groups)</span>
+</pre></div>
+
+<p>Add to the <code>lines</code> list written to <code>GITHUB_OUTPUT</code> (<code>ci_classify.py:139-145</code>) and to the stdout summary (lines 151-158):</p>
+<div class="highlight"><pre><span></span><span class="sa">f</span><span class="s2">&quot;run_rust=</span><span class="si">{</span><span class="s1">&#39;true&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">run_rust</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;false&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+       <span class="sa">f</span><span class="s2">&quot;run_zig=</span><span class="si">{</span><span class="s1">&#39;true&#39;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">run_zig</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;false&#39;</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+</pre></div>
+
+<ol>
+<li><strong>Inline test vectors</strong> (add to <code>ci_classify.py</code> under <code>if __name__ == "__main__"</code> guard, or a sibling <code>tests/</code> entry — match how the repo currently tests this script; if none exists, a <code>--selftest</code> flag run in CI step is acceptable). Minimum assertions:</li>
+<li><code>classify_paths(["protocol/hcp/hcpbin/src/lib.rs"]) == {"rust"}</code></li>
+<li><code>is_non_src("protocol/hcp/hcpbin/src/lib.rs") is False</code></li>
+<li><code>auto_tier(10, ["protocol/hcp/hcpbin/src/lib.rs"]) != "smoke"</code></li>
+<li><code>classify_paths(["daemons/sandboxd/src/main.zig"]) == {"language"}</code> (or <code>{"zig"}</code>)</li>
+<li><code>classify_paths(["protocol/rfcs/0002-hcplang.md"]) == {"docs"}</code> (regression: RFCs still docs)</li>
+</ol>
+<h3 id="32-part-b-new-classify-job-outputs">3.2 Part B — new <code>classify</code> job outputs</h3>
+<p>Add to the <code>classify</code> job's <code>outputs:</code> block (<code>ci-gate.yml:47-52</code>):</p>
+<div class="highlight"><pre><span></span><span class="nt">run_rust</span><span class="p">:</span><span class="w">        </span><span class="l l-Scalar l-Scalar-Plain">${{ steps.run.outputs.run_rust }}</span>
+<span class="w">      </span><span class="l l-Scalar l-Scalar-Plain">run_zig</span><span class="p p-Indicator">:</span><span class="w">         </span><span class="l l-Scalar l-Scalar-Plain">${{ steps.run.outputs.run_zig }}</span>
+</pre></div>
+
+<h3 id="33-part-c-new-rust-build-job">3.3 Part C — new <code>rust-build</code> job</h3>
+<div class="highlight"><pre><span></span><span class="c1"># ─── Rust build+test (protocol/hcp/**) ───────────────────────────────────</span>
+<span class="w">  </span><span class="nt">rust-build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rust-build</span>
+<span class="w">    </span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">classify</span>
+<span class="w">    </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">      </span><span class="no">needs.classify.outputs.ping_owner != &#39;true&#39; &amp;&amp;</span>
+<span class="w">      </span><span class="no">needs.classify.outputs.run_rust == &#39;true&#39;</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">timeout-minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v6</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Install Rust toolchain</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rustup show active-toolchain || rustup toolchain install stable --profile minimal</span>
+<span class="w">        </span><span class="c1"># ubuntu-latest ships rustup; hcpbin pins edition 2021. litany (WP3-S2) is</span>
+<span class="w">        </span><span class="c1"># edition 2024 / rust-version 1.94 (cf. vaked-agents/ci/provost/Cargo.toml) —</span>
+<span class="w">        </span><span class="c1"># if a discovered crate sets a higher rust-version, install that channel.</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Swatinem/rust-cache@v2</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">workspaces</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">protocol/hcp/hcpbin</span><span class="w">   </span><span class="c1"># extend per discovered crate (§4.4)</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cargo test each protocol/hcp crate</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">set -euo pipefail</span>
+<span class="w">          </span><span class="no">shopt -s globstar nullglob</span>
+<span class="w">          </span><span class="no">found=0</span>
+<span class="w">          </span><span class="no">for manifest in protocol/hcp/**/Cargo.toml; do</span>
+<span class="w">            </span><span class="no"># skip target/ vendored manifests</span>
+<span class="w">            </span><span class="no">case &quot;$manifest&quot; in */target/*) continue;; esac</span>
+<span class="w">            </span><span class="no">found=1</span>
+<span class="w">            </span><span class="no">echo &quot;::group::cargo test $manifest&quot;</span>
+<span class="w">            </span><span class="no"># hcpbin is zero-dependency with a committed Cargo.lock → --locked --offline.</span>
+<span class="w">            </span><span class="no"># Future crates (litany) may need crates.io: detect deps and drop --offline.</span>
+<span class="w">            </span><span class="no">if grep -qE &#39;^\s*[A-Za-z0-9_-]+\s*=&#39; &quot;$(dirname &quot;$manifest&quot;)/Cargo.toml&quot; \</span>
+<span class="w">               </span><span class="no">&amp;&amp; grep -q &#39;\[dependencies\]&#39; &quot;$manifest&quot; \</span>
+<span class="w">               </span><span class="no">&amp;&amp; ! grep -A2 &#39;\[dependencies\]&#39; &quot;$manifest&quot; | grep -qE &#39;^\s*$&#39;; then</span>
+<span class="w">              </span><span class="no">cargo test --manifest-path &quot;$manifest&quot; --locked</span>
+<span class="w">            </span><span class="no">else</span>
+<span class="w">              </span><span class="no">cargo test --manifest-path &quot;$manifest&quot; --locked --offline</span>
+<span class="w">            </span><span class="no">fi</span>
+<span class="w">            </span><span class="no">echo &quot;::endgroup::&quot;</span>
+<span class="w">          </span><span class="no">done</span>
+<span class="w">          </span><span class="no">[ &quot;$found&quot; = 1 ] || { echo &quot;::error::run_rust=true but no Cargo.toml found under protocol/hcp/&quot;; exit 1; }</span>
+</pre></div>
+
+<blockquote>
+<p>The dependency-detection heuristic is intentionally conservative. <strong>Simpler acceptable alternative:</strong> always run <code>cargo test --manifest-path "$manifest" --locked</code> (no <code>--offline</code>). <code>--offline</code> is a hardening optimization for the current zero-dep <code>hcpbin</code>; if it complicates the script, drop it and rely on <code>--locked</code> + <code>rust-cache</code>. The non-negotiable parts are: (a) one <code>cargo test</code> per discovered manifest, (b) <code>--locked</code> so a stale <code>Cargo.lock</code> fails the gate, (c) the <code>found==0 → exit 1</code> guard so "trigger fired but nothing built" is a failure, not a silent pass.</p>
+</blockquote>
+<h3 id="34-part-d-new-zig-build-job">3.4 Part D — new <code>zig-build</code> job</h3>
+<div class="highlight"><pre><span></span><span class="c1"># ─── Zig build (daemons/**) ──────────────────────────────────────────────</span>
+<span class="w">  </span><span class="nt">zig-build</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zig-build</span>
+<span class="w">    </span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">classify</span>
+<span class="w">    </span><span class="nt">if</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">      </span><span class="no">needs.classify.outputs.ping_owner != &#39;true&#39; &amp;&amp;</span>
+<span class="w">      </span><span class="no">needs.classify.outputs.run_zig == &#39;true&#39;</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">timeout-minutes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v6</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mlugg/setup-zig@v2</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.16.0</span><span class="w">   </span><span class="c1"># matches build.zig.zon minimum_zig_version (sandboxd, vakedz)</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">zig build each daemon</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">set -euo pipefail</span>
+<span class="w">          </span><span class="no">shopt -s globstar nullglob</span>
+<span class="w">          </span><span class="no">found=0</span>
+<span class="w">          </span><span class="no">for bz in daemons/**/build.zig; do</span>
+<span class="w">            </span><span class="no">case &quot;$bz&quot; in */.zig-cache/*|*/zig-cache/*) continue;; esac</span>
+<span class="w">            </span><span class="no">dir=&quot;$(dirname &quot;$bz&quot;)&quot;</span>
+<span class="w">            </span><span class="no">found=1</span>
+<span class="w">            </span><span class="no">echo &quot;::group::zig build $dir&quot;</span>
+<span class="w">            </span><span class="no">( cd &quot;$dir&quot; &amp;&amp; zig build )                 # compile gate</span>
+<span class="w">            </span><span class="no">if grep -q &#39;b.step(&quot;test&quot;&#39; build.zig; then # run unit tests when defined</span>
+<span class="w">              </span><span class="no">( cd &quot;$dir&quot; &amp;&amp; zig build test )</span>
+<span class="w">            </span><span class="no">fi</span>
+<span class="w">            </span><span class="no">echo &quot;::endgroup::&quot;</span>
+<span class="w">          </span><span class="no">done</span>
+<span class="w">          </span><span class="no">[ &quot;$found&quot; = 1 ] || { echo &quot;::error::run_zig=true but no build.zig found under daemons/&quot;; exit 1; }</span>
+</pre></div>
+
+<blockquote>
+<p>On <code>ubuntu-latest</code> (x86_64) <code>zig build</code> builds natively; no <code>-Dtarget</code> needed in CI. sandboxd's syscall code (<code>unshare(CLONE_NEW*)</code>, <code>execvpe</code>) compiles on Linux. The <strong>runtime</strong> namespace tests need privileged Linux → §7. sandboxd's manifest currently <strong>fails to parse</strong> (see §6) — that is the first thing this job will (correctly) catch.</p>
+</blockquote>
+<h3 id="35-part-e-wire-both-jobs-into-the-aggregator-the-meta-trap-do-not-skip">3.5 Part E — wire BOTH jobs into the aggregator (the meta-trap — do not skip)</h3>
+<p>The <code>ci-gate</code> aggregator only gates jobs that appear in <strong>all three</strong> of: its <code>needs:</code> list, its <code>env:</code> block, and the <code>FAIL</code> loop (<code>ci-gate.yml:261, 268-275, 292</code>). A job that runs but is omitted from these is <em>informational</em> — green-when-failing, i.e. the exact bug we are killing. All three edits are mandatory:</p>
+<ol>
+<li>
+<p><code>needs:</code> (line 261):<br />
+<br />
+<div class="highlight"><pre><span></span><span class="nt">needs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">classify</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">smoke</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">standard</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">full</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">nix-parse</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">nix-check</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">agent-guard</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">rust-build</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">zig-build</span><span class="p p-Indicator">]</span>
+</pre></div>
+</p>
+</li>
+<li>
+<p><code>env:</code> (after line 275):<br />
+<br />
+<div class="highlight"><pre><span></span><span class="nt">RUST_BUILD</span><span class="p">:</span><span class="w">   </span><span class="l l-Scalar l-Scalar-Plain">${{ needs.rust-build.result }}</span>
+<span class="w">          </span><span class="l l-Scalar l-Scalar-Plain">ZIG_BUILD</span><span class="p p-Indicator">:</span><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">${{ needs.zig-build.result }}</span>
+</pre></div>
+</p>
+</li>
+<li>
+<p><code>FAIL</code> loop (line 292):<br />
+<br />
+<div class="highlight"><pre><span></span><span class="k">for</span><span class="w"> </span>job_result<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$SMOKE</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$STANDARD</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$FULL</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$NIX_PARSE</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$NIX_CHECK</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$AGENT_GUARD</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$RUST_BUILD</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$ZIG_BUILD</span><span class="s2">&quot;</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
+</pre></div>
+</p>
+</li>
+<li>
+<p>Step-summary table (after line 312) — add <code>rust-build</code> and <code>zig-build</code> rows (cosmetic but expected by the existing pattern).</p>
+</li>
+</ol>
+<p><code>result == 'skipped'</code> is neutral (the loop only fails on <code>"failure"</code>), so PRs that don't touch Rust/Zig stay green — same semantics as <code>nix-check</code>.</p>
+<hr />
+<h2 id="4-file-layout-paths-to-create-modify">4. File layout (paths to create / modify)</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Action</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>.github/scripts/ci_classify.py</code></td>
+<td><strong>modify</strong></td>
+<td><code>PATH_GROUPS</code> (+<code>rust</code>, <code>daemons</code>→language), narrow <code>NON_SRC_PREFIXES</code>, emit <code>run_rust</code>/<code>run_zig</code>, inline self-test vectors (§3.1)</td>
+</tr>
+<tr>
+<td><code>.github/workflows/ci-gate.yml</code></td>
+<td><strong>modify</strong></td>
+<td><code>classify.outputs</code> (+2), new <code>rust-build</code> + <code>zig-build</code> jobs, aggregator <code>needs</code>/<code>env</code>/<code>FAIL</code>/summary (§3.2-3.5)</td>
+</tr>
+<tr>
+<td><code>docs/superpowers/specs/2026-06-14-ci-gate-build-extension.md</code></td>
+<td><strong>create</strong></td>
+<td>this spec</td>
+</tr>
+</tbody>
+</table>
+<p>No new source dirs. No changes to <code>protocol/hcp/**</code> or <code>daemons/**</code> source (the sandboxd manifest fix is a separate blocker — §6).</p>
+<h3 id="44-discovery-not-hardcoding">4.4 Discovery, not hardcoding</h3>
+<p>The build steps glob <code>protocol/hcp/**/Cargo.toml</code> and <code>daemons/**/build.zig</code> so the gate auto-covers <code>protocol/hcp/litany/</code> (WP3-S2) and <code>daemons/agent-supervisord/</code>, <code>daemons/eventd/</code> (WP4) the day they land — preventing a re-vacuous-green. The only per-crate maintenance is the optional <code>rust-cache</code> <code>workspaces:</code> list (§3.3); a missed entry degrades cache hit-rate, not correctness.</p>
+<hr />
+<h2 id="5-algorithm-control-flow">5. Algorithm / control flow</h2>
+<div class="highlight"><pre><span></span>pull_request → classify (ubuntu-latest, py3.12)
+  ci_classify.py:
+    files          = git diff --name-only base head
+    changed_groups = classify_paths(files)         # rust / language(daemons) / docs / …
+    run_rust       = &quot;rust&quot; in changed_groups                       # tier-independent
+    run_zig        = daemons/ touched                               # tier-independent
+    run_nix_parse  = (unchanged)
+  → outputs: tier, changed_groups, ping_owner, run_nix_parse, run_nix_check, run_rust, run_zig
+
+fan-out (all need classify, all skip when ping_owner):
+  smoke / standard / full / nix-parse / nix-check        (unchanged)
+  rust-build   if run_rust==&#39;true&#39;  → for each protocol/hcp/**/Cargo.toml: cargo test --locked
+  zig-build    if run_zig ==&#39;true&#39;  → for each daemons/**/build.zig:       zig build [+ test]
+  agent-guard                                              (unchanged)
+
+ci-gate (needs ALL above, if: always()):
+  FAIL = any(result == &quot;failure&quot; for job in
+             {smoke,standard,full,nix-parse,nix-check,agent-guard,rust-build,zig-build})
+  exit 1 if FAIL          # ← rust-build / zig-build now genuinely gate
+</pre></div>
+
+<hr />
+<h2 id="6-dependencies-on-other-sprints-blockers">6. Dependencies on other sprints / blockers</h2>
+<ol>
+<li><strong><code>daemons/sandboxd/build.zig.zon</code> is broken (blocker for <code>zig-build</code> going green).</strong> It uses <code>.name = "sandboxd"</code> (a string), which <strong>Zig 0.16 rejects</strong> at manifest parse:<br />
+<br />
+<div class="highlight"><pre><span></span><span class="w">   </span><span class="n">build</span><span class="o">.</span><span class="n">zig</span><span class="o">.</span><span class="n">zon</span><span class="p">:</span><span class="mi">2</span><span class="p">:</span><span class="mi">13</span><span class="p">:</span><span class="w"> </span><span class="n">error</span><span class="p">:</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="n">literal</span>
+<span class="w">       </span><span class="o">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sandboxd&quot;</span><span class="p">,</span>
+<span class="w">   </span>
+</pre></div>
+</li>
+</ol>
+<p>The correct form is an enum literal, as <code>vakedz/build.zig.zon</code> uses (<code>.name = .vakedz</code>). <strong>Verified locally</strong> (<code>zig version</code> 0.16.0; <code>zig build</code> in <code>daemons/sandboxd/</code> fails on this line, while <code>vakedz</code> builds clean). This is <em>evidence the gate has value</em> — it catches a live error today. <strong>Do not fix it in this sprint</strong> (out of scope per surgical-changes rule); file/track it as a precondition. Until fixed, <code>zig-build</code> will (correctly) red any PR touching <code>daemons/sandboxd/**</code>.<br />
+2. <strong>WP3-S2 litany crate</strong> (<code>protocol/hcp/litany/</code>, Jul 9–23): when it lands, the <code>protocol/hcp/**</code> glob auto-covers it. If litany pulls crates.io deps, the <code>--offline</code> heuristic must yield to a networked <code>cargo test</code> (§3.3) and <code>rust-cache</code> <code>workspaces:</code> should add <code>protocol/hcp/litany</code>.<br />
+3. <strong>WP4 daemons</strong> (<code>agent-supervisord</code>, <code>eventd</code>, Aug+): auto-covered by the <code>daemons/**</code> glob; each must ship a parseable <code>build.zig.zon</code> (cf. blocker 1).<br />
+4. <strong>RFC 0002 freeze</strong> (WP3 pre-start gate, by Jun 21): the hcpbin golden vectors in <code>golden.rs</code> assume a frozen §6 byte format. Not a blocker for the <em>gate</em> (the gate runs whatever tests exist), but a churning RFC means churning red — informational.<br />
+5. <strong>No root Cargo workspace exists.</strong> This spec relies on per-manifest <code>cargo test</code>; if a future sprint introduces a root workspace, collapse the loop into a single <code>cargo test --workspace</code> (simpler) — revisit then.</p>
+<hr />
+<h2 id="7-test-plan-what-is-verifiable-on-m1-now-vs-what-needs-linuxdev-cx53">7. Test plan — what is verifiable on M1 now vs. what needs Linux/dev-cx53</h2>
+<p><strong>Clarification:</strong> "dev-cx53 is the build target" in the kickoff docs refers to the <em>engineering devshell</em> (<code>nix develop</code>), not the CI runner. <code>ci-gate</code> runs on <strong><code>ubuntu-latest</code></strong> hosted runners. dev-cx53 being off-limits to the author does <strong>not</strong> affect this gate. Three tiers:</p>
+<h3 id="71-verified-locally-on-this-m1-now-author-evidence">7.1 Verified locally on this M1 now (author evidence)</h3>
+<ul>
+<li><code>cd protocol/hcp/hcpbin &amp;&amp; cargo test --offline</code> → <strong>50 passed (3 suites)</strong>, exit 0 (cargo 1.95.0). Proves the Rust oracle is real and the crate is offline/<code>--locked</code>-buildable.</li>
+<li><code>cd vakedz &amp;&amp; zig build</code> and <code>zig build -Dtarget=x86_64-linux</code> → both exit 0 (zig 0.16.0). Proves the Zig toolchain + cross-compile gate works on M1.</li>
+<li><code>cd daemons/sandboxd &amp;&amp; zig build</code> → <strong>fails</strong> at <code>build.zig.zon:2</code> (the §6 blocker). Proves the zig gate catches the live error.</li>
+<li><code>python3 .github/scripts/ci_classify.py</code> helpers against <code>HEAD</code> → reproduces the §1 vacuous-green table. After the §3.1 fix, the inline self-test vectors (§3.1 step 4) must pass: run <code>python3 .github/scripts/ci_classify.py --selftest</code> (or equivalent) → exit 0.</li>
+</ul>
+<p><strong>M1 acceptance dry-run (no GitHub needed):</strong></p>
+<div class="highlight"><pre><span></span><span class="c1"># Rust side</span>
+<span class="k">for</span><span class="w"> </span>m<span class="w"> </span><span class="k">in</span><span class="w"> </span>protocol/hcp/**/Cargo.toml<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$m</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">==</span><span class="w"> </span>*/target/*<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="k">continue</span><span class="p">;</span><span class="w"> </span>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--manifest-path<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$m</span><span class="s2">&quot;</span><span class="w"> </span>--locked<span class="p">;</span><span class="w"> </span><span class="k">done</span>
+<span class="c1"># Zig side (compile-only is portable; runtime tests are Linux — see 7.3)</span>
+<span class="k">for</span><span class="w"> </span>b<span class="w"> </span><span class="k">in</span><span class="w"> </span>daemons/**/build.zig<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="o">(</span><span class="nb">cd</span><span class="w"> </span><span class="s2">&quot;</span><span class="k">$(</span>dirname<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$b</span><span class="s2">&quot;</span><span class="k">)</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>zig<span class="w"> </span>build<span class="o">)</span><span class="p">;</span><span class="w"> </span><span class="k">done</span>
+<span class="c1"># classify self-test</span>
+python3<span class="w"> </span>.github/scripts/ci_classify.py<span class="w"> </span>--selftest
+</pre></div>
+
+<h3 id="72-verified-on-ubuntu-latest-in-ci-the-gate-itself">7.2 Verified on ubuntu-latest in CI (the gate itself)</h3>
+<ul>
+<li><code>rust-build</code>: <code>cargo test --manifest-path … --locked</code> per discovered crate. Native x86_64 build; identical to the M1 run modulo arch.</li>
+<li><code>zig-build</code>: <code>zig build</code> (compile) + <code>zig build test</code> (when a <code>test</code> step exists) per discovered daemon. Native x86_64 Linux — sandboxd's <code>unshare</code>/<code>execvpe</code> syscall code <strong>compiles</strong> here (it doesn't on macOS for the namespace path, hence CI is the compile oracle for Linux-only syscalls).</li>
+<li>Aggregator wiring: open a throwaway PR touching <code>protocol/hcp/hcpbin/src/lib.rs</code> with a deliberately broken test → confirm <code>ci-gate</code> goes <strong>red</strong> (proves §3.5 wiring). Then a green change → <code>ci-gate</code> green. Same for a <code>daemons/**</code> change.</li>
+</ul>
+<h3 id="73-needs-privileged-linux-not-m1-not-plain-ubuntu-latest-container-out-of-scope-for-this-gate">7.3 Needs privileged Linux (NOT M1, NOT plain ubuntu-latest container) — out of scope for this gate</h3>
+<ul>
+<li>sandboxd <strong>runtime</strong> namespace tests: actually calling <code>unshare(CLONE_NEWUSER|CLONE_NEWNS|CLONE_NEWPID|CLONE_NEWNET)</code> + <code>execvpe</code> and asserting isolation (WP4-S1/S2, <code>docs/superpowers/plans/2026-06-14-wp4-kickoff.md:54-61</code>). These <em>compile</em> portably (covered by <code>zig build</code>) but their execution needs unprivileged-userns or a privileged runner. The <code>zig-build</code> gate covers <strong>compile + any pure-logic <code>zig build test</code></strong>; full syscall-runtime tests are a later, separate CI lane (self-hosted/privileged or <code>dev-cx53</code>), explicitly <strong>not</strong> part of this required gate.</li>
+</ul>
+<hr />
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<ol>
+<li><strong>Classifier root-cause fixed (verified by self-test):</strong></li>
+<li><code>classify_paths(["protocol/hcp/hcpbin/src/lib.rs"])</code> returns <code>{"rust"}</code> (not <code>{"docs"}</code>).</li>
+<li><code>is_non_src("protocol/hcp/hcpbin/src/lib.rs")</code> is <code>False</code>.</li>
+<li><code>auto_tier(10, ["protocol/hcp/hcpbin/src/lib.rs"])</code> is <strong>not</strong> <code>smoke</code>.</li>
+<li><code>classify_paths(["daemons/sandboxd/src/main.zig"])</code> returns the code group (<code>language</code> or <code>zig</code>), not <code>other</code>.</li>
+<li>Regression: <code>classify_paths(["protocol/rfcs/0002-hcplang.md"])</code> still <code>{"docs"}</code>; <code>is_non_src</code> still <code>True</code>.</li>
+<li><code>run_rust</code>/<code>run_zig</code> emitted to <code>GITHUB_OUTPUT</code>, tier-independent.</li>
+<li><strong>Jobs exist and trigger correctly:</strong> <code>rust-build</code> runs iff <code>run_rust=='true'</code>; <code>zig-build</code> runs iff <code>run_zig=='true'</code>; both skip on <code>ping-owner</code>; both skip (neutral) on unrelated PRs.</li>
+<li><strong>Builds invoke the real oracles:</strong> <code>rust-build</code> runs <code>cargo test --locked</code> for <strong>every</strong> non-<code>target/</code> <code>Cargo.toml</code> under <code>protocol/hcp/</code> (and errors if the trigger fired but none found); <code>zig-build</code> runs <code>zig build</code> (+ <code>zig build test</code> when present) for every <code>build.zig</code> under <code>daemons/</code> (same empty-set guard).</li>
+<li><strong>Aggregator gates them (meta-trap closed):</strong> <code>rust-build</code> and <code>zig-build</code> appear in <code>ci-gate</code>'s <code>needs:</code>, <code>env:</code>, AND the <code>FAIL</code> loop. A PR with a failing hcpbin test makes the <strong>required</strong> <code>ci-gate</code> check go <strong>red</strong> (demonstrated on a throwaway PR); a failing/parse-erroring daemon build does the same.</li>
+<li><strong>No regression for non-code PRs:</strong> a docs-only / RFC-only PR still classifies as <code>smoke</code>/<code>standard</code> and <code>ci-gate</code> stays green with <code>rust-build</code>/<code>zig-build</code> skipped.</li>
+<li><strong>Discovery, not hardcoding:</strong> adding a new crate under <code>protocol/hcp/</code> or daemon under <code>daemons/</code> is covered with no <code>ci-gate.yml</code> edit (other than optional <code>rust-cache</code> <code>workspaces:</code>).</li>
+<li><strong>Scope discipline:</strong> the only files changed are <code>.github/scripts/ci_classify.py</code>, <code>.github/workflows/ci-gate.yml</code>, and this spec. The <code>daemons/sandboxd/build.zig.zon</code> parse bug is documented as a blocker (§6), <strong>not</strong> fixed here.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-ci-gate-build-extension.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NATS HA cluster — best-practice, optimized fleet bus (spike design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#goals-non-goals" style="padding-left:0.5rem">Goals / non-goals</a><a href="#decisions-locked-via-brainstorm" style="padding-left:0.5rem">Decisions (locked via brainstorm)</a><a href="#architecture" style="padding-left:0.5rem">Architecture</a><a href="#nodes-sizing-see-economymd-for-the-cost-trade" style="padding-left:1rem">  Nodes (sizing — see economy.md for the cost trade)</a><a href="#auth-decentralized-jwt-nsc" style="padding-left:1rem">  Auth — decentralized JWT (nsc)</a><a href="#connectivity-tls-hybrid" style="padding-left:1rem">  Connectivity / TLS (hybrid)</a><a href="#jetstream-stream-conventions" style="padding-left:1rem">  JetStream + stream conventions</a><a href="#optimization-the-highly-optimize-mandate" style="padding-left:1rem">  Optimization (the "highly optimize" mandate)</a><a href="#observability-backup" style="padding-left:1rem">  Observability + backup</a><a href="#deployment-nix" style="padding-left:1rem">  Deployment (Nix)</a><a href="#migration-cutover" style="padding-left:1rem">  Migration / cutover</a><a href="#spike-validation-plan-the-empirical-part" style="padding-left:0.5rem">Spike validation plan (the empirical part)</a><a href="#risks" style="padding-left:0.5rem">Risks</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-nats-ha-cluster-design</div>
+<h1>NATS HA cluster — best-practice, optimized fleet bus (spike design)</h1>
+<h1 id="nats-ha-cluster-best-practice-optimized-fleet-bus-spike-design">NATS HA cluster — best-practice, optimized fleet bus (spike design)</h1>
+<h2 id="status">Status</h2>
+<p>Spike design (2026-06-14). NATS is the <strong>core message bus of vaked</strong> — the<br />
+work-queue for <code>swe_af</code>, the <code>crabcc.&gt;</code> event spine the Sentinel Console renders,<br />
+and the transport telemetry/agents ride. Today it is a <strong>single node</strong><br />
+(<code>crabcc-nats</code> 100.73.72.35, NATS 2.14.2, JetStream, 1 account, 3 streams,<br />
+<code>ha_assets: 0</code>, <code>routes: 0</code>) — a single point of failure for the whole fleet.<br />
+This spike defines the HA, secured, and <strong>performance-optimized</strong> target and a<br />
+plan to validate it before cutover. Cost model: <a href="../../economy.md"><code>docs/economy.md</code></a>.</p>
+<h2 id="goals-non-goals">Goals / non-goals</h2>
+<p><strong>Goals:</strong> survive any single-node loss with zero data loss (R3 JetStream,<br />
+RAFT quorum 2/3); decentralized JWT auth with per-domain account isolation;<br />
+hybrid connectivity (clients over the tailnet, RAFT routes over low-latency<br />
+mTLS); leaf nodes so every app box has a local NATS endpoint; full<br />
+observability + scheduled backups; a tuned, reproducible (Nix) deployment.</p>
+<p><strong>Non-goals (this spike):</strong> multi-region active/active (single-region cluster —<br />
+RAFT wants &lt;~10 ms inter-node); replacing eventd's file-based audit chain<br />
+(separate concern); message-schema redesign.</p>
+<h2 id="decisions-locked-via-brainstorm">Decisions (locked via brainstorm)</h2>
+<table>
+<thead>
+<tr>
+<th>Decision</th>
+<th>Choice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Topology</td>
+<td><strong>3 fresh co-located dedicated nodes</strong> (not reuse of packed cx53)</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td><strong>Decentralized JWT</strong> via <code>nsc</code> (operator -&gt; accounts -&gt; users)</td>
+</tr>
+<tr>
+<td>Connectivity</td>
+<td><strong>Hybrid</strong> — clients over tailnet (<code>:4222</code>), cluster RAFT routes over public IP + <strong>mTLS</strong> (<code>:6222</code>)</td>
+</tr>
+<tr>
+<td>Replication</td>
+<td><strong>R3</strong> streams (one replica per node, anti-affinity)</td>
+</tr>
+<tr>
+<td>Deploy</td>
+<td><strong>NixOS module</strong> (<code>services.nats</code>) via nixos-anywhere/colmena — "Vaked declares, Nix materializes"</td>
+</tr>
+</tbody>
+</table>
+<h2 id="architecture">Architecture</h2>
+<div class="highlight"><pre><span></span><span class="w">                         </span><span class="nv">tailnet</span><span class="w"> </span><span class="ss">(</span><span class="nv">WireGuard</span>,<span class="w"> </span><span class="nv">ACL</span><span class="o">-</span><span class="nv">gated</span><span class="ss">)</span><span class="w">  </span>:<span class="mi">4222</span><span class="w">  </span><span class="ss">(</span><span class="nv">clients</span><span class="ss">)</span>
+<span class="w">   </span><span class="nv">cx53</span><span class="w"> </span><span class="nv">console</span><span class="w"> </span>─┐<span class="w">   </span><span class="nv">bench</span><span class="o">-</span><span class="nv">node</span><span class="w"> </span>─┐<span class="w">   </span><span class="nv">orchestrator</span><span class="o">/</span><span class="nv">workers</span><span class="w"> </span>─┐
+<span class="w">                 </span>│<span class="w">               </span>│<span class="w">                          </span>│
+<span class="w">            </span>┌────┴───────────────┴──────────────────────────┴────┐
+<span class="w">            </span>│<span class="w">     </span><span class="mi">3</span><span class="o">-</span><span class="nv">node</span><span class="w"> </span><span class="nv">JetStream</span><span class="w"> </span><span class="nv">cluster</span><span class="w">  </span><span class="s2">&quot;vaked-nats&quot;</span><span class="w">          </span>│
+<span class="w">            </span>│<span class="w">   </span><span class="nv">nats</span><span class="o">-</span><span class="mi">1</span><span class="w"> </span>──<span class="w"> </span><span class="nv">nats</span><span class="o">-</span><span class="mi">2</span><span class="w"> </span>──<span class="w"> </span><span class="nv">nats</span><span class="o">-</span><span class="mi">3</span><span class="w">   </span><span class="ss">(</span><span class="nv">RAFT</span>,<span class="w"> </span><span class="nv">R3</span><span class="ss">)</span><span class="w">           </span>│
+<span class="w">            </span>│<span class="w">   </span><span class="nv">routes</span><span class="w"> </span>:<span class="mi">6222</span><span class="w"> </span><span class="nv">over</span><span class="w"> </span><span class="nv">PUBLIC</span><span class="w"> </span><span class="nv">IP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nv">mTLS</span><span class="w"> </span><span class="ss">(</span><span class="nv">same</span><span class="w"> </span><span class="nv">DC</span>,<span class="w"> </span><span class="o">&lt;</span><span class="mi">1</span><span class="nv">ms</span><span class="ss">)</span>│
+<span class="w">            </span>│<span class="w">   </span><span class="nv">leafnodes</span><span class="w"> </span>:<span class="mi">7422</span><span class="w"> </span><span class="ss">(</span><span class="nv">mTLS</span><span class="ss">)</span><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="nv">off</span><span class="o">-</span><span class="nv">tailnet</span><span class="w"> </span><span class="nv">leaves</span><span class="w">    </span>│
+<span class="w">            </span>└─────────────────────────────────────────────────────┘
+<span class="w">                 </span>▲<span class="w"> </span><span class="nv">leaf</span><span class="w"> </span><span class="ss">(</span><span class="nv">local</span><span class="w"> </span><span class="nv">nats</span><span class="o">-</span><span class="nv">server</span>,<span class="w"> </span><span class="nv">dials</span><span class="w"> </span><span class="nv">out</span><span class="ss">)</span>
+<span class="w">   </span><span class="nv">each</span><span class="w"> </span><span class="nv">app</span><span class="w"> </span><span class="nv">box</span><span class="w"> </span><span class="ss">(</span><span class="nv">cx53</span>,<span class="w"> </span><span class="nv">bench</span><span class="o">-</span><span class="nv">node</span>,<span class="w"> </span><span class="nv">GCP</span><span class="w"> </span><span class="nv">workers</span><span class="ss">)</span><span class="w"> </span><span class="nv">runs</span><span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="nv">LEAF</span><span class="w"> </span><span class="nv">node</span><span class="w"> </span>→
+<span class="w">   </span><span class="nv">local</span><span class="w"> </span>:<span class="mi">4222</span><span class="w"> </span><span class="nv">endpoint</span>,<span class="w"> </span><span class="nv">global</span><span class="w"> </span><span class="nv">subject</span><span class="w"> </span><span class="nv">propagation</span>,<span class="w"> </span><span class="nv">survives</span><span class="w"> </span><span class="nv">hub</span><span class="w"> </span><span class="nv">blips</span>
+</pre></div>
+
+<h3 id="nodes-sizing-see-economymd-for-the-cost-trade">Nodes (sizing — see economy.md for the cost trade)</h3>
+<ul>
+<li><strong>3 × Hetzner CCX13</strong> (2 dedicated vCPU, 8 GB, 80 GB NVMe) in <strong>one location</strong><br />
+  (e.g. <code>fsn1</code>). Dedicated vCPU = consistent RAFT latency (no noisy-neighbor<br />
+  jitter); 80 GB NVMe &gt;&gt; the bus's small-message footprint. Budget alternative:<br />
+  3 × CAX21 (ARM, €7.99) — NATS runs well on ARM; loses dedicated-vCPU latency<br />
+  guarantees. Recommendation: <strong>CCX13</strong> for "core of vaked" stability.</li>
+<li>Each node joins the <strong>tailnet</strong> (tag:server) for client reach AND keeps its<br />
+<strong>public IP</strong> for the mTLS RAFT route mesh (same-DC, sub-ms).</li>
+</ul>
+<h3 id="auth-decentralized-jwt-nsc">Auth — decentralized JWT (nsc)</h3>
+<ul>
+<li><code>nsc</code> operator; <strong>SYS</strong> account (locked down) + per-domain accounts:<br />
+<strong>EVENTS</strong> (<code>crabcc.&gt;</code>), <strong>SWE_AF</strong> (<code>swe.af.&gt;</code>), <strong>TELEMETRY</strong>, <strong>AGENTS</strong>.<br />
+  Cross-account visibility via explicit export/import (e.g. SWE_AF exports<br />
+<code>swe.af.status.&gt;</code> -&gt; a CONSOLE import).</li>
+<li><strong>NATS-based resolver</strong> (<code>resolver: { type: full, dir: … }</code>) on the cluster;<br />
+  account JWTs pushed with <code>nsc push</code>. Users get scoped <code>.creds</code> files<br />
+  (orchestrator, console, each worker, telemetry exporter).</li>
+<li>Per-account JetStream tiers (<code>max_memory</code>, <code>max_storage</code>, <code>max_streams</code>).</li>
+</ul>
+<h3 id="connectivity-tls-hybrid">Connectivity / TLS (hybrid)</h3>
+<ul>
+<li><strong>Clients</strong> (<code>:4222</code>) connect over the <strong>tailnet</strong> — WireGuard encrypts<br />
+  transport; ACL gates who reaches the nodes; JWT does authz. No client TLS certs<br />
+  to manage.</li>
+<li><strong>Cluster routes</strong> (<code>:6222</code>) use <strong>public IPs + mutual TLS</strong> (cert per node) —<br />
+  keeps RAFT off the tailnet data path for lowest, most stable quorum latency<br />
+  (co-located =&gt; sub-ms).</li>
+<li><strong>Leaf nodes</strong> (<code>:7422</code>, mTLS): app boxes run a local <code>nats-server</code> in<br />
+  leaf-node mode dialing OUT to the cluster — gives each box a local endpoint and<br />
+  solves off-tailnet boxes (GCP) via public+mTLS leaf links.</li>
+</ul>
+<h3 id="jetstream-stream-conventions">JetStream + stream conventions</h3>
+<ul>
+<li>File store on NVMe, <strong>R3</strong> (replicas=3), <code>unique_tag</code> placement so each<br />
+  replica lands on a distinct node.</li>
+<li><strong>SWE_AF_TASKS</strong>: <code>WorkQueue</code> retention, R3, <code>max_age</code> (e.g. 24h), dedupe<br />
+  window (<code>duplicate_window</code> 2m), <code>max_msgs</code>/<code>max_bytes</code> caps. (This is the<br />
+  orchestrator's queue from the swe-af-fanout-batch plan — point its <code>NATS_URL</code><br />
+  at the cluster + <code>SWE_AF</code> creds.)</li>
+<li><strong>EVENTS</strong> (<code>crabcc.&gt;</code>): <code>Limits</code>/<code>Interest</code> retention, R3, <code>max_bytes</code> +<br />
+<code>max_age</code>; the console subscribes.</li>
+<li><strong>status / ephemeral</strong> (<code>swe.af.status.&gt;</code>): core NATS pub/sub (no JS) unless<br />
+  durable history is wanted — cheapest, lowest latency.</li>
+</ul>
+<h3 id="optimization-the-highly-optimize-mandate">Optimization (the "highly optimize" mandate)</h3>
+<ul>
+<li><strong>nats-server</strong>: <code>max_payload</code> 1 MB (down from 8 MB — smaller buffers, less mem;<br />
+  raise only if large frames are real), <code>write_deadline</code> 10s, <code>ping_interval</code> 2m,<br />
+<strong><code>lame_duck_duration</code> 30s</strong> (graceful drain on rolling deploy =&gt; zero-downtime),<br />
+<code>max_connections</code> 64k, cluster <code>pool_size</code> 3, <code>no_advertise: true</code>.</li>
+<li><strong>JetStream</strong>: <code>max_file_store</code> 60 GB/node, <code>sync_interval 2m</code> (throughput;<br />
+  switch to <code>always</code> only if a node can lose unsynced writes on crash — RAFT R3<br />
+  already covers single-node loss, so <code>2m</code> is the right default), compression on.</li>
+<li><strong>OS</strong> (NixOS): <code>nofile</code> 1M, <code>net.core.somaxconn</code> 4096, BBR + <code>fq</code>, larger<br />
+<code>tcp_rmem/wmem</code>, <code>vm.swappiness=1</code>, NVMe <code>none</code> scheduler, THP off (latency).</li>
+<li><strong>Runtime</strong>: <code>GOMEMLIMIT</code> ≈ 80% RAM to bound the Go heap; <code>mlock</code> off.</li>
+<li><strong>Placement</strong>: <code>server_tags</code> (<code>az</code>, <code>node</code>) drive replica anti-affinity.</li>
+</ul>
+<h3 id="observability-backup">Observability + backup</h3>
+<ul>
+<li><code>:8222</code> monitoring (<code>/healthz</code>, <code>/varz</code>, <code>/jsz</code>) bound to tailnet;<br />
+<strong>prometheus-nats-exporter</strong> per node -&gt; the fleet telemetry stack<br />
+  (uptrace/openobserve on cx53).</li>
+<li><strong>NUI</strong> (one instance, behind tailnet) for human stream/KV/consumer browsing.</li>
+<li><strong>Backups</strong>: scheduled <code>nats stream backup</code> per stream -&gt; the fleet's<br />
+  rustfs/minio object store; restore runbook.</li>
+</ul>
+<h3 id="deployment-nix">Deployment (Nix)</h3>
+<ul>
+<li>A <code>nats-node</code> NixOS module (<code>services.nats</code> with JetStream + cluster + leaf +<br />
+  resolver + the tuning above), parameterized per node (server_name, routes,<br />
+  tags). 3 <code>nixosConfigurations</code> (or a colmena hive) -&gt; <code>nixos-anywhere</code> onto the<br />
+  3 Hetzner cloud VMs. Leaf config is a smaller module layered onto the app hosts.</li>
+<li>Secrets (operator/account JWTs, mTLS certs, creds) via the repo's existing<br />
+  secret path — never in the Nix store world-readable; use <code>age</code>/<code>sops</code> or<br />
+  systemd <code>LoadCredential</code>.</li>
+</ul>
+<h3 id="migration-cutover">Migration / cutover</h3>
+<ol>
+<li>Stand up the 3-node cluster in parallel (crabcc-nats stays live).</li>
+<li>Recreate the 3 existing stream <strong>definitions</strong> on the cluster (current msg<br />
+   count is 0 -&gt; no data migration).</li>
+<li>Repoint clients (<code>NATS_URL</code> + creds): console, orchestrator, telemetry,<br />
+   agents — one at a time, watch <code>/jsz</code>.</li>
+<li>Decommission single-node <code>crabcc-nats</code> (or convert to a 4th leaf).</li>
+</ol>
+<h2 id="spike-validation-plan-the-empirical-part">Spike validation plan (the empirical part)</h2>
+<ul>
+<li>[ ] <strong>Inter-node RTT</strong> between the 3 chosen nodes &lt; 2 ms (ping/<code>nats bench</code>); if<br />
+      a candidate is cross-region, re-pick — RAFT degrades past ~10 ms.</li>
+<li>[ ] <strong>Throughput/latency bench</strong>: <code>nats bench</code> pub/sub + JetStream R3 publish<br />
+      (msgs/s, p99 latency) at expected fleet load; record baseline.</li>
+<li>[ ] <strong>Failover drill</strong>: kill one node -&gt; quorum holds, streams stay writable,<br />
+      consumers resume; restore -&gt; catches up. Measure recovery time.</li>
+<li>[ ] <strong>Auth isolation</strong>: a SWE_AF user cannot read EVENTS subjects; SYS locked.</li>
+<li>[ ] <strong>Zero-downtime deploy</strong>: rolling <code>nats-server</code> restart with lame-duck -&gt;<br />
+      no client errors.</li>
+</ul>
+<h2 id="risks">Risks</h2>
+<ul>
+<li>3 small nodes co-located = correlated failure if the whole DC drops (accepted;<br />
+  multi-region is a non-goal). Backups to object store mitigate data loss.</li>
+<li>JWT/nsc adds operational surface (resolver, JWT pushes) — document the runbook;<br />
+  keep operator key offline.</li>
+<li>Leaf nodes on app boxes add a local daemon to maintain — keep the leaf config<br />
+  minimal; it's optional per box.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-nats-ha-cluster-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

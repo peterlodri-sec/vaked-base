@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle — outside-model prompt dogfeed (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#one-liner" style="padding-left:0.5rem">One-liner</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#decisions-locked-in-brainstorm" style="padding-left:0.5rem">Decisions (locked in brainstorm)</a><a href="#architecture" style="padding-left:0.5rem">Architecture</a><a href="#components-files" style="padding-left:0.5rem">Components / files</a><a href="#toolsoraclepanelpy-modify-the-sink" style="padding-left:1rem">  `tools/oracle/panel.py` (MODIFY — the sink)</a><a href="#toolsoracledogfeedpromptspy-new-pure-stdlib" style="padding-left:1rem">  `tools/oracle/dogfeed_prompts.py` (NEW — pure stdlib)</a><a href="#toolsoracleoraclepy-modify-cli" style="padding-left:1rem">  `tools/oracle/oracle.py` (MODIFY — CLI)</a><a href="#toolsoracletaskfileyml-modify" style="padding-left:1rem">  `tools/oracle/Taskfile.yml` (MODIFY)</a><a href="#tests-toolsoracletestoraclepy-module-level-test-plain-assert" style="padding-left:1rem">  Tests — `tools/oracle/test_oracle.py` (module-level `test_*`, plain `assert`)</a><a href="#error-handling" style="padding-left:0.5rem">Error handling</a><a href="#out-of-scope-follow-ups" style="padding-left:0.5rem">Out of scope (follow-ups)</a><a href="#constraints" style="padding-left:0.5rem">Constraints</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-16-vaked-oracle-outside-model-prompt-dogfeed-design</div>
+<h1>vaked-oracle — outside-model prompt dogfeed (design)</h1>
+<h1 id="vaked-oracle-outside-model-prompt-dogfeed-design">vaked-oracle — outside-model prompt dogfeed (design)</h1>
+<p><strong>Date:</strong> 2026-06-16<br />
+<strong>Status:</strong> approved (brainstorm) — ready for plan<br />
+<strong>Base:</strong> <code>origin/main</code> @ <code>df9b59b</code></p>
+<h2 id="one-liner">One-liner</h2>
+<p>Surface every prompt the oracle sends to <strong>non-hosted</strong> (OpenRouter) models to <strong>one rolling<br />
+GitHub issue</strong> — a transparency/cost audit of third-party spend. Fire-and-forget, never leaks<br />
+the key or the full prompt/response.</p>
+<h2 id="why">Why</h2>
+<p>The oracle team (slice 4a/4b) sends prompts to OpenRouter models (<code>feketecs</code> deepseek-flash,<br />
+<code>anstetten</code> deepseek-pro). Today those calls are invisible — no record of what we ship to a<br />
+third party or what it costs. A single rolling issue, appended one comment per run, makes the<br />
+outside-model surface auditable with zero infra. Complements (does not replace) the heavier<br />
+Langfuse SDK push.</p>
+<h2 id="decisions-locked-in-brainstorm">Decisions (locked in brainstorm)</h2>
+<ul>
+<li><strong>One rolling issue</strong>, find-or-create, <strong>one comment per run</strong>, max 1 issue.</li>
+<li><strong>Outside-model only</strong> — gated on <code>self.key</code> (key_env-gated clients); local keyless clients<br />
+  (qwen/llm4d) are never logged.</li>
+<li><strong>Per-call record:</strong> <code>model</code>, <code>prompt_sha</code>, <code>first_line</code> (≤120 chars), <code>completion_tokens</code>,<br />
+<code>cost</code>, <code>reasoning</code> (bool). <strong>No full prompt, no response, no key.</strong></li>
+<li><strong>Transport:</strong> the <code>gh</code> runner is <strong>injected</strong> (module is transport-agnostic + testable);<br />
+  default = direct <code>gh</code> (authed on M3). Posting is a <strong>separate, deliberate step</strong> (CLI/Task),<br />
+  never in a run's hot path. (Staging-file+CI is a later deployment option, not v1.)</li>
+<li>Pure Python stdlib; tests in the existing module-level <code>test_*</code> style.</li>
+</ul>
+<h2 id="architecture">Architecture</h2>
+<div class="highlight"><pre><span></span><span class="n">panel</span><span class="o">.</span><span class="n">OpenAIChatClient</span><span class="o">.</span><span class="n">__call__</span><span class="w">  </span><span class="o">--</span><span class="p">(</span><span class="n">opt</span><span class="o">-</span><span class="ow">in</span><span class="w"> </span><span class="n">sink</span><span class="p">:</span><span class="w"> </span><span class="n">ORACLE_DOGFEED_LOG</span><span class="w"> </span><span class="n">set</span><span class="w"> </span><span class="n">AND</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">)</span><span class="o">--&gt;</span><span class="w">  </span><span class="n">JSONL</span>
+<span class="w">   </span><span class="p">(</span><span class="n">one</span><span class="w"> </span><span class="n">record</span><span class="w"> </span><span class="n">per</span><span class="w"> </span><span class="n">outside</span><span class="o">-</span><span class="n">model</span><span class="w"> </span><span class="n">call</span><span class="p">;</span><span class="w"> </span><span class="n">best</span><span class="o">-</span><span class="n">effort</span><span class="p">;</span><span class="w"> </span><span class="n">no</span><span class="o">-</span><span class="n">op</span><span class="w"> </span><span class="n">otherwise</span><span class="p">)</span><span class="w">                         </span><span class="o">|</span>
+<span class="w">                                                                                             </span><span class="n">v</span>
+<span class="n">oracle</span><span class="w"> </span><span class="n">dogfeed</span><span class="w"> </span><span class="o">--</span><span class="nb">log</span><span class="w"> </span><span class="o">&lt;</span><span class="n">jsonl</span><span class="o">&gt;</span><span class="w"> </span><span class="o">--</span><span class="n">repo</span><span class="w"> </span><span class="o">&lt;</span><span class="n">r</span><span class="o">&gt;</span><span class="w">  </span><span class="o">--&gt;</span><span class="w">  </span><span class="n">dogfeed_prompts</span><span class="o">.</span><span class="n">load_records</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">build_comment</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">post</span>
+<span class="w">                                                  </span><span class="o">|</span><span class="w">                                  </span><span class="o">|</span>
+<span class="w">                                          </span><span class="n">find_or_create_issue</span><span class="p">(</span><span class="n">gh</span><span class="p">)</span><span class="w">          </span><span class="n">gh</span><span class="w"> </span><span class="n">issue</span><span class="w"> </span><span class="n">comment</span>
+<span class="w">                                          </span><span class="p">(</span><span class="nb">max</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="n">exact</span><span class="w"> </span><span class="n">title</span><span class="p">)</span><span class="w">           </span><span class="p">(</span><span class="n">the</span><span class="w"> </span><span class="n">run</span><span class="s1">&#39;s summary)</span>
+</pre></div>
+
+<h2 id="components-files">Components / files</h2>
+<h3 id="toolsoraclepanelpy-modify-the-sink"><code>tools/oracle/panel.py</code> (MODIFY — the sink)</h3>
+<p>Refactor <code>__call__</code> to capture the full response, then sink before returning:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reasoning_effort</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">eff</span> <span class="o">=</span> <span class="n">reasoning_effort</span> <span class="k">if</span> <span class="n">reasoning_effort</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">reasoning_effort</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">:</span>
+            <span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Authorization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra_headers</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_body</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">eff</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
+                                     <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>  <span class="c1"># noqa: S310</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dogfeed</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">eff</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;choices&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;message&quot;</span><span class="p">][</span><span class="s2">&quot;content&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_dogfeed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">resp</span><span class="p">,</span> <span class="n">eff</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Opt-in, best-effort: append one JSONL record for an OUTSIDE-model call.</span>
+<span class="sd">        No-op unless self.key (key_env-gated) AND ORACLE_DOGFEED_LOG is set. Never</span>
+<span class="sd">        raises (must not break the model call); never writes the key or the response.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ORACLE_DOGFEED_LOG&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">usage</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;usage&quot;</span><span class="p">,</span> <span class="p">{})</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">resp</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="p">{}</span>
+            <span class="n">stripped</span> <span class="o">=</span> <span class="p">(</span><span class="n">prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">rec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
+                   <span class="s2">&quot;prompt_sha&quot;</span><span class="p">:</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">((</span><span class="n">prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span>
+                   <span class="s2">&quot;first_line&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">stripped</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">][:</span><span class="mi">120</span><span class="p">]</span> <span class="k">if</span> <span class="n">stripped</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;completion_tokens&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cost&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;reasoning&quot;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">eff</span><span class="p">)}</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">rec</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 — sink must never break the call</span>
+            <span class="k">pass</span>
+</pre></div>
+
+<p>Add <code>import hashlib</code> to panel.py (<code>os</code>, <code>json</code> already imported). The sink is <strong>off by<br />
+default</strong> (no env → no-op); keyless local clients return early. This is the only change to the<br />
+hot path and it cannot raise.</p>
+<h3 id="toolsoracledogfeed_promptspy-new-pure-stdlib"><code>tools/oracle/dogfeed_prompts.py</code> (NEW — pure stdlib)</h3>
+<ul>
+<li><code>ISSUE_TITLE = "oracle: outside-model prompt dogfeed"</code></li>
+<li><code>load_records(path)</code> → list of dicts; <strong>skips corrupt/partial lines</strong> (try/except per line).</li>
+<li><code>summarize(records)</code> → <code>{by_model: {model: {calls, tokens, cost}}, total_cost, n}</code><br />
+  (tokens/cost sum with <code>or 0</code> guards).</li>
+<li><code>build_comment(records, *, run_id, cap=50)</code> → markdown: a header line (n calls · total cost),<br />
+  a <code>model | calls | completion_tokens | cost</code> table, and a capped <code>&lt;details&gt;</code> per-call list<br />
+  (<code>sha12 · model · Ntok · $cost · first_line</code>), with a <code>… +N more (capped)</code> line when over<br />
+<code>cap</code>. <strong>Contains no full prompt, no response, no key.</strong></li>
+<li><code>find_or_create_issue(title, *, repo, gh)</code> → int issue number. <code>gh(["issue","list","--repo",
+  repo,"--search",title,"--state","all","--json","number,title","--limit","20"])</code>; return the<br />
+  number of the item whose <code>title</code> matches <strong>exactly</strong>; else <code>gh(["issue","create",...])</code> and<br />
+  parse the trailing number from the printed URL. (Exact-title match avoids creating duplicates.)</li>
+<li><code>post(records, *, repo, run_id, gh, title=ISSUE_TITLE)</code> → int; find-or-create then<br />
+<code>gh(["issue","comment",str(num),"--repo",repo,"--body",build_comment(...)])</code>.</li>
+<li><code>_gh(args)</code> default runner: <code>subprocess.run(["gh", *args], capture_output=True, text=True,
+  check=True).stdout</code>. <strong>Injected</strong> everywhere above so tests pass a fake.</li>
+</ul>
+<h3 id="toolsoracleoraclepy-modify-cli"><code>tools/oracle/oracle.py</code> (MODIFY — CLI)</h3>
+<p>New <code>dogfeed</code> subparser: <code>--log &lt;jsonl&gt;</code> (required), <code>--repo &lt;owner/name&gt;</code> (required),<br />
+<code>--run-id</code> (default <code>"run"</code>), <code>--dry-run</code>. <code>cmd_dogfeed</code>: <code>records = load_records(ns.log)</code>;<br />
+if <code>--dry-run</code> → <code>print(build_comment(records, run_id=ns.run_id))</code>; else<br />
+<code>num = post(records, repo=ns.repo, run_id=ns.run_id, gh=dogfeed_prompts._gh)</code> and print the<br />
+issue number. Dispatch in <code>main</code>.</p>
+<h3 id="toolsoracletaskfileyml-modify"><code>tools/oracle/Taskfile.yml</code> (MODIFY)</h3>
+<p><code>dogfeed</code> target: <code>oracle.py dogfeed --log "${ORACLE_DOGFEED_LOG:-$HOME/oracle/dogfeed.jsonl}"
+--repo "${ORACLE_REPO:-peterlodri-sec/vaked-base}" --run-id "${RUN_ID:-run}"</code>. Documents that<br />
+a team run with <code>ORACLE_DOGFEED_LOG</code> set produces the JSONL the dogfeed posts.</p>
+<h3 id="tests-toolsoracletest_oraclepy-module-level-test_-plain-assert">Tests — <code>tools/oracle/test_oracle.py</code> (module-level <code>test_*</code>, plain <code>assert</code>)</h3>
+<ul>
+<li><code>load_records</code> skips a corrupt/partial line.</li>
+<li><code>summarize</code> math (calls/tokens/cost per model + total).</li>
+<li><code>build_comment</code>: table rows present; cap honored (<code>&gt;cap</code> → "more (capped)"); <strong>leak-free</strong><br />
+  (assert the rendered comment contains no <code>"Bearer"</code>, no fake key, no response text).</li>
+<li><code>find_or_create_issue</code>: fake gh returns an item with the exact title → returns its number,<br />
+<strong>no create call</strong>; fake gh returns <code>[]</code> → a create call is issued and the URL-tail number<br />
+  parsed. (The fake gh records the argv it was called with.)</li>
+<li><code>post</code>: fake gh → an <code>issue comment &lt;num&gt;</code> call is made with the built body.</li>
+<li><strong>sink:</strong> monkeypatch <code>urllib.request.urlopen</code> to return a fake response (with <code>usage</code>); set<br />
+<code>ORACLE_DOGFEED_LOG</code> to a tmp file; an <strong>outside</strong> client (key set) appends exactly one<br />
+  record with the expected fields and <strong>no key</strong>; a <strong>keyless</strong> client appends nothing; with<br />
+  the env unset, nothing is written.</li>
+</ul>
+<h2 id="error-handling">Error handling</h2>
+<ul>
+<li>Sink: best-effort <code>try/except</code>, never raises, no-op when off / keyless.</li>
+<li><code>load_records</code>: per-line try/except → skip corrupt lines (partial writes from a crash).</li>
+<li><code>find_or_create_issue</code>: exact-title match prevents duplicate issues; a <code>gh</code> failure<br />
+  surfaces as a non-zero CLI exit (posting is a deliberate step, not the run's hot path).</li>
+<li>No secret ever enters a record, a comment, or a log line.</li>
+</ul>
+<h2 id="out-of-scope-follow-ups">Out of scope (follow-ups)</h2>
+<ul>
+<li>Staging-file + CI auto-post (box-run fire-and-forget) — a later deployment layer.</li>
+<li>Auto-post at the end of a team run.</li>
+<li>Langfuse SDK instrumentation (separate, heavier observability).</li>
+</ul>
+<h2 id="constraints">Constraints</h2>
+<p>Pure stdlib · never print/echo the OpenRouter key · reuse existing patterns (module-level<br />
+<code>test_*</code>, injected runners like slice-4a's panel) · Snyk OFF · M3-safe (no compile).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-16-vaked-oracle-outside-model-prompt-dogfeed-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

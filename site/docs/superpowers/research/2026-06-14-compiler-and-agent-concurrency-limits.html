@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Experiment — compiler compile-time LIMIT + agent concurrency cap — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#context" style="padding-left:0.5rem">Context</a><a href="#part-1-compiler-load-test" style="padding-left:0.5rem">Part 1 — compiler load test</a><a href="#method" style="padding-left:1rem">  Method</a><a href="#results-median-of-3-m1-8-core" style="padding-left:1rem">  Results (median of 3, M1 8-core)</a><a href="#finding" style="padding-left:1rem">  Finding</a><a href="#recommendation" style="padding-left:1rem">  Recommendation</a><a href="#part-2-agent-concurrency-cap-measured-theory" style="padding-left:0.5rem">Part 2 — agent concurrency cap (measured + theory)</a><a href="#measured-probe-claudeworkflowsagent-concurrency-probejs" style="padding-left:1rem">  Measured (probe: `.claude/workflows/agent-concurrency-probe.js`)</a><a href="#why-these-numbers" style="padding-left:1rem">  Why these numbers</a><a href="#the-two-limits-interact" style="padding-left:1rem">  The two limits interact</a><a href="#reproduce-extend" style="padding-left:0.5rem">Reproduce / extend</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/research/">research</a> / 2026-06-14-compiler-and-agent-concurrency-limits</div>
+<h1>Experiment — compiler compile-time LIMIT + agent concurrency cap</h1>
+<h1 id="experiment-compiler-compile-time-limit-agent-concurrency-cap">Experiment — compiler compile-time LIMIT + agent concurrency cap</h1>
+<p><strong>Date:</strong> 2026-06-14 · <strong>Status:</strong> measured (results below) · <strong>Host:</strong> macOS M1, 8 cores<br />
+<strong>Harness:</strong> <a href="../../../tools/bench/compiler-limit.py"><code>tools/bench/compiler-limit.py</code></a></p>
+<h2 id="context">Context</h2>
+<p>Two operational ceilings govern how hard this project can push its automation:<br />
+1. <strong>Compiler LIMIT</strong> — how large a <code>.vaked</code> program <code>vakedc</code> can compile before a<br />
+   stage exceeds a 30s budget (the practical interactive/CI ceiling).<br />
+2. <strong>Agent concurrency cap</strong> — how many subagents the Workflow engine runs at once.</p>
+<p>This documents the theory for both and load-tests the compiler to find (1).</p>
+<h2 id="part-1-compiler-load-test">Part 1 — compiler load test</h2>
+<h3 id="method">Method</h3>
+<p><code>tools/bench/compiler-limit.py</code> generates a <code>.vaked</code> file of N unique top-level<br />
+<code>schema</code> decls (unique names → clean <code>check</code>, so timing is pure compile work, not<br />
+diagnostics), times <code>vakedc check</code> and <code>vakedc lower</code> (median of 3), fits the<br />
+empirical complexity exponent <code>k</code> between adjacent points (<code>t ∝ N^k</code>), and<br />
+interpolates the N where each stage crosses 30s. Reproduce:</p>
+<div class="highlight"><pre><span></span><span class="n">python3</span><span class="w"> </span><span class="n">tools</span><span class="o">/</span><span class="n">bench</span><span class="o">/</span><span class="n">compiler</span><span class="o">-</span><span class="n">limit</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="o">--</span><span class="n">runs</span><span class="w"> </span><span class="mi">3</span><span class="w"> </span><span class="o">--</span><span class="n">threshold</span><span class="w"> </span><span class="mi">30</span>
+</pre></div>
+
+<h3 id="results-median-of-3-m1-8-core">Results (median of 3, M1 8-core)</h3>
+<table>
+<thead>
+<tr>
+<th>N</th>
+<th>KB</th>
+<th>check_s</th>
+<th>lower_s</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4000</td>
+<td>182</td>
+<td>0.28</td>
+<td>0.97</td>
+</tr>
+<tr>
+<td>8000</td>
+<td>366</td>
+<td>0.53</td>
+<td>3.45</td>
+</tr>
+<tr>
+<td>16000</td>
+<td>739</td>
+<td>1.03</td>
+<td>12.96</td>
+</tr>
+<tr>
+<td>20000</td>
+<td>926</td>
+<td>1.31</td>
+<td>19.31</td>
+</tr>
+<tr>
+<td>24000</td>
+<td>1114</td>
+<td>1.58</td>
+<td>27.95</td>
+</tr>
+</tbody>
+</table>
+<p><code>lower</code> complexity exponents between adjacent points: <strong>1.83, 1.91, 1.79, 2.03 → O(N²)</strong>.</p>
+<h3 id="finding">Finding</h3>
+<ul>
+<li><strong><code>lower</code> is the binding stage and is superlinear (≈ O(N²))</strong> — doubling N<br />
+  multiplies <code>lower</code> time by ~3–8×, while <code>check</code> stays near-linear at small N and<br />
+  only turns superlinear far later.</li>
+<li><strong>LIMIT (a stage &gt; 30s):</strong> <code>lower</code> at <strong>N ≈ 25k decls (~1.16 MB)</strong> — bracketed,<br />
+  not extrapolated: 24k = 27.95 s, 25k = 30.46 s, 26k = 32.22 s (idle host). <code>check</code><br />
+  only crosses near <strong>N ≈ 70k+</strong>. So <code>lower</code>'s ~quadratic hot path is the real ceiling.</li>
+<li><strong>Measurement isolation matters (cross-experiment finding):</strong> re-running the same<br />
+  26k/28k bracket <em>while the 24-agent probe (Part 2) saturated the CPU</em> gave<br />
+  26k = 112 s, 28k = 59 s — non-monotone garbage, <code>lower</code> inflated ~4×. The load test<br />
+  MUST run on an idle host; this is a live instance of the Part-1×Part-2 compounding<br />
+  below.</li>
+<li><strong>Why:</strong> <code>check</code> was made near-linear by the #29 bisect fix (token-span lookups<br />
+  no longer scan every token). <code>lower</code> (<code>vakedc/lower.py</code>, ~100 KB) has no such<br />
+  fix and exhibits the same pre-#29 quadratic shape — a strong candidate for the<br />
+  same treatment. The #58 <code>eventd</code> O(n²)-append history is the same class of bug.</li>
+</ul>
+<h3 id="recommendation">Recommendation</h3>
+<p>Profile <code>vakedc/lower.py</code> for the O(N²) hot path (likely an inner scan over all<br />
+decls/nodes per decl, mirroring #29). A bisect/index fix would push the <code>lower</code><br />
+30s LIMIT from ~20k toward <code>check</code>'s ~70k. File as a follow-up perf issue; this is<br />
+not a blocker for current program sizes (real Vaked files are &lt;&lt; 1k decls).</p>
+<h2 id="part-2-agent-concurrency-cap-measured-theory">Part 2 — agent concurrency cap (measured + theory)</h2>
+<p>The Workflow engine caps <strong>concurrent</strong> <code>agent()</code> calls at:</p>
+<div class="highlight"><pre><span></span>N_concurrent = min(16, cpu_cores − 2)
+</pre></div>
+
+<ul>
+<li><strong>This host (8 cores): N_concurrent = 6.</strong> Excess agents queue and run as slots free.</li>
+<li><strong>Lifetime cap:</strong> ≤ 1000 agents total per workflow (runaway backstop), and ≤ 4096<br />
+  items per single <code>parallel()</code> / <code>pipeline()</code> call.</li>
+</ul>
+<h3 id="measured-probe-claudeworkflowsagent-concurrency-probejs">Measured (probe: <code>.claude/workflows/agent-concurrency-probe.js</code>)</h3>
+<p>Fanned out <strong>24 agents</strong> in one <code>parallel()</code>; each ran a single <code>time.sleep(6)</code><br />
+between two epoch stamps and returned the interval. Max number of overlapping<br />
+sleep-windows = the real concurrent-slot count.</p>
+<table>
+<thead>
+<tr>
+<th>metric</th>
+<th>value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>agents launched / returned</td>
+<td>24 / 24</td>
+</tr>
+<tr>
+<td><strong>max concurrent (overlapping intervals)</strong></td>
+<td><strong>6</strong></td>
+</tr>
+<tr>
+<td>matches <code>min(16, cores−2)</code> on 8 cores</td>
+<td>✅ 6</td>
+</tr>
+<tr>
+<td>wall span (24 agents)</td>
+<td>149.6 s</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cap = 6, confirmed empirically.</strong> Note the 149.6 s wall for 24 × 6 s of <em>sleep</em>:<br />
+ideal at 6-wide would be ~24 s, so throughput is <strong>per-agent-latency-bound</strong> (LLM<br />
+spawn + reason + return ≫ the 6 s), not sleep-bound. Practical batch wall-clock ≈<br />
+<code>ceil(total / 6) × per_agent_latency</code>, where <code>per_agent_latency</code> (tens of seconds)<br />
+dominates — budget on that, not on the nominal task time.</p>
+<h3 id="why-these-numbers">Why these numbers</h3>
+<ul>
+<li><strong><code>cpu_cores − 2</code>:</strong> subagents are CPU- and context-bound; leaving 2 cores frees<br />
+  the orchestrator loop + OS so the machine doesn't thrash under oversubscription.</li>
+<li><strong><code>min(…, 16)</code>:</strong> a hard ceiling bounds peak memory and model-API rate regardless<br />
+  of core count — a 64-core box still caps at 16 concurrent to avoid rate-limit<br />
+  storms and runaway spend.</li>
+<li><strong>Consequence for batches:</strong> a "30–40 agent" batch is not 30–40 <em>simultaneous</em> —<br />
+  it's ≤ 6 here at any instant, the rest queued. Wall-clock ≈ (total_agents / 6) ×<br />
+  per-agent time. Plan fan-out width against <code>N_concurrent</code>, not the total.</li>
+</ul>
+<h3 id="the-two-limits-interact">The two limits interact</h3>
+<p>A batch that has each agent invoke <code>vakedc lower</code> on a large program multiplies the<br />
+Part-1 cost by the queue depth. With <code>lower</code> superlinear, the safe regime is<br />
+<strong>small programs × ≤6 concurrent</strong>; large programs should be compiled once and the<br />
+artifact shared, not recompiled per agent.</p>
+<h2 id="reproduce-extend">Reproduce / extend</h2>
+<div class="highlight"><pre><span></span><span class="n">python3</span><span class="w"> </span><span class="n">tools</span><span class="o">/</span><span class="n">bench</span><span class="o">/</span><span class="n">compiler</span><span class="o">-</span><span class="n">limit</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="o">--</span><span class="n">ns</span><span class="w"> </span><span class="mi">4000</span><span class="p">,</span><span class="mi">8000</span><span class="p">,</span><span class="mi">16000</span><span class="p">,</span><span class="mi">20000</span><span class="p">,</span><span class="mi">24000</span><span class="w"> </span><span class="o">--</span><span class="n">json</span><span class="w"> </span><span class="n">limits</span><span class="o">.</span><span class="n">json</span>
+</pre></div>
+
+<p>Numbers are machine-specific (CPU-bound) — always record the host core count.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/research/2026-06-14-compiler-and-agent-concurrency-limits.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

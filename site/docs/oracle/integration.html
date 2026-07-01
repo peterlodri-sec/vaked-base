@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle — kernel integration — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-the-evidence-seam-bridgepy" style="padding-left:0.5rem">1. The evidence seam (`bridge.py`)</a><a href="#toobservedeffects" style="padding-left:1rem">  `to_observed_effects`</a><a href="#attachtransition" style="padding-left:1rem">  `attach_transition`</a><a href="#2-the-double-dogfood-link-wired-in-slice-2" style="padding-left:0.5rem">2. The double-dogfood link (wired in slice 2)</a><a href="#3-nix-base-vaked-base-watcher-deploy-path" style="padding-left:0.5rem">3. nix-base ↔ vaked-base watcher deploy path</a><a href="#module-authored-here-vaked-base" style="padding-left:1rem">  Module authored here (vaked-base)</a><a href="#concrete-steps-for-the-operator" style="padding-left:1rem">  Concrete steps for the operator</a><a href="#why-the-separation-is-permanent" style="padding-left:1rem">  Why the separation is permanent</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/oracle/">oracle</a> / integration</div>
+<h1>vaked-oracle — kernel integration</h1>
+<h1 id="vaked-oracle-kernel-integration">vaked-oracle — kernel integration</h1>
+<p><strong>How oracle plugs into the vaked-aegis evidence seam and how the NixOS watcher<br />
+module is deployed from vaked-base to nix-base.</strong></p>
+<hr />
+<h2 id="1-the-evidence-seam-bridgepy">1. The evidence seam (<code>bridge.py</code>)</h2>
+<p><strong>vaked-aegis</strong> (<code>tools/dogfood/</code>) consumes transition evidence as a<br />
+<code>observed_effects</code> dict — <code>{"writes": [...], "deletes": [...]}</code> — where the<br />
+values are sorted lists of file paths affected by a proposer transition. Every<br />
+accepted transition in the kernel's WAL carries this shape.</p>
+<p><strong>vaked-oracle</strong> produces a different kind of artifact: a finding record that<br />
+captures decompilation output and runtime traces, not a code transition. The<br />
+bridge makes the two shapes speak to each other.</p>
+<h3 id="to_observed_effects"><code>to_observed_effects</code></h3>
+<div class="highlight"><pre><span></span><span class="n">bridge</span><span class="o">.</span><span class="n">to_observed_effects</span><span class="p">(</span>
+    <span class="n">finding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">files_written</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">files_deleted</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span>
+</pre></div>
+
+<p>Returns <code>{"writes": sorted(files_written or []), "deletes": sorted(files_deleted
+or [])}</code>. The <code>finding</code> argument is accepted for API symmetry but is not<br />
+inspected here — the caller determines which files the oracle run produced<br />
+(the finding JSON itself, any report files, the JSONL ledger). This keeps<br />
+bridge.py pure and separately testable.</p>
+<p><strong>Typical call in a wired-up run:</strong></p>
+<div class="highlight"><pre><span></span><span class="n">finding_path</span> <span class="o">=</span> <span class="n">oracle</span><span class="o">.</span><span class="n">persist_finding</span><span class="p">(</span><span class="n">finding</span><span class="p">,</span> <span class="n">findings_dir</span><span class="o">=</span><span class="s2">&quot;~/oracle/findings&quot;</span><span class="p">)</span>
+<span class="n">oe</span> <span class="o">=</span> <span class="n">bridge</span><span class="o">.</span><span class="n">to_observed_effects</span><span class="p">(</span><span class="n">finding</span><span class="p">,</span> <span class="n">files_written</span><span class="o">=</span><span class="p">[</span><span class="n">finding_path</span><span class="p">])</span>
+<span class="c1"># oe == {&quot;writes&quot;: [&quot;~/oracle/findings/&lt;sha256&gt;.json&quot;], &quot;deletes&quot;: []}</span>
+</pre></div>
+
+<p>The kernel's capability gate (<code>tools/dogfood/capability.py</code>) checks that<br />
+<code>oe["writes"]</code> is a subset of the proposer's declared scope. Because oracle<br />
+runs as <code>revdev</code> with a narrow write-scope over its own <code>~/oracle/</code> workspace,<br />
+this check passes as long as findings are written there.</p>
+<h3 id="attach_transition"><code>attach_transition</code></h3>
+<div class="highlight"><pre><span></span><span class="n">bridge</span><span class="o">.</span><span class="n">attach_transition</span><span class="p">(</span><span class="n">finding</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">transition_hash</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span>
+</pre></div>
+
+<p>Returns a deep copy of <code>finding</code> with <code>transition_xref</code> set to<br />
+<code>transition_hash</code>. This field links the finding to a specific kernel WAL<br />
+entry — the entry recording a transition in which the oracle's RE output was<br />
+used as evidence. It is a cross-reference across two hash-chained ledgers (the<br />
+oracle's own <code>events.jsonl</code> and the kernel's <code>eventd</code> WAL).</p>
+<p>Slice 2 populates it (<code>tools/oracle/dogfood_bridge.py</code>): <code>ground_finding</code> records<br />
+the finding as a kernel transition and feeds the accepted WAL entry's hash back<br />
+here, creating a bidirectional link between the RE evidence and the transition<br />
+that recorded it.</p>
+<hr />
+<h2 id="2-the-double-dogfood-link-wired-in-slice-2">2. The double-dogfood link (wired in slice 2)</h2>
+<p>The <code>transition_xref</code> field is the seam for the "double-dogfood" framing: oracle<br />
+reverse-engineers the LLM runtime; the RE findings ground a vaked-aegis proposer<br />
+transition; that transition's WAL hash links back to the finding.</p>
+<div class="highlight"><pre><span></span>oracle finding &lt;────── transition_xref ──────&gt; aegis WAL entry
+    │                                               │
+    └── ledger.verify()                             └── kernel.verify()
+        (oracle events.jsonl)                           (eventd WAL)
+</pre></div>
+
+<p>Both sides are tamper-evident independently (each has its own hash chain); the<br />
+link is the content hash of the WAL entry, so it survives replay.</p>
+<p><strong>Slice 2 wires this up</strong> (<code>tools/oracle/dogfood_bridge.py</code>). <code>ground_finding</code><br />
+records the finding as a real aegis kernel transition by reusing<br />
+<code>tools/dogfood/kernel.judge()</code> — the proposer materializes the finding artifact<br />
+into a capability-scoped workspace; the kernel gates it (capability, declared-vs-<br />
+actual, replay-stable) and appends it to the eventd WAL. The accepted WAL entry's<br />
+hash is attached to the finding (<code>bridge.attach_transition</code>) and the linked<br />
+finding is appended to the oracle's ralphcore ledger.</p>
+<p>The hash cycle is broken by construction: the <strong>WAL</strong> records the finding<br />
+<em>without</em> <code>transition_xref</code> (the post-image it hashes), while the <strong>oracle ledger</strong><br />
+records it <em>with</em> the xref. <code>verify_xref</code> proves both directions —<br />
+<code>finding.transition_xref</code> resolves to a WAL entry whose <code>actual_effects.writes</code><br />
+contains the finding's path — and that both chains verify independently.</p>
+<p>CLI:</p>
+<pre><code>oracle ground --finding &lt;f.json&gt; --root &lt;ws&gt; --scope findings \
+              --wal-path &lt;wal&gt; --blobs &lt;blobs&gt; --ledger &lt;events.jsonl&gt;
+oracle verify-xref --finding &lt;linked.json&gt; --wal-path &lt;wal&gt; --ledger &lt;events.jsonl&gt;
+</code></pre>
+<p>NOTE: <code>--wal-path</code>/<code>--blobs</code> must resolve outside <code>--root</code> (the kernel snapshots<br />
+the whole non-git root subtree); the CLI defaults them to a <code>.aegis-wal/</code> sibling.</p>
+<hr />
+<h2 id="3-nix-base-vaked-base-watcher-deploy-path">3. nix-base ↔ vaked-base watcher deploy path</h2>
+<p>The eBPF watcher is authored in vaked-base but runs as a system service on<br />
+dev-cx53, whose host config lives in the private <strong>nix-base</strong> repo. The two<br />
+repos are structurally separate (different codebases, different deploy cadences).<br />
+The deploy path is manual for slice 1.</p>
+<h3 id="module-authored-here-vaked-base">Module authored here (vaked-base)</h3>
+<p><code>tools/oracle/oracle-ebpf-watcher.nix</code> — defines the systemd service, bpftrace<br />
+in the service PATH, the RuntimeDirectory, the socket permissions, and the<br />
+<code>oracle-watcher</code> group. <code>tools/oracle/watcher_daemon.py</code> is the Python daemon<br />
+it runs.</p>
+<p>The NixOS module header documents the full deploy procedure:</p>
+<div class="highlight"><pre><span></span><span class="c1"># DEPLOY (manual, on the box; nix-base and vaked-base are SEPARATE repos):</span>
+<span class="c1">#   1. Copy this module + tools/oracle/watcher_daemon.py into the nix-base</span>
+<span class="c1">#      dev-cx53 host config (or reference them), keeping `watcher` pointed at the</span>
+<span class="c1">#      deployed watcher_daemon.py.</span>
+<span class="c1">#   2. Import this module from the dev-cx53 host (the same imports list that</span>
+<span class="c1">#      includes revdev.nix).</span>
+<span class="c1">#   3. `sudo nixos-rebuild switch --flake .#dev-cx53` ON THE BOX.</span>
+<span class="c1">#   4. Verify: `systemctl is-active oracle-ebpf-watcher` (active) and</span>
+<span class="c1">#      `ls -l /run/oracle-watcher.sock` (srw-rw---- root oracle-watcher).</span>
+</pre></div>
+
+<h3 id="concrete-steps-for-the-operator">Concrete steps for the operator</h3>
+<ol>
+<li><strong>Copy the files.</strong> On dev-cx53 (or from a checkout of vaked-base), place<br />
+<code>tools/oracle/oracle-ebpf-watcher.nix</code> and <code>tools/oracle/watcher_daemon.py</code><br />
+   into the nix-base host config directory for dev-cx53:<br />
+<br />
+<div class="highlight"><pre><span></span><span class="c1"># from a vaked-base checkout on dev-cx53</span>
+<span class="w">   </span>cp<span class="w"> </span>tools/oracle/oracle-ebpf-watcher.nix<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>~/src/nix-base/hosts/dev-cx53/oracle-ebpf-watcher.nix
+<span class="w">   </span>cp<span class="w"> </span>tools/oracle/watcher_daemon.py<span class="w"> </span><span class="se">\</span>
+<span class="w">      </span>~/src/nix-base/hosts/dev-cx53/watcher_daemon.py
+</pre></div>
+</li>
+</ol>
+<p>Update the <code>watcher = ./watcher_daemon.py;</code> let-binding in the <code>.nix</code> file<br />
+   if the paths differ.</p>
+<ol>
+<li>
+<p><strong>Import in the host config.</strong> In the dev-cx53 <code>configuration.nix</code> (or<br />
+   wherever host-specific modules are listed), add:<br />
+<br />
+<div class="highlight"><pre><span></span><span class="ss">imports</span> <span class="o">=</span> <span class="p">[</span>
+     <span class="l">./revdev.nix</span>          <span class="c1"># existing</span>
+     <span class="l">./oracle-ebpf-watcher.nix</span>   <span class="c1"># ← add this</span>
+   <span class="p">];</span>
+</pre></div>
+</p>
+</li>
+<li>
+<p><strong>Create the group</strong> (if not already done by the module). NixOS will create<br />
+<code>oracle-watcher</code> automatically via the systemd <code>RuntimeDirectory</code> + <code>Group</code><br />
+   directives, but a persistent group for revdev membership may need:<br />
+<br />
+<div class="highlight"><pre><span></span>users<span class="o">.</span>groups<span class="o">.</span><span class="ss">oracle-watcher</span> <span class="o">=</span> <span class="p">{};</span>
+   users<span class="o">.</span>users<span class="o">.</span>revdev<span class="o">.</span><span class="ss">extraGroups</span> <span class="o">=</span> <span class="p">[</span> <span class="s2">&quot;oracle-watcher&quot;</span> <span class="p">];</span>
+</pre></div>
+</p>
+</li>
+</ol>
+<p>This lets <code>revdev</code> open <code>/run/oracle-watcher.sock</code> (which is <code>srw-rw----
+   root oracle-watcher</code>).</p>
+<ol>
+<li>
+<p><strong>Rebuild.</strong><br />
+<br />
+<div class="highlight"><pre><span></span>sudo<span class="w"> </span>nixos-rebuild<span class="w"> </span>switch<span class="w"> </span>--flake<span class="w"> </span>.#dev-cx53
+</pre></div>
+</p>
+</li>
+<li>
+<p><strong>Verify.</strong><br />
+<br />
+<div class="highlight"><pre><span></span>systemctl<span class="w"> </span>is-active<span class="w"> </span>oracle-ebpf-watcher<span class="w">   </span><span class="c1"># → active</span>
+<span class="w">   </span>ls<span class="w"> </span>-l<span class="w"> </span>/run/oracle-watcher.sock<span class="w">            </span><span class="c1"># → srw-rw---- root oracle-watcher</span>
+<span class="w">   </span>id<span class="w"> </span>revdev<span class="w">                                 </span><span class="c1"># → groups include oracle-watcher</span>
+</pre></div>
+</p>
+</li>
+<li>
+<p><strong>Smoke-test the socket</strong> (as revdev):<br />
+<br />
+<div class="highlight"><pre><span></span>python3<span class="w"> </span>-<span class="w"> </span><span class="s">&lt;&lt;&#39;EOF&#39;</span>
+<span class="s">   import sys; sys.path.insert(0, &quot;tools/oracle&quot;)</span>
+<span class="s">   import watcher_client as wc</span>
+<span class="s">   result = wc.query_watcher(&quot;/run/oracle-watcher.sock&quot;, pid=1, duration_s=2)</span>
+<span class="s">   print(result)</span>
+<span class="s">   EOF</span>
+<span class="w">   </span><span class="c1"># → {&quot;syscalls&quot;: {…}, &quot;mmaps&quot;: [], &quot;files&quot;: []}</span>
+</pre></div>
+</p>
+</li>
+</ol>
+<p>PID 1 (systemd) is always running, so the query returns real data immediately.</p>
+<h3 id="why-the-separation-is-permanent">Why the separation is permanent</h3>
+<p>nix-base and vaked-base have independent release cadences and different<br />
+ownership boundaries. The oracle module lives in vaked-base because its<br />
+development (iteration on the bpftrace program, socket schema, group<br />
+permissions) happens alongside the oracle Python code. When the module<br />
+stabilizes it moves to nix-base as a first-class module with its own<br />
+NixOS options — that migration is a later cycle.</p>
+<p>Until then, the manual copy-and-import procedure is the deploy path. Any<br />
+change to <code>oracle-ebpf-watcher.nix</code> or <code>watcher_daemon.py</code> in vaked-base<br />
+requires a manual redeploy on dev-cx53 following the steps above.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/oracle/integration.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

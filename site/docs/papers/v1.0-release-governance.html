@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Release Governance: From Minimum Viable Product to Minimum Viable Launch — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-section-diagnosis" style="padding-left:0.5rem">1. Section diagnosis</a><a href="#2-claim-audit-table" style="padding-left:0.5rem">2. Claim audit table</a><a href="#3-the-section-publication-ready" style="padding-left:0.5rem">3. The section (publication-ready)</a><a href="#31-why-release-is-a-governance-question" style="padding-left:1rem">  3.1 Why "release" is a governance question</a><a href="#32-the-governance-comparison" style="padding-left:1rem">  3.2 The governance comparison</a><a href="#4-release-maturity-ladder-diagram-proposal" style="padding-left:0.5rem">4. Release maturity ladder (diagram proposal)</a><a href="#5-vaked-specific-v10-interpretation" style="padding-left:0.5rem">5. Vaked-specific V1.0 interpretation</a><a href="#6-suggested-figures-tables" style="padding-left:0.5rem">6. Suggested figures / tables</a><a href="#7-follow-up-research-tasks" style="padding-left:0.5rem">7. Follow-up research tasks</a><a href="#8-appendix-research-digest" style="padding-left:0.5rem">8. Appendix: research digest</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/papers/">papers</a> / v1.0-release-governance</div>
+<h1>Release Governance: From Minimum Viable Product to Minimum Viable Launch</h1>
+<h1 id="release-governance-from-minimum-viable-product-to-minimum-viable-launch">Release Governance: From Minimum Viable Product to Minimum Viable Launch</h1>
+<blockquote>
+<p>Opening conceptual frame for the Vaked V1.0 technical whitepaper.</p>
+</blockquote>
+<h2 id="1-section-diagnosis">1. Section diagnosis</h2>
+<p><strong>Thesis:</strong> "Version 1.0" is not a feature count or a calendar date; it is a <em>governance commitment</em> that the public surface of a system has stabilized enough for others to depend on it, and the continuum MVP -&gt; MMP -&gt; MLP -&gt; V1.0 -&gt; MVL is the ladder of escalating commitments that justifies that promise.</p>
+<p><strong>What makes it publication-grade:</strong> it separates four ideas that industry prose routinely conflates (learning, marketing, lovability, stability), anchors each to a verifiable originator or specification, and is honest about which terms in the continuum carry real pedigree (MVP, MLP, semver 1.0.0) and which are weaker agency coinage (MVL). It then grounds the abstraction in Vaked's own gating criteria rather than asserting marketing readiness.</p>
+<h2 id="2-claim-audit-table">2. Claim audit table</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Claim</th>
+<th>Tag</th>
+<th>Source anchor / action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>C1</td>
+<td>MVP was coined by Frank Robinson (2001) and popularized by Steve Blank and Eric Ries.</td>
+<td>[PM-LIT]</td>
+<td>Primary: SyncDev MVP page (Robinson's own company), 2016 web.archive snapshot - "Since our first use of the term in 2001," with Frank Robinson (CEO, SyncDev) and Steve Blank ("Frank coined the term 'minimum viable product'") on record. Cross-checked against Wikipedia "Minimum viable product" (whose sole citation is this same SyncDev page).</td>
+</tr>
+<tr>
+<td>C2</td>
+<td>Ries defines the MVP as the version that yields "the maximum amount of validated learning about customers with the least effort."</td>
+<td>[PM-LIT]</td>
+<td>Ries, <em>The Lean Startup</em> / Ries primer (Medium)</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>The MVP is a learning vehicle / risk-reduction tool whose value is knowledge, not revenue.</td>
+<td>[PM-LIT]</td>
+<td>Roman Pichler, "MVP and the MMP"</td>
+</tr>
+<tr>
+<td>C4</td>
+<td>The MMP (Minimal Marketable Product) is the smallest feature set that addresses initial users' needs and can be marketed/sold; it follows the MVP and is shaped by MVP feedback.</td>
+<td>[PM-LIT]</td>
+<td>Roman Pichler; userpilot; Boldare</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>The MMP delivers a solid working experience and customer value, where the MVP may deliberately deliver none.</td>
+<td>[PM-LIT]</td>
+<td>userpilot; Pichler</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>The Minimum Lovable Product (MLP) was introduced by Aha! co-founder Brian de Haaff in 2013 and expanded in his 2017 book <em>Lovability</em>.</td>
+<td>[PM-LIT]</td>
+<td>aha.io guide; de Haaff (Medium)</td>
+</tr>
+<tr>
+<td>C7</td>
+<td>The MLP targets delight / love rather than mere viability; it is a counterpoint to the MVP.</td>
+<td>[PM-LIT]</td>
+<td>aha.io; de Haaff</td>
+</tr>
+<tr>
+<td>C8</td>
+<td>Semantic Versioning states "Version 1.0.0 defines the public API."</td>
+<td>[PM-LIT]</td>
+<td>semver.org</td>
+</tr>
+<tr>
+<td>C9</td>
+<td>Under semver, major version zero (0.y.z) is for initial development and the public API SHOULD NOT be considered stable.</td>
+<td>[PM-LIT]</td>
+<td>semver.org</td>
+</tr>
+<tr>
+<td>C10</td>
+<td>Semver guidance: if software is in production, or has a stable API users depend on, or you worry about backward compatibility, it should already be 1.0.0.</td>
+<td>[PM-LIT]</td>
+<td>semver.org</td>
+</tr>
+<tr>
+<td>C11</td>
+<td>"Minimum Viable Launch" is trademarked agency/consultancy coinage, not a term with a canonical PM-literature originator.</td>
+<td>[CITE?]</td>
+<td>theScribeSmith ("Minimum Viable Launch™"); Custom Technologies; Introworks. No primary academic/founder source found.</td>
+</tr>
+<tr>
+<td>C12</td>
+<td>MVL's primary documented framing is physical-product launch readiness (manufacturing, supply chain, shipping, retail channel).</td>
+<td>[CITE?]</td>
+<td>Custom Technologies; theScribeSmith</td>
+</tr>
+<tr>
+<td>C13</td>
+<td>MVL adapts to infrastructure-heavy software as "minimum viable business and operational processes around the product" (time-to-first-value, billing, support, observability), not just the artifact.</td>
+<td>[REFRAME]</td>
+<td>Inferred from MVL sources + Vaked context; reframed from physical-product origin. Mark "needs better citation" for the software adaptation.</td>
+</tr>
+<tr>
+<td>C14</td>
+<td>The continuum maps cleanly onto a single rising axis (risk posture, evidence threshold, failure mode).</td>
+<td>[INTERNAL]</td>
+<td>Author synthesis across Pichler (risk) + semver (evidence). Failure-mode column is internal interpretation.</td>
+</tr>
+<tr>
+<td>C15</td>
+<td>Vaked currently sits at the MVP/MMP band by its own criteria: WP1 (language) and WP2 (vakedc) are done; WP3 (wire-protocol) and WP4 (daemons) are pending.</td>
+<td>[INTERNAL]</td>
+<td>Repo <code>CLAUDE.md</code> Status section (2026-06-13)</td>
+</tr>
+<tr>
+<td>C16</td>
+<td>Vaked V1.0 should gate on grammar frozen, RFCs Accepted, and reference daemons running under supervision.</td>
+<td>[INTERNAL]</td>
+<td>Author proposal grounded in <code>CLAUDE.md</code> + <code>PROJECT_CONTEXT.md</code>. Not a current-state assertion.</td>
+</tr>
+<tr>
+<td>C17</td>
+<td>Vaked's artifact surface (the public API that 1.0.0 freezes) is the generated-artifact contract: flake.nix, NixOS modules, Zig daemon configs, eBPF manifests, OTel config, CrabCC indexes.</td>
+<td>[INTERNAL]</td>
+<td><code>PROJECT_CONTEXT.md</code> core stack</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-the-section-publication-ready">3. The section (publication-ready)</h2>
+<h3 id="31-why-release-is-a-governance-question">3.1 Why "release" is a governance question</h3>
+<p>A release is a promise about change. Each named milestone on the road to a stable system encodes a different promise, and confusing them is the most common failure in release planning: teams ship an MVP and apologize for its rough edges as if it were a 1.0, or they delay a 1.0 indefinitely while polishing toward a lovability standard that the milestone never required.</p>
+<p>The literature gives us a continuum, not a synonym set. Four of its five stations have firm provenance; one does not, and we say so plainly.</p>
+<p><strong>MVP, the learning vehicle.</strong> The term was coined by Frank Robinson in 2001 and popularized through Steve Blank's Customer Development work and Eric Ries's <em>The Lean Startup</em> [C1]. Ries's definition is deliberately epistemic: the MVP is "that version of a new product which allows a team to collect the maximum amount of validated learning about customers with the least effort" [C2]. Roman Pichler frames it as a risk-reduction tool whose currency is knowledge, not revenue; an MVP may legitimately deliver no lasting value because its job is to retire uncertainty, not to serve a market [C3].</p>
+<p><strong>MMP, the marketable release.</strong> The Minimal Marketable Product is the smallest feature set that genuinely addresses the needs of initial users and can therefore be sold [C4]. It comes after the MVP and is shaped by what the MVP learned. The distinction is sharp: the MMP delivers a solid working experience and real customer value where the MVP may deliberately deliver none [C5]. The boundary between MVP and MMP is the boundary between <em>learning</em> and <em>committing</em>.</p>
+<p><strong>MLP, the lovable release.</strong> Brian de Haaff, co-founder of Aha!, introduced the Minimum Lovable Product in 2013 and expanded it in his 2017 book <em>Lovability</em> [C6]. The MLP is an explicit counterpoint to the MVP: it asks not what is sufficient to be viable but what is sufficient to be loved [C7]. It raises the bar on experience without expanding scope.</p>
+<p><strong>V1.0, the stability commitment.</strong> Here the question stops being a product-marketing question and becomes a versioning contract. Semantic Versioning is unambiguous: "Version 1.0.0 defines the public API" [C8]. Before it, under major version zero, "anything MAY change at any time" and the public API "SHOULD NOT be considered stable" [C9]. The spec's own readiness test is behavioral, not aspirational: if the software is in production, if it has a stable API users depend on, or if you find yourself worrying about backward compatibility, you should already be at 1.0.0 [C10]. V1.0 is therefore not a quality grade. It is a promise that breaking changes now cost a major-version bump.</p>
+<p><strong>MVL, the launch envelope (weakest pedigree).</strong> "Minimum Viable Launch" does not belong in this list as a peer. We could not locate a canonical originator in the product-management literature; the term appears as trademarked agency and consultancy coinage ("Minimum Viable Launch™") [C11], and its primary documented framing is physical-product readiness: manufacturing, supply chain, shipping paperwork, and a retail channel [C12]. Its useful core, once stripped of the physical-goods framing, is that launching is more than shipping the artifact: it is standing up the minimum viable <em>business and operational processes</em> around the product, billing, support, observability, and time-to-first-value [C13]. For an infrastructure-heavy software system this adaptation is real but under-cited, and we flag it as such rather than dignify the trademark.</p>
+<h3 id="32-the-governance-comparison">3.2 The governance comparison</h3>
+<p>Research supports adding the three governance columns the task asked us to evaluate. Pichler supplies the <strong>risk posture</strong> distinction directly (MVP = investment-risk reduction; MMP = time-to-market-risk reduction) [C3][C4]. Semver supplies the <strong>evidence threshold</strong> for V1.0 (a stable public API that users depend on) [C10]. The <strong>failure-mode</strong> column is author synthesis, marked [INTERNAL] [C14]; it is included because it is the column an operator actually reasons about.</p>
+<table>
+<thead>
+<tr>
+<th>Milestone</th>
+<th>Primary promise</th>
+<th>Risk posture</th>
+<th>Evidence threshold</th>
+<th>Characteristic failure mode</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MVP</strong></td>
+<td>Learn whether the idea is worth building [C2]</td>
+<td>Spend the least to retire the most uncertainty [C3]</td>
+<td>Validated learning from real users</td>
+<td>Mistaking a learning artifact for a product; shipping it to customers who expected support</td>
+</tr>
+<tr>
+<td><strong>MMP</strong></td>
+<td>Be sellable to early adopters [C4]</td>
+<td>Reduce time-to-market risk via intentional scope [C4]</td>
+<td>A working experience that delivers value [C5]</td>
+<td>Feature creep erasing the "minimal"; or shipping MVP-grade quality under a marketable banner</td>
+</tr>
+<tr>
+<td><strong>MLP</strong></td>
+<td>Be loved, not merely tolerated [C7]</td>
+<td>Reduce churn/differentiation risk</td>
+<td>Measurable delight, not just task completion [C7]</td>
+<td>Polishing past the point of return; confusing lovability with scope</td>
+</tr>
+<tr>
+<td><strong>V1.0</strong></td>
+<td>Freeze the public API [C8]</td>
+<td>Reduce dependency risk for downstream consumers [C10]</td>
+<td>A stable public API users depend on [C10]</td>
+<td>Declaring 1.0 without freeze discipline, then breaking it in a minor version</td>
+</tr>
+<tr>
+<td><strong>MVL</strong></td>
+<td>Stand up the launch and ops envelope [C13]</td>
+<td>Reduce operational-failure risk at go-live</td>
+<td>Minimum viable business/ops processes present [C13]</td>
+<td>Treating MVL as the finish line and under-investing post-launch [C12]</td>
+</tr>
+</tbody>
+</table>
+<p>The single axis underneath the table is <em>escalating commitment</em>: from "we promise nothing" (MVP) to "we promise this API will not break under you" (V1.0) to "we promise the surrounding machine will keep running" (MVL).</p>
+<h2 id="4-release-maturity-ladder-diagram-proposal">4. Release maturity ladder (diagram proposal)</h2>
+<p>A proposal, not a rendered asset. ASCII form for the whitepaper body:</p>
+<div class="highlight"><pre><span></span><span class="w"> </span><span class="n">commitment</span>
+<span class="w">   </span><span class="o">^</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                                              </span><span class="o">+--------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                                       </span><span class="n">MVL</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">launch</span><span class="w"> </span><span class="o">|</span><span class="w">  </span><span class="n">ops</span><span class="o">/</span><span class="n">business</span><span class="w"> </span><span class="n">envelope</span><span class="w"> </span><span class="n">live</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                                              </span><span class="o">+--------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                                  </span><span class="o">+---------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                          </span><span class="n">V1.0</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">freeze</span><span class="w">  </span><span class="o">|</span><span class="w">  </span><span class="n">public</span><span class="w"> </span><span class="n">API</span><span class="w"> </span><span class="nf">stable </span><span class="p">(</span><span class="n">semver</span><span class="w"> </span><span class="m">1.0</span><span class="n">.</span><span class="m">0</span><span class="p">)</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                                  </span><span class="o">+---------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                       </span><span class="o">+--------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w">               </span><span class="n">MLP</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="n">loved</span><span class="w">  </span><span class="o">|</span><span class="w">  </span><span class="n">delight</span><span class="p">,</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">just</span><span class="w"> </span><span class="kr">function</span>
+<span class="w">   </span><span class="o">|</span><span class="w">                       </span><span class="o">+--------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w">            </span><span class="o">+---------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w">    </span><span class="n">MMP</span><span class="w"> </span><span class="o">-&gt;</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="n">sell</span><span class="w">    </span><span class="o">|</span><span class="w">  </span><span class="n">marketable</span><span class="p">,</span><span class="w"> </span><span class="n">delivers</span><span class="w"> </span><span class="n">value</span>
+<span class="w">   </span><span class="o">|</span><span class="w">            </span><span class="o">+---------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="o">+-------+</span>
+<span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">learn</span><span class="w"> </span><span class="o">|</span><span class="w">  </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">MVP</span><span class="w">   </span><span class="n">validated</span><span class="w"> </span><span class="n">learning</span><span class="p">,</span><span class="w"> </span><span class="n">may</span><span class="w"> </span><span class="n">deliver</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">value</span>
+<span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="o">+-------+</span>
+<span class="w">   </span><span class="o">+-------------------------------------------------------------&gt;</span><span class="w"> </span><span class="n">maturity</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">time</span>
+<span class="w">        </span><span class="n">learning</span><span class="w">  </span><span class="n">............</span><span class="w"> </span><span class="n">committing</span><span class="w"> </span><span class="n">............</span><span class="w"> </span><span class="n">guaranteeing</span>
+</pre></div>
+
+<p>Described mermaid alternative (flowchart, left-to-right), for a rendered figure:</p>
+<div class="highlight"><pre><span></span><span class="nt">flowchart</span><span class="w"> </span><span class="nt">LR</span>
+<span class="w">  </span><span class="nt">MVP</span><span class="cp">[</span><span class="s2">&quot;MVP</span><span class="se">\n</span><span class="s2">learn&quot;</span><span class="cp">]</span><span class="w"> </span><span class="nt">--</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">MMP</span><span class="cp">[</span><span class="s2">&quot;MMP</span><span class="se">\n</span><span class="s2">sell&quot;</span><span class="cp">]</span><span class="w"> </span><span class="nt">--</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">MLP</span><span class="cp">[</span><span class="s2">&quot;MLP</span><span class="se">\n</span><span class="s2">love&quot;</span><span class="cp">]</span><span class="w"> </span><span class="nt">--</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">V1</span><span class="cp">[</span><span class="s2">&quot;V1.0</span><span class="se">\n</span><span class="s2">freeze API&quot;</span><span class="cp">]</span><span class="w"> </span><span class="nt">--</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">MVL</span><span class="cp">[</span><span class="s2">&quot;MVL</span><span class="se">\n</span><span class="s2">launch envelope&quot;</span><span class="cp">]</span>
+<span class="w">  </span><span class="nt">classDef</span><span class="w"> </span><span class="nt">learn</span><span class="w"> </span><span class="nt">fill</span><span class="o">:</span><span class="p">#</span><span class="nn">eef</span><span class="o">;</span>
+<span class="w">  </span><span class="nt">classDef</span><span class="w"> </span><span class="nt">commit</span><span class="w"> </span><span class="nt">fill</span><span class="o">:</span><span class="p">#</span><span class="nn">efe</span><span class="o">;</span>
+<span class="w">  </span><span class="nt">classDef</span><span class="w"> </span><span class="nt">guarantee</span><span class="w"> </span><span class="nt">fill</span><span class="o">:</span><span class="p">#</span><span class="nn">fee</span><span class="o">;</span>
+<span class="w">  </span><span class="nt">class</span><span class="w"> </span><span class="nt">MVP</span><span class="w"> </span><span class="nt">learn</span><span class="o">;</span>
+<span class="w">  </span><span class="nt">class</span><span class="w"> </span><span class="nt">MMP</span><span class="o">,</span><span class="nt">MLP</span><span class="w"> </span><span class="nt">commit</span><span class="o">;</span>
+<span class="w">  </span><span class="nt">class</span><span class="w"> </span><span class="nt">V1</span><span class="o">,</span><span class="nt">MVL</span><span class="w"> </span><span class="nt">guarantee</span><span class="o">;</span>
+</pre></div>
+
+<p>The color bands encode the three regimes (learning / committing / guaranteeing). MVL is drawn last but dashed-in editorially: it is the operational wrapper, not a higher quality grade than V1.0.</p>
+<h2 id="5-vaked-specific-v10-interpretation">5. Vaked-specific V1.0 interpretation</h2>
+<p>Vaked compiles a declaration into a typed semantic graph and then into a fixed set of artifacts: <code>flake.nix</code>, NixOS modules, Zig daemon configs, eBPF policy manifests, OTel collector config, and CrabCC indexes ([C17], from <code>PROJECT_CONTEXT.md</code>). That generated-artifact contract <em>is</em> Vaked's public API in the semver sense: it is the surface downstream NixOS hosts, daemons, and operator tooling come to depend on. Vaked V1.0 is therefore the promise that this artifact contract will not break under a minor version.</p>
+<p>Concretely, we propose V1.0 gates on three conditions, all internal proposals [C16]:</p>
+<ol>
+<li><strong>Grammar frozen.</strong> The Vaked EBNF and kind set are committed as the 1.0 surface; new constructs require a major bump or an additive, non-breaking minor.</li>
+<li><strong>RFCs Accepted.</strong> The HCP / Litany protocol RFCs that define the wire and control surface reach Accepted status (not Draft). This must be verified against the RFC index before any 1.0 declaration, not assumed. As of this audit (2026-06-14), this gate is <strong>UNMET</strong>: every RFC in <code>protocol/rfcs/</code> (0001-0007) carries a <code>Status:</code> header of Draft (0001 "Draft / skeleton (stub)", 0007 "Draft / exploration", the rest plain "Draft"). No HCP / Litany RFC has reached Accepted, which is one concrete reason Vaked is pre-1.0 today [C16][C15]. Current per-RFC status is tabulated below.</li>
+</ol>
+<p>The RFC status audit, verbatim from each file's <code>Status:</code> header on 2026-06-14 [INTERNAL] (repo fact, from <code>protocol/rfcs/</code>):</p>
+<table>
+<thead>
+<tr>
+<th>RFC</th>
+<th>Title</th>
+<th>Status (verbatim)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0001</td>
+<td>HCP (Harness Control Protocol)</td>
+<td>Draft / skeleton (stub)</td>
+</tr>
+<tr>
+<td>0002</td>
+<td><code>.hcplang</code> (HCP schema language)</td>
+<td>Draft</td>
+</tr>
+<tr>
+<td>0003</td>
+<td>Litany Wire (HCP transport &amp; framing)</td>
+<td>Draft</td>
+</tr>
+<tr>
+<td>0004</td>
+<td>Multi-Agent State Dependency</td>
+<td>Draft</td>
+</tr>
+<tr>
+<td>0005</td>
+<td>Control-Plane Frames</td>
+<td>Draft</td>
+</tr>
+<tr>
+<td>0006</td>
+<td>Transport Identity &amp; Distribution</td>
+<td>Draft</td>
+</tr>
+<tr>
+<td>0007</td>
+<td>Post-Quantum Litany &amp; Sealed Image-as-Code Attestation</td>
+<td>Draft / exploration</td>
+</tr>
+<tr>
+<td>3. <strong>Reference daemons running.</strong> At least the membrane (<code>agent_guardd</code>) and event-log (<code>eventd</code>) daemons run under the OTP supervision plane against the lowered artifacts, proving the graph-to-runtime path end to end.</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>By these criteria Vaked is honestly <em>pre-1.0 today</em> [C15]. The repository Status (2026-06-13) records WP1 (language) and WP2 (vakedc) as done, with WP3 (wire-protocol) and WP4 (daemons) pending. In the continuum above, Vaked sits at the <strong>MVP/MMP band</strong>: the language and compiler are proven (100k workers verified, deterministic), which is validated-learning-plus-marketable-core, but the API-freeze and running-daemon commitments that V1.0 demands are not yet met. Naming this plainly is itself the governance discipline the section argues for.</p>
+<h2 id="6-suggested-figures-tables">6. Suggested figures / tables</h2>
+<ul>
+<li><strong>Figure 1</strong> -- Release maturity ladder (Section 4), rendered from the mermaid source with the three-regime color bands.</li>
+<li><strong>Table 1</strong> -- Governance comparison (Section 3.2), promoted to a numbered table.</li>
+<li><strong>Figure 2</strong> (proposed) -- Vaked's artifact contract as "the public API that 1.0.0 freezes": a one-row version of the <code>PROJECT_CONTEXT.md</code> core-stack diagram, annotating which arrow is the frozen surface.</li>
+<li><strong>Callout box</strong> -- the semver readiness test (C10) quoted verbatim as a sidebar.</li>
+</ul>
+<h2 id="7-follow-up-research-tasks">7. Follow-up research tasks</h2>
+<ol>
+<li>~~Verify the current Accepted/Draft status of HCP / Litany RFCs 0001-0007 against <code>protocol/rfcs/</code> before any V1.0 language ships (gate condition 2).~~ DONE (2026-06-14): audited every <code>Status:</code> header in <code>protocol/rfcs/</code>. Result: all seven RFCs are Draft (0001 "Draft / skeleton (stub)", 0007 "Draft / exploration", 0002-0006 "Draft"). Gate condition 2 is UNMET; no RFC has reached Accepted. The verbatim status table is recorded in section 5.</li>
+<li>Find a stronger primary source for the software-adaptation of MVL, or drop the term from the continuum and replace it with a documented "launch readiness" framework (e.g. operational-readiness review literature).</li>
+<li>~~Confirm the Frank Robinson 2001 MVP attribution against a primary source~~ DONE: confirmed against the SyncDev MVP page (Robinson's own company), 2016 web.archive snapshot - "Since our first use of the term in 2001," with Robinson and Steve Blank on record. C1's anchor now cites this primary source; the live SyncDev page has since dropped the attribution (not a refutation - the 2016 snapshot is the version Wikipedia cites).</li>
+<li>Decide whether Vaked adopts semver formally for the artifact contract, and if so, document the mapping from "grammar/RFC/daemon" gates to major/minor/patch semantics.</li>
+</ol>
+<h2 id="8-appendix-research-digest">8. Appendix: research digest</h2>
+<p>Primary-leaning sources consulted:</p>
+<ul>
+<li><a href="https://semver.org/">Semantic Versioning 2.0.0, semver.org</a> -- definitions of 1.0.0, 0.y.z, and the production/stable-API/backward-compat readiness test (C8, C9, C10).</li>
+<li><a href="https://www.romanpichler.com/blog/minimum-viable-product-and-minimal-marketable-product/">Roman Pichler, "The Minimum Viable Product and the Minimal Marketable Product"</a> -- MVP as learning vehicle / risk-reduction tool vs. MMP as marketable release (C3, C4, C5).</li>
+<li><a href="https://www.aha.io/roadmapping/guide/plans/what-is-a-minimum-lovable-product">Aha!, "What is a Minimum Lovable Product"</a> and <a href="https://medium.com/@bdehaaff/it-is-time-for-the-minimum-lovable-product-a506a14b35cf">Brian de Haaff, "It Is Time for the Minimum Lovable Product" (Medium)</a> -- MLP origin, de Haaff 2013 / <em>Lovability</em> 2017 (C6, C7).</li>
+<li><a href="https://web.archive.org/web/20160525101214/http://www.syncdev.com:80/minimum-viable-product/">SyncDev, "Minimum Viable Product" (Frank Robinson's company), 2016 web.archive snapshot</a> -- <strong>primary</strong> source for the Robinson 2001 coinage: "Since our first use of the term in 2001," plus Robinson (CEO, SyncDev) and Steve Blank ("Frank coined the term 'minimum viable product'") on record (C1). The live syncdev.com page no longer carries this attribution; the 2016 snapshot is the version Wikipedia cites.</li>
+<li><a href="https://en.wikipedia.org/wiki/Minimum_viable_product">Wikipedia, "Minimum viable product"</a> and <a href="https://medium.com/galleys/the-minimum-viable-product-a-primer-3d9a76dd5213">Eric Ries, "The Minimum Viable Product: A Primer" (Medium)</a> -- secondary corroboration of the Robinson 2001 coinage (Wikipedia's sole citation is the SyncDev page above), Blank/Ries popularization, validated-learning definition (C1, C2).</li>
+<li><a href="https://userpilot.com/blog/minimum-viable-product-vs-minimum-marketable-product/">userpilot, "MVP vs Minimum Marketable Product"</a> -- MMP value/experience contrast (C4, C5).</li>
+<li><a href="https://www.thescribesmith.com/post/minimum-viable-launch">theScribeSmith, "Minimum Viable Launch™"</a> and <a href="https://customtechnologies.com/a-minimum-viable-product-vs-our-minimum-viable-launch/">Custom Technologies, "MVP vs. Minimum Viable Launch™"</a> -- MVL as trademarked launch-readiness coinage, physical-product framing, churn caution (C11, C12, C13).</li>
+<li>Repository: <code>CLAUDE.md</code> Status section (2026-06-13) and <code>docs/context/PROJECT_CONTEXT.md</code> core stack, Vaked WP status and artifact contract (C15, C16, C17).</li>
+</ul>
+<p><strong>Method note:</strong> abstain-safe verification was applied. The Frank Robinson 2001 MVP coinage (C1) was confirmed against a primary source this session: WebFetch is categorically blocked from web.archive.org, so the 2016 SyncDev snapshot (the source Wikipedia cites) was loaded via a headless browser instead, confirming "Since our first use of the term in 2001" with Robinson and Steve Blank on record. The live syncdev.com page no longer carries that attribution - treated as drift, NOT refutation. Claims that lack a confirmable primary source are tagged [CITE?] or [REFRAME] on the merits (notably MVL, C11-C13), not because a verifier abstained.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/papers/v1.0-release-governance.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

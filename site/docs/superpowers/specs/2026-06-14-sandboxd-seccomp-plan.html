@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>sandboxd-seccomp-plan — seccomp-bpf allowlist + cgroup-v2 slice attachment alongside agent_guardd eBPF hooks (WP4-S2) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-non-goals-explicit-with-provenance" style="padding-left:1rem">  1.1 Non-goals (explicit, with provenance)</a><a href="#2-inputs-and-oracles" style="padding-left:0.5rem">2. Inputs and oracles</a><a href="#21-per-module-oracles" style="padding-left:1rem">  2.1 Per-module oracles</a><a href="#22-config-input" style="padding-left:1rem">  2.2 Config input</a><a href="#23-host-substrate-already-present-no-host-change" style="padding-left:1rem">  2.3 Host substrate (already present; no host change)</a><a href="#3-the-seccomp-asymmetry-inherited-from-wp4-s2md-3" style="padding-left:0.5rem">3. The seccomp asymmetry (inherited from `wp4-s2.md` §3)</a><a href="#4-file-layout-paths-to-create-modify" style="padding-left:0.5rem">4. File layout (paths to create / modify)</a><a href="#5-algorithm-design" style="padding-left:0.5rem">5. Algorithm / design</a><a href="#51-the-seccomp-default-filter-seccompzig" style="padding-left:1rem">  5.1 The seccomp `default` filter (seccomp.zig)</a><a href="#52-cgroup-leaf-cgroupzig" style="padding-left:1rem">  5.2 cgroup leaf (cgroup.zig)</a><a href="#53-cgroup-guardd-ownership-the-contract" style="padding-left:1rem">  5.3 cgroup ↔ guardd ownership (the contract)</a><a href="#54-why-the-cgroup-attach-is-independent-of-netns-ownership" style="padding-left:1rem">  5.4 Why the cgroup attach is independent of netns ownership</a><a href="#55-the-attachteardown-handshake-guardhandshakezig-no-enforcement-gap" style="padding-left:1rem">  5.5 The attach/teardown handshake (guard_handshake.zig) — no enforcement gap</a><a href="#6-test-plan-m1-local-vs-dev-cx53linux" style="padding-left:0.5rem">6. Test plan — M1-local vs dev-cx53/Linux</a><a href="#61-runs-fully-on-m1-aarch64-darwin-pure-logic-assembly" style="padding-left:1rem">  6.1 Runs fully on M1 (aarch64-darwin) — pure logic & assembly</a><a href="#62-requires-dev-cx53-linux-x8664-kernel-effects" style="padding-left:1rem">  6.2 Requires dev-cx53 (Linux x86_64) — kernel effects</a><a href="#63-ci-wiring" style="padding-left:1rem">  6.3 CI wiring</a><a href="#7-dependencies-on-other-sprints" style="padding-left:0.5rem">7. Dependencies on other sprints</a><a href="#8-acceptance-criteria" style="padding-left:0.5rem">8. Acceptance criteria</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-sandboxd-seccomp-plan</div>
+<h1>sandboxd-seccomp-plan — seccomp-bpf allowlist + cgroup-v2 slice attachment alongside agent_guardd eBPF hooks (WP4-S2)</h1>
+<h1 id="sandboxd-seccomp-plan-seccomp-bpf-allowlist-cgroup-v2-slice-attachment-alongside-agent_guardd-ebpf-hooks-wp4-s2">sandboxd-seccomp-plan — seccomp-bpf allowlist + cgroup-v2 slice attachment alongside agent_guardd eBPF hooks (WP4-S2)</h1>
+<h2 id="status">Status</h2>
+<p>Planning artifact (2026-06-14). A <strong>companion</strong> to the broad sprint spec<br />
+<a href="2026-06-14-wp4-s2.md"><code>2026-06-14-wp4-s2.md</code></a>, narrowed to two coupled<br />
+mechanisms that the broad spec lists but leaves as named-Open boundaries:</p>
+<ol>
+<li>the <strong>seccomp-bpf allowlist</strong> sandboxd installs under <code>PR_SET_NO_NEW_PRIVS</code><br />
+   before <code>execve</code> (<code>wp4-s2.md</code> §3, §5.3 — the one module with no Python<br />
+   oracle);</li>
+<li>the <strong>cgroup-v2 leaf ↔ agent_guardd eBPF attach</strong> coordination — i.e. how<br />
+   the <code>vaked/&lt;agent-id&gt;/</code> slice sandboxd creates becomes the cgroup at which<br />
+   agent_guardd's <code>BPF_CGROUP_INET_EGRESS</code> program attaches "alongside"<br />
+   sandboxd's confinement.</li>
+</ol>
+<p>This plan <strong>resolves</strong>, with provenance, the design's two named Open items that<br />
+govern (2):</p>
+<ul>
+<li><code>wp4-s2.md</code> §7 (dependency table): <em>"the <code>vaked/&lt;agent-id&gt;</code> cgroup subtree S2<br />
+  creates is where guardd's egress program attaches; netns programming is<br />
+  guardd's."</em></li>
+<li><a href="2026-06-13-sandboxd-design.md"><code>2026-06-13-sandboxd-design.md</code></a> §Open<br />
+<em>"Network-namespace ownership — sandboxd builds the netns, but the <code>network</code><br />
+  membrane ... is agent-guardd's. Who creates vs who programs the netns."</em></li>
+<li>sandboxd-design §Open <em>"fs-snapshotd ⇄ sandboxd overlay-ownership boundary"</em><br />
+  (the directory-lifecycle precedent this plan reuses for the cgroup leaf:<br />
+  one creator, one accountant).</li>
+</ul>
+<p>It does <strong>not</strong> re-litigate the S2/S5 scope reconciliation; it inherits it<br />
+verbatim from <code>wp4-s2.md</code> §3/§5.3: <strong>the seccomp filter install is S2; the<br />
+capability→syscall-set lowering (grant→profile) is the WP4-S5 hook.</strong> Per the<br />
+repo's "named, not silently resolved" convention (<code>wp4-s2.md</code> §1, CLAUDE.md §1),<br />
+every Open-item resolution below is phrased <em>"this plan proposes X (provenance:<br />
+…)"</em>, not asserted as settled contract.</p>
+<p>Build target <code>dev-cx53</code> (Linux x86_64, kernel 6.x, cgroup-v2) is OFF-LIMITS for<br />
+the current autoresearch window. Everything marked <strong>M1-local</strong> must pass on<br />
+aarch64-darwin without it (<code>zig 0.16.0</code>, <code>cargo 1.95.0</code>, arch arm64, verified on<br />
+this host 2026-06-14). <code>dev-cx53</code> legs are kernel-effect only.</p>
+<h2 id="1-objective">1. Objective</h2>
+<p>Make a sandboxed worker's runtime defense the <strong>intersection</strong> of two<br />
+kernel-enforced layers that share exactly one anchor — the worker's cgroup-v2<br />
+leaf:</p>
+<ul>
+<li><strong>seccomp-bpf</strong> restricts the <em>syscall surface</em> of the workload process<br />
+  (classic-BPF allowlist, default-deny <code>RET_ERRNO(EPERM)</code>), installed by<br />
+  sandboxd inside the child after all privileged setup and before <code>execve</code><br />
+  (<code>wp4-s2.md</code> §5.1 steps 7–9).</li>
+<li><strong>agent_guardd's eBPF cgroup program</strong> observes/gates the <em>egress surface</em> of<br />
+  every process in that same leaf (<code>BPF_CGROUP_INET_EGRESS</code>, cgroup-scoped —<br />
+<a href="../../../agent_guardd/bpf.py"><code>agent_guardd/bpf.py</code></a> lines 39, 160–173).</li>
+</ul>
+<p>The two layers are orthogonal in mechanism (seccomp = per-thread syscall filter;<br />
+eBPF egress = per-cgroup packet hook) but <strong>must converge on one leaf path</strong> so<br />
+that "the processes sandboxd confines" and "the processes guardd testifies on"<br />
+are the same set. This plan fixes:</p>
+<ol>
+<li>the exact bytes and structure of the S2 <code>default</code> seccomp filter and how it<br />
+   is asserted on M1 without executing <code>seccomp(2)</code>;</li>
+<li>the <strong>leaf-path agreement contract</strong> (sandboxd's <code>leaf_path(agent_id)</code> is the<br />
+   single source of truth; guardd attaches there instead of its current<br />
+   throwaway <code>vaked_guard_&lt;pid&gt;</code> cgroup);</li>
+<li>the <strong>attach/teardown handshake ordering</strong> relative to <code>execve</code> and <code>rmdir</code>,<br />
+   so there is no unfiltered-egress window and no rmdir-while-live failure.</li>
+</ol>
+<h3 id="11-non-goals-explicit-with-provenance">1.1 Non-goals (explicit, with provenance)</h3>
+<ul>
+<li><strong>Live in-kernel egress enforcement is NOT delivered here.</strong> Today guardd's<br />
+  loadable program is the deny-by-default <em>posture</em> (<code>return 0/1</code>), <strong>not<br />
+  allow-set-aware</strong>; <code>bpf.py:LoadReport.mechanism</code> is <em>always</em> <code>"reference"</code> and<br />
+  the attach is a <strong>probe-then-release</strong> (<code>bpf.py</code> lines 93–105, 226–235;<br />
+<code>docs/runtime/agent-guardd.md</code> "Attach (probe)" row). What S2 delivers for<br />
+  layer (2) is the <strong>attach point + lifecycle handshake</strong>; the allow-set-aware<br />
+<code>cgroup/skb</code> program that flips <code>mechanism</code> to <code>"ebpf-cgroup"</code> is the guardd<br />
+  follow-up (<code>agent-guardd.md</code> §Next item 1). Writing "egress is enforced<br />
+  in-kernel" would contradict the oracle.</li>
+<li><strong>Grant→seccomp-profile and grant→egress-policy lowering</strong> is WP4-S5<br />
+  (<code>wp4-s2.md</code> §3, §5.3). S2 ships a fixed <code>default</code> profile and a<br />
+  stubbed-but-wired <code>cfg.seccomp.profile</code> read.</li>
+<li><strong>netns programming / DNS oracle</strong> is guardd's (<code>namespace.py</code> lines 19–23;<br />
+  sandboxd-design §Open). sandboxd creates the netns; this plan shows why the<br />
+  cgroup attach is <strong>independent of</strong> netns ownership (§5.4).</li>
+<li><strong>Canonical hashing</strong> — eventd owns bytes; sandboxd emits payloads only<br />
+  (<code>wp4-s2.md</code> §1.2; <a href="../../../agent_sandboxd/eventd.py"><code>agent_sandboxd/eventd.py</code></a>).</li>
+</ul>
+<h2 id="2-inputs-and-oracles">2. Inputs and oracles</h2>
+<h3 id="21-per-module-oracles">2.1 Per-module oracles</h3>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Oracle</th>
+<th>Held identical</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cgroup leaf path</td>
+<td><a href="../../../agent_sandboxd/cgroup.py"><code>agent_sandboxd/cgroup.py</code></a> <code>cgroup_path</code> / <code>_VAKED_SUBTREE</code></td>
+<td>leaf = <code>&lt;root&gt;/vaked/&lt;agent-id&gt;</code> (lines 93–95, 47–48)</td>
+</tr>
+<tr>
+<td>cgroup limit-file content</td>
+<td><code>cgroup.py</code> <code>apply_cgroup_limits</code></td>
+<td><code>memory.max</code>/<code>pids.max</code>/<code>cpu.max</code>=<code>"&lt;quota&gt; &lt;period&gt;"</code>/<code>io.max</code> bytes (lines 167–194)</td>
+</tr>
+<tr>
+<td>cgroup teardown rule</td>
+<td><code>cgroup.py</code> <code>teardown_cgroup</code></td>
+<td><code>rmdir</code> only after no live procs; kernel refuses otherwise (lines 209–219)</td>
+</tr>
+<tr>
+<td>eBPF attach call shape</td>
+<td><code>agent_guardd/bpf.py</code> <code>attach</code>/<code>detach</code></td>
+<td><code>BPF_PROG_ATTACH</code>/<code>DETACH</code> at <code>BPF_CGROUP_INET_EGRESS</code> on a cgroup <em>fd</em> (lines 160–186)</td>
+</tr>
+<tr>
+<td>eBPF attach-point selection</td>
+<td><code>bpf.py</code> <code>load_membrane</code> lines 218–219</td>
+<td><strong>the line this plan changes</strong>: today <code>vaked_guard_&lt;pid&gt;</code>; proposed <code>vaked/&lt;agent-id&gt;</code></td>
+</tr>
+<tr>
+<td>spawn/kill/access payloads</td>
+<td><code>eventd.py</code> <code>spawn_event</code>/<code>kill_event</code>/<code>access_event</code></td>
+<td><code>kind</code>/<code>v</code>/field set (lines 37–109)</td>
+</tr>
+<tr>
+<td>seccomp filter</td>
+<td><strong>none</strong> (see §3)</td>
+<td>modelled on <code>bpf.py</code>'s <code>_insn</code> ABI-direct pattern (lines 51–53)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-config-input">2.2 Config input</h3>
+<p>Same <code>daemons/sandboxd/testdata/fixture.sandbox.json</code> as <code>wp4-s2.md</code> §2.2. The<br />
+two fields this plan consumes:</p>
+<div class="highlight"><pre><span></span><span class="nt">&quot;seccomp&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;profile&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;default&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fixture-worker&quot;</span>
+</pre></div>
+
+<p><code>agent_id</code> is the join key: <code>cgroup.leaf_path("fixture-worker")</code> ==<br />
+<code>&lt;root&gt;/vaked/fixture-worker</code> is <em>both</em> the slice sandboxd writes limits into<br />
+<em>and</em> the directory guardd opens an fd on to attach. There is <strong>no separate<br />
+guardd-cgroup field</strong> — that is the whole point of the contract (one anchor).</p>
+<h3 id="23-host-substrate-already-present-no-host-change">2.3 Host substrate (already present; no host change)</h3>
+<ul>
+<li><code>security.allowUserNamespaces = true</code> and cgroup-v2 unified at <code>/sys/fs/cgroup</code><br />
+  (<a href="../../../hosts/vakedos/configuration.nix"><code>hosts/vakedos/configuration.nix</code></a><br />
+  lines 136–138; sandboxd-design line 24).</li>
+<li><code>networking.nftables.enable = true</code> — the nftables backend that <strong>composes<br />
+  with</strong> the cgroup/BPF egress programs guardd loads<br />
+  (<code>configuration.nix</code> lines 132–134).</li>
+<li>The <code>vaked</code> subtree <strong>delegated</strong> to sandboxd's uid (<code>cgroup.py</code> §Privilege<br />
+  note lines 25–33; systemd <code>Delegate=</code>). This delegation is the permission<br />
+  basis for §5.4's attach-by-other-daemon requirement.</li>
+</ul>
+<h2 id="3-the-seccomp-asymmetry-inherited-from-wp4-s2md-3">3. The seccomp asymmetry (inherited from <code>wp4-s2.md</code> §3)</h2>
+<p><code>seccomp.zig</code> has <strong>no Python oracle</strong> — <code>agent_sandboxd</code> never implemented<br />
+seccomp (grep confirms: seccomp appears only in design/threat-model prose). Its<br />
+model is the ABI-direct pattern of <code>bpf.py</code>: assemble the program as<br />
+struct-packed instructions (no libseccomp/libbpf). Acceptance is therefore<br />
+<strong>self-consistent byte assertions</strong> (filter == hand-derived golden, §6.1) plus<br />
+<strong>kernel behaviour</strong> (a disallowed syscall is ERRNO'd/killed, §6.2).</p>
+<p>The threat-model mandate this satisfies: <code>docs/language/THREAT_MODEL.md</code><br />
+§Scenario C item 1 <em>"Zig daemons should run in OS-level sandboxes (seccomp, …)"</em><br />
+(cited in <code>wp4-s2.md</code> §3).</p>
+<h2 id="4-file-layout-paths-to-create-modify">4. File layout (paths to create / modify)</h2>
+<p>A <strong>subset</strong> of <code>wp4-s2.md</code> §4 — only the files this plan's two mechanisms own,<br />
+plus the one guardd change the contract requires. All sandboxd paths under<br />
+<a href="../../../daemons/sandboxd/"><code>daemons/sandboxd/</code></a> (build shell exists:<br />
+<code>build.zig</code>, <code>build.zig.zon</code>, <code>src/main.zig</code> stub, <code>README.md</code>).</p>
+<div class="highlight"><pre><span></span><span class="n">daemons</span><span class="o">/</span><span class="n">sandboxd</span><span class="o">/</span>
+<span class="w">  </span><span class="n">src</span><span class="o">/</span>
+<span class="w">    </span><span class="n">seccomp</span><span class="o">.</span><span class="n">zig</span><span class="w">             </span><span class="c1"># NEW: classic-BPF allowlist assembly + install (no oracle)</span>
+<span class="w">    </span><span class="n">cgroup</span><span class="o">.</span><span class="n">zig</span><span class="w">              </span><span class="c1"># NEW: leaf_path + limit writers + teardown (oracle: cgroup.py)</span>
+<span class="w">    </span><span class="n">guard_handshake</span><span class="o">.</span><span class="n">zig</span><span class="w">     </span><span class="c1"># NEW: &quot;leaf-ready&quot; barrier emit + teardown gate (§5.4)</span>
+<span class="w">    </span><span class="n">linux</span><span class="o">.</span><span class="n">zig</span><span class="w">               </span><span class="c1"># NEW (shared w/ wp4-s2): seccomp/cgroup/PR_* constants, structs</span>
+<span class="w">  </span><span class="n">testdata</span><span class="o">/</span>
+<span class="w">    </span><span class="n">fixture</span><span class="o">.</span><span class="n">sandbox</span><span class="o">.</span><span class="n">json</span><span class="w">    </span><span class="c1"># NEW (shared): the §2.2 fixture</span>
+<span class="w">    </span><span class="n">seccomp</span><span class="o">.</span><span class="n">default</span><span class="o">.</span><span class="n">golden</span><span class="w">  </span><span class="c1"># NEW: hex of the assembled x86_64 default filter (M1 byte oracle)</span>
+<span class="w">  </span><span class="n">test</span><span class="o">/</span>
+<span class="w">    </span><span class="n">seccomp_asm_test</span><span class="o">.</span><span class="n">zig</span><span class="w">    </span><span class="c1"># NEW: assemble(&quot;default&quot;) == golden, byte-for-byte (M1)</span>
+<span class="w">    </span><span class="n">cgroup_leaf_test</span><span class="o">.</span><span class="n">zig</span><span class="w">    </span><span class="c1"># NEW: leaf_path agreement + limit-file content vs cgroup.py (M1)</span>
+<span class="w">    </span><span class="n">handshake_order_test</span><span class="o">.</span><span class="n">zig</span><span class="c1"># NEW: pure ordering-state-machine assertions (M1)</span>
+<span class="w">    </span><span class="n">guard_attach_smoke</span><span class="o">.</span><span class="n">zig</span><span class="w">  </span><span class="c1"># NEW: real attach to sandboxd leaf + egress effect (dev-cx53)</span>
+</pre></div>
+
+<p>Guardd side (Python reference — the oracle the Zig guardd port later mirrors):</p>
+<div class="highlight"><pre><span></span><span class="n">agent_guardd</span><span class="o">/</span><span class="n">bpf</span><span class="p">.</span><span class="n">py</span><span class="w">         </span><span class="c1"># MODIFY: load_membrane() gains an explicit `cgroup_dir`</span>
+<span class="w">                            </span><span class="c1">#   param; when given, attach there instead of minting</span>
+<span class="w">                            </span><span class="c1">#   vaked_guard_&lt;pid&gt; (lines 218–219). Default behaviour</span>
+<span class="w">                            </span><span class="c1">#   (probe own cgroup) preserved for `probe`/`demo`.</span>
+</pre></div>
+
+<p><code>linux.zig</code> centralises the <strong>x86_64</strong> ABI (target is x86_64-linux):<br />
+<code>__NR_seccomp</code>, <code>__NR_prctl</code>, <code>PR_SET_NO_NEW_PRIVS</code>, <code>SECCOMP_SET_MODE_FILTER</code>,<br />
+<code>SECCOMP_RET_KILL_PROCESS</code>/<code>RET_ERRNO</code>/<code>RET_ALLOW</code>, <code>AUDIT_ARCH_X86_64</code>, and the<br />
+<code>sock_filter</code>/<code>sock_fprog</code>/<code>seccomp_data</code> layouts (per <code>wp4-s2.md</code> §4). Keep<br />
+<code>std.os.linux</code> constants where Zig 0.16 provides them; define the rest locally<br />
+(the guardd-bpf precedent).</p>
+<h2 id="5-algorithm-design">5. Algorithm / design</h2>
+<h3 id="51-the-seccomp-default-filter-seccompzig">5.1 The seccomp <code>default</code> filter (seccomp.zig)</h3>
+<p>Classic-BPF program consumed by <code>seccomp(SECCOMP_SET_MODE_FILTER)</code>, assembled as<br />
+<code>[]sock_filter</code> then wrapped in <code>sock_fprog</code>. Structure (matches <code>wp4-s2.md</code><br />
+§5.3, made byte-precise here):</p>
+<div class="highlight"><pre><span></span>L0:  BPF_LD  | BPF_W | BPF_ABS, k = offsetof(seccomp_data, arch)
+L1:  BPF_JMP | BPF_JEQ | BPF_K, k = AUDIT_ARCH_X86_64, jt=0, jf=(KILL)
+L2:  BPF_LD  | BPF_W | BPF_ABS, k = offsetof(seccomp_data, nr)
+L3..: for each nr in ALLOWLIST (ascending):
+        BPF_JMP | BPF_JEQ | BPF_K, k = nr, jt=(ALLOW), jf=0
+Lk:  BPF_RET | BPF_K, k = SECCOMP_RET_ERRNO | EPERM      # default-deny (observable)
+LA:  BPF_RET | BPF_K, k = SECCOMP_RET_ALLOW
+LX:  BPF_RET | BPF_K, k = SECCOMP_RET_KILL_PROCESS       # arch mismatch
+</pre></div>
+
+<ul>
+<li><strong>Arch gate first</strong> (L1): a syscall issued under any arch other than<br />
+<code>AUDIT_ARCH_X86_64</code> → <code>KILL_PROCESS</code>. This closes the x32/multi-arch<br />
+  syscall-number-aliasing hole. The golden encodes the <strong>target's</strong><br />
+<code>AUDIT_ARCH_X86_64</code> (<code>0xC000003E</code>), <em>not</em> the aarch64 M1 host's arch — the<br />
+  M1 test asserts pure assembled bytes and never calls <code>seccomp(2)</code>, so the host<br />
+  arch cannot leak in (§6.1).</li>
+<li><strong>Default action</strong> <code>SECCOMP_RET_ERRNO | EPERM</code> — fail-closed but <strong>observable</strong><br />
+  (the workload sees <code>-EPERM</code>, the run continues, the violation is diagnosable).<br />
+<code>RET_KILL_PROCESS</code> is a config toggle for the strict profile (S5 wiring).</li>
+<li><strong>ALLOWLIST (<code>default</code> profile, S2-fixed, conservative compute worker):</strong><br />
+<code>read write openat close fstat lseek mmap munmap mprotect brk
+  rt_sigaction rt_sigprocmask rt_sigreturn ioctl clock_gettime exit
+  exit_group nanosleep futex getrandom pread64 pwrite64 readv writev
+  dup dup2 fcntl getpid gettid sched_yield clock_nanosleep</code>. Sorted ascending<br />
+  by x86_64 <code>__NR_*</code> for deterministic JEQ ordering. The <strong>exact</strong> set is<br />
+  frozen in <code>seccomp.default.golden</code>; this list is the human-readable shadow of<br />
+  those bytes. (S5 replaces the fixed set with a grant→set lowering;<br />
+<code>cfg.seccomp.profile</code> is read and routed today, only <code>"default"</code> resolves —<br />
+<code>wp4-s2.md</code> §5.3.)</li>
+<li><strong>Install ordering</strong> (the load-bearing invariant, <code>wp4-s2.md</code> §5.1 step 7):<br />
+<code>prctl(PR_SET_NO_NEW_PRIVS, 1)</code> <strong>before</strong> <code>seccomp(SECCOMP_SET_MODE_FILTER)</code>;<br />
+  the filter installed <strong>after</strong> all privileged setup (mounts, cgroup join,<br />
+  uid_map) and <strong>before</strong> drop-privs + <code>execve</code>, so the filter covers the<br />
+  workload but not sandboxd's own setup syscalls.</li>
+</ul>
+<p><code>assemble(profile) []sock_filter</code> is <strong>pure</strong> (no syscalls), M1-tested against<br />
+the golden (§6.1). <code>install(filter)</code> is the effectful <code>prctl</code>+<code>seccomp</code> pair,<br />
+dev-cx53 only (§6.2).</p>
+<h3 id="52-cgroup-leaf-cgroupzig">5.2 cgroup leaf (cgroup.zig)</h3>
+<p>Pure helper <code>leaf_path(agent_id) = "vaked/" ++ agent_id</code> reproduces<br />
+<code>cgroup.py:cgroup_path</code> exactly (the <code>_VAKED_SUBTREE</code>=<code>"vaked"</code> join). Limit<br />
+writers (<code>memory.max</code>/<code>pids.max</code>/<code>cpu.max</code>/<code>io.max</code>) take a <code>cgroup_root</code><br />
+parameter so M1 tests redirect to a temp dir (the <code>cgroup.py</code> mock discipline,<br />
+lines 35–38). Content parity is against <code>apply_cgroup_limits</code>, the formatter (per<br />
+<code>wp4-s2.md</code> §5.4 oracle note), not <code>daemon.spawn</code>.</p>
+<p><code>leaf_path</code> is also exported as the <strong>public join key</strong> for the guardd handshake<br />
+(§5.4): it is the <em>only</em> place the leaf path is computed. No second derivation.</p>
+<h3 id="53-cgroup-guardd-ownership-the-contract">5.3 cgroup ↔ guardd ownership (the contract)</h3>
+<p>Proposed division (provenance: <code>wp4-s2.md</code> §7; sandboxd-design §Open<br />
+"Network-namespace ownership", "fs-snapshotd ⇄ sandboxd overlay-ownership"):</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Owner</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mkdir vaked/&lt;agent-id&gt;</code>, write limit files</td>
+<td><strong>sandboxd</strong></td>
+<td><code>cgroup.zig</code> (oracle <code>cgroup.py</code>)</td>
+</tr>
+<tr>
+<td>write child PID → <code>cgroup.procs</code></td>
+<td><strong>sandboxd</strong></td>
+<td>before <code>execve</code> (<code>wp4-s2.md</code> §5.1 step 2 note)</td>
+</tr>
+<tr>
+<td><code>open(leaf, O_DIRECTORY)</code> + <code>BPF_PROG_ATTACH @INET_EGRESS</code></td>
+<td><strong>agent_guardd</strong></td>
+<td><code>bpf.py:attach</code> (holds a <em>fd</em>, never <code>mkdir</code>s)</td>
+</tr>
+<tr>
+<td><code>BPF_PROG_DETACH</code></td>
+<td><strong>agent_guardd</strong></td>
+<td><code>bpf.py:detach</code></td>
+</tr>
+<tr>
+<td><code>rmdir vaked/&lt;agent-id&gt;</code></td>
+<td><strong>sandboxd</strong></td>
+<td><code>cgroup.zig</code> teardown, after no live procs</td>
+</tr>
+</tbody>
+</table>
+<p>So <strong>sandboxd owns the directory lifecycle; guardd owns only an attach on a leaf<br />
+it does not create or remove.</strong> This is the same single-creator pattern the<br />
+design already uses for the overlay (sandboxd mounts, fs-snapshotd accounts —<br />
+sandboxd-design §Relationship to the roster). The guardd change is one line: in<br />
+<code>bpf.py:load_membrane</code> (lines 218–219) accept an explicit <code>cgroup_dir</code> and skip<br />
+the <code>vaked_guard_&lt;pid&gt;</code> mint/<code>mkdir</code>/<code>rmdir</code> when given; default path (own<br />
+throwaway cgroup) preserved for <code>probe</code>/<code>demo</code>.</p>
+<p><strong>Permission basis:</strong> guardd attaching a BPF program to a cgroup it does not own<br />
+requires that the <code>vaked</code> subtree is delegated such that guardd's uid can<br />
+<code>open()</code> the leaf for attach (cgroup-v2 delegation, <code>cgroup.py</code> §Privilege note;<br />
+<code>configuration.nix</code> line 138). On the delegated vakedos subtree this holds; in a<br />
+nested container the attach is refused EINVAL and <strong>reported, not faked</strong><br />
+(<code>bpf.py</code> line 51 commentary; <code>agent-guardd.md</code> "Attach (probe)").</p>
+<h3 id="54-why-the-cgroup-attach-is-independent-of-netns-ownership">5.4 Why the cgroup attach is independent of netns ownership</h3>
+<p><code>BPF_CGROUP_INET_EGRESS</code> is <strong>cgroup-scoped</strong>, not netns-scoped (<code>bpf.py</code><br />
+line 39, <code>expected_attach_type</code> line 143). A program attached at<br />
+<code>vaked/&lt;agent-id&gt;</code> runs for the egress of <strong>every process in that cgroup<br />
+regardless of which network namespace they sit in</strong>. Therefore the<br />
+sandboxd-design §Open question "who creates vs who programs the netns" is<br />
+<strong>orthogonal</strong> to this contract: sandboxd can own netns creation<br />
+(<code>CLONE_NEWNET</code>, <code>namespace.py</code> lines 19–23) and guardd can still enforce egress<br />
+via the shared cgroup without touching the netns. This plan resolves the<br />
+<em>cgroup</em> attach point; it deliberately leaves netns programming to guardd (its<br />
+roster membrane) and does not couple the two.</p>
+<h3 id="55-the-attachteardown-handshake-guard_handshakezig-no-enforcement-gap">5.5 The attach/teardown handshake (guard_handshake.zig) — no enforcement gap</h3>
+<p>The ordering that makes (2) implementation-ready, relative to the <code>wp4-s2.md</code><br />
+§5.1 spawn sequence:</p>
+<div class="highlight"><pre><span></span><span class="nt">sandboxd</span><span class="w"> </span><span class="nt">spawn</span><span class="o">(</span><span class="nt">cfg</span><span class="o">):</span>
+<span class="w">  </span><span class="nt">2</span><span class="o">.</span><span class="w"> </span><span class="nt">cgroup</span><span class="p">.</span><span class="nc">create_leaf</span><span class="o">(</span><span class="nt">agent_id</span><span class="o">);</span><span class="w"> </span><span class="nt">cgroup</span><span class="p">.</span><span class="nc">write_limits</span><span class="o">(</span><span class="nt">cfg</span><span class="p">.</span><span class="nc">limits</span><span class="o">)</span><span class="w">   </span><span class="err">#</span><span class="w"> </span><span class="nt">leaf</span><span class="w"> </span><span class="nt">exists</span>
+<span class="w">  </span><span class="nt">2a</span><span class="o">.</span><span class="w"> </span><span class="nt">event</span><span class="p">.</span><span class="nc">spawn</span><span class="o">(...,</span><span class="w"> </span><span class="nt">action</span><span class="o">=</span><span class="s2">&quot;allow&quot;</span><span class="o">)</span><span class="w">  </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">eventd</span><span class="w">   </span><span class="cp">[</span><span class="nx">write</span><span class="na">-ahead</span><span class="p">,</span><span class="w"> </span><span class="nx">RFC</span><span class="w"> </span><span class="mi">0004</span><span class="w"> </span><span class="err">§</span><span class="mf">3.1</span><span class="cp">]</span>
+<span class="w">  </span><span class="nt">2b</span><span class="o">.</span><span class="w"> </span><span class="nt">emit</span><span class="w"> </span><span class="s2">&quot;cgroup-leaf-ready(agent_id, leaf_path)&quot;</span><span class="w">  </span><span class="err">──</span><span class="w"> </span><span class="nt">guardd</span><span class="w"> </span><span class="nt">attach</span><span class="w"> </span><span class="nt">barrier</span><span class="w"> </span><span class="err">──┐</span>
+<span class="w">  </span><span class="nt">3</span><span class="o">.</span><span class="w"> </span><span class="nt">clone</span><span class="w"> </span><span class="nt">child</span><span class="w"> </span><span class="o">(</span><span class="nt">CLONE_NEWUSER</span><span class="o">|</span><span class="nt">NEWNS</span><span class="o">|</span><span class="nt">NEWPID</span><span class="o">|</span><span class="nt">NEWNET</span><span class="o">)</span><span class="w">                            </span><span class="err">│</span>
+<span class="w">  </span><span class="nt">4-6</span><span class="o">.</span><span class="w"> </span><span class="o">(</span><span class="nt">child</span><span class="o">)</span><span class="w"> </span><span class="nt">userns</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">mountns</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">pivot_root</span><span class="w">                                    </span><span class="err">│</span>
+<span class="w">      </span><span class="nt">parent</span><span class="o">:</span><span class="w"> </span><span class="nt">write</span><span class="w"> </span><span class="nt">child</span><span class="w"> </span><span class="nt">host-pid</span><span class="w"> </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">leaf</span><span class="o">/</span><span class="nt">cgroup</span><span class="p">.</span><span class="nc">procs</span><span class="w">                         </span><span class="err">│</span>
+<span class="w">  </span><span class="err">──</span><span class="w"> </span><span class="nt">BARRIER</span><span class="o">:</span><span class="w"> </span><span class="nt">parent</span><span class="w"> </span><span class="nt">BLOCKS</span><span class="w"> </span><span class="nt">until</span><span class="w"> </span><span class="nt">guardd</span><span class="w"> </span><span class="nt">acks</span><span class="w"> </span><span class="nt">attach</span><span class="w"> </span><span class="o">(</span><span class="nt">or</span><span class="w"> </span><span class="nt">attach-refused</span><span class="o">)</span><span class="w"> </span><span class="err">───────┘</span>
+<span class="w">  </span><span class="nt">7</span><span class="o">.</span><span class="w"> </span><span class="o">(</span><span class="nt">child</span><span class="o">)</span><span class="w"> </span><span class="nt">prctl</span><span class="o">(</span><span class="nt">NO_NEW_PRIVS</span><span class="o">);</span><span class="w"> </span><span class="nt">seccomp</span><span class="o">(</span><span class="nt">SET_MODE_FILTER</span><span class="o">,</span><span class="w"> </span><span class="nt">default</span><span class="o">)</span><span class="w">   </span><span class="cp">[</span><span class="err">§</span><span class="mf">5.1</span><span class="cp">]</span>
+<span class="w">  </span><span class="nt">8</span><span class="o">.</span><span class="w"> </span><span class="o">(</span><span class="nt">child</span><span class="o">)</span><span class="w"> </span><span class="nt">drop</span><span class="w"> </span><span class="nt">privs</span>
+<span class="w">  </span><span class="nt">9</span><span class="o">.</span><span class="w"> </span><span class="o">(</span><span class="nt">child</span><span class="o">)</span><span class="w"> </span><span class="nt">execve</span><span class="o">(</span><span class="nt">cfg</span><span class="p">.</span><span class="nc">exec</span><span class="p">.</span><span class="nc">path</span><span class="o">,</span><span class="w"> </span><span class="nt">argv</span><span class="o">,</span><span class="w"> </span><span class="nt">env</span><span class="o">)</span><span class="w">        </span><span class="err">#</span><span class="w"> </span><span class="nt">egress</span><span class="w"> </span><span class="nt">program</span><span class="w"> </span><span class="nt">already</span><span class="w"> </span><span class="nt">attached</span>
+<span class="w"> </span><span class="nt">10</span><span class="o">.</span><span class="w"> </span><span class="o">(</span><span class="nt">parent</span><span class="o">)</span><span class="w"> </span><span class="nt">waitpid</span><span class="o">;</span><span class="w"> </span><span class="nt">on</span><span class="w"> </span><span class="nt">exit</span><span class="o">:</span><span class="w"> </span><span class="nt">event</span><span class="p">.</span><span class="nc">exit</span><span class="w"> </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">eventd</span>
+<span class="w"> </span><span class="nt">teardown</span><span class="o">:</span><span class="w"> </span><span class="nt">guardd</span><span class="w"> </span><span class="nt">BPF_PROG_DETACH</span><span class="w">  </span><span class="err">→</span><span class="w">  </span><span class="nt">sandboxd</span><span class="w"> </span><span class="nt">rmdir</span><span class="w"> </span><span class="nt">leaf</span><span class="w">  </span><span class="o">(</span><span class="nt">after</span><span class="w"> </span><span class="nt">no</span><span class="w"> </span><span class="nt">live</span><span class="w"> </span><span class="nt">procs</span><span class="o">)</span>
+</pre></div>
+
+<p>Invariants:</p>
+<ol>
+<li><strong>No unfiltered-egress window.</strong> The barrier at step 6→7 ensures guardd's<br />
+   attach (or an honest attach-refused, §5.3) completes <strong>before</strong> the child<br />
+<code>execve</code>s the workload — so the first packet the workload can send is already<br />
+   under the cgroup egress hook. The PID is in <code>cgroup.procs</code> before the barrier<br />
+   releases, so attach covers it.</li>
+<li><strong>Write-ahead precedes effect.</strong> The <code>event.spawn</code> (2a) is appended <strong>before</strong><br />
+   the clone, per the RFC 0004 §3.1 <em>"Registration precedes consumption"</em><br />
+   write-ahead discipline (<a href="../../../protocol/rfcs/0004-multi-agent-state-dependency.md">RFC 0004 §3.1</a>)<br />
+   and the eventd single-source-of-truth role<br />
+   (<a href="../../../protocol/rfcs/0001-hcp.md">RFC 0001 §5</a>, "Event log and<br />
+   tamper-evidence: <code>eventd</code>", line 45). eventd owns canonical hashing; sandboxd<br />
+   emits the payload only.</li>
+<li><strong>Teardown ordering.</strong> <code>BPF_PROG_DETACH</code> (guardd) <strong>before</strong> <code>rmdir</code> (sandboxd),<br />
+   and <code>rmdir</code> only after the leaf has no live processes — the kernel refuses<br />
+<code>rmdir</code> on a non-empty cgroup (<code>cgroup.py:teardown_cgroup</code> lines 209–219).</li>
+<li><strong>Authority is stubbed-but-wired.</strong> The grant gate (deny if<br />
+<code>process_policy.grant == none</code>) is checked and logged <code>action="deny"</code>, but<br />
+   real authority is preceptord's (<a href="../../../protocol/rfcs/0001-hcp.md">RFC 0001 §5</a>,<br />
+   "Authority and policy: <code>preceptord</code>", line 331); absent in the reference<br />
+   phase, so allow-all + log (sandboxd-design §Security model).</li>
+</ol>
+<p>The barrier transport in S2 is the eventd-mediated "cgroup-leaf-ready" payload<br />
+(guardd subscribes; acks via its own event). The <strong>full</strong> lifecycle owner is<br />
+agent-supervisord (<a href="../../../protocol/rfcs/0001-hcp.md">RFC 0001 §5</a>,<br />
+"Supervision and state dependencies: <code>agent-supervisord</code>", line 425); sandboxd<br />
+does <strong>not</strong> transition agent state — it only sequences attach vs exec<br />
+(<code>wp4-s2.md</code> §1.2 "No second lifecycle").</p>
+<h2 id="6-test-plan-m1-local-vs-dev-cx53linux">6. Test plan — M1-local vs dev-cx53/Linux</h2>
+<p>Split mirrors <code>wp4-s2.md</code> §6 and the design's verification posture<br />
+(sandboxd-design §Verification posture: <em>"CI stays bytes/structure; runnability<br />
+is a devshell gate"</em>).</p>
+<h3 id="61-runs-fully-on-m1-aarch64-darwin-pure-logic-assembly">6.1 Runs fully on M1 (aarch64-darwin) — pure logic &amp; assembly</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Command</th>
+<th>Why M1 suffices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>seccomp filter byte assembly</td>
+<td><code>zig build test</code> (<code>seccomp_asm_test.zig</code>)</td>
+<td>asserts <code>assemble("default")</code> == <code>seccomp.default.golden</code>; encodes x86_64 <code>AUDIT_ARCH_X86_64</code> + <code>__NR_*</code>; <strong>no <code>seccomp(2)</code> call</strong>, so host arch cannot leak</td>
+</tr>
+<tr>
+<td>arch-gate + default-deny structure</td>
+<td>same</td>
+<td>asserts L1 jf→KILL on arch mismatch and the trailing <code>RET_ERRNO\|EPERM</code> are present in the bytes</td>
+</tr>
+<tr>
+<td>cgroup leaf-path agreement</td>
+<td><code>zig build test</code> (<code>cgroup_leaf_test.zig</code>)</td>
+<td>pure: <code>sandboxd.leaf_path("fixture-worker")</code> == <code>"vaked/fixture-worker"</code> == the path guardd will <code>open()</code> — the cross-daemon contract as a pure string assertion</td>
+</tr>
+<tr>
+<td>cgroup limit-file content</td>
+<td>same</td>
+<td>writes to temp <code>cgroup_root</code>, asserts bytes vs <code>cgroup.py:apply_cgroup_limits</code></td>
+</tr>
+<tr>
+<td>handshake ordering state machine</td>
+<td><code>zig build test</code> (<code>handshake_order_test.zig</code>)</td>
+<td>pure: drives a state enum and asserts attach-barrier precedes exec, detach precedes rmdir, write-ahead precedes clone — no syscalls</td>
+</tr>
+<tr>
+<td>cross-compile to target</td>
+<td><code>zig build -Dtarget=x86_64-linux</code></td>
+<td>compiles full daemon on M1; ns/cgroup/seccomp <strong>syscalls do not run here</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Python cross-check (M1): <code>python3 -m agent_guardd probe</code> reports the current<br />
+<code>vaked_guard_&lt;pid&gt;</code> behaviour; after the <code>bpf.py</code> change, a unit asserts<br />
+<code>load_membrane(..., cgroup_dir=&lt;leaf&gt;)</code> opens <code>&lt;leaf&gt;</code> and does <strong>not</strong> <code>mkdir</code><br />
+a <code>vaked_guard_*</code> directory (pure call-shape assertion; the real <code>attach</code> errno<br />
+is host-dependent and tolerated, per <code>bpf.py</code>'s structured-report discipline).</p>
+<h3 id="62-requires-dev-cx53-linux-x86_64-kernel-effects">6.2 Requires dev-cx53 (Linux x86_64) — kernel effects</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Why it cannot gate on M1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>seccomp behaviour: a syscall outside the allowlist → <code>EPERM</code> (and KILL on arch mismatch)</td>
+<td><code>prctl</code>+<code>seccomp(SET_MODE_FILTER)</code> are Linux-only</td>
+</tr>
+<tr>
+<td>guardd attaches at sandboxd's <strong>shared</strong> leaf (not a throwaway), and a process in <code>vaked/&lt;agent-id&gt;</code> is subject to the egress hook</td>
+<td><code>BPF_PROG_LOAD</code>/<code>PROG_ATTACH</code> + delegated cgroup-v2; verifier runs only on Linux</td>
+</tr>
+<tr>
+<td>no unfiltered-egress window: the workload's first egress is already under the attached program</td>
+<td>requires real clone + attach barrier + execve timing</td>
+</tr>
+<tr>
+<td>teardown: <code>DETACH</code> then <code>rmdir</code>; <code>rmdir</code> on a still-live leaf is refused</td>
+<td>cgroup-v2 kernel semantics</td>
+</tr>
+<tr>
+<td>write-ahead/exit events land on the real eventd chain</td>
+<td>runtime eventd daemon; integration host is Linux</td>
+</tr>
+</tbody>
+</table>
+<p>This extends the future <code>task sandbox-smoke</code> gate (<code>wp4-s2.md</code> §6.2) with the<br />
+two checks specific to this plan: <strong>(a)</strong> a non-allowlisted syscall is <code>EPERM</code>'d,<br />
+and <strong>(b)</strong> guardd's egress program is attached at sandboxd's <code>vaked/&lt;agent-id&gt;</code><br />
+leaf (assert <code>bpf_prog_query</code> lists the program on that cgroup), proving the<br />
+"alongside" attach point — <strong>not</strong> that egress was enforced in-kernel (the<br />
+loaded program is still the posture; §1.1).</p>
+<h3 id="63-ci-wiring">6.3 CI wiring</h3>
+<p>M1-local <code>zig build test</code> runs in the dev shell pre-PR (CI has no privileged<br />
+sandbox — sandboxd-design §Verification posture). The dev-cx53 leg runs in the<br />
+WP4 CI lane via <code>nix develop</code> on the build host. Every new test file cites the<br />
+design § or oracle function it enforces (the <code>wp4-s2.md</code> §6.3 / WP3-S7<br />
+adversarial-independence convention).</p>
+<h2 id="7-dependencies-on-other-sprints">7. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on</th>
+<th>What this plan needs</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>WP4-S1</strong></td>
+<td>sandboxd build shell + CLI skeleton to host <code>seccomp.zig</code>/<code>cgroup.zig</code></td>
+<td>Prereq; today only the <code>main.zig</code> stub exists (<code>daemons/sandboxd/src/main.zig</code>)</td>
+</tr>
+<tr>
+<td><strong>WP4-S2 (broad)</strong></td>
+<td>the spawn sequence, <code>linux.zig</code>, <code>config.zig</code>, fixture, eventd payloads this plan slots into</td>
+<td>Co-sprint; this is the seccomp+attach slice of <code>wp4-s2.md</code></td>
+</tr>
+<tr>
+<td><strong>Design Plan step 0</strong> (config projection, grammar-first, <strong>gated</strong>)</td>
+<td>grant→profile inputs eventually drive <code>cfg.seccomp.profile</code>; until then <code>"default"</code> only</td>
+<td>BLOCKER for the <em>config-driven</em> profile path; S2 runs the fixed <code>default</code> against the §2.2 fixture (sandboxd-design §Config contract / §Open)</td>
+</tr>
+<tr>
+<td><strong>agent_guardd</strong></td>
+<td>the one-line <code>bpf.py:load_membrane</code> change to attach at sandboxd's leaf; the allow-set-aware program is guardd's follow-up</td>
+<td>Python ref exists (<code>agent_guardd/bpf.py</code>); allow-set program is <code>agent-guardd.md</code> §Next; Zig port is later</td>
+</tr>
+<tr>
+<td><strong>eventd</strong></td>
+<td>append-only hash-chained log for write-ahead spawn/exit and the leaf-ready barrier payload</td>
+<td>Python ref exists (<code>agent_sandboxd/eventd.py</code>); Zig port is WP4-S4</td>
+</tr>
+<tr>
+<td><strong>agent-supervisord</strong></td>
+<td>owns the RFC 0004 lifecycle; this plan only sequences attach-vs-exec, never agent state</td>
+<td>RFC 0001 §5 / RFC 0004; WP4-S3</td>
+</tr>
+<tr>
+<td><strong>WP4-S5</strong></td>
+<td>grant→seccomp-profile and grant→egress-policy lowering</td>
+<td>Downstream; S2 ships fixed <code>default</code> + stubbed-but-wired selection</td>
+</tr>
+<tr>
+<td><strong>vakedos host</strong></td>
+<td>userns enabled, cgroup-v2 mounted, <code>vaked</code> subtree delegated, nftables</td>
+<td>Present (<code>configuration.nix</code> lines 134, 138; <code>cgroup.py</code> §Privilege note)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-acceptance-criteria">8. Acceptance criteria</h2>
+<p>S2's seccomp+attach slice is done when <strong>all</strong> hold:</p>
+<ol>
+<li><strong>seccomp assembly (M1-local).</strong> <code>seccomp.zig:assemble("default")</code> equals<br />
+<code>testdata/seccomp.default.golden</code> byte-for-byte; the bytes encode the<br />
+   arch-gate (<code>AUDIT_ARCH_X86_64</code> mismatch → <code>KILL_PROCESS</code>), each allowlisted<br />
+   x86_64 <code>__NR_*</code> → <code>RET_ALLOW</code>, and the trailing default <code>RET_ERRNO(EPERM)</code><br />
+   (§5.1). No <code>seccomp(2)</code> executed on M1.</li>
+<li><strong>Leaf-path agreement (M1-local).</strong> <code>sandboxd.leaf_path(agent_id)</code> is the<br />
+   single source of truth and equals <code>"vaked/"+agent_id</code> == the path<br />
+<code>bpf.py:load_membrane(cgroup_dir=…)</code> opens; asserted as a pure cross-daemon<br />
+   string equality (<code>cgroup_leaf_test.zig</code>) and by the guardd unit confirming no<br />
+<code>vaked_guard_*</code> dir is minted when <code>cgroup_dir</code> is passed.</li>
+<li><strong>cgroup content parity (M1-local).</strong> limit files match <code>cgroup.py:apply_cgroup_limits</code><br />
+   for the §2.2 fixture, written under a temp <code>cgroup_root</code>.</li>
+<li><strong>Handshake ordering (M1-local + dev-cx53).</strong> Pure state-machine test asserts:<br />
+   write-ahead spawn precedes clone; attach barrier precedes <code>execve</code>;<br />
+<code>no_new_privs</code> precedes seccomp; seccomp precedes drop-privs+<code>execve</code>; detach<br />
+   precedes rmdir (§5.5). On dev-cx53 the observable subset is asserted by the<br />
+   smoke harness.</li>
+<li><strong>Cross-compile (M1-local).</strong> <code>zig build -Dtarget=x86_64-linux</code> compiles the<br />
+   full daemon (no syscall executed on M1).</li>
+<li><strong>Kernel behaviour (dev-cx53).</strong> A non-allowlisted syscall returns <code>EPERM</code><br />
+   (KILL on arch mismatch); guardd's egress program is attached at sandboxd's<br />
+<code>vaked/&lt;agent-id&gt;</code> leaf (verified via prog-query on that cgroup); the<br />
+   workload's first egress occurs after the attach barrier; <code>DETACH</code> precedes a<br />
+   successful <code>rmdir</code> and <code>rmdir</code> on a live leaf is refused.</li>
+<li><strong>No over-claim of enforcement.</strong> The spec, code comments, and PR description<br />
+   state that S2 delivers the <strong>attach point + handshake</strong>, not live in-kernel<br />
+   egress enforcement; <code>mechanism</code> stays <code>"reference"</code> until the allow-set-aware<br />
+   guardd program lands (§1.1; <code>agent-guardd.md</code> §Next). The<br />
+<code>cfg.seccomp.profile</code> selection and grant→egress lowering are named as the<br />
+   WP4-S5 hook.</li>
+<li><strong>Convention.</strong> Every test file cites the design § or oracle function it<br />
+   enforces; <code>daemons/sandboxd/build.zig.zon</code> <code>dependencies</code> stays empty (pure<br />
+   syscalls — the guardd-bpf precedent); the guardd change is the single<br />
+<code>cgroup_dir</code> parameter with default behaviour preserved.</li>
+</ol>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-sandboxd-seccomp-plan.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

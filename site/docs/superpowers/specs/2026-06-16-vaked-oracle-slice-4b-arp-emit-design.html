@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle slice 4b · thread 3 — ARP-emission (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#one-liner" style="padding-left:0.5rem">One-liner</a><a href="#lane-safety-critical" style="padding-left:0.5rem">Lane safety (critical)</a><a href="#the-arpevent-schema-read-only-target" style="padding-left:0.5rem">The `arp_event` schema (read-only target)</a><a href="#decisions-locked-in-brainstorm" style="padding-left:0.5rem">Decisions (locked in brainstorm)</a><a href="#mapping-finding-per-function-arpevent" style="padding-left:0.5rem">Mapping: finding → per-function `arp_event`</a><a href="#components-files" style="padding-left:0.5rem">Components / files</a><a href="#toolsoraclearpemitpy-new-pure-stdlib" style="padding-left:1rem">  `tools/oracle/arp_emit.py` (NEW · pure stdlib)</a><a href="#toolsoracleoraclepy-modify" style="padding-left:1rem">  `tools/oracle/oracle.py` (MODIFY)</a><a href="#toolsoracletestoraclepy-modify-module-level-test-plain-assert" style="padding-left:1rem">  `tools/oracle/test_oracle.py` (MODIFY — module-level `test_*`, plain assert)</a><a href="#toolsoracletaskfileyml-modify" style="padding-left:1rem">  `tools/oracle/Taskfile.yml` (MODIFY)</a><a href="#docs" style="padding-left:1rem">  Docs</a><a href="#error-handling" style="padding-left:0.5rem">Error handling</a><a href="#out-of-scope-own-cycles" style="padding-left:0.5rem">Out of scope (own cycles)</a><a href="#constraints" style="padding-left:0.5rem">Constraints</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-16-vaked-oracle-slice-4b-arp-emit-design</div>
+<h1>vaked-oracle slice 4b · thread 3 — ARP-emission (design)</h1>
+<h1 id="vaked-oracle-slice-4b-thread-3-arp-emission-design">vaked-oracle slice 4b · thread 3 — ARP-emission (design)</h1>
+<p><strong>Date:</strong> 2026-06-16<br />
+<strong>Status:</strong> approved (brainstorm) — ready for plan<br />
+<strong>Base:</strong> <code>origin/main</code> @ <code>a7a6207</code></p>
+<h2 id="one-liner">One-liner</h2>
+<p>The oracle emits its findings as typed <strong><code>arp_event</code></strong> Vaked declarations — its RE execution<br />
+recorded in the ARP representation layer, <strong>verifiable via <code>vakedc check</code></strong> (<code>tools/arp/
+verify_log.py</code>). Closes the dogfood loop (oracle evidence → Vaked/ARP) one-way.</p>
+<h2 id="lane-safety-critical">Lane safety (critical)</h2>
+<p>There are <strong>two</strong> ARP things in this repo. Thread 3 uses <strong>only</strong> the first:<br />
+1. <strong><code>arp_event</code></strong> — a stable Vaked builtin schema (<code>vaked/schema/builtins.vaked</code>) + auto-hook<br />
+   (<code>.claude/hooks/arp_log.py</code>) + verifier (<code>tools/arp/verify_log.py</code>), all on <code>origin/main</code>.<br />
+   We <strong>consume this schema read-only</strong> (emit conforming blocks). ✅ in-lane.<br />
+2. <strong>execution ARP IR</strong> — the other dev's <em>unpushed</em> lanes (<code>exec-semantics</code>, <code>gocc</code>,<br />
+<code>feat+arp-dogfeed-hook</code>). <strong>NOT TOUCHED</strong> by this thread.</p>
+<p>The oracle is a one-way <em>producer</em> of <code>arp_event</code> declarations; it never reads, writes, or<br />
+depends on the execution ARP IR.</p>
+<h2 id="the-arp_event-schema-read-only-target">The <code>arp_event</code> schema (read-only target)</h2>
+<div class="highlight"><pre><span></span>schema arp_event {
+  field ts      : String { required }
+  field command : String { required nonempty }
+  field inputs  : List&lt;String&gt; { optional }
+  field outputs : List&lt;String&gt; { optional }
+  field status  : String { required }
+  field notes   : String { optional }
+}
+</pre></div>
+
+<p>Block form (verified during brainstorm to pass <code>vakedc check</code>): a fenced <code>``vaked block,
+instance name an **IDENT slug** (not a string), omit</code>inputs<code>/</code>outputs` when empty.</p>
+<h2 id="decisions-locked-in-brainstorm">Decisions (locked in brainstorm)</h2>
+<ul>
+<li><strong>Granularity: per-function</strong> — one <code>arp_event</code> per reverse-engineered function.</li>
+<li><strong>Dedicated output</strong> <code>docs/oracle/arp-trace.md</code> (NOT the shared <code>docs/arp-log.md</code> — no<br />
+  collision with the auto-hook).</li>
+<li><strong>Standalone CLI</strong> <code>oracle arp-emit</code> (deliberate, decoupled from the run — like <code>dogfeed</code>).</li>
+<li>Pure stdlib; tests in the module-level <code>test_*</code> convention; a <code>vakedc check</code> dogfood test.</li>
+</ul>
+<h2 id="mapping-finding-per-function-arp_event">Mapping: finding → per-function <code>arp_event</code></h2>
+<p>For each entry in <code>finding["functions"]</code> (shape: <code>{name, addr, pseudo_c_sha, refined_c,
+fidelity:{score,method}, dynamic}</code>), with <code>tgt = finding["target"]["path"]</code>:<br />
+- <strong>slug</strong> (IDENT): <code>oracle_&lt;sanitized name&gt;_&lt;sha12(refined_c)&gt;</code> where sanitized = <code>re.sub(r"\W","_",name)</code> (handles Zig <code>cache.sha256Hex</code> → <code>cache_sha256Hex</code>); <code>sha12</code> = first 12 hex of <code>sha256(refined_c or "")</code>. The <code>oracle_</code> prefix guarantees a letter-leading IDENT.<br />
+- <strong>command</strong>: <code>"oracle RE &lt;name&gt;"</code>.<br />
+- <strong>inputs</strong>: <code>[tgt, name]</code>.<br />
+- <strong>outputs</strong>: <code>["refined_sha:&lt;sha12|none&gt;", "fidelity:&lt;score|none&gt;"]</code>.<br />
+- <strong>status</strong>: <code>_status(score)</code> — <code>score is None</code> → <code>"no-ground-truth"</code>; <code>score &lt; 0.4</code> →<br />
+<code>"low-fidelity"</code>; else <code>"ok"</code>.<br />
+- <strong>ts</strong>: injected (CLI <code>--ts</code>, default current time) — <code>arp_event.ts</code> is required; the finding<br />
+  carries no timestamp, so it is supplied at emit time (kept injectable for deterministic tests).</p>
+<h2 id="components-files">Components / files</h2>
+<h3 id="toolsoraclearp_emitpy-new-pure-stdlib"><code>tools/oracle/arp_emit.py</code> (NEW · pure stdlib)</h3>
+<ul>
+<li><code>_slug(name, refined_c)</code>, <code>_status(score)</code>, <code>_vstr(s)</code>/<code>_vlist(xs)</code> (Vaked string/list literals,<br />
+  backslash+quote escaped).</li>
+<li><code>finding_to_events(finding)</code> → <code>list[dict]</code> (one per function; the mapping above).</li>
+<li><code>render_arp_block(ev, *, ts)</code> → the fenced <code>``vaked</code>arp_event <slug> {...}` block<br />
+  (ts/command always; inputs/outputs omitted when empty; status always; slug <strong>unquoted</strong>).</li>
+<li><code>emit(finding, *, path, ts)</code> → append a <code>## &lt;ts&gt; — &lt;command&gt;</code> heading + the block per event;<br />
+  write a one-time markdown header (title + the <code>verify_log.py</code> reproduce line) when the file is new.<br />
+  Returns the event count.</li>
+</ul>
+<h3 id="toolsoracleoraclepy-modify"><code>tools/oracle/oracle.py</code> (MODIFY)</h3>
+<p><code>arp-emit</code> subparser: <code>--finding &lt;finding.json&gt;</code> (required), <code>--out &lt;md&gt;</code> (default<br />
+<code>docs/oracle/arp-trace.md</code>), <code>--ts &lt;str&gt;</code> (default a current-time stamp). <code>cmd_arp_emit</code>:<br />
+<code>finding = json.load(open(ns.finding))</code>; <code>n = arp_emit.emit(finding, path=ns.out, ts=ns.ts or &lt;now&gt;)</code>;<br />
+print <code>arp-emit: wrote &lt;n&gt; arp_event(s) to &lt;out&gt;</code>. Dispatch in <code>main</code>.</p>
+<h3 id="toolsoracletest_oraclepy-modify-module-level-test_-plain-assert"><code>tools/oracle/test_oracle.py</code> (MODIFY — module-level <code>test_*</code>, plain assert)</h3>
+<ul>
+<li><code>finding_to_events</code>: a 2-function finding (one with fidelity 0.58 → <code>ok</code>; one with score<br />
+<code>None</code> → <code>no-ground-truth</code>) maps to 2 events with the right command/inputs/outputs/status.</li>
+<li><code>_slug</code>: IDENT-safe — <code>cache.sha256Hex</code> → <code>oracle_cache_sha256Hex_&lt;sha12&gt;</code> (no <code>.</code>; matches<br />
+<code>^[A-Za-z_]\w*$</code>).</li>
+<li><code>render_arp_block</code>: starts with <code>```vaked</code>, <code>arp_event &lt;slug&gt; {</code> (slug unquoted),<br />
+  contains <code>ts</code>/<code>command</code>/<code>status</code>; omits <code>inputs</code>/<code>outputs</code> lines when those are empty.</li>
+<li><code>_status</code> thresholds (None / &lt;0.4 / &gt;=0.4).</li>
+<li><code>emit</code>: appends blocks + writes the header once (second emit to the same file → no duplicate<br />
+  header).</li>
+<li><strong><code>vakedc check</code> dogfood test:</strong> <code>emit</code> a finding to a temp <code>.md</code>; extract the <code>``vaked blocks
+  (reuse</code>tools/arp/verify_log.extract<code>);</code>subprocess.run([sys.executable,"-m","vakedc","check",tmp], cwd=<repo root>)<code>→ returncode 0. (Mirrors</code>verify_log.py`; vakedc is in-repo, M3-safe.)</li>
+</ul>
+<h3 id="toolsoracletaskfileyml-modify"><code>tools/oracle/Taskfile.yml</code> (MODIFY)</h3>
+<p><code>arp:emit</code> (run <code>oracle arp-emit</code> on a finding JSON) + <code>arp:verify</code> (<code>python3 tools/arp/
+verify_log.py docs/oracle/arp-trace.md</code>) targets.</p>
+<h3 id="docs">Docs</h3>
+<p><code>docs/oracle/v0.md</code> — an "ARP-emission (slice 4b · thread 3)" section (the dogfood-loop close +<br />
+the lane boundary). <code>.DEV.TODO</code> — thread 3 done; slice-4b complete.</p>
+<h2 id="error-handling">Error handling</h2>
+<ul>
+<li>Missing/empty <code>refined_c</code> → <code>refined_sha:none</code>, slug uses <code>sha12("")</code> (stable). Missing fidelity<br />
+  → <code>no-ground-truth</code>. <code>emit</code> creates the file + header if absent. The CLI surfaces a bad finding<br />
+  JSON as a non-zero exit (deliberate command).</li>
+<li>Slugs are sanitized to valid IDENTs; the <code>vakedc check</code> test is the backstop that every emitted<br />
+  block is well-formed.</li>
+</ul>
+<h2 id="out-of-scope-own-cycles">Out of scope (own cycles)</h2>
+<ul>
+<li>Auto-emit from <code>oracle run</code>/<code>team</code> (kept a deliberate standalone command).</li>
+<li>Any interaction with the <strong>execution ARP IR</strong> (other dev's lane).</li>
+<li>A richer per-step (decompile/refine/fidelity) trace — per-function is the chosen granularity.</li>
+</ul>
+<h2 id="constraints">Constraints</h2>
+<p>Pure stdlib; M3-safe (<code>vakedc check</code> is pure Python, no compile); read-only against the<br />
+<code>arp_event</code> builtin schema; <strong>never touch the execution ARP IR / <code>exec-semantics</code>/<code>gocc</code> lanes</strong>;<br />
+emit to a dedicated <code>docs/oracle/arp-trace.md</code>; Snyk OFF.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-16-vaked-oracle-slice-4b-arp-emit-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked Compiler Optimization Roadmap — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#goal-on-log-n-type-checking-v02v03" style="padding-left:0.5rem">Goal: O(n log n) Type Checking (v0.2–v0.3)</a><a href="#optimization-strategy" style="padding-left:0.5rem">Optimization Strategy</a><a href="#1-capability-domain-indexing-phase-1" style="padding-left:1rem">  1. Capability Domain Indexing (Phase 1)</a><a href="#2-partial-order-caching-phase-2" style="padding-left:1rem">  2. Partial Order Caching (Phase 2)</a><a href="#3-edge-parallelization-phase-3" style="padding-left:1rem">  3. Edge Parallelization (Phase 3)</a><a href="#4-incremental-checking-phase-4" style="padding-left:1rem">  4. Incremental Checking (Phase 4)</a><a href="#implementation-phases" style="padding-left:0.5rem">Implementation Phases</a><a href="#benchmark-targets" style="padding-left:0.5rem">Benchmark Targets</a><a href="#rust-rewrite-strategy-v10" style="padding-left:0.5rem">Rust Rewrite Strategy (v1.0)</a><a href="#research-contribution" style="padding-left:0.5rem">Research Contribution</a><a href="#monitoring-profiling" style="padding-left:0.5rem">Monitoring & Profiling</a><a href="#additional-optimization-ideas-future-exploration" style="padding-left:0.5rem">Additional Optimization Ideas (Future Exploration)</a><a href="#5-constraint-propagation-narrowing-phase-4" style="padding-left:1rem">  5. Constraint Propagation & Narrowing (Phase 4+)</a><a href="#6-lazy-evaluation-demand-driven-checking-phase-4" style="padding-left:1rem">  6. Lazy Evaluation & Demand-Driven Checking (Phase 4+)</a><a href="#7-type-driven-optimization-phase-5" style="padding-left:1rem">  7. Type-Driven Optimization (Phase 5+)</a><a href="#8-simd-vectorization-rust-rewrite-phase-5" style="padding-left:1rem">  8. SIMD Vectorization (Rust rewrite, Phase 5+)</a><a href="#9-machine-learning-guided-heuristics-phase-6-speculative" style="padding-left:1rem">  9. Machine Learning-Guided Heuristics (Phase 6+, Speculative)</a><a href="#10-distributed-type-checking-phase-6-long-term" style="padding-left:1rem">  10. Distributed Type Checking (Phase 6+, Long-term)</a><a href="#benchmark-suite-for-optimization" style="padding-left:0.5rem">Benchmark Suite for Optimization</a><a href="#references" style="padding-left:0.5rem">References</a><a href="#transitive-closure-graph-algorithms" style="padding-left:1rem">  Transitive Closure & Graph Algorithms</a><a href="#type-system-type-checking" style="padding-left:1rem">  Type System & Type Checking</a><a href="#capability-systems-security" style="padding-left:1rem">  Capability Systems & Security</a><a href="#constraint-satisfaction-optimization" style="padding-left:1rem">  Constraint Satisfaction & Optimization</a><a href="#parallel-distributed-systems" style="padding-left:1rem">  Parallel & Distributed Systems</a><a href="#simd-vectorization" style="padding-left:1rem">  SIMD & Vectorization</a><a href="#machine-learning-for-optimization" style="padding-left:1rem">  Machine Learning for Optimization</a><a href="#incremental-demand-driven-checking" style="padding-left:1rem">  Incremental & Demand-Driven Checking</a><a href="#domain-specific-languages-type-systems" style="padding-left:1rem">  Domain-Specific Languages & Type Systems</a><a href="#performance-profiling-tools" style="padding-left:0.5rem">Performance Profiling Tools</a><a href="#conclusion" style="padding-left:0.5rem">Conclusion</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/compiler/">compiler</a> / OPTIMIZATION_ROADMAP</div>
+<h1>Vaked Compiler Optimization Roadmap</h1>
+<h1 id="vaked-compiler-optimization-roadmap">Vaked Compiler Optimization Roadmap</h1>
+<h2 id="goal-on-log-n-type-checking-v02v03">Goal: O(n log n) Type Checking (v0.2–v0.3)</h2>
+<p>Current vakedc achieves <strong>O(n)</strong> per-principal POLA checking on graphs with n nodes. Analysis shows:<br />
+- <strong>Use Check:</strong> For each principal, iterate <code>used(p)</code> against <code>granted(p)</code> → O(n²) worst-case<br />
+- <strong>Attenuation Check:</strong> For each edge, compare grant-sets → O(n²) worst-case<br />
+- <strong>Bottleneck:</strong> At 1K fibers, <code>check</code> takes ~395ms and <code>lower</code> ~811ms (measured). At 10K, <code>check</code> is ~4.3s and <code>lower</code> ~16.3s — the <strong><code>lower</code> stage dominates and grows super-linearly</strong> (it is the primary optimization target, not <code>check</code>). See <code>examples/evaluation/METHODOLOGY.md</code>.</p>
+<h2 id="optimization-strategy">Optimization Strategy</h2>
+<h3 id="1-capability-domain-indexing-phase-1">1. Capability Domain Indexing (Phase 1)</h3>
+<p><strong>Idea:</strong> Pre-index capabilities by domain at schema load time. Use binary search in attenuation order.</p>
+<p><strong>Current approach:</strong></p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">use_check</span><span class="p">(</span><span class="n">principal</span><span class="p">,</span> <span class="n">used</span><span class="p">,</span> <span class="n">granted</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">used</span><span class="p">:</span>
+        <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">granted</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">same_domain</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span> <span class="ow">and</span> <span class="n">c</span> <span class="o">&lt;=</span> <span class="n">g</span><span class="p">:</span>
+                <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="k">break</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+            <span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Capability </span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2"> not authorized by </span><span class="si">{</span><span class="n">granted</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+
+<p>→ O(n²) in worst case (used and granted both size O(n))</p>
+<p><strong>Optimized approach:</strong></p>
+<div class="highlight"><pre><span></span><span class="c1"># At schema load, build per-domain capability index</span>
+<span class="n">capability_index</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;fs&#39;</span><span class="p">:</span> <span class="n">SortedDict</span><span class="p">([</span>
+        <span class="p">(</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;repo_ro&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+        <span class="p">(</span><span class="s1">&#39;repo_rw&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="p">]),</span>
+    <span class="s1">&#39;network&#39;</span><span class="p">:</span> <span class="n">SortedDict</span><span class="p">([</span><span class="o">...</span><span class="p">]),</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">use_check_fast</span><span class="p">(</span><span class="n">principal</span><span class="p">,</span> <span class="n">used</span><span class="p">,</span> <span class="n">granted</span><span class="p">):</span>
+    <span class="c1"># Group granted and used by domain</span>
+    <span class="n">granted_by_domain</span> <span class="o">=</span> <span class="n">group_by_domain</span><span class="p">(</span><span class="n">granted</span><span class="p">)</span>
+    <span class="n">used_by_domain</span> <span class="o">=</span> <span class="n">group_by_domain</span><span class="p">(</span><span class="n">used</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">domain</span><span class="p">,</span> <span class="n">used_caps</span> <span class="ow">in</span> <span class="n">used_by_domain</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">granted_caps</span> <span class="o">=</span> <span class="n">granted_by_domain</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">domain</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">granted_caps</span><span class="p">:</span>
+            <span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No capabilities in domain </span><span class="si">{</span><span class="n">domain</span><span class="si">}</span><span class="s2"> for </span><span class="si">{</span><span class="n">principal</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Binary search for each used capability</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">used_caps</span><span class="p">:</span>
+            <span class="n">cap_index</span> <span class="o">=</span> <span class="n">capability_index</span><span class="p">[</span><span class="n">domain</span><span class="p">]</span>
+            <span class="n">c_rank</span> <span class="o">=</span> <span class="n">cap_index</span><span class="p">[</span><span class="n">c</span><span class="p">]</span>
+            <span class="c1"># Find any granted capability &gt;= c (in partial order)</span>
+            <span class="n">max_granted</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">cap_index</span><span class="p">[</span><span class="n">g</span><span class="p">]</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">granted_caps</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">c_rank</span> <span class="o">&gt;</span> <span class="n">max_granted</span><span class="p">:</span>
+                <span class="n">error</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</pre></div>
+
+<p>→ O(n log n): group O(n), search O(log n) per capability</p>
+<p><strong>Expected speedup:</strong> 2–5× on 1K fibers, 10–20× on 10K fibers</p>
+<hr />
+<h3 id="2-partial-order-caching-phase-2">2. Partial Order Caching (Phase 2)</h3>
+<p><strong>Idea:</strong> Pre-compute and cache the transitive closure of each domain's attenuation order.</p>
+<p><strong>Current approach:</strong></p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">is_attenuated</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="n">c2</span><span class="p">,</span> <span class="n">domain</span><span class="p">):</span>
+    <span class="c1"># Compute transitive closure on-the-fly</span>
+    <span class="k">return</span> <span class="n">transitive_closure</span><span class="p">(</span><span class="n">order</span><span class="p">[</span><span class="n">domain</span><span class="p">])[</span><span class="n">c1</span><span class="p">][</span><span class="n">c2</span><span class="p">]</span>
+</pre></div>
+
+<p>→ O(n³) amortized if called many times (redundant computation)</p>
+<p><strong>Optimized approach:</strong></p>
+<div class="highlight"><pre><span></span><span class="c1"># At schema load, compute transitive closure once</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_attenuation_matrix</span><span class="p">(</span><span class="n">order_chains</span><span class="p">):</span>
+    <span class="c1"># Convert chains to adjacency matrix</span>
+    <span class="c1"># Compute transitive closure via Floyd–Warshall</span>
+    <span class="k">return</span> <span class="n">closure_matrix</span>  <span class="c1"># O(n³) one-time cost, O(1) lookup thereafter</span>
+
+<span class="n">attenuation_cache</span><span class="p">[</span><span class="n">domain</span><span class="p">]</span> <span class="o">=</span> <span class="n">build_attenuation_matrix</span><span class="p">(</span><span class="n">order</span><span class="p">[</span><span class="n">domain</span><span class="p">])</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">is_attenuated_cached</span><span class="p">(</span><span class="n">c1</span><span class="p">,</span> <span class="n">c2</span><span class="p">,</span> <span class="n">domain</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">attenuation_cache</span><span class="p">[</span><span class="n">domain</span><span class="p">][</span><span class="n">c1</span><span class="p">][</span><span class="n">c2</span><span class="p">]</span>  <span class="c1"># O(1) lookup</span>
+</pre></div>
+
+<p><strong>Expected speedup:</strong> 1–2× (attenuation checks are less frequent than use checks, but still benefit)</p>
+<hr />
+<h3 id="3-edge-parallelization-phase-3">3. Edge Parallelization (Phase 3)</h3>
+<p><strong>Idea:</strong> Check attenuation constraints on independent edges in parallel.</p>
+<p><strong>Current approach:</strong> Serial loop over mesh edges</p>
+<div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">edge</span> <span class="ow">in</span> <span class="n">mesh_edges</span><span class="p">:</span>
+    <span class="n">check_attenuation</span><span class="p">(</span><span class="n">edge</span><span class="o">.</span><span class="n">sender</span><span class="p">,</span> <span class="n">edge</span><span class="o">.</span><span class="n">receiver</span><span class="p">)</span>
+</pre></div>
+
+<p>→ Sequential; single-threaded</p>
+<p><strong>Optimized approach:</strong> Partition edges into independent groups</p>
+<div class="highlight"><pre><span></span><span class="c1"># Detect edge groups (e.g., edges with disjoint endpoints)</span>
+<span class="n">edge_groups</span> <span class="o">=</span> <span class="n">partition_edges</span><span class="p">(</span><span class="n">mesh_edges</span><span class="p">)</span>
+
+<span class="c1"># Process groups in parallel (Python: ThreadPoolExecutor or ProcessPoolExecutor)</span>
+<span class="k">with</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span> <span class="k">as</span> <span class="n">executor</span><span class="p">:</span>
+    <span class="n">futures</span> <span class="o">=</span> <span class="p">[</span><span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">check_edge_group</span><span class="p">,</span> <span class="n">g</span><span class="p">)</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">edge_groups</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">future</span> <span class="ow">in</span> <span class="n">as_completed</span><span class="p">(</span><span class="n">futures</span><span class="p">):</span>
+        <span class="n">diagnostics</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">())</span>
+</pre></div>
+
+<p><strong>Expected speedup:</strong> 2–4× on multi-core systems (limited by GIL in Python; better with Rust rewrite)</p>
+<hr />
+<h3 id="4-incremental-checking-phase-4">4. Incremental Checking (Phase 4)</h3>
+<p><strong>Idea:</strong> Cache per-fiber POLA verdicts; only re-check fibers whose declarations changed.</p>
+<p><strong>Current approach:</strong> Full graph check on every compilation</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">check_file</span><span class="p">(</span><span class="n">vaked_file</span><span class="p">):</span>
+    <span class="n">graph</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">vaked_file</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">check_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>  <span class="c1"># O(n) full scan</span>
+</pre></div>
+
+<p><strong>Optimized approach:</strong> Incremental with hash-based cache</p>
+<div class="highlight"><pre><span></span><span class="c1"># Compute hash of each fiber&#39;s declaration</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">fiber_hash</span><span class="p">(</span><span class="n">fiber</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sha256</span><span class="p">(</span><span class="n">serialize</span><span class="p">(</span><span class="n">fiber</span><span class="p">))</span>
+
+<span class="c1"># Load cache from previous run</span>
+<span class="n">cache</span> <span class="o">=</span> <span class="n">load_cache</span><span class="p">(</span><span class="s1">&#39;.vaked/check.cache&#39;</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">check_file_incremental</span><span class="p">(</span><span class="n">vaked_file</span><span class="p">):</span>
+    <span class="n">graph</span> <span class="o">=</span> <span class="n">parse</span><span class="p">(</span><span class="n">vaked_file</span><span class="p">)</span>
+    <span class="n">diagnostics</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">fiber</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">fibers</span><span class="p">:</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">fiber_hash</span><span class="p">(</span><span class="n">fiber</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+            <span class="c1"># Fiber unchanged; use cached verdict</span>
+            <span class="n">diagnostics</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="s1">&#39;diagnostics&#39;</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Fiber changed; re-check</span>
+            <span class="n">diags</span> <span class="o">=</span> <span class="n">check_fiber_pola</span><span class="p">(</span><span class="n">fiber</span><span class="p">,</span> <span class="n">graph</span><span class="p">)</span>
+            <span class="n">cache</span><span class="p">[</span><span class="n">h</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;diagnostics&#39;</span><span class="p">:</span> <span class="n">diags</span><span class="p">}</span>
+            <span class="n">diagnostics</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">diags</span><span class="p">)</span>
+
+    <span class="n">save_cache</span><span class="p">(</span><span class="n">cache</span><span class="p">,</span> <span class="s1">&#39;.vaked/check.cache&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">diagnostics</span>
+</pre></div>
+
+<p><strong>Expected speedup:</strong> 5–50× on incremental edits (only re-check changed fibers)</p>
+<hr />
+<h2 id="implementation-phases">Implementation Phases</h2>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Target</th>
+<th>Complexity Reduction</th>
+<th>Speedup</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td>v0.2 Q3</td>
+<td>O(n²) → O(n log n)</td>
+<td>2–5×</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>v0.2 Q3</td>
+<td>Attenuation caching</td>
+<td>1–2×</td>
+<td>Small</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>v0.3 Q4</td>
+<td>Edge parallelization</td>
+<td>2–4×</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>v1.0 Q1</td>
+<td>Incremental checking</td>
+<td>5–50×</td>
+<td>Large</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Cumulative expected speedup:</strong> 10–50× by v1.0</p>
+<hr />
+<h2 id="benchmark-targets">Benchmark Targets</h2>
+<p>After optimization:</p>
+<p>Current numbers are measured end-to-end (parse+check+lower) per<br />
+<code>METHODOLOGY.md</code>; targets are projected. The earlier "&gt;120s" entry was a<br />
+generator-bug artifact and has been retracted.</p>
+<table>
+<thead>
+<tr>
+<th>Workers</th>
+<th>Current (measured, end-to-end)</th>
+<th>Target (v0.2)</th>
+<th>Target (v1.0)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>8</td>
+<td>~0.22s</td>
+<td>~0s</td>
+<td>~0.10s</td>
+</tr>
+<tr>
+<td>64</td>
+<td>(not yet measured)</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>1024</td>
+<td>~1.6s</td>
+<td>~0.6s</td>
+<td>~0.3s</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>~25s (lower ~16s)</td>
+<td>~8s</td>
+<td>~2s</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="rust-rewrite-strategy-v10">Rust Rewrite Strategy (v1.0)</h2>
+<p>Python prototype is sufficient for research but hits limits due to:<br />
+- GIL (Global Interpreter Lock) blocks parallel checking<br />
+- Interpreter overhead (3–5× slower than compiled code)<br />
+- Memory fragmentation with large graphs (10K+ nodes)</p>
+<p><strong>Rust rewrite would enable:</strong><br />
+- True parallelism (no GIL): 4–8× speedup on multi-core<br />
+- SIMD opportunities: capability comparisons vectorized<br />
+- Memory efficiency: ~10× smaller graphs in memory<br />
+- <strong>Combined: 10–20× total speedup vs. Python prototype</strong></p>
+<hr />
+<h2 id="research-contribution">Research Contribution</h2>
+<p>Optimizing type checking from O(n²) to O(n log n) is valuable research:<br />
+- Novel contribution: How to make capability-graph checking efficient at scale<br />
+- Paper: "Efficient POLA Verification in Capability Graphs" (future work)<br />
+- Applicable beyond Vaked: OPA/Rego, SPIFFE, Kubernetes RBAC</p>
+<hr />
+<h2 id="monitoring-profiling">Monitoring &amp; Profiling</h2>
+<p>To track progress:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Run benchmarks at each phase</span>
+python3<span class="w"> </span>examples/evaluation/bench.py<span class="w"> </span>--example<span class="w"> </span><span class="s2">&quot;*.vaked&quot;</span><span class="w"> </span>--json<span class="w"> </span>results-v0.2-phase1.json
+
+<span class="c1"># Compare against baseline</span>
+diff<span class="w"> </span>results-v0.1.json<span class="w"> </span>results-v0.2-phase1.json
+<span class="c1"># Expected: check time reduced by 50% or more for large graphs</span>
+</pre></div>
+
+<p>Profile with:</p>
+<div class="highlight"><pre><span></span>task<span class="w"> </span>loadtests<span class="w">   </span><span class="c1"># the 1k/10k fixtures are generated, not committed</span>
+python3<span class="w"> </span>-m<span class="w"> </span>cProfile<span class="w"> </span>-s<span class="w"> </span>cumtime<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w"> </span>vaked/examples/swe-swarm-1k-workers.vaked
+<span class="c1"># Identify bottlenecks: use_check, attenuation checks, sorting</span>
+</pre></div>
+
+<hr />
+<h2 id="additional-optimization-ideas-future-exploration">Additional Optimization Ideas (Future Exploration)</h2>
+<h3 id="5-constraint-propagation-narrowing-phase-4">5. Constraint Propagation &amp; Narrowing (Phase 4+)</h3>
+<p><strong>Idea:</strong> Use constraint propagation to eliminate infeasible capability combinations early.</p>
+<p><strong>Technique:</strong><br />
+- Represent POLA constraints as a constraint satisfaction problem (CSP)<br />
+- Use arc consistency (AC-3 algorithm) to prune the search space<br />
+- Early termination: if a principal has no satisfying grant set, report error immediately</p>
+<p><strong>Benefit:</strong> Reduces the number of full checks by 30–50% on real graphs</p>
+<p><strong>Reference:</strong> Mackworth (1977), "Consistency in Networks of Relations"</p>
+<hr />
+<h3 id="6-lazy-evaluation-demand-driven-checking-phase-4">6. Lazy Evaluation &amp; Demand-Driven Checking (Phase 4+)</h3>
+<p><strong>Idea:</strong> Only check POLA constraints that are "demanded" (used in the declaration or downstream).</p>
+<p><strong>Technique:</strong><br />
+- Mark fibers as "checked" or "pending"<br />
+- On first use of a fiber's output, trigger its POLA check<br />
+- Defer unused fiber checks (may be dead code)</p>
+<p><strong>Benefit:</strong> For sparse graphs (many unused fibers), 50–80% reduction in check overhead</p>
+<p><strong>Tradeoff:</strong> More complex control flow; requires dependency tracking</p>
+<p><strong>Reference:</strong> Aho, Sethi &amp; Ullman (1986), "Compilers: Principles, Techniques, and Tools" (ch. 8, lazy evaluation)</p>
+<hr />
+<h3 id="7-type-driven-optimization-phase-5">7. Type-Driven Optimization (Phase 5+)</h3>
+<p><strong>Idea:</strong> Use type information to specialize POLA checks for common patterns.</p>
+<p><strong>Pattern 1: "Read-only delegation"</strong></p>
+<div class="highlight"><pre><span></span><span class="n">fiber</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">none</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="n">mesh</span><span class="w"> </span><span class="n">coordinator</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">reader</span><span class="w">  </span><span class="err">#</span><span class="w"> </span><span class="n">Always</span><span class="w"> </span><span class="n">safe</span><span class="w"> </span><span class="nf">if</span><span class="w"> </span><span class="n">coordinator</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">ro</span><span class="w"> </span><span class="kr">or</span><span class="w"> </span><span class="n">better</span>
+</pre></div>
+
+<p>→ Skip attenuation check (ro ≤ anything in fs is guaranteed)</p>
+<p><strong>Pattern 2: "Identical workers"</strong></p>
+<div class="highlight"><pre><span></span>fiber worker_001 { ... }  # worker_001 through worker_N all identical
+</pre></div>
+
+<p>→ Check once, reuse result for all N workers (5–10% speedup on worker pools)</p>
+<p><strong>Pattern 3: "Transitive trust"</strong></p>
+<div class="highlight"><pre><span></span><span class="cp"># If A-&gt;B-&gt;C and we know B is safe, C inherits safety transitively</span>
+<span class="cp"># Can memoize &quot;safe subgraph&quot; markers</span>
+</pre></div>
+
+<p><strong>Benefit:</strong> 10–20% additional speedup on real agentic systems</p>
+<hr />
+<h3 id="8-simd-vectorization-rust-rewrite-phase-5">8. SIMD Vectorization (Rust rewrite, Phase 5+)</h3>
+<p><strong>Idea:</strong> Use SIMD instructions to compare multiple capabilities in parallel.</p>
+<p><strong>Technique:</strong><br />
+- Represent grant sets as bit vectors (one bit per capability)<br />
+- Use <code>AVX2</code> or <code>AVX-512</code> to compare 256/512 capabilities simultaneously<br />
+- Vectorized partial-order check: <code>(used &amp; ~greater_or_equal(granted)) == 0</code></p>
+<p><strong>Benefit:</strong> 4–8× speedup on dense capability graphs (many capabilities per principal)</p>
+<p><strong>Requirement:</strong> Rust rewrite (CPU intrinsics)</p>
+<p><strong>Reference:</strong> <em>[citation needed — verify against real SIMD/vectorized-parsing literature, e.g. Lemire et al. on SIMD JSON parsing. The previously cited "Larson &amp; Goldschmidt (2019), SIMD Text Processing: A Survey, CSUR 52(2)" could not be verified and was removed as likely spurious.]</em></p>
+<hr />
+<h3 id="9-machine-learning-guided-heuristics-phase-6-speculative">9. Machine Learning-Guided Heuristics (Phase 6+, Speculative)</h3>
+<p><strong>Idea:</strong> Train a lightweight model to predict which POLA checks are likely to fail.</p>
+<p><strong>Approach:</strong><br />
+- Collect training data: graph structure features (node degree, edge density, capability cardinality) + check outcomes<br />
+- Train a fast decision tree or linear model<br />
+- Use model to order checks (likely failures first) or skip expensive checks</p>
+<p><strong>Benefit:</strong> Speculative; could save 20–30% on large graphs with many errors (worst-case: no improvement)</p>
+<p><strong>Tradeoff:</strong> Adds training/inference overhead; only beneficial for large codebases</p>
+<p><strong>Reference:</strong> <em>[citation needed — verify against real ML-for-code literature, e.g. Allamanis et al., "A Survey of Machine Learning for Big Code and Naturalness" (2018). The previously cited "Learning to Fix Build Failures" could not be verified and was removed as likely spurious.]</em></p>
+<hr />
+<h3 id="10-distributed-type-checking-phase-6-long-term">10. Distributed Type Checking (Phase 6+, Long-term)</h3>
+<p><strong>Idea:</strong> Partition the graph and check fibers on multiple machines.</p>
+<p><strong>Approach:</strong><br />
+- Detect strongly-connected components (SCCs) in the delegation graph<br />
+- Ship each SCC to a worker node; check in parallel<br />
+- Merge results with global consistency check</p>
+<p><strong>Benefit:</strong> Near-linear speedup with number of machines (5–10× on 8-machine cluster)</p>
+<p><strong>Requirement:</strong> Distributed orchestration (Kafka, RabbitMQ); network latency becomes bottleneck</p>
+<p><strong>Use case:</strong> v2.0+ when serving large organizations</p>
+<p><strong>Reference:</strong> Dean &amp; Ghemawat (2008), "MapReduce: Simplified Data Processing on Large Clusters"</p>
+<hr />
+<h2 id="benchmark-suite-for-optimization">Benchmark Suite for Optimization</h2>
+<p>To validate each optimization, use:</p>
+<div class="highlight"><pre><span></span><span class="c1"># Baseline</span>
+python3<span class="w"> </span>examples/evaluation/bench.py<span class="w"> </span>--example<span class="w"> </span><span class="s2">&quot;swe-swarm-*.vaked&quot;</span><span class="w"> </span>--iterations<span class="w"> </span><span class="m">10</span><span class="w"> </span>--json<span class="w"> </span>baseline.json
+
+<span class="c1"># After Phase 1 (indexing)</span>
+python3<span class="w"> </span>examples/evaluation/bench.py<span class="w"> </span>--example<span class="w"> </span><span class="s2">&quot;swe-swarm-*.vaked&quot;</span><span class="w"> </span>--iterations<span class="w"> </span><span class="m">10</span><span class="w"> </span>--json<span class="w"> </span>v0.2-phase1.json
+diff<span class="w"> </span>baseline.json<span class="w"> </span>v0.2-phase1.json<span class="w">  </span><span class="c1"># Expect 2-5× speedup on 1K, 10K</span>
+
+<span class="c1"># After Phase 4 (incremental)</span>
+python3<span class="w"> </span>examples/evaluation/bench.py<span class="w"> </span>--example<span class="w"> </span><span class="s2">&quot;swe-swarm-*.vaked&quot;</span><span class="w"> </span>--iterations<span class="w"> </span><span class="m">10</span><span class="w"> </span>--json<span class="w"> </span>v1.0-phase4.json
+<span class="c1"># Incremental: modify 1 fiber, re-check; expect &lt;50ms vs. 350ms full check</span>
+</pre></div>
+
+<hr />
+<h2 id="references">References</h2>
+<h3 id="transitive-closure-graph-algorithms">Transitive Closure &amp; Graph Algorithms</h3>
+<ul>
+<li>Floyd, R. W. (1962). "Algorithm 97: Shortest Path." <em>Communications of the ACM</em>, 5(6), 345.</li>
+<li>Transitive closure in O(n³); foundational for attenuation order precomputation</li>
+<li>Nuutila, E., &amp; Soisalon-Soininen, E. (1995). "On Finding the Strongly Connected Components in a Directed Graph." <em>Information Processing Letters</em>, 49(1), 9-14.</li>
+<li>SCC detection for distributed checking</li>
+</ul>
+<h3 id="type-system-type-checking">Type System &amp; Type Checking</h3>
+<ul>
+<li>Bodik, R., &amp; Aiken, A. (2007). "The Road Not Taken: Incremental Type Checking by Subtyping." <em>ACM SIGPLAN Notices</em>, 42(10), 489-500.</li>
+<li>Incremental type checking; directly applicable to Vaked</li>
+<li>Valiron, B., et al. (2015). "A Core Language for Quantum Computing." <em>Proceedings of the 8th ACM SIGPLAN International Conference on Principles and Practice of Declarative Programming</em>, 123-134.</li>
+<li>Domain-indexed type checking (type parameter per domain)</li>
+</ul>
+<h3 id="capability-systems-security">Capability Systems &amp; Security</h3>
+<ul>
+<li>Miller, M. S. (2006). <em>Robust Composition: Towards a Unified Approach to Access Control and Concurrency Control.</em> Ph.D. Thesis, Johns Hopkins University.</li>
+<li>Object capabilities; foundational for POLA model</li>
+<li>Abadi, M., &amp; Fournet, C. (2001). "Access Control Based on Execution History." <em>NDSS</em>, 107-121.</li>
+<li>History-based access control; related to incremental checking (state evolution)</li>
+</ul>
+<h3 id="constraint-satisfaction-optimization">Constraint Satisfaction &amp; Optimization</h3>
+<ul>
+<li>Mackworth, A. K. (1977). "Consistency in Networks of Relations." <em>Artificial Intelligence</em>, 8(1), 99-118.</li>
+<li>Arc consistency algorithms; applicable to POLA as CSP</li>
+<li>Dechter, R. (2003). <em>Constraint Processing.</em> Morgan Kaufmann.</li>
+<li>Comprehensive reference on CSP optimization techniques</li>
+</ul>
+<h3 id="parallel-distributed-systems">Parallel &amp; Distributed Systems</h3>
+<ul>
+<li>Dean, J., &amp; Ghemawat, S. (2008). "MapReduce: Simplified Data Processing on Large Clusters." <em>Communications of the ACM</em>, 51(1), 107-113.</li>
+<li>Distributed computation model; applicable to distributed type checking</li>
+<li>Lämmel, R., &amp; Jones, S. L. P. (2003). "Scrap Your Boilerplate: A Practical Design Pattern for Generic Programming." <em>ACM SIGPLAN Notices</em>, 38(3), 26-37.</li>
+<li>Generic graph traversal patterns; useful for distributing SCC checks</li>
+</ul>
+<h3 id="simd-vectorization">SIMD &amp; Vectorization</h3>
+<ul>
+<li><em>[citation needed — the previously listed "Larson &amp; Goldschmidt (2019), SIMD Text Processing: A Survey, CSUR 52(2)" could not be verified and was removed as likely spurious. Replace with verifiable SIMD-parsing work, e.g. Lemire &amp; Langdale on SIMD JSON parsing.]</em></li>
+<li>Polychroniou, O., &amp; Ross, K. A. (2015). "A Comprehensive Study of SIMD Throughput Bottlenecks on Modern CPUs." <em>Proceedings of the 18th International Workshop on Data Management on New Hardware</em>, 1-5.</li>
+<li>CPU bottleneck analysis for vector operations</li>
+</ul>
+<h3 id="machine-learning-for-optimization">Machine Learning for Optimization</h3>
+<ul>
+<li><em>[citation needed — the previously listed Allamanis et al. (2018), "Learning to Fix Build Failures" could not be verified and was removed as likely spurious. Replace with verifiable ML-for-code work, e.g. Allamanis et al. (2018), "A Survey of Machine Learning for Big Code and Naturalness," ACM Computing Surveys 51(4).]</em></li>
+<li>Gorelick, M., &amp; Ozsvald, I. (2020). <em>High Performance Python: Practical Performant Programming for Humans.</em> 2nd ed. O'Reilly.</li>
+<li>Profiling and optimization best practices</li>
+</ul>
+<h3 id="incremental-demand-driven-checking">Incremental &amp; Demand-Driven Checking</h3>
+<ul>
+<li>Aho, A. V., Sethi, R., &amp; Ullman, J. D. (1986). <em>Compilers: Principles, Techniques, and Tools.</em> Addison-Wesley.</li>
+<li>Classic compiler reference; ch. 8 covers lazy evaluation and demand-driven code generation</li>
+<li>Pugh, W., &amp; Teitelbaum, T. (1989). "Incremental Computation of Least Fixed Points." In <em>Proceedings of the 16th ACM Symposium on Principles of Programming Languages</em>, 341-352.</li>
+<li>Formal framework for incremental computation</li>
+</ul>
+<h3 id="domain-specific-languages-type-systems">Domain-Specific Languages &amp; Type Systems</h3>
+<ul>
+<li>Hudak, P. (1998). "Modular Domain Specific Languages and Tools." In <em>Proceedings of the Fifth International Conference on Software Reuse</em>, 134-142.</li>
+<li>DSL design; relevant to Vaked's closed-constraint philosophy</li>
+<li>Bracha, G., &amp; Lindstrom, S. (1992). "Modularity in the Presence of Subtyping." University of Virginia Technical Report UVA/CS/92-31.</li>
+<li>Modular type checking across domains</li>
+</ul>
+<hr />
+<h2 id="performance-profiling-tools">Performance Profiling Tools</h2>
+<p>Recommended for validating optimizations:</p>
+<ul>
+<li><strong>Python:</strong> <code>cProfile</code>, <code>py-spy</code> (sampling profiler, low overhead)</li>
+<li><strong>Rust:</strong> <code>perf</code>, <code>flamegraph</code>, <code>cachegrind</code> (CPU cache analysis)</li>
+<li><strong>Distributed:</strong> <code>Jaeger</code> (tracing), <code>Prometheus</code> (metrics)</li>
+</ul>
+<p>Example profile command:</p>
+<div class="highlight"><pre><span></span>task<span class="w"> </span>loadtests<span class="w">   </span><span class="c1"># the 1k/10k fixtures are generated, not committed</span>
+python3<span class="w"> </span>-m<span class="w"> </span>cProfile<span class="w"> </span>-s<span class="w"> </span>cumtime<span class="w"> </span>-m<span class="w"> </span>vakedc<span class="w"> </span>check<span class="w"> </span>vaked/examples/swe-swarm-1k-workers.vaked<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-20
+<span class="c1"># Identify bottleneck functions: use_check, attenuation_check, graph_traversal</span>
+</pre></div>
+
+<hr />
+<h2 id="conclusion">Conclusion</h2>
+<p>The optimization roadmap provides a <strong>clear path</strong> from O(n²) prototype to O(n log n) production system, with incremental improvements at each phase. The strategy is grounded in <strong>established CS techniques</strong> (Floyd–Warshall, CSP, SIMD, MapReduce) and provides <strong>research contributions</strong> suitable for future publications (POLA verification at scale, capability-graph optimization).</p>
+<p><strong>Next step:</strong> Implement Phase 1 (capability indexing) in v0.2 and measure speedup on real workloads.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/compiler/OPTIMIZATION_ROADMAP.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>otp.supervision — lowering `parallel` to a runnable OTP tree (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#purpose" style="padding-left:0.5rem">Purpose</a><a href="#artifacts" style="padding-left:0.5rem">Artifacts</a><a href="#strategy-mapping-closes-the-19-strategy-enum-semantics-item" style="padding-left:0.5rem">Strategy mapping (closes the #19 "strategy enum semantics" item)</a><a href="#child-ordering" style="padding-left:0.5rem">Child ordering</a><a href="#selection-the-golden-freeze-problem" style="padding-left:0.5rem">Selection & the golden-freeze problem</a><a href="#worker-contract-placeholder-v0" style="padding-left:0.5rem">Worker contract (placeholder, v0)</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#plan-implementation-order" style="padding-left:0.5rem">Plan (implementation order)</a><a href="#open" style="padding-left:0.5rem">Open</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-12-otp-supervision-lowering-design</div>
+<h1>otp.supervision — lowering `parallel` to a runnable OTP tree (design)</h1>
+<h1 id="otpsupervision-lowering-parallel-to-a-runnable-otp-tree-design">otp.supervision — lowering <code>parallel</code> to a runnable OTP tree (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-12). Track C of the 1.0 epic (#17), issue #19. Convention:<br />
+subsystem = design → plan → impl; this is the design. Implements the deferred<br />
+0012 §7 supervision mapping as a <strong>new registry row</strong> (<code>otp.supervision</code>);<br />
+the <code>systemd.units</code> slot stays deferred (host units depend on daemon<br />
+packaging, a separate concern).</p>
+<h2 id="purpose">Purpose</h2>
+<p>Make the <strong>parallel theory RUN</strong> (epic acceptance 1): a<br />
+<code>parallel { fibers … supervisor = otp }</code> group lowers to OTP supervision<br />
+source that the devshell's Erlang can compile and run, supervising one worker<br />
+per member. Until the Zig daemons exist, workers are placeholders; the tree,<br />
+its strategy, and its restart semantics are the real deliverable.</p>
+<h2 id="artifacts">Artifacts</h2>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>gen/otp/&lt;runtime_slug&gt;_sup.erl</code></td>
+<td>one supervisor module per runtime: child spec per member of each <code>parallel … supervisor = otp</code> group, in dependency order</td>
+</tr>
+<tr>
+<td><code>gen/otp/vaked_fiber_worker.erl</code></td>
+<td>the generic placeholder worker (gen_server): logs a heartbeat tick, carries <code>#{name, kind, config}</code>; later replaced by a port to the member's Zig daemon (<code>gen/zig/&lt;fiber&gt;.json</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><code>&lt;runtime_slug&gt;</code> = the runtime name lowered to a legal module atom<br />
+(<code>[a-z][a-z0-9_]*</code>: lowercase, non-alphanumerics → <code>_</code>, prefix <code>v</code> if needed)<br />
+— module name MUST match filename (OTP rule), so <code>"agent-field"</code> →<br />
+<code>agent_field_sup.erl</code>.</p>
+<h2 id="strategy-mapping-closes-the-19-strategy-enum-semantics-item">Strategy mapping (closes the #19 "strategy enum semantics" item)</h2>
+<table>
+<thead>
+<tr>
+<th>Vaked <code>strategy</code></th>
+<th>OTP <code>SupFlags.strategy</code></th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"supervised-dag"</code> — <strong>v0</strong></td>
+<td><code>one_for_one</code></td>
+<td>independent restarts. Blanket sibling cascades (<code>rest_for_one</code> over declaration order) would restart <em>unrelated</em> members — in <code>operator-field</code>, <code>mediaCompress</code> and <code>operatorMap</code> share no data-flow edge, yet a <code>mediaCompress</code> crash would bounce <code>operatorMap</code> purely by position. Downstream <em>consistency</em> is not the supervisor's blunt instrument anyway: it is RFC 0004's job — a restarted producer's consumers re-verify their anchors and pause as <code>stale_dependency</code> if actually affected.</td>
+</tr>
+<tr>
+<td><code>"supervised-dag"</code> — <strong>edge-aware follow-up</strong></td>
+<td><code>rest_for_one</code> <strong>only for components that are linear chains</strong> (each chain its own sub-supervisor, children in chain order). <strong>Branching components stay <code>one_for_one</code></strong>: a flat <code>rest_for_one</code> child list cannot express a DAG — with <code>A -&gt; B</code> and <code>A -&gt; C</code>, a <code>B</code> crash would restart <code>C</code> purely by position. Stock OTP strategies cannot say "restart exactly my descendants"; for general DAGs, eager descendant-restart is <strong>supervisord control-plane logic</strong> (it holds the RFC 0004 <code>DependencyIndex</code> and can compute the true descendant set), not a strategy flag</td>
+<td>the cascade is applied exactly where it is expressible (linear chains), and everywhere else the dependency layer — pausing or daemon-driven restart over the index — carries the semantics</td>
+</tr>
+<tr>
+<td>anything else (forward-compat)</td>
+<td><code>one_for_one</code></td>
+<td>independent restarts; no ordering claim</td>
+</tr>
+</tbody>
+</table>
+<p><code>SupFlags</code>: <code>intensity =&gt; 3, period =&gt; 10</code> (v0 defaults; a future <code>budget</code>/<code>runclass</code><br />
+hook may parameterize — runclass carries maxRestarts/window). Child specs: <code>restart =&gt; permanent, shutdown =&gt; 5000,
+type =&gt; worker</code>.</p>
+<h2 id="child-ordering">Child ordering</h2>
+<p>Child-list order is <strong>declaration order</strong> in v0 — purely for byte-determinism<br />
+of the emitted module; with <code>one_for_one</code> it carries <strong>no restart-coupling<br />
+claim</strong>. The edge-aware follow-up (0013 Pass-1 machinery reused over fiber<br />
+<code>input</code>/<code>output</code> edges; surfaces order after their stream producers) computes<br />
+the real chains, switches them to <code>rest_for_one</code>, and adds a checker WARN when<br />
+declaration order contradicts topo order.</p>
+<h2 id="selection-the-golden-freeze-problem">Selection &amp; the golden-freeze problem</h2>
+<p>Selected by presence of any <code>parallel</code> with <code>supervisor = otp</code> — which<br />
+includes <code>operator-field.vaked</code>, whose lowering output is the <strong>frozen golden<br />
+fixture set</strong> (<code>vaked/examples/lowering/</code>, #15 parity contract: byte-exact<br />
+files + 15-entry manifest). Landing this emitter therefore REQUIRES a<br />
+deliberate golden extension, not a silent change:</p>
+<ol>
+<li>Existing fixture files stay <strong>byte-identical</strong> (the spine derives its gen/<br />
+   listing from fibers/indexes, not from the emitted-file set — verified; the<br />
+   new artifacts are additive <code>gen/otp/*</code> files + provenance entries).</li>
+<li>The fixture set gains <code>gen/otp/operator_field_sup.erl</code> +<br />
+<code>gen/otp/vaked_fiber_worker.erl</code>; the manifest grows 15 → 17 entries.</li>
+<li>The Zig-port differential harness (#15) inherits the new files as parity<br />
+   targets — coordinate the bump in the port branch (or land this before the<br />
+   port's lower phase starts; today the port is at phase 0/1, so the window<br />
+   is open).</li>
+</ol>
+<p>This is the one lowering change in the series that touches the goldens; it is<br />
+called out here so the bump is an explicit, reviewed act.</p>
+<h2 id="worker-contract-placeholder-v0">Worker contract (placeholder, v0)</h2>
+<p><code>vaked_fiber_worker</code> is a <code>gen_server</code>:</p>
+<ul>
+<li><code>start_link(#{name := Name, kind := fiber|surface, config := Path|none})</code></li>
+<li><code>init/1</code> logs <code>"vaked &lt;kind&gt; &lt;name&gt; up (placeholder; daemon port pending)"</code><br />
+  and schedules a 5s tick;</li>
+<li>each tick logs a heartbeat. No I/O, no eventd writes — appending step<br />
+  events to the hash-chained log from Erlang would re-implement the canonical<br />
+  hashing outside the oracle (a byte-contract risk); the runtime event path<br />
+  arrives with the supervisord daemon proper, which drives the eventd writer<br />
+  (single-writer discipline, RFC 0004).</li>
+</ul>
+<h2 id="verification">Verification</h2>
+<ul>
+<li>CI has no Erlang: the spec test asserts deterministic bytes + structure<br />
+  (one child per member, strategy mapping, module/filename agreement, header)<br />
+  — not compilation. A <code>task otp-smoke</code> devshell target (<code>erlc</code> both files,<br />
+<code>erl -eval "supervisor:start_link…"</code> + observe N heartbeats) is the manual<br />
+  runnability gate, and becomes the epic's acceptance-1 demo.</li>
+<li>Determinism: two lowers ⇒ byte-identical <code>.erl</code> files (same regime as every<br />
+  emitter).</li>
+<li>Goldens: existing fixture files byte-identical; new fixture files reviewed<br />
+  in the PR diff.</li>
+</ul>
+<h2 id="plan-implementation-order">Plan (implementation order)</h2>
+<ol>
+<li><code>_otp_slug</code> + <code>emit_otp_supervision</code> in <code>vakedc/lower.py</code>; registry row<br />
+<code>otp.supervision</code>; driver gating on <code>parallel</code> with <code>supervisor = otp</code>.</li>
+<li>Spec-test group (structure + determinism) + <code>EMITTER_REGISTRY</code> + 0012 §3.4<br />
+   row (§7 table gets a "superseded by otp.supervision for the OTP tree" note<br />
+   on <code>systemd.units</code>).</li>
+<li>Golden fixture extension (the explicit bump above).</li>
+<li><code>task otp-smoke</code> devshell target + run it once; record output in the PR.</li>
+<li>Follow-ups: edge-aware chains (<code>rest_for_one</code> for LINEAR chains only;<br />
+   branching DAGs keep <code>one_for_one</code> + index-driven restart in supervisord;<br />
+   topo order + checker WARN — 0013 Pass-1 reuse), budget→SupFlags,<br />
+   worker→Zig-daemon port (with the daemons, #15-era).</li>
+</ol>
+<h2 id="open">Open</h2>
+<ul>
+<li>Should the supervisor also own the eventd writer process as child 0 (the<br />
+  RFC 0004 single-writer)? Lean yes — decide at daemon design, not in the<br />
+  lowering.</li>
+<li>Multiple <code>parallel</code> groups per runtime: one supervisor module each<br />
+  (<code>&lt;slug&gt;_&lt;group&gt;_sup</code>) vs one root supervisor with nested groups — v0 has<br />
+  single-group examples; defer until a real two-group dogfood exists.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-12-otp-supervision-lowering-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

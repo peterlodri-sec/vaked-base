@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0008: Parallel Fibers, Indexes, and Native Surfaces — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#summary" style="padding-left:0.5rem">Summary</a><a href="#new-top-level-declarations" style="padding-left:0.5rem">New top-level declarations</a><a href="#concept-index" style="padding-left:0.5rem">Concept: index</a><a href="#concept-catalog" style="padding-left:0.5rem">Concept: catalog</a><a href="#concept-stream" style="padding-left:0.5rem">Concept: stream</a><a href="#concept-fiber" style="padding-left:0.5rem">Concept: fiber</a><a href="#concept-surface" style="padding-left:0.5rem">Concept: surface</a><a href="#concept-mesh" style="padding-left:0.5rem">Concept: mesh</a><a href="#parallel-block" style="padding-left:0.5rem">Parallel block</a><a href="#compiler-artifacts" style="padding-left:0.5rem">Compiler artifacts</a><a href="#v0-boundary" style="padding-left:0.5rem">v0 boundary</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0008-parallel-fibers-indexes-surfaces</div>
+<h1>0008: Parallel Fibers, Indexes, and Native Surfaces</h1>
+<h1 id="0008-parallel-fibers-indexes-and-native-surfaces">0008: Parallel Fibers, Indexes, and Native Surfaces</h1>
+<h2 id="status">Status</h2>
+<p>Seed draft. The primitives introduced here are implemented in grammar v0.2 —<br />
+see <a href="../../vaked/grammar/README.md"><code>vaked/grammar/README.md</code></a>.</p>
+<h2 id="summary">Summary</h2>
+<p>The language should support more than agents, hosts, and policies. Vaked should describe parallel capability graphs made of indexes, catalogs, streams, fibers, native surfaces, media pipelines, and mesh/device nodes.</p>
+<p>This extends the system from:</p>
+<div class="highlight"><pre><span></span>agent runtime declaration language
+</pre></div>
+
+<p>to:</p>
+<div class="highlight"><pre><span></span>capability graph language for native parallel systems
+</pre></div>
+
+<h2 id="new-top-level-declarations">New top-level declarations</h2>
+<div class="highlight"><pre><span></span>index
+catalog
+stream
+fiber
+surface
+mesh
+device
+mediaPipeline
+parallel
+</pre></div>
+
+<h2 id="concept-index">Concept: index</h2>
+<p>An <code>index</code> is a reproducible source of structured or semi-structured content.</p>
+<div class="highlight"><pre><span></span>index zigRefs {
+  source = [
+    github(&quot;Sobeston/zig.guide&quot;),
+    github(&quot;C-BJ/awesome-zig&quot;),
+    github(&quot;raylib-zig/raylib-zig&quot;),
+    github(&quot;zigimg/zigimg&quot;)
+  ]
+
+  normalize = crabcc.markdown
+  chunk = crabcc.semantic {
+    max_tokens = 1200
+    overlap = 120
+  }
+
+  emit = [catalog.jsonl, catalog.sqlite, nix.derivation]
+}
+</pre></div>
+
+<div class="highlight"><pre><span></span>index zigbeeFirmware {
+  source = raw.github(&quot;Koenkk/zigbee-OTA&quot;, &quot;index.json&quot;)
+  schema = schema.zigbeeOta
+  trust = pinned {
+    commit = &quot;&lt;commit&gt;&quot;
+    sha256 = &quot;&lt;sha256&gt;&quot;
+  }
+}
+</pre></div>
+
+<h2 id="concept-catalog">Concept: catalog</h2>
+<p>A <code>catalog</code> is a queryable materialization of an index.</p>
+<div class="highlight"><pre><span></span><span class="n">catalog</span><span class="w"> </span><span class="n">firmware</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">from</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">index</span><span class="o">.</span><span class="n">zigbeeFirmware</span>
+<span class="w">  </span><span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;manufacturer&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;image_type&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;file_version&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="n">emit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sqlite</span><span class="w"> </span><span class="s2">&quot;./var/firmware.db&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="concept-stream">Concept: stream</h2>
+<p>A <code>stream</code> is a typed runtime event flow.</p>
+<div class="highlight"><pre><span></span><span class="nx">stream</span><span class="w"> </span><span class="nx">ebpfEvents</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">source</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">agentGuardd</span><span class="p">.</span><span class="nx">ringbuf</span>
+<span class="w">  </span><span class="k">type</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="nx">Event</span><span class="p">.</span><span class="nx">Ebpf</span>
+<span class="w">  </span><span class="nx">retention</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;24h&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="concept-fiber">Concept: fiber</h2>
+<p>A <code>fiber</code> is a policy-bound execution lane with typed inputs and outputs.</p>
+<p>It is not necessarily a low-level coroutine. It is a language-level lane for parallel supervised work.</p>
+<div class="highlight"><pre><span></span>fiber mediaCompress {
+  engine = zigimg
+  input = stream.screenrec
+  output = artifacts.compressedMedia
+
+  policy {
+    strip_metadata = true
+    max_pixels = &quot;4K&quot;
+    formats = [&quot;png&quot;, &quot;webp&quot;]
+  }
+}
+</pre></div>
+
+<h2 id="concept-surface">Concept: surface</h2>
+<p>A <code>surface</code> is an operator-facing view or UI shell.</p>
+<div class="highlight"><pre><span></span>surface operatorMap {
+  mode = raylib
+  fps = 60
+
+  input = [
+    stream.ebpfEvents,
+    graph.workflow,
+    graph.agentfield
+  ]
+
+  views = [
+    &quot;network-flows&quot;,
+    &quot;workflow-dag&quot;,
+    &quot;filesystem-diff&quot;,
+    &quot;mesh-topology&quot;
+  ]
+}
+</pre></div>
+
+<h2 id="concept-mesh">Concept: mesh</h2>
+<p>A <code>mesh</code> models agent, process, tool, or device topology.</p>
+<div class="highlight"><pre><span></span><span class="n">mesh</span><span class="w"> </span><span class="n">agentfield</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">codex</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;worker&quot;</span>
+<span class="w">    </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="p">,</span><span class="w"> </span><span class="n">mcp</span><span class="p">.</span><span class="n">github_read</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">node</span><span class="w"> </span><span class="n">redteam</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">role</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;reviewer&quot;</span>
+<span class="w">    </span><span class="n">capabilities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">none</span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="n">route</span><span class="w"> </span><span class="n">codex</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">mcpBroker</span>
+<span class="w">  </span><span class="n">route</span><span class="w"> </span><span class="n">redteam</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">eventd</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="parallel-block">Parallel block</h2>
+<div class="highlight"><pre><span></span>parallel &quot;operator-runtime&quot; {
+  fibers = [
+    ebpfIngest,
+    otaIndex,
+    mediaCompress,
+    operatorMap
+  ]
+
+  strategy = &quot;supervised-dag&quot;
+  supervisor = otp
+
+  backpressure {
+    when stream.ebpfEvents.lag &gt; &quot;10s&quot; {
+      reduce surface.operatorMap.fps to 15
+    }
+  }
+}
+</pre></div>
+
+<h2 id="compiler-artifacts">Compiler artifacts</h2>
+<p>These declarations should be able to emit:</p>
+<div class="highlight"><pre><span></span>flake.nix
+NixOS modules
+systemd units
+Zig daemon configs
+CrabCC index derivations
+SQLite/JSONL catalog artifacts
+OTel stream mappings
+surface launcher configs
+policy manifests
+generated RUNTIME.md
+</pre></div>
+
+<p>How each declaration <em>lowers</em> to these artifacts — the emitter interface, the<br />
+Nix spine, the three concretely-specified exemplar mappings (generated docs, Zig<br />
+daemon config, CrabCC index + catalog), the deferred targets, and provenance —<br />
+is specified in <a href="./0012-lowering.md"><code>0012-lowering.md</code></a> (Goal 3).</p>
+<h2 id="v0-boundary">v0 boundary</h2>
+<p>v0 should define the graph model and support at least:</p>
+<ul>
+<li><code>index</code></li>
+<li><code>stream</code></li>
+<li><code>fiber</code></li>
+<li><code>surface</code></li>
+<li><code>parallel</code></li>
+</ul>
+<p>even if some targets are stubs.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0008-parallel-fibers-indexes-surfaces.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>0011: The Vaked Type System (Goal 2) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#scope-what-this-is-not" style="padding-left:1rem">  Scope (what this is NOT)</a><a href="#1-discipline-structural-typing-schema-contracts" style="padding-left:0.5rem">1. Discipline: structural typing + schema contracts</a><a href="#11-conformance" style="padding-left:1rem">  1.1 Conformance</a><a href="#12-defaults-and-elaboration" style="padding-left:1rem">  1.2 Defaults and elaboration</a><a href="#2-type-model" style="padding-left:0.5rem">2. Type model</a><a href="#21-scalars" style="padding-left:1rem">  2.1 Scalars</a><a href="#22-composite-types" style="padding-left:1rem">  2.2 Composite types</a><a href="#23-refs-and-domain-types" style="padding-left:1rem">  2.3 Refs and domain types</a><a href="#24-structural-matching-relation-" style="padding-left:1rem">  2.4 Structural matching relation (`◁`)</a><a href="#25-where-path-strings-come-from" style="padding-left:1rem">  2.5 Where `Path` strings come from</a><a href="#3-the-constraint-set-closed" style="padding-left:0.5rem">3. The constraint set (CLOSED)</a><a href="#31-oneof-v1-vn-" style="padding-left:1rem">  3.1 `oneof [ v1, …, vn ]`</a><a href="#32-ranges-n-n-n-n-in-lo-hi" style="padding-left:1rem">  3.2 Ranges: `>= n`, `<= n`, `> n`, `< n`, `in lo .. hi`</a><a href="#33-required-optional" style="padding-left:1rem">  3.3 `required` / `optional`</a><a href="#34-nonempty" style="padding-left:1rem">  3.4 `nonempty`</a><a href="#35-matches-regex" style="padding-left:1rem">  3.5 `matches /regex/`</a><a href="#36-default-v" style="padding-left:1rem">  3.6 `default = v`</a><a href="#37-refinement-well-formedness-summary" style="padding-left:1rem">  3.7 Refinement well-formedness summary</a><a href="#4-capabilities-typed-taxonomy-attenuation" style="padding-left:0.5rem">4. Capabilities: typed taxonomy + attenuation</a><a href="#41-capability-values-and-domains" style="padding-left:1rem">  4.1 Capability values and domains</a><a href="#42-the-attenuation-order-a-partial-order" style="padding-left:1rem">  4.2 The attenuation order (a partial order)</a><a href="#43-the-grant-set-of-a-node-fiber" style="padding-left:1rem">  4.3 The grant-set of a node / fiber</a><a href="#44-delegation-routing-only-attenuates" style="padding-left:1rem">  4.4 Delegation / routing only attenuates</a><a href="#45-informal-soundness-argument-for-the-pola-check" style="padding-left:1rem">  4.5 Informal soundness argument for the POLA check</a><a href="#5-generics" style="padding-left:0.5rem">5. Generics</a><a href="#51-consistency-flow-checking" style="padding-left:1rem">  5.1 Consistency (flow) checking</a><a href="#52-bounded-user-generics-no-higher-kinded-types" style="padding-left:1rem">  5.2 Bounded user generics; no higher-kinded types</a><a href="#6-the-checking-pipeline-eval-time-total-deterministic" style="padding-left:0.5rem">6. The checking pipeline (eval-time, total + deterministic)</a><a href="#61-stages" style="padding-left:1rem">  6.1 Stages</a><a href="#62-closedness-as-a-checker-invariant" style="padding-left:1rem">  6.2 Closedness as a checker invariant</a><a href="#63-determinism" style="padding-left:1rem">  6.3 Determinism</a><a href="#64-totality-termination-argument" style="padding-left:1rem">  6.4 Totality (termination) argument</a><a href="#65-errors-explainable-source-mapped" style="padding-left:1rem">  6.5 Errors: explainable + source-mapped</a><a href="#7-worked-example-end-to-end" style="padding-left:0.5rem">7. Worked example (end-to-end)</a><a href="#8-cross-references" style="padding-left:0.5rem">8. Cross-references</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0011-type-system</div>
+<h1>0011: The Vaked Type System (Goal 2)</h1>
+<h1 id="0011-the-vaked-type-system-goal-2">0011: The Vaked Type System (Goal 2)</h1>
+<h2 id="status">Status</h2>
+<p>Normative. This note defines the Vaked type system — the <em>discipline</em>, <em>type<br />
+model</em>, <em>constraint set</em>, <em>capability taxonomy</em>, <em>generics</em>, and <em>checking<br />
+pipeline</em> that turn a parsed Vaked file into a validated, ready-to-lower typed<br />
+semantic graph. It is the specification for the <strong>Goal 2</strong> checker.</p>
+<p>It is paired with two documents:</p>
+<ul>
+<li><strong>Surface syntax</strong> — <a href="../../vaked/grammar/vaked-v0-plus.ebnf"><code>vaked/grammar/vaked-v0-plus.ebnf</code></a><br />
+  (v0.3) fixes what is <em>writable</em>: <code>schema</code> field declarations with constraint<br />
+  refinements, and <code>capability</code> declarations. See<br />
+<a href="../../vaked/grammar/README.md"><code>vaked/grammar/README.md</code></a>.</li>
+<li><strong>Built-in catalog</strong> — <a href="../../vaked/schema/parallel-types.md"><code>vaked/schema/parallel-types.md</code></a><br />
+  is the normative built-in schema catalog (one schema per primitive kind) plus<br />
+  the built-in capability taxonomy. This note defines the <em>rules</em>; that catalog<br />
+  is the <em>data</em> the rules are applied to.</li>
+</ul>
+<p>It realizes manifesto principles<br />
+(<a href="./0001-language-manifesto.md"><code>0001-language-manifesto.md</code></a>) directly:<br />
+<em>Make capabilities explicit</em>, <em>Validate before generating</em>, <em>Explain<br />
+everything</em>, <em>Prefer structure over cleverness</em>, and <em>Keep evaluation<br />
+deterministic and side-effect-free</em>. The primitives it types are introduced in<br />
+<a href="./0008-parallel-fibers-indexes-surfaces.md"><code>0008-parallel-fibers-indexes-surfaces.md</code></a>.</p>
+<h3 id="scope-what-this-is-not">Scope (what this is NOT)</h3>
+<p>To keep the mantra intact (<em>Vaked declares. Nix materializes. Zig enforces.<br />
+eBPF testifies.</em>), the type system is deliberately bounded:</p>
+<ul>
+<li><strong>No lowering / codegen.</strong> Producing <code>flake.nix</code>, Zig configs, eBPF manifests,<br />
+  etc. is <strong>Goal 3</strong>. This note stops at "validated graph, ready to lower."</li>
+<li><strong>No runtime enforcement.</strong> Capability <em>attenuation</em> is checked at eval-time<br />
+  (POLA as a typing rule). Runtime membranes, revocation, and dynamic<br />
+  capability passing are the daemons' job (OTP/Zig/eBPF), explicitly <strong>out</strong>.</li>
+<li><strong>No general inference.</strong> Checking is structural and local. There is no<br />
+  Hindley–Milner-style unification beyond binding the explicit generic<br />
+  parameters described in §5.</li>
+<li><strong>No expression/predicate language.</strong> The constraint set (§3) is <strong>closed</strong>.<br />
+  Adding a user-defined predicate function would make checking Turing-equivalent<br />
+  and break totality; it is forbidden by design (see §6.2).</li>
+</ul>
+<hr />
+<h2 id="1-discipline-structural-typing-schema-contracts">1. Discipline: structural typing + schema contracts</h2>
+<p>Vaked is <strong>structurally typed</strong>: a value's type is determined by its shape<br />
+(scalars, lists, records, refs), never by a nominal declaration. There is no<br />
+subclassing and no nominal record identity.</p>
+<p>On top of structural typing, every <strong>kind</strong> (<code>runtime</code>, <code>index</code>, <code>fiber</code>,<br />
+<code>capability</code>, …) carries a <strong>schema</strong>: a record type plus a set of field<br />
+constraints. A schema is itself a value of the structural type "record type with<br />
+constraints," and users declare new schemas with the <code>schema</code> kind. Built-in<br />
+kinds have built-in schemas (the catalog in <code>parallel-types.md</code>); user <code>schema</code><br />
+declarations register additional named schemas that other declarations may<br />
+reference (e.g. an <code>index</code>'s <code>schema = schema.zigbeeOta</code>).</p>
+<p>A schema <code>S</code> has:</p>
+<ul>
+<li>a finite set of <strong>fields</strong>, each with a name, a <strong>type</strong> (§2), and a<br />
+  (possibly empty) set of <strong>refinements</strong> (§3);</li>
+<li>an <strong>openness</strong> flag: <em>closed</em> (default) or <em>open</em> (declared with a bare<br />
+<code>open</code> statement in the schema body).</li>
+</ul>
+<h3 id="11-conformance">1.1 Conformance</h3>
+<p>A block (record) <code>b</code> <strong>conforms</strong> to schema <code>S</code>, written <code>b ⊨ S</code>, iff <strong>all</strong> of:</p>
+<ol>
+<li><strong>Required fields present.</strong> Every field of <code>S</code> marked <code>required</code> (the<br />
+   default — see §3.3) has a binding in <code>b</code>.</li>
+<li><strong>Field well-typedness.</strong> For every field <code>f : T</code> of <code>S</code> that is bound in<br />
+<code>b</code>, the bound value <code>b.f</code> matches <code>T</code> structurally (§2.4).</li>
+<li><strong>Optionals optional.</strong> A field marked <code>optional</code> (or carrying a <code>default</code>)<br />
+   may be absent; if present it must satisfy 2 and 4.</li>
+<li><strong>Constraints hold.</strong> For every field bound in <code>b</code>, every refinement on that<br />
+   field holds for <code>b.f</code> (§3).</li>
+<li><strong>Unknown fields.</strong> If <code>S</code> is <em>closed</em>, every field name in <code>b</code> must be a<br />
+   declared field of <code>S</code> (unknown field ⇒ reject). If <code>S</code> is <em>open</em>, unknown<br />
+   fields are admitted and carry the <em>structural</em> type inferred from their<br />
+   value, but are otherwise unconstrained.</li>
+</ol>
+<p>Conformance is <strong>decidable</strong> and <strong>monotone</strong>: it inspects a finite record<br />
+against a finite schema with a finite, total constraint set. No fixpoint, no<br />
+backtracking search.</p>
+<h3 id="12-defaults-and-elaboration">1.2 Defaults and elaboration</h3>
+<p>A field with <code>default = v</code> that is absent in <code>b</code> is <em>elaborated</em> to carry value<br />
+<code>v</code> in the typed graph (so downstream lowering sees a total record). <code>default</code><br />
+does not relax typing: <code>v</code> must itself match the field type and satisfy the<br />
+field's other refinements, and this is checked once, on the schema, at load<br />
+(§3.6). Defaulting is a pure substitution; it introduces no evaluation.</p>
+<hr />
+<h2 id="2-type-model">2. Type model</h2>
+<h3 id="21-scalars">2.1 Scalars</h3>
+<p>The base scalar types are:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Values</th>
+<th>Literal form (grammar)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>String</code></td>
+<td>UTF-8 text</td>
+<td><code>string</code> (<code>"…"</code>, with <code>${ref}</code> interpolation)</td>
+</tr>
+<tr>
+<td><code>Int</code></td>
+<td>arbitrary-precision integer</td>
+<td><code>number</code> with no <code>.</code></td>
+</tr>
+<tr>
+<td><code>Float</code></td>
+<td>IEEE-754 double</td>
+<td><code>number</code> with a <code>.</code></td>
+</tr>
+<tr>
+<td><code>Bool</code></td>
+<td><code>true</code> / <code>false</code></td>
+<td><code>bool</code></td>
+</tr>
+<tr>
+<td><code>Path</code></td>
+<td>filesystem-relative path</td>
+<td><code>path</code> (<code>./…</code>) <strong>or</strong> a <code>String</code> literal used positionally where a path is expected (see §2.5)</td>
+</tr>
+<tr>
+<td><code>Duration</code></td>
+<td>time span, normalized to nanoseconds</td>
+<td><code>duration</code> (<code>24h</code>, <code>120ms</code>) <strong>or</strong> a <code>String</code> like <code>"24h"</code></td>
+</tr>
+<tr>
+<td><code>Bytes</code></td>
+<td>byte size, normalized to bytes</td>
+<td><code>bytes</code> (<code>2GB</code>) <strong>or</strong> a <code>String</code> like <code>"2GB"</code></td>
+</tr>
+<tr>
+<td><code>Null</code></td>
+<td>the single value <code>null</code></td>
+<td><code>"null"</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>Int</code> and <code>Float</code> are distinct; an <code>Int</code> literal does <strong>not</strong> match <code>Float</code> and<br />
+vice-versa, except that a field typed <code>Float</code> accepts an <code>Int</code> literal by the<br />
+widening rule in §2.4 (Int ◁ Float). <code>Duration</code> and <code>Bytes</code> have canonical<br />
+normalized representations (ns and bytes); two literals are equal iff their<br />
+normalized values are equal (<code>1000ms = 1s</code>).</p>
+<h3 id="22-composite-types">2.2 Composite types</h3>
+<ul>
+<li><strong><code>List&lt;T&gt;</code></strong> — a homogeneous, ordered sequence; every element matches <code>T</code>.<br />
+  The empty list <code>[]</code> matches <code>List&lt;T&gt;</code> for every <code>T</code>. (<code>nonempty</code>, §3.4,<br />
+  rejects <code>[]</code> where required.)</li>
+<li><strong>Structural records</strong> — <code>{ f1 : T1, …, fn : Tn }</code>, matched structurally per<br />
+  §1.1. Schemas are the <em>named, constrained</em> form of record types; bare<br />
+  structural records (e.g. a <code>policy { … }</code> body) are matched against the<br />
+  corresponding nested schema (§ catalog).</li>
+<li><strong>Unions</strong> — <code>A | B | …</code> (grammar <code>type = type_atom { "|" type_atom }</code>). A<br />
+  value matches a union iff it matches <strong>at least one</strong> arm. Union matching is<br />
+  by <em>trial</em>: the value is matched against each arm left-to-right; the first arm<br />
+  it matches wins (this is total — finite arms, each match decidable). Unions<br />
+  are <strong>untagged</strong> structurally but the checker records <em>which</em> arm matched for<br />
+  source-mapping and lowering.</li>
+</ul>
+<h3 id="23-refs-and-domain-types">2.3 Refs and domain types</h3>
+<ul>
+<li><strong>Refs.</strong> A <code>ref</code> (<code>stream.ebpfEvents</code>, <code>index.zigbeeFirmware</code>,<br />
+<code>catalog.jsonl</code>) denotes another declaration or a built-in emitter/target.<br />
+  Its type is the type of the referent: a reference to a <code>stream X</code> has type<br />
+<code>Stream&lt;T&gt;</code> for that stream's event type <code>T</code>; a reference to an <code>index X</code> has<br />
+  type <code>Index&lt;T&gt;</code>; etc. Refs to <em>built-in targets</em> (<code>nix.derivation</code>,<br />
+<code>catalog.jsonl</code>, <code>crabcc.markdown</code>, <code>otp</code>, <code>raylib</code>) resolve to built-in<br />
+  values with built-in types (<code>ArtifactTarget</code>, <code>Normalizer</code>, <code>Supervisor</code>,<br />
+<code>SurfaceMode</code>, …) enumerated in the catalog.</li>
+<li><strong>Domain types.</strong> The primitive kinds are the domain types of the system.<br />
+  Their parameterized signatures (the <em>type-level</em> view, distinct from the<br />
+  block schema in <code>parallel-types.md</code>) are:</li>
+</ul>
+<div class="highlight"><pre><span></span>Index&lt;T&gt;          Catalog&lt;T&gt;        Stream&lt;T&gt;
+  Fiber&lt;I, O&gt;       Surface           Mesh&lt;Node, Edge&gt;
+  Device            MediaPipeline     ParallelGroup
+  Engine            Capability        Schema&lt;T&gt;
+</pre></div>
+
+<p>These are the same names used in <code>parallel-types.md</code>. <code>Surface</code>, <code>Device</code>,<br />
+<code>MediaPipeline</code>, <code>ParallelGroup</code>, <code>Engine</code>, <code>Capability</code> are non-generic.</p>
+<h3 id="24-structural-matching-relation">2.4 Structural matching relation (<code>◁</code>)</h3>
+<p><code>v ◁ T</code> ("value <code>v</code> matches type <code>T</code>") is defined inductively and totally:</p>
+<ul>
+<li><strong>Scalar.</strong> <code>v ◁ Scalar</code> iff <code>v</code> is a literal of that scalar (with <code>Int ◁
+  Float</code> widening, and the string-form acceptances for <code>Path</code>/<code>Duration</code>/<code>Bytes</code><br />
+  in §2.1).</li>
+<li><strong>List.</strong> <code>v ◁ List&lt;T&gt;</code> iff <code>v</code> is a list and <code>∀ e ∈ v. e ◁ T</code>.</li>
+<li><strong>Record/Schema.</strong> <code>v ◁ S</code> iff <code>v ⊨ S</code> (§1.1).</li>
+<li><strong>Union.</strong> <code>v ◁ (A | B)</code> iff <code>v ◁ A ∨ v ◁ B</code>.</li>
+<li><strong>Ref.</strong> A ref <code>r</code> <em>matches</em> <code>T</code> iff <code>typeof(referent(r)) ◁: T</code>, where <code>◁:</code> is<br />
+  the <strong>generic-compatibility</strong> relation of §5 (e.g. a <code>ref</code> to <code>Index&lt;Doc&gt;</code><br />
+  matches the parameter type <code>Index&lt;T&gt;</code> by binding <code>T := Doc</code>).</li>
+<li><strong>Null.</strong> <code>null ◁ Null</code>, and <code>null ◁ T</code> only if <code>T</code> is <code>Null</code> or a union arm<br />
+  is <code>Null</code>. (There is no implicit nullability.)</li>
+</ul>
+<p><code>◁</code> is structural, finite, and decidable. No coercion happens except the two<br />
+explicit widenings (Int◁Float; scalar string-forms). The checker never executes<br />
+the value to decide a match.</p>
+<h3 id="25-where-path-strings-come-from">2.5 Where <code>Path</code> strings come from</h3>
+<p>Several built-ins are written as positional calls whose argument is a quoted<br />
+string used as a path (<code>sqlite("./var/firmware.db")</code>, <code>raw.github("repo",
+"file")</code>). The catalog gives such built-ins signatures (e.g.<br />
+<code>sqlite(p : Path) -&gt; ArtifactTarget</code>) and §2.1 lets a <code>String</code> literal match<br />
+<code>Path</code> positionally. This is the one place a <code>String</code> is accepted for <code>Path</code>; it<br />
+keeps the existing examples valid without a general <code>String &lt;: Path</code> subtyping<br />
+rule.</p>
+<hr />
+<h2 id="3-the-constraint-set-closed">3. The constraint set (CLOSED)</h2>
+<p>Refinements constrain a field beyond its type. The set is <strong>closed</strong>: exactly<br />
+the forms below, no more. Each is <strong>total</strong> (decidable in finite time with no<br />
+side effects) and <strong>monotone</strong> (adding a refinement can only shrink the set of<br />
+conforming values). Surface syntax is the grammar's <code>refinement</code> production.</p>
+<blockquote>
+<p><strong>Why closed.</strong> A user-extensible predicate language would let a constraint<br />
+embed arbitrary computation, making conformance undecidable in general and<br />
+defeating <em>Validate before generating</em>. Vaked therefore fixes the set. If a<br />
+real schema appears to need a predicate the set cannot express, that is a<br />
+<strong>language-design event</strong> — see §6.2 — not something the author works around.</p>
+</blockquote>
+<p>For each refinement, "applies to" lists the field types it is <em>well-formed</em> on;<br />
+applying it to any other field type is a <strong>schema error</strong> caught at load (§3.6).</p>
+<h3 id="31-oneof-v1-vn">3.1 <code>oneof [ v1, …, vn ]</code></h3>
+<p>The field value must be <strong>equal</strong> to one of the listed literals. Applies to:<br />
+any scalar type, and <code>List&lt;Scalar&gt;</code> (where it means "the whole list equals one<br />
+of the listed lists"). Each <code>vi</code> must itself match the field type (checked at<br />
+load). Equality is the normalized literal equality of §2.1. <code>n ≥ 1</code> required.</p>
+<h3 id="32-ranges-n-n-n-n-in-lo-hi">3.2 Ranges: <code>&gt;= n</code>, <code>&lt;= n</code>, <code>&gt; n</code>, <code>&lt; n</code>, <code>in lo .. hi</code></h3>
+<p>Numeric bounds. Applies to: <code>Int</code>, <code>Float</code>, <code>Duration</code>, <code>Bytes</code> (the latter two<br />
+compared on their normalized values; <code>n</code> may be written as the corresponding<br />
+literal, e.g. <code>&gt;= 0</code>, <code>in 0 .. 255</code>, <code>&lt;= 4GB</code> <em>(when the field is <code>Bytes</code>)</em>).<br />
+<code>in lo .. hi</code> is the closed interval <code>lo ≤ v ≤ hi</code> and requires <code>lo ≤ hi</code><br />
+(checked at load). Multiple bounds on one field conjoin (<code>&gt;= 0</code> and <code>&lt;= 255</code> is<br />
+the same constraint as <code>in 0 .. 255</code>).</p>
+<h3 id="33-required-optional">3.3 <code>required</code> / <code>optional</code></h3>
+<p>Presence. <strong><code>required</code> is the default</strong>: a field with neither marker and no<br />
+<code>default</code> is required. <code>optional</code> makes absence legal. <code>required</code> and <code>optional</code><br />
+on the same field is a schema error. A field with a <code>default</code> is implicitly<br />
+optional at the source level (it may be omitted) but total in the elaborated<br />
+graph (§1.2); writing <code>required default = v</code> is a schema error (contradiction).</p>
+<h3 id="34-nonempty">3.4 <code>nonempty</code></h3>
+<p>Applies to: <code>String</code>, <code>List&lt;T&gt;</code>, <code>Bytes</code>. Means length/size <code>&gt; 0</code> (a <code>String</code><br />
+with no characters, an empty <code>List</code>, or zero <code>Bytes</code> is rejected). On any other<br />
+type it is a schema error.</p>
+<h3 id="35-matches-regex">3.5 <code>matches /regex/</code></h3>
+<p>Applies to: <code>String</code> (and <code>Path</code>, treating the path textually). The value must<br />
+be fully matched by the regex. The regex dialect is <strong>fixed and bounded</strong> to<br />
+preserve totality and determinism:</p>
+<ul>
+<li>Anchored implicitly at both ends (the whole value must match; <code>^…$</code> may be<br />
+  written and are redundant).</li>
+<li>Allowed: literal characters, character classes <code>[...]</code>, <code>.</code>, alternation <code>|</code>,<br />
+  grouping <code>(...)</code>, and the quantifiers <code>?</code>, <code>*</code>, <code>+</code>, <code>{m}</code>, <code>{m,n}</code>.</li>
+<li><strong>Forbidden</strong>: backreferences (<code>\1</code>), lookaround (<code>(?=…)</code>, <code>(?&lt;…)</code>), and any<br />
+  feature whose matcher is not linear-time. The checker rejects a regex using a<br />
+  forbidden feature as a <strong>schema error</strong> at load.</li>
+</ul>
+<p>This dialect is a regular language ⇒ matching is <code>O(|regex| · |value|)</code>, total,<br />
+and deterministic. The regex is data, not a Vaked expression (it never sees a<br />
+<code>ref</code> or interpolation).</p>
+<h3 id="36-default-v">3.6 <code>default = v</code></h3>
+<p>Supplies a value when the field is absent (§1.2). <code>v</code> is a literal/value<br />
+expression with <strong>no refs and no interpolation</strong> (so defaulting needs no<br />
+resolution and stays pure). At <strong>load</strong> the checker verifies <code>v ◁ fieldType</code><br />
+and that <code>v</code> satisfies every other refinement on the field; a bad default is a<br />
+schema error, surfaced against the schema, before any block is checked.</p>
+<h3 id="37-refinement-well-formedness-summary">3.7 Refinement well-formedness summary</h3>
+<table>
+<thead>
+<tr>
+<th>Refinement</th>
+<th>Well-formed on</th>
+<th>Load-time checks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>oneof [..]</code></td>
+<td>scalar, <code>List&lt;Scalar&gt;</code></td>
+<td>each elem <code>◁</code> field type; <code>n ≥ 1</code></td>
+</tr>
+<tr>
+<td><code>&gt;= &lt;= &gt; &lt;</code></td>
+<td><code>Int Float Duration Bytes</code></td>
+<td>bound literal <code>◁</code> field type</td>
+</tr>
+<tr>
+<td><code>in lo..hi</code></td>
+<td><code>Int Float Duration Bytes</code></td>
+<td><code>lo ≤ hi</code>; both <code>◁</code> field type</td>
+</tr>
+<tr>
+<td><code>required</code></td>
+<td>any</td>
+<td>not combined with <code>optional</code>/<code>default</code></td>
+</tr>
+<tr>
+<td><code>optional</code></td>
+<td>any</td>
+<td>not combined with <code>required</code></td>
+</tr>
+<tr>
+<td><code>nonempty</code></td>
+<td><code>String List Bytes</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>matches /re/</code></td>
+<td><code>String Path</code></td>
+<td>regex in bounded dialect</td>
+</tr>
+<tr>
+<td><code>default = v</code></td>
+<td>any</td>
+<td><code>v ◁</code> field type ∧ <code>v</code> sat. other refinements; no refs</td>
+</tr>
+</tbody>
+</table>
+<p>Load-time ("schema") errors are reported against the schema declaration; per-<br />
+block conformance errors (§1.1) are reported against the offending block. Both<br />
+are source-mapped (§6.5).</p>
+<hr />
+<h2 id="4-capabilities-typed-taxonomy-attenuation">4. Capabilities: typed taxonomy + attenuation</h2>
+<h3 id="41-capability-values-and-domains">4.1 Capability values and domains</h3>
+<p>A <strong>capability</strong> is a value of type <code>Capability</code>, written <code>domain.grant</code> (the<br />
+existing <code>ref</code> form — e.g. <code>fs.repo_rw</code>, <code>network.none</code>, <code>mcp.github_read</code>).<br />
+<code>domain</code> is a capability <strong>domain</strong>; <code>grant</code> is one of that domain's declared<br />
+grants.</p>
+<p>A domain is declared with the <code>capability</code> kind:</p>
+<div class="highlight"><pre><span></span>capability fs {
+  grant none repo_ro repo_rw
+  order none &lt; repo_ro &lt; repo_rw
+}
+</pre></div>
+
+<p>The decl <code>name</code> is the domain. The body declares the domain's grants<br />
+(<code>grant_decl</code>, one or more) and exactly one <strong>attenuation order</strong> (<code>order_decl</code>).<br />
+The built-in domains (<code>fs</code>, <code>network</code>, <code>mcp</code>, <code>ebpf</code>, <code>process</code>) are defined in<br />
+<code>parallel-types.md</code>; users may declare further domains the same way.</p>
+<h3 id="42-the-attenuation-order-a-partial-order">4.2 The attenuation order (a partial order)</h3>
+<p>For each domain, <code>order</code> declares a relation over its grants by listing one or<br />
+more <strong>chains</strong>: <code>order none &lt; repo_ro &lt; repo_rw</code> (chains separated by <code>;</code>).<br />
+Read <code>a &lt; b</code> as <strong>"a is weaker than b"</strong> — <code>a</code> is the more attenuated (lesser)<br />
+capability.</p>
+<p>Let <code>≤</code> be the reflexive–transitive closure of the declared <code>&lt;</code> relation within<br />
+a domain. The checker requires <code>≤</code> to be a <strong>partial order</strong>, i.e.:</p>
+<ul>
+<li><strong>Reflexive</strong> — <code>a ≤ a</code> (by construction of the closure).</li>
+<li><strong>Transitive</strong> — <code>a ≤ b ∧ b ≤ c ⇒ a ≤ c</code> (by construction of the closure).</li>
+<li><strong>Antisymmetric</strong> — <code>a ≤ b ∧ b ≤ a ⇒ a = b</code>. Equivalently, the declared <code>&lt;</code><br />
+  relation is <strong>acyclic</strong>. A cycle (e.g. <code>order a &lt; b ; b &lt; a</code>) is a schema<br />
+  error reported at load.</li>
+</ul>
+<p>Grants in different domains are <strong>incomparable</strong> (<code>fs.repo_ro</code> and<br />
+<code>network.loopback</code> have no order relation). The order is therefore a partial<br />
+order over each domain's grants, and the system-wide capability order is the<br />
+disjoint union of the per-domain partial orders. Each domain has a least element<br />
+by convention (<code>none</code>, or the documented bottom in the catalog), but a least<br />
+element is not required for the relation to be a valid partial order.</p>
+<p>Well-formedness checked at load:</p>
+<ol>
+<li>Every grant named in <code>order</code> is declared by a <code>grant</code> statement (no<br />
+   dangling grant).</li>
+<li>The declared <code>&lt;</code> relation is acyclic (antisymmetry).</li>
+<li>Exactly one <code>order</code> statement per domain.</li>
+</ol>
+<h3 id="43-the-grant-set-of-a-node-fiber">4.3 The grant-set of a node / fiber</h3>
+<p>A node, fiber, or other principal may be <strong>granted</strong> a set of capabilities<br />
+(e.g. a mesh node's <code>capabilities = [fs.repo_rw, mcp.github_read]</code>). It may<br />
+<strong>use</strong> capabilities (the capabilities its referenced engines/streams/effects<br />
+require). The checker computes, for each principal:</p>
+<ul>
+<li><code>granted(p)</code> — the capability set written on <code>p</code>.</li>
+<li><code>used(p)</code> — the capabilities <code>p</code> exercises, gathered structurally from its<br />
+  body (engine requirements, stream sources, surface inputs, etc., as the<br />
+  catalog specifies which fields contribute).</li>
+</ul>
+<p><strong>Use check (POLA, local):</strong> for every principal <code>p</code>,</p>
+<div class="highlight"><pre><span></span>used(p) ⊑ granted(p)
+</pre></div>
+
+<p>where <code>c ⊑ G</code> ("<code>c</code> is authorized by grant-set <code>G</code>") holds iff there exists<br />
+<code>g ∈ G</code> in the <strong>same domain</strong> as <code>c</code> with <code>c ≤ g</code> (a stronger held grant<br />
+authorizes a weaker use). If <code>p</code> uses a capability in a domain it holds nothing<br />
+in, or uses a grant strictly above everything it holds, that is a<br />
+<strong>capability-use error</strong> (<code>E-CAP-USE</code>, severity <code>error</code>). In the mesh slice the<br />
+checker enforces, <code>used(p)</code> is the node's declared <code>needs</code> set; the dual<br />
+<em>over-grant</em> (held strictly above the declared need) is the advisory<br />
+<code>W-POLA-EXCESS</code> warning of 0026.</p>
+<h3 id="44-delegation-routing-only-attenuates">4.4 Delegation / routing only attenuates</h3>
+<p>Edges in a <code>mesh</code> (and any sender→receiver relation the catalog marks as a<br />
+<em>delegation</em>) move authority from a sender <code>s</code> to a receiver <code>r</code>. The rule is<br />
+<strong>monotone attenuation</strong>: a receiver's capabilities must be <code>≤</code> the sender's,<br />
+per domain.</p>
+<p>Formally, for a delegating edge <code>s -&gt; r</code>, for every grant <code>cr ∈ granted(r)</code>:</p>
+<div class="highlight"><pre><span></span>∃ cs ∈ granted(s) :  same_domain(cs, cr) ∧ cr ≤ cs
+</pre></div>
+
+<p>i.e. <strong><code>granted(r) ⊑ granted(s)</code></strong> under §4.3's <code>⊑</code>, lifted to sets. The<br />
+receiver may hold <em>less</em> authority (lower in the order) or <em>equal</em>, never more.<br />
+Delegating a capability the sender does not itself hold, or one strictly above<br />
+what the sender holds, is an <strong>attenuation error</strong>. This is POLA enforced as a<br />
+<em>typing rule</em>: authority only ever decreases along delegation paths.</p>
+<h3 id="45-informal-soundness-argument-for-the-pola-check">4.5 Informal soundness argument for the POLA check</h3>
+<p>The check is <em>intended to be</em> sound w.r.t. the intended semantics — "no principal<br />
+ends up able to exercise authority that was never transitively granted to it from<br />
+a strictly greater holder" — based on the following <strong>informal argument</strong>. This<br />
+argument is hand-written and <strong>not machine-checked</strong>; a Lean 4 mechanization is<br />
+deferred to <strong>RFC 0027</strong> (<a href="./0027-pola-formalization.md"><code>0027-pola-formalization.md</code></a>).<br />
+It also depends on the use-check (<code>E-CAP-USE</code>, §4.3) being implemented and<br />
+negative-tested (tracked as Risk 6 / <code>feat/cap-use-check</code>). The argument:</p>
+<ol>
+<li><code>≤</code> is a partial order (§4.2), so <code>⊑</code> is a well-defined preorder on grant<br />
+   sets (reflexive: <code>G ⊑ G</code>; transitive: <code>G1 ⊑ G2 ∧ G2 ⊑ G3 ⇒ G1 ⊑ G3</code>, since<br />
+<code>≤</code> is transitive within each domain).</li>
+<li>The use check (§4.3) guarantees every <em>exercised</em> capability is dominated by<br />
+   a <em>held</em> one.</li>
+<li>The delegation check (§4.4) guarantees <code>granted</code> only decreases along edges:<br />
+   if <code>s -&gt;* r</code> (a delegation path), then <code>granted(r) ⊑ granted(s)</code> by<br />
+   transitivity of <code>⊑</code>.</li>
+</ol>
+<p>Composing 2 and 3: any capability a principal can exercise is <code>≤</code> some grant it<br />
+holds, and any grant it holds is <code>≤</code> some grant held by every upstream<br />
+delegator. Hence authority along any path is non-increasing and bounded by the<br />
+root grant — the POLA invariant. (Cycles in the <em>mesh</em> are allowed structurally;<br />
+because <code>⊑</code> along a cycle forces all grant-sets on the cycle to be <code>⊑</code>-equal,<br />
+the check degenerates to equality on cycles, which is sound and still total.)</p>
+<p>None of the argument above is verified by a proof assistant: it is an informal,<br />
+hand-written argument. A machine-checked mechanization is planned in <strong>RFC 0027</strong><br />
+(<a href="./0027-pola-formalization.md"><code>0027-pola-formalization.md</code></a>), and the invariant<br />
+holds only if the use check <code>E-CAP-USE</code> (§4.3) is correctly implemented (Risk 6 /<br />
+<code>feat/cap-use-check</code>).</p>
+<p>Runtime <em>enforcement</em> of this invariant (membranes, revocation) is out of scope<br />
+(§Scope); the type system verifies the static authority assignment is<br />
+POLA-consistent before lowering.</p>
+<hr />
+<h2 id="5-generics">5. Generics</h2>
+<p><code>T</code> (and <code>I</code>, <code>O</code>, <code>Node</code>, <code>Edge</code>) are <strong>type parameters</strong> that thread a content<br />
+or message type through the domain types:</p>
+<ul>
+<li><code>Index&lt;T&gt;</code> / <code>Catalog&lt;T&gt;</code> — <code>T</code> is the item schema of the indexed/catalogued<br />
+  content.</li>
+<li><code>Stream&lt;T&gt;</code> — <code>T</code> is the event type (<code>Event.Ebpf</code>, <code>Media.Frame</code>, …).</li>
+<li><code>Fiber&lt;I, O&gt;</code> — <code>I</code> the input type, <code>O</code> the output type.</li>
+<li><code>Mesh&lt;Node, Edge&gt;</code> — <code>Node</code> the node record type, <code>Edge</code> the edge record type.</li>
+<li><code>Schema&lt;T&gt;</code> — a schema describing values of type <code>T</code>.</li>
+</ul>
+<h3 id="51-consistency-flow-checking">5.1 Consistency (flow) checking</h3>
+<p>Generic parameters are bound by <strong>structural unification at the point of use</strong>,<br />
+with no inference beyond it:</p>
+<ul>
+<li>When a value of type <code>Index&lt;Doc&gt;</code> flows into a position typed <code>Index&lt;T&gt;</code>, <code>T</code><br />
+  is bound to <code>Doc</code>. A second use that would bind <code>T</code> to a different type is a<br />
+<strong>generic-consistency error</strong>.</li>
+<li><code>catalog C { from = index.I }</code> requires <code>C : Catalog&lt;T&gt;</code> and <code>index.I :
+  Index&lt;T&gt;</code> for the <strong>same</strong> <code>T</code>. If the catalog declares its own item type<br />
+  (via <code>schema</code>) it must equal the index's <code>T</code>.</li>
+<li><code>fiber F { input = stream.S; output = … }</code> requires the stream's <code>T</code> to match<br />
+<code>F</code>'s <code>I</code>, and <code>F</code>'s <code>O</code> to match the declared <code>output</code> target's accepted<br />
+  type.</li>
+</ul>
+<p><code>◁:</code> (generic-compatibility, used in §2.4) is: <code>C1&lt;a..&gt; ◁: C2&lt;b..&gt;</code> iff <code>C1 =
+C2</code>, same arity, and each <code>ai ◁: bi</code> where a parameter position unifies<br />
+(binds a free parameter) or matches structurally (both ground). This is<br />
+first-order unification over a <strong>finite</strong> set of explicitly-written parameters<br />
+— it terminates and is deterministic.</p>
+<h3 id="52-bounded-user-generics-no-higher-kinded-types">5.2 Bounded user generics; no higher-kinded types</h3>
+<p>A user declaration may be generic via its <code>signature</code><br />
+(<code>engine zigDaemon(name : String, src : Path) -&gt; Engine</code>; or<br />
+<code>schema Doc(item : Schema&lt;T&gt;) -&gt; Schema&lt;T&gt;</code>). Parameters are <strong>bounded</strong> by<br />
+their written types and may be constrained by a kind, but:</p>
+<ul>
+<li><strong>No higher-kinded parameters</strong> — a parameter may not itself take type<br />
+  arguments (<code>F&lt;_&gt;</code> is not expressible). The grammar's <code>type_atom</code> only allows<br />
+<code>qualname [ "&lt;" type {…} "&gt;" ]</code>, i.e. application of a <em>named</em> constructor to<br />
+  types, never a <em>variable</em> constructor. This keeps unification first-order and<br />
+  decidable.</li>
+<li><strong>No recursion through type parameters</strong> that would create an infinite type;<br />
+  the elaboration graph (§6.1) is finite and acyclic in its type-formation<br />
+  edges, checked as part of termination (§6.4).</li>
+</ul>
+<hr />
+<h2 id="6-the-checking-pipeline-eval-time-total-deterministic">6. The checking pipeline (eval-time, total + deterministic)</h2>
+<h3 id="61-stages">6.1 Stages</h3>
+<p>Checking a Vaked file runs four stages. Each is a pure function of its input;<br />
+together they map source text to either a <strong>validated typed semantic graph</strong> or<br />
+a non-empty, source-mapped <strong>diagnostic set</strong>.</p>
+<ol>
+<li><strong>Parse.</strong> Source → AST per the v0.3 grammar. Lexical/syntactic errors are<br />
+   reported here with byte/line spans. (Parsing is the grammar's job; this note<br />
+   assumes a successful parse.)</li>
+<li><strong>Resolve.</strong> Resolve <code>use</code> imports (acyclically — an import cycle is an<br />
+   error) and every <code>ref</code>/<code>qualname</code> to a declaration or a built-in. Produces a<br />
+<em>resolved AST</em> in which every name points at exactly one binding. Unresolved<br />
+   ref ⇒ error; ambiguous binding ⇒ error.</li>
+<li><strong>Elaborate.</strong> Build the <strong>typed semantic graph</strong>: one node per declaration,<br />
+   each typed by its kind-schema (built-in from <code>parallel-types.md</code>, or a user<br />
+<code>schema</code>). Field values become typed sub-nodes; refs become typed edges;<br />
+   defaults are inserted (§1.2); union arms are selected (§2.2); generic<br />
+   parameters are bound (§5). The graph's nodes are the declarations; its edges<br />
+   are refs (data flow) and delegations (authority flow).</li>
+<li><strong>Check.</strong> Over the typed graph, run, in order:<br />
+   a. <strong>Schema well-formedness</strong> — every schema (built-in and user) is<br />
+      well-formed: refinements applied to legal field types, valid defaults,<br />
+      valid <code>oneof</code>/range/regex (§3.6); every capability order is a partial<br />
+      order (§4.2).<br />
+   b. <strong>Conformance</strong> — every declaration block conforms to its schema (§1.1),<br />
+      including nested records.<br />
+   c. <strong>Constraints</strong> — every field refinement holds (§3).<br />
+   d. <strong>Generics consistency</strong> — all parameter bindings are consistent (§5.1).<br />
+   e. <strong>Capability flow</strong> — the use check (§4.3) and the attenuation check<br />
+      (§4.4) pass for every principal and delegation edge.</li>
+</ol>
+<p>The check stage is <strong>collecting</strong>, not fail-fast: it accumulates <em>all</em><br />
+   diagnostics (subject to §6.5) so one run reports every problem.</p>
+<p>A file is <strong>valid</strong> iff stages 1–4 produce no diagnostics. A valid file's typed<br />
+semantic graph is the hand-off to <strong>Goal 3</strong> lowering. <em>Validation strictly<br />
+precedes generation</em> (manifesto: <em>Validate before generating</em>) — nothing is<br />
+lowered from an invalid graph.</p>
+<h3 id="62-closedness-as-a-checker-invariant">6.2 Closedness as a checker invariant</h3>
+<p>Because the constraint set (§3) and the capability vocabulary (domains/grants,<br />
+§4) are the <em>only</em> extension points, and neither admits arbitrary computation,<br />
+the checker has no interpreter for user code. There is no stage at which Vaked<br />
+<em>runs</em> a value. If a future requirement seems to need a predicate the closed set<br />
+cannot express (e.g. "field B must be ≥ field A"), the correct response is to<br />
+<strong>stop and propose a language change</strong> (a new closed refinement with defined,<br />
+total semantics), not to add an escape hatch. This is the boundary that keeps §6<br />
+total.</p>
+<h3 id="63-determinism">6.3 Determinism</h3>
+<p>Every stage is a deterministic function of (source files, built-in catalog):</p>
+<ul>
+<li>Parsing is deterministic (the grammar's alternation is ordered — first match<br />
+  wins — and the soft-keyword rule, grammar note 8, is unambiguous).</li>
+<li>Resolution depends only on the declaration set and import graph; name lookup<br />
+  is by a fixed scoping rule (lexical, then enclosing, then imported, then<br />
+  built-in), so it is order-independent and reproducible.</li>
+<li>Elaboration, conformance, constraints, generics, and capability checks are all<br />
+  structural folds over finite data with no clocks, no randomness, no filesystem<br />
+  reads beyond the already-resolved imports, no network. Diagnostic <em>ordering</em> is<br />
+  fixed (by source position, then a stable stage/rule key), so even the error<br />
+  output is byte-reproducible.</li>
+</ul>
+<p>Hence: same inputs ⇒ identical typed graph and identical diagnostics, on any<br />
+host. This is the eval-time half of <em>Keep evaluation deterministic and<br />
+side-effect-free</em>; the run-time half belongs to the generated artifacts.</p>
+<h3 id="64-totality-termination-argument">6.4 Totality (termination) argument</h3>
+<p>The checker terminates on every input:</p>
+<ol>
+<li><strong>Finite declaration graph.</strong> A file is a finite sequence of declarations;<br />
+   imports are resolved over an <strong>acyclic</strong> import graph (cycle ⇒ error in stage<br />
+   2), so the total declaration set is finite. Elaboration produces one node per<br />
+   declaration plus finitely many sub-nodes (one per field/element, and the AST<br />
+   is finite) ⇒ a finite graph.</li>
+<li><strong>No general recursion.</strong> There is no value-level recursion or evaluation<br />
+   (§6.2). Type formation is first-order (§5.2: no higher-kinded params), and the<br />
+   type-formation edges are checked acyclic, so generic binding/unification is<br />
+   over a finite, acyclic structure and terminates.</li>
+<li><strong>Bounded constraints.</strong> Each refinement is decided in time bounded by the<br />
+   size of the value (and, for <code>matches</code>, <code>|regex|·|value|</code> — linear, by the<br />
+   bounded regular dialect §3.5). The closed set has no recursive or<br />
+   fixpoint-defined constraint.</li>
+<li><strong>Bounded capability checks.</strong> <code>≤</code> is the transitive closure of a finite<br />
+   acyclic <code>&lt;</code> (computable once per domain); the use/attenuation checks visit<br />
+   each principal and each delegation edge a constant number of times.</li>
+</ol>
+<p>Each stage is therefore a terminating fold over finite data with bounded<br />
+per-element work. Composition of terminating stages terminates. ∎</p>
+<h3 id="65-errors-explainable-source-mapped">6.5 Errors: explainable + source-mapped</h3>
+<p>Every diagnostic is a structured, explainable record:</p>
+<div class="highlight"><pre><span></span>Diagnostic {
+  severity : error | warning
+  code     : stable identifier   # e.g. E-CONFORM-UNKNOWN-FIELD,
+                                  #      E-CONSTRAINT-RANGE,
+                                  #      E-CAP-ATTENUATION,
+                                  #      E-CAP-USE          (§4.3 use-check),
+                                  #      E-GENERIC-INCONSISTENT,
+                                  #      E-SCHEMA-BAD-DEFAULT,
+                                  #      E-CAP-ORDER-CYCLE,
+                                  #      E-REF-UNRESOLVED   (§6.1 stage 2)
+  span     : { file, byteStart, byteEnd, line, col }   # source map
+  message  : human-readable, names the schema/field/grant involved
+  expected : the rule that was violated (type, refinement, or order edge)
+  got      : the offending value or capability (rendered from the AST)
+  related  : [ span … ]          # e.g. the schema decl, the granting node,
+                                  #      the conflicting prior generic binding
+  fix?     : optional suggested edit (e.g. &quot;add field X&quot;, &quot;weaken to fs.repo_ro&quot;)
+}
+</pre></div>
+
+<p>Source-mapping is preserved end-to-end (manifesto: <em>Explain everything</em>,<br />
+<em>Source-mapped &amp; explainable</em>): elaboration tags every typed node and edge with<br />
+the span of the AST node it came from, so a check failure several stages<br />
+downstream still points at the exact source token. Because elaboration keeps<br />
+names and structure traceable (no anonymization), <code>vaked explain &lt;kind&gt; &lt;name&gt;</code><br />
+can render the typed node, its schema, its resolved refs, and its capability<br />
+sets directly from the graph.</p>
+<p>Representative diagnostics:</p>
+<ul>
+<li><em>Unknown field in closed schema.</em> <code>E-CONFORM-UNKNOWN-FIELD</code> at the field's<br />
+  span; <code>related</code> → the schema decl; <code>fix</code> → "declare the field or mark the<br />
+  schema <code>open</code>."</li>
+<li><em>Range violation.</em> <code>E-CONSTRAINT-RANGE</code>: <code>expected</code> = <code>in 0 .. 255</code>, <code>got</code> =<br />
+<code>300</code>, span on the literal.</li>
+<li><em>Over-grant on delegation.</em> <code>E-CAP-ATTENUATION</code>: receiver holds <code>fs.repo_rw</code><br />
+  but sender holds only <code>fs.repo_ro</code>; spans on both the edge and the two grant<br />
+  sites; <code>fix</code> → "weaken receiver to <code>fs.repo_ro</code> or raise sender."</li>
+<li><em>Generic inconsistency.</em> <code>E-GENERIC-INCONSISTENT</code>: <code>catalog.from</code> is<br />
+<code>Index&lt;Doc&gt;</code> but the catalog's item schema is <code>Firmware</code>; <code>related</code> → both<br />
+  binding sites.</li>
+</ul>
+<hr />
+<h2 id="7-worked-example-end-to-end">7. Worked example (end-to-end)</h2>
+<div class="highlight"><pre><span></span><span class="nx">schema</span><span class="w"> </span><span class="nx">zigbeeOta</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">field</span><span class="w"> </span><span class="nx">manufacturer</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nx">String</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">required</span><span class="w"> </span><span class="nx">nonempty</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">field</span><span class="w"> </span><span class="nx">image_type</span><span class="w">   </span><span class="p">:</span><span class="w"> </span><span class="nx">Int</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">required</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="mi">255</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">field</span><span class="w"> </span><span class="nx">file_version</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="nx">Int</span><span class="w">     </span><span class="p">{</span><span class="w"> </span><span class="nx">required</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="nx">capability</span><span class="w"> </span><span class="nx">fs</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">grant</span><span class="w"> </span><span class="nx">none</span><span class="w"> </span><span class="nx">repo_ro</span><span class="w"> </span><span class="nx">repo_rw</span>
+<span class="w">  </span><span class="nx">order</span><span class="w"> </span><span class="nx">none</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">repo_ro</span><span class="w"> </span><span class="p">&lt;</span><span class="w"> </span><span class="nx">repo_rw</span>
+<span class="p">}</span>
+
+<span class="nx">mesh</span><span class="w"> </span><span class="nx">agentfield</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">node</span><span class="w"> </span><span class="nx">codex</span><span class="w">   </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;worker&quot;</span><span class="w">   </span><span class="nx">capabilities</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="nx">fs</span><span class="p">.</span><span class="nx">repo_rw</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">node</span><span class="w"> </span><span class="nx">redteam</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;reviewer&quot;</span><span class="w"> </span><span class="nx">capabilities</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="nx">fs</span><span class="p">.</span><span class="nx">repo_ro</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nx">codex</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="nx">redteam</span><span class="w">            </span><span class="err">#</span><span class="w"> </span><span class="nx">OK</span><span class="p">:</span><span class="w"> </span><span class="nx">repo_ro</span><span class="w"> </span><span class="err">≤</span><span class="w"> </span><span class="nx">repo_rw</span><span class="w"> </span><span class="p">(</span><span class="nx">attenuation</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<ul>
+<li>The <code>schema</code> is well-formed: <code>nonempty</code> on <code>String</code>, <code>in 0..255</code>/<code>&gt;= 0</code> on<br />
+<code>Int</code> (§3.7). An <code>index</code> whose <code>schema = schema.zigbeeOta</code> then has its rows<br />
+  checked field-by-field (§1.1).</li>
+<li>The <code>capability fs</code> order <code>none &lt; repo_ro &lt; repo_rw</code> is acyclic ⇒ a partial<br />
+  order (§4.2). (This is a <em>minimal</em> <code>fs</code> for the example; the full built-in<br />
+<code>fs</code> domain — <code>none repo_ro repo_rw host_ro host_rw</code> with a branching order —<br />
+  is in <code>parallel-types.md</code>. The checking rules are identical regardless.)</li>
+<li>The edge <code>codex -&gt; redteam</code> delegates from a <code>repo_rw</code> holder to a <code>repo_ro</code><br />
+  holder; <code>repo_ro ≤ repo_rw</code>, so attenuation holds (§4.4). Reversing it<br />
+  (<code>redteam -&gt; codex</code>) would raise <code>E-CAP-ATTENUATION</code>.</li>
+</ul>
+<p>Runnable forms of this example, plus a deliberately-rejected counterpart, are in<br />
+<a href="../../vaked/examples/types/"><code>vaked/examples/types/</code></a>.</p>
+<hr />
+<h2 id="8-cross-references">8. Cross-references</h2>
+<ul>
+<li>Grammar (surface syntax, v0.3): <a href="../../vaked/grammar/vaked-v0-plus.ebnf"><code>vaked/grammar/vaked-v0-plus.ebnf</code></a>,<br />
+<a href="../../vaked/grammar/README.md"><code>vaked/grammar/README.md</code></a></li>
+<li>Built-in schema + capability catalog: <a href="../../vaked/schema/parallel-types.md"><code>vaked/schema/parallel-types.md</code></a></li>
+<li>Primitives &amp; graph model: <a href="./0008-parallel-fibers-indexes-surfaces.md"><code>0008-parallel-fibers-indexes-surfaces.md</code></a></li>
+<li>Principles: <a href="./0001-language-manifesto.md"><code>0001-language-manifesto.md</code></a></li>
+<li>Type-layer examples: <a href="../../vaked/examples/types/"><code>vaked/examples/types/</code></a></li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0011-type-system.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

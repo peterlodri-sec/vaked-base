@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Vaked grammar v0.2 — design — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#decisions-the-four-forks-minor-defaults" style="padding-left:0.5rem">Decisions (the four forks + minor defaults)</a><a href="#the-v02-grammar-normative-target" style="padding-left:0.5rem">The v0.2 grammar (normative target)</a><a href="#implementation-tasks-for-subagent-driven-execution" style="padding-left:0.5rem">Implementation tasks (for subagent-driven execution)</a><a href="#review-criteria-per-task" style="padding-left:0.5rem">Review criteria (per task)</a><a href="#deferred" style="padding-left:0.5rem">Deferred</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-09-vaked-grammar-v0.2-design</div>
+<h1>Vaked grammar v0.2 — design</h1>
+<h1 id="vaked-grammar-v02-design">Vaked grammar v0.2 — design</h1>
+<ul>
+<li><strong>Date:</strong> 2026-06-09</li>
+<li><strong>Status:</strong> Approved (brainstorm) → implementing via subagent-driven execution</li>
+<li><strong>Goal 1</strong> of the language session: harden <code>vaked/grammar/vaked-v0-plus.ebnf</code> so every primitive parses, with an example each. (Goal 2 = type-checking semantics; Goal 3 = lowering.)</li>
+</ul>
+<h2 id="decisions-the-four-forks-minor-defaults">Decisions (the four forks + minor defaults)</h2>
+<ol>
+<li><strong>Scope — parse types, defer checking.</strong> v0.2 parses type <em>syntax</em> (annotations, return types, generics <code>&lt;…&gt;</code>, unions <code>A|B</code>, parameterized decls) so the surface is stable and every current example parses; type <em>checking/inference</em> is Goal 2.</li>
+<li><strong>Expression model — uniform &amp; explicit.</strong> One applicative form <code>app = ref [ "(" args ")" ] [ record ]</code>. Calls always parenthesized; every <code>{ … }</code> is a record of <code>field = value</code>. Replaces the old <code>function_call</code>/<code>block_stmt</code>/<code>record</code> tangle. Normalize <code>sqlite "path"</code> → <code>sqlite("path")</code>.</li>
+<li><strong>Backpressure — deferred.</strong> <code>parallel</code> = <code>fibers</code>/<code>strategy</code>/<code>supervisor</code> only. No <code>when/reduce/to</code> rule sub-grammar in v0.2 (the 0008 backpressure example stays non-parseable until a later pass).</li>
+<li><strong>Graph — first-class reusable block.</strong> <code>node &lt;name&gt; { record }</code> + directed edges <code>a -&gt; b</code> (chains <code>a -&gt; b -&gt; c</code>, optional label <code>a -&gt; b : "role"</code>), usable in <code>mesh</code> / <code>workflow</code> / <code>parallel</code>.</li>
+</ol>
+<p><strong>Minor defaults (approved):</strong> <code>#</code> line comments · <code>"${ref}"</code> string interpolation · keep <code>inherit</code> · <code>@annotation</code> for docs/metadata · raw-Nix escape hatch = <code>nix("…literal nix…")</code>.</p>
+<h2 id="the-v02-grammar-normative-target">The v0.2 grammar (normative target)</h2>
+<div class="highlight"><pre><span></span><span class="k">file        </span><span class="o">=</span> <span class="p">{</span> <span class="k">item </span><span class="p">}</span> <span class="p">;</span>
+<span class="k">item        </span><span class="o">=</span> <span class="k">decl </span><span class="p">|</span> <span class="k">import </span><span class="p">;</span>
+<span class="k">import      </span><span class="o">=</span> <span class="s2">&quot;use&quot;</span> <span class="k">string </span><span class="p">;</span>
+
+<span class="k">decl        </span><span class="o">=</span> <span class="p">{</span> <span class="k">annotation </span><span class="p">}</span> <span class="k">kind name </span><span class="p">[</span> <span class="k">signature </span><span class="p">]</span> <span class="k">block </span><span class="p">;</span>
+<span class="k">name        </span><span class="o">=</span> <span class="k">ident </span><span class="p">|</span> <span class="k">string </span><span class="p">;</span>
+<span class="k">signature   </span><span class="o">=</span> <span class="s2">&quot;(&quot;</span> <span class="p">[</span> <span class="k">param </span><span class="p">{</span> <span class="s2">&quot;,&quot;</span> <span class="k">param </span><span class="p">}</span> <span class="p">]</span> <span class="s2">&quot;)&quot;</span> <span class="p">[</span> <span class="s2">&quot;-&gt;&quot;</span> <span class="k">type </span><span class="p">]</span> <span class="p">;</span>
+<span class="k">param       </span><span class="o">=</span> <span class="k">ident </span><span class="s2">&quot;:&quot;</span> <span class="k">type </span><span class="p">[</span> <span class="s2">&quot;=&quot;</span> <span class="k">expr </span><span class="p">]</span> <span class="p">;</span>
+<span class="k">kind        </span><span class="o">=</span> <span class="s2">&quot;runtime&quot;</span><span class="p">|</span><span class="s2">&quot;input&quot;</span><span class="p">|</span><span class="s2">&quot;engine&quot;</span><span class="p">|</span><span class="s2">&quot;host&quot;</span><span class="p">|</span><span class="s2">&quot;network&quot;</span><span class="p">|</span><span class="s2">&quot;filesystem&quot;</span><span class="p">|</span><span class="s2">&quot;mcp&quot;</span><span class="p">|</span><span class="s2">&quot;ebpf&quot;</span>
+            <span class="p">|</span> <span class="s2">&quot;budget&quot;</span><span class="p">|</span><span class="s2">&quot;observability&quot;</span><span class="p">|</span><span class="s2">&quot;runclass&quot;</span><span class="p">|</span><span class="s2">&quot;workflow&quot;</span><span class="p">|</span><span class="s2">&quot;index&quot;</span><span class="p">|</span><span class="s2">&quot;catalog&quot;</span><span class="p">|</span><span class="s2">&quot;stream&quot;</span>
+            <span class="p">|</span> <span class="s2">&quot;fiber&quot;</span><span class="p">|</span><span class="s2">&quot;surface&quot;</span><span class="p">|</span><span class="s2">&quot;mesh&quot;</span><span class="p">|</span><span class="s2">&quot;device&quot;</span><span class="p">|</span><span class="s2">&quot;mediaPipeline&quot;</span><span class="p">|</span><span class="s2">&quot;parallel&quot;</span><span class="p">|</span><span class="s2">&quot;schema&quot;</span> <span class="p">;</span>
+
+<span class="k">block       </span><span class="o">=</span> <span class="s2">&quot;{&quot;</span> <span class="p">{</span> <span class="k">stmt </span><span class="p">}</span> <span class="s2">&quot;}&quot;</span> <span class="p">;</span>
+<span class="k">stmt        </span><span class="o">=</span> <span class="k">assignment </span><span class="p">|</span> <span class="k">inherit_stmt </span><span class="p">|</span> <span class="k">edge </span><span class="p">|</span> <span class="k">node_decl </span><span class="p">|</span> <span class="k">decl </span><span class="p">|</span> <span class="k">app </span><span class="p">;</span>
+<span class="k">assignment  </span><span class="o">=</span> <span class="k">ident assign_op expr </span><span class="p">;</span>
+<span class="k">assign_op   </span><span class="o">=</span> <span class="s2">&quot;=&quot;</span> <span class="p">|</span> <span class="s2">&quot;?=&quot;</span> <span class="p">;</span>
+<span class="k">inherit_stmt</span><span class="o">=</span> <span class="s2">&quot;inherit&quot;</span> <span class="k">ident </span><span class="p">{</span> <span class="k">ident </span><span class="p">}</span> <span class="p">;</span>
+
+<span class="k">node_decl   </span><span class="o">=</span> <span class="s2">&quot;node&quot;</span> <span class="k">name block </span><span class="p">;</span>
+<span class="k">edge        </span><span class="o">=</span> <span class="k">ref </span><span class="s2">&quot;-&gt;&quot;</span> <span class="k">ref </span><span class="p">{</span> <span class="s2">&quot;-&gt;&quot;</span> <span class="k">ref </span><span class="p">}</span> <span class="p">[</span> <span class="s2">&quot;:&quot;</span> <span class="k">string </span><span class="p">]</span> <span class="p">;</span>
+
+<span class="k">expr        </span><span class="o">=</span> <span class="k">literal </span><span class="p">|</span> <span class="k">list </span><span class="p">|</span> <span class="k">record </span><span class="p">|</span> <span class="k">app </span><span class="p">;</span>
+<span class="k">app         </span><span class="o">=</span> <span class="k">ref </span><span class="p">[</span> <span class="s2">&quot;(&quot;</span> <span class="p">[</span> <span class="k">arg </span><span class="p">{</span> <span class="s2">&quot;,&quot;</span> <span class="k">arg </span><span class="p">}</span> <span class="p">]</span> <span class="s2">&quot;)&quot;</span> <span class="p">]</span> <span class="p">[</span> <span class="k">record </span><span class="p">]</span> <span class="p">;</span>
+<span class="k">arg         </span><span class="o">=</span> <span class="k">expr </span><span class="p">;</span>
+<span class="k">ref         </span><span class="o">=</span> <span class="k">ident </span><span class="p">{</span> <span class="s2">&quot;.&quot;</span> <span class="k">ident </span><span class="p">}</span> <span class="p">;</span>
+<span class="k">record      </span><span class="o">=</span> <span class="s2">&quot;{&quot;</span> <span class="p">{</span> <span class="k">assignment </span><span class="p">|</span> <span class="k">inherit_stmt </span><span class="p">}</span> <span class="s2">&quot;}&quot;</span> <span class="p">;</span>
+<span class="k">list        </span><span class="o">=</span> <span class="s2">&quot;[&quot;</span> <span class="p">[</span> <span class="k">expr </span><span class="p">{</span> <span class="s2">&quot;,&quot;</span> <span class="k">expr </span><span class="p">}</span> <span class="p">]</span> <span class="s2">&quot;]&quot;</span> <span class="p">;</span>
+<span class="k">literal     </span><span class="o">=</span> <span class="k">string </span><span class="p">|</span> <span class="k">number </span><span class="p">|</span> <span class="k">bool </span><span class="p">|</span> <span class="k">path </span><span class="p">|</span> <span class="k">duration </span><span class="p">|</span> <span class="k">bytes </span><span class="p">|</span> <span class="s2">&quot;null&quot;</span> <span class="p">;</span>
+
+<span class="k">type        </span><span class="o">=</span> <span class="k">type_atom </span><span class="p">{</span> <span class="s2">&quot;|&quot;</span> <span class="k">type_atom </span><span class="p">}</span> <span class="p">;</span>
+<span class="k">type_atom   </span><span class="o">=</span> <span class="k">qualname </span><span class="p">[</span> <span class="s2">&quot;&lt;&quot;</span> <span class="k">type </span><span class="p">{</span> <span class="s2">&quot;,&quot;</span> <span class="k">type </span><span class="p">}</span> <span class="s2">&quot;&gt;&quot;</span> <span class="p">]</span>
+            <span class="p">|</span> <span class="s2">&quot;(&quot;</span> <span class="p">[</span> <span class="k">type </span><span class="p">{</span> <span class="s2">&quot;,&quot;</span> <span class="k">type </span><span class="p">}</span> <span class="p">]</span> <span class="s2">&quot;)&quot;</span> <span class="s2">&quot;-&gt;&quot;</span> <span class="k">type </span><span class="p">;</span>
+<span class="k">qualname    </span><span class="o">=</span> <span class="k">ident </span><span class="p">{</span> <span class="s2">&quot;.&quot;</span> <span class="k">ident </span><span class="p">}</span> <span class="p">;</span>
+
+<span class="k">annotation  </span><span class="o">=</span> <span class="s2">&quot;@&quot;</span> <span class="k">ident </span><span class="p">[</span> <span class="s2">&quot;(&quot;</span> <span class="p">[</span> <span class="k">arg </span><span class="p">{</span> <span class="s2">&quot;,&quot;</span> <span class="k">arg </span><span class="p">}</span> <span class="p">]</span> <span class="s2">&quot;)&quot;</span> <span class="p">]</span> <span class="p">;</span>
+<span class="k">string      </span><span class="o">=</span> <span class="s1">&#39;&quot;&#39;</span> <span class="p">{</span> <span class="k">char </span><span class="p">|</span> <span class="k">interp </span><span class="p">}</span> <span class="s1">&#39;&quot;&#39;</span> <span class="p">;</span>
+<span class="k">interp      </span><span class="o">=</span> <span class="s2">&quot;${&quot;</span> <span class="k">ref </span><span class="s2">&quot;}&quot;</span> <span class="p">;</span>
+<span class="k">comment     </span><span class="o">=</span> <span class="s2">&quot;#&quot;</span> <span class="p">{</span> <span class="k">any </span><span class="p">}</span> <span class="k">eol </span><span class="p">;</span>
+<span class="k">ident       </span><span class="o">=</span> <span class="k">letter </span><span class="p">{</span> <span class="k">letter </span><span class="p">|</span> <span class="k">digit </span><span class="p">|</span> <span class="s2">&quot;_&quot;</span> <span class="p">|</span> <span class="s2">&quot;-&quot;</span> <span class="p">}</span> <span class="p">;</span>
+</pre></div>
+
+<h2 id="implementation-tasks-for-subagent-driven-execution">Implementation tasks (for subagent-driven execution)</h2>
+<ul>
+<li><strong>T1 — Grammar.</strong> Write <code>vaked/grammar/vaked-v0-plus.ebnf</code> as the v0.2 grammar above, with a header documenting the notation (mirror <code>protocol/hcplang/grammar.ebnf</code> style), the 4 decisions, and the deferrals. Self-contained: every RHS nonterminal defined, no dead rules.</li>
+<li><strong>T2 — Examples.</strong> One minimal valid-v0.2 example per primitive under <code>vaked/examples/primitives/</code> — <code>index</code>, <code>catalog</code>, <code>stream</code>, <code>fiber</code>, <code>surface</code>, <code>mesh</code> (with <code>node</code> + <code>-&gt;</code>), <code>device</code>, <code>mediaPipeline</code>, <code>parallel</code>. Each MUST derive from the T1 grammar. Also normalize <code>vaked/examples/operator-field.vaked</code> + <code>engines/zig.vaked</code> to v0.2 (<code>sqlite("./x")</code>, confirm <code>pinned { … }</code> / <code>zig.build { … }</code> parse).</li>
+<li><strong>T3 — Docs.</strong> <code>vaked/grammar/README.md</code>: explain v0.2, the type-syntax-parsed-not-checked note, and the deferrals; cross-link from <code>docs/language/0008-…</code> and <code>docs/language/README.md</code>.</li>
+</ul>
+<h2 id="review-criteria-per-task">Review criteria (per task)</h2>
+<p>Spec compliance (covers the grammar/decisions above, nothing extra) + quality (grammar self-consistency: all nonterminals defined, no dead rules; <strong>every example derives from the grammar</strong> — verify by hand-derivation or a from-EBNF parser, as in the RFC 0002 review).</p>
+<h2 id="deferred">Deferred</h2>
+<p>Backpressure <code>when/reduce/to</code> rules; type checking/inference (Goal 2); deep <code>device</code>/<code>mediaPipeline</code> field schemas; the lowering-to-artifacts story (Goal 3).</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-09-vaked-grammar-v0.2-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Deep-research report B — Multi-model author/reviewer coding loops: does a strong author + cheaper reviewer pay off? — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#question" style="padding-left:0.5rem">Question</a><a href="#method" style="padding-left:0.5rem">Method</a><a href="#findings" style="padding-left:0.5rem">Findings</a><a href="#1-a-separate-reviewercritic-measurably-improves-correctness" style="padding-left:1rem">  1. A separate reviewer/critic measurably improves correctness</a><a href="#2-cross-model-review-beats-self-review-by-large-margins" style="padding-left:1rem">  2. Cross-model review beats self-review — by large margins</a><a href="#3-the-reviewer-need-not-be-as-strong-as-the-author-with-one-caveat" style="padding-left:1rem">  3. The reviewer need NOT be as strong as the author — with one caveat</a><a href="#4-costquality-of-a-cheaper-stage-real-savings-sharp-caveats" style="padding-left:1rem">  4. Cost/quality of a cheaper stage — real savings, sharp caveats</a><a href="#5-fix-loops-bounded-retries-not-back-edges" style="padding-left:1rem">  5. Fix-loops: bounded retries, not back-edges</a><a href="#disagreements-caveats" style="padding-left:0.5rem">Disagreements / caveats</a><a href="#bottom-line-for-the-dogfood" style="padding-left:0.5rem">Bottom line for the dogfood</a><a href="#sources" style="padding-left:0.5rem">Sources</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/research/">research</a> / 2026-06-14-multimodel-author-reviewer-loops</div>
+<h1>Deep-research report B — Multi-model author/reviewer coding loops: does a strong author + cheaper reviewer pay off?</h1>
+<h1 id="deep-research-report-b-multi-model-authorreviewer-coding-loops-does-a-strong-author-cheaper-reviewer-pay-off">Deep-research report B — Multi-model author/reviewer coding loops: does a strong author + cheaper reviewer pay off?</h1>
+<p>Date: 2026-06-14 · Harness: <code>deep-research</code> (fan-out → fetch → adversarial verify → synthesize)<br />
+· Batch: PR-pipeline dogfood (<code>claude/vaked-pr-pipeline-dogfood-pdl4sk</code>)</p>
+<blockquote>
+<p><strong>Why this question.</strong> The dogfood example's <strong>workflow pr_loop</strong> is the<br />
+<em>ordering graph</em>: <code>collect → implement → review → publish → checkin</code>, with the<br />
+fix-loop modeled as <strong>retries on <code>implement</code></strong>, not a back-edge. The author is a<br />
+strong model (<code>claude-opus-4-8</code>); the reviewer is a cheaper one<br />
+(<code>gemini-3.1-flash-lite</code>, <code>fs.repo_ro</code>). This report asks whether that split is<br />
+empirically justified and whether "retries, not cycles" is the right shape.</p>
+</blockquote>
+<h2 id="question">Question</h2>
+<blockquote>
+<p>Heterogeneous multi-model agentic coding loops (2024–2026): does pairing a<br />
+strong "author" model with a separate (possibly cheaper) "reviewer/critic"<br />
+model measurably improve PR correctness? When does a cheaper model preserve<br />
+quality while cutting cost, and how should iterative fix-loops be modeled —<br />
+bounded retries vs. back-edges?</p>
+</blockquote>
+<h2 id="method">Method</h2>
+<p>Three search angles (author/reviewer correctness gains · model-routing cost/<br />
+quality · static DAG verification &amp; fix-loop modeling), each a parallel fan-out<br />
+of WebSearch + WebFetch over 4–6 authoritative sources (arXiv, SWE-bench work,<br />
+orchestrator docs), claims extracted as falsifiable statements, ranked by source<br />
+quality and corroboration, disagreements surfaced. Confidence: <strong>HIGH / MED /<br />
+LOW</strong> as in report A.</p>
+<h2 id="findings">Findings</h2>
+<h3 id="1-a-separate-reviewercritic-measurably-improves-correctness">1. A separate reviewer/critic measurably improves correctness</h3>
+<ul>
+<li><strong>[HIGH]</strong> OpenAI's <strong>CriticGPT</strong>: model critiques were preferred over human<br />
+  critiques 63% of the time on naturally-occurring LLM code errors, and &gt;80% on<br />
+  inserted bugs — a separately-tasked critic catches more than humans alone.<br />
+<em>arXiv:2407.00215 (2024-06).</em></li>
+<li><strong>[HIGH]</strong> Critic + human teams match the critic's bug-catch rate with <strong>fewer<br />
+  hallucinated bugs</strong> — i.e. the human's value shifts to filtering reviewer<br />
+  over-reach (false positives are a real, measurable risk). <em>arXiv:2407.00215.</em></li>
+<li><strong>[MED]</strong> Role-splitting alone (Manager/Researcher/Engineer/Reviewer) reported<br />
+<strong>72.2% on SWE-bench Verified vs ~65%</strong> single-agent at the same model class —<br />
+  ~+7 pts attributed to team structure. <em>dev.to "Agyn" (2026-03) — vendor-<br />
+  adjacent, not peer-reviewed; doesn't isolate a </em>different<em>-model reviewer.</em></li>
+<li><strong>[MED]</strong> AgentCoder (programmer + separate test-designer + executor):<br />
+<strong>79.9% pass@1 on HumanEval with GPT-3.5</strong> vs 57.3% base; 91.5% mean pass@1 with<br />
+  GPT-4. <em>arXiv:2312.13010 — roles often the same underlying model, so this shows<br />
+  role-separation value more than cross-model value.</em></li>
+</ul>
+<h3 id="2-cross-model-review-beats-self-review-by-large-margins">2. Cross-model review beats self-review — by large margins</h3>
+<ul>
+<li><strong>[HIGH]</strong> "Self-Correction Illusion": relabeling an error from the model's own<br />
+  context to an <em>external</em> role lifted correction rates by <strong>23–93 pp</strong> across 13<br />
+  model-domain tests (e.g. Llama-3.3-70B 0%→93%; significant in 10/13, p&lt;0.001) —<br />
+  models fix others' errors but miss identical errors in their own traces.<br />
+<em>arXiv:2606.05976 — reasoning/math tasks, not pure code.</em></li>
+<li><strong>[HIGH]</strong> Self-critique scores run systematically lower than cross-model<br />
+  critique (DeepSeek-R1 ~36% lower self-evaluation); single-agent self-review<br />
+  repeats original errors (the "homogenisation trap"). <em>arXiv:2502.19361.</em></li>
+<li><strong>[HIGH]</strong> Foundational caveat: intrinsic self-correction <em>without external<br />
+  feedback</em> often does <strong>not</strong> help and can degrade performance — the base case<br />
+  for using any external reviewer at all. <em>Huang et al., ICLR 2024,<br />
+  arXiv:2310.01798.</em></li>
+</ul>
+<blockquote>
+<p><strong>Maps to Vaked.</strong> The dogfood deliberately uses a <em>different family</em> for review<br />
+(<code>gemini-*</code> reviewing <code>opus-*</code> output). The literature's strongest, most<br />
+statistically-significant result directly backs "never self-grade."</p>
+</blockquote>
+<h3 id="3-the-reviewer-need-not-be-as-strong-as-the-author-with-one-caveat">3. The reviewer need NOT be as strong as the author — with one caveat</h3>
+<ul>
+<li><strong>[HIGH]</strong> Ensembling cheap/weak verifiers (Weaver) reached <strong>o3-mini-level<br />
+  selection accuracy (86.2%)</strong> using cheap Llama-3.3-70B — combining weak<br />
+  verifiers matches a top reviewer. <em>openreview dRjt4vlYVQ; arXiv:2506.10056.</em></li>
+<li><strong>[HIGH] — partial disagreement:</strong> for a <em>single</em>-judge code verification,<br />
+  stronger judges are meaningfully more reliable; small/open judges misclassify<br />
+  buggy code as correct. <em>arXiv:2507.10535 (CodeJudgeBench); arXiv:2604.16790.</em></li>
+<li><strong>Reconciliation:</strong> a cheaper reviewer is sound <strong>as an ensemble or a first-<br />
+  stage filter</strong>, <em>not</em> as a lone authoritative judge.</li>
+</ul>
+<h3 id="4-costquality-of-a-cheaper-stage-real-savings-sharp-caveats">4. Cost/quality of a cheaper stage — real savings, sharp caveats</h3>
+<ul>
+<li><strong>[HIGH]</strong> Query-level <strong>cascades</strong> (FrugalGPT) matched GPT-4-class accuracy at<br />
+<strong>up to ~98% cost reduction</strong> on its benchmarks (best-case; task-dependent).<br />
+<em>arXiv:2305.05176.</em></li>
+<li><strong>[HIGH]</strong> <strong>RouteLLM</strong> cut cost ~85% on MT-Bench at 95% of GPT-4 quality — but<br />
+  only ~35% on GSM8K and routed 54% of MMLU calls to the strong model: savings are<br />
+<strong>highly task-dependent</strong>. <em>lmsys.org 2024-07; arXiv:2406.18665.</em></li>
+<li><strong>[HIGH]</strong> Two-tier routing in a multi-agent extraction pipeline: <strong>51% cost cut<br />
+  at 98.2% accuracy retention</strong>; hierarchical supervisor/worker: 98.5% of best F1<br />
+  at 60.7% of cost. <em>arXiv:2603.22651.</em></li>
+<li><strong>[HIGH] — the load-bearing caveat:</strong> cheap models make <strong>poor verifiers</strong> —<br />
+  ≥96% true-positive but <strong>&lt;25% true-negative</strong> rate (they rubber-stamp), are<br />
+  overconfident (breaking a cascade's deferral signal), and are brittle to style/<br />
+  adversarial shifts (up to +0.24 false-negative on style changes; 100% FN under<br />
+  some adversarial inputs). <em>arXiv:2511.19933; arXiv:2502.19335 (GATEKEEPER);<br />
+  arXiv:2503.05061.</em></li>
+</ul>
+<blockquote>
+<p><strong>Maps to Vaked.</strong> The dogfood reviewer is <strong>advisory and read-only</strong><br />
+(<code>fs.repo_ro</code>, no publish grant) — it cannot rubber-stamp a merge because it<br />
+holds no merge authority; the broker publishes. That structure neatly sidesteps<br />
+the "cheap judge rubber-stamps" failure mode: the cheap reviewer informs, the<br />
+graph (and broker) decide. For a <em>blocking</em> gate, the evidence says use an<br />
+ensemble or a stronger judge, plus a non-LLM evidence layer (tests/SAST), which<br />
+caught 47% of bugs LLM reviewers missed (→96.9% detection). <em>arXiv:2602.16741.</em></p>
+</blockquote>
+<h3 id="5-fix-loops-bounded-retries-not-back-edges">5. Fix-loops: bounded retries, not back-edges</h3>
+<ul>
+<li><strong>[HIGH]</strong> Classical orchestrators (Airflow, Dagster, Dagger) enforce <strong>strict<br />
+  acyclicity</strong> at graph-load / structurally and have no loop primitive<br />
+  (<code>AirflowDagCycleException</code>; "assets dependencies form a cycle"; content-<br />
+  addressed DAG). <em>github.com/apache/airflow#17079; dagster.io; docs.dagger.io.</em></li>
+<li><strong>[HIGH]</strong> Agent frameworks (LangGraph, Temporal, Step Functions, CrewAI)<br />
+  deliberately permit iteration and bound it only at <strong>runtime</strong> — LangGraph<br />
+<code>recursion_limit</code> (default 25), Temporal retry policy (<strong>MaximumAttempts default<br />
+  = unlimited</strong> — a documented footgun), Step Functions history-event quotas,<br />
+  CrewAI <code>max_iter</code>. <em>langchain docs; docs.temporal.io; AWS docs; crewAI#56.</em></li>
+<li><strong>[HIGH]</strong> <strong>Agentproof</strong> (the most on-topic source) does genuine <em>pre-<br />
+  deployment</em> static checks — <strong>acyclicity, depth bounds, critical-path</strong> — across<br />
+  LangGraph/CrewAI/AutoGen/ADK, and <strong>explicitly distinguishes legitimate bounded<br />
+  retries (fix-loops with iteration caps) from problematic back-edges</strong>, modeling<br />
+  fix-loops as bounded retries. <em>arXiv:2603.20356 — 27% of 18 workflows had<br />
+  structural defects, 55% violated a human-gate policy; numbers single-source.</em></li>
+</ul>
+<blockquote>
+<p><strong>Maps to Vaked.</strong> This is the dogfood's exact choice: a checked DAG (depth 5)<br />
+with the fix-loop as <strong><code>retries</code> on <code>implement</code></strong>, not a <code>checkin → collect</code><br />
+back-edge — and the negative tests prove it (<code>E-WORKFLOW-CYCLE</code> on an injected<br />
+back-edge, <code>E-WORKFLOW-DEPTH</code> at <code>maxDepth=3</code>). Vaked does this at <em>compile<br />
+time</em>; every framework above except Agentproof bounds loops only at runtime, and<br />
+Temporal's "unlimited by default" is precisely the hazard a finite, declared<br />
+retry cap removes.</p>
+</blockquote>
+<h2 id="disagreements-caveats">Disagreements / caveats</h2>
+<ul>
+<li><strong>Reviewer strength:</strong> "cheap ensemble suffices" (Weaver) vs. "single weak judge<br />
+  unreliable" (CodeJudgeBench). Resolved by <em>role</em>: cheap is fine as ensemble /<br />
+  first-stage filter / advisory, risky as a lone blocking judge.</li>
+<li><strong>Self- vs. cross-review:</strong> "self-verification works" (ReVeal, arXiv:2506.11442)<br />
+  sits in tension with the self-correction-illusion results; the reconciling<br />
+  variable is whether the verifier receives an <em>external</em> signal (tests, a<br />
+  different role/model) rather than pure introspection.</li>
+<li><strong>Single-source 2026 preprints:</strong> the sharpest numbers (Agentproof's 27%/55%/<br />
+  sub-second-at-5k; the +7-pt SWE-bench team result) are author-reported and not<br />
+  independently reproduced — suggestive, not settled.</li>
+</ul>
+<h2 id="bottom-line-for-the-dogfood">Bottom line for the dogfood</h2>
+<p>The PR's ordering graph is <strong>strongly supported</strong>: a distinct, different-family<br />
+reviewer (never self-grading) is the single best-evidenced design choice, and<br />
+making the reviewer <strong>advisory + read-only</strong> rather than a blocking cheap judge<br />
+sidesteps the literature's biggest cheap-model failure mode (rubber-stamping).<br />
+Modeling the fix-loop as <strong>bounded retries on <code>implement</code></strong> rather than a<br />
+back-edge matches both classical-orchestrator acyclicity and the most on-topic<br />
+2026 static-verification work — and doing the cycle/depth check at <em>compile time</em><br />
+is ahead of the runtime-only bounds in every shipping agent framework surveyed.<br />
+The one improvement the evidence points to: for any <em>blocking</em> quality gate, back<br />
+the LLM reviewer with a non-LLM evidence layer (tests/SAST), which recovers the<br />
+bug classes LLM reviewers structurally miss.</p>
+<h2 id="sources">Sources</h2>
+<ul>
+<li>CriticGPT — https://arxiv.org/html/2407.00215v1</li>
+<li>Coding agent teams on SWE-bench Verified — https://dev.to/nikita_benkovich_eb86e54d/coding-agent-teams-outperform-solo-agents-722-on-swe-bench-verified-4of5</li>
+<li>AgentCoder — https://arxiv.org/pdf/2312.13010</li>
+<li>Self-Correction Illusion — https://arxiv.org/html/2606.05976</li>
+<li>Self- vs cross-model evaluation — https://arxiv.org/pdf/2502.19361</li>
+<li>LLMs Cannot Self-Correct Reasoning Yet (ICLR'24) — https://arxiv.org/abs/2310.01798</li>
+<li>Weaver (weak-verifier ensembling) — https://openreview.net/forum?id=dRjt4vlYVQ · https://arxiv.org/html/2506.10056v1</li>
+<li>CodeJudgeBench — https://arxiv.org/pdf/2507.10535</li>
+<li>Bias in the Loop — https://arxiv.org/html/2604.16790v1</li>
+<li>FrugalGPT — https://arxiv.org/abs/2305.05176</li>
+<li>RouteLLM — https://www.lmsys.org/blog/2024-07-01-routellm/ · https://arxiv.org/pdf/2406.18665</li>
+<li>Multi-agent extraction cost/quality — https://arxiv.org/html/2603.22651</li>
+<li>Cheap-verifier agreeableness bias — https://arxiv.org/pdf/2511.19933</li>
+<li>GATEKEEPER (confidence calibration) — https://arxiv.org/pdf/2502.19335</li>
+<li>Small-judge brittleness — https://arxiv.org/html/2503.05061v1</li>
+<li>LLM reviewer blind spots + SAST backstop — https://arxiv.org/html/2602.16741v1</li>
+<li>ReVeal (generation-verification loop) — https://arxiv.org/html/2506.11442v1</li>
+<li>Agentproof: Static Verification of Agent Workflow Graphs — https://arxiv.org/pdf/2603.20356</li>
+<li>Airflow cycle detection — https://github.com/apache/airflow/issues/17079</li>
+<li>Temporal retry policies — https://docs.temporal.io/encyclopedia/retry-policies</li>
+<li>AWS Step Functions static validation — https://docs.aws.amazon.com/step-functions/latest/apireference/API_ValidateStateMachineDefinitionDiagnostic.html</li>
+<li>LangGraph recursion limit — https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT</li>
+<li>Dagster DAG glossary — https://dagster.io/glossary/dag-directed-acyclic-graph</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/research/2026-06-14-multimodel-author-reviewer-loops.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

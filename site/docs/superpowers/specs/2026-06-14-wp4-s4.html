@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>WP4-S4 — eventd Zig port: core + eBPF skeleton — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-objective" style="padding-left:0.5rem">1. Objective</a><a href="#11-non-goals-drawn-explicitly" style="padding-left:1rem">  1.1 Non-goals (drawn explicitly)</a><a href="#2-inputs-oracles" style="padding-left:0.5rem">2. Inputs / oracles</a><a href="#21-the-normative-oracle" style="padding-left:1rem">  2.1 The normative oracle</a><a href="#22-the-11-golden-vectors-clarification" style="padding-left:1rem">  2.2 The 11 golden vectors (clarification)</a><a href="#23-frozen-golden-values-dumped-from-the-oracle-2026-06-14" style="padding-left:1rem">  2.3 Frozen golden values (dumped from the oracle, 2026-06-14)</a><a href="#3-the-canonical-json-dialect-the-cross-language-hash-contract" style="padding-left:0.5rem">3. The canonical-JSON dialect — the cross-language hash contract</a><a href="#31-what-this-is-not-hcpbin-rfc-0002-6" style="padding-left:1rem">  3.1 What this is NOT — hcpbin (RFC 0002 §6)</a><a href="#32-float-formatting-the-single-biggest-risk" style="padding-left:1rem">  3.2 Float formatting — the single biggest risk</a><a href="#33-integer-width-bignum" style="padding-left:1rem">  3.3 Integer width — bignum</a><a href="#4-algorithm-design" style="padding-left:0.5rem">4. Algorithm / design</a><a href="#41-reuse-map-what-already-exists-in-zig" style="padding-left:1rem">  4.1 Reuse map (what already exists in Zig)</a><a href="#42-module-layout-paths-to-create" style="padding-left:1rem">  4.2 Module layout (paths to create)</a><a href="#43-corezig-api-matches-eventdcorepy" style="padding-left:1rem">  4.3 `core.zig` API (matches `eventd/core.py`)</a><a href="#44-wrapper-key-order-load-bearing" style="padding-left:1rem">  4.4 Wrapper key order (load-bearing)</a><a href="#45-logzig-daemon-shape-matches-eventdlogpy" style="padding-left:1rem">  4.5 `log.zig` — daemon shape (matches `eventd/log.py`)</a><a href="#46-ebpf-witness-skeleton-ebpfzig-compile-only" style="padding-left:1rem">  4.6 eBPF witness skeleton (`ebpf.zig`) — compile-only</a><a href="#5-test-plan" style="padding-left:0.5rem">5. Test plan</a><a href="#51-verifiable-locally-on-m1-zig-version-0160-confirmed-present" style="padding-left:1rem">  5.1 Verifiable locally on M1 (`zig version` = 0.16.0 confirmed present)</a><a href="#52-compile-only-on-m1-cross-compile" style="padding-left:1rem">  5.2 Compile-only on M1 (cross-compile)</a><a href="#53-requires-dev-cx53-a-linux-host-deferred-8" style="padding-left:1rem">  5.3 Requires dev-cx53 / a Linux host (DEFERRED — §8)</a><a href="#54-the-parity-gate-command" style="padding-left:1rem">  5.4 The parity gate command</a><a href="#6-dependencies-on-other-sprints" style="padding-left:0.5rem">6. Dependencies on other sprints</a><a href="#7-acceptance-criteria" style="padding-left:0.5rem">7. Acceptance criteria</a><a href="#8-risks-open-items" style="padding-left:0.5rem">8. Risks & open items</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-wp4-s4</div>
+<h1>WP4-S4 — eventd Zig port: core + eBPF skeleton</h1>
+<h1 id="wp4-s4-eventd-zig-port-core-ebpf-skeleton">WP4-S4 — eventd Zig port: core + eBPF skeleton</h1>
+<p><strong>Status:</strong> Spec (2026-06-14). Planning artifact — work is dependency-blocked<br />
+(see §8). Author target: Track B "immutable leg" (#17/#18), runtime roster role<br />
+<code>eventd</code> (<code>docs/runtime/README.md:16</code>).</p>
+<p><strong>Scope in one line:</strong> port the <em>byte-fixing</em> core of the Python <code>eventd</code><br />
+reference (<code>eventd/core.py</code>, <code>eventd/log.py</code>) to Zig and prove it produces<br />
+<strong>byte-identical</strong> output to Python across the 11 golden vectors that<br />
+<code>tests/spec/test_eventd.py</code> pins, plus a <em>compile-only</em> eBPF witness skeleton.</p>
+<hr />
+<h2 id="1-objective">1. Objective</h2>
+<p>Produce <code>eventdz</code>, a Zig daemon/library that is the production carrier of<br />
+Vaked's tamper-evident audit spine ("eventd witnesses",<br />
+<code>docs/runtime/agent-guardd.md:3-4</code>). This sprint delivers the <strong>#15 port<br />
+pattern</strong> for eventd: <em>Python fixes the bytes; Zig reproduces them</em><br />
+(<code>eventd/__init__.py:3-6</code>). Concretely:</p>
+<ol>
+<li><strong>Canonical JSON + hash chain (<code>core</code>)</strong> — reproduce<br />
+<code>eventd.core.{canonical_json, chain_hash, make_entry, verify_chain,
+   entry_line}</code> (<code>eventd/core.py</code>) byte-for-byte, including the cross-language<br />
+   hash contract spelled out in the <code>core.py</code> module docstring<br />
+   (<code>eventd/core.py:17-37</code>).</li>
+<li><strong>Daemon shape (<code>log</code>)</strong> — reproduce <code>eventd.log.EventLog</code> + <code>load_entries</code></li>
+<li><code>repair_truncate_tail</code> semantics (<code>eventd/log.py</code>): single-writer<br />
+<code>flock</code>, fsync-on-append, boot-time chain verification as a hard error,<br />
+   torn-tail / malformed-line refusal, crash-atomic repair.</li>
+<li><strong>eBPF witness skeleton</strong> — a compile-only <code>BPF_PROG_TYPE_CGROUP_SKB</code>-class<br />
+   scaffold mirroring the <code>agent_guardd</code> reference (<code>agent_guardd/bpf.py</code>),<br />
+   establishing the kernel datapath that will append <code>Event.Ebpf</code> testimony<br />
+   into the eventd chain (<code>docs/runtime/README.md:29</code>,<br />
+<code>docs/runtime/agent-guardd.md:33-53</code>). Load/attach/verifier runs are<br />
+   Linux-only and <strong>deferred</strong> (§8/§7).</li>
+</ol>
+<p><strong>The byte-identity bar (explicit):</strong> byte-identity is measured on the<br />
+<strong>on-disk log line</strong> (<code>entry_line</code>, <code>eventd/core.py:83-89</code>), not merely the<br />
+hashed payload bytes. That is the stricter, cleaner gate and it is what "two<br />
+runs ⇒ byte-identical logs" already means for the reference<br />
+(<code>tests/spec/test_eventd.py:210-228</code>). It implies the Zig writer MUST emit the<br />
+entry wrapper in the reference's <strong>sorted</strong> key order (see §4.4).</p>
+<h3 id="11-non-goals-drawn-explicitly">1.1 Non-goals (drawn explicitly)</h3>
+<ul>
+<li><strong>RFC 0004 state-dependency fold is NOT in S4.</strong> <code>eventd.statedep</code>'s own<br />
+  docstring defers the zero-copy scan path to "a Zig-port concern, explicitly<br />
+  after correctness" (<code>eventd/statedep.py:16-17</code>). <code>DependencyIndex</code>,<br />
+<code>gc_floor</code>, <code>verify_cold_start</code>, eviction semantics — out of scope; see §6.</li>
+<li><strong>Runtime operational fold is NOT in S4.</strong> <code>eventd.runtime</code><br />
+  (<code>RuntimeState.fold</code>, run/step lifecycle) is a later port; see §6.</li>
+<li><strong>CLI surface (<code>verify</code>/<code>append</code>/<code>replay</code>/<code>state</code>/<code>floor</code>/<code>coldstart</code>/<br />
+<code>runs</code>/<code>repair</code>)</strong> — S4 ports only the two CLI verbs needed to drive the<br />
+  parity gate (<code>verify</code>, <code>append</code>) plus <code>repair --truncate-tail</code>. The fold-<br />
+  dependent verbs (<code>state</code>, <code>floor</code>, <code>coldstart</code>, <code>runs</code>) ride on §6.</li>
+<li><strong>No Rust component.</strong> This is a Zig port. <code>cargo</code> exists in the environment<br />
+  only because other sprints (e.g. Rust-side tooling) share the tree; S4 ships<br />
+  no Rust.</li>
+</ul>
+<hr />
+<h2 id="2-inputs-oracles">2. Inputs / oracles</h2>
+<h3 id="21-the-normative-oracle">2.1 The normative oracle</h3>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>eventd/core.py</code></td>
+<td><strong>The byte contract.</strong> Canonical-JSON dialect (docstring <code>:17-37</code>), chain hash, entry line ordering.</td>
+</tr>
+<tr>
+<td><code>eventd/log.py</code></td>
+<td>Daemon-shape semantics: flock, fsync, boot-verify, <code>load_entries</code> refusal paths, <code>repair_truncate_tail</code>.</td>
+</tr>
+<tr>
+<td><code>tests/spec/test_eventd.py</code> <code>_VECTORS</code> (<code>:50-64</code>)</td>
+<td><strong>The 11 golden vectors.</strong></td>
+</tr>
+<tr>
+<td><code>tools/ralph/ralphcore.py</code></td>
+<td>Co-reference (Python cross-verifies eventd↔ralphcore; the Zig port inherits the same frozen format).</td>
+</tr>
+<tr>
+<td><code>agent_guardd/bpf.py</code>, <code>agent_guardd/enforce.py</code></td>
+<td>eBPF datapath reference (<code>bpf()</code> ABI via raw syscall, BPF instruction encoding).</td>
+</tr>
+<tr>
+<td><code>docs/runtime/README.md:16,29</code>, <code>docs/runtime/agent-guardd.md:33-53</code></td>
+<td>eventd's roster role + the "eBPF testifies → eventd witnesses" datapath.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-the-11-golden-vectors-clarification">2.2 The 11 golden vectors (clarification)</h3>
+<p>"11 golden vectors" = the 11 entries of <code>_VECTORS</code> in<br />
+<code>tests/spec/test_eventd.py:50-64</code>. <strong>These are NOT the RFC 0002 §6.1.1 / §6.3.1<br />
+/ §6.6.1 / §6.7.1 worked examples.</strong> Those examples encode <code>hcpbin</code> (the wire<br />
+binary form); eventd's on-disk format is the <strong>JSONL hash chain</strong> of<br />
+<code>core.py</code>, a different layer (see §3.1). The kickoff/issue wording "RFC 0002 §4<br />
+/ Appendix A" is stale on both counts: RFC 0002 has no Appendix A, and its byte<br />
+encoding lives in §6 (<code>hcpbin encoding rules</code>,<br />
+<code>protocol/rfcs/0002-hcplang.md:439</code>), while the frame header is in RFC 0003<br />
+(WIRE), explicitly <em>not</em> hcpbin (<code>0002</code> §4.2).</p>
+<h3 id="23-frozen-golden-values-dumped-from-the-oracle-2026-06-14">2.3 Frozen golden values (dumped from the oracle, 2026-06-14)</h3>
+<p>These are the exact <code>canonical_json</code> bytes, chained <code>hash</code>, and <code>entry_line</code> of<br />
+each vector (genesis = <code>0</code>×64, sequential chaining). They are the committed<br />
+golden the parity gate diffs against (§7).</p>
+<table>
+<thead>
+<tr>
+<th>i</th>
+<th>payload (source)</th>
+<th><code>canonical_json(payload)</code></th>
+<th><code>hash</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>{"event":"boot","runtime":"agent-field"}</code></td>
+<td><code>{"event":"boot","runtime":"agent-field"}</code></td>
+<td><code>ecb7ca9d08cb0b5f4ebd7bea300923f0b6ef479b08516f5de4e0637f27d0e33c</code></td>
+</tr>
+<tr>
+<td>1</td>
+<td>nested, key-shuffled</td>
+<td><code>{"a":1,"b":2,"nested":{"x":null,"y":[1,2,3]}}</code></td>
+<td><code>b5cfd4b79c1ba1f16d45129efca42fe9f7b8b19b4e6aab7464dc9d1ebc81770d</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>unicode + float</td>
+<td><code>{"n":-3.5,"text":"víg kedélyű 🦀"}</code></td>
+<td><code>5071279b4b26edc93492f6d84380204dd284453806544db64dc2cdd49e6bfd89</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>dep registration</td>
+<td><code>{"consumer":"beta","consumer_step":7,"kind":"dependency_registration","producer":"alpha","producer_step":2,"producer_step_hash":"abab…abab","topology_epoch":1}</code></td>
+<td><code>0c73ae6478289a39334a9fc5d9465bce7826ec31d9590bf21d0438ed2d823c46</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>{"x":-0.0}</code></td>
+<td><code>{"x":-0.0}</code></td>
+<td><code>608bc7a98a1f39991fcfd5cf4600afd76be4ac833db85ab2d0cc6defce45698f</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>{"x":1.0}</code></td>
+<td><code>{"x":1.0}</code></td>
+<td><code>6cc984c017e8325f42c7debd5e050e3fb197ebf6cfe3cf171841145cbe14c809</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>{"x":1e-6}</code></td>
+<td><code>{"x":1e-06}</code></td>
+<td><code>8c04155aafdf2b60758de5c7afa848722d83fb71e8ebc5c4633f4b0041db2a36</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>{"x":100000000000000000000}</code></td>
+<td><code>{"x":100000000000000000000}</code></td>
+<td><code>84a2dd65f4b3613c8768bc637263a849696451f1d9234b74ab97af3ed0100ac5</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td><code>{"x":"é"}</code> (U+00E9 precomposed)</td>
+<td><code>{"x":"é"}</code></td>
+<td><code>cea0885a36a4ed97c63ac669848a32f754ea795b17d57d10876b6a385f8efb0e</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td><code>{"x":"é"}</code> (e + combining acute)</td>
+<td><code>{"x":"é"}</code> (raw 3-byte UTF-8, <strong>NOT</strong> equal to i=8)</td>
+<td><code>905c6f0494b22fc5ca26b68ae3592de1101435f0f478adb77fab2a2b6586d633</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td><code>{"b":1,"a":2}</code></td>
+<td><code>{"a":2,"b":1}</code></td>
+<td><code>1e57ac32e237783677c0bbd5422c6eef0772fef6180762ce9b945cef64f6530b</code></td>
+</tr>
+</tbody>
+</table>
+<p>Example full <code>entry_line</code> (i=0), note the <strong>sorted</strong> wrapper key order<br />
+<code>hash,payload,prev,seq</code>:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span><span class="s2">&quot;hash&quot;</span><span class="p">:</span><span class="s2">&quot;ecb7ca9d08cb0b5f4ebd7bea300923f0b6ef479b08516f5de4e0637f27d0e33c&quot;</span><span class="p">,</span><span class="s2">&quot;payload&quot;</span><span class="p">:{</span><span class="s2">&quot;event&quot;</span><span class="p">:</span><span class="s2">&quot;boot&quot;</span><span class="p">,</span><span class="s2">&quot;runtime&quot;</span><span class="p">:</span><span class="s2">&quot;agent-field&quot;</span><span class="p">},</span><span class="s2">&quot;prev&quot;</span><span class="p">:</span><span class="s2">&quot;0000000000000000000000000000000000000000000000000000000000000000&quot;</span><span class="p">,</span><span class="s2">&quot;seq&quot;</span><span class="p">:</span><span class="mi">0</span><span class="p">}</span>
+</pre></div>
+
+<p>Vectors 8 and 9 MUST hash differently (<code>cea0…</code> ≠ <code>905c…</code>) — proof that <strong>no<br />
+Unicode normalization</strong> happens.</p>
+<hr />
+<h2 id="3-the-canonical-json-dialect-the-cross-language-hash-contract">3. The canonical-JSON dialect — the cross-language hash contract</h2>
+<p>Source of truth: <code>eventd/core.py:17-37</code>. Restated as Zig acceptance rules:</p>
+<ol>
+<li><strong>UTF-8 output, <code>ensure_ascii=False</code>.</strong> Non-ASCII is raw UTF-8 bytes, never<br />
+<code>\uXXXX</code>. Only JSON-mandatory escapes: <code>\"</code>, <code>\\</code>, and control chars<br />
+<code>&lt; 0x20</code> as <code>\uXXXX</code> (lowercase hex, zero-padded to 4). <code>/</code> is NOT escaped.<br />
+<code>json.zig</code>'s <code>writeString</code> (<code>vakedz/src/json.zig:98-121</code>) already does<br />
+   exactly this (its test <code>:149-155</code> proves CPython parity) — <strong>reuse it.</strong></li>
+<li><strong>Object keys sorted by Unicode code point</strong>; separators <code>(",",":")</code>, no<br />
+   insignificant whitespace. Sort is the <strong>full recursive</strong> key sort of the<br />
+   payload tree (<code>json.zig:sortRecursive</code>, <code>:70-83</code>). ⚠️ The <code>vakedc</code> graph<br />
+   path only sorts the <code>props</code> subtree — do NOT inherit that; for payloads the<br />
+<em>whole</em> tree sorts (vector 1 sorts <code>nested</code> too).</li>
+<li><strong>Integers</strong> in full decimal, arbitrary precision (vector 7 is <code>10²⁰</code>).</li>
+<li><strong>Floats</strong> in Python <code>repr</code> / <code>json.dumps</code> shortest-round-trip form<br />
+   (§3.2 — the real work).</li>
+<li><strong>NaN / Infinity rejected</strong> (<code>allow_nan=False</code> → <code>ValueError</code>;<br />
+<code>core.py:51-52</code>). Zig equivalent: return <code>error.NonFiniteFloat</code>.</li>
+<li><strong>No Unicode normalization</strong> (vectors 8 vs 9). This is <em>deliberately the<br />
+   opposite</em> of hcpbin (§3.1).</li>
+</ol>
+<h3 id="31-what-this-is-not-hcpbin-rfc-0002-6">3.1 What this is NOT — hcpbin (RFC 0002 §6)</h3>
+<p>eventd's hashed bytes are the <strong>JSONL</strong> canonical form above. RFC 0002 §6<br />
+(<code>hcpbin encoding rules</code>, <code>protocol/rfcs/0002-hcplang.md:439</code>) is a <em>different<br />
+layer</em> and on three points says the <strong>opposite</strong> of the eventd vectors. Cite §6<br />
+only to disclaim it:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>hcpbin §6.4 (<code>:671</code>)</th>
+<th>eventd JSONL (the oracle)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-0.0</code></td>
+<td>folds to <code>+0.0</code></td>
+<td><strong>preserved</strong> as <code>-0.0</code> (vector 4)</td>
+</tr>
+<tr>
+<td>strings</td>
+<td>NFC-normalized, Unicode 15.1 pinned</td>
+<td><strong>no normalization</strong> (vectors 8≠9)</td>
+</tr>
+<tr>
+<td>NaN</td>
+<td>canonical quiet-NaN bits</td>
+<td><strong>rejected</strong></td>
+</tr>
+<tr>
+<td>integers</td>
+<td>LEB128 varint, zig-zag for signed (§6.1, <code>:451</code>)</td>
+<td>decimal ASCII</td>
+</tr>
+</tbody>
+</table>
+<p>Letting §6.4 leak into the port fails vectors 4, 8, 9. The hcpbin encoder is a<br />
+<strong>separate, future</strong> Zig artifact (it belongs with the RFC 0002/0003 wire<br />
+stack, not S4).</p>
+<h3 id="32-float-formatting-the-single-biggest-risk">3.2 Float formatting — the single biggest risk</h3>
+<p>The vectors require CPython <code>repr</code>-shortest-round-trip floats. Zig's<br />
+<code>std.fmt</code> does <strong>not</strong> match Python's grammar out of the box (exponent<br />
+threshold and exponent zero-padding differ). Verified renderings from the<br />
+oracle (<code>json.dumps</code>, 2026-06-14):</p>
+<div class="highlight"><pre><span></span><span class="mf">0.0</span><span class="w">        </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">0.0</span>
+<span class="o">-</span><span class="mf">0.0</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">-</span><span class="mf">0.0</span><span class="w">          </span><span class="p">(</span><span class="n">sign</span><span class="w"> </span><span class="n">preserved</span><span class="p">)</span>
+<span class="mf">1.0</span><span class="w">        </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1.0</span><span class="w">           </span><span class="p">(</span><span class="n">always</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="s">&quot;.0&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">never</span><span class="w"> </span><span class="s">&quot;1&quot;</span><span class="p">)</span>
+<span class="o">-</span><span class="mf">3.5</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">-</span><span class="mf">3.5</span>
+<span class="mf">1</span><span class="n">e</span><span class="o">-</span><span class="mf">6</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">-</span><span class="mf">06</span><span class="w">         </span><span class="p">(</span><span class="n">lowercase</span><span class="w"> </span><span class="n">e</span><span class="p">,</span><span class="w"> </span><span class="n">sign</span><span class="p">,</span><span class="w"> </span><span class="mf">2</span><span class="o">-</span><span class="n">digit</span><span class="w"> </span><span class="n">zero</span><span class="o">-</span><span class="n">padded</span><span class="w"> </span><span class="nb">exp</span><span class="kr">on</span><span class="n">ent</span><span class="p">)</span>
+<span class="mf">1</span><span class="n">e</span><span class="o">-</span><span class="mf">5</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">-</span><span class="mf">05</span>
+<span class="mf">0.0001</span><span class="w">     </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">0.0001</span><span class="w">        </span><span class="p">(</span><span class="n">fixed</span><span class="w"> </span><span class="kr">for</span><span class="n">m</span><span class="w"> </span><span class="n">down</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">-</span><span class="mf">4</span><span class="p">)</span>
+<span class="mf">0.00001</span><span class="w">    </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">-</span><span class="mf">05</span><span class="w">         </span><span class="p">(</span><span class="n">switches</span><span class="w"> </span><span class="kr">to</span><span class="w"> </span><span class="nb">exp</span><span class="kr">on</span><span class="n">ent</span><span class="w"> </span><span class="n">at</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">-</span><span class="mf">4</span><span class="p">)</span>
+<span class="mf">1</span><span class="n">e16</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">+</span><span class="mf">16</span><span class="w">         </span><span class="p">(</span><span class="nb">pos</span><span class="n">itive</span><span class="w"> </span><span class="nb">exp</span><span class="kr">on</span><span class="n">ent</span><span class="w"> </span><span class="kr">get</span><span class="n">s</span><span class="w"> </span><span class="nb">exp</span><span class="n">licit</span><span class="w"> </span><span class="err">&#39;</span><span class="o">+</span><span class="err">&#39;</span><span class="p">)</span>
+<span class="mf">1</span><span class="n">e17</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">+</span><span class="mf">17</span>
+<span class="mf">1</span><span class="n">e21</span><span class="w">       </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1</span><span class="n">e</span><span class="o">+</span><span class="mf">21</span>
+<span class="mf">1.5e-10</span><span class="w">    </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">1.5e-10</span>
+<span class="mf">123456789.123</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="mf">123456789.123</span>
+</pre></div>
+
+<p><strong>Required Zig behavior</strong> (a new <code>floatRepr</code> routine — <em>not</em> in <code>json.zig</code><br />
+today):</p>
+<ul>
+<li>Shortest decimal that round-trips the IEEE-754 <code>f64</code> (Ryū/Grisu-class;<br />
+  Zig's <code>std.fmt.format</code> with <code>{e}</code>/<code>{d}</code> is <strong>insufficient</strong> — it neither<br />
+  matches the exponent threshold nor guarantees Python's shortest form).</li>
+<li>Emit fixed-point notation for exponents in roughly <code>[-4, 16)</code>, scientific<br />
+  otherwise — match CPython's <code>float_repr</code> thresholds exactly (the table<br />
+  above is the acceptance oracle; extend it with more probe values during<br />
+  implementation rather than trusting any single library).</li>
+<li>Scientific form: <code>&lt;mantissa&gt;e&lt;sign&gt;&lt;≥2-digit exponent&gt;</code>, lowercase <code>e</code>,<br />
+  explicit <code>+</code>/<code>-</code>, exponent zero-padded to <strong>at least</strong> 2 digits.</li>
+<li>A whole-number float still carries <code>.0</code> (<code>1.0</code>, not <code>1</code>).</li>
+<li>Preserve <code>-0.0</code>.</li>
+<li><code>NaN</code>/<code>±Inf</code> → <code>error.NonFiniteFloat</code>.</li>
+</ul>
+<p>Because this is the highest-risk code, it gets its <strong>own module + its own<br />
+micro-golden test</strong> (§7.1) seeded with the table above plus boundary probes<br />
+(<code>9999999999999998.0</code>, <code>1e15</code>, <code>5e-324</code>, etc.).</p>
+<h3 id="33-integer-width-bignum">3.3 Integer width — bignum</h3>
+<p>Vector 7 is <code>100000000000000000000</code> (<code>10²⁰</code>), which exceeds both <code>i64</code> and<br />
+<code>u64</code>. The contract is <em>arbitrary precision</em>; for the 11 vectors <code>i128</code><br />
+(max ≈ <code>1.7e38</code>) is sufficient — say so explicitly. The JSON <strong>parser</strong> that<br />
+reads payloads back (for <code>verify</code>/append-after-load) must therefore decode<br />
+large integer literals into <code>i128</code> (or a small bignum) without lossy float<br />
+coercion. <code>json.zig</code>'s <code>Value</code> is <code>int: i64</code> today (<code>json.zig:26</code>) — <strong>widen to<br />
+<code>i128</code></strong> (or add an <code>bigint: []const u8</code> decimal-string variant carried<br />
+verbatim). Note for the record that a truly unbounded big integer would need a<br />
+decimal-string passthrough; i128 is the S4 floor, larger is a tracked follow-up.</p>
+<hr />
+<h2 id="4-algorithm-design">4. Algorithm / design</h2>
+<h3 id="41-reuse-map-what-already-exists-in-zig">4.1 Reuse map (what already exists in Zig)</h3>
+<p><code>vakedz/src/json.zig</code> and <code>vakedz/src/cache.zig</code> already implement the <strong>same<br />
+frozen chain</strong> ("format-compatible with <code>ralph</code>/<code>eventd</code> ledgers",<br />
+<code>cache.zig:23-24</code>). Reuse, do not reinvent:</p>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Reuse</th>
+<th>Caveat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sha256 hex</td>
+<td><code>cache.zig:sha256Hex</code> (<code>:39-43</code>)</td>
+<td>none</td>
+</tr>
+<tr>
+<td><code>chain_hash(prev,payload)</code></td>
+<td><code>cache.zig:chainHex</code> (<code>:47-54</code>)</td>
+<td>none — identical to <code>eventd.core.chain_hash</code></td>
+</tr>
+<tr>
+<td>CPython string escaping</td>
+<td><code>json.zig:writeString</code> (<code>:98-121</code>)</td>
+<td>none</td>
+</tr>
+<tr>
+<td>recursive key sort</td>
+<td><code>json.zig:sortRecursive</code> (<code>:70-83</code>)</td>
+<td>apply to the <strong>whole payload</strong>, not just <code>props</code></td>
+</tr>
+<tr>
+<td>torn-tail verify</td>
+<td><code>cache.zig:verify</code> + <code>rawPayload</code> (<code>:213-261</code>)</td>
+<td>adapt: eventd refuses (TamperError), cache returns prefix</td>
+</tr>
+<tr>
+<td>genesis const</td>
+<td><code>cache.zig:GENESIS</code> (<code>:34</code>)</td>
+<td>none</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Do NOT copy <code>cache.zig:put</code>'s entry serialization.</strong> It builds the entry<br />
+wrapper in <em>insertion</em> order <code>{seq,prev,payload,hash}</code> and never sorts the<br />
+top level (<code>cache.zig:192-197</code>). eventd's <code>entry_line</code> is <strong>sorted</strong><br />
+<code>{hash,payload,prev,seq}</code> (<code>core.py:83-89</code>; confirmed in §2.3). S4 needs a new<br />
+entry serializer that sorts the wrapper.</p>
+<h3 id="42-module-layout-paths-to-create">4.2 Module layout (paths to create)</h3>
+<p>A sibling Zig project under <code>daemons/eventd/</code> (mirroring <code>daemons/sandboxd/</code>),<br />
+keeping the production daemon out of the <code>vakedz</code> compiler front-end:</p>
+<div class="highlight"><pre><span></span><span class="n">daemons</span><span class="o">/</span><span class="n">eventd</span><span class="o">/</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">build</span><span class="o">.</span><span class="n">zig</span><span class="w">                 </span><span class="c1"># Zig 0.16 std.Build; build + test + ebpf steps (§4.6)</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">build</span><span class="o">.</span><span class="n">zig</span><span class="o">.</span><span class="n">zon</span><span class="w">            </span><span class="c1"># name=.eventdz, minimum_zig_version=&quot;0.16.0&quot;, deps={}</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">README</span><span class="o">.</span><span class="n">md</span><span class="w">                </span><span class="c1"># role, byte contract, &quot;Python fixes the bytes&quot; note</span>
+<span class="err">├──</span><span class="w"> </span><span class="n">src</span><span class="o">/</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">main</span><span class="o">.</span><span class="n">zig</span><span class="w">             </span><span class="c1"># CLI: verify | append | repair --truncate-tail</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">json</span><span class="o">.</span><span class="n">zig</span><span class="w">             </span><span class="c1"># canonical JSON — IMPORTED/forked from vakedz/src/json.zig</span>
+<span class="err">│</span><span class="w">   </span><span class="err">│</span><span class="w">                        </span><span class="c1">#   + i128 widening (§3.3) + floatRepr (§3.2)</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">floatrepr</span><span class="o">.</span><span class="n">zig</span><span class="w">        </span><span class="c1"># CPython-repr shortest-round-trip f64 (§3.2) — own goldens</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="n">core</span><span class="o">.</span><span class="n">zig</span><span class="w">             </span><span class="c1"># canonicalJson / chainHash / makeEntry / verifyChain / entryLine</span>
+<span class="err">│</span><span class="w">   </span><span class="err">├──</span><span class="w"> </span><span class="nb">log</span><span class="o">.</span><span class="n">zig</span><span class="w">              </span><span class="c1"># EventLog: flock, fsync, boot-verify, load, repair (§4.5)</span>
+<span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">ebpf</span><span class="o">.</span><span class="n">zig</span><span class="w">             </span><span class="c1"># eBPF witness skeleton (§4.6) — compile-only this sprint</span>
+<span class="err">└──</span><span class="w"> </span><span class="n">test</span><span class="o">/</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="n">golden</span><span class="o">/</span>
+<span class="w">    </span><span class="err">│</span><span class="w">   </span><span class="err">└──</span><span class="w"> </span><span class="n">vectors</span><span class="o">.</span><span class="n">jsonl</span><span class="w">     </span><span class="c1"># the 11 entry_lines (committed; §2.3) — parity target</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="n">golden</span><span class="o">/</span><span class="n">canon</span><span class="o">.</span><span class="n">txt</span><span class="w">      </span><span class="c1"># 11 canonical_json lines + 11 hashes (committed)</span>
+<span class="w">    </span><span class="err">├──</span><span class="w"> </span><span class="n">floats</span><span class="o">.</span><span class="n">golden</span><span class="w">         </span><span class="c1"># the §3.2 table (committed; floatrepr micro-gate)</span>
+<span class="w">    </span><span class="err">└──</span><span class="w"> </span><span class="n">crossverify</span><span class="o">.</span><span class="n">sh</span><span class="w">        </span><span class="c1"># parity gate vs Python oracle (mirrors vakedz/test/crossverify.sh)</span>
+</pre></div>
+
+<p>Rationale for <code>daemons/eventd/</code> (not extending <code>vakedz/</code>): the runtime roster<br />
+places eventd under <code>/daemons</code> (<code>docs/runtime/README.md:5</code>); <code>sandboxd</code> and the<br />
+future daemons live there. <code>json.zig</code>/<code>floatrepr.zig</code> may start as a fork of<br />
+<code>vakedz/src/json.zig</code>; converging them into a shared module is a follow-up, not<br />
+S4 (avoid coupling the compiler front-end's build to the daemon build now).</p>
+<h3 id="43-corezig-api-matches-eventdcorepy">4.3 <code>core.zig</code> API (matches <code>eventd/core.py</code>)</h3>
+<div class="highlight"><pre><span></span><span class="kr">pub</span><span class="w"> </span><span class="kr">const</span><span class="w"> </span><span class="n">GENESIS</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="mi">64</span><span class="p">]</span><span class="kt">u8</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;0&quot;</span><span class="o">**</span><span class="mi">64</span><span class="p">;</span><span class="w">  </span><span class="c1">// = cache.GENESIS</span>
+
+<span class="c1">// canonical JSON of an already-built (and key-sorted) payload Value.</span>
+<span class="kr">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">canonicalJson</span><span class="p">(</span><span class="n">alloc</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="o">:</span><span class="w"> </span><span class="o">*</span><span class="n">json</span><span class="p">.</span><span class="n">Value</span><span class="p">)</span><span class="w"> </span><span class="o">!</span><span class="p">[]</span><span class="kt">u8</span><span class="p">;</span><span class="w">   </span><span class="c1">// sortRecursive then writeCanonical</span>
+
+<span class="kr">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">chainHash</span><span class="p">(</span><span class="n">prev_hex</span><span class="o">:</span><span class="w"> </span><span class="p">[]</span><span class="kr">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">payload_canonical</span><span class="o">:</span><span class="w"> </span><span class="p">[]</span><span class="kr">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">out</span><span class="o">:</span><span class="w"> </span><span class="o">*</span><span class="p">[</span><span class="mi">64</span><span class="p">]</span><span class="kt">u8</span><span class="p">)</span><span class="w"> </span><span class="kt">void</span><span class="p">;</span><span class="w"> </span><span class="c1">// = cache.chainHex</span>
+
+<span class="kr">pub</span><span class="w"> </span><span class="kr">const</span><span class="w"> </span><span class="n">Entry</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">seq</span><span class="o">:</span><span class="w"> </span><span class="kt">i64</span><span class="p">,</span><span class="w"> </span><span class="n">prev</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="mi">64</span><span class="p">]</span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">payload_canonical</span><span class="o">:</span><span class="w"> </span><span class="p">[]</span><span class="kr">const</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span><span class="w"> </span><span class="n">hash</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="mi">64</span><span class="p">]</span><span class="kt">u8</span><span class="w"> </span><span class="p">};</span>
+<span class="kr">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">makeEntry</span><span class="p">(</span><span class="n">prev_hex</span><span class="p">,</span><span class="w"> </span><span class="n">seq</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">)</span><span class="w"> </span><span class="o">!</span><span class="n">Entry</span><span class="p">;</span>
+
+<span class="c1">// entry_line: sorted wrapper {hash,payload,prev,seq} + &#39;\n&#39;</span>
+<span class="kr">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">entryLine</span><span class="p">(</span><span class="n">alloc</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="o">:</span><span class="w"> </span><span class="n">Entry</span><span class="p">)</span><span class="w"> </span><span class="o">!</span><span class="p">[]</span><span class="kt">u8</span><span class="p">;</span>
+
+<span class="kr">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="n">verifyChain</span><span class="p">(</span><span class="n">entries</span><span class="p">)</span><span class="w"> </span><span class="kt">bool</span><span class="p">;</span><span class="w">   </span><span class="c1">// seq 0..n; prev links; hash recomputes (re-canonicalizing payload)</span>
+</pre></div>
+
+<p><code>verifyChain</code> MUST re-canonicalize each entry's payload from its parsed form<br />
+and recompute <code>chainHash(prev, canon)</code> (exactly <code>verify_chain</code>,<br />
+<code>core.py:67-80</code>) — it must NOT trust the literal payload substring on disk<br />
+beyond parsing it (a tamper that re-sorts keys but leaves a stale hash must<br />
+fail). The <code>rawPayload</code> substring trick from <code>cache.zig:253-261</code> is acceptable<br />
+<em>only</em> if the on-disk payload is already canonical; for a hardened audit spine,<br />
+parse → re-canonicalize → compare (matches the Python reference; slower but<br />
+correct). Document the choice; default to parse-and-recanonicalize.</p>
+<h3 id="44-wrapper-key-order-load-bearing">4.4 Wrapper key order (load-bearing)</h3>
+<p><code>entry_line</code> = <code>json.dumps(entry, separators=(",",":"), sort_keys=True,
+ensure_ascii=False, allow_nan=False) + "\n"</code> (<code>core.py:88-89</code>). With<br />
+<code>sort_keys=True</code> over keys <code>{seq,prev,payload,hash}</code> the on-disk order is<br />
+<code>hash, payload, prev, seq</code>. The Zig entry serializer builds the wrapper Value<br />
+with those four keys and runs the same sort (the payload sub-Value is itself<br />
+already canonical). Confirmed against §2.3 goldens.</p>
+<h3 id="45-logzig-daemon-shape-matches-eventdlogpy">4.5 <code>log.zig</code> — daemon shape (matches <code>eventd/log.py</code>)</h3>
+<p>State machine and refusal paths to reproduce exactly:</p>
+<ul>
+<li><strong>Open (reader):</strong> <code>EventLog(path)</code> → <code>load_entries</code> then <code>verifyChain</code>;<br />
+  failure → <code>error.Tamper</code> <em>before any entry is served</em> (<code>log.py:175-181</code>).</li>
+<li><strong>Open (writer):</strong> take <code>LOCK_EX | LOCK_NB</code> <strong>FIRST</strong>, then load+verify under<br />
+  the lock (<code>log.py:164-184</code>). A second writer → <code>error.WriterLock</code>. A refused<br />
+  (tampered) writer-open MUST release the lock (<code>log.py:182-184</code>;<br />
+<code>test_eventd.py:146-162</code>).</li>
+<li><strong><code>append(payload)</code>:</strong> chain off <code>tail_hash</code>, write <code>entryLine</code>, <code>flush</code>,<br />
+<strong><code>fsync</code></strong> before return (<code>log.py:205-214</code>).</li>
+<li><strong><code>load_entries</code></strong> byte-oriented: split on <code>\n</code>, drop empty; a line that is<br />
+  bad JSON <strong>or</strong> undecodable UTF-8 <strong>or</strong> valid-JSON-but-not-an-object →<br />
+<code>error.Tamper</code> (NOT a decode traceback) (<code>log.py:46-68</code>,<br />
+<code>test_eventd.py:136-173</code>). Zig: read bytes, attempt UTF-8 decode + JSON<br />
+  parse per line; map both failures to <code>error.Tamper</code>.</li>
+<li><strong>Single-writer is cross-process</strong> (<code>flock</code>, <code>test_eventd.py:175-200</code>). On<br />
+  macOS M1 <code>flock(2)</code> is available and advisory-exclusive — testable locally<br />
+  (§7). Note <code>flock</code> portability caveat for the eventual Linux deployment is a<br />
+  tracked open item (<code>eventd-design.md:122</code>).</li>
+<li><strong><code>repair_truncate_tail</code></strong> (<code>log.py:96-146</code>): take the writer lock; compute<br />
+  the <strong>longest valid prefix</strong> (<code>_longest_valid_prefix</code>, <code>:71-93</code> — reuse<br />
+<code>cache.zig:verify</code>'s walk, but stop-on-first-break and keep the prefix);<br />
+<code>dropped = byte_lines - prefix</code>; if <code>dropped&lt;=0</code> → <code>{repaired:false}</code>;<br />
+  else append a <code>log_repair</code> entry <code>{"kind":"log_repair","v":1,
+  "dropped":N}</code> chained off the prefix tail, written <strong>crash-atomically</strong><br />
+  (temp file → fsync → <code>os.replace</code> → dir fsync; <code>log.py:131-143</code>). Result<br />
+<code>{repaired, dropped, tail_seq}</code>. Idempotent on a clean log<br />
+  (<code>test_eventd.py:764-767</code>). A break anywhere truncates everything after it<br />
+  (a chain cannot resume past a broken link; <code>log.py:99-106</code>).</li>
+</ul>
+<p>The <code>log_repair</code> payload key order: canonical JSON sorts to<br />
+<code>{"dropped":N,"kind":"log_repair","v":1}</code> — the Zig writer gets this for free<br />
+from <code>sortRecursive</code>.</p>
+<h3 id="46-ebpf-witness-skeleton-ebpfzig-compile-only">4.6 eBPF witness skeleton (<code>ebpf.zig</code>) — compile-only</h3>
+<p><strong>Defined role (grounded, not invented):</strong> eventd is the <strong>witness/sink</strong> for<br />
+the eBPF testimony datapath. <code>docs/runtime/README.md:29</code> —<br />
+<code>ebpf → agent-guardd (...) + eventd</code>; <code>docs/runtime/agent-guardd.md:33-36</code> —<br />
+<code>eBPF testifies → Event.Ebpf payload per verdict → eventd append → hash-chained
+log.jsonl</code>. So eventd's eBPF leg is the <strong>kernel-side complement</strong> to the<br />
+userspace chain: a minimal <code>BPF_PROG_TYPE_CGROUP_SKB</code>-class program whose<br />
+verdicts (drop/pass per destination) become <code>Event.Ebpf</code> payloads appended via<br />
+<code>log.zig:append</code>. agent-guardd owns policy compilation/attach; eventd owns the<br />
+<em>witnessing</em> of verdicts onto the immutable chain.</p>
+<p><strong>S4 deliverable (scaffold only):</strong></p>
+<ul>
+<li><code>ebpf.zig</code> reproduces the <code>agent_guardd/bpf.py</code> reference shape in Zig:<br />
+  the <code>bpf()</code> syscall ABI constants (<code>__NR_bpf</code>=321 x86-64,<br />
+<code>BPF_PROG_LOAD</code>=5, <code>BPF_PROG_ATTACH</code>=8, <code>BPF_PROG_TYPE_CGROUP_SKB</code>=15,<br />
+<code>BPF_CGROUP_INET_EGRESS</code>=1; <code>bpf.py:33-39</code>), the 8-byte BPF instruction<br />
+  encoder (<code>&lt;BBhi</code>: op, <code>(src&lt;&lt;4)|dst</code>, off, imm; <code>bpf.py:51-53</code>), and a<br />
+<code>compilePosture()</code> that assembles a deny/pass-by-default program<br />
+  (<code>MOV64_IMM</code> + <code>EXIT</code>; <code>bpf.py:42-43</code>).</li>
+<li><code>Event.Ebpf</code> payload constructor: a Zig fn producing the verdict payload<br />
+  dict (fields TBD with agent-guardd; minimally <code>{kind:"ebpf", verdict,
+  dest, ...}</code>) that routes through <code>core.canonicalJson</code> → <code>log.append</code>. This<br />
+  ties the skeleton to the byte contract from day one.</li>
+<li>A <code>bpf()</code> wrapper that, on a non-Linux/incapable host, <strong>degrades to the<br />
+  reference datapath</strong> rather than crashing — exactly the<br />
+<code>agent_guardd/bpf.py:19-22</code> discipline ("a kernel without BPF degrades<br />
+  cleanly").</li>
+</ul>
+<p><strong>Explicitly deferred to Linux/dev-cx53 (§8):</strong> real <code>BPF_PROG_LOAD</code><br />
+(in-kernel verifier run), <code>BPF_PROG_ATTACH</code> at <code>BPF_CGROUP_INET_EGRESS</code>, and<br />
+any live verdict capture. S4's gate for this leg is <strong>"compiles for<br />
+<code>x86_64-linux</code>"</strong>, nothing more.</p>
+<hr />
+<h2 id="5-test-plan">5. Test plan</h2>
+<p>Two-tier, matching the environment constraints (dev-cx53 off-limits 6h;<br />
+macOS M1).</p>
+<h3 id="51-verifiable-locally-on-m1-zig-version-0160-confirmed-present">5.1 Verifiable locally on M1 (<code>zig version</code> = 0.16.0 confirmed present)</h3>
+<ol>
+<li><strong>floatrepr micro-gate</strong> (<code>test/floats.golden</code>): <code>floatrepr.zig</code> over the<br />
+   §3.2 table + boundary probes → exact-string match. Run as <code>zig build test</code>.<br />
+<em>This is the gate that de-risks the hardest code.</em></li>
+<li><strong>canonical-JSON parity</strong> (<code>test/golden/canon.txt</code>): for each of the 11<br />
+   vectors, <code>core.canonicalJson</code> == the committed canonical line, and<br />
+<code>chainHash</code>-chained <code>hash</code> == the committed hash. <code>zig build test</code> +<br />
+<code>crossverify.sh</code>.</li>
+<li><strong>entry-line byte parity</strong> (<code>test/golden/vectors.jsonl</code>): chaining the 11<br />
+   vectors from genesis produces a log file <strong>byte-identical</strong> to the committed<br />
+<code>vectors.jsonl</code> (which the Python oracle generated; §2.3). This is the<br />
+   "byte-identical to Python ref" headline.</li>
+<li><strong>determinism</strong>: write the 11 vectors twice → identical bytes<br />
+   (mirrors <code>test_eventd.py:210-228</code>).</li>
+<li><strong>log discipline</strong> (all work on macOS — <code>flock</code>/<code>fsync</code>/<code>open</code> are POSIX):</li>
+<li>append + reopen verifies; entry count preserved.</li>
+<li>flip one payload byte → reopen raises <code>error.Tamper</code><br />
+     (<code>test_eventd.py:126-135</code>).</li>
+<li>malformed line / torn-UTF-8 tail / non-object tail → <code>error.Tamper</code>,<br />
+     not a decode traceback (<code>test_eventd.py:136-144,769-807</code>).</li>
+<li>second writer (in-process) refused; refused-writer-open releases the lock<br />
+     (<code>test_eventd.py:114-162</code>).</li>
+<li>cross-process second writer refused (spawn a holder process, mirror<br />
+<code>test_eventd.py:175-200</code>).</li>
+<li><code>repair --truncate-tail</code>: torn tail refuses pre-repair; repair drops it,<br />
+     logs <code>log_repair</code>, re-verifies; idempotent on a clean log<br />
+     (<code>test_eventd.py:738-767</code>).</li>
+<li><strong>drift guard</strong> (in <code>crossverify.sh</code>, like <code>vakedz/test/crossverify.sh:50-58</code>):<br />
+   re-derive the goldens from the live Python oracle and warn/fail if the<br />
+   committed goldens drift — pins Zig and Python to the same bytes forever.</li>
+<li><strong>CLI exit-code parity</strong> for the ported verbs against the stable oracle<br />
+   contract (<code>eventd/__main__.py:40-44</code>): <code>verify</code> → 0 (ok) / 4 (tampered);<br />
+<code>append</code> → 0 / 4 / 5 (locked); <code>repair</code> → 0 / 5.</li>
+</ol>
+<h3 id="52-compile-only-on-m1-cross-compile">5.2 Compile-only on M1 (cross-compile)</h3>
+<ol>
+<li><strong>eBPF skeleton compiles for Linux:</strong> <code>zig build -Dtarget=x86_64-linux</code><br />
+   builds <code>ebpf.zig</code> (and the daemon) clean. The <code>bpf()</code> syscall path is<br />
+   referenced but not executed. (Namespace/syscall behavior is a no-op on<br />
+   macOS; only compilation is asserted — matches the orchestrator constraint.)</li>
+</ol>
+<h3 id="53-requires-dev-cx53-a-linux-host-deferred-8">5.3 Requires dev-cx53 / a Linux host (DEFERRED — §8)</h3>
+<ol>
+<li>Real <code>BPF_PROG_LOAD</code> (in-kernel verifier accepts the posture program;<br />
+   capture "processed N insns").</li>
+<li><code>BPF_PROG_ATTACH</code> at <code>BPF_CGROUP_INET_EGRESS</code> on a capable host; verdict →<br />
+<code>Event.Ebpf</code> → eventd append, end-to-end.</li>
+<li>Any test asserting kernel namespace/cgroup syscall <em>behavior</em> (compile-only<br />
+    on M1; behavior only on Linux).</li>
+</ol>
+<h3 id="54-the-parity-gate-command">5.4 The parity gate command</h3>
+<div class="highlight"><pre><span></span><span class="c1"># M1, no dev-cx53 needed:</span>
+<span class="nb">cd</span><span class="w"> </span>daemons/eventd<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>zig<span class="w"> </span>build<span class="w"> </span><span class="nb">test</span><span class="w">          </span><span class="c1"># tiers 1,2,4,5,7 + floatrepr</span>
+zig<span class="w"> </span>build<span class="w"> </span>-Dtarget<span class="o">=</span>x86_64-linux<span class="w">                           </span><span class="c1"># tier 8 (eBPF compile-only)</span>
+./test/crossverify.sh<span class="w"> </span>./zig-out/bin/eventdz<span class="w">               </span><span class="c1"># tiers 2,3,6 vs Python oracle</span>
+</pre></div>
+
+<hr />
+<h2 id="6-dependencies-on-other-sprints">6. Dependencies on other sprints</h2>
+<table>
+<thead>
+<tr>
+<th>Depends on / blocks</th>
+<th>Relationship</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>vakedz</code> json.zig / cache.zig</strong> (shipped, <code>vakedz/src/</code>)</td>
+<td>S4 reuses <code>writeString</code>, <code>sortRecursive</code>, <code>chainHex</code>, <code>sha256Hex</code>, <code>verify</code>. No version bump needed; fork-then-converge.</td>
+</tr>
+<tr>
+<td><strong>WP for <code>eventd.statedep</code> Zig port</strong> (RFC 0004 fold)</td>
+<td><strong>Downstream of S4.</strong> <code>statedep.py:16-17</code> says the zero-copy scan path is "explicitly after correctness." S4 ships the verified-chain substrate it folds over. The <code>state</code>/<code>floor</code>/<code>coldstart</code> CLI verbs ride this sprint.</td>
+</tr>
+<tr>
+<td><strong>WP for <code>eventd.runtime</code> Zig port</strong> (run/step fold)</td>
+<td>Downstream of S4; same substrate.</td>
+</tr>
+<tr>
+<td><strong>agent-guardd Zig daemon</strong> (<code>docs/runtime/agent-guardd.md</code>)</td>
+<td><strong>Bidirectional contract.</strong> agent-guardd produces <code>Event.Ebpf</code>; eventd witnesses it. The <code>Event.Ebpf</code> payload schema must be co-fixed (Python reference: <code>agent_guardd/evidence.py</code>). S4's <code>ebpf.zig</code> constructor is a placeholder until that schema is frozen.</td>
+</tr>
+<tr>
+<td><strong>0012 lowering output</strong> (<code>gen/eventd.json</code>)</td>
+<td>The per-runtime log path is a lowering output (<code>eventd-design.md:53,84-86</code>; <code>tests/spec/test_eventd.py:519-563</code>). S4 reads a path argument; wiring <code>gen/eventd.json</code> → daemon config is downstream.</td>
+</tr>
+<tr>
+<td><strong>dev-cx53 / Linux host</strong></td>
+<td>Blocks tier 5.3 only (real BPF load/attach). Off-limits 6h per the constraint; not on S4's local critical path.</td>
+</tr>
+<tr>
+<td><strong>hcpbin encoder (RFC 0002 §6) Zig port</strong></td>
+<td><strong>Independent.</strong> Different layer (§3.1). S4 must NOT depend on or implement it.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-acceptance-criteria">7. Acceptance criteria</h2>
+<p>S4 is <strong>done</strong> when, on a clean macOS M1 checkout (no dev-cx53):</p>
+<ol>
+<li><code>daemons/eventd/</code> exists with the §4.2 layout; <code>zig build</code> (Zig 0.16.0)<br />
+   produces <code>zig-out/bin/eventdz</code>.</li>
+<li><strong>11-vector byte-identity:</strong> chaining the 11 <code>_VECTORS</code> from genesis<br />
+   produces a file <strong>byte-identical</strong> to the committed <code>test/golden/vectors.jsonl</code><br />
+   (the §2.3 entry lines), AND each <code>hash</code> equals the §2.3 value. The committed<br />
+   golden re-derives identically from the live Python oracle (drift guard<br />
+   green).</li>
+<li><strong>float-repr gate green:</strong> <code>floatrepr.zig</code> matches every line of<br />
+<code>test/floats.golden</code> (§3.2 table), including <code>1e-06</code>, <code>1e+16</code>, <code>-0.0</code>,<br />
+<code>1.0</code>, the <code>1e-4 ↔ 1e-5</code> threshold.</li>
+<li><strong>Hostile cases pass:</strong> vectors 8 ≠ 9 hash (no NFC); <code>-0.0</code> preserved<br />
+   (vector 4); <code>10²⁰</code> exact (vector 7); NaN/Inf → <code>error.NonFiniteFloat</code>.</li>
+<li><strong>Log discipline green</strong> (tier 5.1 #5): tamper/malformed/torn-tail/<br />
+   non-object-tail → <code>error.Tamper</code>; single-writer enforced in-process and<br />
+   cross-process; refused writer-open releases the lock; <code>repair</code> drops the<br />
+   unverifiable suffix, logs <code>log_repair</code>, re-verifies, idempotent.</li>
+<li><strong>CLI exit codes</strong> match the oracle table (<code>__main__.py:40-44</code>) for the<br />
+   ported verbs.</li>
+<li><strong>eBPF skeleton compiles</strong> for <code>x86_64-linux</code><br />
+   (<code>zig build -Dtarget=x86_64-linux</code> clean); the <code>Event.Ebpf</code> payload<br />
+   constructor routes through the byte contract; the <code>bpf()</code> path degrades<br />
+   cleanly off-Linux. Real load/attach explicitly out of S4 (tier 5.3).</li>
+<li><code>crossverify.sh</code> exits 0 (all parity + drift checks pass).</li>
+<li>README documents the byte contract, the "Python fixes the bytes, Zig<br />
+   reproduces them" #15 pattern, and the §3.1 hcpbin-is-a-different-layer note.</li>
+</ol>
+<p><strong>Out of acceptance (tracked, not S4):</strong> statedep/runtime folds, the full CLI,<br />
+real BPF load/attach, hcpbin encoding, shared-json-module convergence,<br />
+true-bignum (&gt;i128) integers, snapshot/compaction/group-commit<br />
+(<code>eventd-design.md:122-133</code>).</p>
+<hr />
+<h2 id="8-risks-open-items">8. Risks &amp; open items</h2>
+<ul>
+<li><strong>Float repr (highest):</strong> Zig <code>std.fmt</code> ≠ CPython <code>float_repr</code>. Mitigation:<br />
+  dedicated <code>floatrepr.zig</code> + exhaustive micro-goldens; treat §3.2 table as<br />
+  the acceptance oracle, not memory.</li>
+<li><strong>Wrapper key order:</strong> easy to inherit <code>cache.zig</code>'s insertion order and<br />
+  silently fail tier 3 while tier 2 (hash) still passes. Mitigation: tier 3<br />
+  asserts the <strong>on-disk line</strong>, not just the hash.</li>
+<li><strong>i128 vs true bignum:</strong> i128 satisfies the 11; a payload integer &gt; i128<br />
+  would need decimal-string passthrough. Flagged as a follow-up; the contract<br />
+  is arbitrary-precision.</li>
+<li><strong><code>Event.Ebpf</code> schema</strong> not yet frozen — <code>ebpf.zig</code> constructor is a<br />
+  placeholder pending the agent-guardd co-design (<code>agent_guardd/evidence.py</code>).</li>
+<li><strong>flock portability</strong> to the eventual Linux deployment (<code>eventd-design.md:122</code>)<br />
+  — out of S4 (S4 only needs it working on M1 for the tests).</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-wp4-s4.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

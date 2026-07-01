@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MLIR Pass 2 — write-ahead registration injection — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#abstract" style="padding-left:0.5rem">Abstract</a><a href="#1-the-rewrite" style="padding-left:0.5rem">1. The rewrite</a><a href="#11-the-anchored-hash" style="padding-left:1rem">  1.1 The anchored hash</a><a href="#2-rewind-scope-insertion" style="padding-left:0.5rem">2. Rewind-scope insertion</a><a href="#3-prepostconditions-the-pass-contract" style="padding-left:0.5rem">3. Pre/postconditions (the pass contract)</a><a href="#4-stage-0-fidelity" style="padding-left:0.5rem">4. Stage-0 fidelity</a><a href="#security-considerations" style="padding-left:0.5rem">Security considerations</a><a href="#open-questions" style="padding-left:0.5rem">Open questions</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/language/">language</a> / 0022-mlir-pass-wal-injection</div>
+<h1>MLIR Pass 2 — write-ahead registration injection</h1>
+<h1 id="0022-pass-2-automatic-write-ahead-registration-injection">0022 — Pass 2: automatic write-ahead registration injection</h1>
+<p>Status: <strong>Review</strong> (2026-06-14) · Series: language design notes · Track:<br />
+<strong>Language / MLIR</strong> · Issue<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/23">#23</a> · Epic<br />
+<a href="https://github.com/peterlodri-sec/vaked-base/issues/17">#17</a></p>
+<p>Part of the MLIR set; umbrella in<br />
+<a href="./0013-mlir-topology-compilation.md">0013</a>. <strong>Inputs:</strong> the <code>vaked</code> dialect<br />
+(<a href="./0019-mlir-vaked-dialect.md">0019</a>) and the <code>hcp</code> dialect<br />
+(<a href="./0020-mlir-hcp-dialect.md">0020</a>). <strong>Protocol anchor:</strong><br />
+<a href="../../protocol/rfcs/0004-multi-agent-state-dependency.md">RFC 0004</a> §3 (write-ahead<br />
+discipline). <strong>Stage-0 reference:</strong> <code>vakedc/lower.py</code> (<code>emit_workflow_spec</code>).</p>
+<h2 id="abstract">Abstract</h2>
+<p>Pass 2 is the <code>vaked → hcp</code> lowering. It replaces every <code>vaked.consume</code> with the<br />
+<code>hcp</code> write-ahead sequence — <code>create_registration_token → write_ahead_log →
+fetch_canonical_data</code> — and encloses the dependent computation in an<br />
+<code>hcp.rewind_scope</code>. The point is to make RFC 0004's write-ahead discipline<br />
+<strong>structural and generated</strong>: a hand-written <code>DependencyRegistration</code> is a<br />
+conformance smell (RFC 0004 §3.1), so the compiler writes it, every time,<br />
+correctly ordered.</p>
+<h2 id="1-the-rewrite">1. The rewrite</h2>
+<p>For each <code>vaked.consume {producer = @A, producer_step = N}</code> in consumer agent<br />
+<code>@B</code>, producing <code>%in : !vaked.state_hash</code>:</p>
+<div class="highlight"><pre><span></span><span class="c1">// before</span>
+<span class="nf">%in</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">vaked</span><span class="p">.</span><span class="n">consume</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">producer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">@</span><span class="n">A</span><span class="p">,</span><span class="w"> </span><span class="n">producer_step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i64</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span>
+<span class="p">...</span><span class="w"> </span><span class="n">uses</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="nf">%in</span><span class="w"> </span><span class="p">...</span>
+
+<span class="c1">// after (Pass 2)</span>
+<span class="nf">%h</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="n">vaked</span><span class="p">.</span><span class="n">state_anchor</span><span class="w"> </span><span class="err">@</span><span class="n">A</span><span class="p">,</span><span class="w"> </span><span class="mi">15</span><span class="w">            </span><span class="c1">// the anchored producer hash (see §1.1)</span>
+<span class="nf">%token</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">hcp</span><span class="p">.</span><span class="n">create_registration_token</span><span class="w"> </span><span class="p">{</span>
+<span class="w">             </span><span class="n">producer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">@</span><span class="n">A</span><span class="p">,</span><span class="w"> </span><span class="n">producer_step</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">i64</span><span class="p">,</span><span class="w"> </span><span class="n">topology_epoch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">%epoch</span>
+<span class="w">           </span><span class="p">}</span><span class="w"> </span><span class="nf">%h</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">vaked</span><span class="p">.</span><span class="n">state_hash</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">reg_token</span>
+<span class="nf">%receipt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">hcp</span><span class="p">.</span><span class="n">write_ahead_log</span><span class="w"> </span><span class="nf">%token</span><span class="w">            </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">reg_token</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">wal_receipt</span>
+<span class="nf">%data</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">hcp</span><span class="p">.</span><span class="n">fetch_canonical_data</span><span class="w"> </span><span class="nf">%receipt</span><span class="w">     </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">wal_receipt</span><span class="p">)</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="o">!</span><span class="n">hcp</span><span class="p">.</span><span class="n">canonical_data</span>
+<span class="n">hcp</span><span class="p">.</span><span class="n">rewind_scope</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">producer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="err">@</span><span class="n">A</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="p">...</span><span class="w"> </span><span class="n">uses</span><span class="w"> </span><span class="n">of</span><span class="w"> </span><span class="nf">%in</span><span class="p">,</span><span class="w"> </span><span class="n">now</span><span class="w"> </span><span class="n">reading</span><span class="w"> </span><span class="nf">%data</span><span class="w"> </span><span class="p">...</span>
+<span class="w">  </span><span class="n">hcp</span><span class="p">.</span><span class="n">yield</span><span class="w"> </span><span class="p">...</span>
+<span class="p">}</span>
+</pre></div>
+
+<p><code>%in</code>'s uses are rewired to <code>%data</code>. The three ops are emitted <strong>in order</strong>, and<br />
+because <code>fetch_canonical_data</code> data-depends on the <code>write_ahead_log</code> receipt<br />
+(<a href="./0020-mlir-hcp-dialect.md">0020</a> §4), no later pass can reorder the fetch<br />
+ahead of the log.</p>
+<h3 id="11-the-anchored-hash">1.1 The anchored hash</h3>
+<p>The <code>producer_step_hash</code> operand of <code>hcp.create_registration_token</code> is the<br />
+producer's step-<code>N</code> output hash. At compile time this is symbolic — the concrete<br />
+eventd hash is known at runtime — so Pass 2 references it via the producing<br />
+<code>vaked.agent</code>'s step result (an internal <code>vaked.state_anchor @A, N</code> materializer,<br />
+resolved when <code>@A</code> is lowered). The registration carries the <em>binding</em>; the hash<br />
+<em>value</em> is filled at runtime per RFC 0004 §3.2's verification-on-registration.</p>
+<h2 id="2-rewind-scope-insertion">2. Rewind-scope insertion</h2>
+<p>The uses of the consumed data are, by definition, built on an anchor a producer<br />
+rewind could void (RFC 0004 §3.3). Pass 2 encloses them in an<br />
+<code>hcp.rewind_scope { producer = @A }</code> so <code>agent-supervisord</code> knows exactly which<br />
+region cold-start verification (§6) must guard. Minimal form: one scope per<br />
+<code>(consumer, producer)</code> pair wrapping that producer's dependent uses; nested<br />
+consumes from distinct producers nest their scopes.</p>
+<h2 id="3-prepostconditions-the-pass-contract">3. Pre/postconditions (the pass contract)</h2>
+<p><strong>Preconditions</strong><br />
+- Pass 1 (<a href="./0021-mlir-pass-topology-analysis.md">0021</a>) succeeded — the graph<br />
+  is an acyclic, depth-bounded <code>state_dependency</code> DAG. (Injecting WAL into a<br />
+  cyclic graph is meaningless; Pass 1 gates Pass 2.)</p>
+<p><strong>Postconditions</strong><br />
+- <strong>No <code>vaked.consume</code> remains</strong> — every one is lowered. (A surviving<br />
+<code>vaked.consume</code> after Pass 2 is a pass bug.)<br />
+- Each injected sequence satisfies V-WAL-ORDER (<a href="./0020-mlir-hcp-dialect.md">0020</a><br />
+  §3.3): every <code>fetch_canonical_data</code> traces through a <code>write_ahead_log</code> to a<br />
+<code>create_registration_token</code> for the <strong>same</strong> producer.<br />
+- The rewrite is <strong>deterministic</strong>: consumes lowered in module/op order; given<br />
+  the same input module, byte-identical output — the same purity contract as<br />
+  every <code>0012</code> emitter.</p>
+<h2 id="4-stage-0-fidelity">4. Stage-0 fidelity</h2>
+<p>Stage 0 does not yet emit <code>hcp</code> ops; it records the <strong>same structural inputs</strong><br />
+from which the runtime performs the write-ahead. <code>vakedc/lower.py</code><br />
+<code>emit_workflow_spec</code> writes <code>gen/workflow/&lt;name&gt;.json</code> with the dependency<br />
+<code>edges</code> (the <code>state_dependency</code> relation Pass 2 lowers) and the eventd <code>log</code><br />
+path (the durable substrate the WAL writes to). In Stage 0 <code>agent-supervisord</code> +<br />
+<code>eventd</code> perform the registration at runtime from that wiring; Stage 1 makes the<br />
+<code>create → write_ahead → fetch</code> sequence explicit in IR. The Stage-1 pass MUST<br />
+preserve RFC 0004 §3.1 ordering and produce, per consume, exactly the binding<br />
+the Stage-0 spec's edge + log already imply<br />
+(<a href="./0024-mlir-lowering-staged-adoption.md">0024</a> §4) — no new dependency edge,<br />
+none dropped.</p>
+<h2 id="security-considerations">Security considerations</h2>
+<ul>
+<li><strong>Generated, never hand-authored.</strong> Pass 2 is the mechanism that makes<br />
+  "hand-written registration is a conformance smell" (RFC 0004 §3.1) true: the<br />
+  only <code>hcp</code> WAL sequences in a compiled artifact are the ones Pass 2 emitted<br />
+  from a verified <code>vaked.consume</code>. A reviewer seeing a WAL sequence with no<br />
+  originating consume should treat it as tampering.</li>
+<li><strong>Completeness is the invariant.</strong> The "no <code>vaked.consume</code> remains"<br />
+  postcondition is a security property: a consume that escaped lowering is a<br />
+  cross-agent read with <strong>no</strong> registration — precisely the unregistered<br />
+  consumption RFC 0004 §3 forbids.</li>
+</ul>
+<h2 id="open-questions">Open questions</h2>
+<ul>
+<li>The <code>vaked.state_anchor</code> materializer (§1.1) is an internal device; whether it<br />
+  is a real op or a lowering-time symbol table entry is an implementation choice<br />
+  for the Stage-1 build (non-gating).</li>
+<li>Rewind-scope granularity (§2): one scope per <code>(consumer, producer)</code> vs one per<br />
+  consume site. Coarser scopes mean fewer cold-start re-verifications but wider<br />
+  pause blast radius; tune against RFC 0004 §6 verification cost.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/language/0022-mlir-pass-wal-injection.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Live experiment report — dogfood lower + RUNTIME.md mesh-grant fix — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#what-this-was" style="padding-left:0.5rem">What this was</a><a href="#1-the-lower-reproduce-the-prior-claim" style="padding-left:0.5rem">1. The lower (reproduce the prior claim)</a><a href="#2-the-finding" style="padding-left:0.5rem">2. The finding</a><a href="#3-the-fix" style="padding-left:0.5rem">3. The fix</a><a href="#4-verification" style="padding-left:0.5rem">4. Verification</a><a href="#mesh-field" style="padding-left:1rem">  mesh `field`</a><a href="#5-honest-limits-not-yet-proven" style="padding-left:0.5rem">5. Honest limits (not yet proven)</a><a href="#6-status" style="padding-left:0.5rem">6. Status</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/reports/">reports</a> / 2026-06-16-dogfood-lower-mesh-fix</div>
+<h1>Live experiment report — dogfood lower + RUNTIME.md mesh-grant fix</h1>
+<h1 id="live-experiment-report-dogfood-lower-runtimemd-mesh-grant-fix">Live experiment report — dogfood lower + RUNTIME.md mesh-grant fix</h1>
+<p><strong>Date:</strong> 2026-06-16 · <strong>Root:</strong> <code>vaked-base</code> @ <code>main</code> · <strong>Scope:</strong> local only, nothing pushed.</p>
+<h2 id="what-this-was">What this was</h2>
+<p>A prior session authored three Vaked blocks and handed off one open action: "run the<br />
+lower." This session reproduced that lowering on the field root, and in verifying the<br />
+output found and fixed a real gap in the <code>docs.runtime</code> emitter. This report documents<br />
+the run, the finding, the fix, and the verification — written for a human reviewer, with<br />
+honest calibration of what is proven vs. asserted.</p>
+<h2 id="1-the-lower-reproduce-the-prior-claim">1. The lower (reproduce the prior claim)</h2>
+<p>Tool: <code>vakedc</code> (pure-Python, stdlib-only) — <code>python3 -m vakedc</code>. This is an interpreter<br />
+run, not a compile/build, so it does not trip the project's "never build on the developer<br />
+machine" rule. <code>vakedz</code> (Zig) was not used (no prebuilt binary; a build is forbidden).</p>
+<p><strong>check</strong> — all three exit 0, zero diagnostics:</p>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vaked/examples/crabcc-umami.vaked</code></td>
+<td>no diagnostics</td>
+</tr>
+<tr>
+<td><code>vaked/examples/editorial-pipeline.vaked</code></td>
+<td>no diagnostics</td>
+</tr>
+<tr>
+<td><code>vaked/examples/session-drive-loop.vaked</code></td>
+<td>no diagnostics</td>
+</tr>
+</tbody>
+</table>
+<p>One benign warning on each: Unicode data version mismatch (pinned 15.1.0 vs runtime<br />
+16.0.0) — affects only edge-case NFC codepoints, none present in these files.</p>
+<p><strong>lower</strong> — all three exit 0, emitting to per-block out-dirs under <code>.vaked/lower/</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>Out-dir</th>
+<th>Files emitted (first run)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>crabcc-umami</td>
+<td><code>.vaked/lower/crabcc-umami/</code></td>
+<td>7</td>
+</tr>
+<tr>
+<td>editorial-pipeline</td>
+<td><code>.vaked/lower/editorial-pipeline/</code></td>
+<td>10</td>
+</tr>
+<tr>
+<td>session-drive-loop</td>
+<td><code>.vaked/lower/session-drive-loop/</code></td>
+<td>9</td>
+</tr>
+</tbody>
+</table>
+<p>Each tree carries <code>flake.nix</code>, <code>provenance.json</code>, and a <code>gen/</code> subtree (nix modules, OTP<br />
+supervisors, Zig daemon configs, workflow DAG JSON, catalogs, eventd config). <code>provenance.json</code><br />
+is content-addressed: per-artifact <code>inputsHash</code> (sha256) + source span + emitter id.</p>
+<p><strong>Conclusion:</strong> the prior session's claim — "each lowered by vakedc, the checker earned its<br />
+keep" — reproduces on this root. POLA is enforced at <strong>check</strong> time; lowering is gated to<br />
+emit nothing if the checker reports a single diagnostic (0012 §1).</p>
+<h2 id="2-the-finding">2. The finding</h2>
+<p>The <code>docs.runtime</code> emitter that produces <code>gen/RUNTIME.md</code> had a hardcoded "Capability<br />
+grants" section reading <em>"No <code>mesh</code> or <code>capability</code> declarations in this runtime…"</em> —<br />
+emitted unconditionally, regardless of the source. It never iterated the runtime's <code>mesh</code><br />
+declarations.</p>
+<p>Two of the three blocks (<code>editorial-pipeline</code>, <code>session-drive-loop</code>) contain full <code>mesh</code><br />
+blocks with attenuated POLA grant-sets. Their generated RUNTIME.md therefore <em>wrongly<br />
+stated no grants existed</em> — the single most security-relevant section of the doc, blank.</p>
+<p><strong>Severity:</strong> doc-emitter only. The functional artifacts were always correct — the workflow<br />
+JSON carried the right agent→node bindings, and POLA is a check-time property the checker<br />
+already validated. The defect was that the human-facing rendering under-reported. Located<br />
+at <code>vakedc/lower.py</code> (the section-7 block of <code>emit_docs_runtime</code>).</p>
+<h2 id="3-the-fix">3. The fix</h2>
+<p>Three edits to <code>vakedc/lower.py</code>:</p>
+<ol>
+<li>Added a <code>meshes</code> field to <code>_RuntimeView</code> (the runtime decomposition dataclass).</li>
+<li>Populated it in <code>_runtime_view</code> via <code>_by_kind(children, "mesh")</code>.</li>
+<li>Rewrote section 7: when <code>rv.meshes</code> is non-empty, render a per-mesh grant-set table<br />
+   (Principal · Role · Capabilities, source order) using the existing <code>_render_ref_list</code><br />
+   and <code>_children_of</code> helpers; otherwise keep the original no-mesh fallback verbatim.</li>
+<li>Added mesh provenance entries to the RUNTIME.md provenance list, mirroring the existing<br />
+   per-section pattern.</li>
+</ol>
+<p>No grammar, checker, or functional-emitter change — purely the doc renderer.</p>
+<h2 id="4-verification">4. Verification</h2>
+<p>Re-lowered all three blocks (exit 0, same file counts: 7/10/9). The editorial-pipeline<br />
+RUNTIME.md now renders the table below — reproduced here with backticks/commas stripped for<br />
+readability; the values are verbatim from the generated file:</p>
+<div class="highlight"><pre><span></span><span class="c1">### mesh `field`</span>
+<span class="o">|</span><span class="w"> </span><span class="n">Principal</span><span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="k">Role</span><span class="w">            </span><span class="o">|</span><span class="w"> </span><span class="n">Capabilities</span><span class="w">                                            </span><span class="o">|</span>
+<span class="o">|</span><span class="w"> </span><span class="n">editor</span><span class="w">      </span><span class="o">|</span><span class="w"> </span><span class="n">editor</span><span class="o">-</span><span class="k">in</span><span class="o">-</span><span class="n">chief</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">egress</span><span class="p">,</span><span class="w"> </span><span class="n">mcp</span><span class="p">.</span><span class="n">github_write</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="k">admin</span><span class="w"> </span><span class="o">|</span>
+<span class="o">|</span><span class="w"> </span><span class="n">researcher</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="n">research</span><span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">lan</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">recall</span><span class="w">                     </span><span class="o">|</span>
+<span class="o">|</span><span class="w"> </span><span class="n">drafter</span><span class="w">     </span><span class="o">|</span><span class="w"> </span><span class="n">drafting</span><span class="w">        </span><span class="o">|</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">append</span><span class="w">                                  </span><span class="o">|</span>
+<span class="o">|</span><span class="w"> </span><span class="n">factChecker</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">fact</span><span class="o">-</span><span class="k">check</span><span class="w">      </span><span class="o">|</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">repo_ro</span><span class="p">,</span><span class="w"> </span><span class="n">network</span><span class="p">.</span><span class="n">lan</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">recall</span><span class="w">                     </span><span class="o">|</span>
+<span class="o">|</span><span class="w"> </span><span class="n">publisher</span><span class="w">   </span><span class="o">|</span><span class="w"> </span><span class="n">publish</span><span class="w">         </span><span class="o">|</span><span class="w"> </span><span class="n">fs</span><span class="p">.</span><span class="n">repo_rw</span><span class="p">,</span><span class="w"> </span><span class="n">mcp</span><span class="p">.</span><span class="n">github_write</span><span class="p">,</span><span class="w"> </span><span class="n">mem</span><span class="p">.</span><span class="n">recall</span><span class="w">                </span><span class="o">|</span>
+</pre></div>
+
+<p>This makes the editorial guarantee legible: <code>publisher</code> is the sole non-editor holder of<br />
+<code>mcp.github_write</code>; the read-only roles (researcher/drafter/factChecker) hold no write or<br />
+publish grant. <code>crabcc-umami</code> (no mesh) still emits the fallback sentence — confirmed the<br />
+conditional branches correctly.</p>
+<h2 id="5-honest-limits-not-yet-proven">5. Honest limits (not yet proven)</h2>
+<ul>
+<li>Re-lowering was confirmed via the editorial block's rendered table and the crabcc<br />
+  fallback. The session-drive-loop table was not separately pasted here (same code path,<br />
+  exit 0).</li>
+<li>No automated test was added for the new branch (a <code>vakedc</code> test run / build was out of<br />
+  scope under the no-build rule; the change was verified by running the lower and reading<br />
+  output).</li>
+<li>The fix is unit-untested; correctness rests on the live lower output above, not a<br />
+  regression test. Adding a <code>tests/</code> case for "mesh present → grant table rendered" is the<br />
+  obvious follow-up.</li>
+</ul>
+<h2 id="6-status">6. Status</h2>
+<p>Local only — no commit, no push, no PR. Source blocks already committed; <code>.vaked/lower/</code><br />
+is generated. Carry-forward: add a regression test for the mesh-grant rendering branch.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/reports/2026-06-16-dogfood-lower-mesh-fix.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

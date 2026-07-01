@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>swe-af fan-out batch — distributed, Aperture-backed, NATS-queued (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#constraints-discovered-ground-truth-2026-06-14" style="padding-left:0.5rem">Constraints discovered (ground truth, 2026-06-14)</a><a href="#architecture" style="padding-left:0.5rem">Architecture</a><a href="#components-new-unless-noted" style="padding-left:1rem">  Components (new unless noted)</a><a href="#infra-prerequisites-one-time-before-first-batch" style="padding-left:1rem">  Infra prerequisites (one-time, before first batch)</a><a href="#safety-pola-preserved-from-the-gha-design" style="padding-left:0.5rem">Safety / POLA (preserved from the GHA design)</a><a href="#scope" style="padding-left:0.5rem">Scope</a><a href="#verification" style="padding-left:0.5rem">Verification</a><a href="#open-risks" style="padding-left:0.5rem">Open risks</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-14-swe-af-fanout-batch-design</div>
+<h1>swe-af fan-out batch — distributed, Aperture-backed, NATS-queued (design)</h1>
+<h1 id="swe-af-fan-out-batch-distributed-aperture-backed-nats-queued-design">swe-af fan-out batch — distributed, Aperture-backed, NATS-queued (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-14). Builds on the Rust <code>vaked-agents/ci/swe-af</code> agent and its<br />
+lowered <code>workflow swe_af</code> (plan -&gt; code -&gt; review -&gt; publish). Supersedes the<br />
+GHA-only execution path of<br />
+<a href="2026-06-13-swe-af-gha-runner-design.md"><code>2026-06-13-swe-af-gha-runner-design.md</code></a><br />
+for <strong>batch</strong> runs: instead of one issue per GHA trigger, a pool of sandboxed<br />
+workers drains a NATS work-queue, fanning out across owned compute.</p>
+<h2 id="why">Why</h2>
+<p><code>swe_af</code> today runs one issue at a time as a GitHub-Actions job. The goal is a<br />
+<strong>wide fan-out batch</strong>: drain N independent SWE tasks concurrently across owned<br />
+hardware, route every model call through the tailnet <strong>Aperture</strong> AI gateway<br />
+(one paid OpenRouter key, never distributed), and keep the work auditable<br />
+(eventd) and visible (Sentinel Console). The original framing ("reserve the whole<br />
+dev-cx53 instance") was inverted by reality (see Constraints) — cx53 is a packed<br />
+services hub, so execution moves <strong>off</strong> cx53 onto dedicated worker hosts.</p>
+<h2 id="constraints-discovered-ground-truth-2026-06-14">Constraints discovered (ground truth, 2026-06-14)</h2>
+<ul>
+<li><strong>dev-cx53</strong> (tailnet <code>100.105.72.88</code>, tag:agents/server/homelab/exit): NixOS<br />
+  26.05, 16 vCPU EPYC-Rome, <strong>30 GB RAM (~22 GB free), disk 84% full (~46 GB<br />
+  free)</strong>, cgroup-v2. Runs ~28 containers (langfuse full stack incl. clickhouse,<br />
+  telemetry uptrace/rotel/clickhouse, ollama+litellm, honcho, mempalace,<br />
+  agentfield-postgres, chromadb, rustfs, uptime-kuma) + atticd/nginx/nixery/<br />
+  dashboards. <strong>Not a batch host</strong> — it is the fleet. Role here: control plane<br />
+  only (enqueue + monitor). A "2 GB/4 CPU for services" fence would OOM the fleet;<br />
+  rejected.</li>
+<li><strong>bench-node</strong> (<code>178.105.245.135</code>): Ubuntu 26.04, 8 vCPU, 15 GB RAM, <strong>273 GB<br />
+  free disk</strong>, cgroup-v2 (all controllers), <strong>bubblewrap 0.11.1 present</strong>, git +<br />
+  node + python3 present, <strong>no rust/cargo, no gh</strong>. Already runs a <em>separate<br />
+  Python</em> <code>swe_af</code> agentfield node + local nats + control-plane + postgres.<br />
+<strong>Not on this tailnet today</strong> -&gt; cannot reach Aperture or crabcc-nats until<br />
+  joined. Chosen primary worker host.</li>
+<li><strong>Aperture</strong> (<code>nixai-base</code> <code>100.65.183.126</code>, <code>https://nixai-base.tail2870dc.ts.net/aperture</code>):<br />
+  live, OpenAPI 200. Single provider = <strong>OpenRouter</strong> (proxied; real key injected<br />
+  server-side). Compatibility flags on: <code>openai_chat</code>, <code>openai_responses</code>,<br />
+<code>anthropic_messages</code>, gemini. Auth = <strong>Tailscale identity, no client API key</strong>.<br />
+  Models include <code>deepseek/deepseek-v4-flash</code>, <code>deepseek/deepseek-v4-pro</code>,<br />
+<code>anthropic/claude-sonnet-4.6</code>, <code>anthropic/claude-opus-4.6</code>, <code>openai/gpt-5.3-codex</code>,<br />
+<code>qwen/qwen3-235b-a22b-2507</code>. <strong>Current grants give only <code>peter.lodri@gmail.com</code><br />
+  the admin role</strong> — a <code>tag:agents</code> user-role + model grant must be added.</li>
+<li><strong>crabcc-nats</strong> (<code>100.73.72.35:4222</code>, tailnet): the central bus the Sentinel<br />
+  Console already subscribes to. Reachable from cx53; ACL grant #6 allows<br />
+<code>tag:agents -&gt; tag:server:4222</code>.</li>
+<li><strong>swe-af binary</strong> (<code>vaked-agents/ci/swe-af</code>): plan/code modes, honors<br />
+<code>OPENROUTER_BASE_URL</code> (default <code>https://openrouter.ai/api/v1</code>) and<br />
+<code>SWE_AF_API_KEY</code>/<code>OPENROUTER_API_KEY</code>, holds <strong>no GH token</strong>, emits full-file<br />
+  writes, has input guardrails (<code>guardrails.rs</code>). main.rs:60,123 are the model<br />
+  base-url/key wiring; main.rs:663 hard-fails if no key present.</li>
+</ul>
+<h2 id="architecture">Architecture</h2>
+<div class="highlight"><pre><span></span><span class="w">                      </span><span class="nt">enqueue</span><span class="w"> </span><span class="o">(</span><span class="nt">CLI</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nt">control</span><span class="w"> </span><span class="nt">panel</span><span class="o">)</span>
+<span class="w">                                </span><span class="o">|</span>
+<span class="w">              </span><span class="nt">crabcc-nats</span><span class="w"> </span><span class="nt">JetStream</span><span class="w">  </span><span class="nt">stream</span><span class="w"> </span><span class="nt">SWE_AF_TASKS</span><span class="w">  </span><span class="nt">subject</span><span class="w"> </span><span class="nt">swe</span><span class="p">.</span><span class="nc">af</span><span class="p">.</span><span class="nc">tasks</span>
+<span class="w">                                </span><span class="o">|</span><span class="w">  </span><span class="o">(</span><span class="nt">durable</span><span class="w"> </span><span class="nt">pull</span><span class="w"> </span><span class="nt">consumer</span><span class="o">:</span><span class="w"> </span><span class="nt">swe-af-workers</span><span class="o">)</span>
+<span class="w">        </span><span class="o">+</span><span class="nt">-----------------------</span><span class="o">+</span><span class="nt">------------------------</span><span class="o">+</span>
+<span class="w">        </span><span class="o">|</span><span class="w">                                                </span><span class="o">|</span>
+<span class="w">   </span><span class="nt">bench-node</span><span class="w"> </span><span class="o">(</span><span class="nt">tag</span><span class="p">:</span><span class="nd">agents</span><span class="o">)</span><span class="w">                          </span><span class="cp">[</span><span class="nx">phase</span><span class="w"> </span><span class="mi">2</span><span class="p">:</span><span class="w"> </span><span class="nx">GCP</span><span class="w"> </span><span class="nx">c3</span><span class="w"> </span><span class="nx">pools</span><span class="p">,</span>
+<span class="w">   </span><span class="nx">swe</span><span class="na">-af-orchestrator</span><span class="w"> </span><span class="p">(</span><span class="nx">Rust</span><span class="w"> </span><span class="nx">daemon</span><span class="p">)</span><span class="w">                 </span><span class="nx">crabcc</span><span class="na">-ccx33</span><span class="w"> </span><span class="nx">...</span><span class="cp">]</span>
+<span class="w">        </span><span class="o">|</span><span class="w">  </span><span class="nt">pool</span><span class="w"> </span><span class="nt">of</span><span class="w"> </span><span class="nt">K</span><span class="w"> </span><span class="nt">worker</span><span class="w"> </span><span class="nt">slots</span><span class="w"> </span><span class="o">(</span><span class="nt">cgroup-capped</span><span class="o">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w">  </span><span class="nt">per</span><span class="w"> </span><span class="nt">task</span><span class="o">:</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">1</span><span class="o">.</span><span class="w"> </span><span class="nt">lease</span><span class="w"> </span><span class="nt">msg</span><span class="w"> </span><span class="o">(</span><span class="nt">ack-wait</span><span class="o">,</span><span class="w"> </span><span class="nt">max-deliver</span><span class="o">=</span><span class="nt">3</span><span class="o">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">2</span><span class="o">.</span><span class="w"> </span><span class="nt">capped</span><span class="w"> </span><span class="nt">scratch</span><span class="w"> </span><span class="nt">dir</span><span class="w"> </span><span class="o">(</span><span class="nt">disk</span><span class="w"> </span><span class="nt">quota</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">df</span><span class="w"> </span><span class="nt">guard</span><span class="o">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">3</span><span class="o">.</span><span class="w"> </span><span class="nt">git</span><span class="w"> </span><span class="nt">clone</span><span class="w"> </span><span class="nt">--filter</span><span class="o">=</span><span class="nt">blob</span><span class="p">:</span><span class="nd">none</span><span class="w"> </span><span class="o">&lt;</span><span class="nt">repo</span><span class="o">&gt;</span><span class="w"> </span><span class="o">@</span><span class="w"> </span><span class="nt">ref</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">4</span><span class="o">.</span><span class="w"> </span><span class="nt">swe-af</span><span class="w"> </span><span class="nt">MODE</span><span class="o">=</span><span class="nt">plan</span><span class="w">   </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">plan</span><span class="p">.</span><span class="nc">json</span><span class="w">   </span><span class="o">(</span><span class="nt">Aperture</span><span class="o">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">5</span><span class="o">.</span><span class="w"> </span><span class="nt">swe-af</span><span class="w"> </span><span class="nt">MODE</span><span class="o">=</span><span class="nt">code</span><span class="w">   </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="err">files,...</span><span class="p">}</span><span class="w"> </span><span class="o">(</span><span class="nt">Aperture</span><span class="o">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">6</span><span class="o">.</span><span class="w"> </span><span class="nt">apply</span><span class="w"> </span><span class="nt">full</span><span class="w"> </span><span class="nt">files</span><span class="o">,</span><span class="w"> </span><span class="nt">commit</span><span class="o">,</span><span class="w"> </span><span class="nt">push</span><span class="w"> </span><span class="nt">swe-af</span><span class="o">/&lt;</span><span class="nt">task</span><span class="o">&gt;</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">7</span><span class="o">.</span><span class="w"> </span><span class="nt">broker</span><span class="w"> </span><span class="nt">step</span><span class="o">:</span><span class="w"> </span><span class="nt">gh</span><span class="w"> </span><span class="nt">pr</span><span class="w"> </span><span class="nt">create</span><span class="w"> </span><span class="nt">--draft</span><span class="w">   </span><span class="o">(</span><span class="nt">only</span><span class="w"> </span><span class="nt">GH-write</span><span class="w"> </span><span class="nt">actor</span><span class="o">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">8</span><span class="o">.</span><span class="w"> </span><span class="nt">review</span><span class="o">:</span><span class="w"> </span><span class="nt">pr-review</span><span class="w"> </span><span class="nt">agent</span><span class="w"> </span><span class="nt">on</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">PR</span><span class="w">    </span><span class="o">(</span><span class="nt">advisory</span><span class="o">)</span>
+<span class="w">        </span><span class="o">|</span><span class="w">    </span><span class="nt">9</span><span class="o">.</span><span class="w"> </span><span class="nt">eventd</span><span class="w"> </span><span class="nt">append</span><span class="w"> </span><span class="nt">per</span><span class="w"> </span><span class="nt">node</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">verify</span>
+<span class="w">        </span><span class="o">|</span><span class="w">   </span><span class="nt">10</span><span class="o">.</span><span class="w"> </span><span class="nt">publish</span><span class="w"> </span><span class="nt">swe</span><span class="p">.</span><span class="nc">af</span><span class="p">.</span><span class="nc">status</span><span class="o">.&lt;</span><span class="nt">task</span><span class="o">&gt;.&lt;</span><span class="nt">node</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">-</span><span class="o">&gt;</span><span class="w"> </span><span class="nt">Console</span><span class="o">;</span><span class="w"> </span><span class="nt">ack</span>
+<span class="w">        </span><span class="nt">v</span>
+<span class="w">   </span><span class="nt">draft</span><span class="w"> </span><span class="nt">PRs</span><span class="w"> </span><span class="nt">on</span><span class="w"> </span><span class="nt">the</span><span class="w"> </span><span class="nt">target</span><span class="w"> </span><span class="nt">repos</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">eventd</span><span class="w"> </span><span class="nt">audit</span><span class="w"> </span><span class="nt">logs</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nt">live</span><span class="w"> </span><span class="nt">Console</span><span class="w"> </span><span class="nt">feed</span>
+</pre></div>
+
+<h3 id="components-new-unless-noted">Components (new unless noted)</h3>
+<ol>
+<li>
+<p><strong>Task schema</strong> (NATS message, JSON):<br />
+<br />
+<div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">     </span><span class="nt">&quot;task_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;string (uuid)&quot;</span><span class="p">,</span>
+<span class="w">     </span><span class="nt">&quot;repo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;owner/name&quot;</span><span class="p">,</span>
+<span class="w">     </span><span class="nt">&quot;ref&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;main&quot;</span><span class="p">,</span>
+<span class="w">     </span><span class="nt">&quot;issue_number&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w">            </span><span class="c1">// optional; OR</span>
+<span class="w">     </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;freeform task text&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// one of issue_number|prompt required</span>
+<span class="w">     </span><span class="nt">&quot;budget&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;tokens&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2000000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;wall_clock_s&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">7200</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max_files&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">20</span><span class="w"> </span><span class="p">},</span>
+<span class="w">     </span><span class="nt">&quot;plan_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deepseek/deepseek-v4-flash&quot;</span><span class="p">,</span>
+<span class="w">     </span><span class="nt">&quot;code_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;openai/gpt-5.3-codex&quot;</span>
+<span class="w">   </span><span class="p">}</span>
+</pre></div>
+</p>
+</li>
+<li>
+<p><strong><code>swe-af-orchestrator</code></strong> (new Rust daemon, <code>vaked-agents/ci/swe-af-orchestrator/</code><br />
+   or a <code>--serve</code> subcommand on swe-af): JetStream durable pull consumer; bounded<br />
+   worker pool (K slots); per-task lifecycle above; emits <code>swe.af.status.*</code>.<br />
+   Reuses swe-af's parser/guardrails. Holds the <strong>only</strong> <code>GH_TOKEN</code> (broker step).</p>
+</li>
+<li><strong>Worker execution</strong> = the existing <code>swe-af</code> binary (plan+code), unchanged<br />
+   logic, invoked per task by the orchestrator inside a <strong>sandboxd/bwrap cgroup<br />
+   cell</strong> (<code>memory.max</code>, <code>pids.max</code>, <code>cpu.max</code>, disk-quota scratch). Model calls<br />
+   -&gt; Aperture (env below).</li>
+<li><strong>Aperture wiring</strong> (env on workers): <code>OPENROUTER_BASE_URL=https://nixai-base.tail2870dc.ts.net/v1</code>,<br />
+<code>SWE_AF_API_KEY=tailscale-identity</code> (placeholder to satisfy the presence check;<br />
+   Aperture authenticates by tailnet identity and injects the real key). Models<br />
+   are OpenRouter-style FQNs, already valid in Aperture's config.</li>
+<li><strong>Disk discipline</strong>: orchestrator owns <code>/var/lib/swe-af/scratch</code> capped at<br />
+<strong>20 GB</strong> (XFS project quota or a sized loopback fs); shallow/partial clones<br />
+   (<code>--filter=blob:none</code>); per-task cleanup; a <strong>df guard</strong> pauses message intake<br />
+   when free &lt; 10 GB. Pre-batch reclaim: <code>docker image prune</code> + targeted cleanup.</li>
+<li><strong>Audit (eventd)</strong>: each node appends to <code>var/lib/agent-field/eventd/log.jsonl</code><br />
+   via <code>python3 -m eventd append</code>; <code>eventd verify</code> gates task success.</li>
+<li><strong>Console integration</strong>: <code>swe.af.status.*</code> frames flow over crabcc-nats; the<br />
+   Sentinel Console Feed/Fleet tabs already render <code>crabcc.&gt;</code>/status frames<br />
+   (see desktop-console memory) — add the <code>swe.af.&gt;</code> subject to the subscriber.</li>
+</ol>
+<h3 id="infra-prerequisites-one-time-before-first-batch">Infra prerequisites (one-time, before first batch)</h3>
+<ul>
+<li><strong>P1. bench-node onto the tailnet as <code>tag:agents</code></strong>: install tailscale,<br />
+<code>tailscale up --advertise-tags=tag:agents</code> (auth key from admin console; admin<br />
+  approves). Unblocks Aperture (grant #7) + crabcc-nats (grant #6). <em>Operator-run<br />
+  (interactive auth).</em> </li>
+<li><strong>P2. Aperture grant for <code>tag:agents</code></strong>: add a user-role grant + model glob<br />
+  (e.g. <code>["anthropic/*","deepseek/*","openai/gpt-5.3-codex","qwen/*"]</code>) to the<br />
+  Aperture config via <code>PUT /aperture/config</code> (admin). Reversible.</li>
+<li><strong>P3. bench-node tooling</strong>: install <code>gh</code> (broker step); ship the prebuilt<br />
+<code>swe-af-bin</code> (no rust toolchain on the box) — reuse <code>swe-af-build.yml</code>'s release<br />
+  artifact.</li>
+<li><strong>P4. Disk reclaim</strong> on bench-node + cx53 control-plane dir, then apply the<br />
+  20 GB scratch cap.</li>
+</ul>
+<h2 id="safety-pola-preserved-from-the-gha-design">Safety / POLA (preserved from the GHA design)</h2>
+<ul>
+<li>Workers hold <strong>no GH token</strong>; only the orchestrator's broker step writes to<br />
+  GitHub, and only <code>gh pr create --draft</code> / <code>gh pr ready</code>. <strong>Never auto-merge.</strong></li>
+<li>Untrusted issue/prompt text passes <code>guardrails.rs</code> (secret-redaction +<br />
+  injection-defense) before prompt assembly.</li>
+<li>Budgets (tokens / wall-clock / files) map to cgroup caps + Aperture spend<br />
+  quota + the file-count clamp. Path traversal (<code>..</code>, leading <code>/</code>) dropped by the<br />
+  existing parser.</li>
+<li>One paid OpenRouter key, server-side in Aperture, never on a worker.</li>
+</ul>
+<h2 id="scope">Scope</h2>
+<p><strong>In (v1):</strong> orchestrator daemon, NATS work-queue + status, bench-node worker<br />
+pool with cgroup + disk caps, Aperture routing, eventd audit, Console subject,<br />
+enqueue CLI, the four infra prerequisites, deploy unit for bench-node (systemd;<br />
+<strong>not</strong> NixOS — plain unit + shipped binary).</p>
+<p><strong>Out (phase 2):</strong> GCP Cloud Build c3 pools + crabcc-ccx33 as additional workers<br />
+(needs tailscale-in-build or a cx53 Aperture/NATS proxy); autoscaling by queue<br />
+depth; the Python <code>swe_af</code> agentfield node convergence; cx53 NixOS colmena module<br />
+for the control plane.</p>
+<h2 id="verification">Verification</h2>
+<ul>
+<li><strong>Unit</strong>: orchestrator task-lifecycle state machine; task-schema parse;<br />
+  df-guard threshold; scratch-quota enforcement. swe-af's existing 7 tests stay<br />
+  green.</li>
+<li><strong>Reachability (post-P1/P2)</strong>: from bench-node, <code>curl .../aperture/openapi.json</code><br />
+  == 200 and a 1-token chat completion through Aperture succeeds with no client<br />
+  key; NATS <code>4222</code> open.</li>
+<li><strong>End-to-end (1 task)</strong>: enqueue one small self-contained task -&gt; a draft PR<br />
+  appears from <code>swe-af/&lt;task&gt;</code>, eventd log shows <code>plan-&gt;code-&gt;review-&gt;publish</code> and<br />
+<code>eventd verify</code> is clean, <code>swe.af.status.*</code> frames show in the Console.</li>
+<li><strong>Fan-out (K tasks)</strong>: enqueue K&gt;pool-size tasks; pool stays &lt;= K slots; disk<br />
+  free never &lt; 10 GB (df guard holds); all tasks reach a terminal state<br />
+  (PR | graceful no-op | failed-with-audit).</li>
+<li><strong>Blast-radius</strong>: cx53 fleet metrics flat during a batch (no execution there).</li>
+</ul>
+<h2 id="open-risks">Open risks</h2>
+<ul>
+<li>Aperture concurrency/rate ceiling is OpenRouter-account-bound + quota-bucket<br />
+  bound, not a documented hard limit -&gt; start K=6, raise on observed 429 rate.</li>
+<li>bench-node has a <em>second</em> Python <code>swe_af</code> + local nats; avoid port/name<br />
+  collisions (use distinct unit names, distinct scratch path, central crabcc-nats<br />
+  not the local one).</li>
+<li>8 GB usable RAM after the box's existing services -&gt; hard <code>MemoryMax</code> per worker</li>
+<li>systemd-oomd as backstop.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-14-swe-af-fanout-batch-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

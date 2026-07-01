@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-oracle slice 4b · thread 3 — ARP-emission — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#task-1-arpemitpy-mapping-render-emit-vakedc-check-dogfood-test" style="padding-left:1rem">  Task 1: `arp_emit.py` — mapping + render + emit (+ vakedc-check dogfood test)</a><a href="#task-2-cli-oracle-arp-emit" style="padding-left:1rem">  Task 2: CLI `oracle arp-emit`</a><a href="#task-3-taskfile-targets-docs" style="padding-left:1rem">  Task 3: Taskfile targets + docs</a><a href="#arp-emission-slice-4b-thread-3" style="padding-left:0.5rem">ARP-emission (slice 4b · thread 3)</a><a href="#slice-4b-thread-3-arp-emission-done-branch-featoracle-arp-emit" style="padding-left:1rem">  Slice 4b — thread 3 (ARP-emission) — DONE (branch feat/oracle-arp-emit)</a><a href="#final-verification" style="padding-left:0.5rem">Final verification</a><a href="#out-of-scope" style="padding-left:0.5rem">Out of scope</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-16-vaked-oracle-slice-4b-arp-emit</div>
+<h1>vaked-oracle slice 4b · thread 3 — ARP-emission — Implementation Plan</h1>
+<h1 id="vaked-oracle-slice-4b-thread-3-arp-emission-implementation-plan">vaked-oracle slice 4b · thread 3 — ARP-emission — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development. Steps use checkbox (<code>- [ ]</code>).</p>
+</blockquote>
+<p><strong>Goal:</strong> The oracle emits its findings as per-function <code>arp_event</code> Vaked declarations to <code>docs/oracle/arp-trace.md</code>, verifiable via <code>vakedc check</code> — closing the oracle→Vaked/ARP dogfood loop without touching the execution ARP IR (other dev's lane).</p>
+<p><strong>Tech Stack:</strong> Python 3 stdlib. Tests = module-level <code>test_*</code> + plain <code>assert</code> (the <code>test_oracle.py</code> convention, NOT unittest). One test subprocesses <code>python3 -m vakedc check</code> (in-repo, M3-safe — no compile).</p>
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-06-16-vaked-oracle-slice-4b-arp-emit-design.md</code></p>
+<p><strong>Lane constraint:</strong> consume the <code>arp_event</code> builtin schema read-only; <strong>never</strong> touch <code>exec-semantics</code>/<code>gocc</code>/execution-ARP-IR. Emit ONLY to <code>docs/oracle/arp-trace.md</code>.</p>
+<p><strong>Worktree:</strong> <code>.worktrees/oracle-arp</code> (branch <code>feat/oracle-arp-emit</code>). Every implementer: <code>cd</code> there first, confirm <code>git rev-parse --abbrev-ref HEAD</code> == <code>feat/oracle-arp-emit</code> before committing; <code>git add</code> only named files (no <code>-A</code>).</p>
+<hr />
+<h3 id="task-1-arp_emitpy-mapping-render-emit-vakedc-check-dogfood-test">Task 1: <code>arp_emit.py</code> — mapping + render + emit (+ vakedc-check dogfood test)</h3>
+<p><strong>Files:</strong> Create <code>tools/oracle/arp_emit.py</code>; Test: <code>tools/oracle/test_oracle.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: failing tests</strong> — append to <code>tools/oracle/test_oracle.py</code>:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="c1"># ---- slice 4b thread 3: ARP-emission ----</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_arp_finding</span><span class="p">():</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;oracle_finding&quot;</span><span class="p">,</span> <span class="s2">&quot;v&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">&quot;target&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;path&quot;</span><span class="p">:</span> <span class="s2">&quot;libllama.so.0&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">:</span> <span class="s2">&quot;0&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;source_ref&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">},</span>
+            <span class="s2">&quot;decompiler&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">},</span>
+            <span class="s2">&quot;functions&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;llama_decode&quot;</span><span class="p">,</span> <span class="s2">&quot;addr&quot;</span><span class="p">:</span> <span class="s2">&quot;0x0&quot;</span><span class="p">,</span> <span class="s2">&quot;pseudo_c_sha&quot;</span><span class="p">:</span> <span class="s2">&quot;a&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span>
+                 <span class="s2">&quot;refined_c&quot;</span><span class="p">:</span> <span class="s2">&quot;int llama_decode(void){return 0;}&quot;</span><span class="p">,</span>
+                 <span class="s2">&quot;fidelity&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="mf">0.581</span><span class="p">,</span> <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">},</span> <span class="s2">&quot;dynamic&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;frida&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;ebpf&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}},</span>
+                <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;cache.sha256Hex&quot;</span><span class="p">,</span> <span class="s2">&quot;addr&quot;</span><span class="p">:</span> <span class="s2">&quot;0x0&quot;</span><span class="p">,</span> <span class="s2">&quot;pseudo_c_sha&quot;</span><span class="p">:</span> <span class="s2">&quot;b&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span>
+                 <span class="s2">&quot;refined_c&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="s2">&quot;fidelity&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;score&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;method&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span><span class="p">},</span> <span class="s2">&quot;dynamic&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;frida&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;ebpf&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}},</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;observed_effects&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;writes&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;deletes&quot;</span><span class="p">:</span> <span class="p">[]},</span> <span class="s2">&quot;transition_xref&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;confidence&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_arp_finding_to_events_per_function</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">arp_emit</span>
+    <span class="n">evs</span> <span class="o">=</span> <span class="n">arp_emit</span><span class="o">.</span><span class="n">finding_to_events</span><span class="p">(</span><span class="n">_arp_finding</span><span class="p">())</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">evs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span>
+    <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">evs</span>
+    <span class="k">assert</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;command&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;oracle RE llama_decode&quot;</span>
+    <span class="k">assert</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;inputs&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;libllama.so.0&quot;</span><span class="p">,</span> <span class="s2">&quot;llama_decode&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;ok&quot;</span>                                   <span class="c1"># 0.581 &gt;= 0.4</span>
+    <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;fidelity:0.581&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">a</span><span class="p">[</span><span class="s2">&quot;outputs&quot;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">b</span><span class="p">[</span><span class="s2">&quot;command&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;oracle RE cache.sha256Hex&quot;</span>
+    <span class="k">assert</span> <span class="n">b</span><span class="p">[</span><span class="s2">&quot;status&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;no-ground-truth&quot;</span>                      <span class="c1"># score None</span>
+    <span class="k">assert</span> <span class="s2">&quot;refined_sha:none&quot;</span> <span class="ow">in</span> <span class="n">b</span><span class="p">[</span><span class="s2">&quot;outputs&quot;</span><span class="p">]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_arp_slug_is_ident_safe</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">arp_emit</span><span class="o">,</span><span class="w"> </span><span class="nn">re</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">arp_emit</span><span class="o">.</span><span class="n">_slug</span><span class="p">(</span><span class="s2">&quot;cache.sha256Hex&quot;</span><span class="p">,</span> <span class="s2">&quot;code&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^[A-Za-z_]\w*$&quot;</span><span class="p">,</span> <span class="n">s</span><span class="p">)</span>                        <span class="c1"># valid Vaked IDENT</span>
+    <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;oracle_cache_sha256Hex_&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_arp_status_thresholds</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">arp_emit</span>
+    <span class="k">assert</span> <span class="n">arp_emit</span><span class="o">.</span><span class="n">_status</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;no-ground-truth&quot;</span>
+    <span class="k">assert</span> <span class="n">arp_emit</span><span class="o">.</span><span class="n">_status</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;low-fidelity&quot;</span>
+    <span class="k">assert</span> <span class="n">arp_emit</span><span class="o">.</span><span class="n">_status</span><span class="p">(</span><span class="mf">0.4</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;ok&quot;</span>
+    <span class="k">assert</span> <span class="n">arp_emit</span><span class="o">.</span><span class="n">_status</span><span class="p">(</span><span class="mf">0.9</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;ok&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_arp_render_block_shape</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">arp_emit</span>
+    <span class="n">ev</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;slug&quot;</span><span class="p">:</span> <span class="s2">&quot;oracle_f_abc&quot;</span><span class="p">,</span> <span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;oracle RE f&quot;</span><span class="p">,</span> <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="s2">&quot;f&quot;</span><span class="p">],</span>
+          <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;refined_sha:abc&quot;</span><span class="p">,</span> <span class="s2">&quot;fidelity:0.5&quot;</span><span class="p">],</span> <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;ok&quot;</span><span class="p">}</span>
+    <span class="n">blk</span> <span class="o">=</span> <span class="n">arp_emit</span><span class="o">.</span><span class="n">render_arp_block</span><span class="p">(</span><span class="n">ev</span><span class="p">,</span> <span class="n">ts</span><span class="o">=</span><span class="s2">&quot;2026-06-16 12:00&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">blk</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;</span>
+</pre></div>
+<p>vaked\narp_event oracle_f_abc {")  # slug UNQUOTED<br />
+    assert 'ts      = "2026-06-16 12:00"' in blk<br />
+    assert 'command = "oracle RE f"' in blk<br />
+    assert 'status  = "ok"' in blk<br />
+    assert "inputs  =" in blk and "outputs =" in blk<br />
+    # omit empty inputs/outputs<br />
+    blk2 = arp_emit.render_arp_block({"slug": "oracle_g_x", "command": "c",<br />
+                                      "inputs": [], "outputs": [], "status": "ok"}, ts="t")<br />
+    assert "inputs  =" not in blk2 and "outputs =" not in blk2</p>
+<p>def test_arp_emit_appends_and_headers_once():<br />
+    import arp_emit, tempfile, os<br />
+    p = tempfile.mktemp(suffix=".md")<br />
+    n1 = arp_emit.emit(_arp_finding(), path=p, ts="2026-06-16 12:00")<br />
+    n2 = arp_emit.emit(_arp_finding(), path=p, ts="2026-06-16 12:05")<br />
+    body = open(p).read()<br />
+    assert n1 == 2 and n2 == 2<br />
+    assert body.count("# vaked-oracle ARP trace") == 1            # header once<br />
+    assert body.count("arp_event ") == 4                          # 2 + 2<br />
+    os.remove(p)</p>
+<p>def test_arp_emitted_blocks_pass_vakedc_check():<br />
+    import arp_emit, tempfile, os, sys, subprocess<br />
+    sys.path.insert(0, os.path.join(os.path.dirname(<strong>file</strong>), ".."))   # tools/ -&gt; <code>arp</code> package<br />
+    from arp import verify_log                                    # tools/arp/verify_log.py<br />
+    md = tempfile.mktemp(suffix=".md")<br />
+    arp_emit.emit(_arp_finding(), path=md, ts="2026-06-16 12:00")<br />
+    blocks = verify_log.extract(open(md).read())<br />
+    assert len(blocks) == 2<br />
+    src = "\n\n".join(blocks) + "\n"<br />
+    vk = tempfile.mktemp(suffix=".vaked")<br />
+    open(vk, "w").write(src)<br />
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(<strong>file</strong>), "..", ".."))<br />
+    r = subprocess.run([sys.executable, "-m", "vakedc", "check", vk], cwd=repo_root,<br />
+                       capture_output=True, text=True)<br />
+    assert r.returncode == 0, "vakedc check failed: %s" % (r.stdout + r.stderr)<br />
+    os.remove(md); os.remove(vk)</p>
+<div class="highlight"><pre><span></span><span class="p">(</span><span class="n">Note</span><span class="p">:</span> <span class="err">`</span><span class="kn">from</span><span class="w"> </span><span class="nn">arp</span><span class="w"> </span><span class="kn">import</span> <span class="n">verify_log</span><span class="err">`</span> <span class="err">—</span> <span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">arp</span><span class="o">/</span><span class="fm">__init__</span><span class="o">.</span><span class="n">py</span><span class="err">`</span> <span class="n">exists</span><span class="p">,</span> <span class="ow">and</span> <span class="n">the</span> <span class="n">test</span> <span class="n">adds</span> <span class="n">repo</span> <span class="n">root</span> <span class="n">to</span> <span class="err">`</span><span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="err">`</span><span class="p">;</span> <span class="err">`</span><span class="n">verify_log</span><span class="o">.</span><span class="n">extract</span><span class="err">`</span> <span class="n">pulls</span> <span class="n">the</span> 
+</pre></div>
+<p>vaked blocks.)</p>
+<ul>
+<li>
+<p>[ ] <strong>Step 2: run, expect FAIL</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -8</code> → <code>ModuleNotFoundError: No module named 'arp_emit'</code>.</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: implement</strong> — create <code>tools/oracle/arp_emit.py</code>:</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;arp_emit — emit oracle findings as typed `arp_event` Vaked declarations.</span>
+
+<span class="sd">One `arp_event` per reverse-engineered function, appended to a dedicated ARP trace</span>
+<span class="sd">(`docs/oracle/arp-trace.md`), verifiable via `vakedc check` (tools/arp/verify_log.py).</span>
+<span class="sd">The oracle is a one-way PRODUCER of arp_event blocks conforming to the builtin</span>
+<span class="sd">`arp_event` schema — it never touches the execution ARP IR. Pure stdlib.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_slug</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">refined_c</span><span class="p">):</span>
+    <span class="n">base</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\W&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="n">h</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">((</span><span class="n">refined_c</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">12</span><span class="p">]</span>
+    <span class="k">return</span> <span class="s2">&quot;oracle_</span><span class="si">%s</span><span class="s2">_</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="n">h</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_status</span><span class="p">(</span><span class="n">score</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">score</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;no-ground-truth&quot;</span>
+    <span class="k">if</span> <span class="n">score</span> <span class="o">&lt;</span> <span class="mf">0.4</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">&quot;low-fidelity&quot;</span>
+    <span class="k">return</span> <span class="s2">&quot;ok&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_vstr</span><span class="p">(</span><span class="n">s</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;&quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="se">\\\\</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&quot;&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_vlist</span><span class="p">(</span><span class="n">xs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;[&quot;</span> <span class="o">+</span> <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_vstr</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">xs</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;]&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">finding_to_events</span><span class="p">(</span><span class="n">finding</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One arp_event dict per analyzed function in the finding.&quot;&quot;&quot;</span>
+    <span class="n">tgt</span> <span class="o">=</span> <span class="p">(</span><span class="n">finding</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;target&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;path&quot;</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">fe</span> <span class="ow">in</span> <span class="n">finding</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;functions&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="n">fe</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">)</span>
+        <span class="n">rc</span> <span class="o">=</span> <span class="n">fe</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;refined_c&quot;</span><span class="p">)</span>
+        <span class="n">score</span> <span class="o">=</span> <span class="p">(</span><span class="n">fe</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fidelity&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;score&quot;</span><span class="p">)</span>
+        <span class="n">refined_sha</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">((</span><span class="n">rc</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()[:</span><span class="mi">12</span><span class="p">]</span> <span class="k">if</span> <span class="n">rc</span> <span class="k">else</span> <span class="s2">&quot;none&quot;</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;slug&quot;</span><span class="p">:</span> <span class="n">_slug</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">rc</span><span class="p">),</span>
+            <span class="s2">&quot;command&quot;</span><span class="p">:</span> <span class="s2">&quot;oracle RE </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">name</span><span class="p">,</span>
+            <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">tgt</span><span class="p">,</span> <span class="n">name</span><span class="p">],</span>
+            <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;refined_sha:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">refined_sha</span><span class="p">,</span>
+                        <span class="s2">&quot;fidelity:</span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="s2">&quot;none&quot;</span> <span class="k">if</span> <span class="n">score</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">score</span><span class="p">)],</span>
+            <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="n">_status</span><span class="p">(</span><span class="n">score</span><span class="p">),</span>
+        <span class="p">})</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">render_arp_block</span><span class="p">(</span><span class="n">ev</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">ts</span><span class="p">):</span>
+    <span class="s2">&quot;&quot;&quot;The fenced</span>
+</pre></div>
+<p>vaked arp_event block for one event. Slug is an IDENT (unquoted)."""<br />
+    lines = ["<code>vaked", "arp_event %s {" % ev["slug"],
+             "  ts      = %s" % _vstr(ts),
+             "  command = %s" % _vstr(ev["command"])]
+    if ev.get("inputs"):
+        lines.append("  inputs  = %s" % _vlist(ev["inputs"]))
+    if ev.get("outputs"):
+        lines.append("  outputs = %s" % _vlist(ev["outputs"]))
+    lines.append("  status  = %s" % _vstr(ev["status"]))
+    lines += ["}", "</code>", ""]<br />
+    return "\n".join(lines)</p>
+<p>_HEADER = ("# vaked-oracle ARP trace\n\nPer-function <code>arp_event</code> declarations emitted from "<br />
+           "oracle findings (<code>tools/oracle/arp_emit.py</code>). Verify: "<br />
+           "<code>python3 tools/arp/verify_log.py docs/oracle/arp-trace.md</code>.\n\n")</p>
+<p>def emit(finding, *, path, ts):<br />
+    """Append one <code>## ts — command</code> heading + arp_event block per function. Header once."""<br />
+    events = finding_to_events(finding)<br />
+    new = not os.path.exists(path)<br />
+    with open(path, "a", encoding="utf-8") as f:<br />
+        if new:<br />
+            f.write(_HEADER)<br />
+        for ev in events:<br />
+            f.write("## %s — %s\n\n%s\n" % (ts, ev["command"], render_arp_block(ev, ts=ts)))<br />
+    return len(events)</p>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="n">run</span><span class="p">,</span><span class="w"> </span><span class="n">expect</span><span class="w"> </span><span class="n">PASS</span><span class="o">**</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="n">tools</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">test_oracle</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="mi">2</span><span class="o">&gt;&amp;</span><span class="mi">1</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">tail</span><span class="w"> </span><span class="o">-</span><span class="mi">3</span><span class="err">`</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">all</span><span class="w"> </span><span class="k">pass</span><span class="w"> </span><span class="p">(</span><span class="mi">6</span><span class="w"> </span><span class="n">new</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">91</span><span class="w"> </span><span class="n">prior</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">97</span><span class="p">)</span><span class="o">.</span><span class="w"> </span><span class="n">The</span><span class="w"> </span><span class="err">`</span><span class="n">vakedc</span><span class="w"> </span><span class="n">check</span><span class="err">`</span><span class="w"> </span><span class="n">dogfood</span><span class="w"> </span><span class="n">test</span><span class="w"> </span><span class="n">must</span><span class="w"> </span><span class="n">be</span><span class="w"> </span><span class="n">green</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">5</span><span class="p">:</span><span class="w"> </span><span class="n">commit</span><span class="o">**</span>
+</pre></div>
+<p>bash<br />
+git add tools/oracle/arp_emit.py tools/oracle/test_oracle.py<br />
+git commit -m "feat(oracle): arp_emit — findings -&gt; per-function arp_event Vaked declarations (vakedc-check dogfood)"</p>
+<div class="highlight"><pre><span></span><span class="o">---</span>
+
+<span class="c1">### Task 2: CLI `oracle arp-emit`</span>
+
+<span class="o">**</span><span class="n">Files</span><span class="p">:</span><span class="o">**</span><span class="w"> </span><span class="n">Modify</span><span class="w"> </span><span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">oracle</span><span class="o">.</span><span class="n">py</span><span class="err">`</span><span class="p">;</span><span class="w"> </span><span class="n">Test</span><span class="p">:</span><span class="w"> </span><span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">test_oracle</span><span class="o">.</span><span class="n">py</span><span class="err">`</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="n">failing</span><span class="w"> </span><span class="n">test</span><span class="o">**</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">append</span><span class="w"> </span><span class="n">to</span><span class="w"> </span><span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">test_oracle</span><span class="o">.</span><span class="n">py</span><span class="err">`</span><span class="p">:</span>
+</pre></div>
+<p>python<br />
+def test_arp_emit_cli():<br />
+    import oracle, tempfile, json, os<br />
+    fp = tempfile.mktemp(suffix=".json")<br />
+    open(fp, "w").write(json.dumps(<em>arp_finding()))<br />
+    out = tempfile.mktemp(suffix=".md")<br />
+    ns = oracle.parse_args(["arp-emit", "--finding", fp, "--out", out, "--ts", "2026-06-16 12:00"])<br />
+    assert ns.finding == fp and ns.out == out and ns.ts == "2026-06-16 12:00"<br />
+    assert oracle.cmd_arp_emit(ns) == 0<br />
+    body = open(out).read()<br />
+    assert "arp_event oracle_llama_decode</em>" in body<br />
+    os.remove(fp); os.remove(out)</p>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">2</span><span class="o">:</span><span class="w"> </span><span class="n">run</span><span class="p">,</span><span class="w"> </span><span class="n">expect</span><span class="w"> </span><span class="n">FAIL</span><span class="o">**</span><span class="w"> </span><span class="n">—</span><span class="w"> </span><span class="k">no</span><span class="w"> </span><span class="n n-Quoted">`arp-emit`</span><span class="w"> </span><span class="n">subcommand</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n n-Quoted">`cmd_arp_emit`</span><span class="p">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">3</span><span class="o">:</span><span class="w"> </span><span class="n">implement</span><span class="o">**</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n n-Quoted">`tools/oracle/oracle.py`</span><span class="o">:</span>
+<span class="w">  </span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="w"> </span><span class="n">subparser</span><span class="w"> </span><span class="p">(</span><span class="n">alongside</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="k">others</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n n-Quoted">`parse_args`</span><span class="p">)</span><span class="o">:</span>
+</pre></div>
+<p>python<br />
+    a = sub.add_parser("arp-emit", help="emit a finding as per-function arp_event Vaked declarations")<br />
+    a.add_argument("--finding", required=True, help="finding JSON (oracle run/team output)")<br />
+    a.add_argument("--out", default="docs/oracle/arp-trace.md", help="ARP trace markdown to append to")<br />
+    a.add_argument("--ts", default=None, help="timestamp string for the arp_event.ts field")</p>
+<div class="highlight"><pre><span></span><span class="w">  </span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="w"> </span><span class="n n-Quoted">`cmd_arp_emit`</span><span class="w"> </span><span class="p">(</span><span class="n">near</span><span class="w"> </span><span class="n">the</span><span class="w"> </span><span class="n">other</span><span class="w"> </span><span class="n n-Quoted">`cmd_*`</span><span class="p">)</span><span class="o">:</span>
+</pre></div>
+<p>python<br />
+def cmd_arp_emit(ns: argparse.Namespace) -&gt; int:<br />
+    import arp_emit<br />
+    import datetime<br />
+    with open(ns.finding, encoding="utf-8") as fh:<br />
+        finding = json.load(fh)<br />
+    ts = ns.ts or datetime.datetime.now().strftime("%Y-%m-%d %H:%M")<br />
+    n = arp_emit.emit(finding, path=ns.out, ts=ts)<br />
+    print("arp-emit: wrote %d arp_event(s) to %s" % (n, ns.out))<br />
+    return 0</p>
+<div class="highlight"><pre><span></span><span class="w">  </span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="w"> </span><span class="n">dispatch</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n n-Quoted">`main`</span><span class="o">:</span><span class="w"> </span><span class="n n-Quoted">`if ns.cmd == &quot;arp-emit&quot;: return cmd_arp_emit(ns)`</span><span class="p">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">4</span><span class="o">:</span><span class="w"> </span><span class="n">run</span><span class="p">,</span><span class="w"> </span><span class="n">expect</span><span class="w"> </span><span class="n">PASS</span><span class="o">**</span><span class="w"> </span><span class="n">—</span><span class="w"> </span><span class="n n-Quoted">`python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3`</span><span class="w"> </span><span class="n">→</span><span class="w"> </span><span class="k">all</span><span class="w"> </span><span class="n">pass</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">97</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">98</span><span class="p">).</span>
+
+<span class="o">-</span><span class="w"> </span><span class="err">[</span><span class="w"> </span><span class="err">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">5</span><span class="o">:</span><span class="w"> </span><span class="k">commit</span><span class="o">**</span>
+</pre></div>
+<p>bash<br />
+git add tools/oracle/oracle.py tools/oracle/test_oracle.py<br />
+git commit -m "feat(oracle): oracle arp-emit CLI — finding JSON -&gt; arp_event trace"</p>
+<div class="highlight"><pre><span></span><span class="o">---</span>
+
+<span class="c1">### Task 3: Taskfile targets + docs</span>
+
+<span class="o">**</span><span class="n">Files</span><span class="p">:</span><span class="o">**</span><span class="w"> </span><span class="n">Modify</span><span class="w"> </span><span class="err">`</span><span class="n">tools</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">Taskfile</span><span class="o">.</span><span class="n">yml</span><span class="err">`</span><span class="p">,</span><span class="w"> </span><span class="err">`</span><span class="n">docs</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">v0</span><span class="o">.</span><span class="n">md</span><span class="err">`</span><span class="p">,</span><span class="w"> </span><span class="err">`</span><span class="o">.</span><span class="n">DEV</span><span class="o">.</span><span class="n">TODO</span><span class="err">`</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span><span class="w"> </span><span class="n">Taskfile</span><span class="o">**</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="n">append</span><span class="w"> </span><span class="p">(</span><span class="mi">2</span><span class="o">-</span><span class="n">space</span><span class="w"> </span><span class="n">indent</span><span class="w"> </span><span class="n">under</span><span class="w"> </span><span class="err">`</span><span class="n">tasks</span><span class="p">:</span><span class="err">`</span><span class="p">):</span>
+</pre></div>
+<p>yaml<br />
+  arp:emit:<br />
+    desc: "emit a finding as per-function arp_event declarations into docs/oracle/arp-trace.md"<br />
+    cmds:<br />
+      - python3 tools/oracle/oracle.py arp-emit --finding "{{.FINDING}}" --out "${ARP_OUT:-docs/oracle/arp-trace.md}"<br />
+  arp:verify:<br />
+    desc: "verify the oracle ARP trace parses+checks as Vaked (dogfood gate)"<br />
+    cmds:<br />
+      - python3 tools/arp/verify_log.py docs/oracle/arp-trace.md</p>
+<div class="highlight"><pre><span></span><span class="n">Verify</span> <span class="n">YAML</span><span class="p">:</span> <span class="err">`</span><span class="n">python3</span> <span class="o">-</span><span class="n">c</span> <span class="s2">&quot;import yaml; yaml.safe_load(open(&#39;tools/oracle/Taskfile.yml&#39;)); print(&#39;YAML OK&#39;)&quot;</span><span class="err">`</span><span class="o">.</span>
+
+<span class="o">-</span> <span class="p">[</span> <span class="p">]</span> <span class="o">**</span><span class="n">Step</span> <span class="mi">2</span><span class="p">:</span> <span class="n">docs</span><span class="o">**</span> <span class="err">—</span> <span class="n">add</span> <span class="n">to</span> <span class="err">`</span><span class="n">docs</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">v0</span><span class="o">.</span><span class="n">md</span><span class="err">`</span> <span class="p">(</span><span class="n">after</span> <span class="n">the</span> <span class="n">thread</span><span class="o">-</span><span class="mi">2</span> <span class="n">recursive</span><span class="o">-</span><span class="bp">self</span><span class="o">-</span><span class="n">RE</span> <span class="n">section</span><span class="p">):</span>
+</pre></div>
+<p>markdown</p>
+<h2 id="arp-emission-slice-4b-thread-3">ARP-emission (slice 4b · thread 3)</h2>
+<p>The oracle emits each reverse-engineered function as a typed <code>arp_event</code> Vaked declaration<br />
+(<code>tools/oracle/arp_emit.py</code> → <code>docs/oracle/arp-trace.md</code>): <code>command="oracle RE &lt;fn&gt;"</code>,<br />
+<code>inputs=[target, fn]</code>, <code>outputs=[refined_sha, fidelity]</code>, <code>status=ok|low-fidelity|no-ground-truth</code>.<br />
+The trace is gated by <code>vakedc check</code> (<code>task -d tools/oracle arp:verify</code>) — Vaked validating the<br />
+oracle's own execution record, closing the oracle → Vaked/ARP dogfood loop.</p>
+<p><strong>Lane boundary:</strong> this consumes the <code>arp_event</code> builtin schema <strong>read-only</strong> and emits to a<br />
+dedicated trace; it does <strong>not</strong> touch the execution ARP IR (a separate workstream). Emit:<br />
+<code>task -d tools/oracle arp:emit FINDING=&lt;finding.json&gt;</code>.</p>
+<div class="highlight"><pre><span></span>And append to `.DEV.TODO`:
+</pre></div>
+<p>markdown</p>
+<h3 id="slice-4b-thread-3-arp-emission-done-branch-featoracle-arp-emit">Slice 4b — thread 3 (ARP-emission) — DONE (branch feat/oracle-arp-emit)</h3>
+<p>oracle findings -&gt; per-function arp_event Vaked declarations (arp_emit.py + <code>oracle arp-emit</code> +<br />
+arp:emit/arp:verify tasks); gated by vakedc check. Read-only against the arp_event builtin schema;<br />
+execution ARP IR untouched. Slice 4b COMPLETE (threads 1,2,3 + dogfeed).</p>
+<div class="highlight"><pre><span></span><span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">3</span><span class="p">:</span><span class="w"> </span><span class="n">verify</span><span class="w"> </span><span class="n">suite</span><span class="w"> </span><span class="n">green</span><span class="o">**</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="err">`</span><span class="n">python3</span><span class="w"> </span><span class="n">tools</span><span class="o">/</span><span class="n">oracle</span><span class="o">/</span><span class="n">test_oracle</span><span class="o">.</span><span class="n">py</span><span class="w"> </span><span class="mi">2</span><span class="o">&gt;&amp;</span><span class="mi">1</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">tail</span><span class="w"> </span><span class="o">-</span><span class="mi">1</span><span class="err">`</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="s2">&quot;98 passed, 0 failed&quot;</span><span class="o">.</span>
+
+<span class="o">-</span><span class="w"> </span><span class="p">[</span><span class="w"> </span><span class="p">]</span><span class="w"> </span><span class="o">**</span><span class="n">Step</span><span class="w"> </span><span class="mi">4</span><span class="p">:</span><span class="w"> </span><span class="n">commit</span><span class="o">**</span>
+</pre></div>
+<p>bash<br />
+git add tools/oracle/Taskfile.yml docs/oracle/v0.md .DEV.TODO<br />
+git commit -m "chore(oracle): arp:emit/arp:verify tasks + docs (slice 4b thread 3)"<br />
+```</p>
+<hr />
+<h2 id="final-verification">Final verification</h2>
+<ul>
+<li>[ ] Full suite green: <code>python3 tools/oracle/test_oracle.py</code> → 98 passed.</li>
+<li>[ ] <code>oracle arp-emit</code> on a real finding → <code>docs/oracle/arp-trace.md</code>; <code>python3 tools/arp/verify_log.py docs/oracle/arp-trace.md</code> exits 0 (the dogfood gate).</li>
+<li>[ ] Final whole-branch review (focus: slug always a valid IDENT; emitted blocks always pass vakedc check; execution-ARP-IR untouched).</li>
+</ul>
+<h2 id="out-of-scope">Out of scope</h2>
+<p>Auto-emit from run/team; execution ARP IR; per-step granularity.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-16-vaked-oracle-slice-4b-arp-emit.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

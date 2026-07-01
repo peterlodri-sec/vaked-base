@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AIL-0 followup spec (reconciled, evidence-grounded) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#1-what-ail-0-is-reconciled" style="padding-left:0.5rem">1. What AIL-0 is (reconciled)</a><a href="#2-evidence-grounded-design-principles-from-wru7qq2ax" style="padding-left:0.5rem">2. Evidence-grounded design principles (from `wru7qq2ax`)</a><a href="#3-grammar-ascii-small" style="padding-left:0.5rem">3. Grammar (ASCII, small)</a><a href="#4-morpheme-table" style="padding-left:0.5rem">4. Morpheme table</a><a href="#5-bench-design-token-honest" style="padding-left:0.5rem">5. Bench design (token-honest)</a><a href="#6-scope-reconciliation-ctx-vs-do" style="padding-left:0.5rem">6. Scope reconciliation (ctx vs DO)</a><a href="#7-open-questions-thin-evidence-the-bench-must-settle" style="padding-left:0.5rem">7. Open questions / thin evidence (the bench must settle)</a><a href="#8-arp-multi-agent-context-from-wnlq8ckib" style="padding-left:0.5rem">8. ARP / multi-agent context (from `wnlq8ckib`)</a><a href="#9-references" style="padding-left:0.5rem">9. References</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/batch/">batch</a> / <a href="/docs/superpowers/batch/2026-06-14-ail-0/">2026-06-14-ail-0</a> / 01-followup-spec</div>
+<h1>AIL-0 followup spec (reconciled, evidence-grounded)</h1>
+<h1 id="ail-0-followup-spec-reconciled-evidence-grounded">AIL-0 followup spec (reconciled, evidence-grounded)</h1>
+<blockquote>
+<p>The original input had two halves that contradicted on scope: a full-slice spec (<code>ctx:::</code>) and an<br />
+opinion essay (<code>DO=</code>) arguing against an implementation storm. This spec reconciles them and<br />
+grounds the design in research runs <code>wru7qq2ax</code> (single-agent core) and <code>wnlq8ckib</code> (multi-agent<br />
+/ adapter). Companion files: <code>00-repo-ctx.md</code>, <code>02-plan.md</code>, <code>03-subagent-instructions.md</code>.</p>
+</blockquote>
+<h2 id="1-what-ail-0-is-reconciled">1. What AIL-0 is (reconciled)</h2>
+<p>AIL-0 = a small, ASCII, EBNF-governed, <strong>register-tagged</strong> notation for LLM-agent communication.<br />
+It is a <em>register language</em>, not a full language (the <code>DO=</code> position wins on scope). It is the<br />
+formal grammar for the text conventions that ARP (issue #202) carries.</p>
+<p>Name stack: <strong>AIL</strong> (Agentic Intermediate Language) / <strong>AIL-0</strong> (experimental v0) / <strong>CUC</strong><br />
+(human-facing compression skill, PR #203) / <strong>ARP</strong> (Agent Register Protocol, issue #202) / <strong>HCP</strong><br />
+(project wire protocol, RFCs 0001-0007).</p>
+<p>Core rule: compress what NL wastes (reasoning scaffold, causality, sequencing, confidence, task<br />
+state, register transitions); keep EXACT what machines need (paths, symbols, commands, API names,<br />
+errors, literals, commit subjects).</p>
+<h2 id="2-evidence-grounded-design-principles-from-wru7qq2ax">2. Evidence-grounded design principles (from <code>wru7qq2ax</code>)</h2>
+<p>These are corrections the research forced on the boot spec:</p>
+<ol>
+<li><strong>ASCII-canonical operators.</strong> Rare-Unicode/CJK glyph density can <em>increase</em> token count<br />
+   (byte-fallback). The boot spec's <code>-&gt; =&gt; bc so</code> etc. are ASCII; Unicode (<code>→ ⇒ ∵ ∴</code>) is optional<br />
+   non-normative sugar only.</li>
+<li><strong>Gate artifacts, not reasoning.</strong> Forcing tight structure on reasoning collapses accuracy<br />
+   (rigid JSON: Claude-3-Haiku GSM8K 86.51%→23.44%; mechanism = field-order forcing answer-before-<br />
+   reason). NL-then-format recovers it. So <code>[R:think]</code>/<code>[R:plan]</code> are free-text; only<br />
+<code>[R:tool]</code>/<code>[R:artifact]</code>/<code>[R:commit]</code> are tightly structured + gated. This is the research's<br />
+   strongest validation of the register split.</li>
+<li><strong>Keep the grammar small.</strong> Grammar-constrained decoding coverage collapses on complex schemas<br />
+   (empirical coverage 3-41% on hard grammars). Simplicity is a correctness requirement.</li>
+<li><strong>Token savings are a HYPOTHESIS, not a claim.</strong> AIL-0's distinctive mechanism — hand-authored<br />
+   register-tagged compression — has <em>no direct token-savings evidence</em>. Register tags are pure<br />
+   token <em>tax</em>. The wins in the literature come from (a) algorithmic low-information removal<br />
+   (LLMLingua up to 20x tokens, ~1.5pt accuracy loss) and (b) replacing verbose NL with a genuinely<br />
+   more compact structured form (CodeAgents 55-87% input-token cut — but single-source, partly<br />
+   definitional). AIL-0 should lean on info-density, and prove net savings on the bench.</li>
+<li><strong>Do not conflate turns/chars with tokens.</strong> CodeAct's "fewer actions/turns" is NOT token<br />
+   evidence. Per-char savings do not imply per-token savings. The bench measures TOKENS.</li>
+</ol>
+<h2 id="3-grammar-ascii-small">3. Grammar (ASCII, small)</h2>
+<p>Registers: <code>R:think R:plan R:tool R:risk R:artifact R:commit R:review R:bench</code>.</p>
+<div class="highlight"><pre><span></span><span class="n">message</span><span class="w">        </span><span class="o">::=</span><span class="w"> </span><span class="n">frame</span><span class="o">+</span>
+<span class="n">frame</span><span class="w">          </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;[&quot;</span><span class="w"> </span><span class="n">register</span><span class="w"> </span><span class="s">&quot;]&quot;</span><span class="w"> </span><span class="n">stmt</span><span class="w"> </span><span class="p">(</span><span class="s">&quot;;&quot;</span><span class="w"> </span><span class="n">stmt</span><span class="p">)</span><span class="o">*</span>
+<span class="n">stmt</span><span class="w">           </span><span class="o">::=</span><span class="w"> </span><span class="n">atom</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">relation</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">action</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">gate</span>
+<span class="n">relation</span><span class="w">       </span><span class="o">::=</span><span class="w"> </span><span class="n">atom</span><span class="w"> </span><span class="nb">op</span><span class="w"> </span><span class="n">atom</span>
+<span class="nb">op</span><span class="w">             </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;-&gt;&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;=&gt;&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;bc&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;so&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;par&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;merge&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;conflict&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;!=&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;~=&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;&lt;=&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;&gt;=&quot;</span>
+<span class="n">action</span><span class="w">         </span><span class="o">::=</span><span class="w"> </span><span class="n">verb</span><span class="w"> </span><span class="s">&quot;(&quot;</span><span class="w"> </span><span class="n">args</span><span class="p">?</span><span class="w"> </span><span class="s">&quot;)&quot;</span>
+<span class="n">gate</span><span class="w">           </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;gate(&quot;</span><span class="w"> </span><span class="n">gate_name</span><span class="w"> </span><span class="s">&quot;:&quot;</span><span class="w"> </span><span class="n">gate_state</span><span class="w"> </span><span class="s">&quot;)&quot;</span>
+<span class="n">gate_name</span><span class="w">      </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;artifact&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;english&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;no_cjk&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;ci&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;bench&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;parse&quot;</span>
+<span class="n">gate_state</span><span class="w">     </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;pass&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;fail&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;warn&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="s">&quot;skip&quot;</span>
+<span class="n">atom</span><span class="w">           </span><span class="o">::=</span><span class="w"> </span><span class="n">ident</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">path</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">symbol</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">quoted</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="n">number</span>
+<span class="p">;</span><span class="w"> </span><span class="o">---</span><span class="w"> </span><span class="n">gate</span><span class="w"> </span><span class="n">as</span><span class="w"> </span><span class="n">grammar</span><span class="o">,</span><span class="w"> </span><span class="n">OUTPUT</span><span class="w"> </span><span class="n">registers</span><span class="w"> </span><span class="n">only</span><span class="w"> </span><span class="o">---</span>
+<span class="n">artifact</span><span class="o">-</span><span class="n">frame</span><span class="w"> </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;[R:artifact]&quot;</span><span class="w"> </span><span class="n">english</span><span class="o">-</span><span class="n">text</span><span class="w">     </span><span class="p">;</span><span class="w"> </span><span class="n">no</span><span class="w"> </span><span class="n">CJK</span>
+<span class="n">commit</span><span class="o">-</span><span class="n">frame</span><span class="w">   </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;[R:commit]&quot;</span><span class="w"> </span><span class="n">conventional</span><span class="o">-</span><span class="n">commit</span><span class="w"> </span><span class="p">;</span><span class="w"> </span><span class="n">English</span><span class="w"> </span><span class="n">only</span>
+<span class="p">;</span><span class="w"> </span><span class="o">---</span><span class="w"> </span><span class="n">reasoning</span><span class="w"> </span><span class="n">registers</span><span class="w"> </span><span class="n">stay</span><span class="w"> </span><span class="n">free</span><span class="o">-</span><span class="n">text</span><span class="w"> </span><span class="o">---</span>
+<span class="n">think</span><span class="o">-</span><span class="n">frame</span><span class="w">    </span><span class="o">::=</span><span class="w"> </span><span class="s">&quot;[R:think]&quot;</span><span class="w"> </span><span class="n">free</span><span class="o">-</span><span class="n">text</span>
+</pre></div>
+
+<p>(Authoritative EBNF is Task 2's <code>protocol/ail/ail-v0.ebnf</code>; this is the sketch.)<br />
+Placement: <code>protocol/ail/</code> (NOT <code>vaked/grammar/</code>, which is the Vaked language). AIL is ARP's<br />
+register protocol.</p>
+<h2 id="4-morpheme-table">4. Morpheme table</h2>
+<p><code>docs/language/0025-ail-morphemes.md</code> (0025 — 0019 is taken). &lt;=80 entries, grouped Registers /<br />
+Causal ops / Parallel ops / State / Actions / Safety-gates. Tokenizer-observed, not tokenizer-<br />
+perfect: per-provider token cost varies and the bench measures it. Every token here must appear in<br />
+the EBNF and vice-versa.</p>
+<h2 id="5-bench-design-token-honest">5. Bench design (token-honest)</h2>
+<p><code>docs/superpowers/specs/2026-06-14-ail-bench-design.md</code>. Modes:<br />
+<code>normal / cuc-wenyan-ultra / ailish-pidgin / ailish-strict</code>. Metrics, each with TOKEN and CHAR<br />
+kept SEPARATE: net token savings (incl. the register-tag tax), char reduction, parse-success,<br />
+literal-preservation, register-compliance, repair-cost, artifact-CJK-leakage. Model matrix: general<br />
+chat / thinking (note: QwQ != DeepSeek-R1) / single-turn-diff / local GGUF. Runs on dev-cx53/GHA<br />
+only (NEVER BUILD). Issue #202's 49-62% is a hypothesis to confirm/refute on TOKENS.</p>
+<h2 id="6-scope-reconciliation-ctx-vs-do">6. Scope reconciliation (ctx vs DO)</h2>
+<p>THIS batch (author-only, local): bootstrap doc, EBNF, morpheme table (0025), RFC (0009), bench<br />
+DESIGN spec, dock issue under #202. (The <code>DO=</code> minimal-bridge discipline.)</p>
+<p>DEFERRED (separate plan, dev-cx53/GHA): <code>tools/cuc-bench/*.py</code> + the multi-model bench run;<br />
+<code>.claude/skills/cuc/</code> TODO after PR #203 merges; the ARP driver (Waves 2-3 of the umbrella plan).<br />
+(The <code>ctx:::</code> full slice, staged — not stormed.)</p>
+<h2 id="7-open-questions-thin-evidence-the-bench-must-settle">7. Open questions / thin evidence (the bench must settle)</h2>
+<ul>
+<li>Does hand-authored register compression net-save TOKENS after the tag tax, per tokenizer? (No<br />
+  evidence either way.)</li>
+<li>Does the artifact gate hold on thinking models without an accuracy hit? (Leakage measured on QwQ,<br />
+  not R1; generality unknown.)</li>
+<li>Does a small EBNF avoid the constrained-decode coverage cliff in practice?</li>
+</ul>
+<h2 id="8-arp-multi-agent-context-from-wnlq8ckib">8. ARP / multi-agent context (from <code>wnlq8ckib</code>)</h2>
+<p>Run <code>wnlq8ckib</code> (multi-agent / adapter, 5 strands) lands three load-bearing findings:</p>
+<ol>
+<li><strong>Conventions do NOT port across providers</strong> — the strongest-supported result, and the empirical<br />
+   case for ARP having an <em>adapter</em> layer rather than one canonical convention. A prompt tuned for<br />
+   one model carries a large penalty to another (PromptBridge: 99.39%→68.70% transferred, a 10.77pp<br />
+   "model drift"; FormatSpread: up to 76 accuracy points from format alone, weakly correlated across<br />
+   models; IFEval++: 18.3-61.8% reliability decline under convention-preserving paraphrase). The fix<br />
+   is measured too: format-recovery alone +6-8 F1, a verifier-driven repair step +14-16 F1, reaching<br />
+   ~99.3% of oracle (PromptPort). → <strong>ARP adapter = a bidirectional schema↔target translator with a<br />
+   built-in output validator/repair step</strong>, not just an emitter.</li>
+<li><strong>KQML / FIPA-ACL failed because their semantics were mentalistic</strong> — defined over the sender's<br />
+   private beliefs, so compliance was not third-party-checkable, and dialects drifted until agents<br />
+   could not interoperate (Singh 1998). → <strong>AIL-0 register discipline must be publicly checkable<br />
+   (defined over observable artifacts — what was written, not what an agent believes) and tight<br />
+   enough to prevent dialect drift, with a complete act/intent vocabulary.</strong></li>
+<li><strong>Structured handoffs help; a shared compressed IR at swarm scale is unproven.</strong> Typed handoff<br />
+   discipline measurably helps — ReWOO's reasoning/observation channel split cut tokens ~5x<br />
+   (9,795→1,986) with a small accuracy gain (the best evidence FOR the register split); MetaGPT's<br />
+   structured artifacts hit 85.9% HumanEval Pass@1; AgentAsk's clarification at handoffs recovers<br />
+   most of a heavy evaluator's gain at &lt;5% overhead. BUT no located source ablates a <em>designed shared<br />
+   compressed IR</em> against no-IR at fan-out scale, MAST finds structure alone insufficient for<br />
+   inter-agent misalignment, and adding stages that reprocess context without new information<br />
+<em>degrades</em> reliability (.907 centralized → .435 at 3 stages). → <strong>AIL-0's shared-IR ambition is a<br />
+   hypothesis; the bench must ablate IR vs no-IR, not assume the win.</strong></li>
+</ol>
+<p>These feed the ARP adapter layer (umbrella plan Wave 2 — the <code>adapters.md</code> + <code>validate.py</code> are now<br />
+evidence-backed) and the umbrella plan's honest framing. Full report:<br />
+<code>docs/superpowers/research/2026-06-14-arp-multiagent-research.md</code>.</p>
+<h2 id="9-references">9. References</h2>
+<ul>
+<li>Research: <code>docs/superpowers/research/2026-06-14-ail-0-single-agent-research.md</code> (run <code>wru7qq2ax</code>),<br />
+<code>docs/superpowers/research/2026-06-14-arp-multiagent-research.md</code> (run <code>wnlq8ckib</code>).</li>
+<li>Issue #202 (ARP), PR #203 (caveman→cuc + 5-model bench), PR #187 (CUC origin).</li>
+<li>Umbrella plan: <code>docs/superpowers/plans/2026-06-14-arp-e2e-naive.md</code>.</li>
+</ul>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/batch/2026-06-14-ail-0/01-followup-spec.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

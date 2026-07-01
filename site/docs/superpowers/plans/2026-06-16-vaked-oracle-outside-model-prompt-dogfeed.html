@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Outside-model prompt dogfeed — Implementation Plan — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#task-1-opt-in-sink-in-panelopenaichatclient" style="padding-left:1rem">  Task 1: opt-in sink in `panel.OpenAIChatClient`</a><a href="#task-2-dogfeedpromptspy-summarize-comment-find-or-create-post" style="padding-left:1rem">  Task 2: `dogfeed_prompts.py` — summarize + comment + find-or-create + post</a><a href="#task-3-cli-oracle-dogfeed" style="padding-left:1rem">  Task 3: CLI `oracle dogfeed`</a><a href="#task-4-taskfile-target-docs" style="padding-left:1rem">  Task 4: Taskfile target + docs</a><a href="#outside-model-prompt-dogfeed-zero-infra-transparency" style="padding-left:0.5rem">Outside-model prompt dogfeed (zero-infra transparency)</a><a href="#outside-model-prompt-dogfeed-done-branch-featoracle-dogfeed-prompts" style="padding-left:1rem">  Outside-model prompt dogfeed — DONE (branch feat/oracle-dogfeed-prompts)</a><a href="#final-verification" style="padding-left:0.5rem">Final verification</a><a href="#out-of-scope-follow-ups" style="padding-left:0.5rem">Out of scope (follow-ups)</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/plans/">plans</a> / 2026-06-16-vaked-oracle-outside-model-prompt-dogfeed</div>
+<h1>Outside-model prompt dogfeed — Implementation Plan</h1>
+<h1 id="outside-model-prompt-dogfeed-implementation-plan">Outside-model prompt dogfeed — Implementation Plan</h1>
+<blockquote>
+<p><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax.</p>
+</blockquote>
+<p><strong>Goal:</strong> Surface every prompt the oracle sends to non-hosted (OpenRouter) models to one rolling GitHub issue — a transparency/cost audit — fire-and-forget, no key/response leak.</p>
+<p><strong>Architecture:</strong> An opt-in best-effort sink in <code>panel.OpenAIChatClient.__call__</code> appends a per-call JSONL record (outside-model only). A pure stdlib <code>dogfeed_prompts.py</code> summarizes the JSONL and (via an <strong>injected <code>gh</code> runner</strong>) find-or-creates one issue and appends a comment. CLI <code>oracle dogfeed</code> drives it; posting is a deliberate step, never in a run's hot path.</p>
+<p><strong>Tech Stack:</strong> Python 3 stdlib only (json, os, hashlib, subprocess, urllib). Tests = module-level <code>test_*</code> functions with plain <code>assert</code> (the <code>tools/oracle/test_oracle.py</code> convention — NOT unittest; a custom <code>globals()</code> runner collects <code>test_*</code>).</p>
+<p><strong>Spec:</strong> <code>docs/superpowers/specs/2026-06-16-vaked-oracle-outside-model-prompt-dogfeed-design.md</code></p>
+<p><strong>Constraints:</strong> pure stdlib, M3-safe (no compile); never write/print the OpenRouter key; reuse the injected-runner + module-level-test patterns; <code>git add</code> only named files (no <code>-A</code>).</p>
+<hr />
+<h3 id="task-1-opt-in-sink-in-panelopenaichatclient">Task 1: opt-in sink in <code>panel.OpenAIChatClient</code></h3>
+<p><strong>Files:</strong> Modify <code>tools/oracle/panel.py</code>; Test: <code>tools/oracle/test_oracle.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong> — append to <code>tools/oracle/test_oracle.py</code>:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="c1"># ---- outside-model prompt dogfeed ----</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_sink_outside_model_only_and_leakfree</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">tempfile</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">U</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">panel</span>
+    <span class="k">class</span><span class="w"> </span><span class="nc">_Resp</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">=</span> <span class="n">d</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">):</span> <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="n">fake</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;PONG&quot;</span><span class="p">}}],</span>
+            <span class="s2">&quot;usage&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.0009</span><span class="p">}}</span>
+    <span class="n">orig</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">urlopen</span>
+    <span class="n">U</span><span class="o">.</span><span class="n">urlopen</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">:</span> <span class="n">_Resp</span><span class="p">(</span><span class="n">fake</span><span class="p">)</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mktemp</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.jsonl&quot;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;ORACLE_DOGFEED_LOG&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">log</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">OpenAIChatClient</span><span class="p">(</span><span class="s2">&quot;https://openrouter.ai/x&quot;</span><span class="p">,</span> <span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span><span class="p">,</span>
+                                     <span class="s2">&quot;sekret-key&quot;</span><span class="p">,</span> <span class="n">reasoning_effort</span><span class="o">=</span><span class="s2">&quot;high&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="p">(</span><span class="s2">&quot;Reverse-engineer fn foo</span><span class="se">\n</span><span class="s2">pseudo-c body&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;PONG&quot;</span>
+        <span class="n">recs</span> <span class="o">=</span> <span class="p">[</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">log</span><span class="p">)</span> <span class="k">if</span> <span class="n">l</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">recs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">recs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">assert</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span>
+        <span class="k">assert</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;completion_tokens&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">7</span> <span class="ow">and</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;cost&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mf">0.0009</span> <span class="ow">and</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;reasoning&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span>
+        <span class="k">assert</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;first_line&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;Reverse-engineer fn foo&quot;</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;prompt_sha&quot;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">64</span>
+        <span class="k">assert</span> <span class="s2">&quot;sekret-key&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>          <span class="c1"># key never recorded</span>
+        <span class="c1"># keyless local client -&gt; NOT logged</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">log</span><span class="p">)</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">OpenAIChatClient</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:8091/x&quot;</span><span class="p">,</span> <span class="s2">&quot;qwen&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">loc</span><span class="p">(</span><span class="s2">&quot;hi there&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;PONG&quot;</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">log</span><span class="p">))</span> <span class="ow">or</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">open</span><span class="p">(</span><span class="n">log</span><span class="p">))</span> <span class="o">==</span> <span class="mi">0</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">U</span><span class="o">.</span><span class="n">urlopen</span> <span class="o">=</span> <span class="n">orig</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;ORACLE_DOGFEED_LOG&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">log</span><span class="p">):</span> <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">log</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_sink_noop_when_env_unset</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">urllib.request</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">U</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">panel</span>
+    <span class="k">class</span><span class="w"> </span><span class="nc">_Resp</span><span class="p">:</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">d</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">_d</span> <span class="o">=</span> <span class="n">d</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="bp">self</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">a</span><span class="p">):</span> <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">read</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_d</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">()</span>
+    <span class="n">orig</span> <span class="o">=</span> <span class="n">U</span><span class="o">.</span><span class="n">urlopen</span>
+    <span class="n">U</span><span class="o">.</span><span class="n">urlopen</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">:</span> <span class="n">_Resp</span><span class="p">({</span><span class="s2">&quot;choices&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;message&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;X&quot;</span><span class="p">}}],</span> <span class="s2">&quot;usage&quot;</span><span class="p">:</span> <span class="p">{}})</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;ORACLE_DOGFEED_LOG&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>               <span class="c1"># ensure unset</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">panel</span><span class="o">.</span><span class="n">OpenAIChatClient</span><span class="p">(</span><span class="s2">&quot;https://openrouter.ai/x&quot;</span><span class="p">,</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">c</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;X&quot;</span>                                  <span class="c1"># no env -&gt; sink no-op, call still works</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">U</span><span class="o">.</span><span class="n">urlopen</span> <span class="o">=</span> <span class="n">orig</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 2: Run to verify it fails</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -6</code> → the new sink test FAILS (no record written; <code>_dogfeed</code> absent → currently <code>__call__</code> returns content without sinking, so <code>recs</code> is empty / file missing).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: Implement</strong> — in <code>tools/oracle/panel.py</code>: add <code>import hashlib</code> near the other stdlib imports; replace the <code>__call__</code> body's <code>with ...: return json.load(r)[...]</code> to capture the response + sink, and add the <code>_dogfeed</code> method:</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">reasoning_effort</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">eff</span> <span class="o">=</span> <span class="n">reasoning_effort</span> <span class="k">if</span> <span class="n">reasoning_effort</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">reasoning_effort</span>
+        <span class="n">headers</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Content-Type&quot;</span><span class="p">:</span> <span class="s2">&quot;application/json&quot;</span><span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">:</span>
+            <span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Authorization&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Bearer </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">extra_headers</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_body</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">eff</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
+                                     <span class="n">method</span><span class="o">=</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timeout</span><span class="p">)</span> <span class="k">as</span> <span class="n">r</span><span class="p">:</span>  <span class="c1"># noqa: S310 (operator-configured endpoints)</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">r</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dogfeed</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">eff</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d</span><span class="p">[</span><span class="s2">&quot;choices&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;message&quot;</span><span class="p">][</span><span class="s2">&quot;content&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_dogfeed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prompt</span><span class="p">,</span> <span class="n">resp</span><span class="p">,</span> <span class="n">eff</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Opt-in, best-effort: append one JSONL record for an OUTSIDE-model call.</span>
+<span class="sd">        No-op unless self.key (key_env-gated) AND ORACLE_DOGFEED_LOG is set. Never</span>
+<span class="sd">        raises (must not break the model call); never writes the key or the response.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;ORACLE_DOGFEED_LOG&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">usage</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;usage&quot;</span><span class="p">,</span> <span class="p">{})</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">resp</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="p">{}</span>
+            <span class="n">stripped</span> <span class="o">=</span> <span class="p">(</span><span class="n">prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">rec</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span>
+                   <span class="s2">&quot;prompt_sha&quot;</span><span class="p">:</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">((</span><span class="n">prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">(),</span>
+                   <span class="s2">&quot;first_line&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">stripped</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">][:</span><span class="mi">120</span><span class="p">]</span> <span class="k">if</span> <span class="n">stripped</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;completion_tokens&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="n">usage</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cost&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;reasoning&quot;</span><span class="p">:</span> <span class="nb">bool</span><span class="p">(</span><span class="n">eff</span><span class="p">)}</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">rec</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>  <span class="c1"># noqa: BLE001 — the sink must never break the model call</span>
+            <span class="k">pass</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 4: Run to verify it passes</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3</code> → all pass (2 new + 82 prior = 84).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 5: Commit</strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/panel.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): opt-in dogfeed sink in OpenAIChatClient (outside-model only, leak-free)&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-2-dogfeed_promptspy-summarize-comment-find-or-create-post">Task 2: <code>dogfeed_prompts.py</code> — summarize + comment + find-or-create + post</h3>
+<p><strong>Files:</strong> Create <code>tools/oracle/dogfeed_prompts.py</code>; Test: <code>tools/oracle/test_oracle.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong> — append to <code>tools/oracle/test_oracle.py</code>:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_load_records_skips_corrupt</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">dogfeed_prompts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dp</span><span class="o">,</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mktemp</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.jsonl&quot;</span><span class="p">)</span>
+    <span class="nb">open</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;{&quot;model&quot;:&quot;a&quot;}</span><span class="se">\n</span><span class="s1">NOT JSON</span><span class="se">\n\n</span><span class="s1">{&quot;model&quot;:&quot;b&quot;}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">recs</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">load_records</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">recs</span><span class="p">]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;b&quot;</span><span class="p">]</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_summarize_math</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">dogfeed_prompts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dp</span>
+    <span class="n">recs</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">},</span>
+            <span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;a&quot;</span><span class="p">,</span> <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.002</span><span class="p">},</span>
+            <span class="p">{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;b&quot;</span><span class="p">,</span> <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">summarize</span><span class="p">(</span><span class="n">recs</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">s</span><span class="p">[</span><span class="s2">&quot;n&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span>
+    <span class="k">assert</span> <span class="n">s</span><span class="p">[</span><span class="s2">&quot;by_model&quot;</span><span class="p">][</span><span class="s2">&quot;a&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="p">{</span><span class="s2">&quot;calls&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;tokens&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.003</span><span class="p">}</span>
+    <span class="k">assert</span> <span class="n">s</span><span class="p">[</span><span class="s2">&quot;by_model&quot;</span><span class="p">][</span><span class="s2">&quot;b&quot;</span><span class="p">][</span><span class="s2">&quot;tokens&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span>
+    <span class="k">assert</span> <span class="nb">abs</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s2">&quot;total_cost&quot;</span><span class="p">]</span> <span class="o">-</span> <span class="mf">0.003</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mf">1e-9</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_build_comment_cap_and_leakfree</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">dogfeed_prompts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dp</span>
+    <span class="n">recs</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span><span class="p">,</span> <span class="s2">&quot;prompt_sha&quot;</span><span class="p">:</span> <span class="s2">&quot;a&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span>
+             <span class="s2">&quot;first_line&quot;</span><span class="p">:</span> <span class="s2">&quot;Reverse-engineer fn x&quot;</span><span class="p">,</span> <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">100</span><span class="p">,</span>
+             <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.002</span><span class="p">,</span> <span class="s2">&quot;reasoning&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">}</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
+    <span class="n">c</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">build_comment</span><span class="p">(</span><span class="n">recs</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;r1&quot;</span><span class="p">,</span> <span class="n">cap</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span> <span class="ow">in</span> <span class="n">c</span>
+    <span class="k">assert</span> <span class="s2">&quot;| 3 |&quot;</span> <span class="ow">in</span> <span class="n">c</span>                       <span class="c1"># 3 calls in the table</span>
+    <span class="k">assert</span> <span class="s2">&quot;more (capped)&quot;</span> <span class="ow">in</span> <span class="n">c</span>               <span class="c1"># 3 &gt; cap 2</span>
+    <span class="k">assert</span> <span class="s2">&quot;Bearer&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">c</span> <span class="ow">and</span> <span class="s2">&quot;sekret&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">c</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_find_or_create_returns_existing</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">dogfeed_prompts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dp</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span>
+    <span class="n">calls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fake_gh</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;list&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">([{</span><span class="s2">&quot;number&quot;</span><span class="p">:</span> <span class="mi">42</span><span class="p">,</span> <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">dp</span><span class="o">.</span><span class="n">ISSUE_TITLE</span><span class="p">}])</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="s2">&quot;must not create when issue exists&quot;</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">dp</span><span class="o">.</span><span class="n">find_or_create_issue</span><span class="p">(</span><span class="n">dp</span><span class="o">.</span><span class="n">ISSUE_TITLE</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;o/r&quot;</span><span class="p">,</span> <span class="n">gh</span><span class="o">=</span><span class="n">fake_gh</span><span class="p">)</span> <span class="o">==</span> <span class="mi">42</span>
+    <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="s2">&quot;create&quot;</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">calls</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_find_or_create_creates_when_absent</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">dogfeed_prompts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dp</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fake_gh</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;list&quot;</span><span class="p">:</span> <span class="k">return</span> <span class="s2">&quot;[]&quot;</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;create&quot;</span><span class="p">:</span> <span class="k">return</span> <span class="s2">&quot;https://github.com/o/r/issues/77</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="k">raise</span> <span class="ne">AssertionError</span>
+    <span class="k">assert</span> <span class="n">dp</span><span class="o">.</span><span class="n">find_or_create_issue</span><span class="p">(</span><span class="n">dp</span><span class="o">.</span><span class="n">ISSUE_TITLE</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;o/r&quot;</span><span class="p">,</span> <span class="n">gh</span><span class="o">=</span><span class="n">fake_gh</span><span class="p">)</span> <span class="o">==</span> <span class="mi">77</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_post_appends_comment</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">dogfeed_prompts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dp</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span>
+    <span class="n">calls</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fake_gh</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+        <span class="n">calls</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;list&quot;</span><span class="p">:</span> <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">([{</span><span class="s2">&quot;number&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">dp</span><span class="o">.</span><span class="n">ISSUE_TITLE</span><span class="p">}])</span>
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="n">dp</span><span class="o">.</span><span class="n">post</span><span class="p">([{</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;m&quot;</span><span class="p">,</span> <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                  <span class="s2">&quot;prompt_sha&quot;</span><span class="p">:</span> <span class="s2">&quot;x&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;first_line&quot;</span><span class="p">:</span> <span class="s2">&quot;hi&quot;</span><span class="p">}],</span>
+                <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;o/r&quot;</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">gh</span><span class="o">=</span><span class="n">fake_gh</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">n</span> <span class="o">==</span> <span class="mi">5</span>
+    <span class="k">assert</span> <span class="nb">any</span><span class="p">(</span><span class="n">a</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;issue&quot;</span> <span class="ow">and</span> <span class="n">a</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;comment&quot;</span> <span class="ow">and</span> <span class="n">a</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;5&quot;</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">calls</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 2: Run to verify it fails</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -6</code> → FAIL: <code>ModuleNotFoundError: No module named 'dogfeed_prompts'</code>.</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: Implement</strong> — create <code>tools/oracle/dogfeed_prompts.py</code>:</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;dogfeed_prompts — surface outside-model prompts to one rolling GitHub issue.</span>
+
+<span class="sd">Reads the JSONL the panel sink writes (ORACLE_DOGFEED_LOG), summarizes the</span>
+<span class="sd">non-hosted (OpenRouter) model calls, and appends ONE comment to a single rolling</span>
+<span class="sd">issue (find-or-create by exact title, max 1). Transparency / cost audit — no full</span>
+<span class="sd">prompts, no responses, no key. The `gh` runner is INJECTED (default: subprocess</span>
+<span class="sd">`gh`) so the module is transport-agnostic and testable with a fake. Pure stdlib.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
+
+<span class="n">ISSUE_TITLE</span> <span class="o">=</span> <span class="s2">&quot;oracle: outside-model prompt dogfeed&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_records</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Records from a JSONL file; skips corrupt/partial lines (crash-safe).&quot;&quot;&quot;</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">line</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">line</span><span class="p">))</span>
+            <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+                <span class="k">continue</span>
+    <span class="k">return</span> <span class="n">out</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">summarize</span><span class="p">(</span><span class="n">records</span><span class="p">):</span>
+    <span class="n">by</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">records</span><span class="p">:</span>
+        <span class="n">m</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model&quot;</span><span class="p">,</span> <span class="s2">&quot;?&quot;</span><span class="p">)</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">by</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;calls&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;tokens&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span>
+        <span class="n">s</span><span class="p">[</span><span class="s2">&quot;calls&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">s</span><span class="p">[</span><span class="s2">&quot;tokens&quot;</span><span class="p">]</span> <span class="o">+=</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;completion_tokens&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="mi">0</span>
+        <span class="n">s</span><span class="p">[</span><span class="s2">&quot;cost&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s2">&quot;cost&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cost&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">),</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s2">&quot;cost&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">by</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span> <span class="mi">6</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;by_model&quot;</span><span class="p">:</span> <span class="n">by</span><span class="p">,</span> <span class="s2">&quot;total_cost&quot;</span><span class="p">:</span> <span class="n">total</span><span class="p">,</span> <span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">build_comment</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">cap</span><span class="o">=</span><span class="mi">50</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Markdown comment: summary table + a capped per-call list. No prompt/response/key.&quot;&quot;&quot;</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">summarize</span><span class="p">(</span><span class="n">records</span><span class="p">)</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;### oracle outside-model dogfeed — run `</span><span class="si">%s</span><span class="s2">`&quot;</span> <span class="o">%</span> <span class="n">run_id</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+             <span class="s2">&quot;</span><span class="si">%d</span><span class="s2"> non-hosted call(s) · total cost $</span><span class="si">%.6f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s2">&quot;n&quot;</span><span class="p">],</span> <span class="n">s</span><span class="p">[</span><span class="s2">&quot;total_cost&quot;</span><span class="p">]),</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+             <span class="s2">&quot;| model | calls | completion_tokens | cost |&quot;</span><span class="p">,</span> <span class="s2">&quot;|---|---|---|---|&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s2">&quot;by_model&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;| `</span><span class="si">%s</span><span class="s2">` | </span><span class="si">%d</span><span class="s2"> | </span><span class="si">%d</span><span class="s2"> | $</span><span class="si">%.6f</span><span class="s2"> |&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;calls&quot;</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="s2">&quot;tokens&quot;</span><span class="p">],</span> <span class="nb">round</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;cost&quot;</span><span class="p">],</span> <span class="mi">6</span><span class="p">)))</span>
+    <span class="n">lines</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;details&gt;&lt;summary&gt;per-call (prompt sha · first line)&lt;/summary&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">records</span><span class="p">[:</span><span class="n">cap</span><span class="p">]:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;- `</span><span class="si">%s</span><span class="s2">` · </span><span class="si">%s</span><span class="s2"> · </span><span class="si">%s</span><span class="s2">tok · $</span><span class="si">%.6f</span><span class="s2"> · </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;prompt_sha&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)[:</span><span class="mi">12</span><span class="p">],</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model&quot;</span><span class="p">),</span>
+            <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;completion_tokens&quot;</span><span class="p">),</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cost&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="mf">0.0</span><span class="p">),</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;first_line&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)))</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">cap</span><span class="p">:</span>
+        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;- … +</span><span class="si">%d</span><span class="s2"> more (capped)&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">)</span> <span class="o">-</span> <span class="n">cap</span><span class="p">))</span>
+    <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&lt;/details&gt;&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">find_or_create_issue</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">gh</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Issue number for `title` in `repo`; create it (max 1) if no exact-title match.&quot;&quot;&quot;</span>
+    <span class="n">raw</span> <span class="o">=</span> <span class="n">gh</span><span class="p">([</span><span class="s2">&quot;issue&quot;</span><span class="p">,</span> <span class="s2">&quot;list&quot;</span><span class="p">,</span> <span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="s2">&quot;--search&quot;</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span>
+              <span class="s2">&quot;--state&quot;</span><span class="p">,</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="s2">&quot;number,title&quot;</span><span class="p">,</span> <span class="s2">&quot;--limit&quot;</span><span class="p">,</span> <span class="s2">&quot;20&quot;</span><span class="p">])</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">raw</span> <span class="ow">or</span> <span class="s2">&quot;[]&quot;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">it</span> <span class="ow">in</span> <span class="n">items</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">it</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="n">title</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">it</span><span class="p">[</span><span class="s2">&quot;number&quot;</span><span class="p">])</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">gh</span><span class="p">([</span><span class="s2">&quot;issue&quot;</span><span class="p">,</span> <span class="s2">&quot;create&quot;</span><span class="p">,</span> <span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="s2">&quot;--title&quot;</span><span class="p">,</span> <span class="n">title</span><span class="p">,</span>
+              <span class="s2">&quot;--body&quot;</span><span class="p">,</span> <span class="s2">&quot;Rolling log of prompts the oracle sends to non-hosted models. &quot;</span>
+                        <span class="s2">&quot;One comment per run (tools/oracle/dogfeed_prompts.py).&quot;</span><span class="p">])</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">gh</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="n">ISSUE_TITLE</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find-or-create the rolling issue and append this run&#39;s summary comment.&quot;&quot;&quot;</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="n">find_or_create_issue</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="n">repo</span><span class="p">,</span> <span class="n">gh</span><span class="o">=</span><span class="n">gh</span><span class="p">)</span>
+    <span class="n">gh</span><span class="p">([</span><span class="s2">&quot;issue&quot;</span><span class="p">,</span> <span class="s2">&quot;comment&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">num</span><span class="p">),</span> <span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="p">,</span>
+        <span class="s2">&quot;--body&quot;</span><span class="p">,</span> <span class="n">build_comment</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="n">run_id</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="n">num</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_gh</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default runner: the `gh` CLI (authed wherever this runs, e.g. M3).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="s2">&quot;gh&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">],</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">stdout</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 4: Run to verify it passes</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3</code> → all pass (6 new + 84 prior = 90).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 5: Commit</strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/dogfeed_prompts.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): dogfeed_prompts — summarize outside-model calls + find-or-create rolling issue (injected gh)&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-3-cli-oracle-dogfeed">Task 3: CLI <code>oracle dogfeed</code></h3>
+<p><strong>Files:</strong> Modify <code>tools/oracle/oracle.py</code>; Test: <code>tools/oracle/test_oracle.py</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong> — append to <code>tools/oracle/test_oracle.py</code>:</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">test_dogfeed_cli_args_and_dryrun</span><span class="p">():</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">oracle</span><span class="o">,</span><span class="w"> </span><span class="nn">tempfile</span><span class="o">,</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mktemp</span><span class="p">(</span><span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.jsonl&quot;</span><span class="p">)</span>
+    <span class="nb">open</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="s2">&quot;deepseek/deepseek-v4-pro&quot;</span><span class="p">,</span> <span class="s2">&quot;completion_tokens&quot;</span><span class="p">:</span> <span class="mi">9</span><span class="p">,</span>
+                                   <span class="s2">&quot;cost&quot;</span><span class="p">:</span> <span class="mf">0.001</span><span class="p">,</span> <span class="s2">&quot;prompt_sha&quot;</span><span class="p">:</span> <span class="s2">&quot;z&quot;</span> <span class="o">*</span> <span class="mi">64</span><span class="p">,</span> <span class="s2">&quot;first_line&quot;</span><span class="p">:</span> <span class="s2">&quot;hi&quot;</span><span class="p">})</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">ns</span> <span class="o">=</span> <span class="n">oracle</span><span class="o">.</span><span class="n">parse_args</span><span class="p">([</span><span class="s2">&quot;dogfeed&quot;</span><span class="p">,</span> <span class="s2">&quot;--log&quot;</span><span class="p">,</span> <span class="n">p</span><span class="p">,</span> <span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="s2">&quot;o/r&quot;</span><span class="p">,</span> <span class="s2">&quot;--dry-run&quot;</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">ns</span><span class="o">.</span><span class="n">log</span> <span class="o">==</span> <span class="n">p</span> <span class="ow">and</span> <span class="n">ns</span><span class="o">.</span><span class="n">repo</span> <span class="o">==</span> <span class="s2">&quot;o/r&quot;</span> <span class="ow">and</span> <span class="n">ns</span><span class="o">.</span><span class="n">dry_run</span> <span class="ow">is</span> <span class="kc">True</span>
+    <span class="k">assert</span> <span class="n">oracle</span><span class="o">.</span><span class="n">cmd_dogfeed</span><span class="p">(</span><span class="n">ns</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>          <span class="c1"># dry-run prints the comment, posts nothing</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 2: Run to verify it fails</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -6</code> → FAIL (no <code>dogfeed</code> subcommand / <code>cmd_dogfeed</code>).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 3: Implement</strong> — in <code>tools/oracle/oracle.py</code>:<br />
+  (a) add a <code>dogfeed</code> subparser (alongside the others in <code>parse_args</code>):</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="n">d</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">add_parser</span><span class="p">(</span><span class="s2">&quot;dogfeed&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;post outside-model prompt records to the rolling GitHub issue&quot;</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--log&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;JSONL written by the panel sink (ORACLE_DOGFEED_LOG)&quot;</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--repo&quot;</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;owner/name for the rolling issue&quot;</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--run-id&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;run_id&quot;</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;run&quot;</span><span class="p">)</span>
+    <span class="n">d</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span><span class="s2">&quot;--dry-run&quot;</span><span class="p">,</span> <span class="n">dest</span><span class="o">=</span><span class="s2">&quot;dry_run&quot;</span><span class="p">,</span> <span class="n">action</span><span class="o">=</span><span class="s2">&quot;store_true&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;print the comment; post nothing&quot;</span><span class="p">)</span>
+</pre></div>
+
+<p>(b) add <code>cmd_dogfeed</code>:</p>
+<div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">cmd_dogfeed</span><span class="p">(</span><span class="n">ns</span><span class="p">:</span> <span class="n">argparse</span><span class="o">.</span><span class="n">Namespace</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">dogfeed_prompts</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">dfp</span>
+    <span class="n">records</span> <span class="o">=</span> <span class="n">dfp</span><span class="o">.</span><span class="n">load_records</span><span class="p">(</span><span class="n">ns</span><span class="o">.</span><span class="n">log</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ns</span><span class="o">.</span><span class="n">dry_run</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">dfp</span><span class="o">.</span><span class="n">build_comment</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">run_id</span><span class="p">))</span>
+        <span class="k">return</span> <span class="mi">0</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="n">dfp</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">records</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">repo</span><span class="p">,</span> <span class="n">run_id</span><span class="o">=</span><span class="n">ns</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="n">gh</span><span class="o">=</span><span class="n">dfp</span><span class="o">.</span><span class="n">_gh</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;dogfeed: posted </span><span class="si">%d</span><span class="s2"> record(s) to </span><span class="si">%s</span><span class="s2"> issue #</span><span class="si">%d</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">records</span><span class="p">),</span> <span class="n">ns</span><span class="o">.</span><span class="n">repo</span><span class="p">,</span> <span class="n">num</span><span class="p">))</span>
+    <span class="k">return</span> <span class="mi">0</span>
+</pre></div>
+
+<p>(c) dispatch in <code>main</code>: add <code>if ns.cmd == "dogfeed": return cmd_dogfeed(ns)</code>.</p>
+<ul>
+<li>
+<p>[ ] <strong>Step 4: Run to verify it passes</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -3</code> → all pass (1 new + 90 prior = 91).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 5: Commit</strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/oracle.py<span class="w"> </span>tools/oracle/test_oracle.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(oracle): oracle dogfeed CLI — post/dry-run the outside-model rolling issue&quot;</span>
+</pre></div>
+
+<hr />
+<h3 id="task-4-taskfile-target-docs">Task 4: Taskfile target + docs</h3>
+<p><strong>Files:</strong> Modify <code>tools/oracle/Taskfile.yml</code>, <code>docs/oracle/MCP-FLEET.md</code>, <code>.DEV.TODO</code></p>
+<ul>
+<li>[ ] <strong>Step 1: Add the Taskfile target</strong> — append to <code>tools/oracle/Taskfile.yml</code> (2-space indent under <code>tasks:</code>):</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="nt">dogfeed</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">desc</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;post</span><span class="nv"> </span><span class="s">outside-model</span><span class="nv"> </span><span class="s">prompt</span><span class="nv"> </span><span class="s">records</span><span class="nv"> </span><span class="s">(ORACLE_DOGFEED_LOG)</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">the</span><span class="nv"> </span><span class="s">rolling</span><span class="nv"> </span><span class="s">GitHub</span><span class="nv"> </span><span class="s">issue</span><span class="nv"> </span><span class="s">(run</span><span class="nv"> </span><span class="s">where</span><span class="nv"> </span><span class="s">gh</span><span class="nv"> </span><span class="s">is</span><span class="nv"> </span><span class="s">authed,</span><span class="nv"> </span><span class="s">e.g.</span><span class="nv"> </span><span class="s">M3).</span><span class="nv"> </span><span class="s">DRY=1</span><span class="nv"> </span><span class="s">to</span><span class="nv"> </span><span class="s">preview&quot;</span>
+<span class="w">    </span><span class="nt">cmds</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">        </span><span class="no">python3 tools/oracle/oracle.py dogfeed \</span>
+<span class="w">          </span><span class="no">--log &quot;${ORACLE_DOGFEED_LOG:-$HOME/oracle/dogfeed.jsonl}&quot; \</span>
+<span class="w">          </span><span class="no">--repo &quot;${ORACLE_REPO:-peterlodri-sec/vaked-base}&quot; \</span>
+<span class="w">          </span><span class="no">--run-id &quot;${RUN_ID:-run}&quot; \</span>
+<span class="w">          </span><span class="no">{{if eq .DRY &quot;1&quot;}}--dry-run{{end}}</span>
+<span class="w">    </span><span class="nt">vars</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">DRY</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;{{.DRY</span><span class="nv"> </span><span class="s">|</span><span class="nv"> </span><span class="s">default</span><span class="nv"> </span><span class="s">&quot;&quot;}}&#39;</span>
+</pre></div>
+
+<p>Verify YAML parses: <code>python3 -c "import yaml; yaml.safe_load(open('tools/oracle/Taskfile.yml')); print('YAML OK')"</code>.</p>
+<ul>
+<li>[ ] <strong>Step 2: Document</strong> — add a section to <code>docs/oracle/MCP-FLEET.md</code> under the Langfuse/observability area (or end):</li>
+</ul>
+<div class="highlight"><pre><span></span><span class="gu">## Outside-model prompt dogfeed (zero-infra transparency)</span>
+
+The oracle&#39;s non-hosted (OpenRouter) calls are surfaced to ONE rolling GitHub issue
+(&quot;oracle: outside-model prompt dogfeed&quot;) — a human-visible cost/prompt audit that complements
+the Langfuse SDK push. A team run with <span class="sb">`ORACLE_DOGFEED_LOG=&lt;path&gt;`</span> set makes the panel sink
+(<span class="sb">`panel.OpenAIChatClient._dogfeed`</span>) append one JSONL record per outside-model call (model,
+prompt sha + first line, completion tokens, cost — <span class="gs">**no full prompt/response, no key**</span>; keyless
+local models are never logged). Then, from where <span class="sb">`gh`</span> is authed (M3): `task -d tools/oracle
+dogfeed` (or <span class="sb">`DRY=1 ... dogfeed`</span> to preview) find-or-creates the issue and appends the run&#39;s
+summary. Posting is a deliberate step, never in a run&#39;s hot path.
+</pre></div>
+
+<p>And append to <code>.DEV.TODO</code>:</p>
+<div class="highlight"><pre><span></span><span class="gu">### Outside-model prompt dogfeed — DONE (branch feat/oracle-dogfeed-prompts)</span>
+Opt-in sink in OpenAIChatClient (ORACLE_DOGFEED_LOG, outside-model only, leak-free) +
+dogfeed_prompts.py (summarize + find-or-create rolling issue, injected gh) + <span class="sb">`oracle dogfeed`</span>
+CLI + <span class="sb">`task dogfeed`</span>. Direct-gh-from-M3 transport. Follow-ups: staging-file+CI auto-post; Langfuse SDK.
+</pre></div>
+
+<ul>
+<li>
+<p>[ ] <strong>Step 3: Verify the suite is still green</strong> — <code>python3 tools/oracle/test_oracle.py 2&gt;&amp;1 | tail -1</code> → "91 passed, 0 failed" (no Python changed in this task).</p>
+</li>
+<li>
+<p>[ ] <strong>Step 4: Commit</strong></p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span>git<span class="w"> </span>add<span class="w"> </span>tools/oracle/Taskfile.yml<span class="w"> </span>docs/oracle/MCP-FLEET.md<span class="w"> </span>.DEV.TODO
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore(oracle): dogfeed Taskfile target + docs (MCP-FLEET, .DEV.TODO)&quot;</span>
+</pre></div>
+
+<hr />
+<h2 id="final-verification">Final verification</h2>
+<ul>
+<li>[ ] Full suite green: <code>python3 tools/oracle/test_oracle.py</code> → 91 passed.</li>
+<li>[ ] Dispatch a final whole-branch code review (subagent-driven-development final reviewer), focus: the sink never breaks/leaks; find-or-create is idempotent; the comment is leak-free.</li>
+</ul>
+<h2 id="out-of-scope-follow-ups">Out of scope (follow-ups)</h2>
+<p>Staging-file + CI auto-post · auto-post at end of a team run · Langfuse SDK instrumentation.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/plans/2026-06-16-vaked-oracle-outside-model-prompt-dogfeed.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>

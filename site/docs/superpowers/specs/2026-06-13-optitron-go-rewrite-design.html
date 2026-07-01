@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>vaked-optitron — Go (Eino) rewrite + gated manual trigger (design) — Vaked Docs</title>
+<style>:root{--bg:#08091a;--surface:#101220;--card:#181a2a;--card2:#1e2040;--border:#222440;--text:#c8d0e0;--text2:#6870a0;--accent:#00d4ff;--green:#00e660;--orange:#f0883e;--radius:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7}
+.wrap{display:flex;max-width:1200px;margin:0 auto;min-height:100vh}
+.sidebar{width:240px;padding:2rem 1rem 2rem 2rem;position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0}
+.sidebar h2{font-size:.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:2px;margin-bottom:.5rem;margin-top:1.2rem}
+.sidebar a{display:block;padding:.25rem .5rem;color:var(--text2);text-decoration:none;font-size:.82rem;border-radius:4px;margin-bottom:2px}
+.sidebar a:hover,.sidebar a.active{color:var(--accent);background:rgba(0,212,255,.06)}
+.sidebar .home{color:var(--accent);font-weight:500;margin-bottom:1rem}
+.content{flex:1;padding:2rem 3rem;max-width:800px;min-width:0}
+h1{font-size:1.8rem;font-weight:300;letter-spacing:2px;margin-bottom:.5rem;color:var(--accent)}
+h2{font-size:1.3rem;font-weight:400;margin-top:2rem;margin-bottom:.6rem;color:var(--green);border-bottom:1px solid var(--border);padding-bottom:.3rem}
+h3{font-size:1.05rem;font-weight:500;margin-top:1.5rem;margin-bottom:.4rem;color:var(--text)}
+p,li{color:var(--text2)}
+a{color:var(--accent)}
+code{background:var(--card);padding:.1rem .4rem;border-radius:4px;font-size:.85rem;font-family:'SF Mono',Monaco,Consolas,monospace}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;overflow-x:auto;margin:1rem 0}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid var(--border);padding:.5rem .8rem;text-align:left}
+th{background:var(--card);color:var(--text2)}
+blockquote{border-left:3px solid var(--accent);padding:.5rem 1rem;margin:1rem 0;background:var(--card);border-radius:0 var(--radius) var(--radius) 0;color:var(--text2)}
+img{max-width:100%;border-radius:var(--radius)}
+hr{border:none;border-top:1px solid var(--border);margin:2rem 0}
+.footer{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--border);color:var(--text2);font-size:.75rem;display:flex;justify-content:space-between}
+.breadcrumb{font-size:.8rem;color:var(--text2);margin-bottom:1rem}
+.breadcrumb a{color:var(--text2)} .breadcrumb a:hover{color:var(--accent)}
+.tag{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.7rem;background:rgba(0,212,255,.1);color:var(--accent);margin-bottom:.5rem}</style>
+<style>pre { line-height: 125%; }
+td.linenos .normal { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #37474F; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #607A86; background-color: #263238; padding-left: 5px; padding-right: 5px; }
+.hll { background-color: #2C3B41 }
+.c { color: #546E7A; font-style: italic } /* Comment */
+.err { color: #FF5370 } /* Error */
+.esc { color: #89DDFF } /* Escape */
+.g { color: #EFF } /* Generic */
+.k { color: #BB80B3 } /* Keyword */
+.l { color: #C3E88D } /* Literal */
+.n { color: #EFF } /* Name */
+.o { color: #89DDFF } /* Operator */
+.p { color: #89DDFF } /* Punctuation */
+.ch { color: #546E7A; font-style: italic } /* Comment.Hashbang */
+.cm { color: #546E7A; font-style: italic } /* Comment.Multiline */
+.cp { color: #546E7A; font-style: italic } /* Comment.Preproc */
+.cpf { color: #546E7A; font-style: italic } /* Comment.PreprocFile */
+.c1 { color: #546E7A; font-style: italic } /* Comment.Single */
+.cs { color: #546E7A; font-style: italic } /* Comment.Special */
+.gd { color: #FF5370 } /* Generic.Deleted */
+.ge { color: #89DDFF } /* Generic.Emph */
+.ges { color: #FFCB6B } /* Generic.EmphStrong */
+.gr { color: #FF5370 } /* Generic.Error */
+.gh { color: #C3E88D } /* Generic.Heading */
+.gi { color: #C3E88D } /* Generic.Inserted */
+.go { color: #546E7A } /* Generic.Output */
+.gp { color: #FFCB6B } /* Generic.Prompt */
+.gs { color: #FF5370 } /* Generic.Strong */
+.gu { color: #89DDFF } /* Generic.Subheading */
+.gt { color: #FF5370 } /* Generic.Traceback */
+.kc { color: #89DDFF } /* Keyword.Constant */
+.kd { color: #BB80B3 } /* Keyword.Declaration */
+.kn { color: #89DDFF; font-style: italic } /* Keyword.Namespace */
+.kp { color: #89DDFF } /* Keyword.Pseudo */
+.kr { color: #BB80B3 } /* Keyword.Reserved */
+.kt { color: #BB80B3 } /* Keyword.Type */
+.ld { color: #C3E88D } /* Literal.Date */
+.m { color: #F78C6C } /* Literal.Number */
+.s { color: #C3E88D } /* Literal.String */
+.na { color: #BB80B3 } /* Name.Attribute */
+.nb { color: #82AAFF } /* Name.Builtin */
+.nc { color: #FFCB6B } /* Name.Class */
+.no { color: #EFF } /* Name.Constant */
+.nd { color: #82AAFF } /* Name.Decorator */
+.ni { color: #89DDFF } /* Name.Entity */
+.ne { color: #FFCB6B } /* Name.Exception */
+.nf { color: #82AAFF } /* Name.Function */
+.nl { color: #82AAFF } /* Name.Label */
+.nn { color: #FFCB6B } /* Name.Namespace */
+.nx { color: #EFF } /* Name.Other */
+.py { color: #FFCB6B } /* Name.Property */
+.nt { color: #FF5370 } /* Name.Tag */
+.nv { color: #89DDFF } /* Name.Variable */
+.ow { color: #89DDFF; font-style: italic } /* Operator.Word */
+.pm { color: #89DDFF } /* Punctuation.Marker */
+.w { color: #EFF } /* Text.Whitespace */
+.mb { color: #F78C6C } /* Literal.Number.Bin */
+.mf { color: #F78C6C } /* Literal.Number.Float */
+.mh { color: #F78C6C } /* Literal.Number.Hex */
+.mi { color: #F78C6C } /* Literal.Number.Integer */
+.mo { color: #F78C6C } /* Literal.Number.Oct */
+.sa { color: #BB80B3 } /* Literal.String.Affix */
+.sb { color: #C3E88D } /* Literal.String.Backtick */
+.sc { color: #C3E88D } /* Literal.String.Char */
+.dl { color: #EFF } /* Literal.String.Delimiter */
+.sd { color: #546E7A; font-style: italic } /* Literal.String.Doc */
+.s2 { color: #C3E88D } /* Literal.String.Double */
+.se { color: #EFF } /* Literal.String.Escape */
+.sh { color: #C3E88D } /* Literal.String.Heredoc */
+.si { color: #89DDFF } /* Literal.String.Interpol */
+.sx { color: #C3E88D } /* Literal.String.Other */
+.sr { color: #89DDFF } /* Literal.String.Regex */
+.s1 { color: #C3E88D } /* Literal.String.Single */
+.ss { color: #89DDFF } /* Literal.String.Symbol */
+.bp { color: #89DDFF } /* Name.Builtin.Pseudo */
+.fm { color: #82AAFF } /* Name.Function.Magic */
+.vc { color: #89DDFF } /* Name.Variable.Class */
+.vg { color: #89DDFF } /* Name.Variable.Global */
+.vi { color: #89DDFF } /* Name.Variable.Instance */
+.vm { color: #82AAFF } /* Name.Variable.Magic */
+.il { color: #F78C6C } /* Literal.Number.Integer.Long */</style>
+</head>
+<body>
+<div class="wrap">
+<div class="sidebar"><a href="/docs/" class="home">△ docs</a><h2>On this page</h2><a href="#status" style="padding-left:0.5rem">Status</a><a href="#why" style="padding-left:0.5rem">Why</a><a href="#framework-decision-eino-cloudwego" style="padding-left:0.5rem">Framework decision — Eino (CloudWeGo)</a><a href="#concurrency-model-the-goroutine-story" style="padding-left:0.5rem">Concurrency model (the goroutine story)</a><a href="#pentestgpt-lineage-pattern-reuse-no-code-vendored" style="padding-left:0.5rem">PentestGPT lineage (pattern reuse, no code vendored)</a><a href="#models-june-2026-defaults-all-env-overridable" style="padding-left:0.5rem">Models (June-2026 defaults; all env-overridable)</a><a href="#gated-manual-trigger-native-github-double-confirm" style="padding-left:0.5rem">Gated manual trigger — native GitHub double-confirm</a><a href="#files" style="padding-left:0.5rem">Files</a><a href="#verification" style="padding-left:0.5rem">Verification</a></div>
+<div class="content">
+<div class="breadcrumb"><a href="/docs/">Docs</a> / <a href="/docs/superpowers/">superpowers</a> / <a href="/docs/superpowers/specs/">specs</a> / 2026-06-13-optitron-go-rewrite-design</div>
+<h1>vaked-optitron — Go (Eino) rewrite + gated manual trigger (design)</h1>
+<h1 id="vaked-optitron-go-eino-rewrite-gated-manual-trigger-design">vaked-optitron — Go (Eino) rewrite + gated manual trigger (design)</h1>
+<h2 id="status">Status</h2>
+<p>Design (2026-06-13). <strong>Tooling</strong>, not the Vaked language — no grammar gate. Owner-approved<br />
+scope, evolving <a href="https://github.com/peterlodri-sec/vaked-base/pull/157">PR #157</a>. Supersedes the<br />
+runtime described in <code>2026-06-13-vaked-optitron-design.md</code>: the agent's <em>behaviour</em> and gate are<br />
+unchanged (the declarative <code>SKILL.md</code> is the source of truth), only the concrete runtime moves<br />
+from a stdlib-Python harness to a <strong>Go binary built on <a href="https://github.com/cloudwego/eino">Eino</a></strong>.</p>
+<h2 id="why">Why</h2>
+<p>Three owner asks on top of the shipped optitron:<br />
+1. <strong>Dogfood Go for the fleet</strong> — the agents are otherwise Rust/Python; prove out a Go agent and<br />
+   use <strong>goroutines</strong> for real concurrency.<br />
+2. <strong>Gate manual runs</strong> behind a <em>double confirmation</em> without hurting DX (an on-demand crawl<br />
+   spends money and can open an <code>agent</code> issue, so a human-in-the-loop is warranted).<br />
+3. <strong>Refresh models</strong> to the June-2026 frontier and <strong>reuse ideas from PentestGPT</strong>.</p>
+<h2 id="framework-decision-eino-cloudwego">Framework decision — Eino (CloudWeGo)</h2>
+<p>Evaluated three Go agent stacks:<br />
+- <strong>Eino</strong> <em>(chosen)</em> — Go-native, goroutine-first; ships an <code>openrouter</code> chat-model component<br />
+  with strict <code>json_schema</code> structured output + reasoning-effort, plus <code>schema.Message</code> types and<br />
+  a Langfuse callback. Best concurrency story, least impedance.<br />
+- <strong>Genkit Go</strong> (Google) — great DX/flows but heavier, Google-centric; OpenRouter only via an<br />
+  OpenAI-compat shim.<br />
+- <strong>LangChainGo</strong> — familiar chains/agents, less Go-idiomatic, more abstraction overhead.</p>
+<p>We use Eino for the <strong>model layer</strong> (the <code>openrouter.ChatModel</code> component, message types, strict<br />
+schema output, reasoning effort) and keep the <strong>orchestration</strong> in idiomatic Go (<code>errgroup</code> +<br />
+channels + <code>context</code>), which fits optitron's crawl-fan-out / worker-pool / first-wins shape far<br />
+better than a graph DSL.</p>
+<h2 id="concurrency-model-the-goroutine-story">Concurrency model (the goroutine story)</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Crawl fan-out</strong></td>
+<td>one <code>errgroup</code> goroutine per source family (arXiv · LLVM/Cranelift · Zig · Rust · allocators); candidates merged + de-duped by title</td>
+</tr>
+<tr>
+<td><strong>Candidate evaluation</strong></td>
+<td>bounded <code>errgroup</code> worker-pool (<code>SetLimit(4)</code>); each worker runs verify→bench→adjudicate→gate concurrently</td>
+</tr>
+<tr>
+<td><strong>One finding per run</strong></td>
+<td>first worker to clear the gate claims the win via <code>sync.Once</code>, acts, and <code>cancel()</code>s the shared context to wind the rest down</td>
+</tr>
+<tr>
+<td><strong>Budget cap</strong></td>
+<td>a mutex-guarded <code>Budget</code>; every model call checks <code>Over()</code> first and records its cost, so spend can't run away across goroutines</td>
+</tr>
+<tr>
+<td><strong>Ledger integrity</strong></td>
+<td>the hash chain needs a single writer — all appends serialize through a mutex-guarded <code>ledger.Writer</code>, so the chain stays valid under concurrency (covered by a <code>-race</code> test)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pentestgpt-lineage-pattern-reuse-no-code-vendored">PentestGPT lineage (pattern reuse, no code vendored)</h2>
+<p>PentestGPT splits a monolithic LLM call into cooperating <strong>reasoning / generation / parsing</strong><br />
+modules over a persistent task structure. optitron adopts the split:<br />
+- <strong>Generator</strong> — <code>internal/llm</code> crawl + bench codegen.<br />
+- <strong>Reasoner</strong> — the skeptical cross-check + adjudication (Eino reasoning effort = medium).<br />
+- <strong>Parser</strong> — <code>internal/gate</code>, the deterministic verdict (no model in the loop).<br />
+- <strong>Persistent memory</strong> — the hash-chained ledger (cross-run novelty); <strong>bounded iteration</strong> =<br />
+  one finding per run + the budget cap (PentestGPT's max-iterations/context-file idea).</p>
+<h2 id="models-june-2026-defaults-all-env-overridable">Models (June-2026 defaults; all env-overridable)</h2>
+<table>
+<thead>
+<tr>
+<th>Leg</th>
+<th>Env</th>
+<th>Default</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Crawl (web)</td>
+<td><code>OPTITRON_CRAWL_MODEL</code></td>
+<td><code>openai/gpt-5.5:online</code></td>
+<td>needs <code>:online</code>; broad recall</td>
+</tr>
+<tr>
+<td>Verify + Adjudicate</td>
+<td><code>OPTITRON_VERIFY_MODEL</code></td>
+<td><code>anthropic/claude-opus-4.8</code></td>
+<td>current frontier reasoner → best skeptical adjudication (the anti-hallucination crux)</td>
+</tr>
+<tr>
+<td>Bench codegen</td>
+<td><code>OPTITRON_BENCH_MODEL</code></td>
+<td><code>deepseek/deepseek-v4-flash</code></td>
+<td>cheap, fast code; swap to <code>anthropic/claude-fable-5</code> for stronger codegen</td>
+</tr>
+</tbody>
+</table>
+<p>The $4/run hard cap is unchanged; verify/adjudicate calls are small so the frontier reasoner<br />
+stays affordable. <code>$0</code> when the key is absent.</p>
+<h2 id="gated-manual-trigger-native-github-double-confirm">Gated manual trigger — native GitHub double-confirm</h2>
+<p><code>optitron-crawl.yml</code> keeps the daily <code>schedule</code> (trusted, no approval) and reworks<br />
+<code>workflow_dispatch</code> into two confirmations:<br />
+1. <strong>Typed gate</strong> — <code>confirm: RUN</code> input; anything else skips the <code>approve</code> job ⇒ no crawl.<br />
+2. <strong>Environment approval</strong> — the <code>approve</code> job targets a new protected <strong><code>optitron-manual</code></strong><br />
+   Environment with <strong>Required reviewers</strong>, so GitHub pauses for an approval click <em>before</em> the<br />
+<code>crawl</code> job (which <code>needs: approve</code>) runs. The crawl runs in <code>ci</code> (where secrets live), so<br />
+<code>optitron-manual</code> needs no secrets — it's purely the gate.</p>
+<p>DX cost: one dispatch with a typed word + one approval click; full audit trail; zero new infra.<br />
+One-time owner setup: create the <code>optitron-manual</code> Environment and add yourself as a reviewer.</p>
+<h2 id="files">Files</h2>
+<ul>
+<li><strong>New Go module</strong> <code>tools/optitron/</code>: <code>go.mod</code>, <code>cmd/optitron/main.go</code>,<br />
+<code>internal/{ledger,gate,llm,run}/…</code> + <code>*_test.go</code>. Removes <code>optitron.py</code>, <code>optitroncore.py</code>.</li>
+<li><strong>Preserved</strong>: <code>sources.json</code>, <code>PURPOSE.md</code>, <code>state/events.jsonl</code> (ledger continuity).</li>
+<li><strong>Workflow</strong>: <code>.github/workflows/optitron-crawl.yml</code> (two-job gated dispatch + <code>setup-go</code>).</li>
+<li><strong>Toolchain</strong>: <code>flake.nix</code> devShell gains <code>go</code> + <code>gopls</code>.</li>
+<li><strong>Registry/docs</strong>: <code>VAKED_AGENTS.md</code>, <code>docs/agents/ci.md</code>, <code>SKILL.md</code> runtime line, this spec.</li>
+</ul>
+<h2 id="verification">Verification</h2>
+<p><code>cd tools/optitron &amp;&amp; go build ./... &amp;&amp; go test -race ./...</code> (ledger incl. concurrent append,<br />
+gate thresholds + source independence, real compiled C micro-bench). <code>go run ./cmd/optitron
+crawl --dry-run</code> (prompts + cost estimate, no network). <code>OPTITRON_DRY_ACT=1 … crawl --once</code><br />
+(full concurrent run, issue/toot only drafted). Dispatch the workflow with <code>confirm=RUN</code> and<br />
+confirm it pauses on the <code>optitron-manual</code> approval before any spend.</p>
+<div class="footer">
+<span><a href="https://github.com/peterlodri-sec/vaked-base/blob/main//Users/lodripeter/workspace/peterlodri-sec/vaked-base/docs/superpowers/specs/2026-06-13-optitron-go-rewrite-design.md" style="color:var(--text2);font-size:.78rem">View source →</a></span>
+<span>Genesis seal <code style="font-size:.7rem">7c242080</code></span>
+</div>
+</div>
+</div>
+</body>
+</html>
