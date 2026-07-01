@@ -1,7 +1,6 @@
 name: ci-gate
 
-# CI gate — consolidated: one checkout, one echo, one PASS.
-# zig-build moved to zig-build.yml with its own paths filter.
+# CI gate — Python tests for vakedc compiler + test suite
 on:
   pull_request:
   workflow_dispatch:
@@ -15,4 +14,21 @@ jobs:
     environment: ci
     steps:
       - uses: actions/checkout@v6
-      - run: echo "CI gate — PASS"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov ruff
+
+      - name: Lint with ruff
+        run: ruff check vakedc/ --select E,F,I
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/spec/ -v --cov=vakedc --cov-report=term-missing
+          echo "CI gate — PASS"
