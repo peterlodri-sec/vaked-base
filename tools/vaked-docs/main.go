@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -48,38 +49,74 @@ type DocEntry struct {
 // ── In-memory store ───────────────────────────────────────────
 
 var (
-	mu       sync.RWMutex
-	pkgs     = make(map[string]*Package)
-	docs     = make(map[string][]DocEntry) // package_id -> entries
-	docCount int
+	mu        sync.RWMutex
+	pkgs      = make(map[string]*Package)
+	docs      = make(map[string][]DocEntry) // package_id@version -> entries
+	docCount  int
+	docIndexer *TFIDFIndexer
+	docScorerPtr  atomic.Pointer[BM25Scorer]
 )
+
+// ── Helpers ───────────────────────────────────────────────────
+
+// writeJSON serializes v as JSON and writes it with the given status code and
+// Content-Type header. Errors during encoding are logged but not returned.
+func writeJSON(w http.ResponseWriter, code int, v interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		log.Printf("json encode error: %v", err)
+	}
+}
 
 // ── API handlers ──────────────────────────────────────────────
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+	mu.RLock()
+	pkgCount := len(pkgs)
+	mu.RUnlock()
+
+	terms, idxDocs := 0, 0
+	if docIndexer != nil {
+		terms, idxDocs = docIndexer.IndexSize()
+	}
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":   "ok",
-		"genesis":  GENESIS,
-		"packages": len(pkgs),
-		"docs":     docCount,
+		"status":  "ok",
+		"genesis": GENESIS,
+		"packages": pkgCount,
+		"docs":    docCount,
+		"indexed": idxDocs,
+		"terms":   terms,
 	})
 }
 
 func registerHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var pkg Package
 	if err := json.NewDecoder(r.Body).Decode(&pkg); err != nil {
-		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if pkg.ID == "" || pkg.URL == "" {
-		http.Error(w, "id and url required", http.StatusBadRequest)
+	if pkg.ID == "" && pkg.URL == "" {
+		http.Error(w, "id or url required", http.StatusBadRequest)
 		return
+	}
+
+	// Derive ID from URL if not provided
+	if pkg.ID == "" {
+		owner, repo, err := ParseRepoURL(pkg.URL)
+		if err == nil {
+			pkg.ID = owner + "/" + repo
+		} else {
+			http.Error(w, "could not parse repo URL; provide id", http.StatusBadRequest)
+			return
+		}
 	}
 
 	if pkg.Version == "" {
@@ -87,21 +124,61 @@ func registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	pkg.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
+	// Attempt to crawl if URL provided
+	entries := []DocEntry{}
+	if pkg.URL != "" {
+		owner, repo, err := ParseRepoURL(pkg.URL)
+		if err == nil {
+			ref := ""
+			if pkg.Version != "" && pkg.Version != "latest" {
+				ref = pkg.Version
+			}
+			crawler := NewCrawler(os.Getenv("GITHUB_TOKEN"), ref)
+			var crawlErr error
+			entries, crawlErr = crawler.FetchCrawl(owner, repo)
+			if crawlErr != nil {
+				log.Printf("crawl warning for %s: %v", pkg.ID, crawlErr)
+			}
+		}
+	}
+
+	storeKey := pkg.ID + "@" + pkg.Version
+
 	mu.Lock()
 	pkgs[pkg.ID] = &pkg
+	if len(entries) > 0 {
+		docs[storeKey] = entries
+		for range entries {
+			docCount++
+		}
+		// Index for BM25
+		if docIndexer != nil {
+			for _, e := range entries {
+				for _, s := range e.Snippets {
+					content := assembleContent(s)
+				if content != "" {
+						docIndexer.AddDocument(pkg.ID, e.Query, content)
+					}
+				}
+			}
+			docScorerPtr.Store(NewBM25Scorer(docIndexer))
+		}
+	}
 	mu.Unlock()
 
-	log.Printf("registered: %s@%s", pkg.ID, pkg.Version)
+	log.Printf("registered: %s@%s (%d entries)", pkg.ID, pkg.Version, len(entries))
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "registered",
-		"id":     pkg.ID,
+	writeJSON(w, http.StatusCreated, map[string]interface{}{
+		"status":     "registered",
+		"id":         pkg.ID,
+		"version":    pkg.Version,
+		"entries":    len(entries),
 	})
 }
 
 func docsHandler(w http.ResponseWriter, r *http.Request) {
-	// GET /docs/:pkg?q=query
+	// GET /docs/:pkg@version?q=query
+	// version is optional: /docs/pkg  or  /docs/pkg@version
 	pkgID := strings.TrimPrefix(r.URL.Path, "/docs/")
 	if pkgID == "" {
 		http.Error(w, "package ID required", http.StatusBadRequest)
@@ -110,22 +187,65 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("q")
 
+	// Parse version from pkg@version syntax
+	// Any @ suffix is treated as a version (package IDs never contain @)
+	version := "latest"
+	if idx := strings.LastIndexByte(pkgID, '@'); idx > 0 {
+		version = pkgID[idx+1:]
+		pkgID = pkgID[:idx]
+	}
+
+	storeKey := pkgID + "@" + version
+
 	mu.RLock()
-	entries, ok := docs[pkgID]
+	entries, ok := docs[storeKey]
 	mu.RUnlock()
 
 	if !ok {
-		http.Error(w, "package not found or not indexed", http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("package not found or not indexed: %s@%s", pkgID, version), http.StatusNotFound)
 		return
 	}
 
 	if query != "" {
-		// Simple keyword search
+		// Try BM25 first if indexer is available
+		if s := docScorerPtr.Load(); s != nil {
+			ranked := s.Search(query, 20)
+			// Build a set of queries present in this version's entries
+			// to scope BM25 results to the requested version
+			versionQueries := make(map[string]bool)
+			for _, e := range entries {
+				versionQueries[e.Query] = true
+			}
+			var filtered []DocEntry
+			for _, r := range ranked {
+				if r.PackageID == pkgID && versionQueries[r.Query] {
+					// Find the matching DocEntry
+					for _, e := range entries {
+						if e.Query == r.Query {
+							filtered = append(filtered, e)
+							break
+						}
+					}
+				}
+			}
+			if len(filtered) > 0 {
+				writeJSON(w, http.StatusOK, map[string]interface{}{
+					"package": pkgID + "@" + version,
+					"version": version,
+					"query":   query,
+					"results": filtered,
+					"count":   len(filtered),
+				})
+				return
+			}
+		}
+
+		// Fallback: simple keyword search
 		var results []DocEntry
 		lower := strings.ToLower(query)
 		for _, e := range entries {
 			for _, s := range e.Snippets {
-				content := s.Code + s.Content
+				content := assembleContent(s)
 				if strings.Contains(strings.ToLower(content), lower) {
 					results = append(results, e)
 					break
@@ -135,10 +255,12 @@ func docsHandler(w http.ResponseWriter, r *http.Request) {
 		entries = results
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"package": pkgID,
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"package": pkgID + "@" + version,
+		"version": version,
 		"query":   query,
 		"results": entries,
+		"count":   len(entries),
 	})
 }
 
@@ -146,14 +268,30 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	ids := make([]string, 0, len(pkgs))
-	for id := range pkgs {
-		ids = append(ids, id)
+	type pkgInfo struct {
+		ID        string `json:"id"`
+		Version   string `json:"version"`
+		URL       string `json:"url,omitempty"`
+		UpdatedAt string `json:"updated_at"`
+		DocCount  int    `json:"doc_count"`
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"packages": ids,
-		"count":    len(ids),
+	infos := make([]pkgInfo, 0, len(pkgs))
+	for id, p := range pkgs {
+		storeKey := id + "@" + p.Version
+		dc := len(docs[storeKey])
+		infos = append(infos, pkgInfo{
+			ID:        id,
+			Version:   p.Version,
+			URL:       p.URL,
+			UpdatedAt: p.UpdatedAt,
+			DocCount:  dc,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"packages": infos,
+		"count":    len(infos),
 	})
 }
 
@@ -164,6 +302,18 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Try BM25 first
+	if s := docScorerPtr.Load(); s != nil {
+		ranked := s.Search(query, 20)
+		writeJSON(w, http.StatusOK, map[string]interface{}{
+			"query":   query,
+			"results": ranked,
+			"count":   len(ranked),
+		})
+		return
+	}
+
+	// Fallback: simple substring search
 	lower := strings.ToLower(query)
 	var results []DocEntry
 
@@ -186,7 +336,7 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
 		results = results[:20]
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	writeJSON(w, http.StatusOK, map[string]interface{}{
 		"query":   query,
 		"results": results,
 		"count":   len(results),
@@ -241,14 +391,36 @@ buildRustPackage rec {
 
 	mu.Lock()
 	for _, e := range entries {
-		docs[e.PackageID] = append(docs[e.PackageID], e)
+		storeKey := e.PackageID + "@latest"
+		docs[storeKey] = append(docs[storeKey], e)
 		docCount++
+		// Index for BM25
+		if docIndexer != nil {
+			for _, s := range e.Snippets {
+				content := s.Code
+				if s.Content != "" {
+					if content != "" {
+						content += "\n" + s.Content
+					} else {
+						content = s.Content
+					}
+				}
+				if content != "" {
+					docIndexer.AddDocument(e.PackageID, e.Query, content)
+				}
+			}
+		}
 	}
 	mu.Unlock()
 
 	// Register seed packages
 	for _, id := range []string{"ziglang/zig", "nixos/nixpkgs", "tauri-apps/tauri"} {
 		pkgs[id] = &Package{ID: id, Version: "latest", UpdatedAt: "2026-06-18T00:00:00Z"}
+	}
+
+	// Rebuild scorer
+	if docIndexer != nil {
+		docScorerPtr.Store(NewBM25Scorer(docIndexer))
 	}
 }
 
@@ -260,6 +432,14 @@ func main() {
 		fmt.Sscanf(p, "%d", &port)
 	}
 
+	// Check for CLI subcommands before starting the server
+	if RunCLI() {
+		return
+	}
+
+	// Initialize the TF-IDF indexer for BM25 search
+	docIndexer = NewIndexer()
+
 	seedDocs()
 
 	http.HandleFunc("/health", healthHandler)
@@ -268,6 +448,8 @@ func main() {
 	http.HandleFunc("/list", listHandler)
 	http.HandleFunc("/search", searchHandler)
 
-	log.Printf("vaked-docs :%d · genesis %s · %d pkgs · %d docs", port, GENESIS, len(pkgs), docCount)
+	terms, idxDocs := docIndexer.IndexSize()
+	log.Printf("vaked-docs :%d · genesis %s · %d pkgs · %d docs · %d indexed · %d terms",
+		port, GENESIS, len(pkgs), docCount, idxDocs, terms)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), nil))
 }
