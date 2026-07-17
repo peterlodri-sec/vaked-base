@@ -76,7 +76,7 @@ MIN_FILES=58 # 56 examples + 2 probes; find fewer and the sweep is broken
 # ---- THE PORT GAP, IN ONE VARIABLE ---------------------------------------- #
 # Artifacts lower.zig has ported. ONLY these are byte-compared. See the loud
 # banner above before you trust a green run.
-ARTIFACTS="flake.nix gen/RUNTIME.md"
+ARTIFACTS="flake.nix gen/RUNTIME.md gen/zig"
 # --------------------------------------------------------------------------- #
 
 cd "$REPO" || exit 2
@@ -171,15 +171,46 @@ while IFS= read -r f; do
         za="$tmp/zig/$art"
         # An artifact vakedc did not emit for this graph is not applicable —
         # but then vakedz must not have emitted it either.
-        if [ ! -f "$pa" ] && [ ! -f "$za" ]; then
+        if [ ! -e "$pa" ] && [ ! -e "$za" ]; then
             continue
         fi
-        if [ ! -f "$pa" ] || [ ! -f "$za" ]; then
+        if [ ! -e "$pa" ] || [ ! -e "$za" ]; then
             bad=1
-            echo "MISMATCH (artifact presence) $f: $art py=$([ -f "$pa" ] && echo yes || echo no)," \
-                "zig=$([ -f "$za" ] && echo yes || echo no)" >&2
+            echo "MISMATCH (artifact presence) $f: $art py=$([ -e "$pa" ] && echo yes || echo no)," \
+                "zig=$([ -e "$za" ] && echo yes || echo no)" >&2
             continue
         fi
+
+        # An ARTIFACTS entry may name a DIRECTORY of per-decl artifacts
+        # (gen/zig/<fiber>.json). Compare it recursively — never skip it, or a
+        # whole emitter's output would silently escape the sweep.
+        if [ -d "$pa" ] || [ -d "$za" ]; then
+            if [ ! -d "$pa" ] || [ ! -d "$za" ]; then
+                bad=1
+                echo "MISMATCH (file/dir kind) $f: $art" >&2
+                continue
+            fi
+            n=$(find "$pa" -type f | wc -l)
+            if [ "$n" -eq 0 ]; then
+                bad=1
+                echo "MISMATCH (empty artifact dir) $f: $art emitted no files" >&2
+                continue
+            fi
+            if find "$pa" "$za" -type f -empty | grep -q .; then
+                bad=1
+                echo "MISMATCH (empty artifact in dir) $f: $art" >&2
+                continue
+            fi
+            if ! diff -r "$pa" "$za" >/dev/null 2>&1; then
+                bad=1
+                echo "MISMATCH (artifact dir) $f: $art" >&2
+                diff -r "$pa" "$za" 2>&1 | head -40 | sed 's/^/  /' >&2
+                continue
+            fi
+            compared=$((compared + n))
+            continue
+        fi
+
         # Empty bytes are a broken emitter, never a pass.
         if [ ! -s "$pa" ] || [ ! -s "$za" ]; then
             bad=1
