@@ -44,14 +44,15 @@
 # vakedz refuses (exit 2) to write a knowingly-incomplete tree, so this harness
 # passes --allow-partial. That flag exists ONLY for this script.
 #
-# KNOWN vakedc DEFECT (reference-crash bucket): vakedc's parse/emit crashes
-# with `TypeError: Object of type Literal is not JSON serializable` on any file
-# whose schema has a `default =` / `oneof` field refinement — parser.py
-# `_refinement` stores raw AST nodes and resolve.py `_field_to_props` never
-# maps them through `_value_to_props`. `lower` shares the resolve path, so the
-# same files are affected here. Being fixed concurrently; such files are
-# counted in a separate `py_ref_crash` bucket, reported loudly, and NOT counted
-# as parity mismatches. Fix the vakedc bug and this bucket must go to 0.
+# reference-crash bucket (`py_ref_crash`): vakedc's resolver used to TypeError
+# with `Object of type Literal is not JSON serializable` on any file whose
+# schema has a `default =` / `oneof` field refinement (`_field_to_props` never
+# mapped refinement values through `_value_to_props`). `lower` shares that
+# resolve path, so this harness was affected too. FIXED in 908b49e, and this
+# bucket has read 0 ever since — it is kept as a REGRESSION TRIPWIRE, not as
+# an excuse: any file landing in it means the vakedc fix regressed, and it must
+# stay at 0. Everything else (a py crash without that signature, a zig crash,
+# differing bytes) is a hard mismatch.
 #
 # Usage (ON dev-cx53 — never build/run on the developer machine):
 #
