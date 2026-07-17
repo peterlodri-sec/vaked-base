@@ -36,6 +36,9 @@ jobs:
         run: ruff check vakedc/ --select E,F,I
 
       - name: Run tests
+        # tests/spec is a run()-protocol suite (see tests/spec/run_all.py), not
+        # pytest-collectible test functions — pytest exits 5 ("no tests ran")
+        # against it. run_all.py is the designed spec runner.
         run: |
-          python -m pytest tests/spec/ -v --cov=vakedc --cov-report=term-missing
+          python tests/spec/run_all.py
           echo "CI gate — PASS"
