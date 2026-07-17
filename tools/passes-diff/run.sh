@@ -25,35 +25,21 @@
 #     byte-identical (cmp);
 #   * a minimum file count, so a silently-empty sweep can never pass.
 #
-# ---------------------------------------------------------------------------
-# CYCLE_ROTATION_TOLERANT — the one scoping knob (default: 1)
-# ---------------------------------------------------------------------------
-# vakedc's cycle diagnostic is NOT REPRODUCIBLE. pass01_topology.py:58 iterates
-# the cycle-detection DFS roots with `for root in step_names`, where
-# `step_names` is a **set** — Python's set iteration order for strings depends
-# on PYTHONHASHSEED, so vakedc reports an arbitrary ROTATION of the true cycle
-# and disagrees with ITSELF between runs. Measured on cyclic.vaked, all three
-# rotations occur across 12 seeds:
+# NO SCOPING, NO ALLOWLIST, NO SEED PIN. Every byte of every document on every
+# file is compared under the AMBIENT PYTHONHASHSEED.
 #
-#     PYTHONHASHSEED=3 -> "cycle: A -> B -> C -> A"
-#     PYTHONHASHSEED=0 -> "cycle: B -> C -> A -> B"
-#     PYTHONHASHSEED=1 -> "cycle: C -> A -> B -> C"
-#
-# There is therefore no single Python behaviour to be byte-compatible WITH.
-# vakedz iterates roots in `steps` declaration order (deterministic). With
-# CYCLE_ROTATION_TOLERANT=1 this harness pins PYTHONHASHSEED=3 — the seed whose
-# rotation IS declaration order — so the comparison stays a true BYTE compare
-# on every file, including the cyclic ones. Nothing is excluded or normalised:
-# every byte of every document is still compared.
-#
-# Set CYCLE_ROTATION_TOLERANT=0 to run with the ambient PYTHONHASHSEED instead.
-# Files whose ONLY difference is a rotation of the cycle name list are then
-# reported in a separate `cycle_rotation` bucket rather than as mismatches; any
-# other difference stays a hard mismatch. Expect that bucket to be nonzero
-# roughly 2/3 of the time — that is the vakedc bug, not a vakedz regression.
-#
-# FIX THE vakedc BUG (iterate `steps`, not the `step_names` set) and this whole
-# knob can be deleted: pin it to 0, watch `cycle_rotation` stay 0, then remove.
+# HISTORY (why you might expect a knob here): vakedc's cycle diagnostic used to
+# be hash-seed dependent — pass01_topology.py iterated the DFS roots over the
+# `step_names` SET, so the reported ROTATION of a cycle changed run-to-run and
+# vakedc disagreed with ITSELF (all three rotations of cyclic.vaked were
+# reachable across seeds). This harness briefly carried a PYTHONHASHSEED pin and
+# a CYCLE_ROTATION_TOLERANT bucket to work around that. The bug is FIXED
+# (pass01_topology.py now iterates `steps`, declaration order) and BOTH were
+# removed: while a pin is in place, any future rotation-class bug in that path is
+# invisible to CI. The fix is regression-locked by
+# tests/spec/test_vakedc_passes.py, which asserts the exact cycle message under
+# several PYTHONHASHSEEDs. If a rotation difference EVER reappears here, it is a
+# real regression — fix it, do not re-introduce a tolerance.
 #
 # Usage (ON dev-cx53 — never build/run on the developer machine):
 #
@@ -64,16 +50,14 @@
 #       && bash tools/passes-diff/run.sh'
 #
 # Environment:
-#   VAKEDZ                   path to the vakedz binary (default: ./zig-out/bin/vakedz)
-#   PYTHON                   python interpreter        (default: python3)
-#   REPO                     tree containing vaked/ + vakedc/ (default: .)
-#   CYCLE_ROTATION_TOLERANT  see above                 (default: 1)
+#   VAKEDZ  path to the vakedz binary   (default: ./zig-out/bin/vakedz)
+#   PYTHON  python interpreter          (default: python3)
+#   REPO    tree containing vaked/ + vakedc/ (default: .)
 set -u
 
 REPO="${REPO:-.}"
 VAKEDZ="${VAKEDZ:-$REPO/zig-out/bin/vakedz}"
 PYTHON="${PYTHON:-python3}"
-CYCLE_ROTATION_TOLERANT="${CYCLE_ROTATION_TOLERANT:-1}"
 
 MIN_FILES=62 # 56 examples + 6 corpus fixtures; find fewer and the sweep is broken
 
@@ -82,24 +66,6 @@ cd "$REPO" || exit 2
 if [ ! -x "$VAKEDZ" ]; then
     echo "passes-diff: vakedz binary not found at $VAKEDZ (zig build first)" >&2
     exit 2
-fi
-
-if [ "$CYCLE_ROTATION_TOLERANT" = "1" ]; then
-    cat >&2 <<'BANNER'
-###########################################################################
-# passes-diff: CYCLE_ROTATION_TOLERANT=1 — PYTHONHASHSEED is PINNED to 3.
-#
-# vakedc's cycle message is hash-seed dependent (pass01_topology.py:58
-# iterates a set). Seed 3 is the rotation that equals steps-declaration
-# order, which is what vakedz emits deterministically. This is a byte
-# compare of EVERY byte of EVERY file — nothing is excluded or normalised.
-# Fix the vakedc bug and this pin can be removed. See the header.
-###########################################################################
-BANNER
-    export PYTHONHASHSEED=3
-else
-    echo "passes-diff: CYCLE_ROTATION_TOLERANT=0 — ambient PYTHONHASHSEED;" \
-        "cycle-message rotations are bucketed, not counted as mismatches" >&2
 fi
 
 # Exit 3 (hard mismatch for the caller) on empty/unparseable JSON: a crashed
@@ -130,61 +96,12 @@ for key in ("workflows", "diagnostics", "artifacts", "status"):
 EOF
 }
 
-# Exit 0 when the two documents differ ONLY by a rotation of the cycle name
-# list inside an E-WORKFLOW-CYCLE message; exit 1 otherwise. Only consulted
-# when CYCLE_ROTATION_TOLERANT=0.
-cycle_rotation_only() { # $1 = py json, $2 = zig json
-    "$PYTHON" - "$1" "$2" <<'EOF'
-import json, re, sys
-
-def load(p):
-    with open(p) as fh:
-        return json.load(fh)
-
-CYCLE = re.compile(r"cycle: ([^(]+?) \(express")
-
-def rotations(names):
-    n = len(names) - 1  # the list repeats its first element at the end
-    if n <= 0:
-        return {tuple(names)}
-    base = names[:n]
-    return {tuple(base[i:] + base[:i] + [base[i]]) for i in range(n)}
-
-def norm(doc):
-    """Replace each cycle name list with its canonical rotation set."""
-    out = []
-    for d in doc.get("diagnostics", []):
-        m = CYCLE.search(d.get("message", ""))
-        if d.get("code") == "E-WORKFLOW-CYCLE" and m:
-            names = [s.strip() for s in m.group(1).split("->")]
-            out.append(("E-WORKFLOW-CYCLE", frozenset(rotations(names))))
-        else:
-            out.append((d.get("code"), d.get("message")))
-    rest = dict(doc)
-    rest.pop("diagnostics", None)
-    return rest, out
-
-py, zg = load(sys.argv[1]), load(sys.argv[2])
-py_rest, py_diags = norm(py)
-zg_rest, zg_diags = norm(zg)
-# Everything outside the cycle message must still match EXACTLY.
-if py_rest != zg_rest or py_diags != zg_diags:
-    sys.exit(1)
-# ... and at least one diagnostic must actually BE a cycle, else this is not
-# the rotation bucket.
-if not any(c == "E-WORKFLOW-CYCLE" for c, _ in py_diags):
-    sys.exit(1)
-sys.exit(0)
-EOF
-}
-
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 mismatches=0
 total=0
 parse_agree=0
-cycle_rotation=0
 
 while IFS= read -r f; do
     total=$((total + 1))
@@ -236,12 +153,6 @@ while IFS= read -r f; do
         continue
     fi
 
-    if [ "$CYCLE_ROTATION_TOLERANT" != "1" ] && cycle_rotation_only "$tmp/py.json" "$tmp/zig.json"; then
-        cycle_rotation=$((cycle_rotation + 1))
-        echo "cycle-rotation (vakedc hash-seed bug, NOT a vakedz defect) $f" >&2
-        continue
-    fi
-
     mismatches=$((mismatches + 1))
     echo "MISMATCH $f (passes --json bytes differ):" >&2
     diff -u "$tmp/py.json" "$tmp/zig.json" | sed 's/^/  /' >&2
@@ -254,6 +165,6 @@ if [ "$total" -lt "$MIN_FILES" ]; then
 fi
 
 echo "passes-diff: $total files, $mismatches mismatches" \
-    "($parse_agree parse-rejected by both sides, $cycle_rotation cycle-rotation)"
+    "($parse_agree parse-rejected by both sides)"
 [ "$mismatches" -eq 0 ] || exit 1
 exit 0
