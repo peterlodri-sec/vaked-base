@@ -1,3 +1,6 @@
+// GENESIS_SEAL: 7c242080
+//! Workspace root: builds the shared `lib` package and the `vakedz`
+//! compiler executable. `zig build test` runs lib tests + vakedz tests.
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
@@ -23,6 +26,12 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(vakedz);
 
+    const run_cmd = b.addRunArtifact(vakedz);
+    run_cmd.step.dependOn(b.getInstallStep());
+    if (b.args) |args| run_cmd.addArgs(args);
+    const run_step = b.step("run", "Run vakedz");
+    run_step.dependOn(&run_cmd.step);
+
     const lib_tests = b.addTest(.{ .root_module = lib_mod });
     const vakedz_tests = b.addTest(.{ .root_module = vakedz_mod });
 
@@ -30,6 +39,9 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(lib_tests).step);
     test_step.dependOn(&b.addRunArtifact(vakedz_tests).step);
 
-    const fmt_step = b.addFmt(.{});
-    b.step("check", "Format check").dependOn(&fmt_step.step);
+    const fmt_step = b.addFmt(.{
+        .paths = &.{ "build.zig", "lib/src", "vakedz/build.zig", "vakedz/src" },
+        .check = true,
+    });
+    b.step("check", "zig fmt --check all sources").dependOn(&fmt_step.step);
 }
