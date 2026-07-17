@@ -1,0 +1,152 @@
+# GENESIS_SEAL: 7c242080
+# tools/check-diff/probe2.vaked — slice-2 multi-violation probe (FAILS
+# `check` on purpose; the negative fixture of the differential harness).
+#
+# Deliberately triggers every slice-2 rule family so run.sh can assert
+# FULL-JSON parity (messages + spans + related + ordering) between
+# `python3 -m vakedc check --json` and `vakedz check --json`. DO NOT "fix"
+# this file; extend it as new rule families land (and update the count in
+# run.sh).
+#
+# Covered families: E-GENERIC-INCONSISTENT (both messages),
+# E-CONFORM-TYPE with Python-repr list/record rendering, E-EBPF-UNKNOWN-HOOK,
+# E-EBPF-BAD-INTENT, E-EBPF-ENFORCE-ON-OBSERVE, E-CAP-UNKNOWN-DOMAIN,
+# E-CAP-UNKNOWN-GRANT, W-POLA-EXCESS, E-CAP-USE, E-CAP-ATTENUATION,
+# W-CONFUSED-DEPUTY, W-EGRESS-UNREFINED, E-DETERMINISM-EFFECT,
+# E-REF-UNRESOLVED (kind-qualified, bare, namespace head, namespace member,
+# 3-part accessor, workflow agent), E-WORKFLOW-CYCLE, E-WORKFLOW-DEPTH,
+# E-EGRESS-USE (level-exceeds and bad-principal).
+
+stream events {
+  source = a.b
+  type = T.U
+}
+
+index corpus {
+  source = pkgs.docs
+  schema = schema.docA
+}
+
+catalog wrongFrom {
+  from = stream.events
+  emit = artifacts.plan
+}
+
+catalog wrongItem {
+  from = index.corpus
+  schema = schema.docB
+  emit = artifacts.plan
+}
+
+stream badvals {
+  source = a.b
+  type = T.U
+  fps = [1, "two"]
+  retention = { a = 1 }
+}
+
+ebpf hookless {
+  hook = "sk_lookup"
+  intent = "observe"
+}
+
+ebpf intentless {
+  hook = "lsm"
+  intent = "prevent"
+}
+
+ebpf watcher {
+  hook = "kprobe"
+  intent = "enforce"
+}
+
+mesh crew {
+  node boss {
+    role = "lead"
+    capabilities = [fs.repo_rw, warp.jump, fs.fly]
+    needs = [fs.repo_ro]
+  }
+  node under {
+    role = "worker"
+    capabilities = [fs.none]
+    needs = [fs.repo_rw]
+  }
+  node hub {
+    role = "relay"
+    capabilities = [network.egress]
+  }
+  boss -> hub
+  under -> hub
+  under -> boss
+}
+
+workflow cyclic {
+  node a {
+    agent = crew.boss
+    control = true
+    effects = ["io"]
+  }
+  node b {
+    agent = crew.nosuch
+  }
+  a -> b
+  b -> a
+}
+
+workflow deep {
+  maxDepth = 1
+  node s1 {
+    agent = crew.boss
+  }
+  node s2 {
+    agent = crew.boss
+  }
+  s1 -> s2
+}
+
+runtime probeRt {
+  systems = ["x86_64-linux"]
+
+  stream ghost {
+    source = stream.missing
+    type = T.U
+  }
+
+  stream chan {
+    source = eventd.nolog
+    type = T.U
+  }
+
+  stream misty {
+    source = mystery.thing
+    type = T.U
+  }
+
+  fiber pipeline {
+    engine = zigimg
+    input = stream.ghost
+    output = artifacts.out
+  }
+
+  container job {
+    image = "ghcr.io/x/y:1"
+    environmentFiles = [secret.gone.path]
+  }
+
+  mesh inner {
+    node worker {
+      role = "w"
+      capabilities = [network.loopback]
+    }
+  }
+
+  network workerCordon {
+    principal = "worker"
+    allow = [egress("api.example.com", 443)]
+  }
+
+  network ghostCordon {
+    principal = "ghost-node"
+    allow = [egress("10.1.2.3", 80)]
+  }
+}
