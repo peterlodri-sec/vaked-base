@@ -1,27 +1,59 @@
 name: vakedz-ci
 
-# Builds the Zig front-end (vakedz/) and runs the closed-loop dogfooding gate:
-# `vakedz parse` must be BYTE-IDENTICAL to the Python reference (`vakedc parse`)
-# on every committed golden graph. This is the parity contract for the port.
+# Builds the Zig front-end from the WORKSPACE ROOT and gates the port's real
+# evidence: the four Python↔Zig differential harnesses. Each compares vakedz
+# against the Python reference (vakedc) byte-for-byte across the corpus and
+# exits non-zero on any mismatch. They are the parity contract for the port.
 #
-# Zig is pinned (mlugg/setup-zig) to the build.zig.zon minimum, independent of
-# the devshell's nixpkgs Zig, so CI is fast + reproducible and the targeted std
-# API is fixed.
+# BUILD LAYOUT: the root build.zig is the entry point. It builds the shared
+# `lib` package + the vakedz executable to zig-out/bin/vakedz, and provides
+# `test` (lib + vakedz) and `check` (zig fmt --check). vakedz/build.zig was a
+# stale shadow that could not resolve the `lib` module and has been deleted —
+# do NOT reintroduce `working-directory: vakedz`.
+#
+# vakedc is stdlib-only and runs as `python3 -m vakedc` from the repo root, so
+# no `pip install` step is needed (verified: the harnesses pass on a host with
+# no pip at all).
 on:
+  # NOTE: the two path lists below are duplicated verbatim. GitHub Actions does
+  # NOT support YAML anchors/aliases in workflow files, so they cannot be
+  # factored out — keep them in sync by hand.
   push:
     branches: [main]
     paths:
+      # Zig front-end + the shared lib package it imports.
       - "vakedz/**"
+      - "lib/**"
+      - "build.zig"
+      - "build.zig.zon"
+      # The Python reference the differentials compare against.
       - "vakedc/**"
+      # The corpus every harness sweeps.
       - "vaked/examples/**"
       - "vaked/schema/**"
+      - "tests/corpus/0024-differential/**"
+      # The harnesses themselves.
+      - "tools/check-diff/**"
+      - "tools/emit-diff/**"
+      - "tools/lower-diff/**"
+      - "tools/passes-diff/**"
+      - "vakedz/test/crossverify.sh"
       - ".github/workflows/vakedz-ci.yml"
   pull_request:
     paths:
       - "vakedz/**"
+      - "lib/**"
+      - "build.zig"
+      - "build.zig.zon"
       - "vakedc/**"
       - "vaked/examples/**"
       - "vaked/schema/**"
+      - "tests/corpus/0024-differential/**"
+      - "tools/check-diff/**"
+      - "tools/emit-diff/**"
+      - "tools/lower-diff/**"
+      - "tools/passes-diff/**"
+      - "vakedz/test/crossverify.sh"
       - ".github/workflows/vakedz-ci.yml"
   workflow_dispatch: {}
 
@@ -33,10 +65,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-crossverify:
+  build-and-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Measured on dev-cx53 (16 core): build ~1s, test ~2s, fmt ~2s, and the
+    # four differentials 20+6+9+11 = ~46s over ~58 files each. A 2-core GitHub
+    # runner with a cold Zig cache is several times slower; 20m is generous
+    # headroom over an expected ~3-5m. The full set is cheap enough to gate
+    # every PR in ONE job — no split, no dropped coverage.
+    timeout-minutes: 20
     environment: ci # only for the optional Telegram failure-notify secrets
+    defaults:
+      run:
+        # `shell: bash` runs `bash --noprofile --norc -eo pipefail {0}`. The
+        # pipefail is LOAD-BEARING: every differential step pipes through
+        # `tee`, and under the default `bash -e {0}` (no pipefail) the step
+        # would take tee's exit code and a mismatching harness would go GREEN.
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -64,39 +108,81 @@ jobs:
           echo "/tmp/zig" >> "$GITHUB_PATH"
           /tmp/zig/zig version
 
-      - name: Set up Python 3.12 (vakedc reference for the drift guard)
+      - name: Set up Python 3.12 (vakedc reference for the differentials)
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - name: Unit tests (zig build test)
-        working-directory: vakedz
-        run: zig build test
+      - name: Format check (zig fmt --check)
+        run: zig build check
+
+      - name: Unit tests (lib + vakedz)
+        run: zig build test --summary all
 
       - name: Build vakedz
-        working-directory: vakedz
-        run: zig build
-
-      - name: Install vakedc (Python reference checker)
-        run: pip install --quiet -e .
-
-      - name: Cross-verify byte-parity with vakedc (parse + check)
-        run: bash vakedz/test/crossverify.sh vakedz/zig-out/bin/vakedz | tee crossverify-out.txt
-
-      - name: Cache integrity self-check (ralphloop-cache hash chain)
         run: |
-          ./vakedz/zig-out/bin/vakedz parse vaked/examples/engines/zig.vaked >/dev/null
-          ./vakedz/zig-out/bin/vakedz parse vaked/examples/engines/zig.vaked >/dev/null  # should be a cache hit
-          ./vakedz/zig-out/bin/vakedz cache verify
+          zig build
+          ./zig-out/bin/vakedz version
+
+      # ---------------------------------------------------------------------
+      # The port's evidence. Each harness is its own step so a red run names
+      # the failing harness in the GitHub UI, and the harness names the files.
+      # Every harness defaults to VAKEDZ=./zig-out/bin/vakedz, PYTHON=python3,
+      # REPO=. — the workspace-root layout — so no env wiring is needed.
+      #
+      # NO PYTHONHASHSEED PIN. passes-diff briefly carried one to work around a
+      # hash-seed-dependent cycle diagnostic in vakedc; that bug was fixed in
+      # a2cdf2c and the pin was removed deliberately. A pin makes any future
+      # rotation-class bug invisible here. Do not reintroduce one.
+      # ---------------------------------------------------------------------
+      - name: Differential — checker (tools/check-diff)
+        id: check-diff
+        run: bash tools/check-diff/run.sh 2>&1 | tee /tmp/check-diff.log
+
+      - name: Differential — emitter (tools/emit-diff)
+        id: emit-diff
+        if: always() && steps.check-diff.outcome != 'skipped'
+        run: bash tools/emit-diff/run.sh 2>&1 | tee /tmp/emit-diff.log
+
+      - name: Differential — lowerer (tools/lower-diff)
+        id: lower-diff
+        if: always() && steps.emit-diff.outcome != 'skipped'
+        run: bash tools/lower-diff/run.sh 2>&1 | tee /tmp/lower-diff.log
+
+      - name: Differential — passes (tools/passes-diff)
+        id: passes-diff
+        if: always() && steps.lower-diff.outcome != 'skipped'
+        run: bash tools/passes-diff/run.sh 2>&1 | tee /tmp/passes-diff.log
+
+      # NOTE: the `vakedz cache verify` self-check that used to live here was
+      # DROPPED — the `cache` subcommand is still a stub that exits 1 with
+      # "not yet implemented" (lib/src/cache.zig has a real implementation but
+      # is not wired to the CLI yet). This step must RETURN once that wiring
+      # lands: re-add a parse/parse/verify sequence asserting the hash chain
+      # over a cache hit.
 
       - name: Publish results to step summary
         if: always()
         run: |
           {
             echo "## vakedz-ci";
-            echo '```';
-            cat crossverify-out.txt 2>/dev/null || echo "(no crossverify output)";
-            echo '```';
+            echo "";
+            echo "| differential | outcome |";
+            echo "| --- | --- |";
+            echo "| checker  | ${{ steps.check-diff.outcome }} |";
+            echo "| emitter  | ${{ steps.emit-diff.outcome }} |";
+            echo "| lowerer  | ${{ steps.lower-diff.outcome }} |";
+            echo "| passes   | ${{ steps.passes-diff.outcome }} |";
+            for h in check-diff emit-diff lower-diff passes-diff; do
+              echo "";
+              echo "<details><summary>$h</summary>";
+              echo "";
+              echo '```';
+              tail -30 "/tmp/$h.log" 2>/dev/null || echo "(did not run)";
+              echo '```';
+              echo "";
+              echo "</details>";
+            done
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Notify Telegram on failure
