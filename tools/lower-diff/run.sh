@@ -18,31 +18,35 @@
 #   * a file BOTH sides reject (rc 1) counts as agreement, but NEITHER side
 #     may have written any artifact (a crashed emitter must never look like
 #     agreement);
-#   * on rc 0: each compared artifact must EXIST on both sides, be NON-EMPTY,
-#     and be byte-identical (cmp);
 #   * a minimum file count, so a silently-empty sweep can never pass.
 #
 # ############################################################################
-# # !!! SCOPED COMPARISON — THIS HARNESS IS NOT YET FULL-TREE PARITY !!!      #
+# # TWO-TIER GATE — read this before quoting a green run.                     #
 # ############################################################################
 #
-# lower.zig is a STAGED port. Only the artifacts listed in ARTIFACTS below are
-# ported and compared; every other file vakedc emits (gen/zig/*.json,
-# gen/catalog/*.jsonl, gen/otp/*.erl, gen/nixos/*, gen/caddy/*, gen/eventd*,
-# gen/trust*, gen/memory*, gen/workflow*, gen/ebpf*, gen/colmena/*, AND
-# provenance.json — whose entry set is contributed to by every emitter) is
-# NOT compared. A green run of this script therefore means:
+# lower.zig is a STAGED port, so on rc 0 a file lands in one of two tiers:
 #
-#     "the ported artifacts are byte-identical"
+#  1. FULL-TREE (`full_tree` in the summary) — the graph selects ONLY ported
+#     emitters, so vakedz wrote a COMPLETE tree and gets the TERMINAL GATE now:
+#     recursive `diff -r` of the whole output, provenance.json included. This
+#     is exactly the check the port's final commit applies to everything. For
+#     these files, green DOES mean "vakedz lower reproduces vakedc lower".
 #
-# and NOT "vakedz lower reproduces vakedc lower". Do not quote it as the
-# latter. Each future slice must ADD its artifact(s) to ARTIFACTS; when the
-# port is complete, delete ARTIFACTS entirely and compare the two trees with a
-# recursive `diff -r`, which is the only real parity gate. `provenance.json`
-# is the LAST thing to land, because it is complete only when every emitter is.
+#  2. SCOPED (`zig_unported`) — the graph selects an emitter that is not ported
+#     yet, so vakedz's tree is knowingly incomplete and ONLY the artifacts in
+#     ARTIFACTS below are compared. provenance.json is NOT compared for these
+#     (every emitter contributes entries to it, so it is correct only once all
+#     of them are). For these files, green means "the ported artifacts are
+#     byte-identical" and NOT full parity. Do not quote it as the latter.
+#
+# Each slice ADDS its artifact(s) to ARTIFACTS and moves files from tier 2 to
+# tier 1 as their emitters land. The port is complete when tier 2 is empty; at
+# that point ARTIFACTS, --allow-partial, and LowerResult.unported_targets all
+# get deleted together and every file is gated by `diff -r`.
 #
 # vakedz refuses (exit 2) to write a knowingly-incomplete tree, so this harness
-# passes --allow-partial. That flag exists ONLY for this script.
+# passes --allow-partial. That flag exists ONLY for this script, and is inert
+# for tier-1 files.
 #
 # reference-crash bucket (`py_ref_crash`): vakedc's resolver used to TypeError
 # with `Object of type Literal is not JSON serializable` on any file whose
@@ -77,7 +81,7 @@ MIN_FILES=58 # 56 examples + 2 probes; find fewer and the sweep is broken
 # ---- THE PORT GAP, IN ONE VARIABLE ---------------------------------------- #
 # Artifacts lower.zig has ported. ONLY these are byte-compared. See the loud
 # banner above before you trust a green run.
-ARTIFACTS="flake.nix gen/RUNTIME.md gen/zig"
+ARTIFACTS="flake.nix gen/RUNTIME.md gen/zig gen/catalog gen/otp"
 # --------------------------------------------------------------------------- #
 
 cd "$REPO" || exit 2
@@ -96,9 +100,11 @@ gate_agree=0
 compared=0
 py_ref_crash=0
 zig_unported=0
+full_tree=0
 
-echo "lower-diff: SCOPED to artifacts: $ARTIFACTS (the port is staged — a green" \
-    "run does NOT mean full-tree parity; see the header)" >&2
+echo "lower-diff: files whose graph selects only PORTED emitters get the terminal" \
+    "full-tree 'diff -r' gate (provenance.json included). The rest are SCOPED to:" \
+    "$ARTIFACTS — for those, a green run does NOT mean full-tree parity." >&2
 
 while IFS= read -r f; do
     total=$((total + 1))
@@ -161,10 +167,33 @@ while IFS= read -r f; do
         continue
     fi
 
-    # rc 0: byte parity over the ported artifact list.
-    if grep -q "INCOMPLETE lowering" "$tmp/zig.err"; then
-        zig_unported=$((zig_unported + 1))
+    # rc 0: byte parity.
+    #
+    # A graph that selects ONLY ported emitters lowers to a COMPLETE tree, so
+    # it gets the TERMINAL GATE right now: a recursive diff of the whole
+    # output, provenance.json included. This is the same check the port's final
+    # commit will apply to every file; applying it per-file as slices land
+    # means each newly-completed fixture is fully gated immediately, and
+    # provenance.json (whose entry set every emitter contributes to) is
+    # exercised long before the last slice.
+    if ! grep -q "INCOMPLETE lowering" "$tmp/zig.err"; then
+        if ! diff -r "$tmp/py" "$tmp/zig" >/dev/null 2>&1; then
+            mismatches=$((mismatches + 1))
+            echo "MISMATCH (full tree) $f: complete lowering differs from vakedc" >&2
+            diff -r "$tmp/py" "$tmp/zig" 2>&1 | head -40 | sed 's/^/  /' >&2
+            continue
+        fi
+        n=$(find "$tmp/py" -type f | wc -l)
+        if [ "$n" -eq 0 ]; then
+            mismatches=$((mismatches + 1))
+            echo "MISMATCH (empty tree) $f: rc=0 but vakedc wrote nothing" >&2
+            continue
+        fi
+        full_tree=$((full_tree + 1))
+        compared=$((compared + n))
+        continue
     fi
+    zig_unported=$((zig_unported + 1))
 
     bad=0
     for art in $ARTIFACTS; do
@@ -237,11 +266,15 @@ done < <({
 
 echo "lower-diff: $total files, $mismatches mismatches," \
     "$compared artifacts byte-compared" \
-    "($gate_agree refused by both sides," \
-    "$zig_unported partial vakedz trees," \
+    "($full_tree FULL-TREE diff -r gated," \
+    "$gate_agree refused by both sides," \
+    "$zig_unported partial vakedz trees scoped to ARTIFACTS," \
     "$py_ref_crash python-reference crashes excluded)"
-echo "lower-diff: REMINDER — scoped to [$ARTIFACTS]; provenance.json and every" \
-    "unported emitter's artifacts were NOT compared." >&2
+if [ "$zig_unported" -gt 0 ]; then
+    echo "lower-diff: REMINDER — $zig_unported file(s) still scoped to [$ARTIFACTS];" \
+        "for those, provenance.json and every unported emitter's artifacts were" \
+        "NOT compared. Only the $full_tree full-tree file(s) are truly gated." >&2
+fi
 
 if [ "$total" -lt "$MIN_FILES" ]; then
     echo "lower-diff: only $total files swept (< $MIN_FILES) — sweep is broken" >&2
