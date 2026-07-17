@@ -40,7 +40,15 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(vakedz_tests).step);
 
     const fmt_step = b.addFmt(.{
-        .paths = &.{ "build.zig", "lib/src", "vakedz/build.zig", "vakedz/src" },
+        .paths = &.{
+            "build.zig",
+            "build.zig.zon",
+            "lib/build.zig.zon",
+            "lib/src",
+            "vakedz/build.zig",
+            "vakedz/build.zig.zon",
+            "vakedz/src",
+        },
         .check = true,
     });
     b.step("check", "zig fmt --check all sources").dependOn(&fmt_step.step);
