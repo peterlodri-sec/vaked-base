@@ -72,12 +72,16 @@ WP1 language ✅  WP2 vakedc ✅  WP3 wire-protocol ⏳ (start Jun 24)  WP4 daem
 
 ## vakedz — Zig front-end
 
+Zig workspace rooted at the repo root: `build.zig` builds the shared `lib/` package (span, diagnostic, json, cache, graph) plus the `vakedz` executable (which imports `lib`).
+
 ```
-zig build                    # → zig-out/bin/vakedz
-zig build run -- parse <file>
-zig build test
+zig build                    # (repo root) → zig-out/bin/vakedz
+zig build test               # lib tests + vakedz tests
+zig build run -- fmt --check <files...>
+zig build check              # zig fmt --check on build.zig, lib/, vakedz/
 ```
-Subcommands: `parse | check | lower | all | cache`. Min: Zig 0.16. No external deps.
+
+`vakedz/` also builds standalone (`cd vakedz && zig build test`) as long as its sources don't import `lib`. Subcommands: `fmt` (`--check`, `--stdout`) implemented; `parse | check | lower | cache` are stubs. Min: Zig 0.16. No external deps.
 
 ## CI agent fleet
 
