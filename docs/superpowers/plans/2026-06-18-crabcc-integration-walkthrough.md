@@ -52,4 +52,4 @@ This validates that `crabcc`:
 
 ## Integration Reference
 
-The implementation details and YAML templates for the target repository are detailed in [implementation_plan.md](file:///Users/peter.lodri/.gemini/antigravity/brain/7b8af58d-7e5c-4db9-8bf3-20318f88648f/implementation_plan.md).
+The implementation details and YAML templates for the target repository were drafted in a local `implementation_plan.md` (Antigravity session scratch; not checked in).
