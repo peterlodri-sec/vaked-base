@@ -81,7 +81,7 @@ zig build run -- fmt --check <files...>
 zig build check              # zig fmt --check on build.zig, lib/, vakedz/
 ```
 
-`vakedz/` also builds standalone (`cd vakedz && zig build test`) as long as its sources don't import `lib`. Subcommands: `fmt` (`--check`, `--stdout`) implemented; `parse | check | lower | cache` are stubs. Min: Zig 0.16. No external deps.
+`vakedz/` builds ONLY from the workspace root (`zig build` / `zig build test`): its sources import the shared `lib` module, which only the root `build.zig` wires up. There is deliberately no `vakedz/build.zig` — a standalone one fails with `no module named 'lib'`. Subcommands: `fmt` (`--check`, `--stdout`), `parse`, `check` implemented; `lower` implemented for the `nix.spine`/`docs.runtime` targets and refuses (exit 2) on a graph selecting a not-yet-ported emitter, unless `--allow-partial`; `cache` is a stub. Min: Zig 0.16. No external deps.
 
 ## CI agent fleet
 

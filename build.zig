@@ -45,8 +45,6 @@ pub fn build(b: *std.Build) void {
             "build.zig.zon",
             "lib/build.zig.zon",
             "lib/src",
-            "vakedz/build.zig",
-            "vakedz/build.zig.zon",
             "vakedz/src",
         },
         .check = true,
