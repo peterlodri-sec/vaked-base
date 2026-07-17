@@ -81,7 +81,7 @@ MIN_FILES=58 # 56 examples + 2 probes; find fewer and the sweep is broken
 # ---- THE PORT GAP, IN ONE VARIABLE ---------------------------------------- #
 # Artifacts lower.zig has ported. ONLY these are byte-compared. See the loud
 # banner above before you trust a green run.
-ARTIFACTS="flake.nix gen/RUNTIME.md gen/zig gen/catalog gen/otp gen/nixos gen/caddy"
+ARTIFACTS="flake.nix gen/RUNTIME.md gen/zig gen/catalog gen/otp gen/nixos gen/caddy gen/eventd.json gen/trust.json gen/memory gen/workflow"
 # --------------------------------------------------------------------------- #
 
 cd "$REPO" || exit 2
