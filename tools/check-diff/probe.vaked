@@ -1,0 +1,47 @@
+# GENESIS_SEAL: 7c242080
+# tools/check-diff/probe.vaked — synthetic multi-violation probe (FAILS
+# `check` on purpose; the negative fixture of the differential harness).
+#
+# Deliberately triggers every slice-1 rule family so run.sh can assert
+# FULL-JSON parity (messages + spans + related + ordering) between
+# `python3 -m vakedc check --json` and `vakedz check --json`, not just the
+# code:line:col projection used for the examples sweep. DO NOT "fix" this
+# file; extend it as slice 2 lands (and update the count in run.sh).
+#
+# Expected diagnostics (13): E-SCHEMA-REFINEMENT (matches on Int),
+# E-SCHEMA-BAD-ONEOF, E-SCHEMA-BAD-RANGE, E-CAP-ORDER-DANGLING,
+# E-SCHEMA-REFINEMENT (namespace open+member), E-DECL-NAME-COLLISION,
+# E-CONFORM-MISSING-FIELD x2 (stream source/type), E-CONSTRAINT-RANGE,
+# E-CONFORM-UNKNOWN-FIELD, E-CONSTRAINT-NONEMPTY, E-CONSTRAINT-MATCHES,
+# E-CONSTRAINT-ONEOF.
+
+schema dup {
+  field a : Int { matches /x/ }
+  field b : String { oneof [2] }
+  field c : Int { in 9 .. 2 }
+}
+
+capability dup {
+  grant low high
+  order low < mid < high
+}
+
+namespace mixed {
+  open
+  member z
+}
+
+stream s {
+  fps = 0
+  colour = "red"
+}
+
+secret tok {
+  name = ""
+  mode = "0999"
+}
+
+engine e {
+  package = pkgs.zig
+  optimize = "Fastest"
+}
