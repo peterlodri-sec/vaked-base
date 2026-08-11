@@ -16,6 +16,7 @@ import type { RFNodeData, RFEdgeData, VakedNode as VakedNodeType } from "@/types
 import { VakedNode } from "./VakedNode";
 import { VakedEdge } from "./VakedEdge";
 import { NodeContextMenu } from "./NodeContextMenu";
+import { NodeInspectorModal, type ConstellationNodeDetails } from "../NodeInspectorModal";
 import { useGraphStore } from "@/store";
 import { applyElkLayout } from "@/graph/layout";
 import { getKindConfig } from "@/graph/kindConfig";
@@ -36,6 +37,7 @@ export function GraphCanvas() {
   const selectNode = useGraphStore((s) => s.selectNode);
   const setRfNodes = useGraphStore((s) => s.setRfNodes);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [inspectorNode, setInspectorNode] = useState<ConstellationNodeDetails | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<RFNodeData>(rfNodesFromStore);
   const [edges, setEdges, onEdgesChange] = useEdgesState<RFEdgeData>(rfEdgesFromStore);
@@ -59,6 +61,17 @@ export function GraphCanvas() {
     (_evt, node) => {
       selectNode(node.id);
       setContextMenu(null);
+      const name = node.data?.label || node.id;
+      setInspectorNode({
+        id: node.id,
+        name: String(name),
+        url: `https://${node.id}.vaked.dev`,
+        rssUrl: `https://${node.id}.vaked.dev/feed.xml`,
+        sitemapUrl: `https://${node.id}.vaked.dev/sitemap.xml`,
+        sslStatus: "ACTIVE",
+        simdConfig: "BitNet b1.58 Ternary SIMD Operator {-1, 0, +1}",
+        latencyMs: 15 + Math.floor(Math.random() * 20)
+      });
     },
     [selectNode]
   );
@@ -133,6 +146,10 @@ export function GraphCanvas() {
           onClose={() => setContextMenu(null)}
         />
       )}
+      <NodeInspectorModal
+        node={inspectorNode}
+        onClose={() => setInspectorNode(null)}
+      />
     </div>
   );
 }
