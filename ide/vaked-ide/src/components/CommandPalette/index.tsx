@@ -155,6 +155,13 @@ export function CommandPalette() {
         action: () => { closeCommandPalette(); toggleTerminal(); },
       },
       {
+        id: "slash-tailscale",
+        label: "/tailscale — Auto-Discover Tailnet Peer Nodes",
+        icon: "🌐",
+        keywords: "/tailscale peer discovery tailnet cx53 hetzner nodes",
+        action: () => { closeCommandPalette(); toggleSessionPanel(); setSessionTab("gateway"); },
+      },
+      {
         id: "tab-schema",
         label: "Sidebar → Schema Inspector",
         icon: "📋",
