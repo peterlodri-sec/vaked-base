@@ -65,7 +65,7 @@ export function StatusBar() {
       </span>
 
       <span style={{ color: "#cbd5e1", fontWeight: 600, background: "#1e1b4b", padding: "1px 6px", borderRadius: "3px", border: "1px solid #4c1d95" }}>
-        vaked-ide v0.1.0
+        vaked-ide v1.0.0
       </span>
     </div>
   );

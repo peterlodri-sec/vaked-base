@@ -1,8 +1,8 @@
 class VakedIde < Formula
   desc "Vaked IDE — Sovereign AI Gateway, SIMD Matrix & Agentic Fleet IDE"
   homepage "https://portail-vaked-dev.pages.dev/showcase.html"
-  url "https://github.com/peterlodri-sec/vaked-base/releases/download/v0.1.0/Vaked.IDE_0.1.0_aarch64.dmg"
-  sha256 "693e2192a2cb0b05647617a66264eff2be39ea9fdc11bcd6aee9a53798a4ce82"
+  url "https://github.com/peterlodri-sec/vaked-base/releases/download/v1.0.0/Vaked.IDE_1.0.0_aarch64.dmg"
+  sha256 "2d8c2f23a6c9912d8abd82c85c14f124fa9b6766718d3a90d2d6c8d5bcdb6f1b"
   license "MIT"
 
   depends_on "rust" => :build
