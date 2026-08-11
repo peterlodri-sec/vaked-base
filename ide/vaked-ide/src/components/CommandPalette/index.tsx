@@ -134,6 +134,27 @@ export function CommandPalette() {
         action: () => { closeCommandPalette(); toggleTerminal(); },
       },
       {
+        id: "slash-telemetry",
+        label: "/telemetry — Toggle Fleet Telemetry Console",
+        icon: "📡",
+        keywords: "/telemetry live websocket stream status ping",
+        action: () => { closeCommandPalette(); toggleSessionPanel(); setSessionTab("gateway"); },
+      },
+      {
+        id: "slash-audit",
+        label: "/audit — Anti-AI Scraper Governance Audit",
+        icon: "🛡️",
+        keywords: "/audit security robots tarpit zero-ai governance",
+        action: () => { closeCommandPalette(); toggleTerminal(); },
+      },
+      {
+        id: "slash-bench",
+        label: "/bench — SIMD BitNet b1.58 Micro-Benchmark",
+        icon: "⚡",
+        keywords: "/bench simd neon avx512 gflops tokens benchmark",
+        action: () => { closeCommandPalette(); toggleTerminal(); },
+      },
+      {
         id: "tab-schema",
         label: "Sidebar → Schema Inspector",
         icon: "📋",
