@@ -1,7 +1,7 @@
 use std::path::Path;
 use tauri::AppHandle;
 
-use crate::error::{AppError, Result};
+use crate::error::AppError;
 
 /// Register vaked-ide as the surface launcher for a declared surface.
 /// Writes a surface-launcher.json alongside the .vaked file.
@@ -9,7 +9,7 @@ use crate::error::{AppError, Result};
 pub async fn register_surface_launcher(
     surface_name: String,
     vaked_file: String,
-    app: AppHandle,
+    _app: AppHandle,
 ) -> std::result::Result<(), AppError> {
     let vaked_path = Path::new(&vaked_file);
     let dir = vaked_path

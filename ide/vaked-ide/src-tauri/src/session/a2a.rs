@@ -6,7 +6,7 @@ use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, Mutex};
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{accept_async, WebSocketStream};
+use tokio_tungstenite::accept_async;
 
 type Tx = broadcast::Sender<Vec<u8>>;
 type RoomMap = Arc<Mutex<HashMap<String, Tx>>>;

@@ -1,5 +1,4 @@
-use crate::error::{AppError, Result};
-use crate::session::{Message, SessionState};
+use crate::session::Message;
 
 const SYSTEM_PROMPT: &str = r#"You are an expert assistant for the Vaked capability-graph language.
 

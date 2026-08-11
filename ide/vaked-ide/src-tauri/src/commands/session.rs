@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 use uuid::Uuid;
 
@@ -98,7 +97,7 @@ async fn call_anthropic_sync(api_key: &str, body: serde_json::Value) -> Result<S
 #[tauri::command]
 pub async fn create_session(
     kind: String,
-    label: String,
+    _label: String,
     state: State<'_, SessionState>,
     app: AppHandle,
 ) -> std::result::Result<String, AppError> {

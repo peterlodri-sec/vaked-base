@@ -1,4 +1,3 @@
-use crate::error::{AppError, Result};
 
 const ROUTER_SYSTEM: &str = r#"You are the gateway router for the Vaked IDE.
 Your job: classify the user's query and route it to the best sub-agent.

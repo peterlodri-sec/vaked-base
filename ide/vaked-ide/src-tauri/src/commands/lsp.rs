@@ -5,7 +5,7 @@ use tauri::{AppHandle, State};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use crate::error::{AppError, Result};
+use crate::error::AppError;
 use crate::lsp::client::{make_lsp_message, LspProcess};
 
 pub struct LspState {
