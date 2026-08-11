@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Node, Edge } from "@xyflow/react";
 import type { VakedGraph, RFNodeData, RFEdgeData } from "@/types/graph";
-import { EMPTY_GRAPH } from "@/types/graph";
+import { EMPTY_GRAPH, CONSTELLATION_GRAPH } from "@/types/graph";
 import { lpgToReactFlow, highlightNode } from "@/graph/adapter";
 
 interface GraphStore {
@@ -22,10 +22,12 @@ interface GraphStore {
   setFilePath: (path: string | null) => void;
 }
 
+const initialFlow = lpgToReactFlow(CONSTELLATION_GRAPH, new Set());
+
 export const useGraphStore = create<GraphStore>((set, get) => ({
-  graph: EMPTY_GRAPH,
-  rfNodes: [],
-  rfEdges: [],
+  graph: CONSTELLATION_GRAPH,
+  rfNodes: initialFlow.rfNodes,
+  rfEdges: initialFlow.rfEdges,
   selectedNodeId: null,
   highlightedNodeId: null,
   errorNodeIds: new Set(),
