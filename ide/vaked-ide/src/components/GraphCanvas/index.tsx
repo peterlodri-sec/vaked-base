@@ -21,8 +21,8 @@ import { useGraphStore } from "@/store";
 import { applyElkLayout } from "@/graph/layout";
 import { getKindConfig } from "@/graph/kindConfig";
 
-const nodeTypes = { vakedNode: VakedNode };
-const edgeTypes = { vakedEdge: VakedEdge };
+const nodeTypes = { vakedNode: VakedNode as any };
+const edgeTypes = { vakedEdge: VakedEdge as any };
 
 interface ContextMenuState {
   node: VakedNodeType;
@@ -39,8 +39,8 @@ export function GraphCanvas() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [inspectorNode, setInspectorNode] = useState<ConstellationNodeDetails | null>(null);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<RFNodeData>(rfNodesFromStore);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<RFEdgeData>(rfEdgesFromStore);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<RFNodeData>>(rfNodesFromStore);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge<RFEdgeData>>(rfEdgesFromStore);
 
   // Sync from store + apply ELK layout when graph changes
   useEffect(() => {
@@ -57,11 +57,11 @@ export function GraphCanvas() {
     });
   }, [rfNodesFromStore, rfEdgesFromStore]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onNodeClick: NodeMouseHandler<RFNodeData> = useCallback(
+  const onNodeClick: NodeMouseHandler<Node<RFNodeData>> = useCallback(
     (_evt, node) => {
       selectNode(node.id);
       setContextMenu(null);
-      const name = node.data?.label || node.id;
+      const name = (node.data as any)?.label || node.id;
       setInspectorNode({
         id: node.id,
         name: String(name),
@@ -76,7 +76,7 @@ export function GraphCanvas() {
     [selectNode]
   );
 
-  const onNodeContextMenu: NodeMouseHandler<RFNodeData> = useCallback(
+  const onNodeContextMenu: NodeMouseHandler<Node<RFNodeData>> = useCallback(
     (evt, node) => {
       evt.preventDefault();
       const vakedNode = graphNodes.find((n) => n.id === node.id);

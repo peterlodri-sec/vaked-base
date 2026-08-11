@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, getStraightPath } from "@xyflow/react";
-import type { EdgeProps } from "@xyflow/react";
+import type { EdgeProps, Edge } from "@xyflow/react";
 import type { RFEdgeData } from "@/types/graph";
 import { getEdgeStyle } from "@/graph/edgeConfig";
 
@@ -14,7 +14,7 @@ export const VakedEdge = memo(function VakedEdge({
   targetPosition,
   data,
   label,
-}: EdgeProps<RFEdgeData>) {
+}: EdgeProps<Edge<RFEdgeData>>) {
   const semantics = data?.semantics ?? "structural";
   const edge = data?.vakedEdge;
   const style = getEdgeStyle(semantics, edge!);
@@ -42,7 +42,6 @@ export const VakedEdge = memo(function VakedEdge({
           opacity: 0.8,
         }}
         markerEnd={style.markerEnd}
-        animated={style.animated}
       />
       {edgeLabel && (
         <EdgeLabelRenderer>

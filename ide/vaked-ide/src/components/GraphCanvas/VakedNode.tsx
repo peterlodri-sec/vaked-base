@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import type { NodeProps } from "@xyflow/react";
+import type { NodeProps, Node } from "@xyflow/react";
 import type { RFNodeData } from "@/types/graph";
 import { getKindConfig } from "@/graph/kindConfig";
 
-export const VakedNode = memo(function VakedNode({ data, selected }: NodeProps<RFNodeData>) {
+export const VakedNode = memo(function VakedNode({ data, selected }: NodeProps<Node<RFNodeData>>) {
   const { vakedNode, highlighted, hasErrors } = data;
   const cfg = getKindConfig(vakedNode.kind);
 

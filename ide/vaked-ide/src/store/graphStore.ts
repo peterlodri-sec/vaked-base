@@ -26,16 +26,16 @@ const initialFlow = lpgToReactFlow(CONSTELLATION_GRAPH, new Set());
 
 export const useGraphStore = create<GraphStore>((set, get) => ({
   graph: CONSTELLATION_GRAPH,
-  rfNodes: initialFlow.rfNodes,
-  rfEdges: initialFlow.rfEdges,
+  rfNodes: initialFlow.nodes,
+  rfEdges: initialFlow.edges,
   selectedNodeId: null,
   highlightedNodeId: null,
   errorNodeIds: new Set(),
   filePath: null,
 
   setGraph: (g) => {
-    const { rfNodes, rfEdges } = lpgToReactFlow(g, get().errorNodeIds);
-    set({ graph: g, rfNodes, rfEdges });
+    const { nodes, edges } = lpgToReactFlow(g, get().errorNodeIds);
+    set({ graph: g, rfNodes: nodes, rfEdges: edges });
   },
 
   setRfNodes: (nodes) => set({ rfNodes: nodes }),

@@ -52,13 +52,13 @@ export interface VakedGraph {
 }
 
 // ReactFlow-adapted data shapes (produced by graph/adapter.ts)
-export interface RFNodeData {
+export interface RFNodeData extends Record<string, unknown> {
   vakedNode: VakedNode;
   highlighted: boolean;  // true when its provenance span is active in Editor
   hasErrors: boolean;
 }
 
-export interface RFEdgeData {
+export interface RFEdgeData extends Record<string, unknown> {
   vakedEdge: VakedEdge;
   semantics: EdgeSemantics;
 }
