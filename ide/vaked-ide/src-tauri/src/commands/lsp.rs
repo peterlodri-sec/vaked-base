@@ -1,3 +1,4 @@
+use tauri::Manager;
 use std::process::Stdio;
 use std::sync::Arc;
 use tauri::{AppHandle, State};

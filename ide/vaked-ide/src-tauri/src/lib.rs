@@ -2,6 +2,7 @@ pub mod commands;
 pub mod error;
 pub mod lsp;
 pub mod session;
+pub mod telemetry;
 pub mod terminal;
 
 use commands::{graph::*, lsp::*, session::*, surface::*, terminal::*};

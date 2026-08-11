@@ -1,3 +1,4 @@
+use tauri::Manager;
 use std::process::Stdio;
 use tauri::AppHandle;
 use tokio::process::Command;
