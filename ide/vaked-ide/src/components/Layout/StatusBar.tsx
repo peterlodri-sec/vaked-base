@@ -17,23 +17,33 @@ export function StatusBar() {
       display: "flex",
       alignItems: "center",
       gap: "16px",
-      padding: "3px 12px",
-      background: "#0a0d12",
-      borderTop: "1px solid #1f2937",
-      height: "24px",
+      padding: "4px 14px",
+      background: "rgba(10, 13, 18, 0.98)",
+      borderTop: "1px solid #1e293b",
+      height: "26px",
       flexShrink: 0,
       fontSize: "11px",
       fontFamily: "monospace",
-      color: "#4b5563",
+      color: "#64748b",
     }}>
-      {/* LSP status */}
-      <span style={{ color: lspReady ? "#16a34a" : "#4b5563" }}>
-        {lspReady ? "◉ vakedc-lsp" : "○ lsp starting…"}
-      </span>
+      {/* LSP & Quantum Telemetry Status */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+        <span style={{
+          width: "7px",
+          height: "7px",
+          borderRadius: "50%",
+          background: lspReady ? "#22c55e" : "#eab308",
+          boxShadow: lspReady ? "0 0 8px #22c55e" : "0 0 8px #eab308",
+          display: "inline-block",
+        }} />
+        <span style={{ color: lspReady ? "#4ade80" : "#eab308", fontWeight: 600 }}>
+          {lspReady ? "vakedc-lsp [READY]" : "vakedc-lsp [STARTING]"}
+        </span>
+      </div>
 
       {/* Diagnostics */}
       {diagnostics.length > 0 && (
-        <span style={{ color: errorCount > 0 ? "#ef4444" : "#f97316" }}>
+        <span style={{ color: errorCount > 0 ? "#f87171" : "#fb923c", fontWeight: 600 }}>
           {errorCount > 0 ? `✕ ${errorCount} E` : ""}{" "}
           {diagnostics.filter((d) => d.severity === 2).length > 0
             ? `⚠ ${diagnostics.filter((d) => d.severity === 2).length} W`
@@ -43,18 +53,21 @@ export function StatusBar() {
 
       {/* Graph stats */}
       {nodeCount > 0 && (
-        <span>
-          {nodeCount} nodes · {edgeCount} edges
+        <span style={{ color: "#38bdf8", fontWeight: 500 }}>
+          ⚡ {nodeCount} nodes · {edgeCount} edges
         </span>
       )}
 
-      <span style={{ marginLeft: "auto" }}>
+      <span style={{ marginLeft: "auto", color: "#94a3b8" }}>
         {filePath ? `Ln ${cursorLine}, Col ${cursorCol}` : (
-          <span style={{ color: "#374151" }}>⌘K to open commands</span>
+          <span style={{ color: "#475569" }}>Press ⌘K for command palette</span>
         )}
       </span>
 
-      <span>vaked-ide v0.1.0</span>
+      <span style={{ color: "#cbd5e1", fontWeight: 600, background: "#1e1b4b", padding: "1px 6px", borderRadius: "3px", border: "1px solid #4c1d95" }}>
+        vaked-ide v0.1.0
+      </span>
     </div>
   );
 }
+
