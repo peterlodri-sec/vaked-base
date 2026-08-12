@@ -1,66 +1,159 @@
 #!/usr/bin/env python3
-"""adk_multi_agent_system.py — Google Cloud ADK (Agent Development Kit) Collaborative Multi-Agent Architecture.
+"""adk_multi_agent_system.py — Google ADK (Agent Development Kit) multi-agent system.
 
-Implements Multi-Agent Systems on Gemini Enterprise Agent Platform:
-1. Supervisor Agent (Orchestration & Workflow Routing).
-2. Media Publisher Specialist Agent (YouTube Data API & SoundCloud Artist API).
-3. Steganographic Audio/Visual Specialist Agent (Art for Secrets LSB embedding).
-4. Vector Search & RAG Specialist Agent (pgvector / ChromaDB).
+Builds a supervisor agent that delegates to three specialists:
+
+1. Media Publisher      — YouTube Data API & SoundCloud Artist API
+2. Steganography        — Art-for-Secrets LSB embedding
+3. RAG & Vector Search  — pgvector / ChromaDB
+
+Delegation is ADK's own mechanism: an ``LlmAgent`` holding ``sub_agents`` emits a
+``transfer_to_agent`` function call, and ADK routes execution to the named child.
+Routing is driven by each child's ``description``, which is why the smoke test
+asserts every specialist has one.
+
+``--smoke-test`` verifies the wiring only. It constructs the graph and checks its
+shape; it does NOT call Gemini, so it needs no credentials and is safe in CI.
+Live invocation is deliberately not implemented here yet.
 """
 
 from __future__ import annotations
 
+import argparse
+import logging
 import os
 import sys
-import json
-import logging
-from typing import Any
 
-log = logging.getLogger("gcp-adk-multi-agent")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+from google.adk.agents import LlmAgent
 
-class ADKAgent:
-    """Google Cloud Agent Development Kit (ADK) Agent Primitive."""
-    def __init__(self, name: str, role: str, model: str = "gemini-2.5-pro"):
-        self.name = name
-        self.role = role
-        self.model = model
+log = logging.getLogger("adk-multi-agent")
 
-    def execute_task(self, prompt: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
-        log.info("🤖 ADK Agent [%s - %s] executing task: %s...", self.name, self.role, prompt)
-        return {
-            "agent": self.name,
-            "role": self.role,
-            "status": "SUCCESS",
-            "model": self.model,
-            "result": f"Executed via {self.name} for Gemini Enterprise Agent Platform."
-        }
+# ADK's own docs use `gemini-flash-latest`. Override per environment if needed.
+DEFAULT_MODEL = os.environ.get("ADK_MODEL", "gemini-flash-latest")
 
-class ADKSupervisorAgent(ADKAgent):
-    """ADK Supervisor Agent routing tasks to Specialist Agents."""
-    def __init__(self):
-        super().__init__("VakedSupervisorAgent", "Multi-Agent Orchestrator", "gemini-2.5-pro")
-        self.media_agent = ADKAgent("MediaPublisherAgent", "YouTube & SoundCloud Specialist")
-        self.stego_agent = ADKAgent("StegoSecretAgent", "Audio/Visual Steganography Specialist")
-        self.rag_agent = ADKAgent("RAGVectorSearchAgent", "pgvector & ChromaDB Specialist")
 
-    def run_collaborative_pipeline(self, track_title: str) -> dict[str, Any]:
-        log.info("⚡ ADK Collaborative Pipeline Initiated for: %s", track_title)
-        stego_res = self.stego_agent.execute_task(f"Embed LSB secrets for {track_title}")
-        media_res = self.media_agent.execute_task(f"Publish {track_title} to YouTube & SoundCloud")
-        rag_res = self.rag_agent.execute_task(f"Index {track_title} metadata in pgvector")
-        
-        return {
-            "pipeline": "ADK Multi-Agent Collaborative System",
-            "track": track_title,
-            "agents_executed": [stego_res, media_res, rag_res]
-        }
+def build_supervisor(model: str = DEFAULT_MODEL) -> LlmAgent:
+    """Build the supervisor and its three specialists.
+
+    Every agent gets a description: ADK routes delegation by matching the task
+    against these strings, so an agent without one is unreachable.
+    """
+    media = LlmAgent(
+        name="MediaPublisherAgent",
+        model=model,
+        description=(
+            "Publishes finished audio and video to YouTube and SoundCloud. "
+            "Handles upload, metadata, thumbnails and release scheduling."
+        ),
+        instruction=(
+            "You publish media. Given a track, prepare and upload it to YouTube "
+            "and SoundCloud with correct title, description and tags. Report the "
+            "resulting URLs. Never publish without an explicit title."
+        ),
+    )
+
+    stego = LlmAgent(
+        name="StegoSecretAgent",
+        model=model,
+        description=(
+            "Embeds and extracts hidden payloads in audio and images using LSB "
+            "steganography for the Art-for-Secrets work."
+        ),
+        instruction=(
+            "You embed and extract steganographic payloads. State which carrier "
+            "file and which bit depth you used, and confirm the payload survives "
+            "a round trip before reporting success."
+        ),
+    )
+
+    rag = LlmAgent(
+        name="RAGVectorSearchAgent",
+        model=model,
+        description=(
+            "Indexes and retrieves documents from pgvector and ChromaDB vector "
+            "stores. Answers questions grounded in the indexed corpus."
+        ),
+        instruction=(
+            "You index and retrieve. Ground every answer in retrieved chunks and "
+            "cite the source of each. If retrieval returns nothing relevant, say "
+            "so rather than answering from memory."
+        ),
+    )
+
+    return LlmAgent(
+        name="VakedSupervisorAgent",
+        model=model,
+        description="Routes constellation tasks to the specialist agent that owns them.",
+        instruction=(
+            "You coordinate three specialists. Delegate publishing tasks to "
+            "MediaPublisherAgent, steganography tasks to StegoSecretAgent, and "
+            "indexing or retrieval tasks to RAGVectorSearchAgent. For a task "
+            "spanning several, delegate in sequence and pass each result forward. "
+            "Do not attempt a specialist's work yourself."
+        ),
+        sub_agents=[media, stego, rag],
+    )
+
+
+def smoke_test() -> int:
+    """Verify the agent graph is wired correctly. Returns a process exit code."""
+    failures: list[str] = []
+
+    def check(condition: bool, message: str) -> None:
+        if not condition:
+            failures.append(message)
+
+    supervisor = build_supervisor()
+
+    children = supervisor.sub_agents
+    check(len(children) == 3, f"expected 3 specialists, got {len(children)}")
+
+    expected = {"MediaPublisherAgent", "StegoSecretAgent", "RAGVectorSearchAgent"}
+    actual = {child.name for child in children}
+    check(actual == expected, f"specialist names {actual} != expected {expected}")
+    check(len(actual) == len(children), "specialist names are not unique")
+
+    for agent in [supervisor, *children]:
+        # ADK selects a delegate by matching the task against its description.
+        # An empty description makes the agent silently unreachable.
+        check(
+            bool(agent.description and agent.description.strip()),
+            f"{agent.name} has no description, so it can never be delegated to",
+        )
+        check(bool(agent.model), f"{agent.name} has no model set")
+
+    for failure in failures:
+        log.error("FAIL: %s", failure)
+
+    if failures:
+        log.error("ADK smoke test FAILED with %d problem(s)", len(failures))
+        return 1
+
+    log.info(
+        "ADK smoke test passed: %s delegates to %s",
+        supervisor.name,
+        ", ".join(sorted(actual)),
+    )
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="verify the agent graph is wired correctly (no model calls, no credentials)",
+    )
+    args = parser.parse_args()
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+    if args.smoke_test:
+        return smoke_test()
+
+    parser.print_help()
+    return 0
+
 
 if __name__ == "__main__":
-    if "--smoke-test" in sys.argv:
-        log.info("🧪 Running ADK Multi-Agent Smoke Test...")
-        supervisor = ADKSupervisorAgent()
-        res = supervisor.run_collaborative_pipeline("<3-1:P-peter POLAR GALAXY MERGE")
-        log.info("✅ ADK Multi-Agent Smoke Test Passed! Result: %s", json.dumps(res, indent=2))
-    else:
-        print("Usage: python3 adk_multi_agent_system.py --smoke-test")
+    sys.exit(main())

@@ -1,0 +1,58 @@
+name: adk-agents
+
+# Verifies the Google ADK multi-agent graph in scripts/adk_multi_agent_system.py.
+#
+# This replaces the earlier GCP Cloud Build pipeline (cloudbuild.yaml, removed).
+# Blacksmith runs GitHub Actions on faster runners, so the fleet keeps ONE CI
+# system instead of feeding a second one. Nothing here needs a GCP project.
+#
+# What this actually proves: that `google-adk` installs, that the agent graph
+# constructs against the installed ADK API, and that the supervisor is wired to
+# exactly three specialists which each carry the description ADK needs in order
+# to route delegation to them. It does NOT call Gemini, so it needs no secrets.
+#
+# Note the previous pipeline's shape did not work: Cloud Build runs every step
+# in its own container and only /workspace survives between them, so its
+# `pip install` step evaporated before the test step ran. The test passed anyway
+# because the script imported nothing but stdlib. Installing and running in one
+# job, against a script that genuinely imports ADK, is what makes this green
+# light mean something.
+
+on:
+  push:
+    paths:
+      - "scripts/adk_multi_agent_system.py"
+      - ".github/workflows/adk-agents.yml"
+  pull_request:
+    paths:
+      - "scripts/adk_multi_agent_system.py"
+      - ".github/workflows/adk-agents.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: adk-agents-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    name: ADK multi-agent graph
+    runs-on: blacksmith
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.2.0
+
+      - name: Verify the agent graph
+        # `--with` resolves google-adk into an ephemeral environment for this one
+        # command, so install and run share a process and the install cannot be
+        # silently discarded. google-adk requires Python >= 3.10; 3.12 is pinned
+        # for reproducibility rather than inherited from the runner image.
+        run: |
+          uv run --python 3.12 --with google-adk \
+            python scripts/adk_multi_agent_system.py --smoke-test
