@@ -124,9 +124,12 @@ def publish_to_soundcloud(
     data = {
         "track[title]": title,
         "track[genre]": "Cybernetic Psytrance",
-        "track[description]": description,
+        "track[description]": f"{description}\n\n📀 SoundCloud Vinyl On-Demand Ready (24-bit 96kHz Lossless WAV Master).",
         "track[sharing]": "private" if is_private else "public",
+        "track[downloadable]": "true",
+        "track[is_downloadable]": "true",
         "track[purchase_url]": "https://patreon.com/peterlodri",
+        "track[purchase_title]": "Order Vinyl Record (On Demand)",
         "track[license]": "all-rights-reserved"
     }
 
@@ -180,6 +183,7 @@ def get_ascii_release_card(track_info: dict[str, Any]) -> str:
 
  🎵 Track:     {title}
  💎 Quality:   24-bit / 96kHz Lossless Master
+ 📀 Vinyl:     READY (SoundCloud Vinyl On-Demand WAV)
  🌐 Public:    {url}
  🔑 Secret:    {secret if secret else "Public Release"}
  💖 Support:   https://patreon.com/peterlodri
