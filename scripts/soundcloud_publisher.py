@@ -156,7 +156,9 @@ def broadcast_telegram_ascii_release(track_info: dict[str, Any]) -> bool:
         return False
 
     import httpx
-    msg = f"<code>{get_ascii_release_card(track_info)}</code>"
+    # Escape HTML special characters for Telegram parser
+    card_text = get_ascii_release_card(track_info).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    msg = f"<code>{card_text}</code>"
     try:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         resp = httpx.post(url, json={"chat_id": chat_id, "text": msg, "parse_mode": "HTML"}, timeout=5.0)
