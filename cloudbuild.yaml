@@ -1,0 +1,28 @@
+steps:
+  # Step 1: Install Python dependencies & Google Cloud ADK (Agent Development Kit)
+  - name: 'python:3.12-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install --upgrade pip
+        pip install google-adk google-cloud-build google-genai httpx pydantic
+
+  # Step 2: Run ADK Multi-Agent Verification & Smoke Tests
+  - name: 'python:3.12-slim'
+    entrypoint: 'python3'
+    args: ['scripts/adk_multi_agent_system.py', '--smoke-test']
+
+  # Step 3: Build Container Image for GCP Cloud Run / Gemini Enterprise
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/vaked-adk-multi-agents:$COMMIT_SHA', '.']
+
+  # Step 4: Push Image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/vaked-adk-multi-agents:$COMMIT_SHA']
+
+images:
+  - 'gcr.io/$PROJECT_ID/vaked-adk-multi-agents:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
