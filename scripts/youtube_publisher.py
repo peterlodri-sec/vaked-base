@@ -31,8 +31,19 @@ def publish_to_youtube(
 ) -> str | None:
     """Upload MP4 music video to YouTube Channel UCiHo-77epw2s8nPd1XYwmSQ."""
     creds = None
+    from google.auth.transport.requests import Request
+
     if os.path.exists(token_path):
         creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+                with open(token_path, "w") as f:
+                    f.write(creds.to_json())
+                log.info("✅ Refreshed YouTube OAuth Token!")
+            except Exception as e:
+                log.warning("⚠️ Token refresh failed: %s", e)
+                creds = None
 
     if not creds or not creds.valid:
         if not os.path.exists(client_secret_path):
@@ -66,10 +77,20 @@ def publish_to_youtube(
     }
 
     log.info("📺 YouTube videó feltöltése folyamatban: %s...", title)
-    media = MediaFileUpload(video_path, chunksize=-1, resumable=True, mimetype="video/mp4")
+    media = MediaFileUpload(video_path, chunksize=10*1024*1024, resumable=True, mimetype="video/mp4")
     request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
     
-    response = request.execute()
+    response = None
+    while response is None:
+        try:
+            status, response = request.next_chunk(num_retries=5)
+            if status:
+                log.info("  ... Uploaded %d%%", int(status.progress() * 100))
+        except Exception as err:
+            log.warning("⚠️ Retrying YouTube upload chunk due to network error: %s", err)
+            import time
+            time.sleep(3)
+
     video_id = response.get("id")
     video_url = f"https://youtu.be/{video_id}"
     log.info("✅ Sikeres YouTube Feltöltés! Link: %s", video_url)
