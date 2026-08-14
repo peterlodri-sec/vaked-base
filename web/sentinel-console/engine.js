@@ -434,6 +434,32 @@
 }`;
     }
 
+    // Real-time fleet telemetry ingestion
+    let telemetryTimer = null;
+    async function pollFleet() {
+      try {
+        const res = await fetch('https://portail.vaked.dev/v1/sentinel/fleet', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.constellation && Array.isArray(data.constellation)) {
+            data.constellation.forEach(item => {
+              if (item.status === 'online') {
+                evt('surface', item.domain, `${item.latency_ms || item.latency || 14}ms · mesh verified`);
+              }
+            });
+          }
+        }
+      } catch (err) {
+        // Fallback gracefully on CORS/offline
+      }
+    }
+
+    function startTelemetry() {
+      pollFleet();
+      if (!telemetryTimer) telemetryTimer = setInterval(pollFleet, 12000);
+    }
+    startTelemetry();
+
     window.addEventListener('resize', resize);
     return { start, stop, setAccent, selectAt, command, resize, getKinds: () => KIND, setReduceMotion, setStatic, simulateFanout, vakedFile,
       _dbg: () => ({ W, H, cw: gc.width, clientW: gc.clientWidth, clientH: gc.clientHeight, n: nodes.length, sample: nodes.slice(0, 5).map(n => ({ x: Math.round(n.x), y: Math.round(n.y), k: n.kind, l: n.label })) }) };
